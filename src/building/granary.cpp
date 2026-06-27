@@ -2,7 +2,6 @@
 #include "granary.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/properties.h"
@@ -142,7 +141,9 @@ int building_granary_remove_export(Building &granary, resource_type resource, in
     return removed;
 }
 
-int building_granary_try_add_resource(Building &granary, resource_type resource, int amount, int is_produced, int respect_settings)
+int building_granary_try_add_resource(
+    Building &granary, resource_type resource, int amount, int is_produced, int respect_settings,
+    unsigned int ignore_figure_id)
 {
     if (granary.id() <= 0 || !resource_is_food(resource) || !is_granary_building(granary)
     || ((building_storage_get_state(granary, resource, 1) == BUILDING_STORAGE_STATE_NOT_ACCEPTING) && respect_settings)) {
@@ -150,7 +151,8 @@ int building_granary_try_add_resource(Building &granary, resource_type resource,
     }
     int amount_added = 0;
     int max_current_capacity = respect_settings ?
-        building_granary_maximum_receptible_amount(granary, resource) : building_granary_get_free_space_amount(granary);
+        building_granary_maximum_receptible_amount(granary, resource, ignore_figure_id) :
+        building_granary_get_free_space_amount(granary);
     if (amount > max_current_capacity) {
         amount_added = max_current_capacity;
     } else {
@@ -299,7 +301,8 @@ int building_granaries_send_resources_to_rome(resource_type resource, int amount
     return amount;
 }
 
-int building_granary_maximum_receptible_amount(const Building &b, resource_type resource)
+int building_granary_maximum_receptible_amount(
+    const Building &b, resource_type resource, unsigned int ignore_figure_id)
 {
     if (b.has_plague() || building_storage_get_empty_all(b.id()) ||
          !b.is_in_use() || b.resource_amount(RESOURCE_NONE) <= 0) {
@@ -313,14 +316,16 @@ int building_granary_maximum_receptible_amount(const Building &b, resource_type 
     }
 
     int max_accepted_amount = s->resource_state[resource].quantity; // max player-set limit
-    int current_stored = b.resource_amount(resource); // already stored
-    int remaining_for_resource = max_accepted_amount - current_stored;
+    const int current_stored = b.resource_amount(resource); // already stored
+    const int reserved_inbound = b.reserved_legacy_storage_loads(resource, ignore_figure_id);
+    const int reserved_inbound_total = b.reserved_legacy_storage_loads(RESOURCE_NONE, ignore_figure_id);
+    int remaining_for_resource = max_accepted_amount - current_stored - reserved_inbound;
 
     if (remaining_for_resource <= 0) {
         return 0;
     }
 
-    int free_space_overall = b.resource_amount(RESOURCE_NONE); // general free slots
+    int free_space_overall = MAX(0, b.resource_amount(RESOURCE_NONE) - reserved_inbound_total); // general free slots
     int final_capacity = MIN(remaining_for_resource, free_space_overall);
     return final_capacity > 0 ? final_capacity : 0;
 }

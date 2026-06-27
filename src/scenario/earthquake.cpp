@@ -4,7 +4,6 @@
 #include "building/monument.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "city/message.h"
 #include "core/calc.h"
@@ -20,8 +19,6 @@
 #include "map/tiles.h"
 #include "scenario/data.h"
 #include "sound/effect.h"
-
-#include <string.h>
 
 static struct {
     int game_year;
@@ -42,16 +39,6 @@ struct field{
     int x;
     int y;
 };
-
-static int building_matches(const building *b, const char *text_id)
-{
-    if (!b || !text_id) {
-        return 0;
-    }
-    Building current(const_cast<building *>(b));
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && strcmp(definition->attr(), text_id) == 0;
-}
 
 void scenario_earthquake_init(void)
 {
@@ -102,7 +89,7 @@ static void advance_earthquake_to_tile(int x, int y)
             return;
         }
 
-        if (!building_matches(b, "burning_ruin")) {
+        if (!Building(b).matches("burning_ruin")) {
             // (fort, hippodrome, ect.)
             if (b->prev_part_building_id > 0 || b->next_part_building_id > 0) {
                 // find first part

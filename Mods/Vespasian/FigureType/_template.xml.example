@@ -8,5 +8,10 @@
             <pathing mode="vanilla_roaming" />
         </profile>
     </profiles>
-    <graphics image_group="teacher_librarian" max_image_offset="12" />
+    <graphics max_image_offset="12">
+        <default>
+            <path value="Walkers\replace_with_group_or_file" />
+            <!-- Add <image value="..." /> only for explicit image-id or pattern targets during migration. -->
+        </default>
+    </graphics>
 </figure>

@@ -9,7 +9,6 @@
 #include "building/building_type_registry_internal.h"
 
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -159,14 +158,8 @@ bool fishing_industry_is_available()
     if (!scenario_map_has_fishing_points()) {
         return false;
     }
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && std::strcmp(definition->attr(), "wharf") == 0) {
-            return scenario_allowed_building(type);
-        }
-    }
-    return false;
+    building_type wharf = building_type_registry_impl::type_from_attr("wharf");
+    return wharf != BUILDING_NONE && scenario_allowed_building(wharf);
 }
 
 resource_type runtime_from_text_id(const char *text_id)

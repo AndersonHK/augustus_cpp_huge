@@ -29,6 +29,6 @@
     </graphics>
     <housing path="house_large_palace" capacity="190" evolve_to="house_luxury_palace" devolve_to="house_medium_palace" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
+        <spawn mode="profiled_figure" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
     </spawn_group>
 </building>

@@ -12,6 +12,9 @@
   <button group="forts" order="130" text_key="TR_BUILDING_FORT_AUXILIA_INFANTRY" />
     <event_data attr="fort_swords" />
     <flags fire_proof="1" draw_desirability_range="1" />
+    <military>
+        <formation key="legacy_infantry_4x4" />
+    </military>
     <graphics>
         <default>
             <options selection="orientation">

@@ -1,7 +1,6 @@
 #include "translation/translation.h"
 #include "overlay_menu.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
@@ -18,7 +17,6 @@
 #include "window/city.h"
 #include "graphics/image.h"
 
-#include <cstring>
 #include <stdlib.h>
 
 #define MENU_X_OFFSET 170
@@ -79,17 +77,6 @@ struct overlay_menu_entry {
 };
 
 static const overlay_menu_entry OVERLAY_MENU_SENTINEL = OVERLAY_MENU_END;
-
-static building_type building_type_from_attr(const char *text_id)
-{
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
 
 static const overlay_menu_entry submenu_risks[] = {
     { OVERLAY_FIRE, 0, JULIUS, NULL },
@@ -241,7 +228,7 @@ static const uint8_t *get_overlay_text(const overlay_menu_entry *entry)
     }
 
     if (entry->translation_kind == XML_BUILDING_NAME) {
-        building_type type = building_type_from_attr(entry->building_text_id);
+        building_type type = building_type_registry_impl::type_from_attr(entry->building_text_id);
         return lang_get_building_type_string(type);
     }
 

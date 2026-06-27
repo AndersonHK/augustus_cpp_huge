@@ -8,8 +8,6 @@
 #include "game/time.h"
 #include "scenario/data.h"
 
-#include <string.h>
-
 static struct {
     int game_year;
     int month;
@@ -17,24 +15,10 @@ static struct {
     int state;
 } data;
 
-static building_type runtime_type(const char *text_id)
-{
-    if (!text_id || !*text_id) {
-        return BUILDING_NONE;
-    }
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
-
 static int start_revolt(void)
 {
-    if (building_count_active(runtime_type("gladiator_school")) > 0 && !city_games_executions_active()) {
+    if (building_count_active(building_type_registry_impl::type_from_attr("gladiator_school")) > 0 &&
+        !city_games_executions_active()) {
         data.state = EVENT_IN_PROGRESS;
         city_message_post(1, MESSAGE_GLADIATOR_REVOLT, 0, 0);
     } else {

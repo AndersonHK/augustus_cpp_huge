@@ -4,7 +4,7 @@
 #include "building/production_method.h"
 #include "building/building_type_registry_internal.h"
 #include "city/labor.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"

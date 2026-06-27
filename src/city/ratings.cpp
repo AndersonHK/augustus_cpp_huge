@@ -3,7 +3,7 @@
 #include "ratings.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/house.h"
 #include "city/culture.h"
@@ -17,37 +17,8 @@
 #include "scenario/criteria.h"
 #include "scenario/property.h"
 
-#include <cstring>
-
 #define MONUMENT_CULTURE_BONUS 6
 #define GAMES_MONTHLY_FAVOUR_BONUS 2
-
-static int building_matches(const Building &building, const char *text_id)
-{
-    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
-}
-
-static int building_matches_any(const Building &building, const char *const *text_ids)
-{
-    for (int i = 0; text_ids[i]; i++) {
-        if (building_matches(building, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int count_active(const char *text_id)
-{
-    int active = 0;
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (building_is_active(b) && b == building_main(b) && building_matches(Building(b), text_id)) {
-            active++;
-        }
-    }
-    return active;
-}
 
 int city_rating_culture(void)
 {
@@ -123,11 +94,14 @@ void city_ratings_peace_building_destroyed(const Building &building)
     if (definition && definition->is_well()) {
         return;
     }
-    int legacy_house_level = building_type_registry_get_housing_level(type);
+    int legacy_house_level = definition ? definition->housing_level() : -1;
     if (legacy_house_level == HOUSE_SMALL_TENT || legacy_house_level == HOUSE_LARGE_TENT) {
         return;
     }
-    if (building_is_fort(type) || building_matches_any(building, PEACE_EXEMPT_SECURITY_BUILDINGS)) {
+    if (building_is_fort(type) || building_type_registry_impl::type_attr_is_any(
+        type,
+        PEACE_EXEMPT_SECURITY_BUILDINGS,
+        (sizeof(PEACE_EXEMPT_SECURITY_BUILDINGS) / sizeof(PEACE_EXEMPT_SECURITY_BUILDINGS[0])) - 1)) {
         return;
     }
     city_data.ratings.peace_destroyed_buildings++;
@@ -472,9 +446,12 @@ static void update_culture_rating(void)
     city_data.ratings.culture += city_data.ratings.culture_points.library;
 
     city_data.ratings.culture += building_count_grand_temples_active() * MONUMENT_CULTURE_BONUS;
-    city_data.ratings.culture += count_active("pantheon") * MONUMENT_CULTURE_BONUS;
-    city_data.ratings.culture += count_active("colosseum") * MONUMENT_CULTURE_BONUS;
-    city_data.ratings.culture += count_active("hippodrome") * MONUMENT_CULTURE_BONUS;
+    city_data.ratings.culture +=
+        building_count_active(building_type_registry_impl::type_from_attr("pantheon")) * MONUMENT_CULTURE_BONUS;
+    city_data.ratings.culture +=
+        building_count_active(building_type_registry_impl::type_from_attr("colosseum")) * MONUMENT_CULTURE_BONUS;
+    city_data.ratings.culture +=
+        building_count_active(building_type_registry_impl::type_from_attr("hippodrome")) * MONUMENT_CULTURE_BONUS;
 
     city_data.ratings.culture = calc_bound(city_data.ratings.culture, 0, 100);
     update_culture_explanation();

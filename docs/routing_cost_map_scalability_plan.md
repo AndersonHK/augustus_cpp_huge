@@ -336,10 +336,17 @@ Determinism guardrails:
   facade.
 - Preserve C-compatible wrappers only at subsystem boundaries that have not
   migrated yet.
+- Progress landed: figure route-policy selection now lives behind
+  `PathingMode::routePolicyForFigure()`, including XML profile lookup, legacy
+  terrain fallback, and roadblock permission selection. Route planning still
+  consumes the selected policy through the legacy backend.
 
 ### Slice 2: Figure Route Reuse
 
 - Add destination/policy/epoch stamps to routed figures or native route records.
+- Make destination selection return a reusable planned route object. A spawner or
+  venue selector should validate reachability once, then hand the same route to
+  the figure instead of making the figure recompute under a second policy.
 - Ensure destination mutation routes through one method that invalidates the
   route once.
 - Let movement reuse current paths until next-tile validation fails.
@@ -355,12 +362,40 @@ Determinism guardrails:
   over cached candidates.
 - Dirty access caches from nearby road, roadblock, and building placement
   events.
+- Preparation landed: legacy road-access checks now build a `RoadAccessQuery`
+  for footprint, hippodrome, and monument candidate areas before scanning; this
+  names the future cache boundary without adding invalidation yet.
+- Building-owned boundary started: committed buildings now expose cached
+  road-access points and storage-destination road-access queries through
+  `Building`, while cache invalidation still stays with the existing
+  maintenance/resource refresh paths.
 - Convert local workforce house/workplace scans to typed runtime lists.
 
 ### Slice 4: CostMapCache
 
 - Introduce local cost-map objects with reusable scratch buffers.
 - Add generation-stamped distance and visited arrays.
+- Preparation landed: `route.cpp` now reads ambient distances through one
+  private backend accessor, and `Route::DistanceQuery` carries a private legacy
+  cost-map handle wrapper instead of a raw distance-grid generation integer.
+  Its local distance-query APIs and road-candidate selectors now seed and read
+  through that handle, including max-distance filtering and legacy generation
+  validation; the handle still wraps the global grid until a real local cost
+  map lands.
+- Remaining `route_distance_at()` bridge users are path reconstruction,
+  planner max-tile validation after policy-specific legacy seeding,
+  `TerrainQuery`, construction distance reads, and water reachability; moving
+  them needs policy-specific cost-map handles rather than the citizen-road
+  `DistanceQuery` handle.
+- Pathing ownership cleanup: citizen road-network lookup now lives on
+  `PathingMode`, so route planning no longer owns a local road-like/network
+  helper or includes the road-network map header directly.
+- Route-policy cleanup: wall route classification now lives on `RoutePolicy`,
+  and route intent performance purposes are derived from the constructed policy
+  instead of a separate figure-field helper.
+- Candidate selection cleanup: `Route::DistanceQuery` now shares one
+  route-owned area selector for reachable-tile and access-road scans, preserving
+  expanding-radius and same-network pruning semantics.
 - Cache common fields by policy, source/target set, and epochs.
 - Convert `Route::DistanceQuery` to hold a `CostMapHandle` instead of reseeding
   the global grid.

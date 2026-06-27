@@ -22,6 +22,26 @@ public:
     virtual void visit(const road_access_candidate &candidate) = 0;
 };
 
+class RoadAccessQuery {
+public:
+    static RoadAccessQuery fromFootprint(int x, int y, int size);
+    static RoadAccessQuery fromRotatedFootprint(int rotation, int x, int y, int size);
+    static RoadAccessQuery hippodrome(int x, int y, int rotation);
+    static RoadAccessQuery monumentConstruction(int x, int y, int size);
+
+    void visitCandidates(RoadAccessCandidateVisitor &visitor) const;
+    int hasRoadAccess(map_point *road) const;
+
+    const road_access_area *areas() const { return areas_; }
+    int areaCount() const { return area_count_; }
+
+private:
+    void addArea(int x, int y, int size);
+
+    road_access_area areas_[8] = {};
+    int area_count_ = 0;
+};
+
 void map_road_access_visit_candidates(
     const road_access_area *areas,
     int area_count,
@@ -57,5 +77,3 @@ int map_has_road_access_granary(int x, int y, map_point *road);
 int map_has_road_access_monument_construction(int x, int y, int size);
 
 int map_closest_road_within_radius(int x, int y, int size, int radius, int *x_road, int *y_road);
-
-int map_get_adjacent_road_tiles_for_roaming(int grid_offset, int *road_tiles, int p);

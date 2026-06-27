@@ -500,12 +500,13 @@ int prepare_labor_seeker_target(Figure *f)
         if (is_live_building(house) && house.has_house_size()) {
             const map_point source_road = { f->x, f->y };
             const map_point target_road = { f->destination_x, f->destination_y };
+            RoutePolicy reachability_policy = RoutePolicy::fromKind(RoutePolicyKind::CitizenRoadGarden);
+            reachability_policy.permission = PERMISSION_LABOR_SEEKER;
             Route::Request reachability = Route::Request::between(
                 source_road,
                 target_road,
-                Route::Surface::CitizenRoadGarden,
+                reachability_policy,
                 PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
-            reachability.permission = PERMISSION_LABOR_SEEKER;
             reachability.max_tiles = remaining_roam_length(f);
             reachability.require_same_road_network = true;
             const int target_is_reachable = Route::Planner::canReach(reachability);

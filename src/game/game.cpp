@@ -17,6 +17,8 @@
 #include "building/building_type_registry.h"
 #include "building/building_runtime.h"
 #include "figure/figure_type_registry.h"
+#include "figure/formation_type.h"
+#include "figure/unit_type.h"
 #include "game/defines.h"
 #include "game/performance_tracker.h"
 #include "graphics/declarative_window.h"
@@ -39,7 +41,7 @@
 #include "core/random.h"
 #include "core/string.h"
 #include "figure/type.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/speed.h"
 #include "graphics/font.h"
 #include "graphics/text.h"
@@ -196,14 +198,29 @@ int game_init(void)
     }
 
     building_properties_init();
+    if (!figure_type_registry_load()) {
+        set_init_failure_message("Failed to load FigureType definitions.", figure_type_registry_get_failure_reason());
+        errlog("unable to load FigureType xml definitions");
+        return 0;
+    }
+    if (!unit_type_registry_load()) {
+        set_init_failure_message("Failed to load UnitType definitions.", unit_type_registry_get_failure_reason());
+        errlog("unable to load UnitType xml definitions");
+        return 0;
+    }
+    if (!formation_type_registry_load()) {
+        set_init_failure_message("Failed to load FormationType definitions.", formation_type_registry_get_failure_reason());
+        errlog("unable to load FormationType xml definitions");
+        return 0;
+    }
     if (!building_type_registry_load()) {
         set_init_failure_message("Failed to load BuildingType definitions.", 0);
         errlog("unable to load BuildingType xml definitions");
         return 0;
     }
-    if (!figure_type_registry_load()) {
-        set_init_failure_message("Failed to load FigureType definitions.", figure_type_registry_get_failure_reason());
-        errlog("unable to load FigureType xml definitions");
+    if (!figure_type_registry_resolve_building_references()) {
+        set_init_failure_message("Failed to resolve FigureType building references.", figure_type_registry_get_failure_reason());
+        errlog("unable to resolve FigureType building references");
         return 0;
     }
     building_runtime_reset();
@@ -307,7 +324,7 @@ int game_reload_language(void)
 
 void game_run(void)
 {
-    game_animation_update();
+    Animation::update_timers();
     int num_ticks = game_speed_get_elapsed_ticks();
     int processed_ticks = 0;
     for (int i = 0; i < num_ticks; i++) {

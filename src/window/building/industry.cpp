@@ -3,7 +3,7 @@
 #include "building/industry.h"
 #include "building/water_access_runtime.h"
 #include "figure/figure.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -15,7 +15,6 @@
 #include "core/file.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "city/buildings.h"

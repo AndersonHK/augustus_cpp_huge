@@ -7,7 +7,6 @@
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure.h"
-#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/monument.h"
@@ -29,78 +28,51 @@ constexpr uint16_t LEGACY_SAVE_TYPE_LIGHTHOUSE = 155;
 constexpr uint16_t LEGACY_SAVE_TYPE_PAVILION_FIRST = 144;
 constexpr uint16_t LEGACY_SAVE_TYPE_PAVILION_LAST = 148;
 
-building_type type_from_attr(const char *attr)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
-int type_is(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-int type_is_any(building_type type, const char *const *text_ids, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        if (type_is(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-const building_type_registry_impl::BuildingType *type_definition(building_type type)
-{
-    return building_type_registry_impl::definition_for_type(type);
-}
+using building_type_registry_impl::definition_for_type;
+using building_type_registry_impl::type_attr_is;
+using building_type_registry_impl::type_attr_is_any;
+using building_type_registry_impl::type_from_attr;
 
 int type_has_distribution(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
     return definition && definition->has_distribution();
 }
 
 int type_is_caravanserai(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
     return definition && definition->is_caravanserai();
 }
 
 int type_is_large_temple_supplier(building_type type)
 {
-    return type_is(type, "large_temple_ceres") || type_is(type, "large_temple_venus");
+    return type_attr_is_any(type, {"large_temple_ceres", "large_temple_venus"});
 }
 
 int type_is_warehouse(building_type type)
 {
-    return type_is(type, "warehouse");
+    return type_attr_is(type, "warehouse");
 }
 
 int type_is_warehouse_space(building_type type)
 {
-    return type_is(type, "warehouse_space");
+    return type_attr_is(type, "warehouse_space");
 }
 
 int type_is_granary(building_type type)
 {
-    return type_is(type, "granary");
+    return type_attr_is(type, "granary");
 }
 
 int type_is_depot(building_type type)
 {
-    return type_is(type, "cart_depot");
+    return type_attr_is(type, "cart_depot");
 }
 
 int type_is_burning_ruin(building_type type)
 {
-    return type_is(type, "burning_ruin");
+    return type_attr_is(type, "burning_ruin");
 }
 
 int type_is_rubble_shell(building_type type)
@@ -110,17 +82,17 @@ int type_is_rubble_shell(building_type type)
 
 int type_uses_industry_state(const building *b)
 {
-    return b && (b->output_resource_id || type_is(b->type, "native_crops") ||
-        type_is(b->type, "shipyard") || type_is(b->type, "wharf"));
+    return b && (b->output_resource_id || type_attr_is(b->type, "native_crops") ||
+        type_attr_is(b->type, "shipyard") || type_attr_is(b->type, "wharf"));
 }
 
 int type_uses_monthly_production_stats(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
     if (definition && definition->is_farm()) {
         return 1;
     }
-    static const char *const monthly_stats_types[] = {
+    return type_attr_is_any(type, {
         "marble_quarry",
         "iron_mine",
         "timber_yard",
@@ -131,21 +103,19 @@ int type_uses_monthly_production_stats(building_type type)
         "furniture_workshop",
         "pottery_workshop",
         "wharf"
-    };
-    return type_is_any(type, monthly_stats_types, sizeof(monthly_stats_types) / sizeof(monthly_stats_types[0]));
+    });
 }
 
 int type_is_legacy_large_temple_or_oracle(building_type type)
 {
-    static const char *const types[] = {
+    return type_attr_is_any(type, {
         "large_temple_ceres",
         "large_temple_neptune",
         "large_temple_mercury",
         "large_temple_mars",
         "large_temple_venus",
         "oracle"
-    };
-    return type_is_any(type, types, sizeof(types) / sizeof(types[0]));
+    });
 }
 
 } // namespace
@@ -184,7 +154,7 @@ static const char *loaded_building_type_problem(const building *b, uint16_t save
     if (b->type == BUILDING_NONE) {
         return "save_type_resolved_to_none";
     }
-    if (!building_type_registry_has_definition(b->type)) {
+    if (!building_type_registry_impl::definition_for_type(b->type)) {
         return "runtime_type_has_no_definition";
     }
     return 0;
@@ -221,7 +191,7 @@ static void format_loaded_building_type_problem(
         safe_text(runtime_text_id),
         runtime_save_type,
         safe_text(legacy_runtime_text_id),
-        building_type_registry_has_definition(runtime_type),
+        building_type_registry_impl::definition_for_type(runtime_type) != nullptr,
         b ? b->x : 0,
         b ? b->y : 0,
         b ? b->grid_offset : 0,
@@ -382,12 +352,14 @@ static void normalize_native_housing_after_load(building *b)
         return;
     }
 
-    int housing_level = building_type_registry_get_housing_level(b->type);
+    const building_type_registry_impl::BuildingType *current_definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    int housing_level = current_definition ? current_definition->housing_level() : -1;
     if (housing_level < 0) {
         return;
     }
     if (housing_level == HOUSE_SMALL_TENT && b->house_population <= 0) {
-        building_type vacant_lot_type = building_type_registry_get_vacant_lot_fill_type();
+        building_type vacant_lot_type = building_type_registry_impl::vacant_lot_fill_type();
         if (vacant_lot_type != BUILDING_NONE) {
             b->type = vacant_lot_type;
             b->subtype.house_level = housing_level;
@@ -401,14 +373,16 @@ static void normalize_native_housing_after_load(building *b)
         footprint_size = 2;
     }
 
-    building_type native_type = building_type_registry_get_housing_type_for_level(housing_level, footprint_size);
+    building_type native_type = building_type_registry_impl::building_type_for_housing_level(housing_level, footprint_size);
     if (native_type == BUILDING_NONE || native_type == b->type) {
         return;
     }
 
     b->type = native_type;
     b->subtype.house_level = housing_level;
-    int model_size = building_type_registry_get_model_size(native_type);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(native_type);
+    int model_size = definition ? definition->declared_model_size() : 0;
     if (model_size > 0) {
         b->size = model_size;
         b->house_size = model_size;
@@ -428,8 +402,7 @@ static void write_type_data(buffer *buf, const building *b)
     // If you don't write 26 bytes, the function will pad them at the end.
     // If you need more than 26 bytes, don't use the type data.
     size_t buffer_index = buf->index;
-    const auto *definition = type_definition(b->type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    const int is_dock = type_attr_is(b->type, "dock");
 
     if (building_is_house(b->type)) {
         buffer_write_u8(buf, b->data.house.theater);
@@ -652,8 +625,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
         type_data_bytes = TYPE_DATA_CURRENT_BUFFER_SIZE;
     }
     size_t buffer_index = buf->index;
-    const auto *definition = type_definition(b->type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    const int is_dock = type_attr_is(b->type, "dock");
 
     if (building_is_house(b->type)) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -864,8 +836,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
 
 static void migrate_accepted_goods(building *b, int permissions)
 {
-    const auto *definition = type_definition(b->type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    const int is_dock = type_attr_is(b->type, "dock");
     int max = is_dock ? resource_id_bridge_legacy_resource_count() : resource_id_bridge_legacy_inventory_count();
     for (int i = 0; i < max; i++) {
         int goods_bit = 1 << i;
@@ -889,7 +860,7 @@ static int dock_has_any_accepted_goods(const building *b)
 
 static void repair_dock_accepted_goods_if_empty(building *b)
 {
-    if (!b || !type_is(b->type, "dock") || dock_has_any_accepted_goods(b)) {
+    if (!b || !type_attr_is(b->type, "dock") || dock_has_any_accepted_goods(b)) {
         return;
     }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -912,8 +883,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     uint16_t saved_building_type = buffer_read_u16(buf);
     int missing_building_type = building_type_id_bridge_save_id_is_missing(saved_building_type);
     b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
-    const auto *definition = type_definition(b->type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    const int is_dock = type_attr_is(b->type, "dock");
     if (type_is_warehouse_space(b->type)) {
         b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
@@ -988,13 +958,13 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->show_on_problem_overlay = buffer_read_u8(buf);
 
     // Wharves produce fish and don't need any progress
-    if (type_is(b->type, "wharf")) {
+    if (type_attr_is(b->type, "wharf")) {
         b->output_resource_id = resource_fish();
         b->data.industry.progress = 0;
     }
 
     // Triumphal arches may have wrong orientation
-    if (type_is(b->type, "triumphal_arch") && b->subtype.orientation == 3) {
+    if (type_attr_is(b->type, "triumphal_arch") && b->subtype.orientation == 3) {
         b->subtype.orientation = 2;
     }
 
@@ -1005,12 +975,12 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         }
 
         // Backwards compatibility fixes for culture update
-        if (building_monument_is_monument(b) && b->subtype.house_level && !type_is(b->type, "hippodrome") &&
+        if (building_monument_is_monument(b) && b->subtype.house_level && !type_attr_is(b->type, "hippodrome") &&
             saved_building_type <= LEGACY_SAVE_TYPE_LIGHTHOUSE) {
             b->monument.phase = b->subtype.house_level;
         }
 
-        if ((type_is(b->type, "hippodrome") || type_is(b->type, "colosseum")) && !b->monument.phase) {
+        if ((type_attr_is(b->type, "hippodrome") || type_attr_is(b->type, "colosseum")) && !b->monument.phase) {
             b->monument.phase = MONUMENT_FINISHED;
         }
 
@@ -1028,15 +998,15 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     // Backwards compatibility - double the current progress of industry buildings, except for wheat farms
-    if (save_version < SAVE_GAME_LAST_NO_GOLD_AND_MINTING && b->output_resource_id && !type_is(b->type, "wheat_farm")) {
+    if (save_version < SAVE_GAME_LAST_NO_GOLD_AND_MINTING && b->output_resource_id && !type_attr_is(b->type, "wheat_farm")) {
         b->data.industry.progress *= 2;
     }
 
     // Backwards compatibility - set roadblock permissions for gatehouses and triumphal arches
     if (save_version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
-        if (type_is(b->type, "triumphal_arch")) {
+        if (type_attr_is(b->type, "triumphal_arch")) {
             b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
-        } else if (type_is(b->type, "gatehouse")) {
+        } else if (type_attr_is(b->type, "gatehouse")) {
             b->data.roadblock.exceptions = 0;
         }
     }
@@ -1079,7 +1049,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     if (building_buf_size < BUILDING_STATE_VARIANTS_AND_UPGRADES &&
         saved_building_type >= LEGACY_SAVE_TYPE_PAVILION_FIRST &&
         saved_building_type <= LEGACY_SAVE_TYPE_PAVILION_LAST &&
-        type_is(b->type, "pavilion")) {
+        type_attr_is(b->type, "pavilion")) {
         b->variant = static_cast<unsigned char>(saved_building_type - LEGACY_SAVE_TYPE_PAVILION_FIRST);
     }
 
@@ -1125,27 +1095,27 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 
     // Backwards compatibility - update loads stored to the proper new variable
     if (save_version <= SAVE_GAME_LAST_NO_NEW_MONUMENT_RESOURCES && !building_monument_is_unfinished_monument(b)) {
-        if (type_is(b->type, "grand_temple_mars") || type_is(b->type, "barracks")) {
+        if (type_attr_is(b->type, "grand_temple_mars") || type_attr_is(b->type, "barracks")) {
             b->resources[resource_weapons()] = loads_stored;
-        } else if (type_is(b->type, "pottery_workshop")) {
+        } else if (type_attr_is(b->type, "pottery_workshop")) {
             b->resources[resource_clay()] = loads_stored * resource_units_per_load();
-        } else if (type_is(b->type, "oil_workshop")) {
+        } else if (type_attr_is(b->type, "oil_workshop")) {
             b->resources[resource_oil()] = loads_stored * resource_units_per_load();
-        } else if (type_is(b->type, "wine_workshop")) {
+        } else if (type_attr_is(b->type, "wine_workshop")) {
             b->resources[resource_vines()] = loads_stored * resource_units_per_load();
-        } else if (type_is(b->type, "furniture_workshop")) {
+        } else if (type_attr_is(b->type, "furniture_workshop")) {
             b->resources[resource_timber()] = loads_stored * resource_units_per_load();
-        } else if (type_is(b->type, "weapons_workshop")) {
+        } else if (type_attr_is(b->type, "weapons_workshop")) {
             b->resources[resource_iron()] = loads_stored * resource_units_per_load();
-        } else if (type_is(b->type, "city_mint")) {
+        } else if (type_attr_is(b->type, "city_mint")) {
             b->resources[resource_gold()] = loads_stored;
-        } else if (type_is(b->type, "small_temple_neptune") || type_is(b->type, "large_temple_neptune")) {
+        } else if (type_attr_is(b->type, "small_temple_neptune") || type_attr_is(b->type, "large_temple_neptune")) {
             b->days_since_offering = loads_stored;
         } else if (type_is_warehouse_space(b->type)) {
             b->resources[b->subtype.warehouse_resource_id] = loads_stored;
-        } else if (type_is(b->type, "lighthouse")) {
+        } else if (type_attr_is(b->type, "lighthouse")) {
             b->resources[resource_timber()] = loads_stored;
-        } else if (type_is(b->type, "grand_temple_venus")) {
+        } else if (type_attr_is(b->type, "grand_temple_venus")) {
             b->resources[resource_wine()] = loads_stored;
         }
     }
@@ -1160,7 +1130,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     if (
-        (type_is(b->type, "lighthouse") || type_is_caravanserai(b->type)) &&
+        (type_attr_is(b->type, "lighthouse") || type_is_caravanserai(b->type)) &&
         b->figure_id2 &&
         !for_preview &&
         Figure::get(b->figure_id2)->type != FIGURE_LABOR_SEEKER
@@ -1170,7 +1140,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     // Old save barracks and temple of mars should accept weapons by default
-    if (type_is(b->type, "barracks") || type_is(b->type, "grand_temple_mars")) {
+    if (type_attr_is(b->type, "barracks") || type_attr_is(b->type, "grand_temple_mars")) {
         if (!b->accepted_goods[RESOURCE_NONE]) {
             b->accepted_goods[RESOURCE_NONE] = 1; // set RESOURCE_NONE to 1 to mark this as a new save compatibility
             b->accepted_goods[resource_weapons()] = 1;

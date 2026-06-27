@@ -1,4 +1,3 @@
-#include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 #include "core/log.h"
 #include "translation/translation.h"

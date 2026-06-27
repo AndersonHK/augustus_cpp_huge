@@ -26,7 +26,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:7,75:15,50:30,25:60,1:90" existing_figure="charioteer">
-        <spawn mode="service_roamer" spawn_figure="charioteer"
+        <spawn mode="profiled_figure" spawn_figure="charioteer"
             action_state="entertainer_school_created" direction="top" figure_slot="primary"
             init_roaming="false" profile="venue_seeker" />
     </spawn_group>

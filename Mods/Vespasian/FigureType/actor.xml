@@ -5,7 +5,7 @@
             <native class="entertainment_venue_seeker" />
             <owner slot="primary" building="actor_colony" state="in_use" />
             <movement roam_ticks="1" max_roam_length="4800" return_mode="none" />
-            <pathing mode="venue_seeker" terrain="roads" />
+            <pathing mode="venue_seeker" terrain="roads_highway" />
             <venue_targets show_duration="64">
                 <venue building="theater" show_slot="days1" />
                 <venue building="amphitheater" show_slot="days2" />
@@ -15,13 +15,13 @@
             <native class="entertainment_service" />
             <owner slot="primary" building="theater" state="in_use" />
             <movement roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
-            <pathing mode="smart_service" terrain="roads" effect="entertainment_theater" />
+            <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_theater" />
         </profile>
         <profile id="amphitheater_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="amphitheater" state="in_use" />
             <movement roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
-            <pathing mode="smart_service" terrain="roads" effect="entertainment_amphitheater_actor" />
+            <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_amphitheater_actor" />
         </profile>
     </profiles>
     <graphics image_group="actor" max_image_offset="12" />

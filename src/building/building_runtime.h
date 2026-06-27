@@ -48,6 +48,9 @@ public:
     int owns_graphic_animation();
     int owns_native_storage() const;
     int owns_native_production() const;
+    int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0);
+    int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    void release_legacy_storage_reservation(unsigned int figure_id);
 
     Building building() const;
 
@@ -83,6 +86,12 @@ private:
         std::uint64_t signature = 0;
     };
 
+    struct LegacyStorageReservation {
+        unsigned int figure_id = 0;
+        resource_type resource = RESOURCE_NONE;
+        int loads = 0;
+    };
+
     void refresh_runtime_state();
     void clear_cached_graphics_bindings();
     void invalidate_graphics_cache();
@@ -96,7 +105,7 @@ private:
         const building_type_registry_impl::GraphicsTarget &target,
         const ImageGroupPayload *&payload,
         const ImageGroupEntry *&entry) const;
-    const RuntimeAnimationTrack *cached_animation_track() const;
+    const Animation *cached_animation() const;
     int worker_percentage() const;
     int default_spawn_delay() const;
     void check_labor_problem();
@@ -133,12 +142,16 @@ private:
     void spawn_lighthouse();
     void spawn_watchtower();
     void spawn_armoury();
+    void run_native_production_phase(const map_point &road, int run_labor);
     resource_type figure_delivery_output_resource() const;
     void spawn_figure_delivery_cart(const map_point &road);
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
     int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy);
+    LegacyStorageReservation *legacy_storage_reservation_for(unsigned int figure_id);
+    int legacy_storage_reservation_is_current(const LegacyStorageReservation &reservation) const;
+    void prune_legacy_storage_reservations();
     int should_apply_graphic_for_timing(
         const building_type_registry_impl::SpawnDelayGroup &group,
         building_type_registry_impl::GraphicTiming timing) const;
@@ -147,7 +160,7 @@ private:
     void assign_figure_slot(building_type_registry_impl::FigureSlot slot, unsigned int figure_id);
     int create_spawned_figure(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road);
     int try_spawn_policy(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road);
-    void spawn_service_roamer_group(
+    void run_spawn_group(
         const building_type_registry_impl::SpawnDelayGroup &group,
         size_t group_index,
         int run_labor);
@@ -170,5 +183,6 @@ private:
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
     std::vector<unsigned char> spawn_delay_counters_;
+    std::vector<LegacyStorageReservation> legacy_storage_reservations_;
     CachedGraphicsBindings graphics_cache_;
 };

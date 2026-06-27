@@ -39,7 +39,6 @@
 
 #include "game/settings.h"
 
-#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -63,47 +62,15 @@
 #include "scenario/custom_variable.h"
 
 
-#include <cstring>
-#include <initializer_list>
-
 #define TOPLEFT_MESSAGES_X 5
 #define TOPLEFT_MESSAGES_Y_SPACING 24
 
 static int time_left_label_shown;
 
-static building_type building_type_from_attr(const char *text_id)
-{
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
 static void create_roamer_preview_for_building_attr(const char *text_id)
 {
-    figure_roamer_preview_create_all_for_building_type(building_type_from_attr(text_id));
+    figure_roamer_preview_create_all_for_building_type(building_type_registry_impl::type_from_attr(text_id));
 }
-
-static bool building_type_attr_is(const building_type_registry_impl::BuildingType &type, const char *text_id)
-{
-    return type.attr() && std::strcmp(type.attr(), text_id) == 0;
-}
-
-static bool building_type_attr_is_any(const building_type_registry_impl::BuildingType &type,
-    std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (building_type_attr_is(type, text_id)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
 
 static void draw_topleft_label_with_fragments(int x, int y, const lang_fragment *fragments, int fragment_count, font_t font, color_t color_ver);
 
@@ -458,63 +425,63 @@ static void show_overlay(int overlay)
 
 static int get_overlay_for_building_type(const building_type_registry_impl::BuildingType &type)
 {
-    const int is_dock = building_type_attr_is(type, "dock");
+    const int is_dock = type.attr_is( "dock");
     int overlay = OVERLAY_NONE;
 
     if (type.is_well()) {
         overlay = OVERLAY_WATER;
     } else if (type.is_theater()) {
         overlay = OVERLAY_THEATER;
-    } else if (building_type_attr_is_any(type, {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {
         "plaza", "road", "roadblock", "roofed_garden_wall_gate", "looped_garden_gate",
         "panelled_garden_gate", "highway"
     })) {
         overlay = OVERLAY_ROADS;
-    } else if (building_type_attr_is_any(type, {"aqueduct", "reservoir", "fountain"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"aqueduct", "reservoir", "fountain"})) {
         overlay = OVERLAY_WATER;
     } else if (type.is_temple() ||
-        building_type_attr_is_any(type, {"lararium", "nymphaeum", "small_mausoleum", "large_mausoleum"})) {
+        building_type_registry_impl::type_attr_is_any(type.type(), {"lararium", "nymphaeum", "small_mausoleum", "large_mausoleum"})) {
         overlay = OVERLAY_RELIGION;
-    } else if (building_type_attr_is_any(type, {"prefecture", "burning_ruin"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"prefecture", "burning_ruin"})) {
         overlay = OVERLAY_FIRE;
-    } else if (type.is_architect_guild() || building_type_attr_is(type, "engineers_post")) {
+    } else if (type.is_architect_guild() || type.attr_is( "engineers_post")) {
         overlay = OVERLAY_DAMAGE;
-    } else if (building_type_attr_is(type, "actor_colony")) {
+    } else if (type.attr_is( "actor_colony")) {
         overlay = OVERLAY_THEATER;
-    } else if (building_type_attr_is_any(type, {"amphitheater", "gladiator_school"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"amphitheater", "gladiator_school"})) {
         overlay = OVERLAY_AMPHITHEATER;
-    } else if (building_type_attr_is(type, "tavern")) {
+    } else if (type.attr_is( "tavern")) {
         overlay = OVERLAY_TAVERN;
-    } else if (building_type_attr_is(type, "arena")) {
+    } else if (type.attr_is( "arena")) {
         overlay = OVERLAY_ARENA;
-    } else if (building_type_attr_is_any(type, {"colosseum", "lion_house"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"colosseum", "lion_house"})) {
         overlay = OVERLAY_COLOSSEUM;
-    } else if (building_type_attr_is_any(type, {"hippodrome", "chariot_maker"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"hippodrome", "chariot_maker"})) {
         overlay = OVERLAY_HIPPODROME;
-    } else if (building_type_attr_is(type, "school")) {
+    } else if (type.attr_is( "school")) {
         overlay = OVERLAY_SCHOOL;
-    } else if (building_type_attr_is(type, "library")) {
+    } else if (type.attr_is( "library")) {
         overlay = OVERLAY_LIBRARY;
-    } else if (building_type_attr_is(type, "academy")) {
+    } else if (type.attr_is( "academy")) {
         overlay = OVERLAY_ACADEMY;
-    } else if (building_type_attr_is(type, "barber")) {
+    } else if (type.attr_is( "barber")) {
         overlay = OVERLAY_BARBER;
-    } else if (building_type_attr_is(type, "bathhouse")) {
+    } else if (type.attr_is( "bathhouse")) {
         overlay = OVERLAY_BATHHOUSE;
-    } else if (building_type_attr_is(type, "doctor")) {
+    } else if (type.attr_is( "doctor")) {
         overlay = OVERLAY_CLINIC;
-    } else if (building_type_attr_is(type, "hospital")) {
+    } else if (type.attr_is( "hospital")) {
         overlay = OVERLAY_HOSPITAL;
-    } else if (building_type_attr_is_any(type, {"forum", "senate"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"forum", "senate"})) {
         overlay = OVERLAY_TAX_INCOME;
     } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
         resource_is_food(building_output_resource(type.type())) ||
-        building_type_attr_is_any(type, {
+        building_type_registry_impl::type_attr_is_any(type.type(), {
             "market", "oil_workshop", "wine_workshop", "wharf"
         })) {
         overlay = OVERLAY_FOOD_STOCKS;
     } else if (type.has_housing() ||
-        building_type_attr_is_any(type, {
+        building_type_registry_impl::type_attr_is_any(type.type(), {
             "gardens", "overgrown_gardens", "governors_house", "governors_villa", "governors_palace",
             "small_statue", "medium_statue", "large_statue", "triumphal_arch", "small_pond", "large_pond",
             "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree",
@@ -524,12 +491,12 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
             "panelled_garden_wall"
         })) {
         overlay = OVERLAY_DESIRABILITY;
-    } else if (building_type_attr_is_any(type, {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
         overlay = OVERLAY_NATIVE;
     } else if (type.is_warehouse() || type.is_lighthouse() || type.is_armoury() ||
-        is_dock || building_type_attr_is_any(type, {"warehouse_space", "cart_depot"})) {
+        is_dock || building_type_registry_impl::type_attr_is_any(type.type(), {"warehouse_space", "cart_depot"})) {
         overlay = OVERLAY_LOGISTICS;
-    } else if (building_type_attr_is(type, "latrines")) {
+    } else if (type.attr_is( "latrines")) {
         overlay = OVERLAY_HEALTH;
     }
     return overlay;
@@ -578,18 +545,18 @@ static void show_overlay_from_grid_offset(int grid_offset)
 
 static int has_storage_orders(const building_type_registry_impl::BuildingType &type)
 {
-    const int is_dock = building_type_attr_is(type, "dock");
+    const int is_dock = type.attr_is( "dock");
     return type.has_native_storage() ||
         type.has_distribution() ||
         is_dock ||
-        building_type_attr_is_any(type, {
+        building_type_registry_impl::type_attr_is_any(type.type(), {
             "warehouse_space", "market", "tavern", "roadblock",
             "roofed_garden_wall_gate", "looped_garden_gate", "panelled_garden_gate",
             "hedge_gate_dark", "hedge_gate_light", "palisade_gate"
         }) ||
-        ((building_type_attr_is(type, "small_temple_ceres") || building_type_attr_is(type, "large_temple_ceres")) &&
+        ((type.attr_is( "small_temple_ceres") || type.attr_is( "large_temple_ceres")) &&
             building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) ||
-        ((building_type_attr_is(type, "small_temple_venus") || building_type_attr_is(type, "large_temple_venus")) &&
+        ((type.attr_is( "small_temple_venus") || type.attr_is( "large_temple_venus")) &&
             building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE));
 }
 

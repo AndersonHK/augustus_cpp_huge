@@ -2,7 +2,6 @@
 #include "maintenance.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/house.h"
@@ -28,25 +27,15 @@
 #include "map/random.h"
 #include "map/road_access.h"
 #include "map/road_network.h"
-#include "map/routing.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "scenario/property.h"
 #include "sound/effect.h"
 
-#include <cstring>
-
 static struct {
     int fire_spread_direction;
     int obstruction_message_displayed;
 } data;
-
-static int type_matches(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
 
 static int composed_main_uses_union_road_access(const building *b)
 {
@@ -54,7 +43,7 @@ static int composed_main_uses_union_road_access(const building *b)
         b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
     return definition && definition->has_composition() &&
         !definition->is_warehouse() &&
-        !type_matches(b->type, "hippodrome") &&
+        !building_type_registry_impl::type_attr_is(b->type, "hippodrome") &&
         !building_is_fort(b->type);
 }
 
@@ -120,9 +109,7 @@ static int composed_main_road_access_area(const building *b, int *x, int *y, int
 
 static int is_storage_road_access_type(building_type type)
 {
-    return type_matches(type, "warehouse") ||
-        type_matches(type, "warehouse_space") ||
-        type_matches(type, "granary");
+    return building_type_registry_impl::type_attr_is_any(type, {"warehouse", "warehouse_space", "granary"});
 }
 
 void building_maintenance_update_fire_direction(void)
@@ -138,7 +125,7 @@ void building_maintenance_update_burning_ruins(void)
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
         if ((b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) ||
-            !type_matches(b->type, "burning_ruin")) {
+            !building_type_registry_impl::type_attr_is(b->type, "burning_ruin")) {
             continue;
         }
         if (b->fire_duration < 0) {
@@ -216,7 +203,7 @@ int building_maintenance_get_closest_burning_ruin(int x, int y, int *distance)
         int building_id = building_list_burning_item(i);
         building *b = building_get(building_id);
         if ((b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) &&
-            type_matches(b->type, "burning_ruin") && !b->has_plague && b->distance_from_entry) {
+            building_type_registry_impl::type_attr_is(b->type, "burning_ruin") && !b->has_plague && b->distance_from_entry) {
             int dist = calc_maximum_distance(x, y, b->x, b->y);
             if (b->figure_id4) {
                 if (dist < min_occupied_dist) {
@@ -273,7 +260,7 @@ void building_maintenance_check_fire_collapse(void)
         if (b->state != BUILDING_STATE_IN_USE || b->fire_proof || b->state == BUILDING_STATE_RUBBLE) {
             continue;
         }
-        if (type_matches(b->type, "hippodrome") && b->prev_part_building_id) {
+        if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") && b->prev_part_building_id) {
             continue;
         }
         int random_building = (i + map_random_get(b->grid_offset)) & 7;
@@ -393,12 +380,12 @@ void building_maintenance_check_rome_access(void)
                 b->road_access_x = x_road;
                 b->road_access_y = y_road;
             }
-        } else if (type_matches(b->type, "granary")) {
+        } else if (building_type_registry_impl::type_attr_is(b->type, "granary")) {
             map_point road_acces_point;
             if (map_has_road_access_granary(b->x, b->y, &road_acces_point)) {
                 road_access = entry_route.findRoad(road_acces_point);
             }
-        } else if (type_matches(b->type, "warehouse")) {
+        } else if (building_type_registry_impl::type_attr_is(b->type, "warehouse")) {
             map_point road_acces_point;
             if (map_has_road_access_warehouse(b->x, b->y, &road_acces_point)) {
                 road_access = entry_route.findRoad(road_acces_point);
@@ -409,7 +396,7 @@ void building_maintenance_check_rome_access(void)
             int access_size = 0;
             if (composed_main_road_access_area(b, &access_x, &access_y, &access_size)) {
                 road_access = entry_route.findRoadToLargestNetwork(access_x, access_y, access_size);
-            } else if (type_matches(b->type, "hippodrome")) {
+            } else if (building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
                 int rotated = b->subtype.orientation != 0;
                 road_access = entry_route.findHippodromeRoadToLargestNetwork(b->x, b->y, rotated);
             } else if (building_monument_is_unfinished_monument(b)) {
@@ -447,8 +434,8 @@ void building_maintenance_check_rome_access(void)
             return;
         }
         for (int i = 0; i < 15; i++) {
-            map_routing_delete_first_wall_or_aqueduct(entry_point->x, entry_point->y);
-            map_routing_delete_first_wall_or_aqueduct(exit_point->x, exit_point->y);
+            Route::deleteFirstWallOrAqueduct(entry_point->x, entry_point->y);
+            Route::deleteFirstWallOrAqueduct(exit_point->x, exit_point->y);
 
             map_tiles_update_all_walls();
             map_tiles_update_all_aqueducts(0);

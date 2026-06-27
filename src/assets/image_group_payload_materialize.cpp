@@ -426,8 +426,7 @@ int resolve_animation(
             out_entry.has_sprite_offset = 1;
             out_entry.sprite_offset_x = referenced_entry->sprite_offset_x;
             out_entry.sprite_offset_y = referenced_entry->sprite_offset_y;
-            out_entry.animation.sprite_offset_x = referenced_entry->sprite_offset_x;
-            out_entry.animation.sprite_offset_y = referenced_entry->sprite_offset_y;
+            out_entry.animation.set_sprite_offset(referenced_entry->sprite_offset_x, referenced_entry->sprite_offset_y);
         }
         if (referenced_entry && referenced_entry->has_animation) {
             out_entry.animation = referenced_entry->animation;
@@ -442,13 +441,14 @@ int resolve_animation(
         return 1;
     }
 
-    out_entry.animation.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
-    out_entry.animation.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
+    out_entry.animation.set_sprite_offset(
+        entry.animation.metadata.sprite_offset_x,
+        entry.animation.metadata.sprite_offset_y);
     out_entry.has_sprite_offset = 1;
     out_entry.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
     out_entry.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
-    out_entry.animation.can_reverse = entry.animation.metadata.can_reverse;
-    out_entry.animation.speed_id = entry.animation.metadata.speed_id;
+    out_entry.animation.set_reversible(entry.animation.metadata.can_reverse);
+    out_entry.animation.set_speed_id(entry.animation.metadata.speed_id);
     if (!entry.animation.explicit_frames.empty()) {
         for (size_t i = 0; i < entry.animation.explicit_frames.size(); i++) {
             std::string frame_key;
@@ -462,7 +462,7 @@ int resolve_animation(
                     frame_slice)) {
                 return 0;
             }
-            out_entry.animation.frames.push_back(frame_slice);
+            out_entry.animation.add_frame(frame_slice);
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
         }
     } else if (entry.animation.implicit_frame_count > 0) {
@@ -491,12 +491,11 @@ int resolve_animation(
                 return 0;
             }
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
-            out_entry.animation.frames.push_back(frame_slice);
+            out_entry.animation.add_frame(frame_slice);
         }
     }
 
-    out_entry.animation.num_frames = static_cast<int>(out_entry.animation.frames.size());
-    out_entry.has_animation = !out_entry.animation.frames.empty();
+    out_entry.has_animation = out_entry.animation.has_frames();
     return 1;
 }
 
@@ -1063,8 +1062,7 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
                 resolved_entry.has_sprite_offset = 1;
                 resolved_entry.sprite_offset_x = prepared_layer.sprite_offset_x;
                 resolved_entry.sprite_offset_y = prepared_layer.sprite_offset_y;
-                resolved_entry.animation.sprite_offset_x = prepared_layer.sprite_offset_x;
-                resolved_entry.animation.sprite_offset_y = prepared_layer.sprite_offset_y;
+                resolved_entry.animation.set_sprite_offset(prepared_layer.sprite_offset_x, prepared_layer.sprite_offset_y);
             }
             prepared_layers.push_back(std::move(prepared_layer));
         }

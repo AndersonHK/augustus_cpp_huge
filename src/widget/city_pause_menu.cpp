@@ -17,7 +17,6 @@
 #include "window/popup_dialog.h"
 #include "city_pause_menu.h"
 
-#include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 
 #include "game/settings.h"

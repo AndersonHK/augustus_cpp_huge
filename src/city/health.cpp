@@ -2,7 +2,7 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/destruction.h"
 #include "building/granary.h"
@@ -17,25 +17,12 @@
 #include "game/tutorial.h"
 #include "scenario/property.h"
 
-#include <cstring>
-
 #define SICKNESS_SPREAD_DIVISION_FACTOR 4
-
-static int building_matches(const Building &building, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *type = building.type;
-    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
-}
 
 static building *first_building_of_type(const char *text_id)
 {
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (building_matches(Building(b), text_id)) {
-            return b;
-        }
-    }
-    return nullptr;
+    const building_type type = building_type_registry_impl::type_from_attr(text_id);
+    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
 }
 
 static int active_count(const char *text_id)
@@ -68,7 +55,7 @@ static int is_plague_building(const Building &building)
 {
     const building_type_registry_impl::BuildingType *definition = building.type;
     return definition &&
-        (std::strcmp(definition->attr(), "dock") == 0 ||
+        (building.matches("dock") ||
             definition->is_warehouse() ||
             definition->is_granary());
 }
@@ -257,9 +244,9 @@ static void cause_plague(int total_people)
     }
     tutorial_on_disease();
     // kill people who don't have access to a doctor
-    int housing_level_count = building_type_registry_get_housing_level_count();
+    int housing_level_count = building_type_registry_impl::housing_type_level_count();
     for (int level_index = 0; level_index < housing_level_count; level_index++) {
-        int level = building_type_registry_get_housing_level_at(level_index);
+        int level = building_type_registry_impl::housing_type_level_at(level_index);
         if (level < 0) {
             continue;
         }
@@ -278,7 +265,7 @@ static void cause_plague(int total_people)
     }
     // kill anyone, starting with tents and working up the housing levels
     for (int level_index = 0; level_index < housing_level_count; level_index++) {
-        int level = building_type_registry_get_housing_level_at(level_index);
+        int level = building_type_registry_impl::housing_type_level_at(level_index);
         if (level < 0) {
             continue;
         }

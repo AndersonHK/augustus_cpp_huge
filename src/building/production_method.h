@@ -3,10 +3,10 @@
 #include "game/resource.h"
 #include "scenario/property.h"
 
-#include "building/building.h"
-
 #include <string>
 #include <vector>
+
+class Building;
 
 namespace building_type_registry_impl {
 

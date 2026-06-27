@@ -215,7 +215,7 @@ void figure_workcamp_slave_action(Figure *f)
     f->is_ghost = 0;
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     Figure *leader = Figure::get(f->leading_figure_id);
     map_point dst;
     switch (f->action_state) {

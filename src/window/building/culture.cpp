@@ -1,5 +1,5 @@
 #include "city/festival.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"
@@ -14,7 +14,6 @@
 #include "window/option_popup.h"
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/distribution.h"
@@ -36,8 +35,6 @@
 #include "scenario/allowed_building.h"
 #include "sound/speech.h"
 
-#include <string_view>
-
 #define MODULE_COST 1000
 
 static void button_add_module_prompt(const generic_button *button);
@@ -46,26 +43,6 @@ static void button_race_bet(const generic_button *button);
 
 
 static void draw_temple(building_info_context *c, const char *sound_file, int group_id);
-
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int building_is_xml_type(const Building &building, const char *text_id)
-{
-    return building.type && std::string_view(building.type->attr()) == text_id;
-}
-
-static int building_accepts_resource(const Building &building, resource_type resource)
-{
-    return building.accepts_good(resource);
-}
-
-static const building_type_registry_impl::Distribution *distribution_for(const Building &building)
-{
-    return building.type ? building.type->distribution() : nullptr;
-}
 
 static generic_button add_module_button[] = {
     { 0, 0, 304, 20, button_add_module_prompt}
@@ -195,7 +172,7 @@ static int temple_module_option_is_allowed(int index)
         return 1;
     }
 
-    building_type required_building = type_from_attr(required_building_text_id);
+    building_type required_building = building_type_registry_impl::type_from_attr(required_building_text_id);
     return required_building != BUILDING_NONE && scenario_allowed_building(required_building);
 }
 
@@ -339,13 +316,13 @@ static void draw_temple_info(building_info_context *c, int image_offset)
     Building &site = c->building;
     if (site.type && site.type->is_ceres_temple() && building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) {
         resource_type food = city_resource_ceres_temple_food();
-        font_t font = building_accepts_resource(site, food) ?
+        font_t font = site.accepts_good(food) ?
             FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         resource_graphics(food).panel_icon().draw(c->x_offset + 112, c->y_offset + 60);
         text_draw_number(site.resource_amount(food), '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         resource_graphics(resource_oil()).panel_icon().draw(c->x_offset + 202, c->y_offset + 60);
-        font = building_accepts_resource(site, resource_oil()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+        font = site.accepts_good(resource_oil()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         text_draw_number(site.resource_amount(resource_oil()), '@', " ",
             c->x_offset + 222, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         text_draw_multiline(translation_for_key("TR_BUILDING_CERES_TEMPLE_MODULE_DESC"),
@@ -355,7 +332,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
     }
 
     if (site.type && site.type->is_venus_temple() && building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-        font_t font = building_accepts_resource(site, resource_wine()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+        font_t font = site.accepts_good(resource_wine()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         resource_graphics(resource_wine()).panel_icon().draw(c->x_offset + 112, c->y_offset + 60);
         text_draw_number(site.resource_amount(resource_wine()), '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
@@ -925,7 +902,7 @@ void window_building_draw_tavern(building_info_context *c)
     c->advisor_button = ADVISOR_ENTERTAINMENT;
     Building &site = c->building;
     auto *record = building_get(site.id());
-    const building_type_registry_impl::Distribution *distribution = distribution_for(site);
+    const building_type_registry_impl::Distribution *distribution = site.type ? site.type->distribution() : nullptr;
 
     window_building_play_sound(c, "wavs/market3.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
@@ -945,7 +922,7 @@ void window_building_draw_tavern(building_info_context *c)
             }
             resource_graphics(resource).panel_icon().draw(c->x_offset + x_offset, c->y_offset + 60);
             int amount = site.resource_amount(resource);
-            font_t font = building_accepts_resource(site, resource) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+            font_t font = site.accepts_good(resource) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
             text_draw_number(amount, '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
 
             if (!saw_primary_resource) {
@@ -1018,8 +995,8 @@ void window_building_draw_colosseum_background(building_info_context *c)
     Building &site = c->building;
     auto *record = building_get(site.id());
     int active_games = city_festival_games_active();
-    int is_arena = building_is_xml_type(site, "arena");
-    int is_colosseum = building_is_xml_type(site, "colosseum");
+    int is_arena = site.matches("arena");
+    int is_colosseum = site.matches("colosseum");
 
     if (is_arena || site.monument_phase() == MONUMENT_FINISHED) {
         window_building_play_sound(c, "wavs/colloseum.wav");
@@ -1162,7 +1139,7 @@ void window_building_draw_arena(building_info_context *c)
     } else if (site.entertainment_days2()) {
         window_building_draw_description(c, "TR_WINDOW_BUILDING_ARENA_NEEDS_LIONS");
     }
-    if (building_is_xml_type(c->building, "arena")) {
+    if (c->building.matches("arena")) {
         window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 80, 74, 1);
     }
 }

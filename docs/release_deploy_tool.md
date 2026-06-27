@@ -34,3 +34,13 @@ python tools/deploy_release_to_game.py
 ```
 
 The script intentionally has no game-path override. If registry discovery fails, fix the installation registry entry instead of supplying a local path. It uses Python path APIs for all copy/delete operations, so spaces and non-English characters in the install path are not split or interpreted by a shell.
+
+## Manual Test Cue
+
+`[console]::Beep()` is not reliable on this machine. When a deploy is ready for manual testing, prefer a Windows system sound:
+
+```powershell
+[System.Media.SystemSounds]::Exclamation.Play()
+Start-Sleep -Milliseconds 350
+[System.Media.SystemSounds]::Asterisk.Play()
+```

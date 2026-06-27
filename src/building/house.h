@@ -13,7 +13,7 @@ int building_house_has_patrician_residents(Building house);
 void building_house_change_to(Building house, building_type type);
 void building_house_change_to_vacant_lot(Building house);
 
-void building_house_merge(Building house);
+unsigned int building_house_merge(Building house);
 
 int building_house_can_expand(Building house, int num_tiles);
 

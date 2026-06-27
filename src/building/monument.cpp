@@ -12,7 +12,6 @@
 
 #include "assets/assets.h"
 #include "building/properties.h"
-#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "city/finance.h"
 #include "city/message.h"
@@ -119,14 +118,6 @@ static const monument_type city_mint = {
 
 #undef RESOURCE_ROW
 
-static const char *GRAND_TEMPLE_TEXT_IDS[] = {
-    "grand_temple_ceres",
-    "grand_temple_neptune",
-    "grand_temple_mercury",
-    "grand_temple_mars",
-    "grand_temple_venus"
-};
-
 static int type_is_grand_temple(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
@@ -209,7 +200,9 @@ static void ensure_monument_text_ids()
 
     for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
         building_type type = static_cast<building_type>(type_id);
-        if (!building_type_registry_has_construction(type)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition || !definition->has_construction()) {
             continue;
         }
         add_monument_text_id(building_type_id_bridge_text_from_runtime(type));
@@ -231,12 +224,17 @@ void building_monument_reset_runtime_bridge(void)
 // building records can keep using the old monument code path without persisting construction objects.
 static const monument_type *xml_monument_type(building_type type)
 {
-    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX ||
-        !building_type_registry_has_phased_construction(type)) {
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return nullptr;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_phased_construction()) {
         return nullptr;
     }
 
-    int phase_count = building_type_registry_get_construction_phase_count(type);
+    const building_type_registry_impl::ConstructionDefinition &construction = definition->construction();
+    int phase_count = construction.phase_count();
     if (phase_count <= 0 || phase_count + 1 > MAX_PHASES) {
         return nullptr;
     }
@@ -253,7 +251,7 @@ static const monument_type *xml_monument_type(building_type type)
         for (int phase = 1; phase <= phase_count; phase++) {
             for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
                 cached_type.resources[phase - 1][resource] =
-                    building_type_registry_get_construction_requirement(type, resource, phase);
+                    construction.requirement_amount(static_cast<resource_type>(resource), phase);
             }
         }
         xml_monument_types_initialized[type_index] = 1;
@@ -388,7 +386,9 @@ int building_monument_add_module(building *b, int module)
         return 0;
     }
     b->monument.upgrades = module;
-    if (building_type_registry_has_phased_construction(b->type)) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (definition && definition->has_phased_construction()) {
         Building(b).refresh_graphic();
     } else {
         map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
@@ -487,7 +487,9 @@ void building_monument_set_phase(building *b, int phase)
     }
     city_culture_remove_building_module_capacity(b);
     b->monument.phase = phase;
-    if (building_type_registry_has_phased_construction(b->type)) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (definition && definition->has_phased_construction()) {
         Building(b).refresh_graphic();
     } else {
         map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
@@ -545,12 +547,19 @@ void building_monuments_set_construction_phase(int phase)
     }
 }
 
-int building_monument_get_grand_temple_for_god(god_type god)
+static int grand_temple_id_for_god(god_type god, int require_working)
 {
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(type);
         if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
+            continue;
+        }
+        if (require_working) {
+            int monument_id = building_monument_working(type);
+            if (monument_id) {
+                return monument_id;
+            }
             continue;
         }
         building *monument = building_first_of_type(type);
@@ -559,6 +568,11 @@ int building_monument_get_grand_temple_for_god(god_type god)
         }
     }
     return 0;
+}
+
+int building_monument_get_grand_temple_for_god(god_type god)
+{
+    return grand_temple_id_for_god(god, 0);
 }
 
 int building_monument_get_venus_gt(void)
@@ -780,18 +794,7 @@ int building_monument_working(building_type type)
 
 int building_monument_working_grand_temple_for_god(god_type god)
 {
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
-            continue;
-        }
-        int monument_id = building_monument_working(type);
-        if (monument_id) {
-            return monument_id;
-        }
-    }
-    return 0;
+    return grand_temple_id_for_god(god, 1);
 }
 
 int building_monument_requires_resource(building_type type, int resource)
@@ -845,14 +848,40 @@ int building_monument_module_type(building_type type)
     return b->monument.upgrades;
 }
 
+static building_type grand_temple_type_for_module_index(int module_index)
+{
+    if (module_index < 0) {
+        return BUILDING_NONE;
+    }
+
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (!definition || !definition->is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+            continue;
+        }
+
+        const building_type_registry_impl::Religion *religion = definition->religion();
+        if (!religion || religion->has_all_gods() || !religion->presentation().is_complete()) {
+            continue;
+        }
+        if (religion->presentation().module_index() == module_index) {
+            return definition->type();
+        }
+    }
+
+    return BUILDING_NONE;
+}
+
 int building_monument_gt_module_is_active(int module)
 {
-    int module_num = module % MODULES_PER_TEMPLE + 1;
-    int temple_index = module / MODULES_PER_TEMPLE;
-    if (temple_index < 0 || temple_index >= static_cast<int>(sizeof(GRAND_TEMPLE_TEXT_IDS) / sizeof(GRAND_TEMPLE_TEXT_IDS[0]))) {
+    if (module < 0) {
         return 0;
     }
-    building_type temple_type = building_type_registry_impl::type_from_attr(GRAND_TEMPLE_TEXT_IDS[temple_index]);
+    int module_num = module % MODULES_PER_TEMPLE + 1;
+    building_type temple_type = grand_temple_type_for_module_index(module / MODULES_PER_TEMPLE);
+    if (temple_type == BUILDING_NONE) {
+        return 0;
+    }
 
     return building_monument_module_type(temple_type) == module_num;
 }

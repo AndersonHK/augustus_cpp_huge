@@ -7,7 +7,6 @@
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_type_registry_internal.h"
-#include "map/road_access.h"
 
 #include "building/building.h"
 #include "building/armoury.h"
@@ -34,7 +33,7 @@
 #include "core/config.h"
 #include "core/random.h"
 #include "figure/movement.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "core/log.h"
@@ -69,28 +68,12 @@ void send_supplier_to_storage_destination(Figure *supplier, const Building &dest
     }
 
     supplier->destination_building = destination;
-
-    map_point road;
-    int destination_found = 0;
     if (!destination.type) {
         return;
     }
-    const building_type_registry_impl::BuildingType &destination_type = *destination.type;
-    if (destination_type.is_warehouse()) {
-        if (map_has_road_access_warehouse(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_granary()) {
-        if (map_has_road_access_granary(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_grand_temple_venus()) {
-        if (map_has_road_access(destination.x(), destination.y(), destination.size(), &road)) {
-            destination_found = 1;
-        }
-    }
 
-    if (destination_found) {
+    map_point road;
+    if (destination.storage_destination_road_access_point(&road)) {
         supplier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
         supplier->destination_x = road.x;
         supplier->destination_y = road.y;
@@ -158,7 +141,7 @@ void building_runtime::generate_labor_seeker(int x, int y)
     if (record().figure_id2) {
         Building current = building();
         Figure *existing = Figure::get(record().figure_id2);
-        if (!existing->state || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
+        if (existing->is_dead() || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
             record().figure_id2 = 0;
         }
         return;
@@ -251,7 +234,7 @@ int building_runtime::has_figure_of_type(figure_type type)
     }
     Figure *existing = Figure::get(record().figure_id);
     Building current = building();
-    if (existing->state && figure_belongs_to_building(existing, current) && existing->type == type) {
+    if (existing && !existing->is_dead() && figure_belongs_to_building(existing, current) && existing->type == type) {
         return 1;
     }
     record().figure_id = 0;
@@ -269,7 +252,7 @@ int building_runtime::has_figure_of_any(const std::vector<figure_type> &types)
     // not match, which breaks alternates that intentionally share the slot.
     Figure *existing = Figure::get(record().figure_id);
     Building current = building();
-    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+    if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
         record().figure_id = 0;
         return 0;
     }
@@ -315,7 +298,7 @@ unsigned int building_runtime::find_live_owned_figure(figure_type primary_type, 
     Building current = building();
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *existing = Figure::get(i);
-        if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+        if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
             continue;
         }
         if (existing->type == primary_type || (secondary_type != FIGURE_NONE && existing->type == secondary_type)) {
@@ -347,7 +330,7 @@ int building_runtime::slot_has_live_figure(
 
     Figure *existing = Figure::get(*slot_value);
     Building current = building();
-    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+    if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
         *slot_value = 0;
         *slot_value = find_live_owned_figure(primary_type, secondary_type);
         return *slot_value > 0;
@@ -813,6 +796,21 @@ void building_runtime::spawn_armoury()
     assign_figure_slot(target_slot, warehouseman->id());
 }
 
+void building_runtime::run_native_production_phase(const map_point &road, int run_labor)
+{
+    if (!type().has_native_production()) {
+        return;
+    }
+    if (run_labor) {
+        run_labor_phase_if_defined(road);
+    }
+    if (building().native_production_has_completed_effect()) {
+        building().start_native_production();
+        return;
+    }
+    spawn_figure_delivery_cart(road);
+}
+
 resource_type building_runtime::figure_delivery_output_resource() const
 {
     if (!definition_) {
@@ -828,22 +826,41 @@ resource_type building_runtime::figure_delivery_output_resource() const
 
 void building_runtime::spawn_figure_delivery_cart(const map_point &road)
 {
+    if (slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
+        return;
+    }
+
     resource_type resource = figure_delivery_output_resource();
-    if (resource == RESOURCE_NONE || record().data.industry.has_fish <= 0 ||
-        slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
+    int loads = 0;
+    int reserved_from_figure_delivery = 0;
+    if (resource != RESOURCE_NONE && record().data.industry.has_fish > 0) {
+        loads = std::min(static_cast<int>(record().data.industry.has_fish),
+            building().output_cart_capacity(resource));
+        record().data.industry.has_fish -= loads;
+        reserved_from_figure_delivery = 1;
+    } else if (!building().reserve_output_storage_loads(&resource, &loads)) {
+        return;
+    }
+
+    if (resource == RESOURCE_NONE || loads <= 0) {
         return;
     }
 
     Figure *cart = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
     if (!cart) {
+        if (reserved_from_figure_delivery) {
+            record().data.industry.has_fish += static_cast<unsigned char>(loads);
+        } else {
+            building().add_storage_resource(
+                resource, loads * resource_units_per_load(), building_type_registry_impl::StorageRole::Output);
+        }
         return;
     }
-    const int loads = std::min(static_cast<int>(record().data.industry.has_fish),
-        building().output_cart_capacity(resource));
-    record().data.industry.has_fish -= loads;
+
     cart->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
     cart->resource_id = resource;
     attach_figure_to_building(cart, building());
+    record().output_resource_id = static_cast<unsigned char>(resource);
     record().figure_id = cart->id();
     cart->wait_ticks = game_time_scale_legacy_day_ticks(30);
     cart->loads_sold_or_carrying = static_cast<unsigned char>(loads);
@@ -1062,7 +1079,7 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
     }
 
     switch (policy.mode) {
-        case building_type_registry_impl::SpawnMode::ServiceRoamer:
+        case building_type_registry_impl::SpawnMode::FigureSpawn:
             return create_spawned_figure(policy, road);
         case building_type_registry_impl::SpawnMode::TempleSupplier:
             return spawn_temple_supplier(road);
@@ -1083,7 +1100,7 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
     }
 }
 
-void building_runtime::spawn_service_roamer_group(
+void building_runtime::run_spawn_group(
     const building_type_registry_impl::SpawnDelayGroup &group,
     size_t group_index,
     int run_labor)
@@ -1166,7 +1183,13 @@ void building_runtime::spawn_figure()
             set_building_graphic();
         }
 
-        if (type().is_architect_guild()) {
+        if (type().has_native_production()) {
+            check_labor_problem();
+            map_point road;
+            if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
+                run_native_production_phase(road, 1);
+            }
+        } else if (type().is_architect_guild()) {
             spawn_architect_guild();
         } else if (type().is_caravanserai()) {
             spawn_caravanserai();
@@ -1184,14 +1207,14 @@ void building_runtime::spawn_figure()
     for (size_t i = 0; i < spawn_groups.size(); i++) {
         const building_type_registry_impl::SpawnDelayGroup &group = spawn_groups[i];
         if (!group.policies.empty()) {
-            spawn_service_roamer_group(group, i, i == 0);
+            run_spawn_group(group, i, i == 0);
         }
     }
 
-    if (figure_delivery_output_resource() != RESOURCE_NONE) {
+    if (type().has_native_production()) {
         map_point road;
         if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
-            spawn_figure_delivery_cart(road);
+            run_native_production_phase(road, 0);
         }
     }
 }

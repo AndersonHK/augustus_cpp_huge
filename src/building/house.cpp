@@ -15,7 +15,6 @@
 #include "building/housing_type.h"
 #include "building/local_workforce.h"
 
-#include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/config.h"
 #include "core/image.h"
@@ -152,18 +151,18 @@ static int set_house_legacy_level_from_type(building *house, building_type type)
 static int housing_model_size(building_type type)
 {
     const auto *definition = building_type_registry_impl::definition_for_type(type);
-    int size = definition ? definition->model().size() : 0;
+    int size = definition ? definition->declared_model_size() : 0;
     return size > 0 ? size : 0;
 }
 
 static building_type one_tile_medium_insula_type()
 {
-    return building_type_registry_get_housing_type_for_level(HOUSE_MEDIUM_INSULA, 1);
+    return building_type_registry_impl::building_type_for_housing_level(HOUSE_MEDIUM_INSULA, 1);
 }
 
 static building_type vacant_lot_fill_type()
 {
-    return building_type_registry_get_vacant_lot_fill_type();
+    return building_type_registry_impl::vacant_lot_fill_type();
 }
 
 static int is_empty_vacant_lot(const building *house)
@@ -192,7 +191,7 @@ void building_house_change_to(Building house_object, building_type type)
     house_object.change_type(type);
     set_house_legacy_level_from_type(house, house->type);
     if (house_object.type && house_object.type->has_housing()) {
-        int size = house_object.type->model().size();
+        int size = house_object.type->declared_model_size();
         if (size > 0) {
             house->size = house->house_size = size;
             house->house_is_merged = size > 1 ? 1 : 0;
@@ -332,8 +331,13 @@ static int find_expand_origin(Building house, int num_tiles, int *out_x, int *ou
                 }
             }
             if (ok_tiles == num_tiles) {
-                *out_x = house.x() + EXPAND_DIRECTION_DELTA[dir].x;
-                *out_y = house.y() + EXPAND_DIRECTION_DELTA[dir].y;
+                int candidate_x = house.x() + EXPAND_DIRECTION_DELTA[dir].x;
+                int candidate_y = house.y() + EXPAND_DIRECTION_DELTA[dir].y;
+                if (!split_blocking_houses(house, candidate_x, candidate_y, num_tiles, 1)) {
+                    continue;
+                }
+                *out_x = candidate_x;
+                *out_y = candidate_y;
                 return 1;
             }
         }
@@ -424,7 +428,7 @@ static void retarget_figures_for_house_merge(const HouseMergePlan &plan, Buildin
     }
 }
 
-static int apply_house_merge_plan(const HouseMergePlan &plan)
+static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
 {
     if (plan.type == BUILDING_NONE || !plan.source_id || plan.participants.empty() ||
         plan.size <= 0 || housing_level_for_type(plan.type) < 0) {
@@ -462,43 +466,43 @@ static int apply_house_merge_plan(const HouseMergePlan &plan)
         Building participant(building_get(participant_id));
         participant.retire_replaced_house();
     }
-    return 1;
+    return replacement.id();
 }
 
-void building_house_merge(Building house_object)
+unsigned int building_house_merge(Building house_object)
 {
     if (!house_object.id() || !house_object.has_house_size()) {
-        return;
+        return 0;
     }
     if (house_object.is_merged_house()) {
-        return;
+        return 0;
     }
     if (!config_get(CONFIG_GP_CH_ALL_HOUSES_MERGE)) {
         if ((map_random_get(house_object.grid_offset()) & 7) >= 5) {
-            return;
+            return 0;
         }
     }
     int x = 0;
     int y = 0;
     if (!find_merge_origin(house_object, &x, &y)) {
-        return;
+        return 0;
     }
     building_type merge_type = house_object.type ?
         house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
         BUILDING_NONE;
     if (merge_type == BUILDING_NONE) {
-        return;
+        return 0;
     }
     HouseMergePlan plan;
     int merged_size = housing_model_size(merge_type);
     if (merged_size <= 0 || housing_level_for_type(merge_type) < 0) {
-        return;
+        return 0;
     }
     if (!collect_house_merge_plan(house_object, merge_type, x, y, merged_size, 1, 4, &plan)) {
-        return;
+        return 0;
     }
     game_undo_disable();
-    apply_house_merge_plan(plan);
+    return apply_house_merge_plan(plan);
 }
 
 int building_house_can_expand(Building house_object, int num_tiles)
@@ -628,6 +632,30 @@ static void split_size3(building *house)
     create_splitted_house_tile(main_house_id, split_type, x + 2, y + 2, population_per_tile, inventory_per_tile);
 }
 
+static int expansion_contains_house_footprint(int expansion_origin, int num_tiles, const building *house)
+{
+    if (!house || house->house_size <= 1) {
+        return 1;
+    }
+
+    for (int y = 0; y < house->house_size; y++) {
+        for (int x = 0; x < house->house_size; x++) {
+            int house_tile = house->grid_offset + OFFSET(x, y);
+            int contained = 0;
+            for (int i = 0; i < num_tiles; i++) {
+                if (expansion_origin + HOUSE_TILE_OFFSETS[i] == house_tile) {
+                    contained = 1;
+                    break;
+                }
+            }
+            if (!contained) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static int split_blocking_houses(Building source, int x, int y, int num_tiles, int dry_run)
 {
     const unsigned int source_id = source.id();
@@ -637,6 +665,9 @@ static int split_blocking_houses(Building source, int x, int y, int num_tiles, i
         if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
             building *other_house = building_get(map_building_at(tile_offset));
             if (other_house && other_house->id != source_id && other_house->house_size) {
+                if (!expansion_contains_house_footprint(grid_offset, num_tiles, other_house)) {
+                    return 0;
+                }
                 if (other_house->house_is_merged == 1) {
                     building_type split_type = split_type_for_house(other_house);
                     if (split_type == BUILDING_NONE || housing_level_for_type(split_type) < 0) {
@@ -706,7 +737,7 @@ int building_house_expand_to_type(Building house_object, building_type type)
     if (!collect_house_merge_plan(source, type, x, y, target_size, 0, num_tiles, &plan)) {
         return 0;
     }
-    return apply_house_merge_plan(plan);
+    return apply_house_merge_plan(plan) ? 1 : 0;
 }
 
 static void desize_house_to_type(building *house, building_type type)

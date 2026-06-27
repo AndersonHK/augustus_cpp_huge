@@ -37,8 +37,13 @@
 #include <exception>
 #include <limits>
 #include <memory>
-#include <string_view>
 #include <vector>
+
+namespace figure_runtime_native_impl {
+bool update_legacy_figure_graphics_image_state(
+    Figure &figure,
+    const figure_type_registry_impl::FigureTypeDefinition *definition);
+}
 
 namespace {
 
@@ -74,11 +79,6 @@ void clear_entry(unsigned int id)
 int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 {
     return entry.data == f && entry.created_sequence == f->created_sequence;
-}
-
-bool type_matches(const building_type_registry_impl::BuildingType *type, const char *text_id)
-{
-    return type && std::string_view(type->attr()) == text_id;
 }
 
 const char *profile_id_for_priest_owner(const Figure *f)
@@ -157,19 +157,23 @@ const char *infer_profile_id(const Figure *f)
                     }
                     const building_type_registry_impl::BuildingType *building_type = f->building.type;
                     if (f->type == FIGURE_ACTOR) {
-                        return type_matches(building_type, "amphitheater") ? "amphitheater_service" : "theater_service";
+                        return building_type && building_type->attr_is("amphitheater") ?
+                            "amphitheater_service" :
+                            "theater_service";
                     }
                     if (f->type == FIGURE_GLADIATOR) {
-                        if (type_matches(building_type, "arena")) {
+                        if (building_type && building_type->attr_is("arena")) {
                             return "arena_service";
                         }
-                        if (type_matches(building_type, "colosseum")) {
+                        if (building_type && building_type->attr_is("colosseum")) {
                             return "colosseum_service";
                         }
                         return "amphitheater_service";
                     }
                     if (f->type == FIGURE_LION_TAMER) {
-                        return type_matches(building_type, "colosseum") ? "colosseum_service" : "arena_service";
+                        return building_type && building_type->attr_is("colosseum") ?
+                            "colosseum_service" :
+                            "arena_service";
                     }
                     if (f->type == FIGURE_CHARIOTEER) {
                         return "hippodrome_service";
@@ -285,7 +289,7 @@ void figure_runtime_on_created(Figure *f)
     bind_entry(f);
 }
 
-int figure_runtime_bind_profile(Figure *f, const char *profile_id)
+static int figure_runtime_bind_profile(Figure *f, const char *profile_id)
 {
     if (!f || !f->id()) {
         return 0;
@@ -338,48 +342,12 @@ Figure *figure_runtime_create_profiled(
     }
 
     f->building = building;
-    // The profile owns the lifecycle; these legacy action states remain the
-    // save-compatible storage used to rebind the same profile after load.
-    switch (profile->native_class()) {
-        case figure_type_registry_impl::NativeClassId::EngineerService:
-            f->action_state = FIGURE_ACTION_60_ENGINEER_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::PrefectService:
-            f->action_state = FIGURE_ACTION_70_PREFECT_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::EntertainmentService:
-            f->action_state = FIGURE_ACTION_94_ENTERTAINER_ROAMING;
-            figure_movement_init_roaming(f);
-            break;
-        case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
-            f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::MarketSupplier:
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            break;
-        case figure_type_registry_impl::NativeClassId::DepotCartPusher:
-            f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
-            break;
-        case figure_type_registry_impl::NativeClassId::FishingBoat:
-            f->action_state = FIGURE_ACTION_190_FISHING_BOAT_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::LegacyAction:
-            break;
-        case figure_type_registry_impl::NativeClassId::DeliveryFollower:
-            break;
-        case figure_type_registry_impl::NativeClassId::TransientWanderer:
-            if (profile->pathing_policy().mode == &figure_type_registry_impl::StandStill) {
-                f->action_state = 0;
-            } else {
-                f->action_state = FIGURE_ACTION_125_ROAMING;
-                figure_movement_init_roaming(f);
-            }
-            break;
-        case figure_type_registry_impl::NativeClassId::RoamingService:
-        default:
-            f->action_state = FIGURE_ACTION_125_ROAMING;
-            figure_movement_init_roaming(f);
-            break;
+    const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
+    if (spawn_behavior.has_action_state) {
+        f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);
+    }
+    if (spawn_behavior.init_roaming) {
+        figure_movement_init_roaming(f);
     }
 
     if (!figure_runtime_bind_profile(f, profile_id)) {
@@ -431,43 +399,24 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
     return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
 }
 
-int figure_runtime_graphic_draw_request(const Figure *f, FigureGraphicDrawRequest *request)
+roadblock_permission figure_runtime_roadblock_permission(Figure *f)
 {
-    if (request) {
-        *request = {};
+    const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
+    if (!f || !pathing || !pathing->mode) {
+        return f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
     }
-    if (!f || !request) {
-        return 0;
-    }
-    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::graphics_policy_draw_request_for_figure(f, definition, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-    return figure_runtime_native_impl::legacy_cart_graphic_draw_request_for_figure(f, request);
+    return pathing->mode->roadblockPermissionFor(*f);
 }
 
 int figure_runtime_update_graphics(Figure *f)
 {
-    if (!f) {
+    RuntimeEntry *entry = bind_entry(f);
+    if (!entry || !entry->definition) {
         return 0;
     }
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    return figure_runtime_native_impl::graphics_policy_update_figure_image(f, definition);
+    return figure_runtime_native_impl::update_legacy_figure_graphics_image_state(
+        *f,
+        entry->definition) ? 1 : 0;
 }
 
 int figure_runtime_choose_roaming_direction(

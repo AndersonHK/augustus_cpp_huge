@@ -54,7 +54,7 @@ static void destroy_without_rubble(building *b)
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
-    if (building_type_registry_impl::type_is_bridge(b->type)) {
+    if (building_object.type && building_object.type->roadblock().is_bridge()) {
         map_bridge_remove(b->grid_offset, 0);
     }
     building_clear_related_data(b);
@@ -93,10 +93,9 @@ static void destroy_on_fire(building *b, int plagued)
         building_clear_related_data(b); //retain the building data in the rubble until rubble is cleared
     }
 
-    int waterside_building = 0;
-    if (building_type_registry_impl::type_has_water_foundation(b->type)) {
-        waterside_building = 1;
-    }
+    const int waterside_building = building_object.type &&
+        building_object.type->has_foundation() &&
+        building_object.type->foundation().has_water_requirement();
     int num_tiles;
     if (b->size >= 2 && b->size <= 5) {
         num_tiles = b->size * b->size;

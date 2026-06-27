@@ -2,7 +2,7 @@
 #include "translation/translation.h"
 #include "building/rotation.h"
 #include "city/warning.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -14,7 +14,6 @@
 #include "build_menu.h"
 
 
-#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -55,17 +54,6 @@
 #define TOOLTIP_TEXT_LENGTH 1000
 
 static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
-
-static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::definition_for_type(
-        building_type_registry_impl::type_from_attr(text_id));
-}
-
-static building_type building_type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
 
 class BuildMenuButton {
 public:
@@ -350,7 +338,7 @@ static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, in
 building_type BuildMenuButton::cost_type() const
 {
     if (building_type_registry_impl::type_attr_is(building, "draggable_reservoir")) {
-        return building_type_from_attr("reservoir");
+        return building_type_registry_impl::type_from_attr("reservoir");
     }
     return building;
 }

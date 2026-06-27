@@ -5,9 +5,11 @@
  * Figure types.
  */
 
- /**
-  * Figure types
-  */
+#include <string_view>
+
+/**
+ * Figure types
+ */
 typedef enum {
     FIGURE_NONE = 0,
     FIGURE_IMMIGRANT = 1,
@@ -109,6 +111,71 @@ typedef enum {
     FIGURE_CATAPULT_MISSILE = 96,
     FIGURE_TYPE_MAX = 97
 } figure_type;
+
+struct FigureTypeXmlName {
+    std::string_view name;
+    figure_type type;
+};
+
+inline constexpr FigureTypeXmlName FIGURE_TYPE_XML_NAMES[] = {
+    { "labor_seeker", FIGURE_LABOR_SEEKER },
+    { "engineer", FIGURE_ENGINEER },
+    { "prefect", FIGURE_PREFECT },
+    { "priest", FIGURE_PRIEST },
+    { "doctor", FIGURE_DOCTOR },
+    { "surgeon", FIGURE_SURGEON },
+    { "tax_collector", FIGURE_TAX_COLLECTOR },
+    { "missionary", FIGURE_MISSIONARY },
+    { "patrician", FIGURE_PATRICIAN },
+    { "beggar", FIGURE_BEGGAR },
+    { "market_trader", FIGURE_MARKET_TRADER },
+    { "market_supplier", FIGURE_MARKET_SUPPLIER },
+    { "delivery_boy", FIGURE_DELIVERY_BOY },
+    { "actor", FIGURE_ACTOR },
+    { "gladiator", FIGURE_GLADIATOR },
+    { "lion_tamer", FIGURE_LION_TAMER },
+    { "charioteer", FIGURE_CHARIOTEER },
+    { "teacher", FIGURE_TEACHER },
+    { "librarian", FIGURE_LIBRARIAN },
+    { "barber", FIGURE_BARBER },
+    { "bathhouse_worker", FIGURE_BATHHOUSE_WORKER },
+    { "school_child", FIGURE_SCHOOL_CHILD },
+    { "depot_cart_pusher", FIGURE_DEPOT_CART_PUSHER },
+    { "fort_javelin", FIGURE_FORT_JAVELIN },
+    { "javelin_soldier", FIGURE_FORT_JAVELIN },
+    { "fort_mounted", FIGURE_FORT_MOUNTED },
+    { "mounted_soldier", FIGURE_FORT_MOUNTED },
+    { "fort_legionary", FIGURE_FORT_LEGIONARY },
+    { "legionary", FIGURE_FORT_LEGIONARY },
+    { "fort_infantry", FIGURE_FORT_INFANTRY },
+    { "infantry_soldier", FIGURE_FORT_INFANTRY },
+    { "fort_archer", FIGURE_FORT_ARCHER },
+    { "archer_soldier", FIGURE_FORT_ARCHER },
+    { "work_camp_worker", FIGURE_WORK_CAMP_WORKER },
+    { "work_camp_slave", FIGURE_WORK_CAMP_SLAVE },
+    { "work_camp_architect", FIGURE_WORK_CAMP_ARCHITECT },
+    { "mess_hall_supplier", FIGURE_MESS_HALL_SUPPLIER },
+    { "mess_hall_collector", FIGURE_MESS_HALL_COLLECTOR },
+    { "barkeep", FIGURE_BARKEEP },
+    { "barkeep_supplier", FIGURE_BARKEEP_SUPPLIER },
+    { "caravanserai_supplier", FIGURE_CARAVANSERAI_SUPPLIER },
+    { "caravanserai_collector", FIGURE_CARAVANSERAI_COLLECTOR },
+    { "mess_hall_fort_supplier", FIGURE_MESS_HALL_FORT_SUPPLIER },
+    { "fishing_boat", FIGURE_FISHING_BOAT }
+};
+
+inline figure_type figure_type_from_xml_name(const char *name)
+{
+    if (!name) {
+        return FIGURE_NONE;
+    }
+    for (const FigureTypeXmlName &entry : FIGURE_TYPE_XML_NAMES) {
+        if (std::string_view(name) == entry.name) {
+            return entry.type;
+        }
+    }
+    return FIGURE_NONE;
+}
 
 typedef enum {
     ENEMY_UNDEFINED = -1,

@@ -5,7 +5,7 @@
 
 #include "core/file.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
@@ -414,14 +414,18 @@ const uint8_t *lang_get_string(translation_key key)
 const uint8_t *lang_get_building_type_string(int type)
 {
     building_type building_type_id = static_cast<building_type>(type);
-    if (building_type_registry_has_definition(building_type_id)) {
-        const char *display_key = building_type_registry_get_button_text_key(building_type_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(building_type_id);
+    if (definition) {
+        const char *display_key = definition->has_button() && definition->button().has_text_key() ?
+            definition->button().text_key() :
+            nullptr;
         if (display_key && *display_key) {
             if (building_type_display_key_is_localized(display_key)) {
                 return building_type_display_key_text(display_key);
             }
         }
-        display_key = building_type_registry_get_name_key(building_type_id);
+        display_key = definition->has_identity() ? definition->identity().name_key() : nullptr;
         if (display_key && *display_key) {
             if (building_type_display_key_is_localized(display_key)) {
                 return building_type_display_key_text(display_key);

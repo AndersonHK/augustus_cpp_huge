@@ -2,7 +2,6 @@
 #include "formation_enemy.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -15,14 +14,13 @@
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
 #include "figure/formation.h"
-#include "figure/formation_layout.h"
 #include "figure/route.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/soldier_strength.h"
 #include "map/terrain.h"
 
-#include <cstring>
+#include <vector>
 
 #define INFINITE 10000
 
@@ -207,41 +205,18 @@ static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
     }
 };
 
-static const building_type_registry_impl::BuildingType *definition_for_building(const building *b)
-{
-    return b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-}
-
-static int building_matches(const building *b, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-static int building_matches_any(const building *b, const char *const *attrs, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (building_matches(b, attrs[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int building_matches_target(const building *b, const TargetSpec &target)
-{
-    if (target.kind == TargetKind::Farm) {
-        const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-        return definition && definition->is_farm();
-    }
-    return building_matches(b, target.text_id);
-}
-
 static building *first_active_building_matching(const TargetSpec &target)
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->state == BUILDING_STATE_IN_USE && building_matches_target(b, target)) {
+        if (b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building candidate(b);
+        const bool matches = target.kind == TargetKind::Farm ?
+            candidate.type && candidate.type->is_farm() :
+            candidate.matches(target.text_id);
+        if (matches) {
             return b;
         }
     }
@@ -252,8 +227,10 @@ static building *first_active_housing_at_level(int level)
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(b->type);
         if (b->state == BUILDING_STATE_IN_USE &&
-            building_type_registry_get_housing_level(b->type) == level) {
+            definition && definition->housing_level() == level) {
             return b;
         }
     }
@@ -265,7 +242,14 @@ static building *closest_active_building_matching(const TargetSpec &target, int 
     building *best_building = nullptr;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE || !building_matches_target(b, target)) {
+        if (b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building candidate(b);
+        const bool matches = target.kind == TargetKind::Farm ?
+            candidate.type && candidate.type->is_farm() :
+            candidate.matches(target.text_id);
+        if (!matches) {
             continue;
         }
         int distance = calc_maximum_distance(x, y, b->x, b->y);
@@ -282,8 +266,10 @@ static building *closest_active_housing_at_level(int level, int x, int y, int *m
     building *best_building = nullptr;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(b->type);
         if (b->state != BUILDING_STATE_IN_USE ||
-            building_type_registry_get_housing_level(b->type) != level) {
+            !definition || definition->housing_level() != level) {
             continue;
         }
         int distance = calc_maximum_distance(x, y, b->x, b->y);
@@ -297,8 +283,8 @@ static building *closest_active_housing_at_level(int level, int x, int y, int *m
 
 static building *get_best_housing_descending(int min_level)
 {
-    for (int index = building_type_registry_get_housing_level_count() - 1; index >= 0; index--) {
-        int level = building_type_registry_get_housing_level_at(index);
+    for (int index = building_type_registry_impl::housing_type_level_count() - 1; index >= 0; index--) {
+        int level = building_type_registry_impl::housing_type_level_at(index);
         if (level < min_level) {
             continue;
         }
@@ -311,8 +297,8 @@ static building *get_best_housing_descending(int min_level)
 
 static building *get_closest_housing_descending(int x, int y, int min_level)
 {
-    for (int index = building_type_registry_get_housing_level_count() - 1; index >= 0; index--) {
-        int level = building_type_registry_get_housing_level_at(index);
+    for (int index = building_type_registry_impl::housing_type_level_count() - 1; index >= 0; index--) {
+        int level = building_type_registry_impl::housing_type_level_at(index);
         if (level < min_level) {
             continue;
         }
@@ -385,7 +371,7 @@ int formation_rioter_get_target_building_for_robbery(int x, int y, int *x_tile, 
     for (int i = 0; i < 2; i++) {
         for (int building_id = 1; building_id < building_count(); building_id++) {
             building *b = building_get(building_id);
-            if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, building_targets[i])) {
+            if (b->state != BUILDING_STATE_IN_USE || !Building(b).matches(building_targets[i])) {
                 continue;
             }
             int distance = calc_maximum_distance(x, y, b->x, b->y);
@@ -421,7 +407,7 @@ static int set_enemy_target_building(formation *m)
         best_building = get_best_and_closest_building(m->x_home, m->y_home, RIOTER_ATTACK_PRIORITY);
     }
     if (best_building) {
-        if (building_matches(best_building, "warehouse")) {
+        if (Building(best_building).matches("warehouse")) {
             Building destination(building_get(best_building->id + 1));
             formation_set_destination_building(m, best_building->x + 1, best_building->y, &destination);
         } else {
@@ -454,10 +440,12 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
     for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]) && min_distance == INFINITE; i++) {
         for (int building_id = 1; building_id < building_count(); building_id++) {
             building *b = building_get(building_id);
-            if (!building_matches(b, native_buildings[i]) || !native_target_can_anchor_search(b)) {
+            if (!Building(b).matches(native_buildings[i]) || !native_target_can_anchor_search(b)) {
                 continue;
             }
-            int size = building_type_registry_get_model_size(b->type);
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(b->type);
+            int size = definition ? definition->declared_model_size() : 0;
             if (size <= 0) {
                 size = building_properties_for_type(b->type)->size;
             }
@@ -514,8 +502,12 @@ static void set_native_target_building(formation *m)
     };
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE || building_matches(b, "gardens") ||
-            building_matches_any(b, excluded_types, sizeof(excluded_types) / sizeof(excluded_types[0]))) {
+        Building target(b);
+        if (b->state != BUILDING_STATE_IN_USE || target.matches("gardens") ||
+            building_type_registry_impl::type_attr_is_any(
+                b->type,
+                excluded_types,
+                sizeof(excluded_types) / sizeof(excluded_types[0]))) {
             continue;
         }
         int distance = calc_maximum_distance(meeting_x, meeting_y, b->x, b->y);
@@ -539,31 +531,12 @@ static void set_native_target_building(formation *m)
     }
 }
 
-static void set_figures_to_initial(const formation *m)
-{
-    for (int i = 0; i < MAX_FORMATION_FIGURES; i++) {
-        if (m->figures[i] > 0) {
-            Figure *f = Figure::get(m->figures[i]);
-            if (f->action_state != FIGURE_ACTION_149_CORPSE &&
-                f->action_state != FIGURE_ACTION_150_ATTACK) {
-                f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
-                f->wait_ticks = 0;
-            }
-        }
-    }
-}
-
 int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_tile, int *y_tile)
 {
-    int base_offset = map_grid_offset(
-        formation_layout_position_x(m->layout, 0),
-        formation_layout_position_y(m->layout, 0));
-    int figure_offsets[50];
-    figure_offsets[0] = 0;
-    for (int i = 1; i < m->num_figures; i++) {
-        figure_offsets[i] = map_grid_offset(
-            formation_layout_position_x(m->layout, i),
-            formation_layout_position_y(m->layout, i)) - base_offset;
+    const std::vector<int> figure_offsets = m->layout_grid_offsets();
+    const int figure_count = static_cast<int>(figure_offsets.size());
+    if (figure_count <= 0) {
+        return 0;
     }
     const Route::TerrainQuery route = Route::TerrainQuery::enemyLandFrom({ x, y }, 600);
     for (int r = 0; r <= 10; r++) {
@@ -572,7 +545,7 @@ int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_t
         for (int yy = y_min; yy <= y_max; yy++) {
             for (int xx = x_min; xx <= x_max; xx++) {
                 int can_move = 1;
-                for (int fig = 0; fig < m->num_figures; fig++) {
+                for (int fig = 0; fig < figure_count; fig++) {
                     int grid_offset = map_grid_offset(xx, yy) + figure_offsets[fig];
                     if (!map_grid_is_valid_offset(grid_offset)) {
                         can_move = 0;
@@ -701,7 +674,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_halt--;
             if (state->duration_halt <= 0) {
                 state->duration_regroup = regroup_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 regroup = 0;
                 halt = 1;
             }
@@ -712,7 +685,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_regroup--;
             if (state->duration_regroup <= 0) {
                 state->duration_advance = advance_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 advance = 1;
                 regroup = 0;
             }
@@ -723,7 +696,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_advance--;
             if (state->duration_advance <= 0) {
                 state->duration_halt = halt_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 halt = 1;
                 advance = 0;
             }
@@ -738,7 +711,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
     } else if (pursue_target) {
         if (target_formation_id > 0) {
             const formation *target = formation_get(target_formation_id);
-            if (target->num_figures > 0) {
+            if (target->has_figures()) {
                 formation_set_destination(m, target->x_home, target->y_home);
             }
         } else {
@@ -767,22 +740,11 @@ static void update_enemy_movement(formation *m, int roman_distance)
     }
 }
 
-static int formation_fully_in_city(const formation *m)
-{
-    for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
-        Figure *f = Figure::get(m->figures[n]);
-        if (f->state != FIGURE_STATE_DEAD && f->is_ghost) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static void update_enemy_formation(formation *m, int *roman_distance)
 {
     enemy_army *army = enemy_army_get_editable(m->invasion_id);
     if (enemy_army_is_stronger_than_legions()) {
-        if (m->figure_type != FIGURE_FORT_JAVELIN) {
+        if (!m->has_figure_type(FIGURE_FORT_JAVELIN)) {
             army->ignore_roman_soldiers = 1;
         }
     }
@@ -790,32 +752,15 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     if (city_figures_soldiers() <= 0) {
         formation_clear_monthly_counters(m);
     }
-    for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
-        Figure *f = Figure::get(m->figures[n]);
-        if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-            Figure *opponent = f->opponent.save_id() ? &f->opponent.get() : nullptr;
-            if (opponent && !opponent->is_dead() && opponent->is_legion()) {
-                formation_record_fight(m);
-            }
-        }
+    if (m->has_figure_attacking_live_legion()) {
+        formation_record_fight(m);
     }
     if (formation_has_low_morale(m)) {
-        for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
-            Figure *f = Figure::get(m->figures[n]);
-            if (f->action_state != FIGURE_ACTION_150_ATTACK &&
-                f->action_state != FIGURE_ACTION_149_CORPSE &&
-                f->action_state != FIGURE_ACTION_148_FLEEING) {
-                f->action_state = FIGURE_ACTION_148_FLEEING;
-                Route::remove(f);
-            }
-        }
+        m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         return;
     }
-    if (m->figures[0]) {
-        Figure *f = Figure::get(m->figures[0]);
-        if (f->state == FIGURE_STATE_ALIVE) {
-            formation_set_home(m, f->x, f->y);
-        }
+    if (Figure *f = m->first_alive_figure()) {
+        formation_set_home(m, f->x, f->y);
     }
     if (!army->formation_id) {
         army->formation_id = m->id;
@@ -840,7 +785,7 @@ static void update_enemy_formation(formation *m, int *roman_distance)
             army->destination_y = y_tile;
             army->destination_building_id = 0;
         } else {
-            if (!set_enemy_target_building(m) && !army->started_retreating && formation_fully_in_city(m)) {
+            if (!set_enemy_target_building(m) && !army->started_retreating && m->is_fully_in_city()) {
                 city_message_post(1, MESSAGE_ENEMIES_LEAVING, 0, 0);
                 army->started_retreating = 1;
             }

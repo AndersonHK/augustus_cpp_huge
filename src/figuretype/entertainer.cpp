@@ -225,14 +225,12 @@ static void update_image(Figure *f)
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
     if (f->type == FIGURE_CHARIOTEER) {
-        f->cart_image_id = 0;
-        if (f->action_state == FIGURE_ACTION_150_ATTACK ||
-            f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = image_group(GROUP_FIGURE_CHARIOTEER) + dir;
-        } else {
-            f->image_id = image_group(GROUP_FIGURE_CHARIOTEER) +
-                dir + 8 * f->image_offset;
-        }
+        f->clear_legacy_cart_overlay_image();
+        const int frame_offset =
+            f->action_state == FIGURE_ACTION_150_ATTACK || f->action_state == FIGURE_ACTION_149_CORPSE ?
+                0 :
+                f->image_offset;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CHARIOTEER), dir, frame_offset);
         return;
     }
     int image_id;
@@ -247,32 +245,24 @@ static void update_image(Figure *f)
         if (f->wait_ticks_missile >= 96 && f->action_state != FIGURE_ACTION_149_CORPSE) {
             image_id = image_group(GROUP_FIGURE_LION_TAMER_WHIP);
         }
-        f->cart_image_id = image_group(GROUP_FIGURE_LION);
+        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_LION));
     } else {
         return;
     }
     if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         if (f->type == FIGURE_GLADIATOR) {
-            f->image_id = image_id + 104 + dir + 8 * (f->image_offset / 2);
-            // Correct for two missing frames, animation is glitchy otherwise
-            if (f->image_id >= 5705 && f->image_id <= 5706) {
-                f->image_id -= 8;
-            } else if (f->image_id > 5705) {
-                f->image_id -= 2;
-            }
+            f->select_legacy_directional_frame_image(image_id + 104, dir, f->image_offset / 2);
+            f->adjust_legacy_gladiator_attack_image_row();
         } else {
-            f->image_id = image_id + dir;
+            f->select_legacy_directional_frame_image(image_id, dir, 0);
         }
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_id + 96 + figure_image_corpse_offset(f);
-        f->cart_image_id = 0;
+        f->select_legacy_corpse_image(image_id + 96);
+        f->clear_legacy_cart_overlay_image();
     } else {
-        f->image_id = image_id + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(image_id, dir, f->image_offset);
     }
-    if (f->cart_image_id) {
-        f->cart_image_id += dir + 8 * f->image_offset;
-        figure_image_set_cart_offset(f, dir);
-    }
+    f->select_legacy_cart_overlay_image(f->cart_image_id, dir);
 }
 
 static int get_enemy_distance(Figure *f, int x, int y)
@@ -347,7 +337,7 @@ static int fight_enemy(Figure *f)
 
 void figure_entertainer_action(Figure *f)
 {
-    f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
+    f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART));
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     f->use_cross_country = 0;
     f->max_roam_length = 512;

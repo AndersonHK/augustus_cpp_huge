@@ -17,23 +17,25 @@
         <culture_module path="theater" capacity="1500" upgrade_bonus="500" count="active" />
     </culture_modules>
     <graphics>
-        <default>
+        <default animation="0">
             <path value="Health_Culture\Amphitheater" />
             <image value="Image_0000" />
         </default>
         <variant>
             <condition type="desirability" operator="gt" threshold="45" />
             <condition type="has_workers" />
+            <condition type="days1_or_days2_positive" />
             <path value="Health_Culture\Amphitheater" />
             <image value="Amphitheatre Upgrade ON" />
         </variant>
-        <variant>
+        <variant animation="0">
             <condition type="desirability" operator="gt" threshold="45" />
             <path value="Health_Culture\Amphitheater" />
             <image value="Amphitheatre Upgrade OFF" />
         </variant>
         <variant>
             <condition type="has_workers" />
+            <condition type="days1_or_days2_positive" />
             <path value="Health_Culture\Amphitheater" />
             <image value="Amphitheatre ON" />
         </variant>
@@ -45,11 +47,11 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="actor,gladiator">
-        <spawn mode="service_roamer" spawn_figure="gladiator"
+        <spawn mode="profiled_figure" spawn_figure="gladiator"
             action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
             graphic_timing="before_successful_spawn" condition="days1_positive" block_on_success="true" profile="amphitheater_service" />
-        <spawn mode="service_roamer" spawn_figure="actor"
+        <spawn mode="profiled_figure" spawn_figure="actor"
             action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
-            graphic_timing="before_successful_spawn" condition="days1_not_positive" block_on_success="true" profile="amphitheater_service" />
+            graphic_timing="before_successful_spawn" condition="days2_positive" block_on_success="true" profile="amphitheater_service" />
     </spawn_group>
 </building>

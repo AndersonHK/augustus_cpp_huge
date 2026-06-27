@@ -6,7 +6,9 @@
 #include "platform/file_manager.h"
 #include "assets/assets.h"
 #include "core/dir.h"
+#include "core/xml_definition.h"
 #include "core/xml_parser.h"
+#include "core/xml_value.h"
 
 #include <cstdio>
 #include <cstring>
@@ -62,28 +64,7 @@ static int validate_directory_path(const char *path)
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
 {
-    if (detail && *detail) {
-        g_failure_reason = std::string(message ? message : "") + "\n\n" + detail;
-    } else {
-        g_failure_reason = message ? message : "";
-    }
-}
-
-static std::string trim_copy(const std::string &value)
-{
-    size_t start = 0;
-    while (start < value.size() &&
-        (value[start] == ' ' || value[start] == '\t' || value[start] == '\r' || value[start] == '\n')) {
-        start++;
-    }
-
-    size_t end = value.size();
-    while (end > start &&
-        (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\r' || value[end - 1] == '\n')) {
-        end--;
-    }
-
-    return value.substr(start, end - start);
+    g_failure_reason = xml_definition::format_failure_reason(message, detail);
 }
 
 static std::string build_mod_path(const std::string &mod_name)
@@ -119,44 +100,6 @@ static void rebuild_mod_lists()
     rebuild_legacy_selected_mod_paths();
 }
 
-static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open mod list file", filename, 0);
-        set_failure_reason("Failed to load mod list.", filename);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek mod list file", filename, 0);
-        set_failure_reason("Failed to load mod list.", filename);
-        return 0;
-    }
-
-    long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size mod list file", filename, 0);
-        set_failure_reason("Failed to load mod list.", filename);
-        return 0;
-    }
-
-    rewind(fp);
-    buffer.resize(static_cast<size_t>(size));
-    const size_t read = buffer.empty() ? 0 : fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-
-    if (read != buffer.size()) {
-        log_error("Unable to read mod list file", filename, 0);
-        set_failure_reason("Failed to load mod list.", filename);
-        return 0;
-    }
-
-    return 1;
-}
-
 static int parse_mod_list_root()
 {
     if (g_parse_state.saw_root) {
@@ -177,7 +120,7 @@ static int parse_mod_entry()
         return 0;
     }
 
-    std::string mod_name = trim_copy(xml_parser_get_attribute_string("name"));
+    std::string mod_name = xml_value::trim_copy(xml_parser_get_attribute_string("name"));
     if (mod_name.empty()) {
         g_parse_state.error = 1;
         log_error("Mod list entry has an invalid name", 0, 0);
@@ -195,21 +138,13 @@ static const xml_parser_element XML_ELEMENTS[] = {
 
 static int parse_mod_list_file(const char *filename, std::vector<std::string> &mods_out)
 {
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
-
     g_parse_state = {};
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize mod list parser", filename, 0);
-        set_failure_reason("Failed to load mod list.", filename);
-        return 0;
-    }
-
     const ErrorContextScope scope("Mod list XML", filename);
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Mod list",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
 
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.mods.empty()) {
         error_context_report_error("Invalid mod list XML", filename);

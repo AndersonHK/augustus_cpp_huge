@@ -6,10 +6,10 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/granary.h"
-#include "game/animation.h"
+#include "figure/FigureGraphics.h"
+#include "game/Animation.h"
 #include "game/performance_tracker.h"
 #include "game/resource.h"
-#include "game/resource_graphics.h"
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 #include "city/view.h"
@@ -53,29 +53,30 @@ const int kAdjacentDeletionOffsets[2][4][7] = {
 };
 #undef ADJACENT_OFFSET
 
-const RuntimeDrawSlice *storage_flag_slice(const ImageGroupEntry &entry, int frame)
+const RuntimeDrawSlice *storage_flag_slice(
+    const ImageGroupEntry &entry,
+    int frame,
+    RuntimeDrawSlice &animation_slice)
 {
     if (frame <= 0 || !entry.has_animation()) {
         return entry.footprint();
     }
 
-    const RuntimeAnimationTrack &track = entry.animation();
-    if (frame <= track.num_frames && frame <= static_cast<int>(track.frames.size())) {
-        return &track.frames[frame - 1];
-    }
-    return entry.footprint();
+    const Animation &animation = entry.animation();
+    animation_slice = animation.frame_slice_at_offset(frame, 0);
+    return animation_slice.is_valid() ? &animation_slice : entry.footprint();
 }
 
-void advance_storage_flag(Building &building, const RuntimeAnimationTrack &track)
+void advance_storage_flag(Building &building, const Animation &animation)
 {
     ::building *record = building_get(building.id());
-    if (!record || track.num_frames <= 0 || !track.speed_id) {
+    if (!record || animation.frame_count() <= 0 || !animation.speed_id()) {
         return;
     }
-    if (game_animation_should_advance(track.speed_id)) {
+    if (Animation::should_advance(animation.speed_id())) {
         record->data.warehouse.flag_frame++;
     }
-    if (record->data.warehouse.flag_frame > track.num_frames) {
+    if (record->data.warehouse.flag_frame > animation.frame_count()) {
         record->data.warehouse.flag_frame = 0;
     }
 }
@@ -116,7 +117,12 @@ void city_draw_main_render_tile_row(
 {
     PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW);
     // TODO(renderer-command-list): publish ordered RuntimeTextureDrawRequest payloads for runtime-native slices; keep legacy image calls in row order until they have an equivalent payload.
-    city_view_foreach_valid_render_tile_row(callback1, callback2, callback3, bucket1, bucket2, bucket3);
+    const CityViewRenderPhase phases[] = {
+        { callback1, bucket1 },
+        { callback2, bucket2 },
+        { callback3, bucket3 },
+    };
+    city_view_foreach_valid_render_tile_row(phases, 3);
 }
 
 void city_draw_depot_resource(const Building &building, int x, int y, float scale)
@@ -124,7 +130,7 @@ void city_draw_depot_resource(const Building &building, int x, int y, float scal
     static const ImageGroupEntryRef cat =
         ImageGroupEntryRef::from_group("Admin_Logistics\\Cart_Depot_Cat", "Cart_Depot_Cat");
     const ImageGroupEntryRef &image = building.worker_count() ?
-        resource_graphics(building.depot_order().resource_type).cart_image(1) :
+        figure_type_registry_impl::FigureGraphics::resource_cart_image(building.depot_order().resource_type, 1) :
         cat;
     image.draw(x + 11, y, COLOR_MASK_NONE, scale);
 }
@@ -221,7 +227,8 @@ int city_draw_storage_permission_flag(Building &building, int x, int y, color_t 
         return 0;
     }
 
-    const RuntimeDrawSlice *slice = storage_flag_slice(*entry, building.warehouse_flag_frame());
+    RuntimeDrawSlice animation_slice;
+    const RuntimeDrawSlice *slice = storage_flag_slice(*entry, building.warehouse_flag_frame(), animation_slice);
     if (slice && slice->is_valid()) {
         runtime_texture_draw(*slice, x, y, color_mask, scale);
     }

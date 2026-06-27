@@ -28,7 +28,6 @@
 #include "scenario/map.h"
 #include "scenario/property.h"
 
-#include <string.h>
 #include <vector>
 
 #define RESOURCES_TO_TRADER_RATIO 60
@@ -158,21 +157,6 @@ static int can_produce_resource_naturally(resource_type resource)
     return 0;
 }
 
-static building_type runtime_type(const char *text_id)
-{
-    if (!text_id || !*text_id) {
-        return BUILDING_NONE;
-    }
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
-
 int empire_can_produce_resource_locally(int resource)
 {
     if (can_produce_resource_naturally(resource)) {
@@ -181,7 +165,7 @@ int empire_can_produce_resource_locally(int resource)
 
     // Wine can also be produced via Venus Grand Temple
     if (resource == resource_wine()) {
-        building_type venus_type = runtime_type("grand_temple_venus");
+        building_type venus_type = building_type_registry_impl::type_from_attr("grand_temple_venus");
         return venus_type > BUILDING_NONE &&
             !building_monument_requires_resource(venus_type, resource_wine()) &&
             scenario_allowed_building(venus_type) &&
@@ -189,7 +173,7 @@ int empire_can_produce_resource_locally(int resource)
     }
     // Gold can also be produced via City Mint
     if (resource == resource_gold()) {
-        building_type city_mint_type = runtime_type("city_mint");
+        building_type city_mint_type = building_type_registry_impl::type_from_attr("city_mint");
         return city_mint_type > BUILDING_NONE &&
             !building_monument_requires_resource(city_mint_type, resource_gold()) &&
             scenario_allowed_building(city_mint_type) &&
@@ -712,7 +696,7 @@ void empire_city_update_our_fish_and_meat_production(void)
         if (city.sells_resource[resource_fish()]) {
             empire_city_change_selling_of_resource(&city, resource_meat(), !NOT_SELLING);
         } else {
-            building_type wharf_type = runtime_type("wharf");
+            building_type wharf_type = building_type_registry_impl::type_from_attr("wharf");
             if (wharf_type > BUILDING_NONE && scenario_allowed_building(wharf_type) &&
                 scenario_map_has_fishing_points()) {
                 empire_city_change_selling_of_resource(&city, resource_fish(), !NOT_SELLING);

@@ -2,7 +2,6 @@
 
 #include "core/buffer.h"
 #include "building/roadblock.h"
-#include "map/grid.h"
 
 
 enum routed_building_type {
@@ -14,14 +13,6 @@ enum routed_building_type {
     ROUTED_BUILDING_DRAGGABLE_RESERVOIR = 6
 };
 
-struct map_routing_distance_grid {
-    grid_i16 possible;
-    grid_i16 determined;
-    int dst_x;
-    int dst_y;
-};
-
-const map_routing_distance_grid *map_routing_get_distance_grid(void);
 int map_routing_distance_generation(void);
 
 void map_routing_calculate_distances(int x, int y);

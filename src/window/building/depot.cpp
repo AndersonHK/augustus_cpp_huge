@@ -4,7 +4,6 @@
 #include "depot.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_record.h"
 #include "building/count.h"
@@ -25,18 +24,8 @@
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "window/building_info.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/image.h"
-
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == type_from_attr(text_id);
-}
 
 static translation_key order_condition_key(order_condition_type condition_type)
 {
@@ -930,7 +919,7 @@ int window_building_handle_mouse_depot_select_destination(const mouse *m, buildi
 static void order_set_resource(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
+    if (!b || !building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     for (int i = 0; i < 3; i++) {
@@ -981,7 +970,7 @@ void window_building_depot_get_tooltip_main(translation_key *translation)
 static void depot_recall_all_cart_pushers(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
+    if (!b || !building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     int recalled_count = 0;
@@ -1003,7 +992,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
 static void order_clear_source(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
+    if (!b || !building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     b->data.depot.current_order.src_storage_id = 0;
@@ -1013,7 +1002,7 @@ static void order_clear_source(const generic_button *button)
 static void order_clear_destination(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
+    if (!b || !building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     b->data.depot.current_order.dst_storage_id = 0;

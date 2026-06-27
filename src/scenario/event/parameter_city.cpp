@@ -1,5 +1,5 @@
 #include "building/count.h"
-#include "building/building_type_startup_bridge.h"
+#include "building/building_type_registry_internal.h"
 #include "city/data.h"
 #include "city/health.h"
 #include "city/labor.h"
@@ -11,7 +11,6 @@
 
 #include "figure/figure.h"
 #include "game/settings.h"
-#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "city/constants.h"
@@ -31,17 +30,6 @@
 #define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
 #define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
 //above mirrors the defines in select_city_trade_route.c
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_startup_bridge_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
 
 static int resource_count(scenario_action_t *action)
 {
@@ -63,43 +51,43 @@ static int resource_count(scenario_action_t *action)
 static int building_coverage(scenario_action_t *action)
 {
     building_type type = static_cast<building_type>(action->parameter3);
-    if (type_matches(type, "theater")) {
+    if (building_type_registry_impl::type_attr_is(type, "theater")) {
         return window_advisors_get_theater_coverage();
     }
-    if (type_matches(type, "tavern")) {
+    if (building_type_registry_impl::type_attr_is(type, "tavern")) {
         return window_advisors_get_tavern_coverage();
     }
-    if (type_matches(type, "arena")) {
+    if (building_type_registry_impl::type_attr_is(type, "arena")) {
         return window_advisors_get_arena_coverage();
     }
-    if (type_matches(type, "amphitheater")) {
+    if (building_type_registry_impl::type_attr_is(type, "amphitheater")) {
         return window_advisors_get_amphitheater_coverage();
     }
-    if (type_matches(type, "hippodrome")) {
+    if (building_type_registry_impl::type_attr_is(type, "hippodrome")) {
         return window_advisors_get_hippodrome_coverage();
     }
-    if (type_matches(type, "colosseum")) {
+    if (building_type_registry_impl::type_attr_is(type, "colosseum")) {
         return window_advisors_get_colosseum_coverage();
     }
-    if (type_matches(type, "bathhouse")) {
+    if (building_type_registry_impl::type_attr_is(type, "bathhouse")) {
         return window_advisors_get_bathhouse_coverage();
     }
-    if (type_matches(type, "barber")) {
+    if (building_type_registry_impl::type_attr_is(type, "barber")) {
         return window_advisors_get_barber_coverage();
     }
-    if (type_matches(type, "doctor")) {
+    if (building_type_registry_impl::type_attr_is(type, "doctor")) {
         return window_advisors_get_clinic_coverage();
     }
-    if (type_matches(type, "hospital")) {
+    if (building_type_registry_impl::type_attr_is(type, "hospital")) {
         return window_advisors_get_hospital_coverage();
     }
-    if (type_matches(type, "school")) {
+    if (building_type_registry_impl::type_attr_is(type, "school")) {
         return window_advisors_get_school_coverage();
     }
-    if (type_matches(type, "library")) {
+    if (building_type_registry_impl::type_attr_is(type, "library")) {
         return window_advisors_get_library_coverage();
     }
-    if (type_matches(type, "academy")) {
+    if (building_type_registry_impl::type_attr_is(type, "academy")) {
         return window_advisors_get_academy_coverage();
     }
     return 0;

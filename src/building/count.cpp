@@ -4,9 +4,7 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
-#include "building/monument.h"
 #include "city/buildings.h"
-#include "city/health.h"
 #include "figure/figure.h"
 #include "game/resource.h"
 #include "map/bridge.h"
@@ -15,10 +13,8 @@
 #include "map/grid.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-#include "map/property.h"
 
-#include <cstdlib>
-#include <cstring>
+#include <algorithm>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -107,14 +103,6 @@ static constexpr std::string_view building_set_deco_statues[] = {
     "dolphin_fountain",
 };
 
-static constexpr std::string_view all_fort_types[] = {
-    "fort_legionaries",
-    "fort_javelin",
-    "fort_mounted",
-    "fort_swords",
-    "fort_archers",
-};
-
 int building_count_forts(int active_only);
 static int count_all_types_in_set(int active_only, std::span<const std::string_view> set);
 
@@ -170,17 +158,13 @@ int building_count_any_total(int active_only)
     int total = 0;
     for (int id = 1; id < building_count(); id++) {
         building *b = building_get(id);
-        if (b == building_main(b)) {
-            if (active_only) {
-                if (building_is_active(b)) {
-                    total++;
-                }
-            } else {
-                if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
-                    b->state == BUILDING_STATE_MOTHBALLED) {
-                    total++;
-                }
-            }
+        if (b != building_main(b)) {
+            continue;
+        }
+        if (active_only ? building_is_active(b) :
+            (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
+                b->state == BUILDING_STATE_MOTHBALLED)) {
+            total++;
         }
     }
     return total;
@@ -197,104 +181,53 @@ int building_count_upgraded(building_type type)
     return upgraded;
 }
 
+template <typename Predicate>
+static int count_unique_buildings_in_area(int minx, int miny, int maxx, int maxy, Predicate accepts)
+{
+    std::vector<unsigned int> found_buildings;
+    found_buildings.reserve(static_cast<size_t>(building_count()));
+    for (int x = minx; x <= maxx; x++) {
+        for (int y = miny; y <= maxy; y++) {
+            const int building_id = map_building_at(map_grid_offset(x, y));
+            if (!building_id) {
+                continue;
+            }
+            building *b = building_main(building_get(building_id));
+            if (!accepts(b) || std::find(found_buildings.begin(), found_buildings.end(), b->id) != found_buildings.end()) {
+                continue;
+            }
+            found_buildings.push_back(b->id);
+        }
+    }
+    return static_cast<int>(found_buildings.size());
+}
+
 int building_count_in_area(building_type type, int minx, int miny, int maxx, int maxy)
 {
     if (building_is_fort(type) || is_fort_menu_type(type)) {
         return building_count_fort_type_in_area(minx, miny, maxx, maxy, type);
     }
-    int grid_area = (abs(maxx - minx) + 1) * (abs(maxy - miny) + 1);
-    int array_size = grid_area < building_count() ? grid_area : building_count();
-    unsigned int *found_buildings = (unsigned int *) malloc(array_size * sizeof(unsigned int));
-    memset(found_buildings, 0, array_size * sizeof(unsigned int));
-
-    int total = 0;
-    for (int x = minx; x <= maxx; x++) {
-        for (int y = miny; y <= maxy; y++) {
-            int grid_offset = map_grid_offset(x, y);
-            int building_id = map_building_at(grid_offset);
-            if (building_id) {
-                building *b = building_main(building_get(building_id));
-                if (!is_any_type(type) && b->type != type) {
-                    continue;
-                }
-                if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_CREATED) {
-                    continue;
-                }
-
-                int building_already_counted = 0;
-
-                for (int i = 0; i < total; i++) {
-                    if (found_buildings[i] == b->id) {
-                        building_already_counted = 1;
-                        break;
-                    }
-                }
-
-                if (building_already_counted) {
-                    continue;
-                }
-
-                found_buildings[total] = b->id;
-                total++;
-            }
-        }
-    }
-
-    free(found_buildings);
-    return total;
+    return count_unique_buildings_in_area(minx, miny, maxx, maxy, [type](building *b) {
+        return (is_any_type(type) || b->type == type) &&
+            (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED);
+    });
 }
 
 int building_count_fort_type_in_area(int minx, int miny, int maxx, int maxy, building_type type)
 {
-    int grid_area = abs((maxx - minx) * (maxy - miny));
-    int array_size = grid_area < building_count() ? grid_area : building_count();
-    int *found_buildings = (int *) malloc(array_size * sizeof(int));
-
-    int total = 0;
-    for (int x = minx; x <= maxx; x++) {
-        for (int y = miny; y <= maxy; y++) {
-            int grid_offset = map_grid_offset(x, y);
-            int building_id = map_building_at(grid_offset);
-            if (building_id) {
-                building *b = building_main(building_get(building_id));
-                if (!building_is_fort(b->type) || (b->subtype.fort_figure_type != 
-                    building_count_forts_get_figure_type_from_building(type) && !is_fort_menu_type(type))) {
-                    continue;
-                }
-                if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_CREATED) {
-                    continue;
-                }
-
-                int building_already_counted = 0;
-
-                for (int i = 0; i < total; i++) {
-                    if ((unsigned int) found_buildings[i] == b->id) {
-                        building_already_counted = 1;
-                        break;
-                    }
-                }
-
-                if (building_already_counted) {
-                    continue;
-                }
-
-                found_buildings[total] = b->id;
-                total++;
-            }
-        }
-    }
-
-    free(found_buildings);
-    return total;
+    const bool all_forts = is_fort_menu_type(type);
+    const figure_type figure_type = building_count_forts_get_figure_type_from_building(type);
+    return count_unique_buildings_in_area(minx, miny, maxx, maxy, [all_forts, figure_type](building *b) {
+        Building fort(b);
+        return building_is_fort(b->type) &&
+            (all_forts || fort.fort_figure_type() == figure_type) &&
+            (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED);
+    });
 }
 
 static int building_count_with_active_check(building_type type, int active_only)
 {
-    if (active_only) {
-        return building_count_active(type);
-    } else {
-        return building_count_total(type);
-    }
+    return active_only ? building_count_active(type) : building_count_total(type);
 }
 
 static int count_all_types_in_set(int active_only, std::span<const std::string_view> set)
@@ -439,15 +372,13 @@ int building_set_area_count_deco_statues(int minx, int miny, int maxx, int maxy)
 static int count_forts_per_type(building_type type, int active_only)
 {
     int count = 0;
-    //if active_only is 1, only count buildings that are active, otherwise count all valid forts of the type
     for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (!active_only) {
-            if (!(b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED)) {
-                continue; // if not couting active buildings, check if building at least in use or created
-            }
+        if (!active_only && b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_CREATED) {
+            continue;
         }
-        int increase_count = ((building_is_active(b) >= active_only) && b == building_main(b));
-        if (b->subtype.fort_figure_type == building_count_forts_get_figure_type_from_building(type) && increase_count) {
+        Building fort(b);
+        if (building_is_active(b) >= active_only && b == building_main(b) &&
+            fort.fort_figure_type() == building_count_forts_get_figure_type_from_building(type)) {
             count++;
         }
     }
@@ -456,21 +387,9 @@ static int count_forts_per_type(building_type type, int active_only)
 
 figure_type building_count_forts_get_figure_type_from_building(building_type type)
 {
-    struct fort_figure_type {
-        const char *text_id;
-        figure_type figure;
-    };
-    static const fort_figure_type fort_figure_types[] = {
-        {"fort_legionaries", FIGURE_FORT_LEGIONARY},
-        {"fort_javelin", FIGURE_FORT_JAVELIN},
-        {"fort_mounted", FIGURE_FORT_MOUNTED},
-        {"fort_swords", FIGURE_FORT_INFANTRY},
-        {"fort_archers", FIGURE_FORT_ARCHER},
-    };
-    for (const fort_figure_type &entry : fort_figure_types) {
-        if (building_type_registry_impl::type_attr_is(type, entry.text_id)) {
-            return entry.figure;
-        }
+    if (const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type)) {
+        return definition->military().primary_figure_type();
     }
     return FIGURE_NONE;
 }
@@ -478,10 +397,10 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
 int building_count_forts(int active_only)
 {
     int total = 0;
-    for (std::string_view attr : all_fort_types) {
-        building_type type = building_type_registry_impl::type_from_attr(attr);
-        if (type != BUILDING_NONE) {
-            total += count_forts_per_type(type, active_only);
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && definition->has_military()) {
+            total += count_forts_per_type(definition->type(), active_only);
         }
     }
     return total;
@@ -490,11 +409,9 @@ int building_count_forts(int active_only)
 int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, int terrain, int (*condition)(int))
 {
     int total = 0;
-    int grid_offset;
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
-            grid_offset = map_grid_offset(x, y);
-
+            const int grid_offset = map_grid_offset(x, y);
             if (map_terrain_is(grid_offset, terrain) && condition(grid_offset)) {
                 total++;
             }
@@ -503,46 +420,37 @@ int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, int t
     return total;
 }
 
-static int min_x;
-static int min_y;
-
-static void get_min_map_xy(void)
-{
-    min_x = map_grid_offset_to_x(map_data.start_offset);
-    min_y = map_grid_offset_to_y(map_data.start_offset);
-}
-
 int building_count_terrain(int terrain, int (*condition)(int))
 {
-    get_min_map_xy();
+    const int min_x = map_grid_offset_to_x(map_data.start_offset);
+    const int min_y = map_grid_offset_to_y(map_data.start_offset);
     return building_count_terrain_in_area(min_x, min_y, min_x + map_data.width, min_y + map_data.height, terrain, condition);
 }
 
 int building_count_bridges(int ship)
 {
-    get_min_map_xy();
-    float total = 0;
-    int grid_offset;
+    const int min_x = map_grid_offset_to_x(map_data.start_offset);
+    const int min_y = map_grid_offset_to_y(map_data.start_offset);
+    int bridge_tiles = 0;
     for (int y = min_y; y < min_y + map_data.height; y++) {
         for (int x = min_x; x < min_x + map_data.width; x++) {
-            grid_offset = map_grid_offset(x, y);
-            int bridge_sprite = map_sprite_bridge_at(grid_offset);
+            const int grid_offset = map_grid_offset(x, y);
+            const int bridge_sprite = map_sprite_bridge_at(grid_offset);
             if (bridge_sprite >= 1 + ship * 6 && bridge_sprite <= 4 + ship * 6) {
-                total += 0.5;
+                bridge_tiles++;
             }
         }
     }
-    return (int) total;
+    return bridge_tiles / 2;
 }
 
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship)
 {
     std::vector<unsigned int> bridge_ids;
-    int grid_offset;
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
-            grid_offset = map_grid_offset(x, y);
-            int building_id = map_building_at(grid_offset);
+            const int grid_offset = map_grid_offset(x, y);
+            const int building_id = map_building_at(grid_offset);
             if (!building_id) {
                 continue;
             }
@@ -552,14 +460,7 @@ int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int s
             }
             if (building_type_registry_impl::type_attr_is(b->type, ship ? "ship_bridge" : "low_bridge") &&
                 map_is_bridge(grid_offset)) {
-                int found = 0;
-                for (unsigned int bridge_id : bridge_ids) {
-                    if (bridge_id == b->id) {
-                        found = 1;
-                        break;
-                    }
-                }
-                if (!found) {
+                if (std::find(bridge_ids.begin(), bridge_ids.end(), b->id) == bridge_ids.end()) {
                     bridge_ids.push_back(b->id);
                 }
             }

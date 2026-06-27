@@ -1,7 +1,7 @@
 #include "file_editor.h"
 
 #include "building/building.h"
-#include "building/building_type_startup_bridge.h"
+#include "building/building_type_id_bridge.h"
 #include "building/construction.h"
 #include "building/image.h"
 #include "building/menu.h"
@@ -24,7 +24,7 @@
 #include "figure/trader.h"
 #include "figuretype/editor.h"
 #include "figuretype/water.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/file_io.h"
 #include "game/state.h"
 #include "game/time.h"
@@ -57,7 +57,7 @@
 
 static int building_image_for_text_id(const char *text_id)
 {
-    const building_type type = building_type_startup_bridge_runtime_id_from_text(text_id);
+    const building_type type = building_type_id_bridge_runtime_from_text(text_id);
     return type == BUILDING_NONE ? 0 : building_image_get_for_type(type);
 }
 
@@ -69,7 +69,7 @@ void game_file_editor_clear_data(void)
     city_data_init_scenario();
     city_message_init_scenario();
     game_state_init();
-    game_animation_init();
+    Animation::init();
     sound_city_init();
     building_menu_enable_all();
     building_clear_all();

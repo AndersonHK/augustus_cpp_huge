@@ -1,4 +1,4 @@
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "translation/translation.h"
 #include "building/building.h"
 #include "building/house.h"
@@ -22,7 +22,6 @@
 
 
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -891,15 +890,6 @@ const city_overlay *city_overlay_for_sentiment(void)
     return &overlay;
 }
 
-static int is_inhabited_building(int grid_offset)
-{
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        return 0;
-    }
-    building *b = building_get(map_building_at(grid_offset));
-    return b && b->house_population > 0 && !b->is_deleted && !map_property_is_deleted(b->grid_offset);
-}
-
 static int get_desirability_image_offset(int desirability)
 {
     if (desirability <= 0) {
@@ -932,22 +922,19 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset))) {
         return;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && is_inhabited_building(grid_offset)) {
+    int building_id = map_building_at(grid_offset);
+    building *building_record = building_id ? building_get(building_id) : nullptr;
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building_record &&
+        building_record->house_population > 0 && !building_record->is_deleted &&
+        !map_property_is_deleted(building_record->grid_offset)) {
         if (map_property_is_draw_tile(grid_offset)) {
-            building *b = building_get(map_building_at(grid_offset));
-            color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(b->desirability) * 10);
-            blend_color_to_footprint(x, y, b->house_size, desirability_color, scale);
+            color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(building_record->desirability) * 10);
+            blend_color_to_footprint(x, y, building_record->house_size, desirability_color, scale);
             city_with_overlay_draw_building_top(x, y, grid_offset);
             Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, desirability_color, scale);
         }
     } else {
-        int desirability;
-        if (map_building_at(grid_offset)) {
-            building *b = building_get(map_building_at(grid_offset));
-            desirability = b->desirability;
-        } else {
-            desirability = map_desirability_get(grid_offset);
-        }
+        int desirability = building_record ? building_record->desirability : map_desirability_get(grid_offset);
         if (desirability) {
             int offset = get_desirability_image_offset(desirability);
             Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);

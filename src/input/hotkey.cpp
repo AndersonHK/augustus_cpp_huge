@@ -2,7 +2,6 @@
 #include "window/popup_dialog.h"
 #include "hotkey.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "city/constants.h"
 #include "empire/editor.h"
@@ -64,15 +63,7 @@ static void set_building_action(hotkey_definition *def, building_type type)
 
 static void set_building_action_from_text(hotkey_definition *def, const char *text_id)
 {
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
-            set_building_action(def, type);
-            return;
-        }
-    }
-    set_building_action(def, BUILDING_NONE);
+    set_building_action(def, building_type_registry_impl::type_from_attr(text_id));
 }
 
 static void set_definition_for_action(hotkey_action action, hotkey_definition *def)
@@ -262,7 +253,7 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
             def->action = &data.global_hotkey_state.save_minimap_screenshot;
             break;
         case HOTKEY_BUILD_VACANT_HOUSE:
-            set_building_action(def, building_type_registry_get_vacant_lot_fill_type());
+            set_building_action(def, building_type_registry_impl::vacant_lot_fill_type());
             break;
         case HOTKEY_BUILD_CLEAR_LAND:
             set_building_action_from_text(def, "clear_land");

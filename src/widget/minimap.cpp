@@ -9,7 +9,6 @@
 
 #include "assets/assets.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/view.h"
 #include "core/calc.h"

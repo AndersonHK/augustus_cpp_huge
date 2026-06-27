@@ -4,7 +4,6 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
-#include "building/building_type_api.h"
 #include "city/health.h"
 #include "figure/figure.h"
 #include "game/state.h"

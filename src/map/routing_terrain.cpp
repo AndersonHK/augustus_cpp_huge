@@ -18,25 +18,16 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 static void update_land_terrain_noncitizen(void);
 
-static int type_matches(building_type type, const char *text_id)
+static int is_road_surface(int terrain)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
+    return terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP);
 }
 
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
+static int is_noncitizen_clearable_surface(int terrain)
 {
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
+    return terrain & (TERRAIN_GARDEN | TERRAIN_RUBBLE | TERRAIN_AQUEDUCT);
 }
 
 static int is_granary_cross_tile(int grid_offset)
@@ -73,7 +64,7 @@ static int is_transformable_gate_wall(building_type type)
         "hedge_dark",
         "hedge_light",
     };
-    return type_matches_any(type, types, sizeof(types) / sizeof(types[0]));
+    return building_type_registry_impl::type_attr_is_any(type, types, sizeof(types) / sizeof(types[0]));
 }
 
 static int is_native_blocker(building_type type)
@@ -88,7 +79,7 @@ static int is_native_blocker(building_type type)
         "native_monument",
         "native_watchtower",
     };
-    return type_matches_any(type, types, sizeof(types) / sizeof(types[0]));
+    return building_type_registry_impl::type_attr_is_any(type, types, sizeof(types) / sizeof(types[0]));
 }
 
 void Route::updateAllTerrain(void)
@@ -123,13 +114,13 @@ static int get_land_type_citizen_building(int grid_offset)
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant
         type = GATE_0_TRANSFORMABLE;
-    } else if (type_matches(b->type, "fort_ground")) {
+    } else if (building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = CITIZEN_2_PASSABLE_TERRAIN;
     } else if (current.type && current.type->is_granary()) {
         if (is_granary_cross_tile(grid_offset)) {
             type = CITIZEN_0_ROAD;
         }
-    } else if (type_matches(b->type, "reservoir")) {
+    } else if (building_type_registry_impl::type_attr_is(b->type, "reservoir")) {
         if (is_reservoir_connector_tile(grid_offset)) {
             type = CITIZEN_N4_RESERVOIR_CONNECTOR; // aqueduct connect points
         }
@@ -166,7 +157,7 @@ void Route::updateCitizenLandTerrain(void)
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             int terrain = map_terrain_get(grid_offset);
-            if (terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
+            if (is_road_surface(terrain)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
             } else if (terrain & TERRAIN_HIGHWAY) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
@@ -200,7 +191,7 @@ static int get_land_type_noncitizen(int grid_offset)
     building *b = building_get(map_building_at(grid_offset));
     Building current(b);
     if ((current.type && current.type->is_warehouse()) ||
-        type_matches(b->type, "fort_ground")) {
+        building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = NONCITIZEN_0_PASSABLE;
     } else if (is_native_blocker(b->type)) {
         type = NONCITIZEN_N1_BLOCKED;
@@ -215,7 +206,7 @@ static int get_land_type_noncitizen(int grid_offset)
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant
         type = GATE_0_TRANSFORMABLE;
-    } else if (type_matches(b->type, "wall")) {
+    } else if (building_type_registry_impl::type_attr_is(b->type, "wall")) {
         type = NONCITIZEN_3_WALL;
     }
     return type;
@@ -232,13 +223,11 @@ static void update_land_terrain_noncitizen(void)
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_4_GATEHOUSE;
             } else if (terrain & TERRAIN_BUILDING) {
                 terrain_land_noncitizen.items[grid_offset] = get_land_type_noncitizen(grid_offset);
-            } else if (terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
+            } else if (is_road_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
             } else if (terrain & TERRAIN_HIGHWAY) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
-            } else if (terrain & (TERRAIN_GARDEN | TERRAIN_RUBBLE)) {
-                terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_2_CLEARABLE;
-            } else if (terrain & TERRAIN_AQUEDUCT) {
+            } else if (is_noncitizen_clearable_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_2_CLEARABLE;
             } else if (terrain & TERRAIN_WALL) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_3_WALL;

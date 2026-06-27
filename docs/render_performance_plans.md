@@ -8,20 +8,29 @@ The current renderer already uses SDL textures and an accelerated `SDL_Renderer`
 ## Plan A: CPU Draw-Loop and Cache Pass
 Goal: recover short-term FPS without changing the renderer backend.
 
+Current implemented seams:
+- `city_draw_main_row` now has child buckets for top, figures, and animation.
+- Render metrics now count 2D requests, managed-image requests, submissions by texture source, texture switches, texture misses, grid overlays, visible render tile rows, and visible render tiles.
+- The normal city draw row path uses `CityViewRenderPhase` entries so phases can share visible row traversal and carry `Building` objects per visible tile; top/animation/elevated-ornament paths defer legacy image lookups until native draw or compatibility fallbacks need them.
+- Renderer requests now carry an optional fixed logical-size bridge. Existing float/source-size behavior remains the fallback while callers and XML are migrated.
+- `Render2DPipeline` owns render-domain classification and scale-filter config interpretation; SDL renderer setup asks the pipeline for texture filter hints instead of duplicating `scale_filter` policy.
+
 Scope:
 - Reduce repeated visible-tile traversal in the city draw path while preserving layer order.
 - Cache stable visible tile rows for a camera/viewport/orientation where practical.
 - Move native graphics toward explicit invalidation and cheap cached reads instead of per-draw signature scanning.
 - Prefer `Building&` / `Building` objects handed down from owner phases over repeated `Building::from_id` lookups.
-- Add finer draw-side tracker buckets before making broad claims: top, figures, animation, native cache checks, native cache rebuilds, legacy image draws, SDL/managed draw submissions, texture switches.
+- Keep extending draw-side tracker buckets before making broad claims. Top, figures, animation, SDL/managed/atlas submissions, texture switches, texture misses, and visible row/tile counts are covered; native cache checks/rebuilds and legacy image draw families still need dedicated buckets.
 - Consider thread-pool preprocessing only for state preparation or command-list construction. Do not parallelize into more renderer calls until draw-call overhead is measured.
 
 Implementation sequence:
-1. Collapse repeated row traversal overhead in `city_view_foreach_valid_map_tile_row`.
-2. Split `city_draw_main_row` into top/figure/animation buckets.
-3. Add a city draw command prepass that can carry `Building` objects or direct building pointers.
-4. Replace broad graphics signatures with dirty flags or generation counters owned by the building runtime.
-5. Remove low-risk `Building::from_id` call sites from draw code by carrying object references through the row command path.
+1. [x] Split `city_draw_main_row` into top/figure/animation buckets.
+2. [x] Add first renderer metrics for request counts, texture-source submissions, texture switches/misses, grid overlays, and visible row/tile counts.
+3. [x] Centralize render-domain and `scale_filter` policy interpretation in `Render2DPipeline`.
+4. [~] Collapse repeated row traversal overhead. Normal city draw rows use `CityViewRenderPhase`; deletion/editor phase-major paths still need an order-safe contract before they can be collapsed.
+5. [ ] Add a city draw command prepass that can carry `Building` objects or direct building pointers.
+6. [ ] Replace broad graphics signatures with dirty flags or generation counters owned by the building runtime.
+7. [ ] Remove low-risk `Building::from_id` call sites from draw code by carrying object references through the row command path.
 
 Expected benefit:
 - Low to medium. This reduces single-threaded CPU waste and gives clearer measurements. It will not solve the long-term draw-call ceiling by itself.
@@ -40,7 +49,7 @@ Implementation sequence:
 1. Add renderer-facing command structs and a recording mode behind the existing draw API.
 2. Batch obvious same-texture UI/terrain/building runs.
 3. Convert image payload materialization to allocate from shared atlases.
-4. Measure draw-call count, texture switches, and command-list build time.
+4. Measure draw-call count, texture switches, and command-list build time. Request/submission and texture-switch metrics exist; command-list build timing is still pending.
 5. Decide whether SDL3 materially improves the command-list backend.
 
 Expected benefit:
@@ -49,7 +58,7 @@ Expected benefit:
 ## Plan C: Vulkan Hardware Renderer
 Goal: make high-resolution, HDR, shaded, large-city rendering viable long term. This repository can keep "Vulcan" as shorthand in discussion, but the implementation target is Vulkan.
 
-The design constraint is no longer the original 1 source pixel to 1 logical pixel world. Vespasian should eventually be able to replace legacy art with assets that are 6x larger horizontally and vertically, or 36x the source pixels, while preserving the same logical footprint on screen. That makes CPU-side per-sprite scaling, atlas bleed, and immediate-mode draw submission unacceptable as the final architecture.
+The design constraint is no longer the original 1 source pixel to 1 logical pixel world. Vespasian should eventually be able to replace legacy art with assets that are 6x larger horizontally and vertically, or 36x the source pixels, while preserving the same logical footprint on screen. That makes CPU-side per-sprite scaling, atlas bleed, immediate-mode draw submission, and movement/render math that assumes integer source-pixel offsets unacceptable as the final architecture.
 
 CityBuilder reference:
 - `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\docs\design\vulkan-migration-plan.md`
@@ -77,6 +86,8 @@ The important transferable lessons from that renderer are:
 Scope:
 - Add a Vulkan backend fed by persistent GPU resources: texture arrays or bindless descriptor tables, sprite instance buffers, terrain buffers, animation/state buffers, overlay payload textures, and a small set of pipelines.
 - Keep asset source resolution separate from logical size. The renderer must accept source pixel dimensions, logical destination dimensions, and filter policy as independent data so 6x assets can render to the same world size as legacy assets.
+- Store authored logical sizes in a fine-grained integer or fixed-point unit rather than floats. The current request boundary has a fixed logical-size bridge, but XML/callers are not migrated and the final authoring grain is still open.
+- Treat figure movement positions as logical world/camera data. Tile progress, cross-country positions, sprite offsets, and continuous zoom should not require a source pixel to equal a logical pixel.
 - Move city terrain, building, figure, tile, overlay, ghost, weather, and UI presentation into renderer-owned command or instance data instead of letting the main tick loop make thousands of individual draw decisions.
 - Use worker threads for command-list construction, dirty chunk classification, texture upload staging, and instance-buffer rebuilds. The render thread should submit already-built batches and process GPU synchronization.
 - Keep gameplay, placement validation, walker/path state, building state, and animation state resolution on the CPU. The GPU receives resolved IDs, frame indices, transforms, tint/material IDs, lighting flags, and semantic overlay payloads.
@@ -125,12 +136,13 @@ Implementation sequence:
 3. Add a thread-pool-backed preparation stage that builds visible chunk lists, dirty instance buffers, and staging uploads before the render thread submits.
 4. Create a Vulkan backend behind the renderer interface, initially for city terrain/building sprites and one screen-space UI pass.
 5. Move native image payloads and extracted legacy images into Vulkan texture arrays or descriptor-indexed image tables. Keep atlas fallback visible as debt and measure every time it is used.
-6. Add per-instance buffers for position, logical size, source rectangle/frame index, layer/depth, tint/material ID, animation frame, filter policy, and shader flags.
-7. Add orthographic camera math and a conservative depth model for terrain, roads, buildings, figures, overlays, ghosts, and weather. Keep UI screen-space and last.
-8. Convert figures and remaining legacy graphics to the same native resource model as buildings so high-resolution Vespasian assets can declare logical size without bespoke draw branches.
-9. Add HDR scene target and output selection. Start with neutral SDR-equivalent presentation, then enable HDR10/scRGB output and tone mapping after parity is stable.
-10. Add shader-side lighting and material policies for torches, fire, lightning, weather, and daytime changes.
-11. Delete SDL/OpenGL-style immediate city draw hot paths once the Vulkan path covers terrain, buildings, figures, overlays, ghosts, weather, and UI with screenshot parity.
+6. Add per-instance buffers for position, fixed-point logical size, source rectangle/frame index, layer/depth, tint/material ID, animation frame, filter policy, and shader flags.
+7. Feed figure/world positions as logical coordinates with normalized progress or fixed-point world units, so the renderer can interpolate through continuous zoom without depending on legacy pixel increments.
+8. Add orthographic camera math and a conservative depth model for terrain, roads, buildings, figures, overlays, ghosts, and weather. Keep UI screen-space and last.
+9. Convert figures and remaining legacy graphics to the same native resource model as buildings so high-resolution Vespasian assets can declare logical size without bespoke draw branches.
+10. Add HDR scene target and output selection. Start with neutral SDR-equivalent presentation, then enable HDR10/scRGB output and tone mapping after parity is stable.
+11. Add shader-side lighting and material policies for torches, fire, lightning, weather, and daytime changes.
+12. Delete SDL/OpenGL-style immediate city draw hot paths once the Vulkan path covers terrain, buildings, figures, overlays, ghosts, weather, and UI with screenshot parity.
 
 Expected benefit:
 - Very high. CityBuilder saw around a 10x frame-time reduction moving from OpenGL-style rendering to Vulkan, and Augustus has the same shape of problem: too much CPU-directed draw work, too many tiny submissions, and too much legacy atlas/scaling behavior.

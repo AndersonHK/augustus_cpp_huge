@@ -44,7 +44,7 @@ int image_base_for(const figure_type_registry_impl::FigureTypeDefinition *defini
     if (!definition) {
         return image_group(GROUP_FIGURE_SHIP) + 8;
     }
-    const figure_type_registry_impl::GraphicsPolicy &graphics = definition->graphics_policy();
+    const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
     return image_group(graphics.image_group ? graphics.image_group : GROUP_FIGURE_SHIP) + graphics.image_group_offset;
 }
 
@@ -113,8 +113,8 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
     owner = building_get(this->building.id());
     is_ghost = 0;
     is_boat = 1;
-    cart_image_id = 0;
-    figure_image_increase_offset(this, definition ? definition->graphics_policy().max_image_offset : 12);
+    clear_legacy_cart_overlay_image();
+    figure_image_increase_offset(this, definition ? definition->graphics().max_image_offset : 12);
 
     switch (action_state) {
         case FIGURE_ACTION_190_FISHING_BOAT_CREATED:
@@ -238,6 +238,8 @@ void FishingBoat::sink()
 void FishingBoat::update_image(const figure_type_registry_impl::FigureTypeDefinition *definition)
 {
     const int dir = figure_image_normalize_direction(direction < 8 ? direction : previous_tile_direction);
-    image_id = image_base_for(definition) + dir +
-        (action_state == FIGURE_ACTION_192_FISHING_BOAT_FISHING ? 8 : 0);
+    select_legacy_directional_frame_image(
+        image_base_for(definition) + (action_state == FIGURE_ACTION_192_FISHING_BOAT_FISHING ? 8 : 0),
+        dir,
+        0);
 }

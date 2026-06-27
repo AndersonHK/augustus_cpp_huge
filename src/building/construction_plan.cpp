@@ -24,8 +24,9 @@ constexpr int FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TER
 
 int type_size(const building_type_registry_impl::BuildingType *definition, building_type type)
 {
-    if (definition && definition->model().has_size()) {
-        return definition->model().size();
+    const int declared_size = definition ? definition->declared_model_size() : 0;
+    if (declared_size > 0) {
+        return declared_size;
     }
     const building_properties *props = building_properties_for_type(type);
     return props ? props->size : 1;

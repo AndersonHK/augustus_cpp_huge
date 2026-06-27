@@ -3,7 +3,6 @@
 #include "natives.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/image.h"
 #include "building/list.h"
@@ -25,40 +24,9 @@
 #include "scenario/data.h" // TODO remove this dependency
 #include "scenario/property.h"
 
-#include <cstring>
-
-static building_type xml_type(const char *text_id)
-{
-    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
-        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
-            return static_cast<building_type>(type);
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static building *building_first_of_text_type(const char *text_id)
 {
-    building_type type = xml_type(text_id);
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
     return type != BUILDING_NONE ? building_first_of_type(type) : nullptr;
 }
 
@@ -101,10 +69,10 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
                 };
                 int is_storage = existing.type &&
                     (existing.type->is_granary() || existing.type->is_warehouse());
-                if (!type_matches_any(type, native_land_allowed,
+                if (!building_type_registry_impl::type_attr_is_any(type, native_land_allowed,
                         sizeof(native_land_allowed) / sizeof(native_land_allowed[0])) &&
                     (Roadblock(record).kind() == ROADBLOCK_NONE ||
-                        type_matches_any(type, roadblock_pass_allowed,
+                        building_type_registry_impl::type_attr_is_any(type, roadblock_pass_allowed,
                             sizeof(roadblock_pass_allowed) / sizeof(roadblock_pass_allowed[0])) ||
                         is_storage)) {
                     return 1;
@@ -142,20 +110,70 @@ static void determine_meeting_center(void)
 }
 
 static int native_hut_alt_get_image_id(void) {
-    return building_image_get_for_type(xml_type("native_hut_alt"));
+    return building_image_get_for_type(building_type_registry_impl::type_from_attr("native_hut_alt"));
+}
+
+struct native_tile_match {
+    building_type type = BUILDING_NONE;
+    int image_id = 0;
+    int covers_meeting_tiles = 0;
+};
+
+static native_tile_match native_tile_match_for_image(
+    int source_image_id,
+    int random_bit,
+    int native_image,
+    int crops_image)
+{
+    if (source_image_id == scenario.native_images.hut) {
+        return { building_type_registry_impl::type_from_attr("native_hut"), native_image, 0 };
+    }
+    if (source_image_id == scenario.native_images.hut + 1) {
+        return { building_type_registry_impl::type_from_attr("native_hut"), native_image + 1, 0 };
+    }
+    if (scenario.native_images.alt_hut != 0 && source_image_id == scenario.native_images.alt_hut) {
+        return { building_type_registry_impl::type_from_attr("native_hut_alt"), native_hut_alt_get_image_id(), 0 };
+    }
+    if (scenario.native_images.alt_hut != 0 && source_image_id == scenario.native_images.alt_hut + 1) {
+        return { building_type_registry_impl::type_from_attr("native_hut_alt"), native_hut_alt_get_image_id(), 0 };
+    }
+    if (scenario.native_images.decoration != 0 && source_image_id == scenario.native_images.decoration) {
+        const building_type type = building_type_registry_impl::type_from_attr("native_decor");
+        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+    }
+    if (scenario.native_images.monument != 0 && source_image_id == scenario.native_images.monument) {
+        const building_type type = building_type_registry_impl::type_from_attr("native_monument");
+        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+    }
+    if (scenario.native_images.watchtower != 0 && source_image_id == scenario.native_images.watchtower) {
+        const building_type type = building_type_registry_impl::type_from_attr("native_watchtower");
+        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+    }
+    if (source_image_id == scenario.native_images.meeting) {
+        return { building_type_registry_impl::type_from_attr("native_meeting"), native_image + 2, 1 };
+    }
+    if (source_image_id == scenario.native_images.crops) {
+        return { building_type_registry_impl::type_from_attr("native_crops"), crops_image + random_bit, 0 };
+    }
+    return {};
+}
+
+static void set_native_tile_image(int grid_offset, const native_tile_match &match)
+{
+    if (!match.type) {
+        return;
+    }
+    map_image_set(grid_offset, match.image_id);
+    if (match.covers_meeting_tiles) {
+        map_image_set(grid_offset + map_grid_delta(1, 0), match.image_id);
+        map_image_set(grid_offset + map_grid_delta(0, 1), match.image_id);
+        map_image_set(grid_offset + map_grid_delta(1, 1), match.image_id);
+    }
 }
 
 void map_natives_init(void)
 {
-    int image_hut = scenario.native_images.hut;
-    int image_meeting = scenario.native_images.meeting;
-    int image_crops = scenario.native_images.crops;
-    int scenario_image_alt_hut = scenario.native_images.alt_hut;
-    int scenario_image_decoration = scenario.native_images.decoration;
-    int scenario_image_monument = scenario.native_images.monument;
-    int scenario_image_watchtower = scenario.native_images.watchtower;
     int native_image = image_group(GROUP_BUILDING_NATIVE);
-    int native_hut_alt_image = native_hut_alt_get_image_id();
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
@@ -164,70 +182,23 @@ void map_natives_init(void)
             }
 
             int random_bit = map_random_get(grid_offset) & 1;
-            building_type type;
-            int image_id = map_image_at(grid_offset);
-            if (image_id == image_hut) {
-                type = xml_type("native_hut");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image);
-                }
-            } else if (image_id == image_hut + 1) {
-                type = xml_type("native_hut");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image + 1);
-                }
-            } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut) {
-                type = xml_type("native_hut_alt");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image);
-                }
-            } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut + 1) {
-                type = xml_type("native_hut_alt");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image);
-                }
-            } else if (scenario_image_decoration != 0 && image_id == scenario_image_decoration) {
-                type = xml_type("native_decor");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (scenario_image_monument != 0 && image_id == scenario_image_monument) {
-                type = xml_type("native_monument");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (scenario_image_watchtower != 0 && image_id == scenario_image_watchtower) {
-                type = xml_type("native_watchtower");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (image_id == image_meeting) {
-                type = xml_type("native_meeting");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(1, 0), native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(0, 1), native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(1, 1), native_image + 2);
-                }
-            } else if (image_id == image_crops) {
-                type = xml_type("native_crops");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, image_group(GROUP_BUILDING_FARM_CROPS) + random_bit);
-                }
-            } else { //unknown building
-                map_building_tiles_remove(0, x, y);
-                continue;
-            }
+            native_tile_match match = native_tile_match_for_image(
+                map_image_at(grid_offset),
+                random_bit,
+                native_image,
+                image_group(GROUP_BUILDING_FARM_CROPS));
+            building_type type = match.type;
             if (type == BUILDING_NONE) {
                 map_building_tiles_remove(0, x, y);
                 continue;
             }
+            set_native_tile_image(grid_offset, match);
             building *b = building_create(type, x, y);
             map_building_set(grid_offset, b->id);
             b->state = BUILDING_STATE_IN_USE;
-            if (type_matches(type, "native_crops")) {
+            if (building_type_registry_impl::type_attr_is(type, "native_crops")) {
                 b->data.industry.progress = random_bit;
-            } else if (type_matches(type, "native_meeting")) {
+            } else if (building_type_registry_impl::type_attr_is(type, "native_meeting")) {
                 b->sentiment.native_anger = 100;
                 map_building_set(grid_offset + map_grid_delta(1, 0), b->id);
                 map_building_set(grid_offset + map_grid_delta(0, 1), b->id);
@@ -239,12 +210,12 @@ void map_natives_init(void)
                     "native_hut_alt",
                     "native_watchtower",
                 };
-                if (type_matches_any(type, native_single_tile_land,
+                if (building_type_registry_impl::type_attr_is_any(type, native_single_tile_land,
                         sizeof(native_single_tile_land) / sizeof(native_single_tile_land[0]))) {
                     b->sentiment.native_anger = 100;
                     b->figure_spawn_delay = random_bit;
                     mark_native_land(b->x, b->y, 1, 3);
-                } else if (type_matches(type, "native_monument")) {
+                } else if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
                     map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get_for_type(type), TERRAIN_BUILDING);
                 }
             }
@@ -256,15 +227,7 @@ void map_natives_init(void)
 
 void map_natives_init_editor(void)
 {
-    int image_hut = scenario.native_images.hut;
-    int image_meeting = scenario.native_images.meeting;
-    int image_crops = scenario.native_images.crops;
     int native_image = image_group(GROUP_EDITOR_BUILDING_NATIVE);
-    int native_hut_alt_image = native_hut_alt_get_image_id();
-    int scenario_image_alt_hut = scenario.native_images.alt_hut;
-    int scenario_image_decoration = scenario.native_images.decoration;
-    int scenario_image_monument = scenario.native_images.monument;
-    int scenario_image_watchtower = scenario.native_images.watchtower;
 
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
@@ -273,73 +236,26 @@ void map_natives_init_editor(void)
                 continue;
             }
 
-            building_type type;
-            int image_id = map_image_at(grid_offset);
-            if (image_id == image_hut) {
-                type = xml_type("native_hut");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image);
-                }
-            } else if (image_id == image_hut + 1) {
-                type = xml_type("native_hut");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image + 1);
-                }
-            } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut) {
-                type = xml_type("native_hut_alt");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image);
-                }
-            } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut + 1) {
-                type = xml_type("native_hut_alt");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image);
-                }
-            } else if (scenario_image_decoration != 0 && image_id == scenario_image_decoration) {
-                type = xml_type("native_decor");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (scenario_image_monument != 0 && image_id == scenario_image_monument) {
-                type = xml_type("native_monument");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (scenario_image_watchtower != 0 && image_id == scenario_image_watchtower) {
-                type = xml_type("native_watchtower");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, building_image_get_for_type(type));
-                }
-            } else if (image_id == image_meeting) {
-                type = xml_type("native_meeting");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(1, 0), native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(0, 1), native_image + 2);
-                    map_image_set(grid_offset + map_grid_delta(1, 1), native_image + 2);
-                }
-            } else if (image_id == image_crops) {
-                type = xml_type("native_crops");
-                if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, image_group(GROUP_EDITOR_BUILDING_CROPS));
-                }
-            } else { //unknown building
-                map_building_tiles_remove(0, x, y);
-                continue;
-            }
+            native_tile_match match = native_tile_match_for_image(
+                map_image_at(grid_offset),
+                0,
+                native_image,
+                image_group(GROUP_EDITOR_BUILDING_CROPS));
+            building_type type = match.type;
             if (type == BUILDING_NONE) {
                 map_building_tiles_remove(0, x, y);
                 continue;
             }
+            set_native_tile_image(grid_offset, match);
             building *b = building_create(type, x, y);
             b->state = BUILDING_STATE_IN_USE;
             map_building_set(grid_offset, b->id);
-            if (type_matches(type, "native_meeting")) {
+            if (building_type_registry_impl::type_attr_is(type, "native_meeting")) {
                 map_building_set(grid_offset + map_grid_delta(1, 0), b->id);
                 map_building_set(grid_offset + map_grid_delta(0, 1), b->id);
                 map_building_set(grid_offset + map_grid_delta(1, 1), b->id);
             }
-            if (type_matches(type, "native_monument")) {
+            if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
                 map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get_for_type(type), TERRAIN_BUILDING);
             }
         }
@@ -361,7 +277,7 @@ void map_natives_check_land(int update_behavior)
     };
 
     for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]); i++) {
-        building_type type = xml_type(native_buildings[i]);
+        building_type type = building_type_registry_impl::type_from_attr(native_buildings[i]);
         if (type == BUILDING_NONE) {
             continue;
         }

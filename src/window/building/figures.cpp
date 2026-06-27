@@ -1,7 +1,7 @@
 #include "figure/phrase.h"
 #include "translation/translation.h"
 #include "figuretype/depot.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -19,7 +19,6 @@
 #include "window/building/utility.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -38,11 +37,6 @@
 #include "scenario/property.h"
 
 #define CAMEL_PORTRAIT 59
-
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
 
 static void select_figure(const generic_button *button);
 static void depot_recall(const generic_button *button);
@@ -311,7 +305,8 @@ static void draw_trader(building_info_context *c, Figure *f)
         }
     }
 
-    if (building_monument_working(type_from_attr("caravanserai")) && f->type != FIGURE_TRADE_SHIP) {
+    if (building_monument_working(building_type_registry_impl::type_from_attr("caravanserai")) &&
+        f->type != FIGURE_TRADE_SHIP) {
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
         if (policy) {
             int text_width = text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_TITLE"), c->x_offset + 40, c->y_offset + 222, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -333,7 +328,8 @@ static void draw_trader(building_info_context *c, Figure *f)
         }
     }
 
-    if (building_monument_working(type_from_attr("lighthouse")) && f->type == FIGURE_TRADE_SHIP) {
+    if (building_monument_working(building_type_registry_impl::type_from_attr("lighthouse")) &&
+        f->type == FIGURE_TRADE_SHIP) {
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
         if (policy) {
             int text_width = text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_TITLE"), c->x_offset + 40,

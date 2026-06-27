@@ -1,7 +1,6 @@
 #include "roamer_preview.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "building/properties.h"
@@ -26,7 +25,9 @@ static struct {
 
 static figure_type building_type_to_figure_type(building_type type)
 {
-    return building_type_registry_get_preview_figure(type);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition ? definition->preview_figure_type() : FIGURE_NONE;
 }
 
 static int roam_length_for_figure_type(figure_type type)
@@ -48,7 +49,7 @@ static int figure_enters_exits_building(figure_type type)
 
 static void init_roaming(Figure *f, int roam_dir, int x, int y)
 {
-    f->progress_on_tile = 15;
+    f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
     f->roam_choose_destination = 0;
     f->roam_ticks_until_next_turn = -1;
     f->roam_turn_direction = 2;
@@ -176,7 +177,7 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
             if (data.travelled_tiles.items[roamer.grid_offset] < FIGURE_ROAMER_PREVIEW_MAX_PASSAGES) {
                 data.travelled_tiles.items[roamer.grid_offset]++;
             }
-            roamer.progress_on_tile = 15;
+            roamer.progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             figure_movement_move_ticks(&roamer, 1);
         }
         Route::remove(&roamer);

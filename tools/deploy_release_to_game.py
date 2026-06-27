@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import traceback
+import ctypes
+from ctypes import wintypes
 import os
 import stat
 import shutil
 import sys
+import time
 from pathlib import Path
 
 
@@ -16,6 +20,65 @@ GOG_GAME_IDS = {"1207658835"}
 GAME_NAME_TOKENS = ("caesar 3", "caesar iii")
 GAME_ROOT_REQUIRED_FILES = ("c3.exe",)
 GAME_ROOT_LOCALE_FILES = ("c3.eng", "c3_mm.eng")
+LEGACY_DEPLOY_WORKSPACES = ("Mods.deploy-staging", "Mods.deploy-backup")
+DEPLOY_BACKUP_PREFIX = "Mods.deploy-backup"
+PROCESS_SNAPSHOT_FLAG = 0x00000002
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+
+class PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", ctypes.c_ulong),
+        ("cntUsage", ctypes.c_ulong),
+        ("th32ProcessID", ctypes.c_ulong),
+        ("th32DefaultHeapID", ctypes.c_void_p),
+        ("th32ModuleID", ctypes.c_ulong),
+        ("cntThreads", ctypes.c_ulong),
+        ("th32ParentProcessID", ctypes.c_ulong),
+        ("pcPriClassBase", ctypes.c_long),
+        ("dwFlags", ctypes.c_ulong),
+        ("szExeFile", ctypes.c_wchar * 260),
+    ]
+
+
+def windows_process_entries() -> list[tuple[int, int, str]]:
+    if os.name != "nt":
+        return []
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    snapshot = kernel32.CreateToolhelp32Snapshot(PROCESS_SNAPSHOT_FLAG, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        return []
+
+    entries: list[tuple[int, int, str]] = []
+    entry = PROCESSENTRY32W()
+    entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+    has_entry = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+    try:
+        while has_entry:
+            entries.append((entry.th32ProcessID, entry.th32ParentProcessID, entry.szExeFile))
+            has_entry = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return entries
+
+
+def windows_process_image_path(pid: int) -> Path | None:
+    if os.name != "nt":
+        return None
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not process:
+        return None
+    try:
+        buffer = ctypes.create_unicode_buffer(32768)
+        size = wintypes.DWORD(len(buffer))
+        if kernel32.QueryFullProcessImageNameW(process, 0, buffer, ctypes.byref(size)):
+            return Path(buffer.value).resolve()
+        return None
+    finally:
+        kernel32.CloseHandle(process)
 
 
 def game_name_matches(value: object) -> bool:
@@ -213,7 +276,12 @@ def require_mod_folder_path(mods_path: Path, label: str, expected_parent: Path |
 
 def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path | None = None) -> Path:
     resolved_mods = require_mod_folder_path(mods_path, label, expected_parent)
-    entries = list(resolved_mods.iterdir())
+    require_exact_mod_contents(resolved_mods, label)
+    return resolved_mods
+
+
+def require_exact_mod_contents(mods_path: Path, label: str) -> None:
+    entries = list(mods_path.iterdir())
     folders = {entry.name for entry in entries if entry.is_dir()}
     non_folders = [entry.name for entry in entries if not entry.is_dir()]
     if folders != EXPECTED_MOD_FOLDERS or non_folders:
@@ -224,20 +292,251 @@ def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path 
             f"{label} Mods folder must contain exactly these folders: {expected}. "
             f"Found folders: {actual_folders}. Found files: {actual_files}."
         )
-    return resolved_mods
 
 
 def require_safe_target_mods(target_mods: Path, game_root: Path) -> Path:
+    if not target_mods.exists():
+        if target_mods.name != "Mods":
+            raise RuntimeError(f"Target Mods folder must be named exactly 'Mods': {target_mods}")
+        if not same_path(target_mods.parent, game_root):
+            raise RuntimeError(f"Target Mods folder is not a direct child of the game folder: {target_mods}")
+        return target_mods
     resolved_mods = require_mod_folder_path(target_mods, "Target", game_root)
     if same_path(resolved_mods, game_root) or same_path(resolved_mods, game_root.parent):
         raise RuntimeError(f"Refusing to delete suspicious Mods path: {resolved_mods}")
     return resolved_mods
 
 
+def running_processes_under(folder: Path) -> list[str]:
+    root_text = str(folder.resolve()).casefold()
+    matches: list[str] = []
+    for pid, _, exe_name in windows_process_entries():
+        process_path = windows_process_image_path(pid)
+        if not process_path:
+            continue
+        process_text = str(process_path).casefold()
+        if process_text == root_text or process_text.startswith(root_text + os.sep):
+            matches.append(f"{exe_name} (pid {pid})")
+    return matches
+
+
+def require_no_running_game_processes(game_root: Path, dry_run: bool) -> None:
+    running = running_processes_under(game_root)
+    if not running:
+        return
+    message = "Close running Caesar 3/Vespasian processes before deploy: " + ", ".join(running)
+    if dry_run:
+        print(f"WARNING: {message}", file=sys.stderr)
+    else:
+        raise RuntimeError(message)
+
+
 def copy_file(source: Path, destination: Path, dry_run: bool) -> None:
     print(f"{'Would copy' if dry_run else 'Copying'} {source} -> {destination}")
     if not dry_run:
         shutil.copy2(source, destination)
+
+
+def make_writable_and_retry_remove(func: object, path: str, exc_info: object) -> None:
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except OSError:
+        raise
+
+
+def remove_tree(path: Path, label: str) -> None:
+    if not path.exists():
+        return
+    last_error: OSError | None = None
+    for attempt in range(3):
+        try:
+            shutil.rmtree(path, onerror=make_writable_and_retry_remove)
+            return
+        except OSError as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(0.25)
+    raise RuntimeError(f"Unable to remove {label}: {path}. {describe_os_error(last_error)}") from last_error
+
+
+def remove_path(path: Path, label: str) -> None:
+    if not path.exists():
+        return
+    if path.is_dir() and not path.is_symlink():
+        remove_tree(path, label)
+        return
+    try:
+        path.unlink()
+    except OSError as exc:
+        raise RuntimeError(f"Unable to remove {label}: {path}. {describe_os_error(exc)}") from exc
+
+
+def require_safe_deploy_workspace_path(path: Path, game_root: Path, label: str) -> Path:
+    if not same_path(path.parent, game_root):
+        raise RuntimeError(f"{label} must be a direct child of the game folder: {path}")
+    allowed_name = path.name in LEGACY_DEPLOY_WORKSPACES or path.name.startswith(f"{DEPLOY_BACKUP_PREFIX}.")
+    if not allowed_name:
+        raise RuntimeError(f"{label} has an unexpected deploy workspace name: {path}")
+    if path.exists() and (path.is_symlink() or is_reparse_point(path)):
+        raise RuntimeError(f"{label} must not be a symlink, junction, or reparse point: {path}")
+    return path
+
+
+def remove_deploy_workspace(path: Path, game_root: Path, label: str, required: bool) -> None:
+    try:
+        require_safe_deploy_workspace_path(path, game_root, label)
+        remove_tree(path, label)
+    except RuntimeError as exc:
+        if required:
+            raise
+        print(f"WARNING: {exc}", file=sys.stderr)
+
+
+def cleanup_legacy_deploy_workspaces(game_root: Path, dry_run: bool) -> None:
+    for name in LEGACY_DEPLOY_WORKSPACES:
+        workspace = game_root / name
+        if not workspace.exists():
+            continue
+        if dry_run:
+            print(f"Would remove stale deploy workspace: {workspace}")
+        else:
+            print(f"Removing stale deploy workspace: {workspace}")
+            remove_deploy_workspace(workspace, game_root, "stale deploy workspace", required=False)
+
+
+def unique_deploy_backup_path(game_root: Path) -> Path:
+    timestamp_ms = int(time.time() * 1000)
+    for attempt in range(100):
+        candidate = game_root / f"{DEPLOY_BACKUP_PREFIX}.{os.getpid()}.{timestamp_ms}.{attempt}"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError("Unable to choose an unused deploy backup folder name.")
+
+
+def require_real_directory(path: Path, label: str) -> None:
+    if not path.is_dir():
+        raise RuntimeError(f"{label} must be a real directory: {path}")
+    if path.is_symlink() or is_reparse_point(path):
+        raise RuntimeError(f"{label} must not be a symlink, junction, or reparse point: {path}")
+
+
+def move_path(source: Path, destination: Path, label: str) -> None:
+    try:
+        source.replace(destination)
+    except OSError as exc:
+        raise RuntimeError(f"Unable to move {label}: {source} -> {destination}. {describe_os_error(exc)}") from exc
+
+
+def copy_tree(source: Path, destination: Path, label: str) -> None:
+    require_real_directory(source, f"{label} source folder")
+    if destination.exists():
+        raise RuntimeError(f"{label} destination already exists before copy: {destination}")
+    try:
+        shutil.copytree(source, destination)
+    except OSError as exc:
+        cleanup_detail = ""
+        try:
+            remove_path(destination, f"partial {label}")
+        except RuntimeError as cleanup_exc:
+            cleanup_detail = f" Partial copy cleanup also failed: {cleanup_exc}"
+        raise RuntimeError(
+            f"Unable to copy {label}: {source} -> {destination}. {describe_os_error(exc)}{cleanup_detail}"
+        ) from exc
+
+
+def restore_mod_folders(target_mods: Path, backup_mods: Path, original_existing: set[str]) -> list[str]:
+    restore_errors: list[str] = []
+    for folder in sorted(EXPECTED_MOD_FOLDERS):
+        target_folder = target_mods / folder
+        backup_folder = backup_mods / folder
+        try:
+            if backup_folder.exists():
+                remove_path(target_folder, "partially deployed mod folder")
+                move_path(backup_folder, target_folder, "target mod folder restore")
+            elif folder not in original_existing:
+                remove_path(target_folder, "new target mod folder after failed deploy")
+        except RuntimeError as restore_exc:
+            restore_errors.append(str(restore_exc))
+    return restore_errors
+
+
+def describe_os_error(exc: OSError) -> str:
+    parts: list[str] = []
+    if getattr(exc, "winerror", None):
+        parts.append(f"WinError {exc.winerror}")
+    elif getattr(exc, "errno", None):
+        parts.append(f"errno {exc.errno}")
+    if getattr(exc, "strerror", None):
+        parts.append(str(exc.strerror))
+    if getattr(exc, "filename", None):
+        parts.append(f"path={exc.filename}")
+    if getattr(exc, "filename2", None):
+        parts.append(f"target={exc.filename2}")
+    return "; ".join(parts) if parts else str(exc)
+
+
+def remove_unexpected_target_mod_entries(target_mods: Path, dry_run: bool) -> None:
+    for entry in list(target_mods.iterdir()):
+        if entry.name in EXPECTED_MOD_FOLDERS and entry.is_dir():
+            continue
+        print(f"{'Would remove' if dry_run else 'Removing'} unexpected target Mods entry: {entry}")
+        if not dry_run:
+            remove_path(entry, "unexpected target Mods entry")
+
+
+def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, dry_run: bool) -> None:
+    backup_mods = unique_deploy_backup_path(game_root)
+    if dry_run:
+        print(f"Would ensure target Mods folder exists: {target_mods}")
+        cleanup_legacy_deploy_workspaces(game_root, True)
+        if target_mods.exists():
+            remove_unexpected_target_mod_entries(target_mods, True)
+        print(f"Would prepare per-run backup folder: {backup_mods}")
+        for folder in sorted(EXPECTED_MOD_FOLDERS):
+            print(f"Would move existing mod folder to backup if present: {target_mods / folder}")
+            print(f"Would copy source mod folder directly: {source_mods / folder} -> {target_mods / folder}")
+        print(f"Would remove per-run backup after successful deploy: {backup_mods}")
+        return
+
+    target_mods.mkdir(parents=False, exist_ok=True)
+    cleanup_legacy_deploy_workspaces(game_root, False)
+    remove_unexpected_target_mod_entries(target_mods, False)
+
+    require_safe_deploy_workspace_path(backup_mods, game_root, "per-run deploy backup")
+    print(f"Preparing per-run backup folder: {backup_mods}")
+    try:
+        backup_mods.mkdir()
+    except OSError as exc:
+        raise RuntimeError(f"Unable to create per-run deploy backup folder: {backup_mods}. {describe_os_error(exc)}") from exc
+    original_existing = {folder for folder in EXPECTED_MOD_FOLDERS if (target_mods / folder).exists()}
+
+    try:
+        for folder in sorted(EXPECTED_MOD_FOLDERS):
+            source_folder = source_mods / folder
+            target_folder = target_mods / folder
+            backup_folder = backup_mods / folder
+            if target_folder.exists():
+                require_real_directory(target_folder, "target mod folder")
+                print(f"Moving target mod folder to backup: {target_folder} -> {backup_folder}")
+                move_path(target_folder, backup_folder, "target mod folder backup")
+
+            print(f"Copying source mod folder: {source_folder} -> {target_folder}")
+            copy_tree(source_folder, target_folder, "source mod folder")
+
+        require_exact_mod_contents(target_mods, "Target")
+    except RuntimeError as exc:
+        restore_errors = restore_mod_folders(target_mods, backup_mods, original_existing)
+        remove_deploy_workspace(backup_mods, game_root, "backup Mods folder after failed deploy", required=False)
+        if restore_errors:
+            raise RuntimeError(
+                "Unable to replace target mod folders, and restore from the per-run backup had errors: "
+                + " | ".join(restore_errors)
+            ) from exc
+        raise
+
+    if backup_mods.exists():
+        remove_deploy_workspace(backup_mods, game_root, "per-run backup Mods folder after successful deploy", required=False)
 
 
 def deploy_release(dry_run: bool) -> None:
@@ -249,6 +548,7 @@ def deploy_release(dry_run: bool) -> None:
     require_game_root(game_root)
     print(f"Registry source: {registry_source}")
     print(f"Game folder: {game_root}")
+    require_no_running_game_processes(game_root, dry_run)
 
     target_mods = require_safe_target_mods(game_root / "Mods", game_root)
 
@@ -268,13 +568,8 @@ def deploy_release(dry_run: bool) -> None:
     else:
         print("Release debug symbols: not found; skipping Vespasian.pdb")
 
-    print(f"{'Would delete' if dry_run else 'Deleting'} {target_mods}")
-    if not dry_run:
-        shutil.rmtree(target_mods)
-
-    print(f"{'Would copy' if dry_run else 'Copying'} {source_mods} -> {target_mods}")
-    if not dry_run:
-        shutil.copytree(source_mods, target_mods)
+    require_no_running_game_processes(game_root, dry_run)
+    replace_mods_folder(source_mods, target_mods, game_root, dry_run)
 
     copy_file(exe_path, game_root / exe_path.name, dry_run)
     if pdb_path.is_file():
@@ -292,17 +587,63 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print the registry result, validation checks, and planned file operations without deleting or copying.",
     )
+    pause_group = parser.add_mutually_exclusive_group()
+    pause_group.add_argument(
+        "--pause-on-exit",
+        action="store_true",
+        help="Prompt before closing even when not launched from Explorer.",
+    )
+    pause_group.add_argument(
+        "--no-pause-on-exit",
+        action="store_true",
+        help="Never prompt before closing.",
+    )
     return parser.parse_args()
+
+
+def parent_process_name() -> str:
+    entries = {pid: (parent_pid, exe_name) for pid, parent_pid, exe_name in windows_process_entries()}
+    parent_pid = entries.get(os.getpid(), (0, ""))[0]
+    return entries.get(parent_pid, (0, ""))[1].casefold() if parent_pid else ""
+
+
+def should_pause_on_exit(args: argparse.Namespace) -> bool:
+    if args.no_pause_on_exit:
+        return False
+    if args.pause_on_exit:
+        return True
+    return parent_process_name() == "explorer.exe"
+
+
+def pause_on_exit_if_needed(args: argparse.Namespace) -> None:
+    if should_pause_on_exit(args):
+        try:
+            input("\nPress Enter to close this window...")
+        except EOFError:
+            pass
 
 
 def main() -> int:
     args = parse_args()
+    exit_code = 0
     try:
         deploy_release(args.dry_run)
-    except RuntimeError as exc:
+    except Exception as exc:
+        log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
+        with log_path.open("w", encoding="utf-8") as log:
+            log.write("DEPLOY FAILED\n")
+            traceback.print_exception(type(exc), exc, exc.__traceback__, file=log)
+        print("DEPLOY FAILED.", file=sys.stderr)
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    return 0
+        print(f"Failure details were written to: {log_path}", file=sys.stderr)
+        exit_code = 1
+    else:
+        log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
+        with log_path.open("w", encoding="utf-8") as log:
+            log.write("DEPLOY SUCCEEDED\n")
+    finally:
+        pause_on_exit_if_needed(args)
+    return exit_code
 
 
 if __name__ == "__main__":

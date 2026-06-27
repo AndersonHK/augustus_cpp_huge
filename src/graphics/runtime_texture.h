@@ -24,14 +24,10 @@ struct RuntimeTextureDrawRequest {
     float y = 0.0f;
     float logical_width = 0.0f;
     float logical_height = 0.0f;
+    render_logical_size fixed_logical_size = {};
     color_t color = COLOR_MASK_NONE;
     render_domain domain = RENDER_DOMAIN_PIXEL;
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
-
-    bool has_explicit_logical_size() const
-    {
-        return logical_width > 0.0f && logical_height > 0.0f;
-    }
 
     explicit operator bool() const
     {

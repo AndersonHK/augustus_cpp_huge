@@ -1,14 +1,21 @@
 # Renderer Resource Refactor Working Memory
 
-Snapshot: 2026-06-05
+Snapshot: 2026-06-26 docs refresh over older renderer/resource notes
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-06-26 maintenance checkpoint
+- Treat this file as long-term renderer/resource memory. Current implementation contracts should still be verified against source before editing, especially around atlas fallback and managed image handles.
+- The current durable renderer plans are `docs/renderer_scaling_seam_plan.md`, `docs/render_performance_plans.md`, and `docs/figure_owned_native_graphics_plan.md`.
+- `git` is available in the current shell. `rg` and `gh` are not installed; use PowerShell-native `Select-String` / `Get-ChildItem` and normal `git` commands.
+- Old compile-fix notes in this file are historical only. Do not treat an old "latest known compile issue" as current without checking source or running the relevant build.
+- The strategic renderer direction remains path-keyed, logical-size-aware image resources with atlas sampling demoted to temporary compatibility input.
 
 ## 2026-06-05 image object and resource graphics pass
 - The former separate image payload/data helper layers are no longer public runtime types.
 - `Image` in `src/graphics/image.h/.cpp` is the manager-owned renderable image object. It owns the runtime handle plus image metadata and exposes draw/runtime-slice methods with default `COLOR_MASK_NONE` and `SCALE_NONE` arguments.
 - `ImageGroupEntryRef` is the semantic handle for "this entry from this image group." It stores a group path plus optional entry id, resolves to the manager-owned `Image`, and exposes `draw(...)`, dimensions, and runtime slices.
 - Do not introduce a bespoke `Icon` class for resource/building/button imagery. Existing XML already expresses those visuals as image group paths plus optional entry ids, so callers should store/use `ImageGroupEntryRef`.
-- Resource imagery now lives in `ResourceGraphics` (`src/game/resource_graphics.h/.cpp`), loaded from `Mods/<Mod>/Resources/*.xml`.
+- Resource imagery now lives in `ResourceGraphics` (`src/game/ResourceGraphics.h/.cpp`), loaded from `Mods/<Mod>/Resources/*.xml`.
 - Resources no longer expose image id fields or producer/industry fields. Production ownership is inferred from building production methods through `building_output_resource(...)` and `building_producer_for_resource(...)`.
 - Border composition moved out of `Image` and into `ImageBorder`, a UI composition primitive that owns explicit image-group segment references instead of relying on neighboring image ids.
 - The upcoming image-group class pass should be able to absorb `ImageGroupEntryRef` naturally: callers already speak in group path + entry id terms rather than raw legacy image ids.
@@ -30,7 +37,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - `Mods\Julius\Graphics` exists.
   - `Mods\Augustus\Graphics` exists.
   - `Mods\Vespasian\Graphics` does not exist.
-- Current clean sample baseline from `D:\Games\GOG Games\Caesar 3\assets\Graphics`:
+- Historical clean sample baseline from `D:\Games\GOG Games\Caesar 3\assets\Graphics` at the 2026-06-05 checkpoint. Newer climate-aware extraction counts are recorded in `docs/_codex_building_graphics_runtime_working_memory.md` under the 2026-06-21 checkpoint:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
   - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
@@ -257,15 +264,10 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
    - keep the C++ `Image` manager keyed by canonical path
    - keep legacy `image` access as an attached compatibility view rather than the authoritative core
 
-## Latest known compile issue
-- Fixed locally in source:
-  - `src/platform/augustus.cpp` needed `assets/assets.h` for `ASSETS_IMAGE_PATH`
-- User-reported MSVC diagnostics were around line 144 in `src/platform/augustus.cpp` and looked like a cascading parse failure from that missing include.
-
 ## Constraints
 - Build only when useful for the current task, and use `Release|x64`.
 - Keep CRLF on touched files.
-- `git` is not available in this shell, so rely on direct file inspection and static searches.
+- `rg` and `gh` are not installed in this shell; use PowerShell-native search and normal `git` commands when needed.
 - BuildingType templates/examples are now single-source:
   - keep `_README.md` and `_template.xml.example` only in `Mods\Vespasian\BuildingType`
   - `Mods\Augustus\BuildingType` should contain live XML data only

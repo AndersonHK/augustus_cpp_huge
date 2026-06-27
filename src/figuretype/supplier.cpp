@@ -1,7 +1,6 @@
 #include "building/distribution.h"
 #include "building/storage.h"
 #include "figuretype/wall.h"
-#include "game/resource_graphics.h"
 #include "map/road_access.h"
 
 #include "supplier.h"
@@ -10,7 +9,6 @@
 #include "building/market.h"
 
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "core/config.h"
@@ -21,40 +19,12 @@
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_type_registry_internal.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/data.h"
 #include "map/road_network.h"
 
-
-static const building_type_registry_impl::BuildingType *definition_for_building(building *b)
-{
-    return b ? Building(b).type : nullptr;
-}
-
-static int building_is_mess_hall(building *b)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-    return definition && definition->is_mess_hall();
-}
-
-static int building_is_caravanserai(building *b)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-    return definition && definition->is_caravanserai();
-}
-
-static int building_is_warehouse(building *b)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-    return definition && definition->is_warehouse();
-}
-
-static int building_is_granary(building *b)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
-    return definition && definition->is_granary();
-}
 
 int figure_supplier_max_stocked_mess_hall_adjusted(void)
 {
@@ -99,13 +69,15 @@ static int take_food_from_storage(Figure *f, int market_id, int storage_id)
         return 0;
     }
     Building storage_obj(storage);
+    Building market_obj(market);
+    const auto *market_type = market_obj.type;
 
     int market_units = market->resources[resource];
     int max_units = 0;
 
-    if (building_is_mess_hall(market)) {
+    if (market_type && market_type->is_mess_hall()) {
         max_units = figure_supplier_max_stocked_mess_hall_adjusted() - market_units;
-    } else if (building_is_caravanserai(market)) {
+    } else if (market_type && market_type->is_caravanserai()) {
         max_units = MAX_FOOD_STOCKED_CARAVANSERAI - market_units;
     } else {
         max_units = MAX_FOOD_STOCKED_MARKET - market_units;
@@ -116,11 +88,12 @@ static int take_food_from_storage(Figure *f, int market_id, int storage_id)
     }
 
     int amount_taken = 0;
-    if (building_is_warehouse(storage)) {
+    const auto *storage_type = storage_obj.type;
+    if (storage_type && storage_type->is_warehouse()) {
         int warehouse_loads_stored = building_warehouse_get_available_amount(storage_obj, resource);
         int warehouse_loads_take = warehouse_loads_stored > max_loads ? max_loads : warehouse_loads_stored;
         amount_taken = building_warehouse_try_remove_resource(storage_obj, resource, warehouse_loads_take);
-    } else if (building_is_granary(storage)) {
+    } else if (storage_type && storage_type->is_granary()) {
         int granary_loads_stored = building_granary_count_available_resource(storage_obj, resource, 1);
         int granary_loads_take = granary_loads_stored > max_loads ? max_loads : granary_loads_stored;
         amount_taken = building_granary_try_remove_resource(storage_obj, resource, granary_loads_take);
@@ -176,7 +149,7 @@ static int take_resource_from_warehouse(Figure *f, int warehouse_id, int max_amo
     building *warehouse = building_get(warehouse_id);
     Building warehouse_obj(warehouse);
     const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
-    if (!building_is_warehouse(warehouse)) {
+    if (!warehouse_obj.type || !warehouse_obj.type->is_warehouse()) {
         return take_resource_from_generic_building(f, warehouse_id);
     }
     int num_loads;
@@ -207,11 +180,13 @@ static int change_market_supplier_destination(Figure *f, int dst_building_id)
     Route::remove(f);
     f->destination_building = Building(building_get(dst_building_id));
     building *b_dst = building_get(dst_building_id);
+    Building destination(b_dst);
+    const auto *destination_type = destination.type;
     map_point road = { 0 };
     int has_road_access = 0;
-    if (building_is_warehouse(b_dst)) {
+    if (destination_type && destination_type->is_warehouse()) {
         has_road_access = map_has_road_access_warehouse(b_dst->x, b_dst->y, &road);
-    } else if (building_is_granary(b_dst)) {
+    } else if (destination_type && destination_type->is_granary()) {
         has_road_access = map_has_road_access_granary(b_dst->x, b_dst->y, &road);
     }
     if (!has_road_access) {
@@ -228,12 +203,15 @@ static int is_better_destination(Figure *f, resource_type r, resource_storage_in
 {
     Building old_destination = f->destination_building;
     building *old_dest = building_get(old_destination.id());
+    Building old_dest_obj(old_dest);
+    const auto *old_dest_type = old_dest_obj.type;
     // if any of these are true, the new building is automatically better
     if (!building_is_active(old_dest)) {
         return 1;
-    } else if (building_is_granary(old_dest) && old_dest->resources[r] <= 0) {
+    } else if (old_dest_type && old_dest_type->is_granary() && old_dest->resources[r] <= 0) {
         return 1;
-    } else if (building_is_warehouse(old_dest) && building_warehouse_get_amount(old_destination, r) <= 0) {
+    } else if (old_dest_type && old_dest_type->is_warehouse() &&
+        building_warehouse_get_amount(old_destination, r) <= 0) {
         return 1;
     }
     // make sure the new building is less than or equal to half the distance from the old
@@ -351,24 +329,17 @@ void figure_supplier_action(Figure *f)
         const resource_type carried_resource = f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING ?
             static_cast<resource_type>(f->collecting_item_id) :
             RESOURCE_NONE;
-        f->cart_image_id = carried_resource == RESOURCE_NONE ?
+        f->select_legacy_cart_overlay_base_image(carried_resource == RESOURCE_NONE ?
             image_group(GROUP_FIGURE_CARTPUSHER_CART) :
-            resource_graphics_cart_marker_for_direction(0);
+            figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0));
         int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + figure_image_corpse_offset(f) + 96;
-            f->cart_image_id = 0;
+            f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);
+            f->clear_legacy_cart_overlay_image();
         } else {
-            f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + dir + 8 * f->image_offset;
+            f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
         }
-        if (f->cart_image_id) {
-            if (resource_graphics_cart_marker_is(f->cart_image_id)) {
-                f->cart_image_id = resource_graphics_cart_marker_for_direction(dir);
-            } else {
-                f->cart_image_id += dir;
-            }
-            figure_image_set_cart_offset(f, dir);
-        }
+        f->finalize_legacy_cartpusher_overlay_image(dir);
     } else {
         figure_runtime_update_graphics(f);
     }
@@ -379,7 +350,7 @@ void figure_delivery_boy_action(Figure *f)
     f->is_ghost = 0;
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
 
     Figure *leader = Figure::get(f->leading_figure_id);
     if (f->leading_figure_id <= 0 || leader->action_state == FIGURE_ACTION_149_CORPSE) {
@@ -413,7 +384,9 @@ void figure_fort_supplier_action(Figure *f)
     figure_image_increase_offset(f, 12);
 
     building *b = building_get(f->building.id());
-    if (!b || b->state != BUILDING_STATE_IN_USE || !building_is_mess_hall(b)) {
+    Building mess_hall(b);
+    if (!b || b->state != BUILDING_STATE_IN_USE ||
+        !mess_hall.type || !mess_hall.type->is_mess_hall()) {
         f->state = FIGURE_STATE_DEAD;
     }
 

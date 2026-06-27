@@ -9,12 +9,9 @@
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -39,34 +36,22 @@ struct ParseState {
 std::unordered_map<std::string, std::unique_ptr<Religion>> g_religions;
 ParseState g_parse_state;
 
-int compare_text(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return left == right ? 0 : (left ? 1 : -1);
-    }
-    while (*left && *right && *left == *right) {
-        ++left;
-        ++right;
-    }
-    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
-}
-
 ReligionTier parse_tier(const char *value)
 {
     std::string text = xml_value::trim_copy(value ? value : "");
-    if (compare_text(text.c_str(), "shrine") == 0) {
+    if (text == "shrine") {
         return ReligionTier::Shrine;
     }
-    if (compare_text(text.c_str(), "small") == 0) {
+    if (text == "small") {
         return ReligionTier::Small;
     }
-    if (compare_text(text.c_str(), "large") == 0) {
+    if (text == "large") {
         return ReligionTier::Large;
     }
-    if (compare_text(text.c_str(), "grand") == 0) {
+    if (text == "grand") {
         return ReligionTier::Grand;
     }
-    if (compare_text(text.c_str(), "oracle") == 0) {
+    if (text == "oracle") {
         return ReligionTier::Oracle;
     }
     return ReligionTier::None;
@@ -75,22 +60,22 @@ ReligionTier parse_tier(const char *value)
 int parse_presentation_module_index(const char *value)
 {
     std::string text = xml_value::trim_copy(value ? value : "");
-    if (compare_text(text.c_str(), "ceres") == 0) {
+    if (text == "ceres") {
         return 0;
     }
-    if (compare_text(text.c_str(), "neptune") == 0) {
+    if (text == "neptune") {
         return 1;
     }
-    if (compare_text(text.c_str(), "mercury") == 0) {
+    if (text == "mercury") {
         return 2;
     }
-    if (compare_text(text.c_str(), "mars") == 0) {
+    if (text == "mars") {
         return 3;
     }
-    if (compare_text(text.c_str(), "venus") == 0) {
+    if (text == "venus") {
         return 4;
     }
-    if (compare_text(text.c_str(), "pantheon") == 0) {
+    if (text == "pantheon") {
         return 5;
     }
     return -1;
@@ -194,7 +179,7 @@ int parse_god()
     }
 
     std::string god_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
-    if (compare_text(god_path.c_str(), "all") == 0) {
+    if (god_path == "all") {
         g_parse_state.definition->set_all_gods();
         g_parse_state.saw_god = 1;
         return 1;
@@ -283,22 +268,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 {
     ErrorContextScope error_scope("religion_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!xml_definition::load_file_to_buffer(filename, buffer, "Religion")) {
-        error_context_report_error("Failed to load Religion definition.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<Religion>(definition_path ? definition_path : "");
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize Religion xml parser", filename, 0);
-        error_context_report_error("Unable to initialize Religion xml parser.", filename);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Religion",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     const ReligionTier tier = g_parse_state.definition ? g_parse_state.definition->tier() : ReligionTier::None;
     const int needs_presentation = tier == ReligionTier::Grand;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
@@ -344,24 +320,11 @@ int religion_registry_load(void)
     religion_registry_get_religion_path();
     g_religions.clear();
 
-    const dir_listing *files = dir_find_files_with_extension(g_religion_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        log_error("No Religion xml files found in", g_religion_path.c_str(), 0);
-        return 0;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        std::snprintf(full_path, FILE_NAME_MAX, "%s%s", g_religion_path.c_str(), files->files[i].name);
-        const std::string normalized_path = xml_definition::normalize_path(files->files[i].name);
-        if (normalized_path.empty()) {
-            log_error("Unsupported Religion file name", files->files[i].name, 0);
-            return 0;
-        }
-        if (!parse_definition_file(full_path, normalized_path.c_str())) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return xml_definition::for_each_definition_file(
+        g_religion_path,
+        "Religion",
+        true,
+        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
+            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
+        });
 }

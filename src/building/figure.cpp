@@ -8,7 +8,6 @@
 #include "map/building_tiles.h"
 #include "map/image.h"
 #include "map/road_access.h"
-#include "map/water.h"
 
 #include "building/building_record.h"
 #include "building/building.h"
@@ -20,7 +19,6 @@
 
 #include "building/local_workforce.h"
 #include "building/building_type_registry_internal.h"
-#include "building/production_method.h"
 #include "building/religion.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
@@ -101,17 +99,6 @@ static int type_uses_native_spawn(building_type type)
     });
 }
 
-static int type_is_fort(building_type type)
-{
-    return building_type_registry_impl::type_attr_is_any(type, {
-        "fort_legionaries",
-        "fort_javelin",
-        "fort_archers",
-        "fort_swords",
-        "fort_mounted"
-    });
-}
-
 static int figure_belongs_to_building(const Figure *f, const building *b)
 {
     return f && b && f->building.id() == b->id;
@@ -173,7 +160,7 @@ static void generate_labor_seeker(building *b, int x, int y)
     }
     if (b->figure_id2) {
         Figure *f = Figure::get(b->figure_id2);
-        if (!f->state || f->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(f, b)) {
+        if (f->is_dead() || f->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(f, b)) {
             b->figure_id2 = 0;
         }
     } else {
@@ -260,7 +247,7 @@ static int has_figure_of_types(building *b, figure_type type1, figure_type type2
         return 0;
     }
     Figure *f = Figure::get(b->figure_id);
-    if (f->state && figure_belongs_to_building(f, b) && (f->type == type1 || f->type == type2)) {
+    if (f && !f->is_dead() && figure_belongs_to_building(f, b) && (f->type == type1 || f->type == type2)) {
         return 1;
     } else {
         b->figure_id = 0;
@@ -531,30 +518,11 @@ static void send_supplier_to_destination(Figure *f, Building destination)
     }
     f->destination_building = destination;
     map_point road;
-    int destination_found = 0;
-    if (!destination.type) {
-        destination_found = 0;
-    } else if (destination.type->is_warehouse()) {
-        if (map_has_road_access_warehouse(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
-    } else if (destination.type->is_granary()) {
-        if (map_has_road_access_granary(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
-    } else if (destination.type->is_grand_temple_venus()) {
-        if (map_has_road_access(destination.x(), destination.y(), destination.size(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
+    const int destination_found = destination.storage_destination_road_access_point(&road);
+    if (destination_found) {
+        f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+        f->destination_x = road.x;
+        f->destination_y = road.y;
     }
     if (!destination_found) {
         f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
@@ -942,10 +910,6 @@ static void spawn_figure_industry(building *b)
     Building building_obj(b);
     if (building_obj.has_road_access(&road)) {
         run_labor_seeker_policy(b, road.x, road.y);
-        if (building_obj.native_production_has_completed_effect()) {
-            building_industry_start_new_production(b);
-            return;
-        }
         if (has_figure_of_type(b, FIGURE_CART_PUSHER)) {
             return;
         }
@@ -961,89 +925,6 @@ static void spawn_figure_industry(building *b)
             f->wait_ticks = game_time_scale_legacy_day_ticks(30);
             f->loads_sold_or_carrying = static_cast<unsigned char>(output_cart_loads > 0 ? output_cart_loads : 1);
             return;
-        }
-    }
-}
-
-static int self_fishing_boat_spawn_delay(Building building)
-{
-    if (!building.type) {
-        return 0;
-    }
-    const int pct_workers = worker_percentage(building);
-    for (const building_type_registry_impl::SpawnDelayGroup &group : building.type->spawn_groups()) {
-        for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
-            if (policy.mode != building_type_registry_impl::SpawnMode::FishingBoat ||
-                policy.spawn_source != building_type_registry_impl::SpawnSource::Self) {
-                continue;
-            }
-            for (const building_type_registry_impl::DelayBand &band : group.delay_bands) {
-                if (pct_workers >= band.min_worker_percentage) {
-                    return game_time_scale_legacy_day_ticks(band.delay);
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-static void maintain_self_fishing_boat(building *b)
-{
-    Building wharf(b);
-    if (!map_water_wharf_has_self_fishing_boat_room(wharf)) {
-        b->data.industry.progress = 0;
-        return;
-    }
-
-    const int spawn_delay = self_fishing_boat_spawn_delay(wharf);
-    if (spawn_delay <= 0) {
-        b->data.industry.progress = 0;
-        return;
-    }
-
-    b->data.industry.progress++;
-    if (b->data.industry.progress > spawn_delay) {
-        b->data.industry.progress = 0;
-        map_water_spawn_fishing_boat_from_wharf(wharf);
-    }
-}
-
-static void spawn_figure_wharf(building *b)
-{
-    check_labor_problem(b);
-    map_water_wharf_live_fishing_boats(Building(b));
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        run_labor_seeker_policy(b, road.x, road.y);
-        maintain_self_fishing_boat(b);
-        if (has_figure_of_type(b, FIGURE_CART_PUSHER)) {
-            return;
-        }
-        if (b->figure_spawn_delay && b->data.industry.has_fish > 0) {
-            Building wharf(b);
-            const int loads = std::min(static_cast<int>(b->data.industry.has_fish),
-                wharf.output_cart_capacity(resource_fish()));
-            b->data.industry.has_fish -= loads;
-            b->figure_spawn_delay = b->data.industry.has_fish > 0 ? 1 : 0;
-            Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
-            f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-            f->resource_id = resource_fish();
-            attach_figure_to_building(f, b);
-            b->figure_id = f->id();
-            f->wait_ticks = game_time_scale_legacy_day_ticks(30);
-            f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
-        }
-    }
-}
-
-static void spawn_figure_shipyard(building *b)
-{
-    check_labor_problem(b);
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        run_labor_seeker_policy(b, road.x, road.y);
-        if (Building(b).native_production_has_completed_effect()) {
-            building_industry_start_new_production(b);
         }
     }
 }
@@ -1069,7 +950,9 @@ static void spawn_figure_dock(building *b)
         int existing_dockers = 0;
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {
-                if (Figure::get(b->data.distribution.cartpusher_ids[i])->type == FIGURE_DOCKER) {
+                Figure *docker = Figure::get(b->data.distribution.cartpusher_ids[i]);
+                if (docker && !docker->is_dead() && docker->type == FIGURE_DOCKER &&
+                    figure_belongs_to_building(docker, b)) {
                     existing_dockers++;
                 } else {
                     b->data.distribution.cartpusher_ids[i] = 0;
@@ -1081,6 +964,7 @@ static void spawn_figure_dock(building *b)
             for (int i = 2; i >= 0; i--) {
                 if (b->data.distribution.cartpusher_ids[i]) {
                     Figure::get(b->data.distribution.cartpusher_ids[i])->state = FIGURE_STATE_DEAD;
+                    b->data.distribution.cartpusher_ids[i] = 0;
                     break;
                 }
             }
@@ -1304,7 +1188,7 @@ static void spawn_figure_depot(building *b)
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {
                 Figure *f = Figure::get(b->data.distribution.cartpusher_ids[i]);
-                if (f->type == FIGURE_DEPOT_CART_PUSHER &&
+                if (f && !f->is_dead() && f->type == FIGURE_DEPOT_CART_PUSHER &&
                     figure_belongs_to_building(f, b)) {
                     existing_carts++;
                 } else {
@@ -1359,6 +1243,9 @@ static int building_uses_runtime_spawn(const building *b)
     }
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(b->type);
+    if (definition && definition->has_native_production()) {
+        return 1;
+    }
     if (definition && !definition->spawn_groups().empty()) {
         return 1;
     }
@@ -1416,17 +1303,13 @@ void building_figure_generate(void)
             spawn_figure_mission_post(b);
         } else if (building_object.type->attr_is("dock")) {
             spawn_figure_dock(b);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "wharf")) {
-            spawn_figure_wharf(b);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "shipyard")) {
-            spawn_figure_shipyard(b);
         } else if (b && building_type_registry_impl::type_attr_is_any(b->type, {"native_hut", "native_hut_alt"})) {
             spawn_figure_native_hut(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_meeting")) {
             spawn_figure_native_meeting(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_crops")) {
             update_native_crop_progress(b);
-        } else if (type_is_fort(b->type)) {
+        } else if (building_is_fort(b->type)) {
             Building fort(*b);
             formation_legion_update_recruit_status(fort);
             spawn_figure_fort_supplier(b);

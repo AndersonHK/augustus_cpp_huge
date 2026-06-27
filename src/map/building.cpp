@@ -2,7 +2,6 @@
 #include "building.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "core/config.h"
 #include "core/log.h"
@@ -12,8 +11,6 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 static grid_u32 buildings_grid;
 static grid_u8 damage_grid;
 static grid_u32 rubble_info_grid;
@@ -21,14 +18,6 @@ static grid_u32 rubble_info_grid;
 static grid_u32 buildings_grid_backup;
 static grid_u8 damage_grid_backup;
 static grid_u32 rubble_info_grid_backup;
-
-static int type_matches(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
 
 unsigned int map_building_at(int grid_offset)
 {
@@ -98,7 +87,7 @@ int map_building_ruins_left(unsigned int building_id)
     // doesnt work for hippodromes and forts - forts shouldnt turn to rubble, hippodromes are not repairable
     building *b = building_get(building_id);
     int ruins_count = 0;
-    if (type_matches(b->type, "hippodrome") || building_is_fort(b->type)) {
+    if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") || building_is_fort(b->type)) {
         return 0;
     }
     int size = b->data.rubble.og_size ? b->data.rubble.og_size : b->size;
@@ -109,7 +98,7 @@ int map_building_ruins_left(unsigned int building_id)
         if (map_building_rubble_building_id(grid_offset) == building_id) {
             ruins_count++;
         } else if (map_building_at(grid_offset) == building_id &&
-                type_matches(building_get(building_id)->type, "burning_ruin")) {
+                building_type_registry_impl::type_attr_is(building_get(building_id)->type, "burning_ruin")) {
             ruins_count++;
         }
     }
@@ -171,7 +160,7 @@ static int map_building_reference_is_live(unsigned int building_id)
     }
     building *b = building_get(building_id);
     return b && b->state != BUILDING_STATE_UNUSED && b->type != BUILDING_NONE &&
-        building_type_registry_has_definition(b->type);
+        building_type_registry_impl::definition_for_type(b->type);
 }
 
 static void clear_single_invalid_building_reference(int grid_offset)
@@ -221,7 +210,7 @@ int map_building_is_reservoir(int x, int y)
     }
     int grid_offset = map_grid_offset(x, y);
     unsigned int building_id = map_building_at(grid_offset);
-    if (!building_id || !type_matches(building_get(building_id)->type, "reservoir")) {
+    if (!building_id || !building_type_registry_impl::type_attr_is(building_get(building_id)->type, "reservoir")) {
         return 0;
     }
     for (int dy = 0; dy < 3; dy++) {

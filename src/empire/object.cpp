@@ -11,7 +11,7 @@
 #include "empire/city.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/save_version.h"
 #include "scenario/data.h"
 #include "scenario/empire.h"
@@ -1073,7 +1073,7 @@ static int get_animation_offset(int image_id, int current_index)
         return 0;
     }
     int animation_speed = img->animation->speed_id;
-    if (!game_animation_should_advance(animation_speed)) {
+    if (!Animation::should_advance(animation_speed)) {
         return current_index;
     }
     if (img->animation->can_reverse) {

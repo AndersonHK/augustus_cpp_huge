@@ -1,25 +1,10 @@
 #include "building/building_type_startup_bridge.h"
 
-#include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
+#include "core/xml_definition.h"
 #include "game/mod_manager.h"
-#include "platform/file_manager.h"
 
 #include "building/properties.h"
-
-namespace building_type_registry_impl {
-
-int stop_on_first_entry(const char *name, long unused)
-{
-    return LIST_MATCH;
-}
-
-int directory_exists(const char *path)
-{
-    return platform_file_manager_list_directory_contents(path, TYPE_DIR | TYPE_FILE, 0, stop_on_first_entry) != LIST_ERROR;
-}
-
-}
 
 const char *building_type_startup_bridge_get_building_type_path(void)
 {
@@ -33,7 +18,7 @@ int building_type_startup_bridge_validate_mod(void)
     return static_cast<int>(
         static_cast<bool>(mod_manager::validate_mod_path()) &&
         static_cast<bool>(
-            building_type_registry_impl::directory_exists(
+            xml_definition::directory_exists(
                 building_type_registry_impl::g_building_type_path.c_str())));
 }
 
@@ -95,9 +80,4 @@ void building_type_startup_bridge_apply_model_overrides(void)
             }
         }
     }
-}
-
-building_type building_type_startup_bridge_runtime_id_from_text(const char *text_id)
-{
-    return building_type_registry_impl::runtime_id_from_text(text_id);
 }

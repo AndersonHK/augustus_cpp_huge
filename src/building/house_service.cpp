@@ -2,7 +2,6 @@
 #include "house_service.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "building/monument.h"

@@ -38,6 +38,6 @@
     </graphics>
     <housing path="house_large_insula" capacity="84" evolve_to="house_grand_insula" devolve_to="house_medium_insula_2x2" split_to="house_medium_insula" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="city_unemployment_percent" chance_per_million_bands="20:31250,19:20833,18:15625,17:10417,16:8929,15:7813,14:6250,13:5682,12:5208,11:3472,10:3289,9:3125,8:2016,7:1953" />
+        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="city_unemployment_percent" chance_per_million_bands="20:31250,19:20833,18:15625,17:10417,16:8929,15:7813,14:6250,13:5682,12:5208,11:3472,10:3289,9:3125,8:2016,7:1953" />
     </spawn_group>
 </building>

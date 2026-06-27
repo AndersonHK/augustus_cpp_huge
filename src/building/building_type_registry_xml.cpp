@@ -1,8 +1,7 @@
 #
 
 #include "building/building_record.h"
-#include "building/building_runtime.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_startup_bridge.h"
 #include "building/building_type_id_bridge.h"
@@ -23,14 +22,13 @@
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"
+#include "figure/formation_type.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
@@ -122,44 +120,6 @@ static building_type allocate_dynamic_building_type(const char *type_attr)
 }
 
 
-static figure_type parse_figure_type_name(const char *name)
-{
-    struct named_figure {
-        const char *name;
-        figure_type type;
-    };
-    static const named_figure figure_names[] = {
-        { "actor", FIGURE_ACTOR },
-        { "barber", FIGURE_BARBER },
-        { "bathhouse_worker", FIGURE_BATHHOUSE_WORKER },
-        { "doctor", FIGURE_DOCTOR },
-        { "engineer", FIGURE_ENGINEER },
-        { "gladiator", FIGURE_GLADIATOR },
-        { "charioteer", FIGURE_CHARIOTEER },
-        { "librarian", FIGURE_LIBRARIAN },
-        { "lion_tamer", FIGURE_LION_TAMER },
-        { "missionary", FIGURE_MISSIONARY },
-        { "patrician", FIGURE_PATRICIAN },
-        { "beggar", FIGURE_BEGGAR },
-        { "prefect", FIGURE_PREFECT },
-        { "priest", FIGURE_PRIEST },
-        { "school_child", FIGURE_SCHOOL_CHILD },
-        { "surgeon", FIGURE_SURGEON },
-        { "teacher", FIGURE_TEACHER },
-        { "tax_collector", FIGURE_TAX_COLLECTOR },
-        { "work_camp_architect", FIGURE_WORK_CAMP_ARCHITECT },
-        { "work_camp_worker", FIGURE_WORK_CAMP_WORKER },
-        { "fishing_boat", FIGURE_FISHING_BOAT }
-    };
-
-    for (size_t i = 0; i < sizeof(figure_names) / sizeof(figure_names[0]); i++) {
-        if (name && compare_text(name, figure_names[i].name) == 0) {
-            return figure_names[i].type;
-        }
-    }
-    return FIGURE_NONE;
-}
-
 static HousingTransitionKind parse_housing_transition_kind(const char *attribute)
 {
     if (attribute && compare_text(attribute, "evolve_to") == 0) {
@@ -211,7 +171,7 @@ static int parse_figure_list_attribute(const char *value, std::vector<figure_typ
         size_t end = list.find(',', start);
         std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
         if (!token.empty()) {
-            figure_type type = parse_figure_type_name(token.c_str());
+            figure_type type = figure_type_from_xml_name(token.c_str());
             if (type == FIGURE_NONE) {
                 return 0;
             }
@@ -483,85 +443,15 @@ static int parse_spawn_direction(const char *value)
     return DIR_0_TOP;
 }
 
-static int equals_ignore_case_ascii(char left, char right)
-{
-    if (left >= 'A' && left <= 'Z') {
-        left = static_cast<char>(left - 'A' + 'a');
-    }
-    if (right >= 'A' && right <= 'Z') {
-        right = static_cast<char>(right - 'A' + 'a');
-    }
-    return left == right;
-}
-
-static int starts_with_ignore_case_ascii(const std::string &value, const char *prefix)
-{
-    if (!prefix) {
-        return 0;
-    }
-
-    size_t prefix_length = strlen(prefix);
-    if (value.size() < prefix_length) {
-        return 0;
-    }
-
-    for (size_t i = 0; i < prefix_length; i++) {
-        if (!equals_ignore_case_ascii(value[i], prefix[i])) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static int ends_with_ignore_case_ascii(const std::string &value, const char *suffix)
-{
-    if (!suffix) {
-        return 0;
-    }
-
-    size_t suffix_length = strlen(suffix);
-    if (value.size() < suffix_length) {
-        return 0;
-    }
-
-    size_t start = value.size() - suffix_length;
-    for (size_t i = 0; i < suffix_length; i++) {
-        if (!equals_ignore_case_ascii(value[start + i], suffix[i])) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static std::string normalize_graphics_path(const char *value)
 {
-    std::string normalized = xml_value::trim_copy(value ? value : "");
-    if (normalized.empty()) {
+    std::string text = xml_value::trim_copy(value ? value : "");
+    if (text.empty() || xml_definition::ends_with_ignore_case_ascii(text, ".xml")) {
         return std::string();
     }
 
-    for (char &ch : normalized) {
-        if (ch == '/') {
-            ch = '\\';
-        }
-    }
-
-    std::string collapsed;
-    collapsed.reserve(normalized.size());
-    char previous = '\0';
-    for (char ch : normalized) {
-        if (ch == '\\' && previous == '\\') {
-            continue;
-        }
-        collapsed.push_back(ch);
-        previous = ch;
-    }
-    normalized = collapsed;
-
-    if (starts_with_ignore_case_ascii(normalized, "graphics\\") ||
-        starts_with_ignore_case_ascii(normalized, "\\") ||
-        ends_with_ignore_case_ascii(normalized, ".xml") ||
-        normalized.back() == '\\') {
+    std::string normalized = xml_definition::normalize_path(text.c_str());
+    if (normalized.empty() || xml_definition::starts_with_ignore_case_ascii(normalized, "graphics\\")) {
         return std::string();
     }
 
@@ -1863,6 +1753,59 @@ static int parse_flags()
     return 1;
 }
 
+static int parse_military()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered military definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_military || g_parse_state.parsing_military) {
+        log_error("BuildingType xml contains duplicate military nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_military = 1;
+    g_parse_state.parsing_military = 1;
+    return 1;
+}
+
+static void finish_military()
+{
+    if (!g_parse_state.parsing_military) {
+        return;
+    }
+    if (!g_parse_state.saw_military_formation) {
+        log_error("BuildingType military node is missing formation", g_parse_state.definition ? g_parse_state.definition->attr() : 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_military = 0;
+}
+
+static int parse_military_formation()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_military) {
+        log_error("Encountered military formation outside military node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_military_formation) {
+        log_error("BuildingType military node contains duplicate formation", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string key;
+    if (!xml_definition::parse_required_nonempty_string_attribute("key", &key)) {
+        log_error("BuildingType military formation requires a non-empty key", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_military_formation_reference(std::move(key));
+    g_parse_state.saw_military_formation = 1;
+    return 1;
+}
+
 static int parse_composed_offset_attributes(const char *scope, int *out_x, int *out_y, int *out_has_offset)
 {
     *out_x = 0;
@@ -2116,8 +2059,6 @@ static int parse_graphics()
     return 1;
 }
 
-static resource_type parse_construction_requirement_type_name(const char *name);
-
 static ConstructionConfigFlag parse_construction_config_flag(const char *text)
 {
     if (compare_text(text, "none") == 0) {
@@ -2350,8 +2291,9 @@ static int parse_construction_requirement()
     }
 
     const char *type_text = xml_parser_get_attribute_string("type");
-    resource_type resource = parse_construction_requirement_type_name(type_text);
-    if (resource == RESOURCE_NONE && compare_text(type_text, "architects") != 0) {
+    const bool requires_architects = type_text && compare_text(type_text, "architects") == 0;
+    resource_type resource = requires_architects ? RESOURCE_NONE : resource_type_from_xml_attr(type_text);
+    if (resource == RESOURCE_NONE && !requires_architects) {
         log_error("Unsupported BuildingType construction requirement type", type_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -2474,19 +2416,6 @@ static GraphicsLayerStage parse_graphics_layer_stage(const char *text, int *vali
     return GraphicsLayerStage::Auto;
 }
 
-static int parse_optional_int_attribute(const char *name, int *out_value)
-{
-    if (!xml_parser_has_attribute(name)) {
-        *out_value = 0;
-        return 1;
-    }
-    const char *text = xml_parser_get_attribute_string(name);
-    if (!text || !xml_value::parse_int_strict(text, out_value)) {
-        return 0;
-    }
-    return 1;
-}
-
 static int parse_graphics_layer()
 {
     if (!g_parse_state.definition || !g_parse_state.parsing_graphics) {
@@ -2541,8 +2470,9 @@ static int parse_graphics_layer()
     }
     int x = 0;
     int y = 0;
-    if (!parse_optional_int_attribute("x", &x) || !parse_optional_int_attribute("y", &y)) {
-        log_error("Unsupported BuildingType graphics layer offset", g_parse_state.definition->attr(), 0);
+    int has_offset = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType graphics layer offset", "x", &x, &has_offset) ||
+        !parse_optional_int_attribute("Unsupported BuildingType graphics layer offset", "y", &y, &has_offset)) {
         g_parse_state.error = 1;
         return 0;
     }
@@ -2890,37 +2820,6 @@ static int parse_graphics_image()
     return 1;
 }
 
-static resource_type parse_resource_type_name(const char *name)
-{
-    if (!name || !*name) {
-        return RESOURCE_NONE;
-    }
-
-    const std::string normalized_name = xml_value::trim_copy(name);
-    if (normalized_name.empty()) {
-        return RESOURCE_NONE;
-    }
-
-    for (resource_type type = (RESOURCE_NONE + 1); type < RESOURCE_SLOT_COUNT; type = static_cast<resource_type>(type + 1)) {
-        resource_data *data = resource_get_data(type);
-        if (!data || !data->xml_attr_name) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(data->xml_attr_name, normalized_name.c_str())) {
-            return type;
-        }
-    }
-    return RESOURCE_NONE;
-}
-
-static resource_type parse_construction_requirement_type_name(const char *name)
-{
-    if (name && compare_text(name, "architects") == 0) {
-        return RESOURCE_NONE;
-    }
-    return parse_resource_type_name(name);
-}
-
 static int parse_climate_name(const char *name, int *out_climate)
 {
     if (!out_climate) {
@@ -2987,7 +2886,7 @@ static int parse_graphics_condition()
         }
 
         const char *resource_text = xml_parser_get_attribute_string("resource");
-        condition.resource = parse_resource_type_name(resource_text);
+        condition.resource = resource_type_from_xml_attr(resource_text);
         if (condition.resource == RESOURCE_NONE) {
             log_error("Unsupported BuildingType graphics resource_positive resource", resource_text, 0);
             g_parse_state.error = 1;
@@ -3005,7 +2904,7 @@ static int parse_graphics_condition()
         const char *resource_text = xml_parser_get_attribute_string("resource");
         condition.resource = resource_text && compare_text(resource_text, "none") == 0 ?
             RESOURCE_NONE :
-            parse_resource_type_name(resource_text);
+            resource_type_from_xml_attr(resource_text);
         if (condition.resource == RESOURCE_NONE && compare_text(resource_text, "none") != 0) {
             log_error("Unsupported BuildingType graphics resource_amount resource", resource_text, 0);
             g_parse_state.error = 1;
@@ -3916,8 +3815,9 @@ static int parse_spawn()
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
     SpawnPolicy policy;
-    if (mode_text && compare_text(mode_text, "service_roamer") == 0) {
-        policy.mode = SpawnMode::ServiceRoamer;
+    if (mode_text && (compare_text(mode_text, "profiled_figure") == 0 ||
+        compare_text(mode_text, "service_roamer") == 0)) {
+        policy.mode = SpawnMode::FigureSpawn;
     } else if (mode_text && compare_text(mode_text, "temple_supplier") == 0) {
         policy.mode = SpawnMode::TempleSupplier;
     } else if (mode_text && compare_text(mode_text, "temple_destination_priest") == 0) {
@@ -3945,14 +3845,14 @@ static int parse_spawn()
         return 0;
     }
 
-    if ((policy.mode == SpawnMode::ServiceRoamer || policy.mode == SpawnMode::FishingBoat) &&
+    if ((policy.mode == SpawnMode::FigureSpawn || policy.mode == SpawnMode::FishingBoat) &&
         !xml_parser_has_attribute("spawn_figure")) {
         log_error("BuildingType spawn is missing required attribute 'spawn_figure'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (xml_parser_has_attribute("spawn_figure")) {
-        policy.spawn_figure = parse_figure_type_name(xml_parser_get_attribute_string("spawn_figure"));
+        policy.spawn_figure = figure_type_from_xml_name(xml_parser_get_attribute_string("spawn_figure"));
         if (policy.spawn_figure == FIGURE_NONE) {
             log_error("Unsupported BuildingType spawn spawn_figure", xml_parser_get_attribute_string("spawn_figure"), 0);
             g_parse_state.error = 1;
@@ -3962,7 +3862,7 @@ static int parse_spawn()
 
     const int has_profile_attribute = xml_parser_has_attribute("profile");
 
-    if (policy.mode == SpawnMode::ServiceRoamer && !has_profile_attribute && !xml_parser_has_attribute("action_state")) {
+    if (policy.mode == SpawnMode::FigureSpawn && !has_profile_attribute && !xml_parser_has_attribute("action_state")) {
         log_error("BuildingType spawn is missing required attribute 'action_state'", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -4187,6 +4087,8 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "event_data", parse_event_data, nullptr, "building", nullptr },
     { "market", parse_market, nullptr, "building", nullptr },
     { "flags", parse_flags, nullptr, "building", nullptr },
+    { "military", parse_military, finish_military, "building", nullptr },
+    { "formation", parse_military_formation, nullptr, "military", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
     { "composed", parse_composed, finish_composed, "building", nullptr },
     { "main", parse_composed_main, finish_composed_main, "composed", nullptr },
@@ -4227,38 +4129,6 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
     { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
 };
-
-static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open BuildingType xml", filename, 0);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek BuildingType xml", filename, 0);
-        return 0;
-    }
-
-    long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size BuildingType xml", filename, 0);
-        return 0;
-    }
-    rewind(fp);
-
-    buffer.resize(static_cast<size_t>(size));
-    size_t read = fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-    if (read != buffer.size()) {
-        log_error("Unable to read BuildingType xml", filename, 0);
-        return 0;
-    }
-    return 1;
-}
 
 static int starts_with_token(const char *cursor, const char *end, const char *token)
 {
@@ -4667,6 +4537,25 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
         definition.set_temple_religion(religion);
     }
 
+    if (definition.has_military()) {
+        const FormationType *formation =
+            formation_type_registry_impl::find_formation_type(definition.military().formation_reference().c_str());
+        if (!formation) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s formation=%s file=%s",
+                definition.attr(),
+                definition.military().formation_reference().c_str(),
+                filename ? filename : "");
+            error_context_report_error("Unable to resolve BuildingType military formation reference.", detail);
+            log_error("Unable to resolve BuildingType military formation reference", detail, 0);
+            return 0;
+        }
+        definition.set_military_formation_type(formation);
+    }
+
     return 1;
 }
 
@@ -4685,18 +4574,17 @@ static int validate_runtime_class_nodes(const BuildingType &definition)
     return 1;
 }
 
-static int parse_definition_buffer(const char *filename, std::vector<char> &buffer)
+static int parse_definition_buffer(const char *filename, const std::vector<char> &buffer)
 {
     ErrorContextScope error_scope("building_type_registry.parse_definition", filename);
 
     g_parse_state = {};
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize BuildingType xml parser", filename, 0);
-        return 0;
-    }
-
-    int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const bool parsed = xml_definition::parse_buffer(
+        filename,
+        "BuildingType",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
+        buffer);
     // TEMPORARY: metadata-only BuildingType XML is accepted while build authority moves out of legacy code.
     // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
@@ -4704,7 +4592,8 @@ static int parse_definition_buffer(const char *filename, std::vector<char> &buff
         g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_roadblock ||
         g_parse_state.saw_tile || g_parse_state.saw_tool ||
         g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
-        g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
+        g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_military ||
+        g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_culture_modules ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
@@ -4774,7 +4663,7 @@ static int resolve_vacant_lot_fill_type(BuildingType &definition)
 
     const BuildingType *target_definition = definition_for_type(target);
     if (target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
-        target_definition->model().size() != 1) {
+        target_definition->declared_model_size() != 1) {
         char detail[512];
         snprintf(detail, sizeof(detail), "building=%s fill_to=%s",
             definition.attr(), text_id.c_str());
@@ -4829,8 +4718,9 @@ static int resolve_construction_references()
 
 static int model_size_for_definition(const BuildingType &definition)
 {
-    if (definition.has_model() && definition.model().has_size()) {
-        return definition.model().size();
+    const int declared_size = definition.declared_model_size();
+    if (declared_size > 0) {
+        return declared_size;
     }
     const building_properties *properties = building_properties_for_type(definition.type());
     return properties && properties->size > 0 ? properties->size : 1;
@@ -5048,10 +4938,10 @@ static int resolve_housing_transitions()
         }
     }
 
-    building_type vacant_lot_target = building_type_registry_get_vacant_lot_occupancy_type();
+    building_type vacant_lot_target = building_type_registry_impl::vacant_lot_occupancy_type();
     const BuildingType *target_definition = definition_for_type(vacant_lot_target);
     if (vacant_lot_target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
-        target_definition->model().size() != 1) {
+        target_definition->declared_model_size() != 1) {
         error_context_report_error(
             "BuildingType housing vacant-lot fill target does not exist.",
             "target=first_housing_level size=1");
@@ -5072,39 +4962,35 @@ static int load_building_type_definitions_from_path(
     int allow_non_building_files,
     int *loaded_count)
 {
-    const dir_listing *files = dir_find_files_with_extension(path, "xml");
-    if (!files || files->num_files <= 0) {
-        if (require_building_files) {
-            log_error("No BuildingType xml files found in", path, 0);
-            return 0;
-        }
-        return 1;
-    }
-
     int path_building_file_count = 0;
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        snprintf(full_path, FILE_NAME_MAX, "%s%s", path, files->files[i].name);
-
-        std::vector<char> buffer;
-        if (!load_file_to_buffer(full_path, buffer)) {
-            return 0;
-        }
-        if (!buffer_has_building_root(buffer)) {
-            if (!allow_non_building_files) {
-                log_error("BuildingType xml root is not <building>", full_path, 0);
-                return 0;
+    const bool loaded = xml_definition::for_each_definition_file(
+        path ? path : "",
+        "BuildingType",
+        require_building_files != 0,
+        [&](const xml_definition::DefinitionFile &file, const std::string &) {
+            std::vector<char> buffer;
+            if (!xml_definition::load_file_to_buffer(file.full_path.c_str(), buffer, file.full_path.c_str())) {
+                return false;
             }
-            continue;
-        }
-        if (!parse_definition_buffer(full_path, buffer)) {
-            log_error("Unable to parse BuildingType xml", full_path, 0);
-            return 0;
-        }
-        path_building_file_count++;
-        if (loaded_count) {
-            (*loaded_count)++;
-        }
+            if (!buffer_has_building_root(buffer)) {
+                if (!allow_non_building_files) {
+                    log_error("BuildingType xml root is not <building>", file.full_path.c_str(), 0);
+                    return false;
+                }
+                return true;
+            }
+            if (!parse_definition_buffer(file.full_path.c_str(), buffer)) {
+                log_error("Unable to parse BuildingType xml", file.full_path.c_str(), 0);
+                return false;
+            }
+            path_building_file_count++;
+            if (loaded_count) {
+                (*loaded_count)++;
+            }
+            return true;
+        });
+    if (!loaded) {
+        return 0;
     }
 
     if (require_building_files && path_building_file_count <= 0) {
@@ -5167,13 +5053,13 @@ int building_type_registry_load(void)
     }
 
     std::string tiles_path = building_type_category_path("Tiles");
-    if (directory_exists(tiles_path.c_str()) &&
+    if (xml_definition::directory_exists(tiles_path.c_str()) &&
         !load_building_type_definitions_from_path(tiles_path.c_str(), 0, 0, &loaded_building_type_count)) {
         return 0;
     }
 
     std::string menu_path = building_type_category_path("BuildingTypeMenu");
-    if (directory_exists(menu_path.c_str()) &&
+    if (xml_definition::directory_exists(menu_path.c_str()) &&
         !load_building_type_definitions_from_path(menu_path.c_str(), 0, 0, &loaded_building_type_count)) {
         return 0;
     }
@@ -5195,7 +5081,6 @@ int building_type_registry_load(void)
     building_type_id_bridge_reset_for_runtime();
     water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();
-    building_runtime_reset();
     building_menu_invalidate_catalog();
     return 1;
 }

@@ -32,9 +32,6 @@
 
 #include "map/tile_runtime_api.h"
 
-#include <cstring>
-
-
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
 #define FORBIDDEN_TERRAIN_MEADOW (TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |\
@@ -467,6 +464,24 @@ void map_tiles_update_region_tile(
     update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
 }
 
+void map_tiles_update_area_placement_tile(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    const building_type_registry_impl::TileDefinition &tile)
+{
+    switch (tile.refresh_behavior()) {
+        case building_type_registry_impl::TileRefreshBehavior::Garden:
+            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, clear_garden_image);
+            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, set_garden_image);
+            break;
+        default:
+            update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
+            break;
+    }
+}
+
 static int get_gatehouse_building_id(int grid_offset)
 {
     if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
@@ -752,8 +767,7 @@ static void set_wall_image(int x, int y, int grid_offset)
     int building_id = map_building_at(grid_offset);
     if (building_id) {
         Building wall(building_get(building_id));
-        const char *attr = wall.type ? wall.type->attr() : nullptr;
-        if (attr && !std::strcmp(attr, "wall") && wall.refresh_graphic_if_native()) {
+        if (wall.matches("wall") && wall.refresh_graphic_if_native()) {
             map_property_set_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
             return;

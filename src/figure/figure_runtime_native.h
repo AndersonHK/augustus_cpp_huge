@@ -1,13 +1,33 @@
 #pragma once
 
 #include "figure/figure_type_registry_internal.h"
-
-#include "figure/figure.h"
 #include "graphics/runtime_texture.h"
 
 #include <memory>
 
-struct FigureGraphicDrawRequest;
+class Figure;
+
+struct FigureGraphicDrawLayer {
+    RuntimeDrawSlice slice = {};
+    int x_offset = 0;
+    int y_offset = 0;
+    int draw_before_base = 0;
+    int use_figure_color_mask = 1;
+    render_logical_size fixed_logical_size = {};
+    render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
+};
+
+struct FigureGraphicDrawRequest {
+    static constexpr int MAX_LAYERS = 4;
+
+    RuntimeDrawSlice base_slice = {};
+    FigureGraphicDrawLayer layers[MAX_LAYERS] = {};
+    int layer_count = 0;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
+    render_logical_size fixed_logical_size = {};
+    render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
+};
 
 namespace figure_runtime_native_impl {
 
@@ -65,28 +85,6 @@ road_service_effect primary_service_effect_for_profile(
 
 bool is_road_history_tile(int grid_offset);
 
-int warrior_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int fort_standard_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int graphics_policy_draw_request_for_figure(
-    const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    FigureGraphicDrawRequest *request);
-int depot_cart_graphic_draw_request_for_figure(
-    const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    FigureGraphicDrawRequest *request);
-int legacy_cart_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int hippodrome_horse_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int graphics_policy_update_figure_image(
-    Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition);
-
 } // namespace figure_runtime_native_impl
+
+bool figure_graphics_resolve_draw_request(const Figure &figure, FigureGraphicDrawRequest &request);

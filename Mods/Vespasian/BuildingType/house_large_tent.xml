@@ -38,6 +38,6 @@
     </graphics>
     <housing path="house_large_tent" capacity="7" evolve_to="house_small_shack" devolve_to="house_small_tent" merge_to="house_large_tent_2x2" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="47" />
+        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="47" />
     </spawn_group>
 </building>

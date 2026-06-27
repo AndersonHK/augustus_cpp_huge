@@ -4,7 +4,6 @@
 #include "building/building.h"
 #include "building/construction.h"
 #include "building/destruction.h"
-#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/building_type.h"

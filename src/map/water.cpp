@@ -11,15 +11,11 @@
 #include "map/image.h"
 #include "map/point.h"
 #include "map/property.h"
-#include "map/routing.h"
 #include "map/terrain.h"
 #include "scenario/map.h"
 #include "figure/action.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/route.h"
-#include "game/performance_tracker.h"
-
-#include <cstring>
 
 #define OFFSET(x,y) ((x) + GRID_SIZE * (y))
 
@@ -270,10 +266,7 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
 int map_water_is_connected_to_open_water(int x, int y, int size)
 {
     map_point river_entry = scenario_map_river_entry();
-    PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER);
-    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER);
-    map_routing_calculate_distances_water_boat(river_entry.x, river_entry.y);
-    return map_terrain_is_adjacent_to_open_water(x, y, size);
+    return Route::waterCanReachAdjacentOpenWater(river_entry, x, y, size);
 }
 
 static Figure *live_fishing_boat(unsigned int id)
@@ -461,8 +454,7 @@ static int find_wharf_for_new_fishing_boat(Figure *boat, map_point *tile, int as
             if (candidate.state_id() != BUILDING_STATE_IN_USE) {
                 continue;
             }
-            const building_type_registry_impl::BuildingType *definition = candidate.type;
-            if (!definition || !definition->attr() || std::strcmp(definition->attr(), "wharf") != 0) {
+            if (!candidate.matches("wharf")) {
                 continue;
             }
             building *record = building_get(candidate.id());

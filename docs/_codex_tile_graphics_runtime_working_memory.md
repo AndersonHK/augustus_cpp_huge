@@ -1,7 +1,11 @@
 # Tile Graphics Runtime Working Memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-26 docs refresh over older tile-graphics notes
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-06-26 maintenance checkpoint
+- Treat this file as tile-specific working memory. Shared renderer/resource ownership belongs in `docs/_codex_renderer_resource_working_memory.md`; durable extractor contracts belong in `docs/graphics_extraction_pipeline.md`.
+- Older sections that mention stale extractor behavior are historical evidence. Current tile work should preserve the tile runtime pattern: XML-declared tile types, dirty/invalidation ownership, and shared runtime draw helpers rather than bespoke city-view branches.
 
 ## 2026-05-04 as-is audit
 - Tile runtime plaza rendering now returns payload-backed `RuntimeDrawSlice` data through `tile_runtime_get_graphic_footprint_slice()`.

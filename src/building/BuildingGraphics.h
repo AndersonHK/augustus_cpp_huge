@@ -2,28 +2,20 @@
 
 #include "game/resource.h"
 #include "graphics/color.h"
+#include "graphics/GraphicsDefinition.h"
+#include "graphics/image.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
 class Image;
 class Building;
 struct BuildingDrawContext;
-struct RuntimeAnimationTrack;
-typedef struct building building;
 
 namespace building_type_registry_impl {
 
 class BuildingType;
-
-enum class GraphicComparison {
-    None,
-    LessThan,
-    LessThanOrEqual,
-    Equal,
-    GreaterThan,
-    GreaterThanOrEqual
-};
 
 enum class FigureSlot {
     None,
@@ -164,8 +156,17 @@ struct GraphicsVariant {
     int matches(const Building &building) const;
 };
 
-class GraphicsDefinition {
+class BuildingGraphics : public ::GraphicsDefinition {
 public:
+    BuildingGraphics()
+        : ::GraphicsDefinition(::GraphicsDefinitionKind::Building)
+    {
+    }
+
+    static void set_resource_storage_images(resource_type resource, std::array<ImageGroupEntryRef, 4> images);
+    static const ImageGroupEntryRef &resource_storage_image(resource_type resource, int loads);
+    static void reset_resource_storage_images();
+
     void mark_default_node();
     GraphicsTarget &default_target();
     const GraphicsTarget &default_target() const;
@@ -187,33 +188,6 @@ private:
     GraphicsTarget default_target_;
     std::vector<GraphicsVariant> variants_;
     int has_default_node_ = 0;
-};
-
-// Frame-selection policy for one building instance. Rendering code asks this
-// object what frame should draw; the object owns legacy cursor quirks.
-class BuildingAnimation {
-public:
-    explicit BuildingAnimation(Building building);
-
-    int runtime_track_offset(const ::RuntimeAnimationTrack &track, int should_advance, int animation_cursor);
-    int offset_for(const Image &image, int animation_cursor);
-    int advance_storage_flag(const Image &image);
-    int advance_fumigation();
-
-private:
-    building &record();
-    const building &record() const;
-    const building &state_record() const;
-
-    int legacy_gate_offset(int animation_cursor, int *offset) const;
-    int advance_wine_workshop_offset(int animation_cursor, int max_frame, int clamp_to_available) const;
-    int advance_reversible_offset(int animation_cursor, int max_frame) const;
-    int advance_looping_offset(int animation_cursor, int max_frame);
-
-    ::building *record_;
-    const BuildingType *definition_;
-    ::building *state_record_;
-    const BuildingType *state_definition_;
 };
 
 }

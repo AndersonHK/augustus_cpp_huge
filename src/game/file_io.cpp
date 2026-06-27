@@ -22,7 +22,6 @@
 #include "building/building.h"
 #include "building/barracks.h"
 #include "building/building_record.h"
-#include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 
 #include "core/file.h"
@@ -1072,6 +1071,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->god_type_table,
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
+    formation_refresh_runtime_definitions();
     map_building_remove_invalid_references();
     Figure::resolve_loaded_building_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {

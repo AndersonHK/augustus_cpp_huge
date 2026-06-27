@@ -23,7 +23,6 @@
 #include "window/hotkey_config.h"
 #include "window/advisors.h"
 #include "window/popup_dialog.h"
-#include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 
 #include "game/settings.h"

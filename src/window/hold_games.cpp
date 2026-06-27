@@ -1,7 +1,7 @@
 #include "building/count.h"
 #include "city/festival.h"
 #include "city/games.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"

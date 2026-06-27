@@ -5,7 +5,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/religion.h"
 #include "building/storage.h"
 #include "core/config.h"
 #include "city/buildings.h"
@@ -24,22 +23,6 @@ static Building first_building_with_attr(const char *attr)
 {
     building_type type = building_type_registry_impl::type_from_attr(attr);
     return type == BUILDING_NONE ? Building(nullptr) : Building::first_of_type(type);
-}
-
-static Building grand_temple_for_god(god_type god)
-{
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
-            continue;
-        }
-        Building temple = Building::first_of_type(type);
-        if (temple.id()) {
-            return temple;
-        }
-    }
-    return Building(nullptr);
 }
 
 static int is_valid_destination(const Building &b, int road_network_id)
@@ -71,7 +54,7 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
             min_building = b;
         }
     }
-    Building monument = grand_temple_for_god(GOD_MARS);
+    Building monument(building_get(building_monument_get_grand_temple_for_god(GOD_MARS)));
     if (monument.id() && monument.monument_phase() == MONUMENT_FINISHED &&
         is_valid_destination(monument, road_network_id)) {
         int dist = monument.max_distance_to(x, y);
@@ -144,7 +127,8 @@ static int get_closest_legion_needing_soldiers(const Barracks &barracks)
         if (m->in_distant_battle || m->legion_recruit_type == LEGION_RECRUIT_NONE) {
             continue;
         }
-        if (m->legion_recruit_type == LEGION_RECRUIT_LEGIONARY && barracks.resource_amount(resource_weapons()) <= 0) {
+        if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon() &&
+            barracks.resource_amount(resource_weapons()) <= 0) {
             continue;
         }
         int dist = barracks.max_distance_to(m->x, m->y);
@@ -198,7 +182,7 @@ int Barracks::create_soldier(int x, int y)
         Figure *f = Figure::create(static_cast<figure_type>(m->figure_type), x, y, DIR_0_TOP);
         f->formation_id = formation_id;
         f->formation_at_rest = 1;
-        if (m->figure_type == FIGURE_FORT_LEGIONARY) {
+        if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon()) {
             if (resource_amount(resource_weapons()) > 0) {
                 add_resource(resource_weapons(), -1);
             }
@@ -217,7 +201,7 @@ int Barracks::create_soldier(int x, int y)
         } else {
             f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
         }
-        if (m->num_figures == MAX_FORMATION_FIGURES - 1) {
+        if (m->num_figures == m->slot_capacity() - 1) {
             m->legion_recruit_type = LEGION_RECRUIT_NONE;
         }
     }
@@ -270,7 +254,8 @@ int Barracks::create_tower_sentry(int x, int y)
         f->destination_x = road.x;
         f->destination_y = road.y;
     } else {
-        f->state = FIGURE_STATE_DEAD;
+        f->remove();
+        return 0;
     }
     tower.set_primary_figure_id(f->id());
     f->building = tower;

@@ -15,7 +15,6 @@
 #include "building/building_type_registry_internal.h"
 #include "figure/figure.h"
 
-#include "building/building_type_api.h"
 #include "core/config.h"
 #include "map/property.h"
 #include "map/random.h"
@@ -58,7 +57,7 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (!b->num_workers && type && static_cast<bool>(type->required_workers())) {
         b->show_on_problem_overlay = 1;
-    } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
+    } else if (type && type->water_access().has_requirements() && !b->has_water_access) {
         b->show_on_problem_overlay = 1;
     } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {
@@ -334,7 +333,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED";
     } else if (!b->num_workers && type && static_cast<bool>(type->required_workers())) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR";
-    } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
+    } else if (type && type->water_access().has_requirements() && !b->has_water_access) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS";
     } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {

@@ -6,16 +6,13 @@
 #include "building/building_type.h"
 #include "game/resource.h"
 
+#include "game/Animation.h"
 #include "graphics/color.h"
 #include "map/point.h"
 
 #include <cstdint>
 #include <functional>
 #include <source_location>
-
-namespace building_type_registry_impl {
-class BuildingAnimation;
-}
 
 class building_runtime;
 
@@ -88,6 +85,7 @@ public:
     int is_mothballed() const;
     int has_plague() const;
     int has_cached_road_access() const;
+    int cached_road_access_point(map_point *road) const;
     int has_house_size() const;
     int house_population() const;
     void set_house_population(int value);
@@ -111,6 +109,8 @@ public:
     float labor_access_score() const;
     int has_required_workers() const;
     int has_road_access(map_point *road) const;
+    int query_road_access_point(map_point *road) const;
+    int storage_destination_road_access_point(map_point *road) const;
     int has_water_access() const;
     int is_working() const;
     int is_merged_house() const;
@@ -128,6 +128,9 @@ public:
     int reserve_input_storage_load(resource_type resource, unsigned int figure_id);
     void release_input_storage_reservation(unsigned int figure_id);
     int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0) const;
+    int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    void release_legacy_storage_reservation(unsigned int figure_id);
     int house_happiness() const;
     void set_house_happiness(int value);
     void set_fetch_inventory_id(resource_type resource);
@@ -225,6 +228,8 @@ building *building_first_of_type(building_type type);
 void building_change_type(building *b, building_type type);
 
 building *building_main(const building *b);
+
+building *building_repair_target(building *b);
 
 building *building_next(building *b);
 

@@ -28,17 +28,19 @@ static struct {
 static FILE *open_pref_file(const char *filename, const char *mode)
 {
     char *pref_dir = platform_get_pref_path();
+    const char *base_dir = pref_dir ? pref_dir : "";
+    const char *pref_name = filename ? filename : "";
     if (!prefs.location_printed) {
-        log_info("Pref dir location:", pref_dir ? pref_dir : ".", 0);
+        log_info("Pref dir location:", *base_dir ? base_dir : ".", 0);
         prefs.location_printed = 1;
     }
-    size_t file_len = strlen(filename) + strlen(pref_dir) + 1;
+    size_t file_len = strlen(pref_name) + strlen(base_dir) + 1;
     char *pref_file = static_cast<char *>(malloc(file_len * sizeof(char)));
     if (!pref_file) {
         SDL_free(pref_dir);
         return NULL;
     }
-    snprintf(pref_file, file_len, "%s%s", pref_dir ? pref_dir : "", filename);
+    snprintf(pref_file, file_len, "%s%s", base_dir, pref_name);
     SDL_free(pref_dir);
     FILE *fp = fopen(pref_file, mode);
     free(pref_file);

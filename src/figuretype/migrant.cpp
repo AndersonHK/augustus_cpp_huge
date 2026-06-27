@@ -2,9 +2,9 @@
 #include "map/road_access.h"
 #include "migrant.h"
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "building/house_population.h"
-#include "building/building_type_api.h"
 #include "city/map.h"
 #include "city/population.h"
 #include "core/calc.h"
@@ -71,7 +71,7 @@ static void add_migrant_people_to_house(Figure &migrant, Building &house, int ho
         city_population_add(migrant.migrant_num_people);
     }
     if (!old_population) {
-        building_house_change_to(house, building_type_registry_get_vacant_lot_occupancy_type());
+        building_house_change_to(house, building_type_registry_impl::vacant_lot_occupancy_type());
     }
 }
 
@@ -116,7 +116,7 @@ static void update_direction_and_image(Figure *f)
     if (f->action_state == FIGURE_ACTION_2_IMMIGRANT_ARRIVING ||
         f->action_state == FIGURE_ACTION_6_EMIGRANT_LEAVING) {
         int dir = figure_image_direction(f);
-        f->cart_image_id = image_group(GROUP_FIGURE_MIGRANT_CART) + dir;
+        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_MIGRANT_CART) + dir);
         figure_image_set_cart_offset(f, (dir + 4) % 8);
     }
 }
@@ -156,7 +156,7 @@ void figure_immigrant_action(Figure *f)
     Building house = f->immigrant_building;
 
     f->terrain_usage = TERRAIN_USAGE_ANY;
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     if (!house_is_valid(house, *f)) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -216,7 +216,7 @@ void figure_immigrant_action(Figure *f)
 void figure_emigrant_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ANY;
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
 
     figure_image_increase_offset(f, 12);
 
@@ -248,7 +248,7 @@ void figure_emigrant_action(Figure *f)
                 f->destination_x = entry->x;
                 f->destination_y = entry->y;
                 f->roam_length = 0;
-                f->progress_on_tile = 15;
+                f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             }
             f->is_ghost = f->in_building_wait_ticks ? 1 : 0;
             break;

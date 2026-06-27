@@ -18,8 +18,6 @@
 #include "scenario/data.h"
 #include "scenario/property.h"
 
-#include <string.h>
-
 enum {
     EVENT_ROME_RAISES_WAGES = 1,
     EVENT_ROME_LOWERS_WAGES = 2,
@@ -31,21 +29,6 @@ enum {
 };
 
 #define COOLDOWN_MONTHS_ROME_WAGE_CHANGE 12
-
-static building_type runtime_type(const char *text_id)
-{
-    if (!text_id || !*text_id) {
-        return BUILDING_NONE;
-    }
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
 
 static const int RANDOM_EVENT_PROBABILITY[128] = {
     0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 3, 0, 0, 0, 0,
@@ -131,7 +114,7 @@ static void contaminate_water(void)
 
 static void destroy_iron_mine(void)
 {
-    building_type iron_mine = runtime_type("iron_mine");
+    building_type iron_mine = building_type_registry_impl::type_from_attr("iron_mine");
     if (scenario.random_events.iron_mine_collapse &&
         city_data.building.months_since_last_destroyed_iron_mine > difficulty_random_event_cooldown_months()) {
         if(config_get(CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY)) {
@@ -151,7 +134,7 @@ static void destroy_iron_mine(void)
 
 static void destroy_clay_pit(void)
 {
-    building_type clay_pit = runtime_type("clay_pit");
+    building_type clay_pit = building_type_registry_impl::type_from_attr("clay_pit");
     if (scenario.random_events.clay_pit_flooded &&
         city_data.building.months_since_last_flooded_clay_pit > difficulty_random_event_cooldown_months()) {
         if(config_get(CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY)) {
@@ -192,7 +175,8 @@ static int all_gods_happy(void)
 void scenario_random_event_process(void)
 {
     increase_month_since_last_random_event();
-    int skip_event = building_monument_working(runtime_type("pantheon")) && all_gods_happy();
+    int skip_event = building_monument_working(building_type_registry_impl::type_from_attr("pantheon")) &&
+        all_gods_happy();
     int event = RANDOM_EVENT_PROBABILITY[random_byte()];
     switch (event) {
         case EVENT_ROME_RAISES_WAGES:

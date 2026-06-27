@@ -16,6 +16,7 @@ managed_image_request make_managed_request(const RuntimeTextureDrawRequest &draw
     request.y = draw_request.y;
     request.logical_width = draw_request.logical_width > 0.0f ? draw_request.logical_width : static_cast<float>(slice.width);
     request.logical_height = draw_request.logical_height > 0.0f ? draw_request.logical_height : static_cast<float>(slice.height);
+    request.fixed_logical_size = draw_request.fixed_logical_size;
     request.color = draw_request.color;
     request.domain = draw_request.domain;
     request.scaling_policy = draw_request.scaling_policy;

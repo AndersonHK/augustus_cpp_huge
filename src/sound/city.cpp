@@ -1,6 +1,6 @@
 #include "city.h"
 
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "graphics/window.h"
 
 #include "core/file.h"
@@ -205,7 +205,11 @@ void sound_city_set_volume(int percentage)
 
 void sound_city_mark_building_view(building_type type, int num_workers, int direction, int has_water_access)
 {
-    sound_city_type sound = static_cast<sound_city_type>(building_type_registry_get_sound_id(type));
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    sound_city_type sound = definition && definition->has_sound() && definition->sound().has_city_sound() ?
+        static_cast<sound_city_type>(definition->sound().city_sound()) :
+        SOUND_CITY_NONE;
     if (sound == SOUND_CITY_NONE) {
         sound = static_cast<sound_city_type>(building_properties_for_type(type)->sound_id);
     }
@@ -216,9 +220,11 @@ void sound_city_mark_building_view(building_type type, int num_workers, int dire
     const model_building *model = model_get_building(type);
     int enemies_present = city_figures_enemies() > 0 || city_figures_imperial_soldiers() > 0;
 
-    int mute_on_enemies = building_type_registry_get_sound_mute_on_enemies(type);
-    int always_play = building_type_registry_get_sound_always_play(type);
-    int requires_water_access = building_type_registry_get_sound_requires_water_access(type);
+    int mute_on_enemies = definition && definition->has_sound() ? definition->sound().mute_on_enemies() : 0;
+    int always_play = definition && definition->has_sound() ? definition->sound().always_play() : 0;
+    int requires_water_access = definition && definition->has_sound() ?
+        definition->water_access().has_requirements() :
+        0;
 
     // Shut off when:
     if ((requires_water_access && !has_water_access) ||

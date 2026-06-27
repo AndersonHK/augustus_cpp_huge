@@ -8,38 +8,11 @@
 #include "core/direction.h"
 #include "core/image.h"
 #include "figure/PathingMode.h"
+#include "figure/route.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/image.h"
-#include "map/routing.h"
 #include "map/terrain.h"
-
-#include <cstring>
-
-static int building_matches(building *b, const char *text_id)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_at_matches(int grid_offset, const char *text_id)
-{
-    unsigned int building_id = map_building_at(grid_offset);
-    return building_id && building_matches(building_get(building_id), text_id);
-}
-
-static int building_is_wall_gate(building *b)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    return current.type && current.type->roadblock().is_wall_gate();
-}
 
 int map_can_place_road_under_aqueduct(int grid_offset)
 {
@@ -72,22 +45,22 @@ int map_can_place_road_under_aqueduct(int grid_offset)
         int dy_up = map_grid_delta(0, -1);
         int dy_down = map_grid_delta(0, 1);
         if (map_terrain_is(grid_offset + dy_up, TERRAIN_ROAD) ||
-            map_routing_distance(grid_offset + dy_up) > 0) {
+            Route::constructionDistanceTo(grid_offset + dy_up) > 0) {
             return 0;
         }
         if (map_terrain_is(grid_offset + dy_down, TERRAIN_ROAD) ||
-            map_routing_distance(grid_offset + dy_down) > 0) {
+            Route::constructionDistanceTo(grid_offset + dy_down) > 0) {
             return 0;
         }
     } else {
         int dx_left = map_grid_delta(-1, 0);
         int dx_right = map_grid_delta(1, 0);
         if (map_terrain_is(grid_offset + dx_left, TERRAIN_ROAD) ||
-            map_routing_distance(grid_offset + dx_left) > 0) {
+            Route::constructionDistanceTo(grid_offset + dx_left) > 0) {
             return 0;
         }
         if (map_terrain_is(grid_offset + dx_right, TERRAIN_ROAD) ||
-            map_routing_distance(grid_offset + dx_right) > 0) {
+            Route::constructionDistanceTo(grid_offset + dx_right) > 0) {
             return 0;
         }
     }
@@ -109,13 +82,13 @@ int map_can_place_aqueduct_on_road(int grid_offset)
         check_y = !check_y;
     }
     if (check_y) {
-        if (map_routing_distance(grid_offset + map_grid_delta(0, -1)) > 0 ||
-            map_routing_distance(grid_offset + map_grid_delta(0, 1)) > 0) {
+        if (Route::constructionDistanceTo(grid_offset + map_grid_delta(0, -1)) > 0 ||
+            Route::constructionDistanceTo(grid_offset + map_grid_delta(0, 1)) > 0) {
             return 0;
         }
     } else {
-        if (map_routing_distance(grid_offset + map_grid_delta(-1, 0)) > 0 ||
-            map_routing_distance(grid_offset + map_grid_delta(1, 0)) > 0) {
+        if (Route::constructionDistanceTo(grid_offset + map_grid_delta(-1, 0)) > 0 ||
+            Route::constructionDistanceTo(grid_offset + map_grid_delta(1, 0)) > 0) {
             return 0;
         }
     }
@@ -155,16 +128,14 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         building *b = building_get(map_building_at(grid_offset));
-        if (building_is_wall_gate(b)) {
+        Building current(b);
+        if (b && current.type && current.type->roadblock().is_wall_gate()) {
             if (b->subtype.orientation == gate_orientation) {
                 is_road = 1;
             }
-        } else {
-            Building current(b);
-            if (current.type && current.type->is_granary()) {
-                if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
-                    is_road = 1;
-                }
+        } else if (current.type && current.type->is_granary()) {
+            if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
+                is_road = 1;
             }
         }
     }
@@ -200,7 +171,7 @@ static int is_highway(int x, int y, int check_routing)
         for (int xx = x - 1; xx <= x; xx++) {
             for (int yy = y - 1; yy <= y; yy++) {
                 int routing_grid_offset = map_grid_offset(xx, yy);
-                if (map_routing_distance(routing_grid_offset) > 0) {
+                if (Route::constructionDistanceTo(routing_grid_offset) > 0) {
                     return 1;
                 }
             }
@@ -216,9 +187,11 @@ static int is_aqueduct(int x, int y, int check_routing)
         return 0;
     } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         return 1;
-    } else if (building_at_matches(grid_offset, "reservoir")) {
+    }
+    unsigned int building_id = map_building_at(grid_offset);
+    if (building_id && Building(building_get(building_id)).matches("reservoir")) {
         return 1;
-    } else if (check_routing && map_routing_distance(grid_offset) > 0) {
+    } else if (check_routing && Route::constructionDistanceTo(grid_offset) > 0) {
         return 1;
     }
     return 0;

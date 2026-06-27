@@ -18,7 +18,6 @@
 #include "window/building/military.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "figure/formation.h"

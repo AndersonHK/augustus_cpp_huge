@@ -203,7 +203,6 @@
     <ClCompile Include="src\assets\image_group_payload_parse.cpp" />
     <ClCompile Include="src\assets\layer.cpp" />
     <ClCompile Include="src\assets\xml.cpp" />
-    <ClCompile Include="src\building\animations.cpp" />
     <ClCompile Include="src\building\armoury.cpp" />
     <ClCompile Include="src\building\barracks.cpp" />
     <ClCompile Include="src\building\building.cpp" />
@@ -356,7 +355,10 @@
     <ClCompile Include="src\figure\figure.cpp" />
     <ClCompile Include="src\figure\figure_runtime.cpp" />
     <ClCompile Include="src\figure\figure_runtime_native.cpp" />
+    <ClCompile Include="src\figure\FigureGraphics.cpp" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
+    <ClCompile Include="src\figure\unit_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_type_registry.cpp" />
     <ClCompile Include="src\figure\PathingMode.cpp" />
     <ClCompile Include="src\figure\formation.cpp" />
     <ClCompile Include="src\figure\formation_enemy.cpp" />
@@ -393,7 +395,7 @@
     <ClCompile Include="src\figuretype\wall.cpp" />
     <ClCompile Include="src\figuretype\water.cpp" />
     <ClCompile Include="src\figuretype\workcamp.cpp" />
-    <ClCompile Include="src\game\animation.cpp" />
+    <ClCompile Include="src\game\Animation.cpp" />
     <ClCompile Include="src\game\campaign\campaign.cpp" />
     <ClCompile Include="src\game\campaign\file.cpp" />
     <ClCompile Include="src\game\campaign\miniz_zip.cpp" />
@@ -413,7 +415,7 @@
     <ClCompile Include="src\game\orientation.cpp" />
     <ClCompile Include="src\game\resource.cpp" />
     <ClCompile Include="src\game\resource_id_bridge.cpp" />
-    <ClCompile Include="src\game\resource_graphics.cpp" />
+    <ClCompile Include="src\game\ResourceGraphics.cpp" />
     <ClCompile Include="src\game\settings.cpp" />
     <ClCompile Include="src\game\defines.cpp" />
     <ClCompile Include="src\game\speed.cpp" />
@@ -431,6 +433,7 @@
     <ClCompile Include="src\graphics\font.cpp" />
     <ClCompile Include="src\graphics\font_vector_runtime.cpp" />
     <ClCompile Include="src\graphics\generic_button.cpp" />
+    <ClCompile Include="src\graphics\GraphicsDefinition.cpp" />
     <ClCompile Include="src\graphics\graphics.cpp" />
     <ClCompile Include="src\graphics\grid_box.cpp" />
     <ClCompile Include="src\graphics\image_border.cpp" />
@@ -728,7 +731,7 @@
     <ClInclude Include="src\assets\image_group_payload.h" />
     <ClInclude Include="src\assets\layer.h" />
     <ClInclude Include="src\assets\xml.h" />
-    <ClInclude Include="src\building\animations.h" />
+    <ClInclude Include="src\building\BuildingGraphics.h" />
     <ClInclude Include="src\building\armoury.h" />
     <ClInclude Include="src\building\barracks.h" />
     <ClInclude Include="src\building\building.h" />
@@ -738,7 +741,6 @@
     <ClInclude Include="src\building\building_runtime.h" />
     <ClInclude Include="src\building\building_runtime_internal.h" />
     <ClInclude Include="src\building\building_type.h" />
-    <ClInclude Include="src\building\building_type_api.h" />
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_startup_bridge.h" />
@@ -893,6 +895,9 @@
     <ClInclude Include="src\figure\figure_runtime_native.h" />
     <ClInclude Include="src\figure\figure_type_registry.h" />
     <ClInclude Include="src\figure\figure_type_registry_internal.h" />
+    <ClInclude Include="src\figure\FigureGraphics.h" />
+    <ClInclude Include="src\figure\unit_type.h" />
+    <ClInclude Include="src\figure\formation_type.h" />
     <ClInclude Include="src\figure\PathingMode.h" />
     <ClInclude Include="src\figure\formation.h" />
     <ClInclude Include="src\figure\formation_enemy.h" />
@@ -906,6 +911,7 @@
     <ClInclude Include="src\figure\properties.h" />
     <ClInclude Include="src\figure\roamer_preview.h" />
     <ClInclude Include="src\figure\route.h" />
+    <ClInclude Include="src\figure\route_policy.h" />
     <ClInclude Include="src\figure\service.h" />
     <ClInclude Include="src\figure\sound.h" />
     <ClInclude Include="src\figure\trader.h" />
@@ -930,7 +936,7 @@
     <ClInclude Include="src\figuretype\wall.h" />
     <ClInclude Include="src\figuretype\water.h" />
     <ClInclude Include="src\figuretype\workcamp.h" />
-    <ClInclude Include="src\game\animation.h" />
+    <ClInclude Include="src\game\Animation.h" />
     <ClInclude Include="src\game\campaign\file.h" />
     <ClInclude Include="src\game\campaign\mission.h" />
     <ClInclude Include="src\game\campaign\original.h" />
@@ -950,7 +956,7 @@
     <ClInclude Include="src\game\orientation.h" />
     <ClInclude Include="src\game\resource.h" />
     <ClInclude Include="src\game\resource_id_bridge.h" />
-    <ClInclude Include="src\game\resource_graphics.h" />
+    <ClInclude Include="src\game\ResourceGraphics.h" />
     <ClInclude Include="src\game\save_version.h" />
     <ClInclude Include="src\game\settings.h" />
     <ClInclude Include="src\game\speed.h" />
@@ -971,6 +977,7 @@
     <ClInclude Include="src\graphics\complex_button.h" />
     <ClInclude Include="src\graphics\font.h" />
     <ClInclude Include="src\graphics\generic_button.h" />
+    <ClInclude Include="src\graphics\GraphicsDefinition.h" />
     <ClInclude Include="src\graphics\graphics.h" />
     <ClInclude Include="src\graphics\grid_box.h" />
     <ClInclude Include="src\graphics\image_border.h" />

@@ -40,7 +40,6 @@
 #include "assets/assets.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/building_type_api.h"
 #include "city/buildings.h"
 #include "city/finance.h"
 #include "city/view.h"
@@ -89,10 +88,7 @@ static struct {
         int grid_offset;
         building_type type;
     } roamer_preview;
-    struct {
-        building_type type;
-        int cursor;
-    } animation_preview;
+    int animation_preview_cursor_by_type[BUILDING_TYPE_MAX];
     tile_xy_offsets offsets[4][MAX_TILES];
 } data = {
     .scale = SCALE_NONE
@@ -180,31 +176,18 @@ static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offse
 static void draw_runtime_ghost_animation(Building &building, int animation_cursor, int x, int y, color_t color)
 {
     const building_type type = building.type ? building.type->type() : BUILDING_NONE;
-    if (data.animation_preview.type != type) {
-        data.animation_preview.type = type;
-        data.animation_preview.cursor = 0;
+    const int cursor_index = static_cast<int>(type);
+    if (cursor_index <= BUILDING_NONE || cursor_index >= BUILDING_TYPE_MAX) {
+        return;
     }
 
     // Ghosts reuse the real grid offset as an animation cursor. Save/restore the
     // map sprite byte so preview animation never leaks into the city map state.
     const int saved_cursor = map_sprite_animation_at(animation_cursor);
-    map_sprite_animation_set(animation_cursor, data.animation_preview.cursor);
+    map_sprite_animation_set(animation_cursor, data.animation_preview_cursor_by_type[cursor_index]);
     building.draw_animation({ x, y, animation_cursor, color, data.scale, 1 });
-    data.animation_preview.cursor = map_sprite_animation_at(animation_cursor);
+    data.animation_preview_cursor_by_type[cursor_index] = map_sprite_animation_at(animation_cursor);
     map_sprite_animation_set(animation_cursor, saved_cursor);
-}
-
-static void draw_runtime_ghost_record(
-    const building_type_registry_impl::BuildingType &definition,
-    building &record,
-    int x,
-    int y,
-    color_t color)
-{
-    Building building(record, &definition);
-    building.draw_footprint({ x, y, record.grid_offset, color, data.scale, 1 });
-    building.draw_top({ x, y, record.grid_offset, color, data.scale, 1 });
-    draw_runtime_ghost_animation(building, record.grid_offset, x, y, color);
 }
 
 static void draw_blocked_tile(int x, int y, int grid_offset)
@@ -240,48 +223,19 @@ void city_building_ghost_draw_fountain_range(int x, int y, int grid_offset)
     draw_water_range_overlay(x, y, COLOR_MASK_BLUE);
 }
 
-static void city_building_ghost_draw_reservoir_range_colored(int x, int y, color_t color)
-{
-    draw_water_range_overlay(x, y, color);
-}
-
 void city_building_ghost_draw_reservoir_range(int x, int y, int grid_offset)
 {
-    city_building_ghost_draw_reservoir_range_colored(x, y, COLOR_MASK_RESERVOIR_RANGE);
+    draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
 }
 
 void city_building_ghost_draw_aqueduct_range(int x, int y, int grid_offset)
 {
-    city_building_ghost_draw_reservoir_range_colored(x, y, COLOR_MASK_RESERVOIR_RANGE);
+    draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
 }
 
 void city_building_ghost_draw_latrines_range(int x, int y, int grid_offset)
 {
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_DARK_GREEN & ALPHA_FONT_SEMI_TRANSPARENT, data.scale);
-}
-
-static void get_building_base_xy(int map_x, int map_y, int building_size, int *x, int *y)
-{
-    switch (city_view_orientation()) {
-        case DIR_0_TOP:
-            *x = map_x;
-            *y = map_y;
-            break;
-        case DIR_2_RIGHT:
-            *x = map_x - building_size + 1;
-            *y = map_y;
-            break;
-        case DIR_4_BOTTOM:
-            *x = map_x - building_size + 1;
-            *y = map_y - building_size + 1;
-            break;
-        case DIR_6_LEFT:
-            *x = map_x;
-            *y = map_y - building_size + 1;
-            break;
-        default:
-            *x = *y = 0;
-    }
 }
 
 static void set_roamer_path(building_type type, int size, const map_tile *tile, int is_blocked)
@@ -497,7 +451,10 @@ static void draw_plan_part(
     const int draw_x = tile_x + x_size_offset;
     const int draw_y = tile_y + y_size_offset;
     building record = make_plan_ghost_record(plan, part, root_definition);
-    draw_runtime_ghost_record(*part.definition, record, draw_x, draw_y, color);
+    Building building(record, part.definition);
+    building.draw_footprint({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
+    building.draw_top({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
+    draw_runtime_ghost_animation(building, record.grid_offset, draw_x, draw_y, color);
     draw_plan_tiles(part, tile_x, tile_y, show_blocked_tiles);
 }
 
@@ -742,8 +699,10 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
     if (dir < 0) {
         dir += 8;
     }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
     int blocked = 0;
-    int is_ship_bridge = building_type_registry_impl::type_is_ship_bridge(type);
+    int is_ship_bridge = definition && definition->roadblock().is_ship_bridge();
     if (is_ship_bridge && length < 5) {
         blocked = 1;
     } else if (!end_grid_offset) {
@@ -864,11 +823,14 @@ static void draw_grid_tile(int x, int y, int grid_offset)
     if (!image_id) {
         image_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
     }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(data.ghost_building.type);
+    const int water_allowed = definition &&
+        (definition->roadblock().is_bridge() ||
+            (definition->has_foundation() && definition->foundation().has_water_requirement()));
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_ROCK) ||
         map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) || map_terrain_is(grid_offset, TERRAIN_ELEVATION) ||
-        (map_terrain_is(grid_offset, TERRAIN_WATER) &&
-            !building_type_registry_impl::type_is_bridge(data.ghost_building.type) &&
-            !building_type_registry_impl::type_has_water_foundation(data.ghost_building.type))) {
+        (map_terrain_is(grid_offset, TERRAIN_WATER) && !water_allowed)) {
         return;
     }
     Image::from_id(image_id).draw(x, y, COLOR_GRID, data.scale);

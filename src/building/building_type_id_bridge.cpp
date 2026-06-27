@@ -1,18 +1,15 @@
 #include <array>
 
-#include "building/building_record.h"
 #include "building/building_type_id_bridge.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
 
 #include "core/log.h"
+#include "core/xml_value.h"
 
-#include <cctype>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -66,19 +63,6 @@ struct BridgeState {
 
 BridgeState g_bridge;
 
-std::string trim_copy(const std::string &text)
-{
-    size_t first = 0;
-    while (first < text.size() && std::isspace(static_cast<unsigned char>(text[first]))) {
-        ++first;
-    }
-    size_t last = text.size();
-    while (last > first && std::isspace(static_cast<unsigned char>(text[last - 1]))) {
-        --last;
-    }
-    return text.substr(first, last - first);
-}
-
 void register_text_id(building_type runtime_id, const std::string &text_id)
 {
     if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX || text_id.empty()) {
@@ -110,23 +94,36 @@ building_type active_registry_runtime_from_text(const char *text_id)
     return BUILDING_NONE;
 }
 
-void register_attr_tokens(building_type runtime_id, const char *attr)
+template <typename Visitor>
+int for_each_attr_token(const char *attr, Visitor visitor)
 {
     if (!attr || !*attr) {
-        return;
+        return 1;
     }
 
-    std::string list(attr);
+    std::string_view list(attr);
     size_t start = 0;
     while (start <= list.size()) {
-        size_t end = list.find('|', start);
-        std::string token = trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
-        register_text_id(runtime_id, token);
-        if (end == std::string::npos) {
+        const size_t end = list.find('|', start);
+        const std::string token = xml_value::trim_copy(
+            list.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start));
+        if (!token.empty() && !visitor(token)) {
+            return 0;
+        }
+        if (end == std::string_view::npos) {
             break;
         }
         start = end + 1;
     }
+    return 1;
+}
+
+void register_attr_tokens(building_type runtime_id, const char *attr)
+{
+    for_each_attr_token(attr, [runtime_id](const std::string &token) {
+        register_text_id(runtime_id, token);
+        return 1;
+    });
 }
 
 int active_definition_has_text_id(const char *text_id)
@@ -139,18 +136,10 @@ int active_definition_has_text_id(const char *text_id)
         if (!definition) {
             continue;
         }
-        std::string list(definition->attr() ? definition->attr() : "");
-        size_t start = 0;
-        while (start <= list.size()) {
-            size_t end = list.find('|', start);
-            std::string token = trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
-            if (token == text_id) {
-                return 1;
-            }
-            if (end == std::string::npos) {
-                break;
-            }
-            start = end + 1;
+        if (!for_each_attr_token(definition->attr(), [text_id](const std::string &token) {
+            return token == text_id ? 0 : 1;
+        })) {
+            return 1;
         }
     }
     return 0;
@@ -200,7 +189,7 @@ int is_pavilion_alias(const char *text_id)
 
 building_type vacant_lot_alias_runtime()
 {
-    return building_type_registry_get_vacant_lot_fill_type();
+    return building_type_registry_impl::vacant_lot_fill_type();
 }
 
 building_type pavilion_alias_runtime()

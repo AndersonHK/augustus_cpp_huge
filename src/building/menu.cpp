@@ -1,7 +1,6 @@
 #include "building/building_record.h"
 #include "menu.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 
@@ -191,7 +190,9 @@ void building_menu_enable_all(void)
 
 static void enable_house(int *enabled, building_type menu_building_type)
 {
-    if (building_type_registry_has_housing(menu_building_type)) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(menu_building_type);
+    if (definition && definition->has_housing()) {
         *enabled = 1;
     }
 }

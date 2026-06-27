@@ -1,17 +1,17 @@
 #pragma once
 
-#include "assets/assets.h"
 #include "building/building_type.h"
+#include "figure/FigureGraphics.h"
+#include "figure/PathingMode.h"
 #include "figure/type.h"
 
-#include "figure/PathingMode.h"
-
-#include <array>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace figure_type_registry_impl {
+
+class FigureTypeDefinition;
 
 enum class NativeClassId {
     None,
@@ -26,11 +26,6 @@ enum class NativeClassId {
     TransientWanderer,
     DepotCartPusher,
     FishingBoat
-};
-
-enum class CartGraphicsMode {
-    None,
-    ResourceLoad
 };
 
 enum class FigureSlot {
@@ -61,7 +56,10 @@ enum class EntertainmentShowSlot {
 struct OwnerBinding {
     FigureSlot slot = FigureSlot::None;
     building_type required_building_type = BUILDING_NONE;
+    std::string required_building_reference;
     OwnerStateRequirement required_owner_state = OwnerStateRequirement::InUse;
+
+    building_type resolved_required_building_type() const;
 };
 
 struct MovementProfile {
@@ -70,39 +68,18 @@ struct MovementProfile {
     ReturnMode return_mode = ReturnMode::ReturnToOwnerRoad;
 };
 
-struct GraphicsPolicy {
-    int image_group = 0;
-    asset_id image_asset = ASSET_MAX_KEY;
-    std::string path_pattern;
-    std::string image_pattern;
-    int has_sprite_offset = 0;
-    int sprite_offset_x = 0;
-    int sprite_offset_y = 0;
-    int action_state = 0;
-    int action_min_wait_ticks = 0;
-    std::string action_path_pattern;
-    std::string action_image_pattern;
-    int image_group_offset = 0;
-    int max_image_offset = 12;
-    int direction_frame_stride = 8;
-    int static_frame_count = 0;
-    int corpse_image_group = 0;
-    asset_id corpse_image_asset = ASSET_MAX_KEY;
-    std::string corpse_path_pattern;
-    std::string corpse_image_pattern;
-    int corpse_image_group_offset = 96;
-    int corpse_frame_count = 0;
-    CartGraphicsMode cart_mode = CartGraphicsMode::None;
-    std::array<int, 8> cart_offsets_x = {};
-    std::array<int, 8> cart_offsets_y = {};
-    int cart_high_load_threshold = 0;
-    int cart_high_load_y_adjust = 0;
-    int cart_direction_3_y_adjust = 0;
-};
-
 struct EntertainmentVenueTarget {
     building_type building = BUILDING_NONE;
+    std::string building_reference;
     EntertainmentShowSlot show_slot = EntertainmentShowSlot::None;
+
+    building_type resolved_building_type() const;
+};
+
+struct ProfileSpawnBehavior {
+    int action_state = 0;
+    bool has_action_state = false;
+    bool init_roaming = false;
 };
 
 class FigureTypeProfile {
@@ -127,6 +104,8 @@ public:
     int show_duration() const;
     void add_venue_target(const EntertainmentVenueTarget &target);
     const std::vector<EntertainmentVenueTarget> &venue_targets() const;
+    int resolve_building_references(const char *figure_attr);
+    ProfileSpawnBehavior spawn_behavior() const;
 
 private:
     std::string id_;
@@ -154,8 +133,19 @@ public:
     void set_movement_profile(const MovementProfile &movement_profile);
     const MovementProfile &movement_profile() const;
 
-    void set_graphics_policy(const GraphicsPolicy &graphics_policy);
-    const GraphicsPolicy &graphics_policy() const;
+    void set_graphics(const FigureGraphics &graphics);
+    const FigureGraphics &graphics() const;
+    int cache_graphics_bindings();
+    const GraphicsTargetBinding *graphics_binding(
+        GraphicsTargetRole role,
+        int direction_index,
+        int frame) const;
+    const GraphicsTargetBinding *graphics_binding_for_state(
+        int figure_action_state,
+        int wait_ticks,
+        int image_offset,
+        int corpse_frame_offset,
+        int direction_index) const;
 
     void set_pathing_policy(const PathingPolicy &pathing_policy);
     const PathingPolicy &pathing_policy() const;
@@ -167,6 +157,7 @@ public:
     const FigureTypeProfile *profile(const char *profile_id) const;
     const FigureTypeProfile *default_profile() const;
     const std::vector<FigureTypeProfile> &profiles() const;
+    int resolve_building_references();
 
 private:
     figure_type type_ = FIGURE_NONE;
@@ -174,7 +165,7 @@ private:
     NativeClassId native_class_id_ = NativeClassId::None;
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;
-    GraphicsPolicy graphics_policy_;
+    FigureGraphics graphics_;
     PathingPolicy pathing_policy_;
     std::string default_profile_id_;
     std::vector<FigureTypeProfile> profiles_;
@@ -183,7 +174,6 @@ private:
 extern std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
 extern std::string g_failure_reason;
 
-int directory_exists(const char *path);
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);

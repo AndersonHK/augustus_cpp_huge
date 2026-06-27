@@ -1,19 +1,19 @@
 #include "building/building_type.h"
+#include "building/BuildingGraphics.h"
 #include "building/industry.h"
+#include "figure/figure_type_registry_internal.h"
 #include "translation/translation.h"
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 
 #include "resource.h"
 
 #include "building/production_method_registry.h"
 
-#include "core/file.h"
-
 #include "core/crash_context.h"
-#include "core/dir.h"
 #include "core/log.h"
+#include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "game/save_version.h"
 #include "scenario/allowed_building.h"
@@ -24,7 +24,6 @@
 
 #include <array>
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -64,11 +63,6 @@ struct ResourceParseState {
 };
 
 static ResourceParseState resource_parse_state;
-
-static int text_equals(const char *left, const char *right)
-{
-    return left && right && std::strcmp(left, right) == 0;
-}
 
 static int parse_required_int_attribute(const char *attribute_name, int *out_value)
 {
@@ -249,11 +243,11 @@ static int parse_resource_cart_graphic()
 
     const char *load = xml_parser_get_attribute_string("load");
     ImageGroupEntryRef ref = parse_image_ref();
-    if (text_equals(load, "single")) {
+    if (load && std::strcmp(load, "single") == 0) {
         resource_parse_state.cart_single_load = std::move(ref);
-    } else if (text_equals(load, "multiple")) {
+    } else if (load && std::strcmp(load, "multiple") == 0) {
         resource_parse_state.cart_multiple_loads = std::move(ref);
-    } else if (text_equals(load, "eight")) {
+    } else if (load && std::strcmp(load, "eight") == 0) {
         resource_parse_state.cart_eight_loads = std::move(ref);
     } else {
         log_error("Unsupported Resource cart load", load, 0);
@@ -315,12 +309,15 @@ static void finish_resource_root()
     resource_text_id_lookup[resource_text_id_storage[static_cast<size_t>(type)]] = type;
     loaded_resources.push_back(type);
 
-    ResourceGraphics &graphics = mutable_resource_graphics(type);
-    graphics.set_storage_images(resource_parse_state.storage_images);
-    graphics.set_cart_images(
+    building_type_registry_impl::BuildingGraphics::set_resource_storage_images(
+        type,
+        resource_parse_state.storage_images);
+    figure_type_registry_impl::FigureGraphics::set_resource_cart_images(
+        type,
         resource_parse_state.cart_single_load,
         resource_parse_state.cart_multiple_loads,
         resource_parse_state.cart_eight_loads);
+    ResourceGraphics &graphics = mutable_resource_graphics(type);
     graphics.set_panel_icon(resource_parse_state.panel_icon);
     graphics.set_empire_icon(resource_parse_state.empire_icon);
     graphics.set_editor_icon(resource_parse_state.editor_icon);
@@ -340,55 +337,16 @@ static const xml_parser_element RESOURCE_XML_ELEMENTS[] = {
     { "editor_empire_icon", parse_resource_editor_empire_icon, nullptr, "graphics", nullptr },
 };
 
-static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open Resource xml", filename, 0);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek Resource xml", filename, 0);
-        return 0;
-    }
-
-    const long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size Resource xml", filename, 0);
-        return 0;
-    }
-    rewind(fp);
-
-    buffer.resize(static_cast<size_t>(size));
-    const size_t read = fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-    if (read != buffer.size()) {
-        log_error("Unable to read Resource xml", filename, 0);
-        return 0;
-    }
-    return 1;
-}
-
 static int parse_resource_definition_file(const char *filename)
 {
     const ErrorContextScope error_scope("Resource XML", filename);
 
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
-
     resource_parse_state = {};
-    if (!xml_parser_init(RESOURCE_XML_ELEMENTS, static_cast<int>(sizeof(RESOURCE_XML_ELEMENTS) / sizeof(RESOURCE_XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize Resource xml parser", filename, 0);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Resource",
+        RESOURCE_XML_ELEMENTS,
+        static_cast<int>(sizeof(RESOURCE_XML_ELEMENTS) / sizeof(RESOURCE_XML_ELEMENTS[0])));
     if (!parsed || resource_parse_state.error || !resource_parse_state.saw_root) {
         log_error("Unable to parse Resource xml", filename, 0);
         return 0;
@@ -414,21 +372,25 @@ static int load_resource_definitions()
     production_resources.clear();
 
     const std::string resource_path = mod_manager::mod_path() + "Resources/";
-    const dir_listing *files = dir_find_files_with_extension(resource_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        log_error("No Resource xml files found in", resource_path.c_str(), 0);
-        error_context_report_error("No Resource xml files found.", resource_path.c_str());
+    bool found_any = false;
+    if (!xml_definition::for_each_definition_file(
+        resource_path,
+        "Resource",
+        true,
+        [](const xml_definition::DefinitionFile &file, const std::string &) {
+            if (parse_resource_definition_file(file.full_path.c_str())) {
+                return true;
+            }
+            error_context_report_error("Unable to parse Resource xml.", file.full_path.c_str());
+            return false;
+        },
+        &found_any)) {
+        if (!found_any) {
+            error_context_report_error("No Resource xml files found.", resource_path.c_str());
+        }
         return 0;
     }
 
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        snprintf(full_path, FILE_NAME_MAX, "%s%s", resource_path.c_str(), files->files[i].name);
-        if (!parse_resource_definition_file(full_path)) {
-            error_context_report_error("Unable to parse Resource xml.", full_path);
-            return 0;
-        }
-    }
     std::sort(loaded_resources.begin(), loaded_resources.end());
     loaded_resources.erase(std::unique(loaded_resources.begin(), loaded_resources.end()), loaded_resources.end());
     for (resource_type resource : loaded_resources) {
@@ -506,6 +468,8 @@ int resource_get_supply_chain_for_raw_material(resource_supply_chain *chain, res
 void resource_init(void)
 {
     resource_graphics_reset();
+    building_type_registry_impl::BuildingGraphics::reset_resource_storage_images();
+    figure_type_registry_impl::FigureGraphics::reset_resource_cart_images();
     production_method_registry_reset_production_overrides();
     load_resource_definitions();
     std::memcpy(resource_info, resource_info_defaults, sizeof(resource_info_defaults));

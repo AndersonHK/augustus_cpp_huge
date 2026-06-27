@@ -14,6 +14,16 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - Atlas-backed rendering is especially vulnerable under linear or best filtering because sampling near an atlas image edge can bleed transparent, black, or neighboring pixels unless the atlas has padded gutters.
 - Moving terrain into native image resources is necessary, but not sufficient by itself. The renderer also needs exact destination geometry so adjacent tiles share the same rounded screen-space edges.
 
+## Current Source Status
+
+- Render requests now carry `render_logical_size fixed_logical_size` alongside the legacy float logical width and height.
+- `Render2DPipeline` resolves fixed logical dimensions first, then falls back to float logical dimensions or source image size, preserving current rendering for existing callers.
+- `Render2DPipeline` owns `scale_filter` config interpretation for both per-request city draw filtering and renderer texture quality hints.
+- Managed runtime texture requests pass the fixed logical-size fields through to the renderer request bridge.
+- Figure drawing has started passing fixed logical-size requests, but broad XML/image metadata ownership is not migrated.
+- `RENDER_LOGICAL_UNITS_PER_PIXEL = 6` is a compatibility seam, not the final authoring grain for city graphics.
+- Atlas fallback, grid correction, and exact shared-edge city tile geometry remain open seam risks.
+
 ## Prescription
 
 1. Add a focused render test matrix for city terrain:
@@ -42,7 +52,10 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 
 6. Split source pixel dimensions from logical dimensions in image metadata:
    - image groups should be able to declare logical width and height independently from source size
-   - the render request should carry logical size explicitly
+   - logical size should be represented in a fine-grained integer unit or fixed-point format, not as authored floats
+   - choose a grain fine enough to represent common ratios such as 1/2, 1/3, 1/6, 2/3, 1/6.67, and 6x source art without awkward decimal values
+   - do not treat the current `RENDER_LOGICAL_UNITS_PER_PIXEL` bridge as the final grain; city-view graphics may need a substantially finer unit such as subpixel logical units per legacy pixel so authoring remains integer-only
+   - the render request already carries a fixed logical-size bridge; migrate image metadata and callers to use it once the final grain is chosen
    - this supports future high-definition assets, such as a 360x360 source rendered as a 60x60 logical sprite
 
 7. Verify with pixel checks:
@@ -55,7 +68,8 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
    - follow `docs/figure_owned_native_graphics_plan.md` before authoring this data slice
    - add Vespasian FigureType XML overrides for each resized figure
    - point those overrides at the same extracted pixel art as before
-   - declare logical dimensions at half the source-pixel size, or use the equivalent image-group logical-size field once the final schema lands
+   - declare logical dimensions in the final fixed-point logical-size unit, with half-size figures as the first validation case
+   - keep all logical-size declarations as integers in the chosen fine grain, so later 1/3-size, 0.15x, or 6.67x source-to-logical relationships do not introduce floating-point drift into city rendering
    - verify that tile anchoring, sprite offsets, carts/overlays, corpses, selected-figure coordinates, and zoomed scaling still line up
 
 ## Future Slice Shape
@@ -66,6 +80,6 @@ The likely clean slice is:
 2. Add exact destination rect snapping for city terrain.
 3. Add atlas gutters as a short-term safety net.
 4. Move terrain and water graphics out of `ATLAS_MAIN` and into managed image resources.
-5. Add explicit logical dimensions to image group XML and render requests.
+5. Choose the final integer logical-size grain, then add explicit logical dimensions to image group XML and migrate callers onto the fixed request fields.
 6. Move figures to native-owned graphics.
 7. Add Vespasian half-size FigureType logical-size overrides using the same source art.

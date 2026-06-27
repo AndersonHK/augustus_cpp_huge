@@ -1,7 +1,6 @@
 #include "renderer.h"
 
 #include "core/calc.h"
-#include "core/config.h"
 #include "core/time.h"
 #include "game/performance_tracker.h"
 #include "graphics/renderer.h"
@@ -96,6 +95,8 @@ typedef struct {
 } resolved_render_texture;
 
 static void draw_image_request(const render_2d_request *request);
+static render_2d_request make_texture_request(const image *img, float x, float y, color_t color,
+    float logical_width, float logical_height);
 static SDL_Texture *get_texture(int texture_id);
 static SDL_Texture *get_silhouette_texture(const image *img);
 
@@ -280,44 +281,14 @@ static float scale_for_domain(render_domain domain)
     return g_render_2d_pipeline.scale_for_domain(domain, platform_screen_get_scale());
 }
 
-static int is_pixel_domain(render_domain domain)
-{
-    return domain == RENDER_DOMAIN_PIXEL
-        || domain == RENDER_DOMAIN_TOOLTIP_PIXEL
-        || domain == RENDER_DOMAIN_SNAPSHOT_PIXEL;
-}
-
 static image_filter configured_scale_filter(void)
 {
-    switch (config_get(CONFIG_SCALE_FILTER)) {
-        case CONFIG_SCALE_FILTER_NEAREST:
-            return IMAGE_FILTER_NEAREST;
-        case CONFIG_SCALE_FILTER_LINEAR:
-            return IMAGE_FILTER_LINEAR;
-        case CONFIG_SCALE_FILTER_BEST:
-            return IMAGE_FILTER_BEST;
-        case CONFIG_SCALE_FILTER_AUTO:
-        default:
-            break;
-    }
-#ifndef __APPLE__
-    return (platform_screen_get_scale() % 100) != 0 ? IMAGE_FILTER_LINEAR : IMAGE_FILTER_NEAREST;
-#else
-    return IMAGE_FILTER_LINEAR;
-#endif
+    return g_render_2d_pipeline.configured_scale_filter(platform_screen_get_scale());
 }
 
 static const char *configured_scale_quality_hint(void)
 {
-    switch (configured_scale_filter()) {
-        case IMAGE_FILTER_LINEAR:
-            return "linear";
-        case IMAGE_FILTER_BEST:
-            return "best";
-        case IMAGE_FILTER_NEAREST:
-        default:
-            return "nearest";
-    }
+    return g_render_2d_pipeline.scale_quality_hint(configured_scale_filter());
 }
 
 #ifdef USE_TEXTURE_SCALE_MODE
@@ -550,6 +521,8 @@ static void draw_managed_image_request(const managed_image_request *request)
         return;
     }
 
+    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_MANAGED_IMAGE_REQUESTS, 1);
+
     image runtime_image = {};
     runtime_image.width = request->width;
     runtime_image.height = request->height;
@@ -558,14 +531,9 @@ static void draw_managed_image_request(const managed_image_request *request)
     runtime_image.is_isometric = request->is_isometric;
     runtime_image.resource_handle = request->handle;
 
-    render_2d_request bridged_request = {};
-    bridged_request.img = &runtime_image;
-    bridged_request.handle = request->handle;
-    bridged_request.x = request->x;
-    bridged_request.y = request->y;
-    bridged_request.logical_width = request->logical_width;
-    bridged_request.logical_height = request->logical_height;
-    bridged_request.color = request->color;
+    render_2d_request bridged_request = make_texture_request(&runtime_image,
+        request->x, request->y, request->color, request->logical_width, request->logical_height);
+    bridged_request.fixed_logical_size = request->fixed_logical_size;
     bridged_request.domain = request->domain;
     bridged_request.scaling_policy = request->scaling_policy;
     bridged_request.angle = request->angle;
@@ -857,16 +825,6 @@ static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, im
 #endif
 }
 
-static float request_logical_width(const render_2d_request *request, const image *img)
-{
-    return request->logical_width > 0.0f ? request->logical_width : (float) img->width;
-}
-
-static float request_logical_height(const render_2d_request *request, const image *img)
-{
-    return request->logical_height > 0.0f ? request->logical_height : (float) img->height;
-}
-
 static void draw_texture_request(const render_2d_request *request, const resolved_render_texture &resolved)
 {
     if (data.paused || !request || !request->img || !resolved.texture) {
@@ -885,8 +843,8 @@ static void draw_texture_request(const render_2d_request *request, const resolve
 
     float source_scale_x = g_render_2d_pipeline.source_scale_x(*request, *img);
     float source_scale_y = g_render_2d_pipeline.source_scale_y(*request, *img);
-    float logical_width = request_logical_width(request, img);
-    float logical_height = request_logical_height(request, img);
+    float logical_width = g_render_2d_pipeline.logical_width(*request, *img);
+    float logical_height = g_render_2d_pipeline.logical_height(*request, *img);
     image_filter filter = g_render_2d_pipeline.scale_filter(
         *request, *img, data.city_scale, data.auto_force_nearest_filter);
     set_texture_color_and_filter(resolved.texture, request->color, filter);
@@ -943,26 +901,39 @@ static void draw_image_request(const render_2d_request *request)
         return;
     }
 
+    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_2D_REQUESTS, 1);
+
     resolved_render_texture resolved = resolve_render_texture(request);
     if (!resolved.texture) {
+        performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_TEXTURE_MISSES, 1);
         return;
     }
     draw_texture_request(request, resolved);
 }
 
-static void draw_texture_advanced(const image *img, float x, float y, color_t color,
-    float scale_x, float scale_y, double angle, int disable_coord_scaling)
+static render_2d_request make_texture_request(const image *img, float x, float y, color_t color,
+    float logical_width, float logical_height)
 {
     render_2d_request request = {};
     request.img = img;
     request.handle = img ? img->resource_handle : 0;
     request.x = x;
     request.y = y;
-    request.logical_width = scale_x ? img->width / scale_x : (float) img->width;
-    request.logical_height = scale_y ? img->height / scale_y : (float) img->height;
+    request.logical_width = logical_width;
+    request.logical_height = logical_height;
     request.color = color;
     request.domain = data.active_render_domain;
-    request.scaling_policy = is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    request.scaling_policy =
+        g_render_2d_pipeline.is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    return request;
+}
+
+static void draw_texture_advanced(const image *img, float x, float y, color_t color,
+    float scale_x, float scale_y, double angle, int disable_coord_scaling)
+{
+    render_2d_request request = make_texture_request(img, x, y, color,
+        scale_x ? img->width / scale_x : (float) img->width,
+        scale_y ? img->height / scale_y : (float) img->height);
     request.angle = angle;
     request.disable_coord_scaling = disable_coord_scaling;
     draw_image_request(&request);
@@ -970,16 +941,10 @@ static void draw_texture_advanced(const image *img, float x, float y, color_t co
 
 static void draw_texture(const image *img, int x, int y, color_t color, float scale)
 {
-    render_2d_request request = {};
-    request.img = img;
-    request.handle = img ? img->resource_handle : 0;
-    request.x = scale ? x / scale : (float) x;
-    request.y = scale ? y / scale : (float) y;
-    request.logical_width = scale ? img->width / scale : (float) img->width;
-    request.logical_height = scale ? img->height / scale : (float) img->height;
-    request.color = color;
-    request.domain = data.active_render_domain;
-    request.scaling_policy = is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    render_2d_request request = make_texture_request(img,
+        scale ? x / scale : (float) x, scale ? y / scale : (float) y, color,
+        scale ? img->width / scale : (float) img->width,
+        scale ? img->height / scale : (float) img->height);
     draw_image_request(&request);
 }
 
@@ -1490,16 +1455,10 @@ static SDL_Texture *get_silhouette_texture(const image *img)
 
 static void draw_silhouetted_texture(const image *img, int x, int y, color_t color, float scale)
 {
-    render_2d_request request = {};
-    request.img = img;
-    request.handle = img ? img->resource_handle : 0;
-    request.x = scale ? x / scale : (float) x;
-    request.y = scale ? y / scale : (float) y;
-    request.logical_width = scale ? img->width / scale : (float) img->width;
-    request.logical_height = scale ? img->height / scale : (float) img->height;
-    request.color = color;
-    request.domain = data.active_render_domain;
-    request.scaling_policy = is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    render_2d_request request = make_texture_request(img,
+        scale ? x / scale : (float) x, scale ? y / scale : (float) y, color,
+        scale ? img->width / scale : (float) img->width,
+        scale ? img->height / scale : (float) img->height);
     request.use_silhouette = 1;
     draw_image_request(&request);
 }

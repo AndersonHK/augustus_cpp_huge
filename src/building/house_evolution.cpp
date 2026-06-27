@@ -12,7 +12,6 @@
 #include "building/housing_type.h"
 #include "city/houses.h"
 
-#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/resource.h"
@@ -35,6 +34,8 @@ typedef enum {
 } evolve_status;
 
 static int active_devolve_delay;
+
+static void consume_resources(building *b);
 
 static const model_house *model_for_house(Building house)
 {
@@ -252,18 +253,28 @@ static int has_devolve_delay(building *house, evolve_status status)
     }
 }
 
-static int evolve_xml_housing(building *house, house_demands *demands)
+static int evolve_xml_housing(building *house, house_demands *demands, time_millis last_update)
 {
     Building house_object(house);
     building_type merge_to = house_object.type ?
         house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
         BUILDING_NONE;
     int is_empty_vacant_lot =
-        house->house_population <= 0 && house->type == building_type_registry_get_vacant_lot_fill_type();
+        house->house_population <= 0 && house->type == building_type_registry_impl::vacant_lot_fill_type();
     if (merge_to != BUILDING_NONE && house->house_size == 1 &&
         (house->house_population > 0 ||
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
-        building_house_merge(house_object);
+        unsigned int merged_id = building_house_merge(house_object);
+        if (merged_id) {
+            building *merged_house = building_get(merged_id);
+            if (merged_house) {
+                if (game_time_day() == 0 || (game_time_day() == 7 && merged_house->house_size > 1)) {
+                    consume_resources(merged_house);
+                }
+                merged_house->last_update = last_update;
+            }
+            return 0;
+        }
     }
 
     if (house->house_population <= 0) {
@@ -288,7 +299,9 @@ static int evolve_xml_housing(building *house, house_demands *demands)
 
     if (target != BUILDING_NONE) {
         int current_size = house->house_size;
-        int target_size = building_type_registry_get_model_size(target);
+        const building_type_registry_impl::BuildingType *target_definition =
+            building_type_registry_impl::definition_for_type(target);
+        int target_size = target_definition ? target_definition->declared_model_size() : 0;
         if (status == EVOLVE && target_size > current_size) {
             if (building_house_can_expand(house_object, target_size * target_size)) {
                 game_undo_disable();
@@ -386,8 +399,11 @@ void building_house_process_evolve_and_consume_goods(void)
         building_house_check_for_corruption(house_object);
         if (!b->has_plague) {
             if (house_object.type && house_object.type->has_housing()) {
-                has_expanded |= evolve_xml_housing(b, demands);
+                has_expanded |= evolve_xml_housing(b, demands, last_update);
             }
+        }
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+            continue;
         }
         // 1x1 houses only consume half of the goods
         if (game_time_day() == 0 || (game_time_day() == 7 && b->house_size > 1)) {

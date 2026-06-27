@@ -18,19 +18,10 @@
 #include "map/random.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 struct type_image_handler {
     const char *text_id;
     int (*image)(const building *b);
 };
-
-static int type_matches(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
 
 static int orientation_pair(const building *b)
 {
@@ -201,9 +192,7 @@ static int image_burning_ruin(const building *b)
 
 static int type_handler_image(const building *b, int *image_id)
 {
-    Building building_object(const_cast<building *>(b));
-    const auto *definition = building_object.type;
-    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
+    if (building_type_registry_impl::type_attr_is(b->type, "dock")) {
         *image_id = image_dock(b);
         return 1;
     }
@@ -232,7 +221,7 @@ static int type_handler_image(const building *b, int *image_id)
     };
 
     for (const type_image_handler &handler : handlers) {
-        if (type_matches(b->type, handler.text_id)) {
+        if (building_type_registry_impl::type_attr_is(b->type, handler.text_id)) {
             *image_id = handler.image(b);
             return 1;
         }
@@ -268,7 +257,7 @@ int building_image_get(const building *b)
         return xml_image_id;
     }
 
-    if (b->type == building_type_registry_get_vacant_lot_fill_type() && b->house_population == 0) {
+    if (b->type == building_type_registry_impl::vacant_lot_fill_type() && b->house_population == 0) {
         return image_group(GROUP_BUILDING_HOUSE_VACANT_LOT);
     }
 

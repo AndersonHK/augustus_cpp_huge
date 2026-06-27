@@ -76,6 +76,14 @@ void draw_building_tile(Building building)
 
 If there is no building, the whole building-specific operation should be skipped or routed into a terrain/no-target path before a `Building&` is requested.
 
+## Building Object Header Boundary
+
+`src/building/building.h` is the single public C++ header for the `Building` object. Do not reintroduce `src/building/building_object.h` or split the class declaration into a compatibility header. Files that need building behavior should become C++ callers and include `building/building.h` directly.
+
+`building/building_fwd.h` is useful only when a header truly needs a forward declaration. It is not a substitute object API, and it should not be used to justify new raw-record wrappers. If a touched function exists only to translate an id, `building *`, or compatibility record into the object path, prefer deleting that function and updating callers to pass `Building&`, `Building *`, or the owning typed runtime object.
+
+The same boundary applies to building rendering. The current implementation still has public footprint/top/animation methods because the city renderer is not fully command-list/object-owned yet. Treat those as existing migration seams, not as the pattern for new systems. The long-term public shape is a single building-owned draw request/command path, with stage decisions contained by `Building`, `BuildingType`, and graphics modules.
+
 ## Runtime And Save Boundary
 
 Numeric building ids are allowed only as persistence, debug, or compatibility transport. They are not runtime ownership.
@@ -195,8 +203,8 @@ The same rule applies to figure-type code: runtime code should iterate typed `Fi
 Subtype membership is a registry/runtime responsibility:
 
 - XML declares which concrete subclass a building or figure type belongs to.
-- Startup/load resolves those declarations once.
-- Creating, deleting, loading, or changing a building type updates the subtype lists.
+- Startup resolves XML declarations into immutable type definitions once; save/load hydrates live instances against those already-resolved definitions.
+- Creating, deleting, hydrating, or type-changing a building instance updates the subtype lists.
 - Runtime loops iterate the already-maintained typed list.
 - Save/load still serializes ids as bridge data, then hydrates typed runtime lists before normal gameplay resumes.
 

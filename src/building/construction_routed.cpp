@@ -45,7 +45,7 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
         if (++guard >= 400) {
             return 0;
         }
-        distance = map_routing_distance(grid_offset);
+        distance = Route::constructionDistanceTo(grid_offset);
         if (distance <= 0) {
             return 0;
         }
@@ -88,7 +88,7 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
         for (int i = 0; i < 4; i++) {
             int index = direction_indices[direction][i];
             int new_grid_offset = grid_offset + map_grid_direction_delta(index);
-            int new_dist = map_routing_distance(new_grid_offset);
+            int new_dist = Route::constructionDistanceTo(new_grid_offset);
             if (new_dist > 0 && new_dist < distance) {
                 grid_offset = new_grid_offset;
                 x_end = map_grid_offset_to_x(grid_offset);
@@ -126,8 +126,7 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
     }
 
     int items_placed = 0;
-    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-    if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_ROAD, x_start, y_start) &&
+    if (Route::calculateConstructionDistances(RoutePolicyKind::ConstructionRoad, { x_start, y_start }) &&
             place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_ROAD, &items_placed, measure_only)) {
         if (!measure_only) {
             Route::updateLandTerrain();
@@ -158,8 +157,7 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
     }
 
     int items_placed = 0;
-    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-    if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_HIGHWAY, x_start, y_start) &&
+    if (Route::calculateConstructionDistances(RoutePolicyKind::ConstructionHighway, { x_start, y_start }) &&
         place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_HIGHWAY, &items_placed, measure_only)) {
         map_tiles_update_all_plazas();
         if (!measure_only) {
@@ -199,8 +197,7 @@ int building_construction_place_aqueduct(
         !building_construction_can_place_aqueduct_endpoint(map_grid_offset(x_end, y_end))) {
         return 0;
     }
-    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-    if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {
+    if (!Route::calculateConstructionDistances(RoutePolicyKind::ConstructionAqueduct, { x_start, y_start })) {
         return 0;
     }
     int num_items;

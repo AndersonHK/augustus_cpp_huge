@@ -1,8 +1,9 @@
 #include "city_figure.h"
 
 #include "city/view.h"
-#include "figure/figure_runtime_api.h"
 #include "figure/image.h"
+#include "figure/movement.h"
+#include "figure/figure_runtime_native.h"
 #include "figuretype/editor.h"
 #include "graphics/runtime_texture.h"
 #include "graphics/text.h"
@@ -21,14 +22,60 @@ static color_t get_highlight_mask(int highlight_mask)
     }
 }
 
-static void draw_map_flag(const Figure *f, int x, int y, float scale)
+static void draw_runtime_figure_slice(
+    const RuntimeDrawSlice &slice,
+    int x,
+    int y,
+    color_t color,
+    float scale,
+    render_logical_size fixed_logical_size,
+    render_scaling_policy scaling_policy)
 {
-    // base
-    Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
-    // flag
-    const Image &flag_image = Image::from_id(f->cart_image_id);
-    flag_image.draw(x, y - flag_image.height(), COLOR_MASK_NONE, scale);
-    // flag number
+    if (!slice.is_valid()) {
+        return;
+    }
+
+    if (fixed_logical_size.width > 0 && fixed_logical_size.height > 0) {
+        RuntimeTextureDrawRequest request = {};
+        request.slice = slice;
+        request.x = scale ? static_cast<float>(x) / scale : static_cast<float>(x);
+        request.y = scale ? static_cast<float>(y) / scale : static_cast<float>(y);
+        request.fixed_logical_size = fixed_logical_size;
+        request.color = color;
+        request.domain = graphics_renderer()->get_render_domain();
+        request.scaling_policy = scaling_policy;
+        runtime_texture_draw_request(request);
+        return;
+    }
+    runtime_texture_draw(slice, x, y, color, scale);
+}
+
+static void draw_figure_layers(
+    const FigureGraphicDrawRequest &draw_request,
+    int x,
+    int y,
+    color_t color_mask,
+    float scale,
+    int draw_before_base)
+{
+    for (int i = 0; i < draw_request.layer_count; i++) {
+        const FigureGraphicDrawLayer &layer = draw_request.layers[i];
+        if ((layer.draw_before_base != 0) != (draw_before_base != 0)) {
+            continue;
+        }
+        draw_runtime_figure_slice(
+            layer.slice,
+            x + layer.x_offset,
+            y + layer.y_offset,
+            layer.use_figure_color_mask ? color_mask : COLOR_MASK_NONE,
+            scale,
+            layer.fixed_logical_size,
+            layer.scaling_policy);
+    }
+}
+
+static void draw_map_flag_number(const Figure *f, int x, int y, float scale)
+{
     int number = 0;
     int id = f->resource_id;
     if (id >= MAP_FLAG_INVASION_MIN && id < MAP_FLAG_INVASION_MAX) {
@@ -61,62 +108,68 @@ static void tile_cross_country_offset_to_pixel_offset(int cross_country_x, int c
     }
 }
 
-static int tile_progress_to_pixel_offset_x(int direction, int progress)
-{
-    if (progress >= 15) {
-        return 0;
-    }
-    switch (direction) {
-        case DIR_0_TOP:
-        case DIR_2_RIGHT:
-            return 2 * progress - 28;
-        case DIR_1_TOP_RIGHT:
-            return 4 * progress - 56;
-        case DIR_4_BOTTOM:
-        case DIR_6_LEFT:
-            return 28 - 2 * progress;
-        case DIR_5_BOTTOM_LEFT:
-            return 56 - 4 * progress;
-        default:
-            return 0;
-    }
-}
-
-static int tile_progress_to_pixel_offset_y(int direction, int progress)
-{
-    if (progress >= 15) {
-        return 0;
-    }
-    switch (direction) {
-        case DIR_0_TOP:
-        case DIR_6_LEFT:
-            return 14 - progress;
-        case DIR_2_RIGHT:
-        case DIR_4_BOTTOM:
-            return progress - 14;
-        case DIR_3_BOTTOM_RIGHT:
-            return 2 * progress - 28;
-        case DIR_7_TOP_LEFT:
-            return 28 - 2 * progress;
-        default:
-            return 0;
-    }
-}
-
 static void tile_progress_to_pixel_offset(int direction, int progress, int *pixel_x, int *pixel_y)
 {
-    *pixel_x = tile_progress_to_pixel_offset_x(direction, progress);
-    *pixel_y = tile_progress_to_pixel_offset_y(direction, progress);
+    *pixel_x = 0;
+    *pixel_y = 0;
+    if (figure_movement_tile_progress_complete(progress)) {
+        return;
+    }
+
+    switch (direction) {
+        case DIR_0_TOP:
+        case DIR_2_RIGHT:
+            *pixel_x = 2 * progress - 28;
+            break;
+        case DIR_1_TOP_RIGHT:
+            *pixel_x = 4 * progress - 56;
+            break;
+        case DIR_4_BOTTOM:
+        case DIR_6_LEFT:
+            *pixel_x = 28 - 2 * progress;
+            break;
+        case DIR_5_BOTTOM_LEFT:
+            *pixel_x = 56 - 4 * progress;
+            break;
+        default:
+            break;
+    }
+
+    switch (direction) {
+        case DIR_0_TOP:
+        case DIR_6_LEFT:
+            *pixel_y = 14 - progress;
+            break;
+        case DIR_2_RIGHT:
+        case DIR_4_BOTTOM:
+            *pixel_y = progress - 14;
+            break;
+        case DIR_3_BOTTOM_RIGHT:
+            *pixel_y = 2 * progress - 28;
+            break;
+        case DIR_7_TOP_LEFT:
+            *pixel_y = 28 - 2 * progress;
+            break;
+        default:
+            break;
+    }
 }
 
-static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
+static void adjust_pixel_offset(
+    const Figure *f,
+    int *pixel_x,
+    int *pixel_y,
+    const FigureGraphicDrawRequest *draw_request)
 {
     // determining x/y offset on tile
     int x_offset = 0;
     int y_offset = 0;
     if (f->use_cross_country) {
         tile_cross_country_offset_to_pixel_offset(
-            f->cross_country_x % 15, f->cross_country_y % 15, &x_offset, &y_offset);
+            figure_movement_cross_country_tile_offset(f->cross_country_x),
+            figure_movement_cross_country_tile_offset(f->cross_country_y),
+            &x_offset,
+            &y_offset);
         y_offset -= f->missile_height;
     } else {
         int direction = figure_image_normalize_direction(f->direction);
@@ -137,11 +190,9 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     }
 
     x_offset += 29;
-    y_offset += 15;
+    y_offset += FIGURE_TILE_PROGRESS_MAX;
 
-    FigureGraphicDrawRequest draw_request;
-    const int has_native_graphics = figure_runtime_graphic_draw_request(f, &draw_request);
-    if (!has_native_graphics && f->image_id >= 10000) {
+    if (!draw_request && f->image_id >= 10000) {
         // TODO
         // Ugly hack, remove
         // Draws new walkers at their proper spots
@@ -149,76 +200,61 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
         y_offset -= 29;
     }
 
-
-    if (has_native_graphics) {
-        *pixel_x += x_offset - draw_request.sprite_offset_x;
-        *pixel_y += y_offset - draw_request.sprite_offset_y;
+    if (draw_request) {
+        *pixel_x += x_offset - draw_request->sprite_offset_x;
+        *pixel_y += y_offset - draw_request->sprite_offset_y;
     } else {
-        const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
+        const Image &img = Image::from_id(f->image_id);
         const image_animation *animation = img.animation();
         *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
         *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
     }
 }
 
-static void draw_figure(const Figure *f, int x, int y, float scale, int highlight)
+static void draw_figure(
+    const Figure *f,
+    int x,
+    int y,
+    float scale,
+    int highlight,
+    const FigureGraphicDrawRequest *draw_request)
 {
     color_t color_mask = get_highlight_mask(highlight);
-    FigureGraphicDrawRequest draw_request;
-    if (figure_runtime_graphic_draw_request(f, &draw_request)) {
-        for (int i = 0; i < draw_request.layer_count; i++) {
-            const FigureGraphicDrawLayer &layer = draw_request.layers[i];
-            if (!layer.draw_before_base) {
-                continue;
-            }
-            runtime_texture_draw(
-                layer.slice,
-                x + layer.x_offset,
-                y + layer.y_offset,
-                layer.draw_color(color_mask),
-                scale);
+    if (draw_request) {
+        draw_figure_layers(*draw_request, x, y, color_mask, scale, 1);
+        if (draw_request->base_slice.is_valid()) {
+            draw_runtime_figure_slice(
+                draw_request->base_slice,
+                x,
+                y,
+                color_mask,
+                scale,
+                draw_request->fixed_logical_size,
+                draw_request->scaling_policy);
         }
-        if (draw_request.has_base_slice()) {
-            runtime_texture_draw(draw_request.base_slice, x, y, color_mask, scale);
-        }
-        for (int i = 0; i < draw_request.layer_count; i++) {
-            const FigureGraphicDrawLayer &layer = draw_request.layers[i];
-            if (layer.draw_before_base) {
-                continue;
-            }
-            runtime_texture_draw(
-                layer.slice,
-                x + layer.x_offset,
-                y + layer.y_offset,
-                layer.draw_color(color_mask),
-                scale);
+        draw_figure_layers(*draw_request, x, y, color_mask, scale, 0);
+        if (f->type == FIGURE_MAP_FLAG) {
+            draw_map_flag_number(f, x, y, scale);
         }
         return;
     }
-    if (f->cart_image_id && f->type == FIGURE_MAP_FLAG) {
-        draw_map_flag(f, x, y, scale);
-    } else if (f->cart_image_id) {
-        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
-    } else {
-        if (f->is_enemy_image) {
-            Image::enemy(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
-        } else {
-
-            Image::from_id(f->image_id).draw(x, y, color_mask, scale);
-        }
-    }
+    Image::from_id(f->image_id).draw(x, y, color_mask, scale);
 }
 
 void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
-    adjust_pixel_offset(f, &x, &y);
-    draw_figure(f, x, y, scale, highlight);
+    FigureGraphicDrawRequest draw_request;
+    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
+    adjust_pixel_offset(f, &x, &y, request);
+    draw_figure(f, x, y, scale, highlight, request);
 }
 
 void city_draw_selected_figure(const Figure *f, int x, int y, float scale, pixel_coordinate *coord)
 {
-    adjust_pixel_offset(f, &x, &y);
-    draw_figure(f, x, y, scale, 0);
+    FigureGraphicDrawRequest draw_request;
+    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
+    adjust_pixel_offset(f, &x, &y, request);
+    draw_figure(f, x, y, scale, 0, request);
     coord->x = x;
     coord->y = y;
 }

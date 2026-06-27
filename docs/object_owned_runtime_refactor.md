@@ -117,6 +117,20 @@ static_cleanup_for_possible_bad_record_state(...)
 
 Public fields may remain temporarily during migration, but the direction is toward private data with explicit methods that preserve invariants.
 
+## Single Object Surfaces
+
+When a runtime concept has started migrating to C++, keep one public object surface instead of preserving parallel legacy and object APIs.
+
+For buildings:
+
+- `src/building/building.h` is the public `Building` class header.
+- `src/building/building_object.h` was a compatibility split and should not be recreated.
+- C++ files that need building behavior should include `building/building.h` and pass `Building` objects or references.
+- `building/building_fwd.h`, raw `building *`, and direct `record()` access are temporary pressure valves for narrow boundaries, not a reason to add new compatibility layers.
+- Do not add overloads, wrappers, bridge APIs, or C-linkage helpers solely to keep old raw-record callers alive. Convert the caller boundary when the touched scope can move to C++.
+
+Rendering follows the same rule. Current city rendering still exposes `Building::draw_footprint(...)`, `Building::draw_top(...)`, and `Building::draw_animation(...)` as live migration seams, but new work should not multiply public stage-specific building draw paths. The target is one building-owned draw request or command path; the building type and its modules decide internally which footprint, top, animation, detail, or overlay slices are needed.
+
 ## Semantic Modules Over Event Attrs
 
 `<event_data attr="...">` is a compatibility crutch, not a semantic contract. It exists to keep legacy event ids, old save bridges, and unported systems alive while the XML model grows. New runtime behavior should not compare `event_data attr` strings such as `academy`, `dock`, or `warehouse` to decide what a building is.

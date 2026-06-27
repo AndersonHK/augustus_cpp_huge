@@ -1,12 +1,12 @@
 # Augustus Sync Review Findings (`2026-04-21`)
 
-This note records the three review findings identified against the manual sync batch documented in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:1).
+This note records the three review findings identified against the manual sync batch documented in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
 
 Relevant ledger context:
-- The depot behavior import is documented as applied in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:23).
-- The granary/warehouse walker-default config import is documented as applied in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:24).
-- The French localization work is documented as only partial in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:28).
-- The deferred validation list explicitly calls for a depot regression sweep covering clear source/destination, recall all carts, and mid-route instruction changes in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:61).
+- The depot behavior import is documented as applied in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
+- The granary/warehouse walker-default config import is documented as applied in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
+- The French localization work is documented as only partial in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
+- The deferred validation list explicitly calls for a depot regression sweep covering clear source/destination, recall all carts, and mid-route instruction changes in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
 
 ## Finding 1
 
@@ -25,8 +25,8 @@ Impact:
 - In that state, `set_destination()` never updates the figure, so the cart remains stuck instead of returning cargo or going home.
 
 Related documentation:
-- The sync ledger claims this import landed as "Depot carts reroute and return cargo instead of dumping on instruction changes" in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:23).
-- The validation checklist specifically calls for testing this exact family of cases in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:61).
+- The sync ledger claims this import landed as "Depot carts reroute and return cargo instead of dumping on instruction changes" in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
+- The validation checklist specifically calls for testing this exact family of cases in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
 
 ## Finding 2
 
@@ -48,7 +48,7 @@ Impact:
 - French users will see literal key ids for the newly added depot/config strings instead of localized text.
 
 Related documentation:
-- The ledger already records the French payload import as only partial in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:28).
+- The ledger already records the French payload import as only partial in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
 
 ## Finding 3
 
@@ -65,5 +65,5 @@ Impact:
 - There is an invisible clickable region in the basic depot UI that can recall all carts unexpectedly.
 
 Related documentation:
-- The ledger ties the depot behavior/UI import to the same upstream depot batch in [augustus_sync_2026_04_21_ledger.md](C:/Users/imper/Documents/GitHub/augustus_cpp_huge/docs/augustus_sync_2026_04_21_ledger.md:23).
+- The ledger ties the depot behavior/UI import to the same upstream depot batch in [augustus_sync_2026_04_21_ledger.md](augustus_sync_2026_04_21_ledger.md).
 

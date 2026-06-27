@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-static int is_pixel_domain(render_domain domain)
+int Render2DPipeline::is_pixel_domain(render_domain domain) const
 {
     switch (domain) {
         case RENDER_DOMAIN_PIXEL:
@@ -37,16 +37,52 @@ int Render2DPipeline::scale_logical_size(render_domain domain, int logical_size,
     return (int) roundf(logical_size * scale);
 }
 
+static float logical_size_or_fallback(render_logical_unit fixed_size, float logical_size, int source_size)
+{
+    if (fixed_size > 0) {
+        return static_cast<float>(fixed_size) / static_cast<float>(RENDER_LOGICAL_UNITS_PER_PIXEL);
+    }
+    return logical_size > 0.0f ? logical_size : (float) source_size;
+}
+
+static int configured_filter_override(image_filter *filter)
+{
+    switch (config_get(CONFIG_SCALE_FILTER)) {
+        case CONFIG_SCALE_FILTER_NEAREST:
+            *filter = IMAGE_FILTER_NEAREST;
+            return 1;
+        case CONFIG_SCALE_FILTER_LINEAR:
+            *filter = IMAGE_FILTER_LINEAR;
+            return 1;
+        case CONFIG_SCALE_FILTER_BEST:
+            *filter = IMAGE_FILTER_BEST;
+            return 1;
+        case CONFIG_SCALE_FILTER_AUTO:
+        default:
+            return 0;
+    }
+}
+
+float Render2DPipeline::logical_width(const render_2d_request &request, const image &img) const
+{
+    return logical_size_or_fallback(request.fixed_logical_size.width, request.logical_width, img.width);
+}
+
+float Render2DPipeline::logical_height(const render_2d_request &request, const image &img) const
+{
+    return logical_size_or_fallback(request.fixed_logical_size.height, request.logical_height, img.height);
+}
+
 float Render2DPipeline::source_scale_x(const render_2d_request &request, const image &img) const
 {
-    float logical_width = request.logical_width > 0.0f ? request.logical_width : (float) img.width;
-    return logical_width > 0.0f ? img.width / logical_width : 1.0f;
+    float width = logical_width(request, img);
+    return width > 0.0f ? img.width / width : 1.0f;
 }
 
 float Render2DPipeline::source_scale_y(const render_2d_request &request, const image &img) const
 {
-    float logical_height = request.logical_height > 0.0f ? request.logical_height : (float) img.height;
-    return logical_height > 0.0f ? img.height / logical_height : 1.0f;
+    float height = logical_height(request, img);
+    return height > 0.0f ? img.height / height : 1.0f;
 }
 
 render_domain Render2DPipeline::tooltip_domain_for(render_domain domain) const
@@ -59,22 +95,41 @@ render_domain Render2DPipeline::snapshot_domain_for(render_domain domain) const
     return is_pixel_domain(domain) ? RENDER_DOMAIN_SNAPSHOT_PIXEL : RENDER_DOMAIN_SNAPSHOT_UI;
 }
 
+image_filter Render2DPipeline::configured_scale_filter(int platform_scale_percentage) const
+{
+    image_filter filter = IMAGE_FILTER_NEAREST;
+    if (configured_filter_override(&filter)) {
+        return filter;
+    }
+#ifndef __APPLE__
+    return (platform_scale_percentage % 100) != 0 ? IMAGE_FILTER_LINEAR : IMAGE_FILTER_NEAREST;
+#else
+    return IMAGE_FILTER_LINEAR;
+#endif
+}
+
+const char *Render2DPipeline::scale_quality_hint(image_filter filter) const
+{
+    switch (filter) {
+        case IMAGE_FILTER_LINEAR:
+            return "linear";
+        case IMAGE_FILTER_BEST:
+            return "best";
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return "nearest";
+    }
+}
+
 image_filter Render2DPipeline::scale_filter(
     const render_2d_request &request,
     const image &img,
     float city_scale,
     int auto_force_nearest_filter) const
 {
-    switch (config_get(CONFIG_SCALE_FILTER)) {
-        case CONFIG_SCALE_FILTER_NEAREST:
-            return IMAGE_FILTER_NEAREST;
-        case CONFIG_SCALE_FILTER_LINEAR:
-            return IMAGE_FILTER_LINEAR;
-        case CONFIG_SCALE_FILTER_BEST:
-            return IMAGE_FILTER_BEST;
-        case CONFIG_SCALE_FILTER_AUTO:
-        default:
-            break;
+    image_filter filter = IMAGE_FILTER_NEAREST;
+    if (configured_filter_override(&filter)) {
+        return filter;
     }
 
     if (auto_force_nearest_filter) {
