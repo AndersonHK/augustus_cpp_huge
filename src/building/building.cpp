@@ -1166,6 +1166,44 @@ int Building::dock_trade_ship_id() const
     return record_ ? record_->data.dock.trade_ship_id : 0;
 }
 
+void Building::set_dock_trade_ship_id(int figure_id)
+{
+    if (record_) {
+        record_->data.dock.trade_ship_id = figure_id;
+    }
+}
+
+int Building::dock_num_ships() const
+{
+    return record_ ? record_->data.dock.num_ships : 0;
+}
+
+void Building::set_dock_num_ships(int ticks)
+{
+    if (record_) {
+        record_->data.dock.num_ships = ticks;
+    }
+}
+
+void Building::decrement_dock_num_ships()
+{
+    if (record_ && record_->data.dock.num_ships > 0) {
+        record_->data.dock.num_ships--;
+    }
+}
+
+int Building::dock_queued_docker_id() const
+{
+    return record_ ? record_->data.dock.queued_docker_id : 0;
+}
+
+void Building::set_dock_queued_docker_id(int figure_id)
+{
+    if (record_) {
+        record_->data.dock.queued_docker_id = figure_id;
+    }
+}
+
 int Building::dock_orientation() const
 {
     return record_ ? record_->data.dock.orientation : 0;

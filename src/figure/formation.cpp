@@ -28,11 +28,15 @@
 #include <vector>
 
 
-#define ORIGINAL_BUFFER_SIZE_PER_FORMATION 128
-#define BUFFER_SIZE_FOR_10_LEGIONS 128
-#define CURRENT_BUFFER_SIZE_PER_FORMATION 256
-#define MAX_LEGIONS_REGALIA 20 + 1 // +1 to keep indexing simple with 1 start
-#define HERD_ANIMAL_MOVE_WAIT_TICKS 401
+constexpr int ORIGINAL_BUFFER_SIZE_PER_FORMATION = 128;
+constexpr int BUFFER_SIZE_FOR_10_LEGIONS = 128;
+constexpr int LEGACY_BUFFER_SIZE_PER_FORMATION = 256;
+constexpr int EXTENDED_FORMATION_ROSTER_SAVE_SLOTS = 256;
+constexpr int CURRENT_BUFFER_SIZE_PER_FORMATION =
+    LEGACY_BUFFER_SIZE_PER_FORMATION + sizeof(int32_t) +
+    EXTENDED_FORMATION_ROSTER_SAVE_SLOTS * sizeof(int32_t);
+constexpr int MAX_LEGIONS_REGALIA = 21; // +1 to keep indexing simple with 1 start
+constexpr int HERD_ANIMAL_MOVE_WAIT_TICKS = 401;
 
 static std::vector<formation> formations;
 static struct {
@@ -267,20 +271,90 @@ int formation::legion_curse_weight() const
 
 int formation::legacy_storage_slot_count() const
 {
-    return MAX_FORMATION_FIGURES;
+    return LEGACY_FORMATION_ROSTER_SLOTS;
+}
+
+void formation::ensure_roster_capacity(int capacity)
+{
+    if (capacity <= 0) {
+        capacity = LEGACY_FORMATION_ROSTER_SLOTS;
+    }
+    if (static_cast<int>(figures.size()) < capacity) {
+        figures.resize(static_cast<size_t>(capacity), 0);
+    }
+}
+
+int formation::roster_figure_id(int slot) const
+{
+    if (slot < 0 || slot >= static_cast<int>(figures.size())) {
+        return 0;
+    }
+    return figures[static_cast<size_t>(slot)];
 }
 
 void formation::write_legacy_figure_slots(buffer *buf) const
 {
     for (int slot = 0; slot < legacy_storage_slot_count(); slot++) {
-        buffer_write_i16(buf, figures[slot]);
+        buffer_write_i16(buf, roster_figure_id(slot));
     }
 }
 
 void formation::read_legacy_figure_slots(buffer *buf)
 {
+    ensure_roster_capacity(legacy_storage_slot_count());
+    std::fill(figures.begin(), figures.end(), 0);
     for (int slot = 0; slot < legacy_storage_slot_count(); slot++) {
         figures[slot] = buffer_read_i16(buf);
+    }
+}
+
+void formation::write_extended_figure_slots(buffer *buf) const
+{
+    const int slot_count = slot_capacity();
+    const int slots_to_write = slot_count < EXTENDED_FORMATION_ROSTER_SAVE_SLOTS ?
+        slot_count :
+        EXTENDED_FORMATION_ROSTER_SAVE_SLOTS;
+    buffer_write_i32(buf, slots_to_write);
+    for (int slot = 0; slot < EXTENDED_FORMATION_ROSTER_SAVE_SLOTS; slot++) {
+        buffer_write_i32(buf, slot < slots_to_write ? roster_figure_id(slot) : 0);
+    }
+}
+
+void formation::read_extended_figure_slots(buffer *buf, int formation_buf_size)
+{
+    if (formation_buf_size <= LEGACY_BUFFER_SIZE_PER_FORMATION) {
+        return;
+    }
+    const int extension_bytes = formation_buf_size - LEGACY_BUFFER_SIZE_PER_FORMATION;
+    if (extension_bytes < static_cast<int>(sizeof(int32_t))) {
+        buffer_skip(buf, extension_bytes);
+        return;
+    }
+
+    const int saved_slot_count = buffer_read_i32(buf);
+    const int extension_slot_capacity = (extension_bytes - static_cast<int>(sizeof(int32_t))) /
+        static_cast<int>(sizeof(int32_t));
+    const int saved_slots_in_current_record =
+        extension_slot_capacity < EXTENDED_FORMATION_ROSTER_SAVE_SLOTS ?
+            extension_slot_capacity :
+            EXTENDED_FORMATION_ROSTER_SAVE_SLOTS;
+    const int usable_saved_slots = saved_slot_count < saved_slots_in_current_record ?
+        saved_slot_count :
+        saved_slots_in_current_record;
+    const int slots_to_read = usable_saved_slots > 0 ? usable_saved_slots : 0;
+    ensure_roster_capacity(slots_to_read);
+
+    for (int slot = 0; slot < saved_slots_in_current_record; slot++) {
+        const int figure_id = buffer_read_i32(buf);
+        if (slot < slots_to_read) {
+            figures[slot] = figure_id;
+        }
+    }
+
+    const int bytes_read = static_cast<int>(sizeof(int32_t)) +
+        saved_slots_in_current_record * static_cast<int>(sizeof(int32_t));
+    if (extension_bytes > bytes_read) {
+        buffer_skip(buf, extension_bytes - bytes_read);
     }
 }
 
@@ -1282,6 +1356,7 @@ void formations_save_state(buffer *buf, buffer *totals)
         buffer_write_i32(buf, f->target_formation_id);
         buffer_skip(buf, 13);
         buffer_write_i16(buf, f->invasion_sequence);
+        f->write_extended_figure_slots(buf);
     }
     buffer_write_i32(totals, data.id_last_in_use);
     buffer_write_i32(totals, data.id_last_legion);
@@ -1386,10 +1461,7 @@ void formations_load_state(buffer *buf, buffer *totals, int version)
         f->target_formation_id = buffer_read_i32(buf);
         buffer_skip(buf, 13);
         f->invasion_sequence = buffer_read_i16(buf);
-
-        if (formation_buf_size > CURRENT_BUFFER_SIZE_PER_FORMATION) {
-            buffer_skip(buf, formation_buf_size - CURRENT_BUFFER_SIZE_PER_FORMATION);
-        }
+        f->read_extended_figure_slots(buf, formation_buf_size);
 
         if (f->in_use) {
             highest_id_in_use = i;

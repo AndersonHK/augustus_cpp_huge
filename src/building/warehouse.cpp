@@ -78,7 +78,7 @@ static building_type warehouse_type_id()
     return type;
 }
 
-static Building first_warehouse()
+Building building_warehouse_first()
 {
     building_type type = warehouse_type_id();
     return type == BUILDING_NONE ? Building(nullptr) : Building::first_of_type(type);
@@ -335,7 +335,7 @@ int building_warehouses_add_resource(resource_type resource, int amount, int res
         return 0;
     }
 
-    for (Building b = first_warehouse(); b.id() && amount > 0; b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id() && amount > 0; b = b.next_of_type()) {
         if (!b.is_in_use()) {
             continue;
         }
@@ -501,7 +501,7 @@ static Building get_next_warehouse(void)
 {
     unsigned int building_id = city_resource_last_used_warehouse();
     int wrapped_around = 0;
-    Building b = first_warehouse();
+    Building b = building_warehouse_first();
     while (b.id()) {
         if (b.is_in_use() && (b.id() > building_id || wrapped_around)) {
             return b;
@@ -512,7 +512,7 @@ static Building get_next_warehouse(void)
                 return Building(nullptr);
             }
             wrapped_around = 1;
-            b = first_warehouse();
+        b = building_warehouse_first();
         } else {
             b = next;
         }
@@ -608,7 +608,7 @@ int building_warehouse_maximum_receptible_amount(
 int building_warehouses_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request)
 {
     int total = 0;
-    for (Building b = first_warehouse(); b.id(); b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id(); b = b.next_of_type()) {
         if (!b.is_in_use() || (caesars_request &&
             !building_storage_get_permission(BUILDING_STORAGE_PERMISSION_CAESAR, b))) {
             continue;
@@ -637,7 +637,7 @@ static void try_create_cart_to_rome(const Building &b, resource_type resource, i
 int building_warehouses_send_resources_to_rome(resource_type resource, int amount)
 {
     // First go for emptying or non-getting, non-maintaining warehouses with Caesar permission.
-    for (Building b = first_warehouse(); b.id() && amount; b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id() && amount; b = b.next_of_type()) {
         if (b.is_in_use()) {
             if ((building_storage_get_empty_all(b.id()) ||
                  building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_GETTING) &&
@@ -654,7 +654,7 @@ int building_warehouses_send_resources_to_rome(resource_type resource, int amoun
         return 0;
     }
     // if that doesn't work, take it anyway, but not from maintaining and no caesar permission warehouses
-    for (Building b = first_warehouse(); b.id() && amount; b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id() && amount; b = b.next_of_type()) {
         if (b.is_in_use()) {
             if ((building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_MAINTAINING) &&
                 building_storage_get_permission(BUILDING_STORAGE_PERMISSION_CAESAR, b)) {
@@ -686,7 +686,7 @@ int building_warehouses_remove_resource(resource_type resource, int amount)
             }
         }
         Building next = b.next_of_type();
-        b = next.id() ? next : first_warehouse();
+            b = next.id() ? next : building_warehouse_first();
     } while (b.id() != initial_warehouse_id && amount > 0);
 
     if (amount <= 0) {
@@ -700,7 +700,7 @@ int building_warehouses_remove_resource(resource_type resource, int amount)
             amount -= building_warehouse_try_remove_resource(b, resource, amount);
         }
         Building next = b.next_of_type();
-        b = next.id() ? next : first_warehouse();
+            b = next.id() ? next : building_warehouse_first();
     } while (b.id() != initial_warehouse_id && amount > 0);
 
     return amount;
@@ -735,7 +735,7 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
 {
     int min_dist = INFINITE;
     Building nearest_warehouse(nullptr);
-    for (Building b = first_warehouse(); b.id(); b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id(); b = b.next_of_type()) {
         if (b.id() == (unsigned int) src_building_id || (road_network_id != -1 && b.road_network_id() != road_network_id) ||
             !building_warehouse_accepts_storage(b, resource, understaffed) ||
             (building_warehouse_maximum_receptible_amount(b, resource) <= 0)) {
@@ -779,7 +779,7 @@ int building_warehouse_for_getting(const Building &src, resource_type resource, 
 {
     int min_dist = INFINITE;
     Building min_building(nullptr);
-    for (Building b = first_warehouse(); b.id(); b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id(); b = b.next_of_type()) {
         if (!b.is_in_use() || b.has_plague()) {
             continue;
         }
@@ -811,7 +811,7 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
 {
     int min_dist = INFINITE;
     Building min_building(nullptr);
-    for (Building b = first_warehouse(); b.id(); b = b.next_of_type()) {
+    for (Building b = building_warehouse_first(); b.id(); b = b.next_of_type()) {
         if (!b.is_in_use() || b.has_plague()) {
             continue;
         }

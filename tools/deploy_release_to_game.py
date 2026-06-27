@@ -425,7 +425,23 @@ def move_path(source: Path, destination: Path, label: str) -> None:
     try:
         source.replace(destination)
     except OSError as exc:
-        raise RuntimeError(f"Unable to move {label}: {source} -> {destination}. {describe_os_error(exc)}") from exc
+        detail = describe_os_error(exc)
+        if getattr(exc, "winerror", None) == 5:
+            detail = f"{detail} {access_denied_move_recovery(source, destination, label)}"
+        raise RuntimeError(f"Unable to move {label}: {source} -> {destination}. {detail}") from exc
+
+
+def access_denied_move_recovery(source: Path, destination: Path, label: str) -> str:
+    return (
+        f"Access was denied while moving {label}. Likely causes: Caesar 3/Vespasian is still running; "
+        f"Explorer, an editor, terminal, shell preview, antivirus, or indexer has a handle open under {source}; "
+        "or the game folder permissions do not allow this user to rename the folder. "
+        "Recovery: close the game and every window/tool pointed at the mod folder, wait a few seconds for file "
+        "handles to release, then rerun the full deploy. If the lock persists, reboot or use an elevated shell "
+        f"to verify you can rename {source} out of the Mods folder, then rerun the deploy from a clean Mods state. "
+        "For code-only runtime changes, run `python tools\\deploy_release_to_game.py --runtime-only` instead; "
+        "that skips Mods entirely. No parser/XML fallback is needed for this failure."
+    )
 
 
 def copy_tree(source: Path, destination: Path, label: str) -> None:
@@ -539,7 +555,7 @@ def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, d
         remove_deploy_workspace(backup_mods, game_root, "per-run backup Mods folder after successful deploy", required=False)
 
 
-def deploy_release(dry_run: bool) -> None:
+def deploy_release(dry_run: bool, runtime_only: bool) -> None:
     registry_result = game_root_from_registry()
     if not registry_result:
         raise RuntimeError("Unable to find a valid Caesar 3 game folder in the registry.")
@@ -550,23 +566,30 @@ def deploy_release(dry_run: bool) -> None:
     print(f"Game folder: {game_root}")
     require_no_running_game_processes(game_root, dry_run)
 
-    target_mods = require_safe_target_mods(game_root / "Mods", game_root)
-
     repo_root = Path(__file__).resolve().parents[1]
-    source_mods = require_exact_mod_folder(repo_root / "Mods", "Source", repo_root)
-
     release_dir = repo_root / "x64" / "Release"
     exe_path = release_dir / "Vespasian.exe"
     pdb_path = release_dir / "Vespasian.pdb"
     if not exe_path.is_file():
         raise RuntimeError(f"Release executable does not exist: {exe_path}")
 
-    print(f"Source Mods folder: {source_mods}")
     print(f"Release executable: {exe_path}")
     if pdb_path.is_file():
         print(f"Release debug symbols: {pdb_path}")
     else:
         print("Release debug symbols: not found; skipping Vespasian.pdb")
+
+    if runtime_only:
+        print("Runtime-only deploy: skipping Mods validation and replacement.")
+        copy_file(exe_path, game_root / exe_path.name, dry_run)
+        if pdb_path.is_file():
+            copy_file(pdb_path, game_root / pdb_path.name, dry_run)
+        print("Runtime-only deploy dry run completed." if dry_run else "Runtime-only deploy completed.")
+        return
+
+    target_mods = require_safe_target_mods(game_root / "Mods", game_root)
+    source_mods = require_exact_mod_folder(repo_root / "Mods", "Source", repo_root)
+    print(f"Source Mods folder: {source_mods}")
 
     require_no_running_game_processes(game_root, dry_run)
     replace_mods_folder(source_mods, target_mods, game_root, dry_run)
@@ -580,12 +603,20 @@ def deploy_release(dry_run: bool) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Deploy x64/Release/Vespasian.exe and the repo Mods folder into the registry-discovered Caesar 3 folder."
+        description=(
+            "Deploy x64/Release/Vespasian.exe and optionally the repo Mods folder into the "
+            "registry-discovered Caesar 3 folder."
+        )
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the registry result, validation checks, and planned file operations without deleting or copying.",
+    )
+    parser.add_argument(
+        "--runtime-only",
+        action="store_true",
+        help="Copy only x64/Release/Vespasian.exe and Vespasian.pdb into the game folder; skip Mods validation and replacement.",
     )
     pause_group = parser.add_mutually_exclusive_group()
     pause_group.add_argument(
@@ -627,7 +658,7 @@ def main() -> int:
     args = parse_args()
     exit_code = 0
     try:
-        deploy_release(args.dry_run)
+        deploy_release(args.dry_run, args.runtime_only)
     except Exception as exc:
         log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
         with log_path.open("w", encoding="utf-8") as log:

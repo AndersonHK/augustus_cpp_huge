@@ -45,3 +45,10 @@ Delete this file once all listed regressions are fixed and reflected in the norm
 - Placing overgrown gardens over regular gardens can instantiate 1x1 garden runtime tiles on top of existing 2x2 garden tiles.
 - Required fix: rewrite garden area placement from the ground up so preview and commit operate on an isolated placement model, then atomically refresh committed garden tiles. Preview must never be allowed to re-anchor, peel, or partially overwrite existing 2x2 garden composition.
 - First guard was too strict and blocked normal drag extension over existing gardens. Current targeted fix allows existing garden terrain inside the drag rectangle again, clears the previous preview's garden runtime bindings narrowly, and globally recomposes gardens after preview restore/placement as a bridge; full atomic garden replacement remains open.
+
+## Concrete Cart No-Destination Regression
+
+- Cart pushers carrying concrete can animate as walking-in-place for a while and eventually despawn when there is no destination for concrete.
+- Concrete cannot be stored in warehouses, so a city with no active construction sites can legitimately have zero valid concrete inputs.
+- Expected behavior: a cart with no destination should remain alive at the source on its idle standing frame, periodically recheck destinations, and start moving once a construction-site input opens. Do not add warehouse fallback behavior for concrete.
+- Candidate fix: `FIGURE_ACTION_245_CARTPUSHER_WAITING_FOR_DESTINATION` no longer kills the cart after a max wait, rechecks destinations periodically, and pins `image_offset` to the standing frame while waiting.

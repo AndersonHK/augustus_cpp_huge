@@ -26,6 +26,11 @@ int building_lighthouse_enough_timber(Building lighthouse)
     return lighthouse.resource_amount(resource_timber()) > TIMBER_LOW;
 }
 
+Building building_lighthouse_first(void)
+{
+    return Building::first_of_type(lighthouse_type());
+}
+
 Building building_lighthouse_get_storage_destination(Building lighthouse)
 {
     const building_type_registry_impl::Distribution *distribution =
@@ -55,7 +60,7 @@ int building_lighthouse_is_fully_functional(void)
         return 0;
     }
 
-    return building_lighthouse_enough_timber(Building::first_of_type(type));
+    return building_lighthouse_enough_timber(building_lighthouse_first());
 }
 
 static void set_lighthouse_graphic(Building lighthouse)
@@ -80,7 +85,7 @@ void building_lighthouse_consume_timber(void)
 {
     const building_type type = lighthouse_type();
     if (building_monument_working(type)) {
-        Building lighthouse = Building::first_of_type(type);
+        Building lighthouse = building_lighthouse_first();
         int timber = lighthouse.resource_amount(resource_timber());
         if (timber > 0) {
             trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);

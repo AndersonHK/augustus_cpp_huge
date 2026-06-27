@@ -1,6 +1,6 @@
 # Deep Refactor Implementation Progress
 
-Snapshot: 2026-06-27, branch `Deep-Refactors-Part4`
+Snapshot: 2026-06-27, branch `Deep-Refactors-Part5`
 
 This is the live checklist for the current implementation push. Detailed requirements live in `docs/deep_refactor_requirements.md`; detailed designs live in the linked plan files. This file should stay short enough to scan before coding.
 
@@ -9,11 +9,11 @@ Line-count target: move the net diff from `master` toward `-5k` by deleting lega
 Current measured state:
 
 - Baseline branch: `master`.
-- Committed branch delta: `git diff --shortstat master...HEAD` reports 485 files, 9728 insertions, 7695 deletions.
-- Current working-tree delta: `git diff --shortstat` reports 136 tracked files, 2831 insertions, 4148 deletions, plus new shared startup/extractor sources and Julius extractor project files.
-- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-27 01:54:22.
-- Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-27 01:54:22.
-- Latest post-deploy validation: `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` from the game folder passed; deployment was a narrow exe/PDB copy because `tools/deploy_release_to_game.py` is still under agent revision after its backup-folder path failed.
+- Committed branch delta: `git diff --shortstat master...HEAD` reports no committed branch delta.
+- Current working-tree delta: `git diff --shortstat` reports 46 tracked files, 756 insertions, 852 deletions, plus `RendererSeamTest` project files and seven new focused boundary/runtime/test sources.
+- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-27 04:51:02.
+- Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-27 03:30:38, deployed as narrow exe/PDB copy after full Mods deploy hit an access-denied lock on `Mods\Augustus`.
+- Latest local validation: Release x64 solution build passed; `git diff --check` passed with only LF/CRLF warnings. Previous focused startup/seam checks remain: `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` passed; `RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams` passed with 1 real-pixel software fixture case and 4607 expected skips.
 - Current validation priority: solution Release x64 now builds all projects, including `StartupParserTest`.
 
 ## Coordination
@@ -25,8 +25,9 @@ Requirement: keep work planned, delegated, build-gated, and regression-testable.
 - [x] Keep stable requirements separate in `docs/deep_refactor_requirements.md`.
 - [x] Split verbose requirement text out of this tracker.
 - [x] Keep two agents busy with long-lived implementation or cleanup slices.
-- [ ] Update this checklist when a slice lands or a dependency order changes.
+- [x] Update this checklist when a slice lands or a dependency order changes.
 - [ ] Record manual regression findings only as short current-state notes.
+- [ ] Treat manual-test/deploy milestones as: terrain/water seam pixel checks, Vespasian half-size FigureType XML, deletion of strategy-obsolete compatibility branches, deletion of 16-soldier formation constants, and HDR scene target plus shader-side lighting/material policies.
 
 ## Validation And Deployment
 
@@ -75,11 +76,16 @@ Requirement: split extraction, XML startup parsing, and save/load bridge work in
 - [x] Remove stale StartupParserTest timing/resize/fullscreen/folder-dialog/exit system shims after the curated source list proved none are referenced.
 - [x] Remove dead StartupParserTest external-pixel loader and runtime `PathingMode` terrain probe shims after the curated source list proved they are no longer referenced.
 - [x] Remove the duplicate `building_runtime_reset()` from BuildingType registry load; full runtime startup still resets live building state after definitions load, and `StartupParserTest` no longer needs that shim.
-- [ ] Split remaining parser-test shims into owned parser/shared-core sources: generated image materialization/runtime image loader boundaries, menu/monument cache invalidation hooks, and building/scenario validation bridges.
+- [x] Move generated image materialization/runtime image loader test shims into a startup graphics boundary source.
+- [x] Move the headless startup renderer implementation out of parser orchestration and into the startup graphics boundary source.
+- [x] Move building/scenario validation bridge test shims into a startup validation boundary source.
+- [x] Move menu/monument cache invalidation test shims into a startup cache-invalidation boundary source.
+- [x] Split remaining parser-test shims into owned parser/shared-core sources: crash dialog and minimal figure image helpers.
 - [ ] Extract graphics extraction into a self-contained module boundary.
 - [ ] Extract XML startup parsing into a self-contained module boundary.
 - [ ] Extract save/load bridging into a self-contained module boundary.
 - [ ] Add a save bridge tester for known-good saves.
+- [ ] Move legacy-id compatibility tables toward mod-owned XML bridge declarations after current refactors stabilize.
 - [ ] Keep runtime code from depending on module internals after handoff.
 
 ## Object-Owned Runtime Architecture
@@ -98,6 +104,9 @@ Requirement: data-owning objects should own their behavior, references, cleanup,
 - [x] Add a narrow save-load sanity repair for producer primary output-cart slots that point to missing or dead figures.
 - [x] Replace truthy figure-state spawn guards with alive/dead checks for native slots, legacy primary slots, labor seekers, dockers, depots, and tower sentries.
 - [x] Fix raw-material cart retargeting so a cart cannot switch to workshop delivery while retaining an older warehouse destination.
+- [x] Move docker behavior from the legacy `figure_docker_action` callback into `figuretype::Docker::docker_action()` and call the object method directly from the remaining dispatcher.
+- [x] Convert docker trade/storage behavior from raw `building *`/record-field access to `Building` object calls.
+- [x] Promote shared warehouse/granary first-iterator helpers into their storage modules and remove docker's duplicate storage-discovery helpers.
 - [ ] Finish retiring redundant spawn `mode` versus FigureType `profile` behavior split.
 - [ ] Convert remaining raw `building *` compatibility boundaries to `Building` object calls when touched.
 - [ ] Replace repeated type/string scans with typed runtime lists.
@@ -129,7 +138,7 @@ Requirement: centralize route planning and make cost-map generation lazy, reusab
 - [x] Consolidate `Route::DistanceQuery` reachable-area and access-road candidate scans behind one route-owned selector.
 - [x] Move legacy road-access footprint, hippodrome, and monument candidate scans behind a `RoadAccessQuery` boundary.
 - [x] Add the first `Building` road-access cache boundary for committed cached points and storage-destination spawn queries.
-- [ ] Finish splitting `PathingMode` policy creation from route planning.
+- [x] Finish splitting `PathingMode` policy creation from route planning.
 - [ ] Add building-owned road-access caches.
 - [ ] Convert road-access callers to cached spans or equivalent.
 - [ ] Convert local workforce scans to dirty/runtime-list driven refresh.
@@ -166,6 +175,8 @@ Source plan: `docs/figure_owned_native_graphics_plan.md`
 
 Requirement: the city draw loop should ask figures for XML-backed draw requests instead of reconstructing image ids.
 
+Gate: half-size Vespasian FigureType XML must wait until every `Renderer Scaling Seams` checklist item is complete, especially the source-pixels versus fixed-point-logical-size split.
+
 - [x] Retire the old `figure_graphics.h` facade and route figure draw requests through the native figure runtime API.
 - [x] Add figure draw request type for base slice plus overlays.
 - [x] Route `city_figure.cpp` through the facade first while keeping fallbacks.
@@ -192,9 +203,10 @@ Requirement: the city draw loop should ask figures for XML-backed draw requests 
 - [x] Let nested FigureType `<path>` graphics targets bind to the payload default entry without requiring a duplicate `<image>` child.
 - [x] Consolidate fort/map flag and enemy fallback layer assembly behind private draw-request helpers.
 - [x] Move lion-tamer whip atlas ownership into structured FigureType action graphics.
-- [ ] Retire controller-owned `f->image_id` mutation in converted controllers.
+- [x] Retire controller-owned `f->image_id` mutation in converted controllers.
 - [ ] Move cart/resource/animal/standard overlays into figure graphics layers.
-- [ ] Add Vespasian half-size FigureType XML overrides using existing source art.
+- [ ] Transition figure graphics to image group payload manager ownership with real file-path references instead of legacy group/image-id references.
+- [ ] Add Vespasian half-size FigureType XML overrides using existing source art after all Renderer Scaling Seams work and figure payload ownership are complete.
 - [ ] Delete legacy figure image-id arithmetic and duplicate corpse/direction/cart tables.
 
 ## Renderer Scaling Seams
@@ -203,14 +215,16 @@ Source plan: `docs/renderer_scaling_seam_plan.md`
 
 Requirement: scaling filters and logical sizes must produce exact seamless city-view geometry across native and remaining atlas paths.
 
-- [ ] Add focused terrain render test matrix for scale filters, grid state, zoom, and atlas/native paths.
-- [ ] Remove grid-rendering tile-size mutation.
+Gate: this entire section blocks Vespasian half-size FigureType XML. The XML slice depends on source pixel dimensions being split from fixed-point logical image dimensions, and on the seam fixes being validated first.
+
+- [x] Add focused terrain render test matrix for scale filters, grid state, zoom, and atlas/native paths; `RendererSeamTest` now generates the matrix, JSON results, and one real-pixel software fixture smoke case.
+- [x] Remove grid-rendering tile-size mutation.
 - [ ] Introduce exact city-tile destination geometry with shared rounded edges.
 - [ ] Add temporary atlas edge padding while atlas fallback remains.
 - [ ] Move terrain, water, and climate images into managed native image resources.
 - [ ] Split source pixel dimensions from fixed-point logical image dimensions.
-- [ ] Add pixel checks for terrain/water seams.
-- [ ] Add Vespasian half-size figures after figure-owned native graphics lands.
+- [ ] Add pixel checks for terrain/water seams; passing the matrix is the deployment-worthy threshold for renderer seam changes.
+- [ ] Unlock Vespasian half-size FigureType XML only after every preceding Renderer Scaling Seams item and figure-owned native graphics payload ownership are complete.
 
 ## Render Performance And Vulkan Direction
 
@@ -271,12 +285,13 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 - [x] Replace modulo-wrapped layout position accessors with a batch helper that accepts live slots, declared capacity, and footprint.
 - [x] Move enemy movement layout-offset generation onto `formation` using the resolved `FormationType` footprint.
 - [x] Move fixed 16-slot roster save/load serialization behind `formation` legacy storage bridge methods.
-- [ ] Add `FormationInstance` ownership to forts.
-- [ ] Replace remaining hardcoded formation-size loops with formation instance iteration.
-- [ ] Split fixed roster save/storage from 16-offset layout tables before enabling more than 16 live slots.
+- [x] Split live formation roster storage from the fixed 16-slot legacy save prefix and add an extended roster save section.
+- [ ] Add fort-owned `Formation` object links with live formations pointing to resolved `FormationType` definitions.
+- [ ] Replace remaining hardcoded formation-size loops with `Formation` object iteration.
+- [x] Split fixed roster save/storage from 16-offset layout tables before enabling more than 16 live slots.
 - [ ] Move soldier stats and combat abilities fully into `UnitType`.
-- [ ] Bridge old saves into declared fort formations.
-- [ ] Delete legacy constants that assume 16 soldiers.
+- [ ] Bridge old saves and vanilla formation enum values into declared fort formations.
+- [ ] Delete remaining legacy constants that assume 16 soldiers; only legacy save-prefix and legacy layout-table names should remain.
 
 ## Current Regression Notes
 

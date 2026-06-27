@@ -800,6 +800,11 @@ int Figure::legacy_corpse_image_id(int base_image_id) const
     return base_image_id + figure_image_corpse_offset(const_cast<Figure *>(this));
 }
 
+int Figure::legacy_frame_image_id(int base_image_id, int frame_offset) const
+{
+    return base_image_id + frame_offset;
+}
+
 int Figure::legacy_static_frame_image_id(int base_image_id, int frame_count) const
 {
     if (frame_count <= 0) {
@@ -833,6 +838,11 @@ void Figure::select_legacy_corpse_image(int base_image_id)
     image_id = legacy_corpse_image_id(base_image_id);
 }
 
+void Figure::select_legacy_frame_image(int base_image_id, int frame_offset)
+{
+    image_id = legacy_frame_image_id(base_image_id, frame_offset);
+}
+
 void Figure::select_legacy_static_frame_image(int base_image_id, int frame_count)
 {
     image_id = legacy_static_frame_image_id(base_image_id, frame_count);
@@ -845,6 +855,20 @@ void Figure::select_legacy_directional_frame_image(
     int frame_stride)
 {
     image_id = legacy_directional_frame_image_id(base_image_id, direction, frame_offset, frame_stride);
+}
+
+void Figure::select_legacy_default_or_corpse_image(int base_image_id)
+{
+    if (action_state == FIGURE_ACTION_149_CORPSE) {
+        select_legacy_corpse_image(base_image_id + 96);
+    } else {
+        select_legacy_directional_frame_image(base_image_id, figure_image_direction(this), image_offset);
+    }
+}
+
+void Figure::clear_legacy_image()
+{
+    image_id = 0;
 }
 
 void Figure::adjust_legacy_gladiator_attack_image_row()

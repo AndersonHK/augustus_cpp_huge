@@ -82,23 +82,6 @@ static struct {
 
 static resource_type get_least_filled_quota_resource(Building &building, int city_id, signed char trader_buying);
 
-static building *first_building(const char *attr)
-{
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (Building(b).matches(attr)) {
-            return b;
-        }
-    }
-    return nullptr;
-}
-
-static int find_building_id(const char *attr)
-{
-    building *b = first_building(attr);
-    return b ? b->id : 0;
-}
-
 static int random_initial_wait_ticks(void)
 {
     const int max_wait_ticks = TRADER_INITIAL_WAIT;
@@ -389,13 +372,14 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
     int best_score = -1;
     int best_building_id = 0;
     for (int t = 0; t < 2; t++) {
-        const char *storage_text_id = t == 0 ? "granary" : "warehouse";
         const int is_granary = t == 0;
-        for (building *b = first_building(storage_text_id); b; b = b->next_of_type) {
-            Building building(b);
+        for (Building building = is_granary ? building_granary_first() : building_warehouse_first();
+             building.id();
+             building = building.next_of_type()) {
             // Skip buildings
-            if (b->state != BUILDING_STATE_IN_USE || b->has_plague || !b->has_road_access
-            || (figure_visited_building_in_list(f->last_visited_index, b->id)) || b->id == f->destination_building.id() ||
+            if (!building.is_in_use() || building.has_plague() || !building.has_cached_road_access()
+            || (figure_visited_building_in_list(f->last_visited_index, building.id())) ||
+            building.id() == f->destination_building.id() ||
             !building_storage_get_permission(permissions, building)) {
                 continue; // Not active, infected, unreachable by road, recently visited, currenty at, not accepted
             }
@@ -432,11 +416,11 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
                 }
             }
             const map_tile *exit = city_map_exit_point();
-            int raw_distance = map_grid_chess_distance(f->grid_offset, b->grid_offset);
+            int raw_distance = map_grid_chess_distance(f->grid_offset, building.grid_offset());
             if (route_id == 0 && f->type == FIGURE_NATIVE_TRADER) {
                 raw_distance += raw_distance; //native traders always return home after 1 trade, so double the distance
             } else {
-                raw_distance += map_grid_chess_distance(b->grid_offset, exit->grid_offset);
+                raw_distance += map_grid_chess_distance(building.grid_offset(), exit->grid_offset);
             }
             int distance_score = calculate_log_score(raw_distance, MULTIPLIER_DISTANCE_MIN, MULTIPLIER_DISTANCE_MAX,
                 LOGARITHIMIC_SCALER_DISTANCE, DISTANCE_BASELINE);
@@ -445,28 +429,27 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
             // If this building is the best candidate so far, store it
             if (total_score > best_score && total_score > 0) {
                 best_score = total_score;
-                best_building_id = b->id;
+                best_building_id = building.id();
             }
         }
     }
     // 5. Return result 
     if (best_building_id) {
-        building *best_building = building_get(best_building_id);
-        Building best(best_building);
-        if (best.matches("granary") && best_building->has_road_access >= 1) {
+        Building best(building_get(best_building_id));
+        if (best.matches("granary") && best.has_cached_road_access()) {
             // go to center of granary
-            map_point_store_result(best_building->x + 1, best_building->y + 1, dst);
-        } else if (best.matches("warehouse") && best_building->has_road_access >= 1) {
-            map_point_store_result(best_building->x, best_building->y, dst);
-        } else if (!map_has_road_access_warehouse(best_building->x, best_building->y, dst) &&
-             !map_has_road_access_granary(best_building->x, best_building->y, dst)) {
+            map_point_store_result(best.x() + 1, best.y() + 1, dst);
+        } else if (best.matches("warehouse") && best.has_cached_road_access()) {
+            map_point_store_result(best.x(), best.y(), dst);
+        } else if (!map_has_road_access_warehouse(best.x(), best.y(), dst) &&
+             !map_has_road_access_granary(best.x(), best.y(), dst)) {
             resource_multiplier_reset();
             return 0; // No road access found
         } else {
-            map_point_store_result(best_building->x, best_building->y, dst); //fallback
+            map_point_store_result(best.x(), best.y(), dst); //fallback
         }
         resource_multiplier_reset();
-        return best_building->id;
+        return best.id();
     }
     resource_multiplier_reset();
     return 0;
@@ -1113,10 +1096,11 @@ int figure_trade_sea_trade_units(void)
 
         int add_unit = 0;
         if (policy == TRADE_POLICY_3) {
-            building *b = building_get(find_building_id("lighthouse"));
+            Building lighthouse = building_lighthouse_first();
 
-            if (b) {
-                int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
+            if (lighthouse.id()) {
+                int pct_workers = calc_percentage(lighthouse.worker_count(),
+                    lighthouse.type ? lighthouse.type->required_workers() : 0);
                 if (pct_workers >= 100) { // full laborers
                     add_unit = POLICY_3_BONUS;
                 } else if (pct_workers > 0) {

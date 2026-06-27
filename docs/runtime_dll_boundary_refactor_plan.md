@@ -119,6 +119,7 @@ Owns:
 - reading every supported legacy and current save format
 - migration between save versions
 - legacy enum/id/text bridges needed only to understand stored data
+- mod-owned compatibility bridge declarations, once those replace hardcoded legacy-id tables
 - conversion from serialized save records into current runtime-owned objects
 - writing current save format
 
@@ -137,6 +138,8 @@ SaveResult write_save_from_objects(const SaveWriteRequest &request, const Runtim
 ```
 
 Once a save is loaded, bridge-only compatibility data should be gone. The runtime should hold object references, typed registries, and current-version state.
+
+Long-term bridge declarations are tracked in `docs/mod_owned_compatibility_bridge_plan.md`. The save/load DLL should be the eventual owner of those declarations at migration time, while runtime continues to see only resolved objects.
 
 ## Shared Core Boundary
 

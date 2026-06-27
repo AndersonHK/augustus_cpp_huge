@@ -469,7 +469,7 @@ static RouteIntent route_intent_from_figure(Figure &figure)
         intent.policy.permission = Roadblock::permission_for(figure);
     } else {
         const figure_type_registry_impl::PathingMode::RoutePolicySelection selection =
-            figure_type_registry_impl::PathingMode::routePolicyForFigure(figure, neighborhood);
+            figure_runtime_route_policy_selection(&figure, neighborhood);
         intent.terrain = selection.terrain;
         intent.policy = selection.policy;
     }

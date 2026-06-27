@@ -11,6 +11,11 @@
 
 #define INFINITE 10000
 
+static building_type caravanserai_type()
+{
+    return building_type_registry_impl::type_from_attr("caravanserai");
+}
+
 int building_caravanserai_enough_foods(Building caravanserai)
 {
     int food_required_monthly = building_caravanserai_food_required_monthly();
@@ -30,6 +35,11 @@ int building_caravanserai_food_required_monthly(void)
     int open_land_routes = empire_city_get_trade_routes_count(is_sea_trade, is_route_open);
     return open_land_routes * FOOD_PER_LAND_ROUTE_MONTHLY;
 
+}
+
+Building building_caravanserai_first(void)
+{
+    return Building::first_of_type(caravanserai_type());
 }
 
 Building building_caravanserai_get_storage_destination(Building caravanserai)
@@ -69,10 +79,10 @@ Building building_caravanserai_get_storage_destination(Building caravanserai)
 
 int building_caravanserai_is_fully_functional(void)
 {
-    building_type caravanserai_type = building_type_registry_impl::type_from_attr("caravanserai");
-    if (!building_monument_working(caravanserai_type)) {
+    building_type type = caravanserai_type();
+    if (!building_monument_working(type)) {
         return 0;
     }
 
-    return building_caravanserai_enough_foods(Building::first_of_type(caravanserai_type));
+    return building_caravanserai_enough_foods(building_caravanserai_first());
 }

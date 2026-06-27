@@ -54,6 +54,7 @@ public:
     int is_category(figure_category_mask category_mask) const;
     int target_is_alive() const;
     int legacy_corpse_image_id(int base_image_id) const;
+    int legacy_frame_image_id(int base_image_id, int frame_offset) const;
     int legacy_static_frame_image_id(int base_image_id, int frame_count) const;
     int legacy_directional_frame_image_id(int base_image_id, int direction, int frame_offset, int frame_stride = 8) const;
     int legacy_image_id_for_direction_major_frame(
@@ -62,8 +63,11 @@ public:
         int frame_offset,
         int direction_stride) const;
     void select_legacy_corpse_image(int base_image_id);
+    void select_legacy_frame_image(int base_image_id, int frame_offset);
     void select_legacy_static_frame_image(int base_image_id, int frame_count);
     void select_legacy_directional_frame_image(int base_image_id, int direction, int frame_offset, int frame_stride = 8);
+    void select_legacy_default_or_corpse_image(int base_image_id);
+    void clear_legacy_image();
     void adjust_legacy_gladiator_attack_image_row();
     void clear_legacy_cart_overlay_image();
     void select_legacy_cart_overlay_base_image(int base_image_id);

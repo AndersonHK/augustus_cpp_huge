@@ -26,7 +26,7 @@ static void enemy_initial(Figure *f, formation *m)
     Route::remove(f);
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
-        if (f->is_ghost && f->index_in_formation == 0 && (unsigned int) m->figures[0] == f->id()) {
+        if (f->is_ghost && f->index_in_formation == 0 && static_cast<unsigned int>(m->roster_figure_id(0)) == f->id()) {
             if (m->layout == FORMATION_ENEMY_MOB) {
                 sound_speech_play_file("wavs/drums.wav");
             } else if (m->layout == FORMATION_ENEMY12) {
@@ -673,5 +673,5 @@ void figure_enemy_catapult_action(Figure *f)
     figure_image_increase_offset(f, 12);
     f->clear_legacy_cart_overlay_image();
     enemy_action(f, m);
-    f->image_id = 0;
+    f->clear_legacy_image();
 }

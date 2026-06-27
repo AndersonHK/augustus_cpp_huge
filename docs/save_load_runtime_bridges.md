@@ -4,6 +4,8 @@ This document follows save data after the `.svv` file-piece layer has already be
 
 Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
+Long-term migration direction: hardcoded legacy-id bridges should eventually move into mod-owned XML declarations, described in `docs/mod_owned_compatibility_bridge_plan.md`. That future bridge belongs to startup/save-load boundaries; normal runtime should continue to consume resolved objects and string-owned definitions.
+
 ## Load Timeline
 
 The live-save entry points are in `src/game/file_io.cpp`.

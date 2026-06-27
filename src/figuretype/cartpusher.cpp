@@ -29,7 +29,7 @@
 #include "map/road_network.h"
 #include "map/terrain.h"
 
-#define NON_STORABLE_RESOURCE_CARTPUSHER_MAX_WAIT_TICKS 300
+#define NON_STORABLE_RESOURCE_CARTPUSHER_RECHECK_TICKS 30
 #define VALID_MONUMENT_RECHECK_TICKS 60
 #define GRANARY_EMPTY_ALL_CARTLOADS 8
 #define WAREHOUSE_EMPTY_ALL_CARTLOADS 4
@@ -517,11 +517,11 @@ void figure_cartpusher_action(Figure *f)
         case FIGURE_ACTION_245_CARTPUSHER_WAITING_FOR_DESTINATION:
             set_cart_graphic(f, 1);
             f->wait_ticks++;
-            if (f->wait_ticks > game_time_scale_legacy_day_ticks(NON_STORABLE_RESOURCE_CARTPUSHER_MAX_WAIT_TICKS)) {
-                f->state = FIGURE_STATE_DEAD;
-            } else if ((f->wait_ticks % game_time_scale_legacy_day_ticks(NON_STORABLE_RESOURCE_CARTPUSHER_MAX_WAIT_TICKS / 10) == 0)) {
+            if (f->wait_ticks > game_time_scale_legacy_day_ticks(NON_STORABLE_RESOURCE_CARTPUSHER_RECHECK_TICKS)) {
+                f->wait_ticks = 0;
                 determine_cartpusher_destination(f, source, road_network_id);
             }
+            f->image_offset = 0;
             break;
         case FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
             set_cart_graphic(f, 1);

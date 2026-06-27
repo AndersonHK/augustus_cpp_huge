@@ -153,6 +153,10 @@ public:
         int image_offset,
         int corpse_frame_offset) const;
     int legacy_image_id_for_figure_direction(const Figure &figure, int direction) const;
+    int apply_legacy_image_state_for_direction(Figure &figure, int direction) const;
+    int apply_legacy_image_state(Figure &figure) const;
+    void apply_legacy_prefect_service_image_state(Figure &figure, int direction) const;
+    void apply_legacy_entertainment_image_state(Figure &figure, int direction) const;
     GraphicsTargetRole target_role_for_action_state(int figure_action_state, int wait_ticks) const;
     int target_frame_count(GraphicsTargetRole role) const;
     GraphicsTargetBinding target_binding(GraphicsTargetRole role, int direction_index, int frame) const;

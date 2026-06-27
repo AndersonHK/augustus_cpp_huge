@@ -301,7 +301,9 @@ void figure_protestor_action(Figure *f)
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + CRIMINAL_OFFSETS[f->image_offset / 4] + 104;
+        f->select_legacy_frame_image(
+            image_group(GROUP_FIGURE_CRIMINAL) + 104,
+            CRIMINAL_OFFSETS[f->image_offset / 4]);
     }
 }
 
@@ -319,11 +321,15 @@ static void set_criminal_image(Figure *f)
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + 104 + CRIMINAL_OFFSETS[f->image_offset % 16];
+        f->select_legacy_frame_image(
+            image_group(GROUP_FIGURE_CRIMINAL) + 104,
+            CRIMINAL_OFFSETS[f->image_offset % 16]);
     } else if (f->action_state == FIGURE_ACTION_121_RIOTER_MOVING || f->action_state == FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT || f->action_state == FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB) {
         f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CRIMINAL), dir, f->image_offset);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + 104 + CRIMINAL_OFFSETS[f->image_offset / 2];
+        f->select_legacy_frame_image(
+            image_group(GROUP_FIGURE_CRIMINAL) + 104,
+            CRIMINAL_OFFSETS[f->image_offset / 2]);
     }
 }
 

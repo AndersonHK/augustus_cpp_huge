@@ -5,6 +5,7 @@
 #include "figure/formation_type.h"
 #include "figure/type.h"
 
+#include <algorithm>
 #include <initializer_list>
 #include <vector>
 class Building;
@@ -12,7 +13,7 @@ class Figure;
 
 
 #define MAX_LEGIONS 6
-#define MAX_FORMATION_FIGURES 16
+constexpr int LEGACY_FORMATION_ROSTER_SLOTS = 16;
 
 #define NATIVE_FORMATION 0
 
@@ -73,7 +74,7 @@ struct formation {
     int num_figures; /**< Current number of figures in the formation */
     int max_figures; /**< Maximum number of figures */
     const FormationType *formation_type_definition; /**< Runtime declaration; restored from the owning fort. */
-    int figures[MAX_FORMATION_FIGURES]; /**< Figure IDs */
+    std::vector<int> figures; /**< Figure IDs, indexed by resolved formation slot. */
     int total_damage; /**< Total damage of all figures added */
     int max_total_damage; /**< Maximum total damage of all figures added */
 
@@ -144,6 +145,7 @@ struct formation {
         if (definition) {
             max_figures = definition->capacity();
         }
+        ensure_roster_capacity(slot_capacity());
     }
 
     const FormationType *formation_type() const
@@ -180,16 +182,13 @@ struct formation {
         if (formation_type_definition) {
             return formation_type_definition->capacity();
         }
-        return max_figures > 0 ? max_figures : MAX_FORMATION_FIGURES;
+        return max_figures > 0 ? max_figures : LEGACY_FORMATION_ROSTER_SLOTS;
     }
 
     int slot_capacity() const
     {
         const int capacity = declared_capacity();
-        if (capacity <= 0 || capacity > MAX_FORMATION_FIGURES) {
-            return MAX_FORMATION_FIGURES;
-        }
-        return capacity;
+        return capacity > 0 ? capacity : LEGACY_FORMATION_ROSTER_SLOTS;
     }
 
     int figure_count() const
@@ -243,14 +242,17 @@ struct formation {
     int legion_curse_weight() const;
     std::vector<int> layout_grid_offsets() const;
     int legacy_storage_slot_count() const;
+    void ensure_roster_capacity(int capacity);
+    int roster_figure_id(int slot) const;
     void write_legacy_figure_slots(buffer *buf) const;
     void read_legacy_figure_slots(buffer *buf);
+    void write_extended_figure_slots(buffer *buf) const;
+    void read_extended_figure_slots(buffer *buf, int formation_buf_size);
 
     void clear_roster()
     {
-        for (int &figure_id : figures) {
-            figure_id = 0;
-        }
+        ensure_roster_capacity(slot_capacity());
+        std::fill(figures.begin(), figures.end(), 0);
         num_figures = 0;
         total_damage = 0;
         max_total_damage = 0;
@@ -259,6 +261,7 @@ struct formation {
     int assign_figure_to_open_slot(int figure_id)
     {
         const int capacity = slot_capacity();
+        ensure_roster_capacity(capacity);
         for (int slot = 0; slot < capacity; slot++) {
             if (!figures[slot]) {
                 figures[slot] = figure_id;
@@ -284,8 +287,9 @@ struct formation {
     {
         const int capacity = slot_capacity();
         for (int slot = 0; slot < capacity; slot++) {
-            if (figures[slot]) {
-                return figures[slot];
+            const int figure_id = roster_figure_id(slot);
+            if (figure_id) {
+                return figure_id;
             }
         }
         return 0;
@@ -315,8 +319,9 @@ struct formation {
     {
         const int capacity = slot_capacity();
         for (int slot = 0; slot < capacity; slot++) {
-            if (figures[slot]) {
-                visitor(figures[slot], slot);
+            const int figure_id = roster_figure_id(slot);
+            if (figure_id) {
+                visitor(figure_id, slot);
             }
         }
     }
@@ -325,8 +330,9 @@ struct formation {
     void for_each_figure_id_reverse(Visitor visitor) const
     {
         for (int slot = slot_capacity() - 1; slot >= 0; slot--) {
-            if (figures[slot]) {
-                visitor(figures[slot], slot);
+            const int figure_id = roster_figure_id(slot);
+            if (figure_id) {
+                visitor(figure_id, slot);
             }
         }
     }
@@ -336,7 +342,8 @@ struct formation {
     {
         const int capacity = slot_capacity();
         for (int slot = 0; slot < capacity; slot++) {
-            if (figures[slot] && predicate(figures[slot], slot)) {
+            const int figure_id = roster_figure_id(slot);
+            if (figure_id && predicate(figure_id, slot)) {
                 return true;
             }
         }

@@ -22,6 +22,9 @@ int figure_runtime_apply_profile_movement(Figure *f);
 
 const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Figure *f);
 roadblock_permission figure_runtime_roadblock_permission(Figure *f);
+figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_route_policy_selection(
+    Figure *f,
+    RouteNeighborhood neighborhood);
 
 // Executes a native FigureType controller; returns zero when legacy action should handle it.
 int figure_runtime_execute(Figure *f);

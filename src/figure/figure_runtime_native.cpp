@@ -738,43 +738,11 @@ static int figure_graphics_draw_request_for_figure(
     return GenericFigureGraphics(*definition).draw_request_for(f, request);
 }
 
-static bool update_legacy_figure_graphics_image_state_for_direction(
-    Figure &figure,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    int direction)
-{
-    if (!definition) {
-        return false;
-    }
-
-    Figure *f = &figure;
-    const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
-    f->is_enemy_image = 0;
-    if (graphics.has_native_payload()) {
-        const figure_type_registry_impl::GraphicsTargetBinding *binding =
-            graphics.cached_target_binding_for_figure_direction(*f, direction);
-        return binding &&
-            binding->is_resolved() &&
-            binding->entry->footprint() &&
-            binding->entry->footprint()->is_valid();
-    }
-
-    if (!graphics.has_legacy_default_source()) {
-        return 0;
-    }
-
-    f->image_id = graphics.legacy_image_id_for_figure_direction(*f, direction);
-    return true;
-}
-
 bool update_legacy_figure_graphics_image_state(
     Figure &figure,
     const figure_type_registry_impl::FigureTypeDefinition *definition)
 {
-    return update_legacy_figure_graphics_image_state_for_direction(
-        figure,
-        definition,
-        figure_image_direction(&figure));
+    return definition && definition->graphics().apply_legacy_image_state(figure);
 }
 
 class RoamingServiceFigure : public NativeFigure {
@@ -1966,9 +1934,9 @@ private:
 
     void update_image(Figure *f) const
     {
-        const int direction = figure_image_normalize_direction(
+        definition()->graphics().apply_legacy_image_state_for_direction(
+            *f,
             f->direction < 8 ? f->direction : f->previous_tile_direction);
-        update_legacy_figure_graphics_image_state_for_direction(*f, definition(), direction);
     }
 };
 
@@ -2380,36 +2348,7 @@ private:
         } else {
             dir = f->previous_tile_direction;
         }
-        dir = figure_image_normalize_direction(dir);
-
-        switch (f->action_state) {
-            case FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE:
-                f->select_legacy_directional_frame_image(
-                    image_group(GROUP_FIGURE_PREFECT_WITH_BUCKET),
-                    dir,
-                    f->image_offset);
-                break;
-            case FIGURE_ACTION_75_PREFECT_AT_FIRE:
-                f->select_legacy_directional_frame_image(
-                    image_group(GROUP_FIGURE_PREFECT_WITH_BUCKET) + 96,
-                    dir,
-                    f->image_offset / 2);
-                break;
-            case FIGURE_ACTION_150_ATTACK:
-            {
-                const int frame_offset = f->attack_image_offset >= 12 ?
-                    (f->attack_image_offset - 12) / 2 :
-                    0;
-                f->image_id = definition()->graphics().legacy_attack_directional_frame_image_id(
-                    figure_image_normalize_direction(dir),
-                    frame_offset);
-                break;
-            }
-            case FIGURE_ACTION_149_CORPSE:
-            default:
-                update_legacy_figure_graphics_image_state_for_direction(*f, definition(), dir);
-                break;
-        }
+        definition()->graphics().apply_legacy_prefect_service_image_state(*f, dir);
     }
 };
 
@@ -2489,54 +2428,9 @@ protected:
 
     void update_image(Figure *f) const
     {
-        int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-
-        if (f->type == FIGURE_CHARIOTEER) {
-            f->clear_legacy_cart_overlay_image();
-            if (f->action_state == FIGURE_ACTION_150_ATTACK ||
-                f->action_state == FIGURE_ACTION_149_CORPSE) {
-                f->image_id = definition()->graphics().legacy_directional_image_id(
-                    figure_image_normalize_direction(dir));
-            } else {
-                update_legacy_figure_graphics_image_state_for_direction(*f, definition(), dir);
-            }
-            return;
-        }
-
-        const figure_type_registry_impl::FigureGraphics &graphics = definition()->graphics();
-        const bool use_lion_tamer_whip = f->type == FIGURE_LION_TAMER &&
-            f->wait_ticks_missile >= 96 &&
-            f->action_state != FIGURE_ACTION_149_CORPSE;
-        int cart_overlay_base_image_id = f->cart_image_id;
-        if (f->type == FIGURE_LION_TAMER) {
-            cart_overlay_base_image_id = image_group(GROUP_FIGURE_LION);
-        }
-
-        if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-            if (f->type == FIGURE_GLADIATOR) {
-                f->image_id = graphics.legacy_attack_directional_frame_image_id(
-                    figure_image_normalize_direction(dir),
-                    f->image_offset / 2);
-                f->adjust_legacy_gladiator_attack_image_row();
-            } else if (use_lion_tamer_whip) {
-                f->image_id = graphics.legacy_action_directional_frame_image_id(
-                    figure_image_normalize_direction(dir),
-                    0);
-            } else {
-                f->image_id = graphics.legacy_directional_image_id(
-                    figure_image_normalize_direction(dir));
-            }
-        } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            cart_overlay_base_image_id = 0;
-            update_legacy_figure_graphics_image_state_for_direction(*f, definition(), dir);
-        } else if (use_lion_tamer_whip) {
-            f->image_id = graphics.legacy_action_directional_frame_image_id(
-                figure_image_normalize_direction(dir),
-                f->image_offset);
-        } else {
-            update_legacy_figure_graphics_image_state_for_direction(*f, definition(), dir);
-        }
-        f->select_legacy_cart_overlay_image(cart_overlay_base_image_id, dir);
+        definition()->graphics().apply_legacy_entertainment_image_state(
+            *f,
+            f->direction < 8 ? f->direction : f->previous_tile_direction);
     }
 
     static int get_enemy_distance(Figure *f, int x, int y)

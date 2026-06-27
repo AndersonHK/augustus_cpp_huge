@@ -13,7 +13,6 @@
   <ItemGroup>
     <ClCompile Include="tools\startup_parser_test\main.cpp" />
     <ClCompile Include="tools\startup_parser_test\miniz_impl.c" />
-    <ClCompile Include="tools\startup_parser_test\platform_shims.cpp" />
     <ClCompile Include="src\assets\image_group_entry.cpp" />
     <ClCompile Include="src\assets\image_group_payload*.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
@@ -59,6 +58,11 @@
     <ClCompile Include="src\platform\log.cpp" />
     <ClCompile Include="src\platform\platform.cpp" />
     <ClCompile Include="src\platform\prefs.cpp" />
+    <ClCompile Include="src\startup\startup_parser_cache_invalidation_boundary.cpp" />
+    <ClCompile Include="src\startup\startup_parser_error_boundary.cpp" />
+    <ClCompile Include="src\startup\startup_parser_figure_image_boundary.cpp" />
+    <ClCompile Include="src\startup\startup_parser_graphics_boundary.cpp" />
+    <ClCompile Include="src\startup\startup_parser_validation_boundary.cpp" />
     <ClCompile Include="src\startup\startup_parser.cpp" />
     <ClCompile Include="src\translation\*.cpp" />
     <ClCompile Include="ext\spng\spng.c" />

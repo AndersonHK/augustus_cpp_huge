@@ -105,7 +105,6 @@ public:
 
     roadblock_permission roadblockPermissionFor(const Figure &figure) const;
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
-    static RoutePolicySelection routePolicyForFigure(Figure &figure, RouteNeighborhood neighborhood);
     static RoutePolicy routePolicyForTerrain(
         const TerrainAccess &terrain,
         std::optional<roadblock_permission> permission = std::nullopt,
@@ -145,6 +144,10 @@ struct PathingPolicy {
 
     bool hasRequiredServiceEffect() const;
     bool hasRequiredTerrainAccess() const;
+    roadblock_permission roadblockPermissionFor(const Figure &figure) const;
+    PathingMode::RoutePolicySelection routePolicySelection(
+        roadblock_permission permission,
+        RouteNeighborhood neighborhood) const;
 };
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id);

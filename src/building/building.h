@@ -160,6 +160,12 @@ public:
     int dock_has_accepted_route_ids() const;
     int dock_accepted_route_ids() const;
     int dock_trade_ship_id() const;
+    void set_dock_trade_ship_id(int figure_id);
+    int dock_num_ships() const;
+    void set_dock_num_ships(int ticks);
+    void decrement_dock_num_ships();
+    int dock_queued_docker_id() const;
+    void set_dock_queued_docker_id(int figure_id);
     int dock_orientation() const;
     int dock_idle_worker_count() const;
     void set_has_water_access(int value);

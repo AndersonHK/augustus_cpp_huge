@@ -214,6 +214,7 @@
     <ClCompile Include="src\figure\figure_runtime.cpp" />
     <ClCompile Include="src\figure\figure_runtime_native.cpp" />
     <ClCompile Include="src\figure\FigureGraphics.cpp" />
+    <ClCompile Include="src\figure\FigureGraphicsRuntime.cpp" />
     <ClCompile Include="src\figure\service.cpp" />
     <ClCompile Include="src\figure\sound.cpp" />
     <ClCompile Include="src\figure\trader.cpp" />

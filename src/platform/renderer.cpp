@@ -162,7 +162,7 @@ static struct {
     int supports_yuv_textures;
     float city_scale;
     render_domain active_render_domain;
-    int should_correct_texture_offset;
+    int should_crop_texture_source_edge;
     int auto_force_nearest_filter;
     SDL_Texture *last_submitted_texture;
 } data = {};
@@ -854,37 +854,31 @@ static void draw_texture_request(const render_2d_request *request, const resolve
     float x = request->x + (img->x_offset / source_scale_x);
     float y = request->y + (img->y_offset / source_scale_y);
     int is_city_scale = fabsf(source_scale_x - data.city_scale) < 0.001f && fabsf(source_scale_y - data.city_scale) < 0.001f;
-    int src_correction = uses_managed_texture ? 0 : is_city_scale && data.should_correct_texture_offset ? 1 : 0;
+    int source_edge_crop = uses_managed_texture ? 0 : is_city_scale && data.should_crop_texture_source_edge ? 1 : 0;
 
     SDL_Rect src_coords = {
-        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + src_correction,
-        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + src_correction,
-        img->width - src_correction, img->height - src_correction
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + source_edge_crop,
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + source_edge_crop,
+        img->width - source_edge_crop, img->height - source_edge_crop
     };
-
-    int dst_correction = -src_correction;
-    float dst_correction_x = dst_correction / source_scale_x;
-    float dst_correction_y = dst_correction / source_scale_y;
-    float dst_width = logical_width - dst_correction_x;
-    float dst_height = logical_height - dst_correction_y;
 
 #ifdef USE_RENDERCOPYF
     if (HAS_RENDERCOPYF) {
         SDL_FRect dst_coords = {
-            x + dst_correction_x,
-            y + dst_correction_y,
-            dst_width,
-            dst_height
+            x,
+            y,
+            logical_width,
+            logical_height
         };
         SDL_RenderCopyExF(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     } else
 #endif
     {
         SDL_Rect dst_coords = {
-            (int) round(x + dst_correction_x),
-            (int) round(y + dst_correction_y),
-            (int) round(dst_width),
-            (int) round(dst_height)
+            (int) round(x),
+            (int) round(y),
+            (int) round(logical_width),
+            (int) round(logical_height)
         };
         SDL_RenderCopyEx(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     }
@@ -1610,9 +1604,8 @@ static int should_pack_image(int width, int height)
 
 static void update_scale(int city_scale)
 {
-    // The renderer draws the textures off-by-one when "scale * 100" is a multiple of 8, or when zooming out enough,
-    // this fixes that rendering bug by properly offseting the textures
-    data.should_correct_texture_offset = (city_scale > 250 && (city_scale % 100) != 0) || (city_scale % 8) == 0;
+    // Keep the legacy atlas source crop, but leave destination geometry owned by the draw request.
+    data.should_crop_texture_source_edge = (city_scale > 250 && (city_scale % 100) != 0) || (city_scale % 8) == 0;
     data.city_scale = city_scale / 100.0f;
 }
 

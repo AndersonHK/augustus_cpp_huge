@@ -125,10 +125,11 @@ void figure_explosion_cloud_action(Figure *f)
     }
     figure_movement_move_ticks_cross_country(f, f->speed_multiplier);
     if (f->progress_on_tile < 48) {
-        f->image_id = image_group(GROUP_FIGURE_EXPLOSION) +
-            CLOUD_IMAGE_OFFSETS[f->progress_on_tile / 2];
+        f->select_legacy_frame_image(
+            image_group(GROUP_FIGURE_EXPLOSION),
+            CLOUD_IMAGE_OFFSETS[f->progress_on_tile / 2]);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_EXPLOSION) + 7;
+        f->select_legacy_frame_image(image_group(GROUP_FIGURE_EXPLOSION), 7);
     }
 }
 
@@ -184,7 +185,7 @@ void figure_arrow_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = image_group(GROUP_FIGURE_MISSILE) + 16 + dir;
+    f->select_legacy_frame_image(image_group(GROUP_FIGURE_MISSILE) + 16, dir);
 }
 
 void figure_spear_action(Figure *f)
@@ -203,7 +204,7 @@ void figure_spear_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = image_group(GROUP_FIGURE_MISSILE) + dir;
+    f->select_legacy_frame_image(image_group(GROUP_FIGURE_MISSILE), dir);
 }
 
 void figure_friendly_arrow_action(Figure *f)
@@ -222,7 +223,7 @@ void figure_friendly_arrow_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = image_group(GROUP_FIGURE_MISSILE) + 16 + dir;
+    f->select_legacy_frame_image(image_group(GROUP_FIGURE_MISSILE) + 16, dir);
 }
 
 
@@ -242,7 +243,7 @@ void figure_javelin_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = image_group(GROUP_FIGURE_MISSILE) + dir;
+    f->select_legacy_frame_image(image_group(GROUP_FIGURE_MISSILE), dir);
 }
 
 void figure_bolt_action(Figure *f)
@@ -281,7 +282,7 @@ void figure_bolt_action(Figure *f)
         sound_effect_play(SOUND_EFFECT_BALLISTA_HIT_GROUND);
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = image_group(GROUP_FIGURE_MISSILE) + 32 + dir;
+    f->select_legacy_frame_image(image_group(GROUP_FIGURE_MISSILE) + 32, dir);
 }
 
 void figure_catapult_missile_action(Figure *f)
@@ -299,6 +300,6 @@ void figure_catapult_missile_action(Figure *f)
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;
     }
-    f->image_id = 0;
+    f->clear_legacy_image();
 }
 

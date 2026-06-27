@@ -10,7 +10,7 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - Main climate and terrain images are still loaded through `ATLAS_MAIN` in `src/core/image.cpp`.
 - `src/platform/renderer.cpp` falls back to drawing from the legacy atlas texture when a render request does not have a managed texture handle.
 - `src/graphics/image.cpp` still bridges legacy image ids through `ImageManager::from_id()` and derives logical draw size from source pixel size divided by scale.
-- The city renderer has a grid-specific correction in `draw_texture_request()` that shrinks and offsets isometric textures when the grid is visible at high zoom. That can create dark joins even if the underlying art lines up.
+- The city renderer previously had a destination-geometry correction in `draw_texture_request()` that shrank and offset isometric textures at some zooms. The destination mutation is removed, but the remaining atlas source-edge crop and atlas fallback still need pixel validation.
 - Atlas-backed rendering is especially vulnerable under linear or best filtering because sampling near an atlas image edge can bleed transparent, black, or neighboring pixels unless the atlas has padded gutters.
 - Moving terrain into native image resources is necessary, but not sufficient by itself. The renderer also needs exact destination geometry so adjacent tiles share the same rounded screen-space edges.
 
@@ -22,9 +22,16 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - Managed runtime texture requests pass the fixed logical-size fields through to the renderer request bridge.
 - Figure drawing has started passing fixed logical-size requests, but broad XML/image metadata ownership is not migrated.
 - `RENDER_LOGICAL_UNITS_PER_PIXEL = 6` is a compatibility seam, not the final authoring grain for city graphics.
-- Atlas fallback, grid correction, and exact shared-edge city tile geometry remain open seam risks.
+- Atlas fallback, the remaining atlas source-edge crop, and exact shared-edge city tile geometry remain open seam risks.
 
 ## Prescription
+
+This whole prescription is a prerequisite for Vespasian half-size FigureType XML.
+Do not author the half-size XML slice until every seam item below is implemented
+and validated. The source-pixels versus fixed-point-logical-size split is the
+specific dependency that makes half-size figure XML meaningful, but the seam
+work must land as a complete renderer slice so the new logical sizes do not
+inherit broken destination geometry or atlas filtering artifacts.
 
 1. Add a focused render test matrix for city terrain:
    - scale filters: nearest, linear, best
@@ -63,7 +70,8 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
    - sample expected shared edges for black, transparent, or unmatched pixels
    - keep screenshots for visual regression comparisons at the problematic zoom levels
 
-8. Add Vespasian half-size FigureType graphics after figure graphics ownership lands:
+8. Unlock Vespasian half-size FigureType graphics after figure graphics ownership and all seam work land:
+   - prerequisite: complete every item above, including the split between source pixel dimensions and fixed-point logical image dimensions
    - prerequisite: figures must own native graphics like buildings do, with the game loop asking the `Figure` object for a resolved draw request instead of reconstructing image ids from type/action branches
    - follow `docs/figure_owned_native_graphics_plan.md` before authoring this data slice
    - add Vespasian FigureType XML overrides for each resized figure
@@ -71,6 +79,75 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
    - declare logical dimensions in the final fixed-point logical-size unit, with half-size figures as the first validation case
    - keep all logical-size declarations as integers in the chosen fine grain, so later 1/3-size, 0.15x, or 6.67x source-to-logical relationships do not introduce floating-point drift into city rendering
    - verify that tile anchoring, sprite offsets, carts/overlays, corpses, selected-figure coordinates, and zoomed scaling still line up
+
+## Pixel-Check Test Matrix
+
+The next implementation-light milestone is a focused renderer seam tester. This is not a manual screenshot checklist; passing pixel checks should be treated as a deployment-worthy milestone for renderer seam work. Manual testing can still inspect the screenshots, but a change should not be considered ready for broad deployment until the matrix reports clean terrain/water seams.
+
+### Harness Shape
+
+- Add a future `RendererSeamTest` executable beside the existing focused tools, using `tools/renderer_seam_test/` plus `RendererSeamTest.vcxproj`.
+- Keep it separate from `StartupParserTest`: the startup parser test validates definitions and generated asset availability, while `RendererSeamTest` should own draw setup, screenshot capture, and pixel assertions.
+- Reuse the same game-root and generated-asset prerequisites as `StartupParserTest`: require Julius/Augustus extraction stamps before loading graphics, and fail loudly when generated assets are missing.
+- Run in a deterministic headless/window-hidden mode that can render one fixed city-view viewport to an offscreen target and write both PNG screenshots and JSON assertion results under `out/renderer_seams/`.
+- Initial backend coverage is `atlas-fallback`; `managed-native` entries should be explicit expected-skips until terrain/water native resources are available, then become required.
+
+Suggested command shape:
+
+```powershell
+RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams
+```
+
+### Inputs
+
+Each matrix case should record these inputs in its JSON result:
+
+- `mod`: at least `Vespasian`; add `Augustus` and `Julius` when comparing extracted legacy coverage.
+- `climate`: central, northern, desert, because terrain and water art differ by climate.
+- `backend`: `atlas-fallback`, then `managed-native` after terrain/water migration.
+- `scale_filter`: nearest, linear, best.
+- `city_scale_percent`: 100, 125, 150, 175, 200, 250, 275, 300. The 250/275/300 cases cover the zoom range where previous source/destination corrections were most visible.
+- `grid`: off, on.
+- `orientation`: all four city orientations.
+- `scene`: the controlled patch name listed below.
+
+The first executable slice can run a smaller smoke subset by default, but CI/deployment signoff should run the full matrix.
+
+### Controlled Scenes
+
+Use synthetic or fixture city-view patches with no walkers, buildings, animations, tooltips, ghost previews, or overlay UI except the optional grid pass.
+
+- `solid-terrain-8x8`: adjacent identical flat terrain tiles. This catches transparent, black, or background-color seams where there should be continuous terrain coverage.
+- `water-8x8`: adjacent water tiles with a fixed animation frame. This catches atlas/filter bleed and destination rounding gaps on animated water art.
+- `terrain-water-cross`: terrain, shore, and water arranged in a cross or checker pattern with known intentional transition edges. This verifies the seam detector can distinguish real shore boundaries from gaps between same-surface tiles.
+- `mixed-elevation-smoke`: a small terrain patch with elevation/rock edges, run as informational at first because intentional visual discontinuities are more common.
+
+### Pixel Assertions
+
+For every rendered case, compute expected interior shared-edge masks from canonical isometric tile bounds, not from whatever destination rectangles were submitted. Exclude the outer viewport border and any intentionally visible shore/elevation transition pixels.
+
+- `coverage_no_background`: With grid off, no sampled interior seam pixel may be fully transparent or equal to the test target clear color.
+- `no_black_gap`: With grid off, no sampled interior seam pixel may be opaque black unless the source fixture explicitly marks that pixel as allowed.
+- `same_surface_delta`: For same-surface neighbor pairs, sample one pixel on each side of the shared edge and require RGB delta <= 1 for nearest and <= 3 for linear/best. Record larger deltas with coordinates, tile ids, filter, zoom, and backend.
+- `grid_overlay_only`: With grid on, compare against the matching grid-off render. All changed pixels must fall inside the expected grid-line mask, plus a one-pixel tolerance for filtering. Sprite coverage outside the grid mask must be identical to grid-off.
+- `no_grid_side_effect_gap`: With grid on, pixels immediately adjacent to the expected grid-line mask must still satisfy `coverage_no_background` and `no_black_gap`.
+- `backend_parity`: Once `managed-native` terrain/water exists, compare atlas and native renders for the same case. Differences are allowed only where atlas gutters/source-crop compatibility is explicitly recorded; no backend may introduce transparent or black seam pixels.
+
+Each failure should write:
+
+- the screenshot,
+- a seam-mask PNG,
+- a failure-overlay PNG highlighting bad pixels,
+- a JSON row with matrix inputs, failing assertion, coordinates, sampled colors, and the two tile ids involved.
+
+### Deployment Threshold
+
+Renderer seam changes become deployment-worthy only when:
+
+- the smoke subset passes before local manual testing,
+- the full matrix passes before a release deploy or before authoring Vespasian half-size FigureType XML,
+- every expected-skip has an owner and a prerequisite listed in this plan,
+- screenshot artifacts are retained for failed cases so manual review starts from exact pixels instead of eyeballing the whole city.
 
 ## Future Slice Shape
 
@@ -81,5 +158,5 @@ The likely clean slice is:
 3. Add atlas gutters as a short-term safety net.
 4. Move terrain and water graphics out of `ATLAS_MAIN` and into managed image resources.
 5. Choose the final integer logical-size grain, then add explicit logical dimensions to image group XML and migrate callers onto the fixed request fields.
-6. Move figures to native-owned graphics.
-7. Add Vespasian half-size FigureType logical-size overrides using the same source art.
+6. Complete the figure-owned native graphics payload migration.
+7. Add Vespasian half-size FigureType logical-size overrides using the same source art only after the full seam slice is validated.

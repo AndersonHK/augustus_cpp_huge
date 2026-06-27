@@ -41,11 +41,7 @@ static const int CART_OFFSETS_Y[] = {-7, -1, 7, 11, 6, -1, -7, -12};
 
 void figure_image_update(Figure *f, int image_base)
 {
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_base + CORPSE_IMAGE_OFFSETS[f->wait_ticks / 2] + 96;
-    } else {
-        f->image_id = image_base + figure_image_direction(f) + 8 * f->image_offset;
-    }
+    f->select_legacy_default_or_corpse_image(image_base);
 }
 
 void figure_image_increase_offset(Figure *f, int max)

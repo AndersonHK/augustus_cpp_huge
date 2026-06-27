@@ -3815,8 +3815,7 @@ static int parse_spawn()
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
     SpawnPolicy policy;
-    if (mode_text && (compare_text(mode_text, "profiled_figure") == 0 ||
-        compare_text(mode_text, "service_roamer") == 0)) {
+    if (mode_text && compare_text(mode_text, "profiled_figure") == 0) {
         policy.mode = SpawnMode::FigureSpawn;
     } else if (mode_text && compare_text(mode_text, "temple_supplier") == 0) {
         policy.mode = SpawnMode::TempleSupplier;

@@ -81,6 +81,26 @@ for (Warehouse *warehouse : city_runtime.warehouses_accepting(resource)) {
 
 The registry owns the list. The object owns registration into that list. Callers should not recreate membership with ad hoc scans.
 
+## Indexed Building Registry
+
+The existing `Building::first_of_type()` lists are the starting point, but the target registry should grow into a set of live object indexes for categories the simulation asks about constantly. A caller looking for a house, warehouse, granary, dock, storage source, service destination, or output producer should iterate the narrow owner-maintained list for that category, not every building in the city.
+
+Useful indexes include:
+
+- exact runtime type lists, already represented by `first_of_type`;
+- storage buildings by role and resource, especially granaries and warehouses;
+- houses and local workforce providers/demanders;
+- buildings with active production output;
+- buildings with active input demand;
+- road-access endpoints and path-blocker providers;
+- military, formation, and venue-provider buildings.
+
+These indexes should be maintained by lifecycle events. Creation registers a building into the indexes implied by its type/modules. Destruction, deletion, type replacement, mothball state changes, storage policy changes, or resource acceptance changes remove or move it. Ordered id maps or dense id-keyed containers are acceptable when stable iteration by building id matters.
+
+This depends on stricter lifecycle boundaries: buildings should be added only through the runtime instantiation path and removed only through the removal path that updates indexes, relationships, reservations, route destinations, and graphics state. Direct record mutation becomes increasingly dangerous once indexes are authoritative.
+
+The practical rule for new cleanup is: if a file needs "the first warehouse", "all granaries", or "all caravanserais", expose that from the owning module or registry. Do not reimplement a local full-building scan.
+
 ## Ownership And Cleanup
 
 Cleanup belongs at the lifecycle event that invalidates the relationship.

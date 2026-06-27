@@ -18,6 +18,7 @@ enum {
 };
 
 int building_granary_get_amount(const Building &b, resource_type resource);
+Building building_granary_first();
 int building_granary_get_free_space_amount(const Building &b);
 int building_granary_count_available_resource(const Building &b, resource_type resource, int respect_maintaining);
 int building_granaries_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request);

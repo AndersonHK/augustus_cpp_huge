@@ -402,10 +402,26 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
 roadblock_permission figure_runtime_roadblock_permission(Figure *f)
 {
     const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
-    if (!f || !pathing || !pathing->mode) {
+    if (!f || !pathing) {
         return f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
     }
-    return pathing->mode->roadblockPermissionFor(*f);
+    return pathing->roadblockPermissionFor(*f);
+}
+
+figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_route_policy_selection(
+    Figure *f,
+    RouteNeighborhood neighborhood)
+{
+    using figure_type_registry_impl::PathingMode;
+    PathingMode::RoutePolicySelection selection;
+    const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
+    if (pathing && f) {
+        return pathing->routePolicySelection(pathing->roadblockPermissionFor(*f), neighborhood);
+    }
+    const roadblock_permission permission = f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
+    selection.terrain = PathingMode::terrainFromLegacyUsage(f ? f->terrain_usage : TERRAIN_USAGE_ANY);
+    selection.policy = PathingMode::routePolicyForTerrain(selection.terrain, permission, neighborhood);
+    return selection;
 }
 
 int figure_runtime_update_graphics(Figure *f)

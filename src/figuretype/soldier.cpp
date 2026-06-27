@@ -273,7 +273,7 @@ static void update_image(Figure *f, const formation *m)
     } else if (f->type == FIGURE_FORT_LEGIONARY) {
         update_image_legionary(f, m, dir);
     } else if (f->type == FIGURE_FORT_INFANTRY || f->type == FIGURE_FORT_ARCHER) {
-        f->image_id = 0;
+        f->clear_legacy_image();
     }
 }
 
