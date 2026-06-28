@@ -2449,6 +2449,15 @@ static int parse_graphics_layer()
         }
         layer.set_image(std::move(image_id));
     }
+    if (xml_parser_has_attribute("role")) {
+        std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+        if (role.empty()) {
+            log_error("Unsupported BuildingType graphics layer role", xml_parser_get_attribute_string("role"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_role(std::move(role));
+    }
     if (xml_parser_has_attribute("stage")) {
         int valid = 0;
         GraphicsLayerStage stage = parse_graphics_layer_stage(xml_parser_get_attribute_string("stage"), &valid);
@@ -2526,6 +2535,10 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::Orientation;
     } else if (compare_text(selection, "production_progress") == 0) {
         option_selection = GraphicsOptionSelection::ProductionProgress;
+    } else if (compare_text(selection, "storage_permission") == 0) {
+        option_selection = GraphicsOptionSelection::StoragePermission;
+    } else if (compare_text(selection, "gatehouse_orientation") == 0) {
+        option_selection = GraphicsOptionSelection::GatehouseOrientation;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -2616,6 +2629,25 @@ static int parse_graphics_option()
             g_parse_state.error = 1;
             return 0;
         }
+        int has_offset = 0;
+        if (!parse_optional_int_attribute(
+                "Unsupported BuildingType graphics layer option offset",
+                "x",
+                &option.x_offset,
+                &has_offset)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.has_x_offset = has_offset;
+        if (!parse_optional_int_attribute(
+                "Unsupported BuildingType graphics layer option offset",
+                "y",
+                &option.y_offset,
+                &has_offset)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.has_y_offset = has_offset;
         return 1;
     }
 

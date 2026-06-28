@@ -1,6 +1,6 @@
 # Deep Refactor Implementation Progress
 
-Snapshot: 2026-06-27, branch `Deep-Refactors-Part5`
+Snapshot: 2026-06-27, branch `Deep-Refactors-Part6`
 
 This is the live checklist for the current implementation push. Detailed requirements live in `docs/deep_refactor_requirements.md`; detailed designs live in the linked plan files. This file should stay short enough to scan before coding.
 
@@ -9,12 +9,11 @@ Line-count target: move the net diff from `master` toward `-5k` by deleting lega
 Current measured state:
 
 - Baseline branch: `master`.
-- Committed branch delta: `git diff --shortstat master...HEAD` reports no committed branch delta.
-- Current working-tree delta: `git diff --shortstat` reports 46 tracked files, 756 insertions, 852 deletions, plus `RendererSeamTest` project files and seven new focused boundary/runtime/test sources.
-- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-27 07:21:51.
-- Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-27 03:30:38, deployed as narrow exe/PDB copy after full Mods deploy hit an access-denied lock on `Mods\Augustus`.
-- Latest local validation: Release x64 solution build passed; `git diff --check` passed with only LF/CRLF warnings. Previous focused startup/seam checks remain: `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` passed; `RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams` passed with 1 real-pixel software fixture case and 4607 expected skips.
-- Current validation priority: solution Release x64 now builds all projects, including `StartupParserTest`.
+- Current branch: `Deep-Refactors-Part6`, created after the tested Part5 commit.
+- Current Part6 implementation batch has root-session Release x64 build verification and focused renderer seam geometry verification, but has not been deployed or manually runtime-tested.
+- Latest manual runtime validation belongs to the Part5 baseline; do not treat it as evidence for the current Part6 working tree.
+- Current validation evidence: `MSBuild Vespasian.sln /p:Configuration=Release /p:Platform=x64 /nr:false` exited 0 after the local-workforce, renderer-seam fixture, farm-overlay draw cleanup, native-crop graphics cleanup, storage-flag XML ownership, and gatehouse overlay ownership slices; local XML well-formed parsing passed for the modified `native_crops.xml`, `warehouse.xml`, `granary.xml`, and `gatehouse.xml` files; `RendererSeamTest.exe --matrix city-tile-geometry --artifacts out\renderer_seams_geometry` passed the expanded 8-case matrix; standalone `StartupParserTest.exe` was not run because generated graphics extraction stamps are missing in the repo-local Mods folder; `RendererSeamTest.exe --matrix terrain-water` was not run from the repo because it requires a real Caesar 3 game root.
+- Current validation priority: deploy/manual runtime testing after the next user-controlled asset extraction/deploy point.
 
 ## Coordination
 
@@ -114,12 +113,14 @@ Requirement: data-owning objects should own their behavior, references, cleanup,
 - [x] Draft markdown-only class declarations for `BuildingWaterAccess`, `BuildingCulture`, `BuildingReligion`, `BuildingHousing`, `BuildingProduction`, `BuildingStorage`, and `BuildingFormation`, including XML source/future-folder mapping.
 - [x] Delete local uppercase `MIN`/`MAX` macros from project C/C++ sources.
 - [x] Delete one-line `Building::id()` and `Building::storage_id()` accessors and expose the simple object state directly.
+- [x] Move garden/plaza area-tile placement and preview restore state out of `construction.cpp` static globals into `ConstructionAreaTilePlacement`, with bounded garden recomposition replacing the all-garden preview bridge.
 - [ ] Finish retiring redundant spawn `mode` versus FigureType `profile` behavior split.
 - [ ] Convert remaining raw `building *` compatibility boundaries to `Building` object calls when touched.
 - [ ] Replace repeated type/string scans with typed runtime lists.
 - [ ] Move cleanup to owner lifecycle events instead of downstream repair scans.
 - [ ] Remove `event_data attr` as a behavior selector outside compatibility paths.
 - [ ] Remove normal-runtime id lookups where object references are available.
+- [~] Rewrite `src/building/figure.cpp`/`.h` into header-ledgered, owner-bound spawn/service modules; Part6 now has a `BuildingFigureGenerator` header ledger, shared worker-delay methods, supplier/labor and temple bonus dispatch moved onto existing `building_runtime` spawn ownership, colosseum/hippodrome service spawning moved onto existing `BuildingEntertainment`, fort supply spawning moved onto existing `MessHall`, and redundant helper-file proposals deleted, but military/native spawn modules still need to be peeled out.
 
 ## Routing Cost Map Scalability
 
@@ -127,13 +128,13 @@ Source plan: `docs/routing_cost_map_scalability_plan.md`
 
 Requirement: centralize route planning and make cost-map generation lazy, reusable, and policy-owned.
 
-- [ ] Add route-specific performance counters.
+- [~] Add route-specific performance counters; Part6 adds current-path reuse and failed-route backoff pruning metrics, while local cost-map/cache metrics remain to grow with the route-world work.
 - [x] Replace public surface routing with `RoutePolicy`.
 - [x] Add `Route::Planner::canReach()` facade.
 - [x] Move citizen/wall/noncitizen reachability calls behind route facade code.
 - [~] Add route-owned destination/policy intent stamps.
 - [~] Reuse existing figure routes until intent or next-step validity changes.
-- [ ] Add failed-route retry/backoff gate.
+- [x] Add failed-route retry/backoff gate.
 - [x] Move same-road-network and road-network helper logic into `PathingMode`.
 - [x] Add `Route::DistanceQuery::CostMapHandle` bridge over the legacy global grid.
 - [x] Move venue-seeker roadblock behavior into `PathingMode` for route planning and per-step movement.
@@ -144,11 +145,12 @@ Requirement: centralize route planning and make cost-map generation lazy, reusab
 - [x] Move figure route-policy selection onto `PathingMode`, including XML profile lookup, legacy terrain fallback, and roadblock permission selection.
 - [x] Consolidate `Route::DistanceQuery` reachable-area and access-road candidate scans behind one route-owned selector.
 - [x] Move legacy road-access footprint, hippodrome, and monument candidate scans behind a `RoadAccessQuery` boundary.
-- [~] Add the first `Building` road-access cache boundary for committed cached points and storage-destination spawn queries.
+- [x] Promote route intent, failed-route backoff, and legacy planner backend internals into `route.h` ledgers instead of anonymous route behavior islands.
+- [~] Add the first `Building` road-access boundary for committed cached points, storage-destination spawn queries, and same-network local-workforce access-area prechecks.
 - [x] Finish splitting `PathingMode` policy creation from route planning.
-- [ ] Add building-owned road-access caches.
-- [ ] Convert road-access callers to cached spans or equivalent.
-- [ ] Convert local workforce scans to dirty/runtime-list driven refresh.
+- [~] Add building-owned road-access caches.
+- [~] Convert road-access callers to cached spans or equivalent; local workforce house selection now routes through ledgered `building_local_workforce::RouteAccessSelector`, using `Building::access_area_touches_same_road_network(...)` as an object-owned network gate while `Route::DistanceQuery` still scans candidate roads to preserve shortest reachable behavior.
+- [~] Convert local workforce scans to dirty/runtime-list driven refresh; local workforce now owns paired-file `RuntimeBuildingLists` and `RouteAccessSelector` ledgers for live house labor-source candidates and route-access selection, with acquisition selection iterating the runtime list, populated-source filtering owned by the runtime-list ledger, workforce allocation records behind a ledgered allocation table, concrete local route-access context dependencies constructor-bound to the module-owned runtime list/allocation table, and the module's allocation/list/load-preserve globals collapsed behind a single file-owned runtime state.
 - [ ] Replace ambient global routing grid with local generation-stamped cost maps.
 - [ ] Move passability grids into `RouteWorld`.
 - [ ] Add dirty-region terrain/passability updates.
@@ -211,6 +213,9 @@ Gate: half-size Vespasian FigureType XML must wait until every `Renderer Scaling
 - [x] Consolidate fort/map flag and enemy fallback layer assembly behind private draw-request helpers.
 - [x] Move lion-tamer whip atlas ownership into structured FigureType action graphics.
 - [x] Retire controller-owned `f->image_id` mutation in converted controllers.
+- [x] Move figure draw-request resolution/submission out of `city_figure.cpp`; city drawing now asks `Figure` for a `FigureGraphicDrawRequest`, and the request owns layer submission plus map-flag number overlay drawing.
+- [x] Replace the map-flag number overlay field triplet with a header-ledgered `FigureMapFlagNumberOverlay` draw component on `FigureGraphicDrawRequest`.
+- [x] Move draw-request layer capacity checks and `FigureGraphicsLayer` adaptation onto `FigureGraphicDrawRequest`, deleting the local `add_draw_layer` helper pair.
 - [ ] Move cart/resource/animal/standard overlays into figure graphics layers.
 - [ ] Transition figure graphics to image group payload manager ownership with real file-path references instead of legacy group/image-id references.
 - [ ] Add Vespasian half-size FigureType XML overrides using existing source art after all Renderer Scaling Seams work and figure payload ownership are complete.
@@ -224,7 +229,10 @@ Requirement: scaling filters and logical sizes must produce exact seamless city-
 
 Gate: this entire section blocks Vespasian half-size FigureType XML. The XML slice depends on source pixel dimensions being split from fixed-point logical image dimensions, and on the seam fixes being validated first.
 
-- [x] Add focused terrain render test matrix for scale filters, grid state, zoom, and atlas/native paths; `RendererSeamTest` now generates the matrix, JSON results, and one real-pixel software fixture smoke case.
+- [x] Add focused terrain render test matrix for scale filters, grid state, zoom, and atlas/native paths; `RendererSeamTest` now generates the matrix, JSON results, and scale-aware real-pixel software fixture cases for city-tile geometry.
+- [x] Split the software isometric geometry fixture into explicit scale-aware `--matrix city-tile-geometry` coverage and remove it from the `terrain-water` false-pass path.
+- [x] Move city-tile geometry fixture SDL setup, scale-aware canonical tile geometry, BMP artifact naming/writing, and artifact status reporting behind the header-ledgered fixture object.
+- [x] Move seam report JSON serialization, status derivation, expected-skip artifact paths, fixture-result adaptation, result-file artifact preparation, and summary counting behind a header-ledgered report writer.
 - [x] Remove grid-rendering tile-size mutation.
 - [ ] Introduce exact city-tile destination geometry with shared rounded edges.
 - [ ] Add temporary atlas edge padding while atlas fallback remains.
@@ -246,7 +254,7 @@ Requirement: move rendering toward command lists, snapshots, GPU-owned resources
 - [x] Centralize render-domain classification and `scale_filter` interpretation in `Render2DPipeline`.
 - [ ] Extend metrics to native cache and legacy image buckets if still useful.
 - [ ] Collapse remaining repeated visible-row traversal overhead.
-- [ ] Move status-icon anchors and gatehouse draw mapping into BuildingType/native draw data.
+- [~] Move status-icon anchors and remaining gatehouse/decorative-gate tile-composite draw mapping into BuildingType/native draw data.
 - [ ] Add city draw command prepass carrying object references.
 - [ ] Replace broad native graphics signatures with dirty flags or generation counters.
 - [ ] Add renderer-facing command structs and recording mode behind existing draw API.
@@ -269,8 +277,13 @@ Requirement: BuildingType XML graphics should drive preview, overlay, and live-b
 - [x] Add orientation/simple option selection support.
 - [x] Move multi-part previews to authored part types, offsets, sizes, and draw order.
 - [x] Move first network/water/model facts to native strategy data.
-- [ ] Finish farm draw cleanup.
-- [ ] Finish storage and tile composite cleanup.
+- [x] Route with-overlay farm footprint/top drawing through `Building::draw_footprint` and `Building::draw_top`.
+- [x] Move the old hidden-overlay farm corner rule behind `BuildingGraphics::draws_overlay_summary_at`.
+- [x] Move `native_crops` frame selection into XML `production_progress` options and delete the direct `GROUP_BUILDING_FARM_CROPS` map-image mutation.
+- [x] Move Augustus/Vespasian warehouse/granary storage permission flags into XML `storage_permission` graphics layers, keep Julius flagless to match upstream Julius, and delete the old city-draw storage helper branches.
+- [x] Move the gatehouse top overlay image/offset/orientation mapping into BuildingType graphics data and `BuildingGraphics::draw_gatehouse_overlay`.
+- [ ] Finish remaining farm draw-adjacent UI cleanup, especially no-overlay mothball icon placement/field suppression.
+- [ ] Finish remaining storage and tile composite cleanup, especially `resource_storage` genericization plus decorative-gate and road-surface drawing.
 - [ ] Finish network/water preview graphics cleanup.
 - [ ] Delete compatibility branches made obsolete by strategy data.
 
@@ -304,4 +317,4 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 
 Requirement: keep only active manual-test notes here; resolved findings belong in git history or focused docs.
 
-- [ ] Garden area placement has a global garden recomposition bridge after preview restore/placement; full isolated placement and atomic garden replacement remain open.
+- [ ] Garden/plaza area placement now uses `ConstructionAreaTilePlacement`; manual runtime validation is still needed for large drag previews, undo/redo, plaza routing refresh, and isolated garden recomposition.

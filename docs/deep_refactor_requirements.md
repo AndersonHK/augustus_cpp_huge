@@ -25,6 +25,8 @@ This is the stable requirements companion for `deep_refactor_implementation_prog
 - Building spawn declarations should name the figure/profile to create, while the FigureType profile owns native behavior, movement, pathing, graphics, and service effects. Avoid parallel behavior taxonomies where a building spawn `mode` and a figure `profile` can disagree about what the same walker is supposed to do.
 - Formation logic belongs on formation/unit objects; forts should own a formation instance instead of callers rebuilding formation meaning from hardcoded tables.
 - Cleanup should happen at lifecycle events: create, destroy, retarget, unload, save-load hydration, type change, or relationship removal.
+- Before adding a helper, class, or file, search for existing similarly named owners and stripped legacy files. Repurpose the closest existing owner when it fits the behavior; create a new file only after proving there is no suitable module to restore, extend, or move the method onto.
+- New or substantially rewritten `.cpp` files should have a paired header that lists the file's owned public and private class methods, so the header reads as a map of the implementation. Major classes should live in same-named header/source pairs, such as `BuildingGraphics.h/.cpp` for `BuildingGraphics`. Treat headers as navigation ledgers for future rewrites: they should make bookkeeping easy, reveal redundant internal behavior, show where external calls might replace private helpers, and make useful helpers easy to promote deliberately. Avoid meaningful anonymous helper islands when the behavior belongs to the file's class or module; make those helpers private methods or private helper classes instead.
 
 ## Routing And Movement
 

@@ -4,6 +4,8 @@
 #include "figure/action.h"
 
 #include "building/local_workforce.h"
+#include "building/local_workforce_route_access.h"
+#include "building/local_workforce_runtime_lists.h"
 
 #include "building/building_type_registry_internal.h"
 #include "building/housing_type.h"
@@ -16,6 +18,7 @@
 #include "building/building_record.h"
 #include "city/population.h"
 #include "core/config.h"
+#include "game/performance_tracker.h"
 #include "game/time.h"
 
 #include <algorithm>
@@ -33,14 +36,118 @@ constexpr unsigned char kLaborSeekerTripValidate = 1;
 constexpr const char *kLaborSeekerAcquireProfile = "acquisition";
 constexpr const char *kLaborSeekerValidateProfile = "validation";
 
-struct WorkforceAllocation {
-    unsigned int workplace_id = 0;
-    unsigned int house_id = 0;
-    int workers = 0;
-};
+building_local_workforce::LocalWorkforceRuntimeState g_runtime_state;
 
-std::vector<WorkforceAllocation> g_allocations;
-int g_preserve_allocations_on_next_city_initialize = 0;
+} // namespace
+
+namespace building_local_workforce {
+
+void LocalWorkforceRuntimeState::clear()
+{
+    allocations_.clear();
+    runtime_lists_.clear();
+    preserve_allocations_on_next_city_initialize_ = 0;
+}
+
+void LocalWorkforceRuntimeState::initializeCity()
+{
+    if (!preserve_allocations_on_next_city_initialize_) {
+        allocations_.clear();
+    }
+    preserve_allocations_on_next_city_initialize_ = 0;
+    runtime_lists_.markDirty();
+}
+
+void LocalWorkforceRuntimeState::preserveAllocationsForNextCityInitialize()
+{
+    preserve_allocations_on_next_city_initialize_ = 1;
+}
+
+void LocalWorkforceRuntimeState::markBuildingListsDirty()
+{
+    runtime_lists_.markDirty();
+}
+
+building_local_workforce::LocalWorkforceRouteAccessContext LocalWorkforceRuntimeState::routeAccessContext()
+{
+    return building_local_workforce::LocalWorkforceRouteAccessContext(runtime_lists_, allocations_);
+}
+
+int LocalWorkforceRuntimeState::assignedWorkersForHouse(unsigned int house_id) const
+{
+    return allocations_.assignedWorkersForHouse(house_id);
+}
+
+int LocalWorkforceRuntimeState::assignedWorkersForWorkplace(unsigned int workplace_id) const
+{
+    return allocations_.assignedWorkersForWorkplace(workplace_id);
+}
+
+void LocalWorkforceRuntimeState::addAllocation(unsigned int workplace_id, unsigned int house_id, int workers)
+{
+    allocations_.add(workplace_id, house_id, workers);
+}
+
+void LocalWorkforceRuntimeState::reserveLoadedAllocations(size_t records)
+{
+    allocations_.reserve(records);
+}
+
+void LocalWorkforceRuntimeState::appendLoadedAllocation(
+    unsigned int workplace_id,
+    unsigned int house_id,
+    int workers)
+{
+    allocations_.appendLoadedRecord(workplace_id, house_id, workers);
+}
+
+size_t LocalWorkforceRuntimeState::savePayloadSize() const
+{
+    return 2 * sizeof(uint32_t) +
+        allocations_.size() * 3 * sizeof(uint32_t);
+}
+
+void LocalWorkforceRuntimeState::writeAllocationSavePayload(buffer *buf) const
+{
+    buffer_write_u32(buf, static_cast<uint32_t>(allocations_.size()));
+    allocations_.writeSaveRecords(buf);
+}
+
+void LocalWorkforceRuntimeState::releaseWorkplaceSource(unsigned int workplace_id, unsigned int house_id)
+{
+    allocations_.releaseWorkplaceSource(workplace_id, house_id);
+}
+
+int LocalWorkforceRuntimeState::releaseFromWorkplace(unsigned int workplace_id, int workers)
+{
+    return allocations_.releaseFromWorkplace(workplace_id, workers);
+}
+
+int LocalWorkforceRuntimeState::releaseFromHouse(unsigned int house_id, int workers)
+{
+    return allocations_.releaseFromHouse(house_id, workers);
+}
+
+void LocalWorkforceRuntimeState::replaceHouse(unsigned int from_house_id, unsigned int to_house_id)
+{
+    allocations_.replaceHouse(from_house_id, to_house_id);
+}
+
+void LocalWorkforceRuntimeState::removeAllocationsIf(const RecordPredicate &predicate)
+{
+    allocations_.removeIf(predicate);
+}
+
+void LocalWorkforceRuntimeState::forEachAssignedSource(
+    unsigned int workplace_id,
+    const AssignedSourceVisitor &visitor) const
+{
+    allocations_.forEachAssignedSource(workplace_id, visitor);
+}
+
+} // namespace building_local_workforce
+
+namespace {
 
 int is_live_building(const building *b)
 {
@@ -110,28 +217,6 @@ int labor_seeker_max_roam_length()
     return max_roam_length > 0 ? max_roam_length : kDefaultLaborSeekerMaxRoamLength;
 }
 
-int assigned_workers_for_house(unsigned int house_id)
-{
-    int assigned = 0;
-    for (const WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.house_id == house_id) {
-            assigned += allocation.workers;
-        }
-    }
-    return assigned;
-}
-
-int assigned_workers_for_workplace(unsigned int workplace_id)
-{
-    int assigned = 0;
-    for (const WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.workplace_id == workplace_id) {
-            assigned += allocation.workers;
-        }
-    }
-    return assigned;
-}
-
 int possible_workers_for_house(const Building &house)
 {
     const building *record = building_get(house.id);
@@ -160,7 +245,7 @@ void refresh_house_unemployed(Building &house)
         return;
     }
 
-    record->local_workforce_assigned = static_cast<short>(assigned_workers_for_house(house.id));
+    record->local_workforce_assigned = static_cast<short>(g_runtime_state.assignedWorkersForHouse(house.id));
     const int unemployed = possible_workers_for_house(house) - record->local_workforce_assigned;
     record->local_workforce_unemployed = static_cast<short>(std::max(0, unemployed));
 }
@@ -183,7 +268,7 @@ int access_workers_for_workplace(const Building &workplace)
     if (!uses_active_workforce(workplace)) {
         return std::max<int>(0, record->houses_covered);
     }
-    return std::min(assigned_workers_for_workplace(workplace.id), required_workers(workplace));
+    return std::min(g_runtime_state.assignedWorkersForWorkplace(workplace.id), required_workers(workplace));
 }
 
 void refresh_access_score(Building &workplace)
@@ -205,21 +290,6 @@ void refresh_access_scores()
     }
 }
 
-void add_allocation(unsigned int workplace_id, unsigned int house_id, int workers)
-{
-    if (workers <= 0) {
-        return;
-    }
-
-    for (WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.workplace_id == workplace_id && allocation.house_id == house_id) {
-            allocation.workers += workers;
-            return;
-        }
-    }
-    g_allocations.push_back({ workplace_id, house_id, workers });
-}
-
 int labor_seeker_slot_is_busy(Building &workplace)
 {
     building *record = building_get(workplace.id);
@@ -235,29 +305,9 @@ int labor_seeker_slot_is_busy(Building &workplace)
     return 0;
 }
 
-int release_from_record(size_t index, int workers)
-{
-    if (index >= g_allocations.size() || workers <= 0) {
-        return 0;
-    }
-
-    WorkforceAllocation &allocation = g_allocations[index];
-    const int released = std::min(workers, allocation.workers);
-    allocation.workers -= released;
-    if (allocation.workers <= 0) {
-        g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(index));
-    }
-    return released;
-}
-
 void release_workplace_source(unsigned int workplace_id, unsigned int house_id)
 {
-    for (size_t i = g_allocations.size(); i > 0; i--) {
-        WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.workplace_id == workplace_id && allocation.house_id == house_id) {
-            release_from_record(i - 1, allocation.workers);
-        }
-    }
+    g_runtime_state.releaseWorkplaceSource(workplace_id, house_id);
 
     building *house = building_get(house_id);
     refresh_house_unemployed(house);
@@ -287,14 +337,8 @@ void trim_workplace_to_required(Building &workplace)
         return;
     }
 
-    int excess = assigned_workers_for_workplace(workplace.id) - required_workers(workplace);
-    for (size_t i = g_allocations.size(); i > 0 && excess > 0; i--) {
-        const WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.workplace_id != workplace.id) {
-            continue;
-        }
-        excess -= release_from_record(i - 1, excess);
-    }
+    int excess = g_runtime_state.assignedWorkersForWorkplace(workplace.id) - required_workers(workplace);
+    g_runtime_state.releaseFromWorkplace(workplace.id, excess);
 }
 
 void trim_house_to_possible(Building &house)
@@ -303,14 +347,8 @@ void trim_house_to_possible(Building &house)
         return;
     }
 
-    int excess = assigned_workers_for_house(house.id) - possible_workers_for_house(house);
-    for (size_t i = g_allocations.size(); i > 0 && excess > 0; i--) {
-        const WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.house_id != house.id) {
-            continue;
-        }
-        excess -= release_from_record(i - 1, excess);
-    }
+    int excess = g_runtime_state.assignedWorkersForHouse(house.id) - possible_workers_for_house(house);
+    g_runtime_state.releaseFromHouse(house.id, excess);
     refresh_house_unemployed(house);
 }
 
@@ -325,21 +363,15 @@ void trim_house_to_possible(building *house)
 
 void clamp_allocation_table()
 {
-    for (size_t i = g_allocations.size(); i > 0; i--) {
-        const WorkforceAllocation &allocation = g_allocations[i - 1];
-        building *workplace_record = building_get(allocation.workplace_id);
-        building *house = building_get(allocation.house_id);
-        if (!workplace_record || allocation.workers <= 0) {
-            g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(i - 1));
-            continue;
+    g_runtime_state.removeAllocationsIf([](unsigned int workplace_id, unsigned int house_id, int workers) {
+        building *workplace_record = building_get(workplace_id);
+        building *house = building_get(house_id);
+        if (!workplace_record || workers <= 0) {
+            return 1;
         }
         Building workplace(*workplace_record);
-        if (!uses_workforce(workplace)) {
-            g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(i - 1));
-        } else if (!is_live_building(house) || !house->house_size) {
-            release_from_record(i - 1, allocation.workers);
-        }
-    }
+        return (!uses_workforce(workplace) || !is_live_building(house) || !house->house_size) ? 1 : 0;
+    });
 
     for (int id = 1; id < building_count(); id++) {
         building *record = building_get(id);
@@ -371,54 +403,6 @@ void rebuild_counters_from_allocations()
     }
 }
 
-int find_nearest_reachable_house_with_unemployed(const map_point *road, map_point *target_road, int max_distance)
-{
-    if (!road || !target_road || max_distance <= 0) {
-        return 0;
-    }
-
-    const Route::DistanceQuery route_query =
-        Route::DistanceQuery::fromRoad(
-            *road,
-            PERMISSION_LABOR_SEEKER,
-            PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
-    if (!route_query) {
-        return 0;
-    }
-
-    int best_house_id = 0;
-    int best_distance = 0x7fffffff;
-    map_point best_road = { 0, 0 };
-    for (int id = 1; id < building_count(); id++) {
-        building *house = building_get(id);
-        if (!is_live_building(house) || !house->house_size || house->house_population <= 0) {
-            continue;
-        }
-
-        refresh_house_unemployed(house);
-        if (house->local_workforce_unemployed <= 0) {
-            continue;
-        }
-
-        const Route::RoadResult route = route_query.findAccessRoad(*house, 2, max_distance, true);
-        if (!route) {
-            continue;
-        }
-
-        if (route.distance < best_distance) {
-            best_distance = route.distance;
-            best_house_id = house->id;
-            best_road = route.road;
-        }
-    }
-
-    if (!best_house_id) {
-        return 0;
-    }
-    *target_road = best_road;
-    return best_house_id;
-}
-
 int remaining_roam_length(const Figure *f)
 {
     if (!f) {
@@ -427,61 +411,6 @@ int remaining_roam_length(const Figure *f)
 
     const int max_roam_length = f->max_roam_length > 0 ? f->max_roam_length : labor_seeker_max_roam_length();
     return std::max(0, max_roam_length - f->roam_length);
-}
-
-int find_nearest_assigned_source(Building &workplace, const map_point *road, map_point *target_road)
-{
-    if (!uses_active_workforce(workplace) || !road || !target_road) {
-        return 0;
-    }
-
-    const Route::DistanceQuery route_query =
-        Route::DistanceQuery::fromRoad(
-            *road,
-            PERMISSION_LABOR_SEEKER,
-            PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
-    if (!route_query) {
-        return 0;
-    }
-
-    const int max_roam_length = labor_seeker_max_roam_length();
-    int best_house_id = 0;
-    int best_distance = 0x7fffffff;
-    map_point best_road = { 0, 0 };
-    std::vector<int> house_ids_to_release;
-    for (const WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.workplace_id != workplace.id || allocation.workers <= 0) {
-            continue;
-        }
-
-        building *house = building_get(allocation.house_id);
-        if (!is_live_building(house) || !house->house_size) {
-            house_ids_to_release.push_back(allocation.house_id);
-            continue;
-        }
-
-        const Route::RoadResult route = route_query.findAccessRoad(*house, 2, max_roam_length, true);
-        if (!route) {
-            house_ids_to_release.push_back(allocation.house_id);
-            continue;
-        }
-
-        if (route.distance < best_distance) {
-            best_distance = route.distance;
-            best_house_id = house->id;
-            best_road = route.road;
-        }
-    }
-
-    for (int house_id : house_ids_to_release) {
-        release_workplace_source(workplace.id, house_id);
-    }
-
-    if (!best_house_id) {
-        return 0;
-    }
-    *target_road = best_road;
-    return best_house_id;
 }
 
 int prepare_labor_seeker_target(Figure *f)
@@ -536,16 +465,18 @@ int prepare_labor_seeker_target(Figure *f)
         return 0;
     }
 
-    map_point source_road = { f->x, f->y };
-    map_point target_road = { 0, 0 };
-    const int house_id = find_nearest_reachable_house_with_unemployed(&source_road, &target_road, max_distance);
-    if (!house_id) {
+    const map_point source_road = { f->x, f->y };
+    building_local_workforce::LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
+    const building_local_workforce::RouteAccessSelector selector =
+        building_local_workforce::RouteAccessSelector::fromRoad(source_road, max_distance, context);
+    const building_local_workforce::HouseRouteSelection target = selector.nearestUnemployedHouse();
+    if (!target) {
         return 0;
     }
 
-    f->destination_building = Building(building_get(house_id));
-    f->destination_x = static_cast<unsigned char>(target_road.x);
-    f->destination_y = static_cast<unsigned char>(target_road.y);
+    f->destination_building = target.house;
+    f->destination_x = static_cast<unsigned char>(target.road().x);
+    f->destination_y = static_cast<unsigned char>(target.road().y);
     Route::remove(f);
     return 1;
 }
@@ -553,11 +484,10 @@ int prepare_labor_seeker_target(Figure *f)
 int create_labor_seeker(
     Building &workplace,
     const map_point *source_road,
-    const map_point *target_road,
-    int house_id,
+    const building_local_workforce::HouseRouteSelection &target,
     unsigned char trip_type)
 {
-    if (!uses_active_workforce(workplace) || !source_road) {
+    if (!uses_active_workforce(workplace) || !source_road || !target) {
         return 0;
     }
     if (labor_seeker_slot_is_busy(workplace)) {
@@ -584,9 +514,9 @@ int create_labor_seeker(
         return 0;
     }
     // The trip flag is retained for save compatibility; the profile owns the behavior contract.
-    labor_seeker->destination_building = house_id > 0 ? Building(building_get(house_id)) : Building(nullptr);
-    labor_seeker->destination_x = static_cast<unsigned char>(target_road ? target_road->x : source_road->x);
-    labor_seeker->destination_y = static_cast<unsigned char>(target_road ? target_road->y : source_road->y);
+    labor_seeker->destination_building = target.house;
+    labor_seeker->destination_x = static_cast<unsigned char>(target.road().x);
+    labor_seeker->destination_y = static_cast<unsigned char>(target.road().y);
     labor_seeker->collecting_item_id = trip_type;
     record->figure_id2 = labor_seeker->id();
     return 1;
@@ -612,17 +542,19 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
         return 0;
     }
 
-    map_point source_road = { f->x, f->y };
-    map_point target_road = { 0, 0 };
-    const int house_id = find_nearest_reachable_house_with_unemployed(&source_road, &target_road, max_distance);
-    if (!house_id) {
+    const map_point source_road = { f->x, f->y };
+    building_local_workforce::LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
+    const building_local_workforce::RouteAccessSelector selector =
+        building_local_workforce::RouteAccessSelector::fromRoad(source_road, max_distance, context);
+    const building_local_workforce::HouseRouteSelection target = selector.nearestUnemployedHouse();
+    if (!target) {
         return 0;
     }
 
     f->action_state = FIGURE_ACTION_125_ROAMING;
-    f->destination_building = Building(building_get(house_id));
-    f->destination_x = static_cast<unsigned char>(target_road.x);
-    f->destination_y = static_cast<unsigned char>(target_road.y);
+    f->destination_building = target.house;
+    f->destination_x = static_cast<unsigned char>(target.road().x);
+    f->destination_y = static_cast<unsigned char>(target.road().y);
     f->collecting_item_id = kLaborSeekerTripAcquire;
     Route::remove(f);
     return 1;
@@ -658,7 +590,7 @@ void handle_arrival(Figure *f)
     const int needed = required_workers(workplace) - access_workers_for_workplace(workplace);
     const int assigned = std::min<int>(std::max(0, needed), house_record ? house_record->local_workforce_unemployed : 0);
     if (assigned > 0) {
-        add_allocation(workplace.id, house.id, assigned);
+        g_runtime_state.addAllocation(workplace.id, house.id, assigned);
         refresh_house_unemployed(house);
     }
     if (retarget_labor_seeker_to_unemployed(f)) {
@@ -695,51 +627,261 @@ void remove_allocations_for_building(unsigned int building_id)
         return;
     }
 
-    for (size_t i = g_allocations.size(); i > 0; i--) {
-        const WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.workplace_id == building_id) {
-            const unsigned int house_id = allocation.house_id;
-            g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(i - 1));
-            building *house = building_get(house_id);
-            refresh_house_unemployed(house);
-        } else if (allocation.house_id == building_id) {
-            building *workplace = building_get(allocation.workplace_id);
-            release_from_record(i - 1, allocation.workers);
+    std::vector<unsigned int> house_ids_to_refresh;
+    g_runtime_state.forEachAssignedSource(
+        building_id,
+        [&house_ids_to_refresh](unsigned int house_id, int) {
+            house_ids_to_refresh.push_back(house_id);
+        });
+    for (unsigned int house_id : house_ids_to_refresh) {
+        g_runtime_state.releaseWorkplaceSource(building_id, house_id);
+        building *house = building_get(house_id);
+        refresh_house_unemployed(house);
+    }
+    g_runtime_state.releaseFromHouse(building_id, g_runtime_state.assignedWorkersForHouse(building_id));
+}
+
+} // namespace
+
+namespace building_local_workforce {
+
+void WorkforceAllocationTable::clear()
+{
+    records_.clear();
+}
+
+void WorkforceAllocationTable::reserve(size_t records)
+{
+    records_.reserve(records);
+}
+
+size_t WorkforceAllocationTable::size() const
+{
+    return records_.size();
+}
+
+int WorkforceAllocationTable::assignedWorkersForHouse(unsigned int house_id) const
+{
+    int assigned = 0;
+    for (const Record &allocation : records_) {
+        if (allocation.house_id == house_id) {
+            assigned += allocation.workers;
+        }
+    }
+    return assigned;
+}
+
+int WorkforceAllocationTable::assignedWorkersForWorkplace(unsigned int workplace_id) const
+{
+    int assigned = 0;
+    for (const Record &allocation : records_) {
+        if (allocation.workplace_id == workplace_id) {
+            assigned += allocation.workers;
+        }
+    }
+    return assigned;
+}
+
+void WorkforceAllocationTable::add(unsigned int workplace_id, unsigned int house_id, int workers)
+{
+    if (workers <= 0) {
+        return;
+    }
+
+    for (Record &allocation : records_) {
+        if (allocation.workplace_id == workplace_id && allocation.house_id == house_id) {
+            allocation.workers += workers;
+            return;
+        }
+    }
+    records_.push_back({ workplace_id, house_id, workers });
+}
+
+void WorkforceAllocationTable::appendLoadedRecord(unsigned int workplace_id, unsigned int house_id, int workers)
+{
+    if (workers > 0) {
+        records_.push_back({ workplace_id, house_id, workers });
+    }
+}
+
+void WorkforceAllocationTable::writeSaveRecords(buffer *buf) const
+{
+    if (!buf) {
+        return;
+    }
+
+    for (const Record &allocation : records_) {
+        buffer_write_u32(buf, allocation.workplace_id);
+        buffer_write_u32(buf, allocation.house_id);
+        buffer_write_u32(buf, static_cast<uint32_t>(std::max(0, allocation.workers)));
+    }
+}
+
+void WorkforceAllocationTable::releaseWorkplaceSource(unsigned int workplace_id, unsigned int house_id)
+{
+    for (size_t i = records_.size(); i > 0; i--) {
+        Record &allocation = records_[i - 1];
+        if (allocation.workplace_id == workplace_id && allocation.house_id == house_id) {
+            releaseFromRecord(i - 1, allocation.workers);
         }
     }
 }
 
-void merge_duplicate_allocations()
+int WorkforceAllocationTable::releaseFromWorkplace(unsigned int workplace_id, int workers)
 {
-    for (size_t i = 0; i < g_allocations.size(); i++) {
-        WorkforceAllocation &current = g_allocations[i];
+    int released = 0;
+    for (size_t i = records_.size(); i > 0 && workers > 0; i--) {
+        const Record &allocation = records_[i - 1];
+        if (allocation.workplace_id != workplace_id) {
+            continue;
+        }
+        const int just_released = releaseFromRecord(i - 1, workers);
+        workers -= just_released;
+        released += just_released;
+    }
+    return released;
+}
+
+int WorkforceAllocationTable::releaseFromHouse(unsigned int house_id, int workers)
+{
+    int released = 0;
+    for (size_t i = records_.size(); i > 0 && workers > 0; i--) {
+        const Record &allocation = records_[i - 1];
+        if (allocation.house_id != house_id) {
+            continue;
+        }
+        const int just_released = releaseFromRecord(i - 1, workers);
+        workers -= just_released;
+        released += just_released;
+    }
+    return released;
+}
+
+void WorkforceAllocationTable::replaceHouse(unsigned int from_house_id, unsigned int to_house_id)
+{
+    if (!from_house_id || !to_house_id || from_house_id == to_house_id) {
+        return;
+    }
+
+    for (Record &allocation : records_) {
+        if (allocation.house_id == from_house_id) {
+            allocation.house_id = to_house_id;
+        }
+    }
+    mergeDuplicates();
+}
+
+void WorkforceAllocationTable::removeIf(const RecordPredicate &predicate)
+{
+    if (!predicate) {
+        return;
+    }
+
+    for (size_t i = records_.size(); i > 0; i--) {
+        const Record &allocation = records_[i - 1];
+        if (predicate(allocation.workplace_id, allocation.house_id, allocation.workers)) {
+            records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(i - 1));
+        }
+    }
+}
+
+void WorkforceAllocationTable::forEachAssignedSource(
+    unsigned int workplace_id,
+    const AssignedSourceVisitor &visitor) const
+{
+    if (!visitor) {
+        return;
+    }
+
+    for (const Record &allocation : records_) {
+        if (allocation.workplace_id == workplace_id) {
+            visitor(allocation.house_id, allocation.workers);
+        }
+    }
+}
+
+int WorkforceAllocationTable::releaseFromRecord(size_t index, int workers)
+{
+    if (index >= records_.size() || workers <= 0) {
+        return 0;
+    }
+
+    Record &allocation = records_[index];
+    const int released = std::min(workers, allocation.workers);
+    allocation.workers -= released;
+    if (allocation.workers <= 0) {
+        records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(index));
+    }
+    return released;
+}
+
+void WorkforceAllocationTable::mergeDuplicates()
+{
+    for (size_t i = 0; i < records_.size(); i++) {
+        Record &current = records_[i];
         if (current.workers <= 0) {
             continue;
         }
-        for (size_t j = g_allocations.size(); j > i + 1; j--) {
-            WorkforceAllocation &other = g_allocations[j - 1];
+        for (size_t j = records_.size(); j > i + 1; j--) {
+            Record &other = records_[j - 1];
             if (other.workplace_id == current.workplace_id && other.house_id == current.house_id) {
                 current.workers += other.workers;
-                g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(j - 1));
+                records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(j - 1));
             }
         }
     }
 }
 
-} // namespace
+LocalWorkforceRouteAccessContext::LocalWorkforceRouteAccessContext(
+    RuntimeBuildingLists &runtime_lists,
+    WorkforceAllocationTable &allocations)
+    : runtime_lists_(runtime_lists),
+      allocations_(allocations)
+{}
+
+RuntimeBuildingLists &LocalWorkforceRouteAccessContext::runtimeLists() const
+{
+    return runtime_lists_;
+}
+
+int LocalWorkforceRouteAccessContext::houseHasUnemployedWorkers(Building &house, building &house_record) const
+{
+    ::refresh_house_unemployed(house);
+    return house_record.local_workforce_unemployed > 0;
+}
+
+int LocalWorkforceRouteAccessContext::usesActiveWorkforce(const Building &building) const
+{
+    return ::uses_active_workforce(building);
+}
+
+void LocalWorkforceRouteAccessContext::forEachAssignedSource(
+    unsigned int workplace_id,
+    const AssignedSourceVisitor &visitor) const
+{
+    allocations_.forEachAssignedSource(workplace_id, [&visitor](unsigned int house_id, int workers) {
+        building_local_workforce::AssignedWorkforceSource source;
+        source.house_id = house_id;
+        source.workers = workers;
+        visitor(source);
+    });
+}
+
+void LocalWorkforceRouteAccessContext::releaseWorkplaceSource(unsigned int workplace_id, unsigned int house_id) const
+{
+    ::release_workplace_source(workplace_id, house_id);
+}
+
+} // namespace building_local_workforce
 
 void building_local_workforce_clear(void)
 {
-    g_allocations.clear();
-    g_preserve_allocations_on_next_city_initialize = 0;
+    g_runtime_state.clear();
 }
 
 void building_local_workforce_initialize_city(void)
 {
-    if (!g_preserve_allocations_on_next_city_initialize) {
-        g_allocations.clear();
-    }
-    g_preserve_allocations_on_next_city_initialize = 0;
+    g_runtime_state.initializeCity();
     clamp_allocation_table();
     rebuild_counters_from_allocations();
     refresh_access_scores();
@@ -752,17 +894,10 @@ void building_local_workforce_save_state(buffer *buf)
     }
 
     clamp_allocation_table();
-    const size_t payload_size =
-        2 * sizeof(uint32_t) +
-        g_allocations.size() * 3 * sizeof(uint32_t);
+    const size_t payload_size = g_runtime_state.savePayloadSize();
     buffer_init_dynamic(buf, payload_size);
     buffer_write_u32(buf, kSaveFormatVersion);
-    buffer_write_u32(buf, static_cast<uint32_t>(g_allocations.size()));
-    for (const WorkforceAllocation &allocation : g_allocations) {
-        buffer_write_u32(buf, allocation.workplace_id);
-        buffer_write_u32(buf, allocation.house_id);
-        buffer_write_u32(buf, static_cast<uint32_t>(std::max(0, allocation.workers)));
-    }
+    g_runtime_state.writeAllocationSavePayload(buf);
 }
 
 void building_local_workforce_load_state(buffer *buf, int has_saved_state)
@@ -771,7 +906,7 @@ void building_local_workforce_load_state(buffer *buf, int has_saved_state)
     if (!has_saved_state || !buf || !buf->data || !buf->size) {
         clamp_allocation_table();
         rebuild_counters_from_allocations();
-        g_preserve_allocations_on_next_city_initialize = 1;
+        g_runtime_state.preserveAllocationsForNextCityInitialize();
         return;
     }
 
@@ -779,7 +914,7 @@ void building_local_workforce_load_state(buffer *buf, int has_saved_state)
     if (payload_size < 2 * sizeof(uint32_t)) {
         clamp_allocation_table();
         rebuild_counters_from_allocations();
-        g_preserve_allocations_on_next_city_initialize = 1;
+        g_runtime_state.preserveAllocationsForNextCityInitialize();
         return;
     }
 
@@ -788,25 +923,22 @@ void building_local_workforce_load_state(buffer *buf, int has_saved_state)
     if (format_version != kSaveFormatVersion) {
         clamp_allocation_table();
         rebuild_counters_from_allocations();
-        g_preserve_allocations_on_next_city_initialize = 1;
+        g_runtime_state.preserveAllocationsForNextCityInitialize();
         return;
     }
 
     const size_t max_records = (payload_size - 2 * sizeof(uint32_t)) / (3 * sizeof(uint32_t));
     const size_t records_to_read = std::min<size_t>(record_count, max_records);
-    g_allocations.reserve(records_to_read);
+    g_runtime_state.reserveLoadedAllocations(records_to_read);
     for (size_t i = 0; i < records_to_read; i++) {
-        WorkforceAllocation allocation;
-        allocation.workplace_id = buffer_read_u32(buf);
-        allocation.house_id = buffer_read_u32(buf);
-        allocation.workers = static_cast<int>(buffer_read_u32(buf));
-        if (allocation.workers > 0) {
-            g_allocations.push_back(allocation);
-        }
+        const unsigned int workplace_id = buffer_read_u32(buf);
+        const unsigned int house_id = buffer_read_u32(buf);
+        const int workers = static_cast<int>(buffer_read_u32(buf));
+        g_runtime_state.appendLoadedAllocation(workplace_id, house_id, workers);
     }
     clamp_allocation_table();
     rebuild_counters_from_allocations();
-    g_preserve_allocations_on_next_city_initialize = 1;
+    g_runtime_state.preserveAllocationsForNextCityInitialize();
 }
 
 namespace building_local_workforce {
@@ -853,6 +985,7 @@ void reconcile_house(Building &house)
 
 void remove_building(Building &target)
 {
+    ::g_runtime_state.markBuildingListsDirty();
     remove_allocations_for_building(target.id);
     kill_labor_seekers_for_building(target.id);
     building *record = building_get(target.id);
@@ -870,14 +1003,10 @@ void replace_house(const Building &from, const Building &to)
         return;
     }
 
-    for (WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.house_id == from.id) {
-            allocation.house_id = to.id;
-        }
-    }
-    merge_duplicate_allocations();
+    g_runtime_state.replaceHouse(from.id, to.id);
     clamp_allocation_table();
     rebuild_counters_from_allocations();
+    ::g_runtime_state.markBuildingListsDirty();
 }
 
 int spawn_acquisition(Building &workplace, const map_point *road)
@@ -890,15 +1019,14 @@ int spawn_acquisition(Building &workplace, const map_point *road)
         return 0;
     }
 
-    map_point target_road = { 0, 0 };
-    const int house_id = find_nearest_reachable_house_with_unemployed(
-        road,
-        &target_road,
-        labor_seeker_max_roam_length());
-    if (!house_id) {
+    LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
+    const RouteAccessSelector selector =
+        RouteAccessSelector::fromRoad(*road, labor_seeker_max_roam_length(), context);
+    const HouseRouteSelection target = selector.nearestUnemployedHouse();
+    if (!target) {
         return 0;
     }
-    return create_labor_seeker(workplace, road, &target_road, house_id, kLaborSeekerTripAcquire);
+    return create_labor_seeker(workplace, road, target, kLaborSeekerTripAcquire);
 }
 
 int spawn_validation(Building &workplace, const map_point *road)
@@ -925,12 +1053,14 @@ int spawn_validation(Building &workplace, const map_point *road)
     }
     record->local_workforce_validation_delay = 0;
 
-    map_point target_road = { 0, 0 };
-    const int house_id = find_nearest_assigned_source(workplace, road, &target_road);
-    if (!house_id) {
+    LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
+    const RouteAccessSelector selector =
+        RouteAccessSelector::fromRoad(*road, labor_seeker_max_roam_length(), context);
+    const HouseRouteSelection target = selector.nearestAssignedSourceReleasingUnreachable(workplace);
+    if (!target) {
         return 0;
     }
-    return create_labor_seeker(workplace, road, &target_road, house_id, kLaborSeekerTripValidate);
+    return create_labor_seeker(workplace, road, target, kLaborSeekerTripValidate);
 }
 
 int prepare_labor_seeker_target(Figure *f)

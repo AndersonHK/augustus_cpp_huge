@@ -607,11 +607,6 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
             }
             if (building.matches("dock")) {
                 draw_dock_workers(building, x, y, color_mask);
-            } else if (building.type && building.type->is_warehouse()) {
-                city_draw_warehouse_ornaments(x, y, color_mask, draw_context.scale);
-                city_draw_storage_permission_flag(building, x + 19, y - 56, color_mask, draw_context.scale);
-            } else if (building.type && building.type->is_granary()) {
-                city_draw_granary_stores(*img, building, x, y, color_mask, draw_context.scale);
             } else if (building.matches("burning_ruin") && building.has_plague()) {
                 Image::from_id(Image::group(GROUP_PLAGUE_SKULL)).draw(x + 18, y - 32, color_mask, draw_context.scale);
             }
@@ -686,22 +681,15 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
             y + 5,
             city_draw_building_as_deleted(building) ? building_construction_clear_color() : COLOR_MASK_NONE,
             draw_context.scale);
-    } else if (building.matches("gatehouse")) {
-        int xy = map_property_multi_tile_xy(grid_offset);
-        int orientation = city_view_orientation();
-        const int gatehouse_draw_tile_by_orientation[] = { EDGE_X1Y1, EDGE_X0Y1, EDGE_X0Y0, EDGE_X1Y0 };
-        const int gate_orientation = building.orientation();
-        if (xy != gatehouse_draw_tile_by_orientation[orientation / 2] ||
-            (gate_orientation != 1 && gate_orientation != 2)) {
-            return;
-        }
-        const bool vertical_view = orientation == DIR_0_TOP || orientation == DIR_4_BOTTOM;
-        const bool rotated = (gate_orientation == 1) != vertical_view;
-        Image::from_id(Image::group(GROUP_BUILDING_GATEHOUSE) + (rotated ? 1 : 0)).draw(
-            x + (rotated ? -18 : -22),
-            y + (rotated ? -81 : -80),
+    } else if (building.draw_gatehouse_overlay(
+        {
+            x,
+            y,
+            grid_offset,
             city_draw_building_as_deleted(building) ? building_construction_clear_color() : 0,
-            draw_context.scale);
+            draw_context.scale
+        },
+        city_view_orientation())) {
     }
 }
 

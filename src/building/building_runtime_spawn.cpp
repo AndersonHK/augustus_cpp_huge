@@ -16,6 +16,9 @@
 #include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/local_workforce.h"
+#include "building/market.h"
+#include "building/mess_hall.h"
+#include "building/tavern.h"
 #include "building/temple.h"
 #include "building/water_access_runtime.h"
 
@@ -113,12 +116,6 @@ int building_runtime::default_spawn_delay() const
 
 void building_runtime::check_labor_problem()
 {
-    if (building_local_workforce::is_workforce_building(building())) {
-        if (!building().worker_count()) {
-            record().show_on_problem_overlay = 2;
-        }
-        return;
-    }
     if (building().labor_access_score() <= 0) {
         record().show_on_problem_overlay = 2;
     }
@@ -438,6 +435,143 @@ int building_runtime::spawn_temple_supplier(const map_point &road)
     return 1;
 }
 
+int building_runtime::supplier_slot_waits_this_tick(
+    building_type_registry_impl::FigureSlot slot,
+    figure_type supplier_type,
+    figure_type secondary_type)
+{
+    unsigned int *slot_value = figure_slot_storage(slot);
+    if (!slot_value || !*slot_value) {
+        return 0;
+    }
+
+    Figure *existing = Figure::get(*slot_value);
+    if (!existing ||
+        existing->state != FIGURE_STATE_ALIVE ||
+        (existing->type != supplier_type && existing->type != secondary_type)) {
+        *slot_value = 0;
+    }
+    return 1;
+}
+
+int building_runtime::spawn_supplier_to_destination(
+    building_type_registry_impl::FigureSlot slot,
+    figure_type supplier_type,
+    const map_point &road,
+    const Building &destination,
+    unsigned char collecting_item_id)
+{
+    if (!destination.id) {
+        return 0;
+    }
+
+    Figure *supplier = Figure::create(supplier_type, road.x, road.y, DIR_0_TOP);
+    if (!supplier) {
+        return 0;
+    }
+
+    attach_figure_to_building(supplier, building());
+    supplier->collecting_item_id = collecting_item_id;
+    assign_figure_slot(slot, supplier->id());
+    send_supplier_to_storage_destination(supplier, destination);
+    return 1;
+}
+
+int building_runtime::spawn_temple_distribution_supplier(const map_point &road)
+{
+    if (supplier_slot_waits_this_tick(
+            building_type_registry_impl::FigureSlot::Secondary,
+            FIGURE_PRIEST_SUPPLIER,
+            FIGURE_LABOR_SEEKER)) {
+        return 0;
+    }
+
+    Building current = building();
+    if (const building_type_registry_impl::Distribution *distribution = current.type->distribution()) {
+        distribution->update_demands(current);
+    }
+    return spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot::Secondary,
+        FIGURE_PRIEST_SUPPLIER,
+        road,
+        building_temple_get_storage_destination(current),
+        record().data.market.fetch_inventory_id);
+}
+
+int building_runtime::spawn_market_supplier(const map_point &road)
+{
+    if (supplier_slot_waits_this_tick(
+            building_type_registry_impl::FigureSlot::Secondary,
+            FIGURE_MARKET_SUPPLIER,
+            FIGURE_LABOR_SEEKER)) {
+        return 0;
+    }
+
+    Market market(building());
+    if (const building_type_registry_impl::Distribution *distribution = market.type->distribution()) {
+        distribution->update_demands(market);
+    }
+    const int destination_id = market.storage_destination();
+    return spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot::Secondary,
+        FIGURE_MARKET_SUPPLIER,
+        road,
+        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        record().data.market.fetch_inventory_id);
+}
+
+int building_runtime::spawn_tavern_supplier(const map_point &road)
+{
+    if (supplier_slot_waits_this_tick(
+            building_type_registry_impl::FigureSlot::Secondary,
+            FIGURE_BARKEEP_SUPPLIER,
+            FIGURE_LABOR_SEEKER)) {
+        return 0;
+    }
+
+    const int destination_id = Tavern(building()).storage_destination();
+    return spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot::Secondary,
+        FIGURE_BARKEEP_SUPPLIER,
+        road,
+        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        record().data.market.fetch_inventory_id);
+}
+
+int building_runtime::spawn_primary_mess_hall_supplier(const map_point &road)
+{
+    if (supplier_slot_waits_this_tick(
+            building_type_registry_impl::FigureSlot::Primary,
+            FIGURE_MESS_HALL_SUPPLIER)) {
+        return 0;
+    }
+
+    const int destination_id = building_mess_hall_get_storage_destination(building());
+    return spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot::Primary,
+        FIGURE_MESS_HALL_SUPPLIER,
+        road,
+        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        record().data.market.fetch_inventory_id);
+}
+
+int building_runtime::spawn_secondary_mess_hall_supplier(const map_point &road)
+{
+    if (supplier_slot_waits_this_tick(
+            building_type_registry_impl::FigureSlot::Quaternary,
+            FIGURE_MESS_HALL_SUPPLIER)) {
+        return 0;
+    }
+
+    const int destination_id = building_mess_hall_get_storage_destination(building());
+    return spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot::Quaternary,
+        FIGURE_MESS_HALL_SUPPLIER,
+        road,
+        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        record().data.market.fetch_inventory_id);
+}
+
 int building_runtime::spawn_temple_destination_priest(const map_point &road)
 {
     if (type().is_pantheon() ||
@@ -473,8 +607,8 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         return 0;
     }
 
-    Building mess_hall = Building::first_of_type(building_type_registry_impl::type_from_attr("mess_hall"));
-    if (!mess_hall.id || !mess_hall.is_in_use() || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
+    Building mess_hall(building_get(city_buildings_get_mess_hall()));
+    if (!mess_hall.id || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
         return 0;
     }
 

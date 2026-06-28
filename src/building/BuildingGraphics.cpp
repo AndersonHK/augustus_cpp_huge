@@ -16,6 +16,7 @@
 #include "building/properties.h"
 #include "city/festival.h"
 #include "core/calc.h"
+#include "core/direction.h"
 #include "core/image.h"
 #include "figure/figure.h"
 #include "graphics/image.h"
@@ -187,6 +188,11 @@ void GraphicsLayer::set_image(std::string image)
     image_ = std::move(image);
 }
 
+void GraphicsLayer::set_role(std::string role)
+{
+    role_ = std::move(role);
+}
+
 void GraphicsLayer::set_option_selection(GraphicsOptionSelection selection)
 {
     option_selection_ = selection;
@@ -237,6 +243,21 @@ int GraphicsLayer::has_image() const
 const char *GraphicsLayer::image() const
 {
     return image_.c_str();
+}
+
+int GraphicsLayer::has_role() const
+{
+    return !role_.empty();
+}
+
+const char *GraphicsLayer::role() const
+{
+    return role_.c_str();
+}
+
+int GraphicsLayer::role_is(const char *role) const
+{
+    return role && role_ == role;
 }
 
 GraphicsOptionSelection GraphicsLayer::option_selection() const
@@ -311,6 +332,11 @@ GraphicsLayer GraphicsLayer::resolved_option(unsigned char variant) const
     }
     if (!option.image.empty()) {
         resolved.set_image(option.image);
+    }
+    if (option.has_x_offset || option.has_y_offset) {
+        resolved.set_offset(
+            option.has_x_offset ? option.x_offset : x_offset_,
+            option.has_y_offset ? option.y_offset : y_offset_);
     }
     return resolved;
 }
@@ -542,28 +568,17 @@ building_runtime *runtime_for_building(Building building, std::unique_ptr<buildi
     return temporary_runtime.get();
 }
 
-int draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx)
+int production_progress_options_in_target(const GraphicsTarget &target)
 {
-    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
-        return 1;
+    if (target.option_selection() == GraphicsOptionSelection::ProductionProgress && target.option_count() > 0) {
+        return target.option_count();
     }
-    const resource_type resource = building.warehouse_resource_id();
-    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
-    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
-    BuildingGraphics::resource_storage_image(graphic_resource, loads).draw(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
-    return 1;
-}
-
-int draw_resource_storage_top(Building building, const BuildingDrawContext &ctx)
-{
-    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
-        return 1;
+    for (const GraphicsLayer &layer : target.layers()) {
+        if (layer.option_selection() == GraphicsOptionSelection::ProductionProgress && layer.option_count() > 0) {
+            return layer.option_count();
+        }
     }
-    const resource_type resource = building.warehouse_resource_id();
-    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
-    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
-    BuildingGraphics::resource_storage_image(graphic_resource, loads).draw_top(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
-    return 1;
+    return 0;
 }
 
 void log_missing_runtime_stage_slice(const char *stage, const Building &building)
@@ -608,7 +623,8 @@ int BuildingGraphics::draw_footprint(Building building, const BuildingDrawContex
         }
         runtime_texture_draw(*footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
     }
-    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    runtime->draw_cached_graphic_layers(
+        GraphicsLayerStage::Footprint, ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
 }
@@ -634,7 +650,8 @@ int BuildingGraphics::draw_top(Building building, const BuildingDrawContext &ctx
     if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
         runtime_texture_draw(*top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
     }
-    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    runtime->draw_cached_graphic_layers(
+        GraphicsLayerStage::Top, ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
 }
@@ -666,6 +683,109 @@ int BuildingGraphics::draw_animation(Building building, const BuildingDrawContex
     runtime->draw_cached_graphic_layer_animations(ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
+}
+
+int BuildingGraphics::draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx) const
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    BuildingGraphics::resource_storage_image(graphic_resource, loads).draw(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
+}
+
+int BuildingGraphics::draw_resource_storage_top(Building building, const BuildingDrawContext &ctx) const
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    BuildingGraphics::resource_storage_image(graphic_resource, loads).draw_top(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
+}
+
+int BuildingGraphics::gatehouse_overlay_draw_tile_matches(
+    Building building,
+    int grid_offset,
+    int view_orientation) const
+{
+    if (!building.matches("gatehouse")) {
+        return 0;
+    }
+    const int gate_orientation = building.orientation();
+    if (gate_orientation != 1 && gate_orientation != 2) {
+        return 0;
+    }
+    const int gatehouse_draw_tile_by_orientation[] = { EDGE_X1Y1, EDGE_X0Y1, EDGE_X0Y0, EDGE_X1Y0 };
+    if (view_orientation < DIR_0_TOP || view_orientation > DIR_6_LEFT || view_orientation % 2) {
+        return 0;
+    }
+    return map_property_multi_tile_xy(grid_offset) == gatehouse_draw_tile_by_orientation[view_orientation / 2];
+}
+
+int BuildingGraphics::draw_gatehouse_overlay(
+    Building building,
+    const BuildingDrawContext &ctx,
+    int view_orientation) const
+{
+    if (!gatehouse_overlay_draw_tile_matches(building, ctx.grid_offset, view_orientation)) {
+        return 0;
+    }
+
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime) {
+        return 0;
+    }
+    return runtime->draw_cached_graphic_layer_role(
+        "gatehouse_overlay",
+        ctx.grid_offset,
+        ctx.x,
+        ctx.y,
+        ctx.color_mask,
+        ctx.scale);
+}
+
+int BuildingGraphics::production_progress_option_count() const
+{
+    if (int count = production_progress_options_in_target(default_target_)) {
+        return count;
+    }
+    for (const GraphicsVariant &variant : variants_) {
+        if (int count = production_progress_options_in_target(variant.target)) {
+            return count;
+        }
+    }
+    return 0;
+}
+
+int BuildingGraphics::draws_overlay_summary_at(Building building, int grid_offset, int view_orientation) const
+{
+    if (building.size() != 3 || !building.type || !building.type->is_farm()) {
+        return 1;
+    }
+    if (!map_property_is_draw_tile(grid_offset)) {
+        return 0;
+    }
+
+    const int tile_position = map_property_multi_tile_xy(grid_offset);
+    switch (view_orientation) {
+        case DIR_0_TOP:
+            return tile_position == EDGE_X0Y2;
+        case DIR_2_RIGHT:
+            return tile_position == EDGE_X0Y0;
+        case DIR_4_BOTTOM:
+            return tile_position == EDGE_X2Y0;
+        case DIR_6_LEFT:
+            return tile_position == EDGE_X2Y2;
+        default:
+            return 0;
+    }
 }
 
 #endif

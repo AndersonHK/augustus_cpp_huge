@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 class ImageGroupPayload;
@@ -38,6 +39,14 @@ public:
     void advance_cached_graphic_animation(int animation_cursor);
     void draw_cached_graphic_layers(
         building_type_registry_impl::GraphicsLayerStage stage,
+        int animation_cursor,
+        int x,
+        int y,
+        color_t color,
+        float scale);
+    int draw_cached_graphic_layer_role(
+        const char *role,
+        int animation_cursor,
         int x,
         int y,
         color_t color,
@@ -53,6 +62,17 @@ public:
     void release_legacy_storage_reservation(unsigned int figure_id);
 
     Building building() const;
+    void check_labor_problem();
+    void run_labor_phase_if_defined(const map_point &road);
+    int spawn_temple_distribution_supplier(const map_point &road);
+    int spawn_market_supplier(const map_point &road);
+    int spawn_tavern_supplier(const map_point &road);
+    int spawn_primary_mess_hall_supplier(const map_point &road);
+    int spawn_secondary_mess_hall_supplier(const map_point &road);
+    int spawn_temple_destination_priest(const map_point &road);
+    int spawn_temple_mars_mess_hall_priest(const map_point &road);
+    int spawn_temple_neptune_chariot(const map_point &road);
+    int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
 
     const building_type_registry_impl::BuildingType *definition() const
     {
@@ -75,6 +95,7 @@ private:
             building_type_registry_impl::GraphicsLayerStage stage = building_type_registry_impl::GraphicsLayerStage::Auto;
             int x_offset = 0;
             int y_offset = 0;
+            std::string role;
             int owns_animation = 0;
             RuntimeDrawSlice animation_slice;
         };
@@ -108,7 +129,6 @@ private:
     const Animation *cached_animation() const;
     int worker_percentage() const;
     int default_spawn_delay() const;
-    void check_labor_problem();
     void apply_global_labor_house_coverage(int amount);
     void generate_labor_seeker(int x, int y);
     void run_house_spawn_labor_phase(
@@ -121,7 +141,6 @@ private:
         const building_type_registry_impl::LaborSeekerPolicy &policy,
         const map_point &road);
     void run_labor_phase(const building_type_registry_impl::LaborDefinition &labor, const map_point &road);
-    void run_labor_phase_if_defined(const map_point &road);
     int has_figure_of_type(figure_type type);
     int has_figure_of_any(const std::vector<figure_type> &types);
     unsigned int *figure_slot_storage(building_type_registry_impl::FigureSlot slot);
@@ -133,9 +152,16 @@ private:
     int spawn_caravanserai_supplier(const map_point &road);
     int spawn_lighthouse_supplier(const map_point &road);
     int spawn_temple_supplier(const map_point &road);
-    int spawn_temple_destination_priest(const map_point &road);
-    int spawn_temple_mars_mess_hall_priest(const map_point &road);
-    int spawn_temple_neptune_chariot(const map_point &road);
+    int supplier_slot_waits_this_tick(
+        building_type_registry_impl::FigureSlot slot,
+        figure_type supplier_type,
+        figure_type secondary_type = FIGURE_NONE);
+    int spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot slot,
+        figure_type supplier_type,
+        const map_point &road,
+        const Building &destination,
+        unsigned char collecting_item_id);
     int spawn_grand_temple_mars_recruit(const map_point &road);
     void spawn_architect_guild();
     void spawn_caravanserai();
@@ -146,7 +172,6 @@ private:
     resource_type figure_delivery_output_resource() const;
     void spawn_figure_delivery_cart(const map_point &road);
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
-    int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
     int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy);
     LegacyStorageReservation *legacy_storage_reservation_for(unsigned int figure_id);

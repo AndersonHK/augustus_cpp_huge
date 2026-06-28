@@ -35,6 +35,17 @@
             <layer stage="top" image="Image_0005" x="117" y="-62">
                 <condition type="resource_amount" resource="none" operator="less_than" threshold="8" />
             </layer>
+            <layer stage="top" animation="1" x="81" y="-101">
+                <options selection="storage_permission">
+                    <option path="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market" />
+                    <option path="UI\Warehouse_Flag_Land_1" image="Warehouse_Flag_Land" />
+                    <option path="UI\Warehouse_Flag_Market_Land_1" image="Warehouse_Flag_Market_Land" />
+                    <option path="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea" />
+                    <option path="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea" />
+                    <option path="UI\Warehouse_Flag_Land_Sea_1" image="Warehouse_Flag_Land_Sea" />
+                    <option path="UI\Warehouse_Flag_All_1" image="Warehouse_Flag_All" />
+                </options>
+            </layer>
             <layer stage="animation" image="Granary_Empty" x="49" y="15" />
         </default>
     </graphics>

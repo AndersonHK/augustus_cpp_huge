@@ -48,7 +48,9 @@ enum class GraphicsOptionSelection {
     Connectable,
     StorageLoad,
     Orientation,
-    ProductionProgress
+    ProductionProgress,
+    StoragePermission,
+    GatehouseOrientation
 };
 
 enum class GraphicsLayerStage {
@@ -72,11 +74,16 @@ struct GraphicsCondition {
 struct GraphicsLayerOption {
     std::string path;
     std::string image;
+    int has_x_offset = 0;
+    int x_offset = 0;
+    int has_y_offset = 0;
+    int y_offset = 0;
 };
 
 struct GraphicsLayer {
     void set_path(std::string path);
     void set_image(std::string image);
+    void set_role(std::string role);
     void set_option_selection(GraphicsOptionSelection selection);
     void set_animation_enabled(int enabled);
     void set_stage(GraphicsLayerStage stage);
@@ -89,6 +96,9 @@ struct GraphicsLayer {
 
     int has_image() const;
     const char *image() const;
+    int has_role() const;
+    const char *role() const;
+    int role_is(const char *role) const;
     GraphicsOptionSelection option_selection() const;
     int animation_enabled() const;
     GraphicsLayerStage stage() const;
@@ -104,6 +114,7 @@ struct GraphicsLayer {
 private:
     std::string path_;
     std::string image_;
+    std::string role_;
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
     int animation_enabled_ = 1;
     GraphicsLayerStage stage_ = GraphicsLayerStage::Auto;
@@ -182,9 +193,16 @@ public:
     int draw_footprint(Building building, const BuildingDrawContext &ctx) const;
     int draw_top(Building building, const BuildingDrawContext &ctx) const;
     int draw_animation(Building building, const BuildingDrawContext &ctx) const;
+    int draw_gatehouse_overlay(Building building, const BuildingDrawContext &ctx, int view_orientation) const;
+    int production_progress_option_count() const;
+    int draws_overlay_summary_at(Building building, int grid_offset, int view_orientation) const;
     unsigned char upgrade_level_for(const Building &building) const;
 
 private:
+    int draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx) const;
+    int draw_resource_storage_top(Building building, const BuildingDrawContext &ctx) const;
+    int gatehouse_overlay_draw_tile_matches(Building building, int grid_offset, int view_orientation) const;
+
     GraphicsTarget default_target_;
     std::vector<GraphicsVariant> variants_;
     int has_default_node_ = 0;

@@ -17,9 +17,11 @@
 #include "figure/movement.h"
 #include "figure/PathingMode.h"
 #include "figure/route.h"
+#include "figuretype/editor.h"
 #include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
 #include "graphics/image.h"
+#include "graphics/text.h"
 #include "map/building.h"
 #include "map/road_access.h"
 
@@ -251,31 +253,6 @@ const ImageGroupEntry *native_auxiliary_standard_flag(const Figure *f, const for
     char group[64];
     std::snprintf(group, sizeof(group), "UI\\%s", name);
     return native_entry(group, name);
-}
-
-static bool add_draw_layer(FigureGraphicDrawRequest &request, const FigureGraphicDrawLayer &layer)
-{
-    if (!layer.slice.is_valid() || request.layer_count >= FigureGraphicDrawRequest::MAX_LAYERS) {
-        return false;
-    }
-    request.layers[request.layer_count++] = layer;
-    return true;
-}
-
-static bool add_draw_layer(
-    FigureGraphicDrawRequest &request,
-    const figure_type_registry_impl::FigureGraphicsLayer &layer)
-{
-    if (!layer.is_valid()) {
-        return false;
-    }
-    FigureGraphicDrawLayer draw_layer;
-    draw_layer.slice = layer.slice;
-    draw_layer.x_offset = layer.offset.x;
-    draw_layer.y_offset = layer.offset.y;
-    draw_layer.draw_before_base = layer.draw_before_base;
-    draw_layer.use_figure_color_mask = layer.use_figure_color_mask;
-    return add_draw_layer(request, draw_layer);
 }
 
 void set_sprite_offset_from_image(FigureGraphicDrawRequest &request, const Image &image)
@@ -670,13 +647,12 @@ static int fort_standard_graphic_draw_request_for_figure(
         return 1;
     }
 
-    add_draw_layer(*request, figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
+    request->add_layer(figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
     if (const ImageGroupEntry *native_flag = native_auxiliary_standard_flag(f, m)) {
         const figure_type_registry_impl::FigureGraphicsLayer flag_layer =
             figure_type_registry_impl::FigureGraphics::native_entry_layer_above(*native_flag, 0);
-        if (add_draw_layer(*request, flag_layer)) {
-            add_draw_layer(
-                *request,
+        if (request->add_layer(flag_layer)) {
+            request->add_layer(
                 figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(
                     m->legion_flag_id,
                     flag_layer.height));
@@ -686,9 +662,8 @@ static int fort_standard_graphic_draw_request_for_figure(
 
     const figure_type_registry_impl::FigureGraphicsLayer flag_layer =
         figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(f->cart_image_id, 0);
-    add_draw_layer(*request, flag_layer);
-    add_draw_layer(
-        *request,
+    request->add_layer(flag_layer);
+    request->add_layer(
         figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(
             m->legion_flag_id,
             flag_layer.height));
@@ -705,9 +680,10 @@ static int map_flag_graphic_draw_request_for_figure(
     }
 
     const Image &base_image = prepare_legacy_draw_image(*request, f->image_id);
-    add_draw_layer(*request, figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
+    request->add_layer(figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
 
-    add_draw_layer(*request, figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(f->cart_image_id, 0));
+    request->add_layer(figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(f->cart_image_id, 0));
+    request->map_flag_number_overlay.set_from_resource_id(f->resource_id);
     return 1;
 }
 
@@ -722,7 +698,7 @@ static int enemy_graphic_draw_request_for_figure(
 
     const Image &enemy_image = Image::enemy(f->image_id);
     set_sprite_offset_from_image(*request, enemy_image);
-    add_draw_layer(*request, figure_type_registry_impl::FigureGraphics::image_layer(enemy_image, {}, 0));
+    request->add_layer(figure_type_registry_impl::FigureGraphics::image_layer(enemy_image, {}, 0));
     return request->layer_count > 0;
 }
 
@@ -1014,8 +990,7 @@ public:
             return has_base;
         }
 
-        add_draw_layer(
-            request,
+        request.add_layer(
             graphics.legacy_resource_cart_layer(
                 static_cast<resource_type>(f.resource_id),
                 f.loads_sold_or_carrying,
@@ -1076,11 +1051,9 @@ static int hippodrome_horse_graphic_draw_request_for_figure(
     int y_offset = 0;
     hippodrome_horse_draw_offset(*f, x_offset, y_offset);
 
-    add_draw_layer(
-        *request,
+    request->add_layer(
         figure_type_registry_impl::FigureGraphics::image_layer(base_image, { x_offset, y_offset }));
-    add_draw_layer(
-        *request,
+    request->add_layer(
         figure_type_registry_impl::FigureGraphics::legacy_cart_overlay_layer(
             *f,
             { x_offset + f->x_offset_cart, y_offset + f->y_offset_cart },
@@ -2799,6 +2772,132 @@ std::unique_ptr<NativeFigure> make_controller(
 
 } // namespace figure_runtime_native_impl
 
+void FigureMapFlagNumberOverlay::set_from_resource_id(int resource_id)
+{
+    number_ = number_from_resource_id(resource_id);
+}
+
+void FigureMapFlagNumberOverlay::draw(int x, int y, float scale) const
+{
+    if (number_ <= 0) {
+        return;
+    }
+
+    int pixel_size = static_cast<int>(font_definition_for(FONT_NORMAL_PLAIN)->line_height * scale);
+    text_draw_number(
+        number_,
+        '@',
+        0,
+        x + kXOffset,
+        y + kYOffset,
+        FONT_NORMAL_PLAIN,
+        pixel_size,
+        COLOR_WHITE);
+}
+
+int FigureMapFlagNumberOverlay::number_from_resource_id(int resource_id)
+{
+    if (resource_id >= MAP_FLAG_INVASION_MIN && resource_id < MAP_FLAG_INVASION_MAX) {
+        return resource_id - MAP_FLAG_INVASION_MIN + 1;
+    }
+    if (resource_id >= MAP_FLAG_FISHING_MIN && resource_id < MAP_FLAG_FISHING_MAX) {
+        return resource_id - MAP_FLAG_FISHING_MIN + 1;
+    }
+    if (resource_id >= MAP_FLAG_HERD_MIN && resource_id < MAP_FLAG_HERD_MAX) {
+        return resource_id - MAP_FLAG_HERD_MIN + 1;
+    }
+    return 0;
+}
+
+bool FigureGraphicDrawRequest::add_layer(const FigureGraphicDrawLayer &layer)
+{
+    if (!layer.slice.is_valid() || layer_count >= MAX_LAYERS) {
+        return false;
+    }
+    layers[layer_count++] = layer;
+    return true;
+}
+
+bool FigureGraphicDrawRequest::add_layer(const figure_type_registry_impl::FigureGraphicsLayer &layer)
+{
+    if (!layer.is_valid()) {
+        return false;
+    }
+    FigureGraphicDrawLayer draw_layer;
+    draw_layer.slice = layer.slice;
+    draw_layer.x_offset = layer.offset.x;
+    draw_layer.y_offset = layer.offset.y;
+    draw_layer.draw_before_base = layer.draw_before_base;
+    draw_layer.use_figure_color_mask = layer.use_figure_color_mask;
+    return add_layer(draw_layer);
+}
+
+void FigureGraphicDrawRequest::draw(int x, int y, color_t color_mask, float scale) const
+{
+    draw_layers(x, y, color_mask, scale, 1);
+    draw_runtime_slice(
+        base_slice,
+        x,
+        y,
+        color_mask,
+        scale,
+        fixed_logical_size,
+        scaling_policy);
+    draw_layers(x, y, color_mask, scale, 0);
+    map_flag_number_overlay.draw(x, y, scale);
+}
+
+void FigureGraphicDrawRequest::draw_layers(
+    int x,
+    int y,
+    color_t color_mask,
+    float scale,
+    int draw_before_base) const
+{
+    for (int i = 0; i < layer_count; i++) {
+        const FigureGraphicDrawLayer &layer = layers[i];
+        if ((layer.draw_before_base != 0) != (draw_before_base != 0)) {
+            continue;
+        }
+        draw_runtime_slice(
+            layer.slice,
+            x + layer.x_offset,
+            y + layer.y_offset,
+            layer.use_figure_color_mask ? color_mask : COLOR_MASK_NONE,
+            scale,
+            layer.fixed_logical_size,
+            layer.scaling_policy);
+    }
+}
+
+void FigureGraphicDrawRequest::draw_runtime_slice(
+    const RuntimeDrawSlice &slice,
+    int x,
+    int y,
+    color_t color,
+    float scale,
+    render_logical_size fixed_logical_size,
+    render_scaling_policy scaling_policy)
+{
+    if (!slice.is_valid()) {
+        return;
+    }
+
+    if (fixed_logical_size.width > 0 && fixed_logical_size.height > 0) {
+        RuntimeTextureDrawRequest request = {};
+        request.slice = slice;
+        request.x = scale ? static_cast<float>(x) / scale : static_cast<float>(x);
+        request.y = scale ? static_cast<float>(y) / scale : static_cast<float>(y);
+        request.fixed_logical_size = fixed_logical_size;
+        request.color = color;
+        request.domain = graphics_renderer()->get_render_domain();
+        request.scaling_policy = scaling_policy;
+        runtime_texture_draw_request(request);
+        return;
+    }
+    runtime_texture_draw(slice, x, y, color, scale);
+}
+
 namespace {
 
 struct FigureGraphicsDebugCounters {
@@ -2874,8 +2973,7 @@ bool resolve_figure_graphic_draw_request(const Figure &figure, FigureGraphicDraw
 
     const int has_base =
         figure_runtime_native_impl::set_legacy_base_draw_request_image(request, f->image_id);
-    figure_runtime_native_impl::add_draw_layer(
-        request,
+    request.add_layer(
         figure_type_registry_impl::FigureGraphics::legacy_cart_overlay_layer(
             *f,
             { f->x_offset_cart, f->y_offset_cart }));

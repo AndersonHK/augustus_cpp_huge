@@ -113,6 +113,7 @@ public:
     int has_plague() const;
     int has_cached_road_access() const;
     int cached_road_access_point(map_point *road) const;
+    int access_area_touches_same_road_network(const map_point &source_road, int radius) const;
     int has_house_size() const;
     int house_population() const;
     void set_house_population(int value);
@@ -126,6 +127,7 @@ public:
     int draw_footprint(const BuildingDrawContext &ctx);
     int draw_top(const BuildingDrawContext &ctx);
     int draw_animation(const BuildingDrawContext &ctx);
+    int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation);
     void refresh_graphic();
     int refresh_graphic_if_native();
     void assign_graphic_variant(int force_reseed);

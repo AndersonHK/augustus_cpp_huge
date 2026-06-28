@@ -12,6 +12,7 @@
 #include "empire/city.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/movement.h"
 #include "figure/name.h"
@@ -919,6 +920,11 @@ void Figure::draw(building_info_context *c)
         text_draw_money(tourist.tourist_money_spent, c->x_offset + 92 + width, c->y_offset + 180,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
+}
+
+int Figure::graphic_draw_request(FigureGraphicDrawRequest &request) const
+{
+    return figure_graphics_resolve_draw_request(*this, request);
 }
 
 void Figure::draw_figure_info(building_info_context *c)

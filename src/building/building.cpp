@@ -36,6 +36,7 @@
 #include "core/crash_context.h"
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
+#include "figure/PathingMode.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -70,6 +71,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
+#include "map/road_network.h"
 #include "figure/route.h"
 #include "map/terrain.h"
 
@@ -479,6 +481,37 @@ int Building::cached_road_access_point(map_point *road) const
     return 1;
 }
 
+int Building::access_area_touches_same_road_network(const map_point &source_road, int radius) const
+{
+    building *owner = record_ ? building_main(record_) : nullptr;
+    if (!owner || radius <= 0) {
+        return 0;
+    }
+
+    const int source_grid_offset = map_grid_offset(source_road.x, source_road.y);
+    if (!map_grid_is_valid_offset(source_grid_offset)) {
+        return 0;
+    }
+
+    const int source_network_id =
+        figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(source_grid_offset);
+    if (source_network_id <= 0) {
+        return 0;
+    }
+
+    int x_min = 0;
+    int y_min = 0;
+    int x_max = 0;
+    int y_max = 0;
+    map_grid_get_area(owner->x, owner->y, owner->size, radius, &x_min, &y_min, &x_max, &y_max);
+    return figure_type_registry_impl::PathingMode::citizenAreaTouchesRoadNetwork(
+        x_min,
+        y_min,
+        x_max,
+        y_max,
+        source_network_id);
+}
+
 int Building::has_house_size() const
 {
     return record_ && record_->house_size;
@@ -548,6 +581,13 @@ int Building::draw_top(const BuildingDrawContext &ctx)
 int Building::draw_animation(const BuildingDrawContext &ctx)
 {
     return building_record_requires_type_definition(record_) && type ? type->graphics().draw_animation(*this, ctx) : 0;
+}
+
+int Building::draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation)
+{
+    return building_record_requires_type_definition(record_) && type ?
+        type->graphics().draw_gatehouse_overlay(*this, ctx, view_orientation) :
+        0;
 }
 
 void Building::refresh_graphic()
@@ -1631,6 +1671,7 @@ std::uint64_t Building::graphics_state_signature(int selected_graphics_option) c
     mix(static_cast<std::uint64_t>(record_->monument.phase));
     mix(static_cast<std::uint64_t>(record_->monument.upgrades));
     mix(static_cast<std::uint64_t>(record_->variant));
+    mix(static_cast<std::uint64_t>(blocked_storage_permission_mask()));
     if (selected_graphics_option >= 0) {
         mix(static_cast<std::uint64_t>(selected_graphics_option));
     }

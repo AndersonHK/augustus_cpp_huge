@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/construction_area_tile.h"
 #include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
 #include "building/construction_building.h"
@@ -53,7 +54,6 @@
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/terrain.h"
-#include "map/tile_runtime_api.h"
 #include "scenario/allowed_building.h"
 
 struct reservoir_info {
@@ -88,13 +88,6 @@ static struct {
     int start_offset_y_view;
     int cycle_step;
     int auto_cycling;
-    struct {
-        int active;
-        int x_min;
-        int y_min;
-        int x_max;
-        int y_max;
-    } garden_preview;
 } data;
 
 static int last_items_cleared;
@@ -265,13 +258,12 @@ int building_construction_is_land_work_type(building_type type)
     return construction_tool_for_type(type).is_land_work();
 }
 
-static int is_area_tile_type(building_type type);
-
 static int building_type_allows_force_place(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    if (type == BUILDING_NONE || is_vacant_lot_type(type) || is_area_tile_type(type) ||
+    if (type == BUILDING_NONE || is_vacant_lot_type(type) ||
+        ConstructionAreaTilePlacement::is_area_tile_type(type) ||
         (definition && definition->roadblock().is_bridge()) ||
         (definition && definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall) ||
         (definition && definition->roadblock().is_wall_gate()) ||
@@ -483,158 +475,9 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
     return items_placed;
 }
 
-static const building_type_registry_impl::TileDefinition *tile_definition_for_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->has_tile() ? &definition->tile() : nullptr;
-}
-
-static int is_area_tile_type(building_type type)
-{
-    const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type);
-    return tile && tile->is_area_placement();
-}
-
-static int area_tile_updates_land_routing(building_type type)
-{
-    const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type);
-    return tile && tile->updates_land_routing();
-}
-
-static int is_garden_area_tile(const building_type_registry_impl::TileDefinition &tile)
-{
-    return tile.placement_behavior() == building_type_registry_impl::TilePlacementBehavior::Garden;
-}
-
-static void refresh_area_tile_after_restore(const building_type_registry_impl::TileDefinition &tile)
-{
-    if (is_garden_area_tile(tile)) {
-        return;
-    }
-    map_tiles_update_all_tile(tile);
-}
-
-struct GardenPreviewRegion {
-    int active = 0;
-    int x_min = 0;
-    int y_min = 0;
-    int x_max = 0;
-    int y_max = 0;
-};
-
-static GardenPreviewRegion clear_garden_preview_runtime(void)
-{
-    GardenPreviewRegion region;
-    if (!data.garden_preview.active) {
-        return region;
-    }
-    region.active = 1;
-    region.x_min = data.garden_preview.x_min;
-    region.y_min = data.garden_preview.y_min;
-    region.x_max = data.garden_preview.x_max;
-    region.y_max = data.garden_preview.y_max;
-    for (int y = data.garden_preview.y_min; y <= data.garden_preview.y_max; y++) {
-        for (int x = data.garden_preview.x_min; x <= data.garden_preview.x_max; x++) {
-            int grid_offset = map_grid_offset(x, y);
-            if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
-                tile_runtime_clear(grid_offset);
-            }
-        }
-    }
-    data.garden_preview.active = 0;
-    return region;
-}
-
-static void refresh_garden_preview_region_after_restore(
-    const GardenPreviewRegion &region,
-    const building_type_registry_impl::TileDefinition &tile)
-{
-    if (region.active && is_garden_area_tile(tile)) {
-        map_tiles_update_all_gardens();
-    }
-}
-
-static void remember_garden_preview(int x_min, int y_min, int x_max, int y_max)
-{
-    data.garden_preview.active = 1;
-    data.garden_preview.x_min = x_min;
-    data.garden_preview.y_min = y_min;
-    data.garden_preview.x_max = x_max;
-    data.garden_preview.y_max = y_max;
-}
-
 static int place_area_tile(int x_start, int y_start, int x_end, int y_end, building_type type, int preview)
 {
-    const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type);
-    if (!tile) {
-        return 0;
-    }
-    int x_min, y_min, x_max, y_max;
-    map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
-    const int is_garden = is_garden_area_tile(*tile);
-    GardenPreviewRegion previous_garden_preview;
-    if (is_garden) {
-        previous_garden_preview = clear_garden_preview_runtime();
-    }
-    game_undo_restore_map(1);
-    refresh_garden_preview_region_after_restore(previous_garden_preview, *tile);
-    refresh_area_tile_after_restore(*tile);
-
-    int items_placed = 0;
-    for (int y = y_min; y <= y_max; y++) {
-        for (int x = x_min; x <= x_max; x++) {
-            int grid_offset = map_grid_offset(x, y);
-            switch (tile->placement_behavior()) {
-                case building_type_registry_impl::TilePlacementBehavior::Garden:
-                    if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
-                        items_placed++;
-                        map_terrain_add(grid_offset, TERRAIN_GARDEN);
-                        if (tile->overgrown()) {
-                            map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
-                        }
-                    }
-                    break;
-                case building_type_registry_impl::TilePlacementBehavior::Plaza:
-                    if (map_terrain_is(grid_offset, TERRAIN_ROAD) &&
-                        !map_terrain_is(grid_offset, TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_AQUEDUCT)) {
-                        if (!map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-                            items_placed++;
-                        }
-                        map_image_set(grid_offset, 0);
-                        map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
-                        map_property_set_multi_tile_size(grid_offset, 1);
-                        map_property_mark_draw_tile(grid_offset);
-                    }
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-    if (is_garden) {
-        map_tiles_update_all_gardens();
-    } else {
-        map_tiles_update_area_placement_tile(x_min, y_min, x_max, y_max, *tile);
-    }
-    if (is_garden && preview && items_placed > 0) {
-        remember_garden_preview(x_min, y_min, x_max, y_max);
-    }
-    return items_placed;
-}
-
-static void refresh_native_tile_preview(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    if (!definition || !definition->has_tile()) {
-        return;
-    }
-    if (is_garden_area_tile(definition->tile())) {
-        map_tiles_update_all_gardens();
-    } else {
-        refresh_area_tile_after_restore(definition->tile());
-    }
+    return ConstructionAreaTilePlacement(x_start, y_start, x_end, y_end, type, preview != 0).place();
 }
 
 static int place_wall(int x_start, int y_start, int x_end, int y_end, int measure_only, int construction_mode, building_type wall_type)
@@ -1066,7 +909,8 @@ int building_construction_is_updatable(void)
         return 1;
     }
 
-    return is_vacant_lot_type(data.tool.type) || is_area_tile_type(data.tool.type) ||
+    return is_vacant_lot_type(data.tool.type) ||
+        ConstructionAreaTilePlacement::is_area_tile_type(data.tool.type) ||
         construction_tool_for_type(data.tool.type).has_any();
 }
 
@@ -1076,12 +920,7 @@ void building_construction_cancel(void)
     map_property_clear_constructing_and_deleted();
     if (data.in_progress && building_construction_is_updatable()) {
         game_undo_restore_building_state();
-        GardenPreviewRegion previous_garden_preview = clear_garden_preview_runtime();
-        game_undo_restore_map(1);
-        if (const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type)) {
-            refresh_garden_preview_region_after_restore(previous_garden_preview, *tile);
-        }
-        refresh_native_tile_preview(type);
+        ConstructionAreaTilePlacement::restore_preview_map(type);
         data.in_progress = 0;
         data.cost_preview = 0;
         data.force_place_clear_cost = 0;
@@ -1162,7 +1001,7 @@ void building_construction_update(int x, int y, int grid_offset)
             current_cost *= items_placed;
             current_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
         }
-    } else if (is_area_tile_type(type)) {
+    } else if (ConstructionAreaTilePlacement::is_area_tile_type(type)) {
         int items_placed = place_area_tile(data.tool.start.x, data.tool.start.y, x, y, type, 1);
         if (items_placed >= 0) {
             data.can_place = 1;
@@ -1296,7 +1135,7 @@ void building_construction_place(void)
     if (!building_construction_can_place() &&
         (!building_construction_is_updatable() || preview_cost <= 0)) {
         if (definition && !tool.has_any() && !is_vacant_lot_type(type) &&
-            !is_area_tile_type(type) && !definition->roadblock().is_bridge()) {
+            !ConstructionAreaTilePlacement::is_area_tile_type(type) && !definition->roadblock().is_bridge()) {
             const int placement_rules_passed = building_construction_show_placement_warning(
                 *definition, x_end, y_end, 0, building_construction_force_place_active());
             if (placement_rules_passed && city_finance_out_of_money() &&
@@ -1320,12 +1159,7 @@ void building_construction_place(void)
         if (tool.is_wall() || tool.is_road() || tool.is_aqueduct() || tool.is_highway()) {
             game_undo_restore_map(0);
         } else if ((definition && definition->has_tile()) || building_is_connectable(type)) {
-            GardenPreviewRegion previous_garden_preview = clear_garden_preview_runtime();
-            game_undo_restore_map(1);
-            if (const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type)) {
-                refresh_garden_preview_region_after_restore(previous_garden_preview, *tile);
-            }
-            refresh_native_tile_preview(type);
+            ConstructionAreaTilePlacement::restore_preview_map(type);
         } else if (definition && definition->roadblock().is_bridge()) {
             map_bridge_reset_building_length();
         } else {
@@ -1367,14 +1201,14 @@ void building_construction_place(void)
     } else if (tool.is_highway()) {
         placement_cost *= building_construction_place_highway(0, x_start, y_start, x_end, y_end);
         placement_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
-    } else if (is_area_tile_type(type)) {
+    } else if (ConstructionAreaTilePlacement::is_area_tile_type(type)) {
         int items_placed = place_area_tile(x_start, y_start, x_end, y_end, type, 0);
         if (items_placed < 0) {
             map_property_clear_constructing_and_deleted();
             return;
         }
         placement_cost *= items_placed;
-        if (area_tile_updates_land_routing(type)) {
+        if (ConstructionAreaTilePlacement::updates_land_routing(type)) {
             Route::updateLandTerrain();
         }
     } else if (definition && definition->roadblock().is_bridge()) {

@@ -4,9 +4,6 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/figure_runtime_native.h"
-#include "figuretype/editor.h"
-#include "graphics/runtime_texture.h"
-#include "graphics/text.h"
 
 static color_t get_highlight_mask(int highlight_mask)
 {
@@ -19,75 +16,6 @@ static color_t get_highlight_mask(int highlight_mask)
             return COLOR_MASK_GREEN;
         default:
             return COLOR_MASK_NONE;
-    }
-}
-
-static void draw_runtime_figure_slice(
-    const RuntimeDrawSlice &slice,
-    int x,
-    int y,
-    color_t color,
-    float scale,
-    render_logical_size fixed_logical_size,
-    render_scaling_policy scaling_policy)
-{
-    if (!slice.is_valid()) {
-        return;
-    }
-
-    if (fixed_logical_size.width > 0 && fixed_logical_size.height > 0) {
-        RuntimeTextureDrawRequest request = {};
-        request.slice = slice;
-        request.x = scale ? static_cast<float>(x) / scale : static_cast<float>(x);
-        request.y = scale ? static_cast<float>(y) / scale : static_cast<float>(y);
-        request.fixed_logical_size = fixed_logical_size;
-        request.color = color;
-        request.domain = graphics_renderer()->get_render_domain();
-        request.scaling_policy = scaling_policy;
-        runtime_texture_draw_request(request);
-        return;
-    }
-    runtime_texture_draw(slice, x, y, color, scale);
-}
-
-static void draw_figure_layers(
-    const FigureGraphicDrawRequest &draw_request,
-    int x,
-    int y,
-    color_t color_mask,
-    float scale,
-    int draw_before_base)
-{
-    for (int i = 0; i < draw_request.layer_count; i++) {
-        const FigureGraphicDrawLayer &layer = draw_request.layers[i];
-        if ((layer.draw_before_base != 0) != (draw_before_base != 0)) {
-            continue;
-        }
-        draw_runtime_figure_slice(
-            layer.slice,
-            x + layer.x_offset,
-            y + layer.y_offset,
-            layer.use_figure_color_mask ? color_mask : COLOR_MASK_NONE,
-            scale,
-            layer.fixed_logical_size,
-            layer.scaling_policy);
-    }
-}
-
-static void draw_map_flag_number(const Figure *f, int x, int y, float scale)
-{
-    int number = 0;
-    int id = f->resource_id;
-    if (id >= MAP_FLAG_INVASION_MIN && id < MAP_FLAG_INVASION_MAX) {
-        number = id - MAP_FLAG_INVASION_MIN + 1;
-    } else if (id >= MAP_FLAG_FISHING_MIN && id < MAP_FLAG_FISHING_MAX) {
-        number = id - MAP_FLAG_FISHING_MIN + 1;
-    } else if (id >= MAP_FLAG_HERD_MIN && id < MAP_FLAG_HERD_MAX) {
-        number = id - MAP_FLAG_HERD_MIN + 1;
-    }
-    if (number > 0) {
-        int pixel_size = (int) (font_definition_for(FONT_NORMAL_PLAIN)->line_height * scale);
-        text_draw_number(number, '@', 0, x + 6, y + 7, FONT_NORMAL_PLAIN, pixel_size, COLOR_WHITE);
     }
 }
 
@@ -221,21 +149,7 @@ static void draw_figure(
 {
     color_t color_mask = get_highlight_mask(highlight);
     if (draw_request) {
-        draw_figure_layers(*draw_request, x, y, color_mask, scale, 1);
-        if (draw_request->base_slice.is_valid()) {
-            draw_runtime_figure_slice(
-                draw_request->base_slice,
-                x,
-                y,
-                color_mask,
-                scale,
-                draw_request->fixed_logical_size,
-                draw_request->scaling_policy);
-        }
-        draw_figure_layers(*draw_request, x, y, color_mask, scale, 0);
-        if (f->type == FIGURE_MAP_FLAG) {
-            draw_map_flag_number(f, x, y, scale);
-        }
+        draw_request->draw(x, y, color_mask, scale);
         return;
     }
     Image::from_id(f->image_id).draw(x, y, color_mask, scale);
@@ -244,7 +158,7 @@ static void draw_figure(
 void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     FigureGraphicDrawRequest draw_request;
-    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
+    const FigureGraphicDrawRequest *request = f->graphic_draw_request(draw_request) ? &draw_request : nullptr;
     adjust_pixel_offset(f, &x, &y, request);
     draw_figure(f, x, y, scale, highlight, request);
 }
@@ -252,7 +166,7 @@ void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 void city_draw_selected_figure(const Figure *f, int x, int y, float scale, pixel_coordinate *coord)
 {
     FigureGraphicDrawRequest draw_request;
-    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
+    const FigureGraphicDrawRequest *request = f->graphic_draw_request(draw_request) ? &draw_request : nullptr;
     adjust_pixel_offset(f, &x, &y, request);
     draw_figure(f, x, y, scale, 0, request);
     coord->x = x;

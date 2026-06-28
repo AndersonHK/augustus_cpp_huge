@@ -16,6 +16,7 @@
 #include "building/variant.h"
 #include "core/calc.h"
 #include "core/crash_context.h"
+#include "core/direction.h"
 
 #include "core/image_group.h"
 #include "city/view.h"
@@ -210,13 +211,29 @@ int selected_option_for_selection(
             (building.type && !building.type->production_methods().empty() ?
                 building.type->production_methods().front()->max_progress_for(building.main()) :
                 0);
-        if (!record || max_value <= 0) {
+        if (!record) {
             return 0;
+        }
+        if (max_value <= 0) {
+            return calc_bound(record->data.industry.progress, 0, option_count - 1);
         }
         int percentage = calc_percentage(record->data.industry.progress, max_value);
         percentage = calc_bound(percentage, 0, 100);
         int option = percentage * option_count / 101;
         return calc_bound(option, 0, option_count - 1);
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::StoragePermission) {
+        if (building.has_plague()) {
+            return -1;
+        }
+        const int permission_mask = building.blocked_storage_permission_mask();
+        return permission_mask > 0 ? calc_bound(permission_mask - 1, 0, option_count - 1) : -1;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::GatehouseOrientation) {
+        const int gate_orientation = building.orientation();
+        const bool vertical_view = city_view_orientation() == DIR_0_TOP || city_view_orientation() == DIR_4_BOTTOM;
+        const int rotated = (gate_orientation == 1) != vertical_view;
+        return rotated ? 1 % option_count : 0;
     }
     int option = building_variant_get_graphics_option(building, 0);
     return option < 0 ? 0 : option;
@@ -301,8 +318,12 @@ int building_runtime_graphics_image_id(const Building &building_object)
         if (!layer.matches(building_object)) {
             continue;
         }
+        const int selected_layer_option = selected_option_for_layer(building_object, layer);
+        if (selected_layer_option < 0) {
+            continue;
+        }
         building_type_registry_impl::GraphicsLayer resolved_layer =
-            layer.resolved_option(static_cast<unsigned char>(selected_option_for_layer(building_object, layer)));
+            layer.resolved_option(static_cast<unsigned char>(selected_layer_option));
         if (!resolved_layer.has_path()) {
             log_image_id_failure(building_object, "layer_path_missing", &resolved_target);
             return 0;
@@ -547,12 +568,13 @@ const RuntimeDrawSlice *building_runtime::cached_graphic_animation(int animation
 
 void building_runtime::draw_cached_graphic_layers(
     building_type_registry_impl::GraphicsLayerStage stage,
+    int animation_cursor,
     int x,
     int y,
     color_t color,
     float scale)
 {
-    for (const CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
+    for (CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
         if (layer.stage == building_type_registry_impl::GraphicsLayerStage::Auto) {
             if (stage == building_type_registry_impl::GraphicsLayerStage::Footprint) {
                 draw_shifted_runtime_slice(layer.entry ? layer.entry->footprint() : nullptr,
@@ -566,11 +588,77 @@ void building_runtime::draw_cached_graphic_layers(
         if (layer.stage != stage) {
             continue;
         }
+        if (layer.owns_animation && layer.entry && layer.entry->has_animation()) {
+            const Animation &animation = layer.entry->animation();
+            const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
+            if (animation_offset > 0) {
+                RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
+                if (frame_slice.is_valid()) {
+                    layer.animation_slice = frame_slice;
+                    draw_shifted_runtime_slice(&layer.animation_slice, x, y, layer.x_offset, layer.y_offset, color, scale);
+                    continue;
+                }
+            }
+            layer.animation_slice = RuntimeDrawSlice();
+        }
         draw_shifted_runtime_slice(layer.entry ? layer.entry->footprint() : nullptr,
             x, y, layer.x_offset, layer.y_offset, color, scale);
         draw_shifted_runtime_slice(layer.entry ? layer.entry->top() : nullptr,
             x, y, layer.x_offset, layer.y_offset, color, scale);
     }
+}
+
+int building_runtime::draw_cached_graphic_layer_role(
+    const char *role,
+    int animation_cursor,
+    int x,
+    int y,
+    color_t color,
+    float scale)
+{
+    if (!role || !*role) {
+        return 0;
+    }
+    if (!uses_new_graphics()) {
+        return 0;
+    }
+
+    ensure_cached_graphics_bindings();
+    if (!graphics_cache_.owns_graphics) {
+        return 0;
+    }
+
+    int drawn = 0;
+    for (CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
+        if (layer.role != role) {
+            continue;
+        }
+        if (layer.owns_animation && layer.entry && layer.entry->has_animation()) {
+            const Animation &animation = layer.entry->animation();
+            const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
+            if (animation_offset > 0) {
+                RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
+                if (frame_slice.is_valid()) {
+                    layer.animation_slice = frame_slice;
+                    draw_shifted_runtime_slice(&layer.animation_slice, x, y, layer.x_offset, layer.y_offset, color, scale);
+                    drawn = 1;
+                    continue;
+                }
+            }
+            layer.animation_slice = RuntimeDrawSlice();
+        }
+        const RuntimeDrawSlice *footprint = layer.entry ? layer.entry->footprint() : nullptr;
+        const RuntimeDrawSlice *top = layer.entry ? layer.entry->top() : nullptr;
+        if (footprint) {
+            draw_shifted_runtime_slice(footprint, x, y, layer.x_offset, layer.y_offset, color, scale);
+            drawn = 1;
+        }
+        if (top) {
+            draw_shifted_runtime_slice(top, x, y, layer.x_offset, layer.y_offset, color, scale);
+            drawn = 1;
+        }
+    }
+    return drawn;
 }
 
 void building_runtime::draw_cached_graphic_layer_animations(
@@ -581,7 +669,8 @@ void building_runtime::draw_cached_graphic_layer_animations(
     float scale)
 {
     for (CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
-        if (!layer.owns_animation || !layer.entry || !layer.entry->has_animation()) {
+        if (layer.stage != building_type_registry_impl::GraphicsLayerStage::Animation ||
+            !layer.owns_animation || !layer.entry || !layer.entry->has_animation()) {
             continue;
         }
         const Animation &animation = layer.entry->animation();
@@ -703,8 +792,12 @@ void building_runtime::rebuild_cached_graphics_bindings()
             continue;
         }
 
+        const int selected_layer_option = selected_option_for_layer(building(), layer);
+        if (selected_layer_option < 0) {
+            continue;
+        }
         building_type_registry_impl::GraphicsLayer resolved_layer =
-            layer.resolved_option(static_cast<unsigned char>(selected_option_for_layer(building(), layer)));
+            layer.resolved_option(static_cast<unsigned char>(selected_layer_option));
         const ImageGroupPayload *layer_payload = nullptr;
         const ImageGroupEntry *layer_entry = nullptr;
         if (!resolve_graphic_layer_binding(this, resolved_layer, layer_payload, layer_entry)) {
@@ -717,6 +810,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
         cached_layer.stage = resolved_layer.stage();
         cached_layer.x_offset = resolved_layer.x_offset();
         cached_layer.y_offset = resolved_layer.y_offset();
+        cached_layer.role = resolved_layer.has_role() ? resolved_layer.role() : "";
         cached_layer.owns_animation =
             resolved_layer.animation_enabled() && animation_owner_is_working && layer_entry->has_animation();
         graphics_cache_.layers.push_back(cached_layer);

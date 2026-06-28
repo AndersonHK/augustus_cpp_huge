@@ -9,8 +9,23 @@
         <range value="3" />
     </desirability>
     <foundation policy="road_or_wall_or_land" />
-  <button group="security" order="60" text_key="main_strings.28.58" />
-    <event_data attr="gatehouse" />
+    <button group="security" order="60" text_key="main_strings.28.58" />
+    <event_data attr="gatehouse" />
+    <graphics>
+        <default>
+            <path value="Military\Tower" />
+            <options selection="gatehouse_orientation">
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+            </options>
+            <layer role="gatehouse_overlay" stage="animation">
+                <options selection="gatehouse_orientation">
+                    <option path="Military\Gatehouse" image="Image_0000" x="-22" y="-80" />
+                    <option path="Military\Gatehouse" image="Image_0001" x="-18" y="-81" />
+                </options>
+            </layer>
+        </default>
+    </graphics>
     <roadblock kind="standard" passage="wall_gate" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

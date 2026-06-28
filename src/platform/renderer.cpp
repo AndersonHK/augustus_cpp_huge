@@ -536,6 +536,7 @@ static void draw_managed_image_request(const managed_image_request *request)
     bridged_request.fixed_logical_size = request->fixed_logical_size;
     bridged_request.domain = request->domain;
     bridged_request.scaling_policy = request->scaling_policy;
+    bridged_request.destination_geometry_policy = request->destination_geometry_policy;
     bridged_request.angle = request->angle;
     bridged_request.disable_coord_scaling = request->disable_coord_scaling;
     draw_image_request(&bridged_request);
@@ -843,16 +844,13 @@ static void draw_texture_request(const render_2d_request *request, const resolve
 
     float source_scale_x = g_render_2d_pipeline.source_scale_x(*request, *img);
     float source_scale_y = g_render_2d_pipeline.source_scale_y(*request, *img);
-    float logical_width = g_render_2d_pipeline.logical_width(*request, *img);
-    float logical_height = g_render_2d_pipeline.logical_height(*request, *img);
+    const render_destination_rect destination = g_render_2d_pipeline.destination_rect(*request, *img);
     image_filter filter = g_render_2d_pipeline.scale_filter(
         *request, *img, data.city_scale, data.auto_force_nearest_filter);
     set_texture_color_and_filter(resolved.texture, request->color, filter);
     const int uses_managed_texture = resolved.kind == RENDER_TEXTURE_MANAGED;
     record_resolved_render_texture(resolved);
 
-    float x = request->x + (img->x_offset / source_scale_x);
-    float y = request->y + (img->y_offset / source_scale_y);
     int is_city_scale = fabsf(source_scale_x - data.city_scale) < 0.001f && fabsf(source_scale_y - data.city_scale) < 0.001f;
     int source_edge_crop = uses_managed_texture ? 0 : is_city_scale && data.should_crop_texture_source_edge ? 1 : 0;
 
@@ -865,20 +863,20 @@ static void draw_texture_request(const render_2d_request *request, const resolve
 #ifdef USE_RENDERCOPYF
     if (HAS_RENDERCOPYF) {
         SDL_FRect dst_coords = {
-            x,
-            y,
-            logical_width,
-            logical_height
+            destination.x,
+            destination.y,
+            destination.width,
+            destination.height
         };
         SDL_RenderCopyExF(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     } else
 #endif
     {
         SDL_Rect dst_coords = {
-            (int) round(x),
-            (int) round(y),
-            (int) round(logical_width),
-            (int) round(logical_height)
+            (int) round(destination.x),
+            (int) round(destination.y),
+            (int) round(destination.width),
+            (int) round(destination.height)
         };
         SDL_RenderCopyEx(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     }

@@ -27,7 +27,7 @@ BuildingType graphics already has a useful normal-rendering contract:
 - default graphics target
 - variant graphics targets
 - stable graphics options
-- build-rotation, orientation, connectable, storage-load, and production-progress options
+- build-rotation, orientation, connectable, storage-load, production-progress, storage-permission, and gatehouse-orientation options
 - construction phase graphics
 - conditional graphics selection
 - payload-backed footprint, top, and animation slices
@@ -41,7 +41,7 @@ That is enough for many normal buildings, but not enough for every placement pre
 The current branch is well past the original "future slice" baseline. The data-contract side is mostly present:
 
 - `building_type_registry_xml.cpp` parses `water_access`, `composed/main/part/offset`, `graphics/default/variant/layer/options/condition`, `construction/phase`, and `resource_storage`.
-- `building_runtime_graphics.cpp` selects graphics options for stable variants, build rotation, connectable tiles, storage load, orientation, and production progress.
+- `building_runtime_graphics.cpp` selects graphics options for stable variants, build rotation, connectable tiles, storage load, orientation, production progress, storage permissions, and gatehouse orientation.
 - `BuildingType::resolve_graphics_target_for_image(...)` picks construction-phase graphics before normal graphics, and `GraphicsDefinition::draw_footprint/draw_top/draw_animation(...)` consumes native runtime slices.
 - `ConstructionPlacementPlan::build()` uses composed parts and rotation-aware offsets for placement previews and desirability-range part traversal.
 - Vespasian XML already authors representative data: hippodrome phased/rotated graphics plus composed parts, warehouse composed storage spaces, farm field parts with production-progress graphics, dock/wharf/shipyard orientation graphics, reservoir/aqueduct water-access facts, and draggable reservoir/aqueduct tool declarations.
@@ -49,8 +49,9 @@ The current branch is well past the original "future slice" baseline. The data-c
 The remaining work is not "add the first native strategy model"; it is to delete or collapse the compatibility draw paths that still bypass the generic data:
 
 - `city_building_ghost.cpp` still has hardcoded preview branches for draggable reservoir, aqueduct, bridge, and road/garden-gate transforms.
-- `city_with_overlay.cpp` and `city_without_overlay.cpp` still branch on farm drawing rules; `city_without_overlay.cpp` still carries a gatehouse top branch.
-- Storage is partially native, but warehouse/granary overlay ornaments and `resource_storage` direct branches are still compatibility code rather than fully generic strategy handling.
+- `city_with_overlay.cpp` no longer bypasses native farm footprint/top drawing, and `native_crops` no longer mutates `map_image` through `GROUP_BUILDING_FARM_CROPS`; remaining farm draw-adjacent UI policy lives in `city_without_overlay.cpp` mothball icon placement/field suppression.
+- Storage is mostly native for warehouse/granary visible state: XML owns warehouse ornaments, granary resource layers, and Augustus/Vespasian storage permission flags, while Julius stays flagless to match upstream Julius. Remaining storage/tile work is `resource_storage` genericization plus decorative-gate/road-surface drawing.
+- Gatehouse top overlay mapping is now owned by `BuildingGraphics` plus XML `gatehouse_orientation` data; remaining gatehouse work is terrain/road-surface composition, not the cap image/offset branch.
 - `BuildingGraphics.cpp` still logs native draw-stage fallback to legacy rendering when a runtime slice is missing.
 - `building_type_registry_xml.cpp` still accepts metadata-only BuildingType XML temporarily, so parser strictness is not yet at the final data-owned state.
 
@@ -74,15 +75,15 @@ Likely strategy families:
 
 1. **Orientation and simple variants**
 
-   Status: implemented at the parser/runtime contract. XML already uses orientation, build-rotation, connectable, stable, storage-load, and production-progress option selectors. Remaining work is caller cleanup: migrate any old image handlers that still bypass an existing BuildingType graphics target.
+   Status: implemented at the parser/runtime contract. XML already uses orientation, build-rotation, connectable, stable, storage-load, production-progress, storage-permission, and gatehouse-orientation option selectors. Remaining work is caller cleanup: migrate any old image handlers that still bypass an existing BuildingType graphics target.
 
 2. **Farms**
 
-   Status: data side exists. Farms are authored as composed buildings with field part types, and field graphics use production-progress options. Remaining work is deletion-focused: remove or shrink farm-specific footprint/top/overlay branches while preserving the old drawable-corner behavior.
+   Status: data side exists. Farms are authored as composed buildings with field part types, and field graphics use production-progress options. `native_crops` now uses the same XML option selector instead of a legacy crop image-group write. `city_with_overlay.cpp` routes shown farm footprint/top drawing through the same `Building::draw_footprint` and `Building::draw_top` path as other native buildings. The old hidden-overlay corner-only behavior is centralized behind `BuildingGraphics::draws_overlay_summary_at`, keeping the farm rule with the graphics owner instead of the city draw loop. Remaining work is deletion-focused: decide whether the no-overlay mothball icon farm placement/field suppression belongs in object/UI metadata or can be deleted with the next draw-adjacent cleanup.
 
 3. **Storage and tile composites**
 
-   Status: partial. Warehouse storage spaces and granary resource layers are authored in BuildingType data, and `resource_storage` exists. Remaining work is to genericize warehouse/granary ornaments and gatehouse/decorative-gate/road-surface drawing without losing terrain validation.
+   Status: partial. Warehouse storage spaces, warehouse ornaments, granary resource layers, Augustus/Vespasian storage permission flags, and gatehouse cap overlays are authored in BuildingType data, and `resource_storage` exists. Remaining work is to genericize the remaining `resource_storage` direct branch and decorative-gate/road-surface drawing without losing terrain validation.
 
 4. **Multi-part previews**
 

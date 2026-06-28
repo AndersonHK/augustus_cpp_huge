@@ -2,12 +2,14 @@
 
 #include "building/roadblock.h"
 #include "core/buffer.h"
+#include "figure/PathingMode.h"
 #include "figure/figure.h"
 #include "figure/route_policy.h"
 #include "game/performance_tracker.h"
 #include "map/point.h"
 
 #include <optional>
+#include <vector>
 
 typedef struct building building;
 
@@ -31,10 +33,6 @@ public:
         int sourceOffset() const;
         int destinationOffset() const;
         bool hasValidEndpoints() const;
-        bool acceptsDestinationDistance(int distance) const;
-        bool canReachOverSurface() const;
-        bool canReachWithBoundedRoadGardenDistanceField() const;
-        bool prunesByRoadNetwork() const;
     };
 
     class Planner {
@@ -155,3 +153,65 @@ public:
     static void saveState(buffer *figures, buffer *paths);
     static void loadState(buffer *figures, buffer *paths, int version);
 };
+
+namespace route_internal {
+
+struct RouteIntent {
+    map_point destination = { 0, 0 };
+    RoutePolicy policy;
+    figure_type_registry_impl::PathingMode::TerrainAccess terrain;
+    int max_tiles = 0;
+    int only_through_building_id = 0;
+
+    bool operator==(const RouteIntent &other) const;
+    Route::Request requestFrom(const Figure &figure) const;
+};
+
+struct FailedRouteAttempt {
+    map_point source = { 0, 0 };
+    RouteIntent intent;
+    unsigned short created_sequence = 0;
+    int failure_level = 0;
+    int retry_countdown = 0;
+    bool active = false;
+
+    bool matches(const Figure &figure, const RouteIntent &route_intent) const;
+};
+
+class FailedRouteBackoff {
+public:
+    bool shouldDefer(const Figure &figure, const RouteIntent &intent);
+    void recordFailure(const Figure &figure, const RouteIntent &intent);
+    void clear(const Figure &figure);
+    void clearAll();
+    void clearStale();
+
+private:
+    static constexpr int kMaxFailureLevel = 4;
+    static constexpr int kBaseDelayAttempts = 1;
+
+    static int retryDelay(int failure_level);
+
+    std::vector<FailedRouteAttempt> attempts_;
+};
+
+// Keeps the remaining global distance-grid calls behind the planner boundary
+// until local cost maps replace the legacy routing backend.
+class LegacyRoutePlannerBackend {
+public:
+    bool seedReachabilityField(const Route::Request &request) const;
+    bool seedUnrestrictedNonCitizenField(const Route::Request &request) const;
+    bool seedWaterField(const Route::Request &request) const;
+    bool seedConstructionField(const RoutePolicy &policy, const map_point &source) const;
+    void seedCitizenDistanceField(
+        const map_point &source,
+        const std::optional<roadblock_permission> &permission) const;
+    bool canReachDestination(const Route::Request &request) const;
+    bool prunesByRoadNetwork(const Route::Request &request) const;
+
+private:
+    bool acceptsDestinationDistance(const Route::Request &request, int distance) const;
+    bool seedBoundedRoadGardenDistanceField(const Route::Request &request) const;
+};
+
+} // namespace route_internal

@@ -202,6 +202,44 @@ Internally a module may call private helpers across several files, but callers s
 
 Type pointers inside bound modules should remain pointers rather than references where the owning object can change type. The definition object itself is immutable; the binding may change to a different immutable definition during upgrade, evolution, conversion, or compatibility migration.
 
+### Graphics Modules
+
+Graphics should be one of the first runtime-module extractions to follow this pattern.
+
+The long-term renderer should not read legacy image groups, legacy group enums, or legacy atlas arithmetic. Those are compatibility bridges only. Authored graphics should be XML-defined by path plus graphics-module policy, and runtime drawing should enter through owner-bound modules:
+
+```cpp
+building.graphics().draw();
+figure.graphics().draw();
+```
+
+Conceptually:
+
+```cpp
+class BuildingGraphics {
+public:
+    void tick();
+    void draw();
+
+private:
+    Building &owner_;
+    const BuildingGraphicsDef *definition_;
+    BuildingGraphicsState &state_;
+};
+```
+
+The existing definition classes already provide most of the immutable side of this split. `GraphicsDefinition` and its current children (`BuildingGraphics`, `FigureGraphics`, and `ResourceGraphics`) should be treated as definition classes awaiting convention-aligned names, not as the final runtime module names. The intended naming direction is:
+
+- `GraphicsDefinition` -> shared graphics definition base.
+- current `BuildingGraphics` -> `BuildingGraphicsDef`.
+- current `FigureGraphics` -> `FigureGraphicsDef`.
+- current `ResourceGraphics` -> `ResourceGraphicsDef`.
+- future owner-bound `BuildingGraphics`, `FigureGraphics`, terrain graphics, and tile graphics classes bind owner, `*GraphicsDef`, and mutable `*GraphicsState`.
+
+Every major class in this split should live in a same-named header/source pair. For example, `BuildingGraphics` belongs in `BuildingGraphics.h/.cpp`; `BuildingGraphicsDef` belongs in `BuildingGraphicsDef.h/.cpp`; and the same convention should hold for composed graphics data modules, state modules, and terrain/tile graphics owners.
+
+The composed graphics data module should be instantiated from graphics XML nodes across buildings, figures, terrain, and tiles, so shared graphics node parsing and policy resolution can replace legacy group-specific draw branches instead of wrapping them.
+
 ## Single Object Surfaces
 
 When a runtime concept has started migrating to C++, keep one public object surface instead of preserving parallel legacy and object APIs.

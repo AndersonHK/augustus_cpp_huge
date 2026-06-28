@@ -53,6 +53,7 @@ static const char *ROUTE_METRIC_NAMES[PERFORMANCE_TRACKER_ROUTE_METRIC_MAX] = {
     "cache_misses",
     "pruned_by_network",
     "pruned_by_current_path",
+    "pruned_by_backoff",
     "failed",
     "async_jobs"
 };

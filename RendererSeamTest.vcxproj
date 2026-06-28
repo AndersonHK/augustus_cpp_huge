@@ -12,6 +12,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tools\renderer_seam_test\main.cpp" />
+    <ClCompile Include="tools\renderer_seam_test\renderer_seam_geometry_fixture.cpp" />
+    <ClCompile Include="tools\renderer_seam_test\renderer_seam_report_writer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tools\renderer_seam_test\renderer_seam_geometry_fixture.h" />
+    <ClInclude Include="tools\renderer_seam_test\renderer_seam_report_writer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

@@ -15,7 +15,13 @@
     <graphics>
         <default>
             <path value="Industry\Farm_Crops" />
-            <image value="Image_0000" />
+            <options selection="production_progress">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+            </options>
         </default>
     </graphics>
 </building>

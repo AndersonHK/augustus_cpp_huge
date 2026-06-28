@@ -50,6 +50,11 @@ typedef enum {
     RENDER_SCALING_POLICY_HIGH_QUALITY = 2
 } render_scaling_policy;
 
+typedef enum {
+    RENDER_DESTINATION_GEOMETRY_DEFAULT = 0,
+    RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE = 1
+} render_destination_geometry_policy;
+
 typedef int32_t render_logical_unit;
 
 enum {
@@ -62,6 +67,13 @@ typedef struct {
 } render_logical_size;
 
 typedef struct {
+    float x;
+    float y;
+    float width;
+    float height;
+} render_destination_rect;
+
+typedef struct {
     const image *img;
     image_handle handle;
     float x;
@@ -72,6 +84,7 @@ typedef struct {
     color_t color;
     render_domain domain;
     render_scaling_policy scaling_policy;
+    render_destination_geometry_policy destination_geometry_policy;
     double angle;
     int disable_coord_scaling;
     int use_silhouette;
@@ -92,6 +105,7 @@ typedef struct {
     color_t color;
     render_domain domain;
     render_scaling_policy scaling_policy;
+    render_destination_geometry_policy destination_geometry_policy;
     double angle;
     int disable_coord_scaling;
 } managed_image_request;

@@ -11,6 +11,7 @@
 constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
 
 class Figure;
+struct FigureGraphicDrawRequest;
 struct building_info_context;
 
 class FigureRelation {
@@ -59,6 +60,7 @@ public:
     void handle_info_action_button();
     void draw_figure_info(building_info_context *c);
     void draw(building_info_context *c);
+    int graphic_draw_request(FigureGraphicDrawRequest &request) const;
     static int big_people_image_id(figure_type type);
     static void draw_big_people_image(figure_type type, int x, int y);
     void draw_big_people_image(int x, int y) const;
