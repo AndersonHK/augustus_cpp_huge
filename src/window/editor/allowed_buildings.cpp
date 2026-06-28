@@ -48,7 +48,7 @@ static grid_box_type allowed_building_list = {
 };
 
 static struct {
-    menu_item items[BUILD_MENU_MAX + BUILDING_TYPE_MAX];
+    menu_item items[static_cast<int>(BUILD_MENU_MAX) + static_cast<int>(BUILDING_TYPE_MAX)];
     unsigned int total_items;
     void (*select_callback)(int);
     building_type selected_building;

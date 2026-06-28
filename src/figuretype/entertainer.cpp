@@ -1,11 +1,11 @@
 #include "building/building.h"
-#include "building/list.h"
 #include "city/festival.h"
 #include "map/road_access.h"
 
 #include "figuretype/entertainer.h"
 
 #include <string_view>
+#include <vector>
 
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -62,7 +62,7 @@ static EntertainmentVenueKind venue_kind(const Building &building)
 
 static int venue_ready(const Building &building, EntertainmentVenueKind kind)
 {
-    const ::building *record = building_get(building.id);
+    const ::building *record = building.record();
     if (!record) {
         return 0;
     }
@@ -109,87 +109,86 @@ void figure_spawn_tourist(void)
     }
 }
 
-static Building determine_tourist_destination(int x, int y)
+static Building *determine_tourist_destination(int x, int y)
 {
     int road_network = map_road_network_get(map_grid_offset(x, y));
+    std::vector<Building *> venues;
 
-    building_list_large_clear();
-
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([&](Building *building) {
+        const ::building *record = building->record();
+        if (!record || record->state != BUILDING_STATE_IN_USE) {
+            return;
         }
         if (city_festival_games_active()) {
-            if (b->type != city_festival_games_active_venue_type()) {
-                continue;
+            if (record->type != city_festival_games_active_venue_type()) {
+                return;
             }
         }
-        if (b->is_tourism_venue && !b->tourism_disabled && b->distance_from_entry
-            && b->road_network_id == road_network) {
-            if (venue_kind(Building(b)) == EntertainmentVenueKind::Hippodrome && b->prev_part_building_id) {
-                continue;
+        if (record->is_tourism_venue && !record->tourism_disabled && record->distance_from_entry
+            && record->road_network_id == road_network) {
+            if (venue_kind(*building) == EntertainmentVenueKind::Hippodrome && record->prev_part_building_id) {
+                return;
             }
-            building_list_large_add(i);
+            venues.push_back(building);
         }
-    }
-    int total_venues = building_list_large_size();
+    });
+
+    int total_venues = static_cast<int>(venues.size());
     if (total_venues <= 0) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     int index;
 
     index = random_from_stdlib() % total_venues;
-    return Building(building_get(building_list_large_item(index)));
+    return venues[index];
 }
 
-static int is_venue(building *b)
-{
-    Building building(b);
-    return venue_ready(building, venue_kind(building));
-}
-
-static Building determine_destination(Figure *f)
+static Building *determine_destination(Figure *f)
 {
     int road_network = map_road_network_get(map_grid_offset(f->x, f->y));
 
-    building *closest = 0;
+    Building *closest = nullptr;
     int min_distance = 10000;
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([&](Building *building) {
+        const ::building *record = building->record();
+        if (!record || record->state != BUILDING_STATE_IN_USE) {
+            return;
         }
-        Building building(b);
-        EntertainmentVenueKind kind = venue_kind(building);
-        if (!venue_accepts_entertainer(kind, f->type) || !venue_ready(building, kind)) {
-            continue;
+        EntertainmentVenueKind kind = venue_kind(*building);
+        if (!venue_accepts_entertainer(kind, f->type) || !venue_ready(*building, kind)) {
+            return;
         }
-        if (!b->distance_from_entry || b->road_network_id != road_network) {
-            continue;
+        if (!record->distance_from_entry || record->road_network_id != road_network) {
+            return;
         }
-        if (kind == EntertainmentVenueKind::Hippodrome && b->prev_part_building_id) {
-            continue;
+        if (kind == EntertainmentVenueKind::Hippodrome && record->prev_part_building_id) {
+            return;
         }
 
         int days_left = entertainer_uses_secondary_show(kind, f->type) ?
-            b->data.entertainment.days2 :
-            b->data.entertainment.days1;
-        int dist = 2 * days_left + calc_maximum_distance(f->x, f->y, b->x, b->y);
+            record->data.entertainment.days2 :
+            record->data.entertainment.days1;
+        int dist = 2 * days_left + calc_maximum_distance(f->x, f->y, building->x(), building->y());
         if (dist < min_distance) {
             min_distance = dist;
-            closest = b;
+            closest = building;
         }
-    }
-    return Building(closest);
+    });
+    return closest;
 }
 
 static void update_shows(Figure *f)
 {
-    Building venue = f->destination_building.main();
-    building *b = building_get(venue.id);
+    if (!f->destination_building) {
+        return;
+    }
+    Building &venue = f->destination_building->main();
+    building *b = const_cast<building *>(venue.record());
+    if (!b) {
+        return;
+    }
     EntertainmentVenueKind kind = venue_kind(venue);
     if (!venue_ready(venue, kind)) {
         return;
@@ -373,7 +372,8 @@ void figure_entertainer_action(Figure *f)
             f->wait_ticks--;
             if (f->wait_ticks <= 0) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(f->building.x(), f->building.y(), f->building.size(), 2, &x_road, &y_road)) {
+                if (f->building &&
+                    map_closest_road_within_radius(f->building->x(), f->building->y(), f->building->size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL;
                     figure_movement_set_cross_country_destination(f, x_road, y_road);
                     f->roam_length = 0;
@@ -386,22 +386,23 @@ void figure_entertainer_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                Building destination = determine_destination(f);
-                if (destination.id) {
+                Building *destination = determine_destination(f);
+                if (destination) {
                     int x_road, y_road;
                     int found_road = 0;
+                    Building *candidate = destination;
                     do {
-                        if (map_closest_road_within_radius(destination.x(), destination.y(), destination.size(), 2, &x_road, &y_road)) {
-                            f->destination_building = destination;
+                        if (map_closest_road_within_radius(candidate->x(), candidate->y(), candidate->size(), 2, &x_road, &y_road)) {
+                            f->destination_building = candidate;
                             f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
-                            f->destination_x = x_road;
-                            f->destination_y = y_road;
+                            f->destination_x = static_cast<unsigned char>(x_road);
+                            f->destination_y = static_cast<unsigned char>(y_road);
                             f->roam_length = 0;
                             found_road = 1;
                             break;
                         }
-                        destination = destination.next();
-                    } while (destination.id != 0);
+                        candidate = candidate->next();
+                    } while (candidate);
                     if (!found_road) {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -433,10 +434,11 @@ void figure_entertainer_action(Figure *f)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(f->building.x(), f->building.y(), f->building.size(), 2, &x_road, &y_road)) {
+                if (f->building &&
+                    map_closest_road_within_radius(f->building->x(), f->building->y(), f->building->size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
-                    f->destination_x = x_road;
-                    f->destination_y = y_road;
+                    f->destination_x = static_cast<unsigned char>(x_road);
+                    f->destination_y = static_cast<unsigned char>(y_road);
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -500,14 +502,14 @@ void figure_tourist_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                Building destination = determine_tourist_destination(f->x, f->y);
-                if (destination.id) {
+                Building *destination = determine_tourist_destination(f->x, f->y);
+                if (destination) {
                     int x_road, y_road;
-                    if (map_closest_road_within_radius(destination.x(), destination.y(), destination.size(), 2, &x_road, &y_road)) {
+                    if (map_closest_road_within_radius(destination->x(), destination->y(), destination->size(), 2, &x_road, &y_road)) {
                         f->destination_building = destination;
                         f->action_state = FIGURE_ACTION_219_TOURIST_GOING_TO_VENUE;
-                        f->destination_x = x_road;
-                        f->destination_y = y_road;
+                        f->destination_x = static_cast<unsigned char>(x_road);
+                        f->destination_y = static_cast<unsigned char>(y_road);
                         f->roam_length = 0;
                     } else {
                         f->state = FIGURE_STATE_DEAD;

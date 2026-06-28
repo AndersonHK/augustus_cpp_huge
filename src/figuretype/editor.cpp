@@ -11,7 +11,7 @@
 void figure_create_editor_flags(void)
 {
     for (int id = MAP_FLAG_MIN; id < MAP_FLAG_MAX; id++) {
-        Figure::create(FIGURE_MAP_FLAG, -1, -1, DIR_0_TOP)->resource_id = id;
+        Figure::create(FIGURE_MAP_FLAG, -1, -1, DIR_0_TOP)->resource_id = static_cast<unsigned char>(id);
     }
 }
 
@@ -53,11 +53,11 @@ void figure_editor_flag_action(Figure *f)
         point = scenario_editor_herd_point(id - MAP_FLAG_HERD_MIN);
         f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 4);
     }
-    f->x = point.x;
-    f->y = point.y;
+    f->x = static_cast<unsigned char>(point.x);
+    f->y = static_cast<unsigned char>(point.y);
 
-    f->grid_offset = map_grid_offset(f->x, f->y);
-    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
-    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
+    f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
+    f->cross_country_x = static_cast<short>(figure_movement_tile_center_cross_country(f->x));
+    f->cross_country_y = static_cast<short>(figure_movement_tile_center_cross_country(f->y));
     map_figure_add(f);
 }

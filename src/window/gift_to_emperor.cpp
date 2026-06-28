@@ -124,6 +124,8 @@ static void button_set_gift(const generic_button *button)
 
 static void button_send_gift(const generic_button *button)
 {
+    (void)button;
+
     if (city_emperor_can_send_gift(GIFT_MODEST)) {
         city_emperor_send_gift();
         window_advisors_show();
@@ -132,6 +134,8 @@ static void button_send_gift(const generic_button *button)
 
 static void button_cancel(const generic_button *button)
 {
+    (void)button;
+
     window_advisors_show();
 }
 

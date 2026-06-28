@@ -193,17 +193,17 @@ static void init_context_buttons(building_info_context *c)
 {
     int y_offset = c->y_offset + c->height_blocks * BLOCK_SIZE - 13 - SMALL_ICON_SIDE; // 13px from bottom edge
     //help button
-    image_buttons_help_advisor_close[0].y_offset = y_offset;
-    image_buttons_help_advisor_close[0].x_offset = c->x_offset + 14;
+    image_buttons_help_advisor_close[0].y_offset = static_cast<short>(y_offset);
+    image_buttons_help_advisor_close[0].x_offset = static_cast<short>(c->x_offset + 14);
     //close button
-    image_buttons_help_advisor_close[1].y_offset = y_offset;
-    image_buttons_help_advisor_close[1].x_offset = c->x_offset + c->width_blocks * BLOCK_SIZE - 40; // 40px from right edge
+    image_buttons_help_advisor_close[1].y_offset = static_cast<short>(y_offset);
+    image_buttons_help_advisor_close[1].x_offset = static_cast<short>(c->x_offset + c->width_blocks * BLOCK_SIZE - 40); // 40px from right edge
     //advisor button
-    image_buttons_help_advisor_close[2].y_offset = y_offset;
-    image_buttons_help_advisor_close[2].x_offset = c->x_offset + 38;
+    image_buttons_help_advisor_close[2].y_offset = static_cast<short>(y_offset);
+    image_buttons_help_advisor_close[2].x_offset = static_cast<short>(c->x_offset + 38);
     for (int i = 0; i < 2; i++) {
-        image_button_mothball[i].y_offset = y_offset;
-        image_button_mothball[i].x_offset = c->x_offset + c->width_blocks * BLOCK_SIZE - 64; // 64px from right edge
+        image_button_mothball[i].y_offset = static_cast<short>(y_offset);
+        image_button_mothball[i].x_offset = static_cast<short>(c->x_offset + c->width_blocks * BLOCK_SIZE - 64); // 64px from right edge
     }
 }
 
@@ -211,7 +211,7 @@ static void update_context_buttons_vertical_offset(int new_context_y_offset, int
 {
     int y_offset = new_context_y_offset + new_context_block_height * BLOCK_SIZE - SMALL_ICON_SIDE - 18; // 18px from bottom edge
     for (int i = 0; i < 3; i++) {
-        image_buttons_help_advisor_close[i].y_offset = y_offset;
+        image_buttons_help_advisor_close[i].y_offset = static_cast<short>(y_offset);
     }
 }
 
@@ -231,8 +231,8 @@ static int get_height_id(void)
     } else if (context.type == BUILDING_INFO_LEGION) {
         return HEIGHT_7_26_BLOCKS;
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        const Building current_building = context.building;
-        building *b = current_building.id ? building_get(current_building.id) : nullptr;
+        Building &current_building = *context.building;
+        building *b = const_cast<building *>(current_building.record());
         if (!b || !current_building.type) {
             return HEIGHT_0_22_BLOCKS;
         }
@@ -242,7 +242,7 @@ static int get_height_id(void)
         if (type_definition.is_well()) {
             return HEIGHT_4_14_BLOCKS;
         }
-        if (building_is_house(type)) {
+        if (type_definition.has_housing()) {
             return HEIGHT_5_24_BLOCKS;
         }
 
@@ -292,7 +292,7 @@ static int get_height_id(void)
         if (is_dock || building_type_registry_impl::type_attr_is_any(type, {"lighthouse", "caravanserai"})) {
             return HEIGHT_6_38_BLOCKS;
         }
-        if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+    if (type_definition.is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
             const int panel_height = grand_temple_panel_height_blocks(type_definition);
             return panel_height > 0 ? panel_height : HEIGHT_8_40_BLOCKS;
         }
@@ -316,11 +316,11 @@ static int get_height_id(void)
 
 static void adjust_height_for_storage_buildings(building_info_context *c)
 {
-    building *b = c->building.id ? building_get(c->building.id) : nullptr;
+    building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
     if (!b || !b->storage_id) {
         return;
     }
-    int stored_types = building_storage_count_stored_resource_types(c->building.id);
+    int stored_types = building_storage_count_stored_resource_types(c->building->id);
     int y_offset_blocks = 0;
 
     if (!b->has_plague && c->has_road_access) {
@@ -336,7 +336,7 @@ static int has_mothball_button(const Building &building)
 
 static void draw_mothball_button(void)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
     if (!b) {
         return;
     }
@@ -375,7 +375,7 @@ static void init(int grid_offset)
     context.show_special_orders = 0;
     context.depot_selection = 0;
     context.advisor_button = ADVISOR_NONE;
-    context.building = Building(nullptr);
+    context.building = nullptr;
     context.rubble_building_id = map_building_rubble_building_id(grid_offset);
     context.has_reservoir_pipes = map_terrain_is(grid_offset, TERRAIN_RESERVOIR_RANGE);
     context.aqueduct_has_water = map_aqueduct_has_water_access_at(grid_offset);
@@ -391,8 +391,9 @@ static void init(int grid_offset)
     context.type = BUILDING_INFO_TERRAIN;
     context.figure.drawn = 0;
 
-    Building selected_runtime_building = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
-    building *selected_building = const_cast<::building *>(selected_runtime_building.record());
+    Building *selected_runtime_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    building *selected_building = selected_runtime_building ?
+        const_cast<::building *>(selected_runtime_building->record()) : nullptr;
 
     if (map_is_bridge(grid_offset)) {
         if (selected_building) {
@@ -445,10 +446,10 @@ static void init(int grid_offset)
         context.type = BUILDING_INFO_BUILDING;
         building *b = selected_building;
         building_type btype = static_cast<building_type>(b->type);
-        Building selected_part(b);
-        Building main_part = selected_part.main();
+        Building &selected_part = *selected_runtime_building;
+        Building &main_part = selected_part.main();
         if (main_part.id && main_part.id != selected_part.id) {
-            if (building *main_record = building_get(main_part.id)) {
+            if (building *main_record = const_cast<building *>(main_part.record())) {
                 b = main_record;
                 btype = static_cast<building_type>(b->type);
             }
@@ -458,19 +459,19 @@ static void init(int grid_offset)
             context.formation_id = b->formation_id;
         }
 
-        context.building = Building(b);
-        const Building current_building = context.building;
+        context.building = &main_part;
+        Building &current_building = *context.building;
         const BuildingType *type_definition = current_building.type;
         context.worker_percentage = calc_percentage(
             b->num_workers, type_definition ? type_definition->required_workers() : 0);
 
         if (building_type_registry_impl::type_attr_is(btype, "barracks")) {
             context.barracks_soldiers_requested = formation_legion_recruits_needed();
-            if (Barracks(b).unmanned_tower(nullptr)) {
+            if (Barracks(current_building).unmanned_tower(nullptr)) {
                 context.barracks_soldiers_requested++;
             }
         } else if (b->house_size) {
-            Building house(b);
+            const Building &house = current_building;
             context.worst_desirability_building_type =
                 building_house_determine_worst_desirability_building_type(house);
             building_house_determine_evolve_text(house, context.worst_desirability_building_type);
@@ -483,12 +484,12 @@ static void init(int grid_offset)
             context.has_road_access = map_has_road_access_hippodrome_rotation(b->x, b->y, 0, b->subtype.orientation);
         } else if (type_definition && type_definition->is_warehouse()) {
             context.has_road_access = map_has_road_access_warehouse(b->x, b->y, 0);
-            const Building warehouse(b);
+            const Building &warehouse = current_building;
             context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
         } else if (building_type_registry_impl::type_attr_is(btype, "cart_depot")) {
             context.has_road_access = map_has_road_access(b->x, b->y, b->size, 0);
             game_state_set_overlay(OVERLAY_STORAGES);
-            window_building_depot_init_main(b->id);
+            window_building_depot_init_main(current_building);
         } else if (building_monument_is_unfinished_monument(b)) {
             context.has_road_access = map_has_road_access_monument_construction(b->x, b->y, b->size);
         } else {
@@ -585,9 +586,10 @@ static void init(int grid_offset)
         }
     }
     adjust_height_for_storage_buildings(&context);
-    const Building current_dialog_building = context.building;
+    Building *current_dialog_building = context.building;
     if ((screen_height() <= 600) ||
-        (screen_height() <= 720 && current_dialog_building.type && current_dialog_building.type->is_grand_temple_mars())) {
+        (screen_height() <= 720 && current_dialog_building && current_dialog_building->type &&
+            current_dialog_building->type->is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand))) {
         context.height_blocks = calc_bound(context.height_blocks, 0, 26);
     }
     // dialog placement
@@ -616,15 +618,15 @@ static void draw_background(void)
     } else if (context.type == BUILDING_INFO_TERRAIN) {
         window_building_draw_terrain(&context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        const Building current_building = context.building;
-        building *b = current_building.id ? building_get(current_building.id) : nullptr;
+        const Building &current_building = *context.building;
+        building *b = const_cast<building *>(current_building.record());
         if (!b || !current_building.type) {
             return;
         }
         const BuildingType &type_definition = *current_building.type;
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
-        if (building_is_house(btype)) {
+        if (type_definition.has_housing()) {
             window_building_draw_house(&context);
         } else if (type_definition.has_farm_panel()) {
             window_building_draw_farm(&context, farm_panel_output_resource(type_definition));
@@ -759,8 +761,8 @@ static void draw_background(void)
             } else {
                 window_building_draw_tavern(&context);
             }
-        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, &type_definition);
+        } else if (type_definition.is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(*context.building);
             window_building_draw_grand_temple(&context, temple);
         } else if (type_definition.is_lighthouse()) {
             window_building_draw_lighthouse(&context);
@@ -808,7 +810,7 @@ static void draw_background(void)
             window_building_draw_prefect(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "obelisk")) {
             window_building_draw_obelisk(&context);
-        } else if (Roadblock(b).kind() != ROADBLOCK_NONE && context.show_special_orders) {
+        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE && context.show_special_orders) {
             window_building_draw_roadblock_orders(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "roadblock")) {
             window_building_draw_roadblock(&context);
@@ -880,16 +882,18 @@ static void draw_background(void)
 
 static void draw_foreground(void)
 {
-    const Building current_building = context.building;
-    building *b = current_building.id ? building_get(current_building.id) : nullptr;
+    Building *current_building_ptr = context.building;
+    building *b = current_building_ptr ? const_cast<building *>(current_building_ptr->record()) : nullptr;
     // building-specific buttons
     init_context_buttons(&context);
-    if (context.type == BUILDING_INFO_BUILDING && b && current_building.type) {
+    if (context.type == BUILDING_INFO_BUILDING && b && current_building_ptr && current_building_ptr->type) {
+        const Building &current_building = *current_building_ptr;
         const BuildingType &type_definition = *current_building.type;
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
-        if (building_is_primary_product_producer(btype) || type_definition.has_farm_panel()) {
+        if (building_is_raw_resource_producer(&type_definition) || type_definition.is_farm() ||
+            type_definition.has_farm_panel()) {
             window_building_draw_primary_product_stockpiling(&context);
         }
 
@@ -932,21 +936,21 @@ static void draw_foreground(void)
             } else {
                 window_building_distributor_draw_foreground(&context);
             }
-        } else if (building_is_venus_temple(btype) && b->monument.phase <= 0 &&
+        } else if (type_definition.is_temple(GOD_VENUS) && b->monument.phase <= 0 &&
             building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
             if (context.show_special_orders) {
                 window_building_draw_distributor_orders_foreground(&context);
             } else {
                 window_building_distributor_draw_foreground(&context);
             }
-        } else if (building_is_ceres_temple(btype) && b->monument.phase <= 0 &&
+        } else if (type_definition.is_temple(GOD_CERES) && b->monument.phase <= 0 &&
             building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) {
             if (context.show_special_orders) {
                 window_building_draw_distributor_orders_foreground(&context);
             } else {
                 window_building_distributor_draw_foreground(&context);
             }
-        } else if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE) {
             if (context.show_special_orders) {
                 window_building_draw_roadblock_orders_foreground(&context);
             } else {
@@ -960,8 +964,8 @@ static void draw_foreground(void)
             }
         } else if (building_type_registry_impl::type_attr_is(btype, "barracks")) {
             window_building_draw_barracks_foreground(&context);
-        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, &type_definition);
+        } else if (type_definition.is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(*context.building);
             window_building_draw_grand_temple_foreground(&context, temple);
         } else if (type_definition.is_caravanserai() &&
             b->monument.phase == MONUMENT_FINISHED) {
@@ -1013,7 +1017,8 @@ static void draw_foreground(void)
         context.depot_selection == 0 &&
         b &&
         !building_monument_is_unfinished_monument(b) &&
-        has_mothball_button(context.building)) {
+        context.building &&
+        has_mothball_button(*context.building)) {
         draw_mothball_button();
     }
 }
@@ -1030,8 +1035,8 @@ static int handle_specific_building_info_mouse(const mouse *m)
     } else if (context.figure.drawn) {
         return window_building_handle_mouse_figure_list(m, &context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        const Building current_building = context.building;
-        building *b = current_building.id ? building_get(current_building.id) : nullptr;
+        const Building &current_building = *context.building;
+        building *b = const_cast<building *>(current_building.record());
         if (!b || !current_building.type) {
             return 0;
         }
@@ -1039,7 +1044,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
-        if (building_has_supplier_inventory(btype)) {
+        if (type_definition.has_distribution()) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_distributor_orders(m, &context);
             } else {
@@ -1050,7 +1055,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 }
                 return window_building_handle_mouse_distributor(m, &context);
             }
-        } else if (Roadblock(b).kind() == ROADBLOCK_STANDARD) {
+        } else if (Roadblock(current_building).kind() == ROADBLOCK_STANDARD) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_roadblock_orders(m, &context);
             } else {
@@ -1064,9 +1069,9 @@ static int handle_specific_building_info_mouse(const mouse *m)
             }
         } else if (building_type_registry_impl::type_attr_is(btype, "barracks")) {
             return window_building_handle_mouse_barracks(m, &context);
-        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, &type_definition);
-            if (type_definition.is_grand_temple_mars()) {
+        } else if (type_definition.is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(current_building);
+            if (type_definition.is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
                 return window_building_handle_mouse_grand_temple_mars(m, &context, temple);
             }
             return window_building_handle_mouse_grand_temple(m, &context, temple);
@@ -1097,7 +1102,8 @@ static int handle_specific_building_info_mouse(const mouse *m)
             return window_building_handle_mouse_hippodrome(m, &context);
         } else if (building_type_registry_impl::type_attr_is(btype, "city_mint")) {
             return window_building_handle_mouse_city_mint(m, &context);
-        } else if (building_is_primary_product_producer(btype) || type_definition.has_farm_panel()) {
+        } else if (building_is_raw_resource_producer(&type_definition) || type_definition.is_farm() ||
+            type_definition.has_farm_panel()) {
             return window_building_handle_mouse_primary_product_producer(m, &context);
         }
     }
@@ -1118,8 +1124,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
     } else {
         handled |= image_buttons_handle_mouse(
             m, 0, 0, image_buttons_help_advisor_close, context.advisor_button ? 3 : 2, &focus_image_button_id);
-        building *b = (context.type == BUILDING_INFO_BUILDING && context.building.id) ?
-            building_get(context.building.id) : nullptr;
+        building *b = (context.type == BUILDING_INFO_BUILDING && context.building) ?
+            const_cast<building *>(context.building->record()) : nullptr;
         if (b && building_monument_is_unfinished_monument(b)) {
             handled = GenericButtonList(generic_button_monument_construction, 1).handle_mouse(
                 *m,
@@ -1128,7 +1134,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
                 &focus_monument_construction_button_id
             );
         } else if (b) {
-            if (has_mothball_button(context.building)) {
+            if (has_mothball_button(*context.building)) {
                 if (b->state == BUILDING_STATE_MOTHBALLED) {
                     handled |= image_buttons_handle_mouse(m, 0, 0,
                         image_button_mothball, 2, &focus_mothball_image_button_id);
@@ -1173,10 +1179,11 @@ static void get_tooltip(tooltip_context *c)
         text_id = window_building_get_legion_info_tooltip_text(&context);
     }
 
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    building *b = ((context.type == BUILDING_INFO_BUILDING || context.terrain_type == TERRAIN_INFO_BRIDGE) && context.building) ?
+        const_cast<building *>(context.building->record()) : nullptr;
     if (!text_id && !group_id && !translation && !precomposed_text &&
         context.type == BUILDING_INFO_BUILDING && b &&
-        focus_mothball_image_button_id && has_mothball_button(context.building)) {
+        focus_mothball_image_button_id && has_mothball_button(*context.building)) {
         if (!building_monument_is_unfinished_monument(b)) {
             if (b->state == BUILDING_STATE_MOTHBALLED) {
                 translation = "TR_TOOLTIP_BUTTON_MOTHBALL_OFF";
@@ -1189,12 +1196,12 @@ static void get_tooltip(tooltip_context *c)
     const int has_building_tooltip_context =
         context.type == BUILDING_INFO_BUILDING || (context.terrain_type == TERRAIN_INFO_BRIDGE && b);
     building_type btype = (has_building_tooltip_context && b) ? static_cast<building_type>(b->type) : BUILDING_NONE;
-    const Building current_building = context.building;
-    const BuildingType *type_definition = has_building_tooltip_context ? current_building.type : nullptr;
+    Building *current_building = context.building;
+    const BuildingType *type_definition = has_building_tooltip_context && current_building ? current_building->type : nullptr;
     const int is_dock = type_definition && type_definition->attr_is("dock");
 
     if (!text_id && !group_id && !translation && !precomposed_text && type_definition) {
-        if (building_is_primary_product_producer(btype)) {
+        if (building_is_raw_resource_producer(type_definition) || type_definition->is_farm()) {
             window_building_primary_product_producer_stockpiling_tooltip(&translation);
         } else if ((context.type == BUILDING_INFO_BUILDING && context.show_special_orders) ||
             type_definition->roadblock().is_bridge()) {
@@ -1205,12 +1212,12 @@ static void get_tooltip(tooltip_context *c)
                 } else {
                     window_building_get_tooltip_storage_orders(&group_id, &text_id, &translation);
                 }
-            } else if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+            } else if (current_building && Roadblock(*current_building).kind() != ROADBLOCK_NONE) {
                 window_building_roadblock_get_tooltip_walker_permissions(&translation);
             } else if (type_definition->has_distribution()) {
                 window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
             }
-        } else if (building_is_house(btype)) {
+        } else if (type_definition && type_definition->has_housing()) {
             precomposed_text = window_building_house_get_tooltip(&context);
         } else if (type_definition->is_storage()) {
             window_building_storage_get_tooltip_distribution_permissions(&translation);
@@ -1228,8 +1235,9 @@ static void get_tooltip(tooltip_context *c)
     }
 
     if (!text_id && !group_id && !translation && !precomposed_text && has_building_tooltip_context) {
-        if ((type_definition && type_definition->has_farm_panel()) ||
-            building_is_raw_resource_producer(btype) || building_is_workshop(btype)) {
+        if (type_definition &&
+            (type_definition->has_farm_panel() ||
+                building_is_raw_resource_producer(type_definition) || building_is_workshop(type_definition))) {
             window_building_industry_get_tooltip(&context, &translation);
         }
         if (!translation) {
@@ -1249,6 +1257,8 @@ static void get_tooltip(tooltip_context *c)
 
 static void button_help(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (context.help_id > 0) {
         window_message_dialog_show(context.help_id, window_city_draw_all);
     } else {
@@ -1259,6 +1269,8 @@ static void button_help(int param1, int param2)
 
 static void button_close(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (context.depot_selection != 0) {
         window_building_info_depot_return_to_main_window();
         return;
@@ -1278,13 +1290,16 @@ static void button_close(int param1, int param2)
 
 static void button_advisor(int advisor, int param2)
 {
+    (void) param2;
     window_advisors_show_advisor(static_cast<advisor_type>(advisor));
 }
 
 static void button_mothball(int param1, int param2)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
-    int workers_needed = context.building.type ? context.building.type->required_workers() : 0;
+    (void) param1;
+    (void) param2;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
+    int workers_needed = context.building && context.building->type ? context.building->type->required_workers() : 0;
     if (b && workers_needed) {
         building_mothball_toggle(b);
         window_invalidate();
@@ -1293,7 +1308,8 @@ static void button_mothball(int param1, int param2)
 
 static void button_monument_construction(const generic_button *button)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    (void) button;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
     if (b) {
         building_monument_toggle_construction_halted(b);
         window_invalidate();
@@ -1315,15 +1331,15 @@ void window_building_info_show(int grid_offset)
 
 int window_building_info_get_building_type(void)
 {
-    if (context.type == BUILDING_INFO_BUILDING) {
-        return context.building.type ? context.building.type->type() : BUILDING_NONE;
+    if (context.type == BUILDING_INFO_BUILDING && context.building) {
+        return context.building->type ? context.building->type->type() : BUILDING_NONE;
     }
     return BUILDING_NONE;
 }
 
-Building window_building_info_current_building()
+Building *window_building_info_current_building()
 {
-    return context.type == BUILDING_INFO_BUILDING ? context.building : Building(nullptr);
+    return context.type == BUILDING_INFO_BUILDING ? context.building : nullptr;
 }
 
 void window_building_info_show_storage_orders(void)
@@ -1390,7 +1406,7 @@ void window_building_info_depot_select_resource(void)
 
 void window_building_info_depot_toggle_condition_type(void)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
     if (!b) {
         return;
     }
@@ -1401,7 +1417,7 @@ void window_building_info_depot_toggle_condition_type(void)
 
 void window_building_info_depot_toggle_condition_threshold(void)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
     if (!b) {
         return;
     }
@@ -1413,7 +1429,7 @@ void window_building_info_depot_toggle_condition_threshold(void)
 
 void window_building_info_depot_toggle_condition_threshold_reverse(void)
 {
-    building *b = context.building.id ? building_get(context.building.id) : nullptr;
+    building *b = context.building ? const_cast<building *>(context.building->record()) : nullptr;
     if (!b) {
         return;
     }

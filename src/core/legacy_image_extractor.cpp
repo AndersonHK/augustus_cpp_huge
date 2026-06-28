@@ -374,11 +374,6 @@ static std::string make_family_root_directory(const LegacyFamily &family)
     return mod_manager::julius_graphics_path() + family.folder_name;
 }
 
-static std::string make_group_directory(const LegacyFamily &family, int group_id)
-{
-    return make_family_root_directory(family) + "/" + make_group_folder_name(group_id);
-}
-
 static std::string make_group_folder_name(const LegacyFamily &, int group_id, LegacyClimateFlavor flavor)
 {
     std::string folder_name = make_group_folder_name(group_id);
@@ -401,11 +396,6 @@ static std::string make_group_assetlist_name(const LegacyFamily &family, int gro
 static std::string make_group_assetlist_name(const LegacyFamily &family, int group_id, LegacyClimateFlavor flavor)
 {
     return std::string(family.folder_name) + "\\" + make_group_folder_name(family, group_id, flavor);
-}
-
-static std::string make_group_xml_path(const LegacyFamily &family, int group_id)
-{
-    return make_family_root_directory(family) + "/" + make_group_folder_name(group_id) + ".xml";
 }
 
 static std::string make_group_xml_path(const LegacyFamily &family, int group_id, LegacyClimateFlavor flavor)

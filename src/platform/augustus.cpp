@@ -96,7 +96,7 @@ static void write_to_output(FILE *output, const char *message)
     fflush(output);
 }
 
-static int read_stamp_file(const char *path, char *buffer, size_t buffer_size)
+[[maybe_unused]] static int read_stamp_file(const char *path, char *buffer, size_t buffer_size)
 {
     if (!buffer || buffer_size == 0) {
         return 0;
@@ -112,7 +112,7 @@ static int read_stamp_file(const char *path, char *buffer, size_t buffer_size)
     return 1;
 }
 
-static int write_stamp_file(const char *path, const char *stamp)
+[[maybe_unused]] static int write_stamp_file(const char *path, const char *stamp)
 {
     FILE *file = file_open(path, "wt");
     if (!file) {
@@ -131,7 +131,7 @@ static void ensure_graphics_directory(const char *path)
     platform_file_manager_create_directory(path, 0, 1);
 }
 
-static int stop_on_first_graphics_entry(const char *name, long modified_time)
+[[maybe_unused]] static int stop_on_first_graphics_entry(const char *name, long modified_time)
 {
     (void) name;
     (void) modified_time;
@@ -289,7 +289,7 @@ static int copy_graphics_directory_recursive(const char *src, const char *dst)
     return !graphics_copy_data.failed && dirs_result != LIST_ERROR && files_result != LIST_ERROR;
 }
 
-static int build_graphics_bootstrap_stamp(char *buffer, size_t buffer_size)
+[[maybe_unused]] static int build_graphics_bootstrap_stamp(char *buffer, size_t buffer_size)
 {
     if (!buffer || buffer_size == 0) {
         return 0;
@@ -356,6 +356,8 @@ static void setup(const augustus_args *args);
 
 static void write_log(void *userdata, int category, SDL_LogPriority priority, const char *message)
 {
+    (void) userdata;
+    (void) category;
     char log_text[300] = { 0 };
     snprintf(log_text, 300, "%s %s\n", priority == SDL_LOG_PRIORITY_ERROR ? "ERROR: " : "INFO: ", message);
     if (data.log_file) {
@@ -592,6 +594,7 @@ static void handle_window_event(SDL_WindowEvent *event, int *window_active)
 
 static int handle_event_immediate(void *param1, SDL_Event *event)
 {
+    (void) param1;
     switch (event->type) {
         case SDL_APP_WILLENTERBACKGROUND:
             platform_renderer_pause();

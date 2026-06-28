@@ -160,6 +160,20 @@ int is_live_building(const Building &building)
     return building.id && building.is_in_use();
 }
 
+Building *runtime_building_by_id(unsigned int id)
+{
+    if (!id) {
+        return nullptr;
+    }
+    Building *found = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!found && building->id == id) {
+            found = building;
+        }
+    });
+    return found;
+}
+
 const building_type_registry_impl::LaborSeekerPolicy *labor_policy_for(const Building &building)
 {
     if (!is_live_building(building)) {
@@ -195,7 +209,7 @@ int required_workers(const Building &building)
         return 0;
     }
     int workers = building.employment_required_workers();
-    if (building.type->is_fountain() && building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+    if (building.type->is_fountain() && grand_temple_for_god(GOD_NEPTUNE, true)) {
         workers /= 2;
         if (workers == 0) {
             workers = 1;
@@ -305,12 +319,12 @@ void release_workplace_source(unsigned int workplace_id, unsigned int house_id)
 {
     g_runtime_state.releaseWorkplaceSource(workplace_id, house_id);
 
-    building *house = building_get(house_id);
-    refresh_house_unemployed(house);
-    building *workplace_record = building_get(workplace_id);
-    if (is_live_building(workplace_record)) {
-        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(workplace_record)) {
-            refresh_access_score(runtime->building);
+    if (Building *house = runtime_building_by_id(house_id)) {
+        refresh_house_unemployed(const_cast<::building *>(house->record()));
+    }
+    if (Building *workplace = runtime_building_by_id(workplace_id)) {
+        if (is_live_building(*workplace)) {
+            refresh_access_score(*workplace);
         }
     }
 }
@@ -366,13 +380,14 @@ void trim_house_to_possible(building *house)
 void clamp_allocation_table()
 {
     g_runtime_state.removeAllocationsIf([](unsigned int workplace_id, unsigned int house_id, int workers) {
-        building *workplace_record = building_get(workplace_id);
-        building *house = building_get(house_id);
-        if (!workplace_record || workers <= 0) {
+        Building *workplace = runtime_building_by_id(workplace_id);
+        Building *house = runtime_building_by_id(house_id);
+        const building *house_record = house ? house->record() : nullptr;
+        if (!workplace || workers <= 0) {
             return 1;
         }
-        Building workplace(*workplace_record);
-        return (!uses_workforce(workplace) || !is_live_building(house) || !house->house_size) ? 1 : 0;
+        return (!uses_workforce(*workplace) || !house_record || !is_live_building(*house) ||
+            !house_record->house_size) ? 1 : 0;
     });
 
     Building::for_each({ .hasLabor = true }, [](Building *building) {
@@ -630,8 +645,9 @@ void remove_allocations_for_building(unsigned int building_id)
         });
     for (unsigned int house_id : house_ids_to_refresh) {
         g_runtime_state.releaseWorkplaceSource(building_id, house_id);
-        building *house = building_get(house_id);
-        refresh_house_unemployed(house);
+        if (Building *house = runtime_building_by_id(house_id)) {
+            refresh_house_unemployed(const_cast<::building *>(house->record()));
+        }
     }
     g_runtime_state.releaseFromHouse(building_id, g_runtime_state.assignedWorkersForHouse(building_id));
 }

@@ -117,7 +117,7 @@ static int enable_submenu_buildings(building_type type, int allowed)
         if (item == type) {
             continue;
         }
-        allowed_buildings[item] = allowed;
+        allowed_buildings[item] = static_cast<uint8_t>(allowed);
     }
     return 1;
 }
@@ -125,7 +125,7 @@ static int enable_submenu_buildings(building_type type, int allowed)
 void scenario_allowed_building_set(building_type type, int allowed)
 {
     if (!enable_submenu_buildings(type, allowed)) {
-        allowed_buildings[type] = allowed;
+        allowed_buildings[type] = static_cast<uint8_t>(allowed);
     }
 }
 
@@ -164,7 +164,7 @@ void scenario_allowed_building_load_state(buffer *buf)
         int allowed = buffer_read_i8(buf);
         building_type type = building_type_id_bridge_runtime_from_save_id((uint16_t) i);
         if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
-            allowed_buildings[type] = allowed;
+            allowed_buildings[type] = static_cast<uint8_t>(allowed);
         }
     }
 }
@@ -214,7 +214,7 @@ void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state
         int allowed = buffer_read_i8(&state);
         building_type type = building_type_id_bridge_runtime_from_text(text_id);
         if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
-            allowed_buildings[type] = allowed;
+            allowed_buildings[type] = static_cast<uint8_t>(allowed);
         }
     }
 }

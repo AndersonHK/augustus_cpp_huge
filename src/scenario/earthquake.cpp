@@ -20,6 +20,8 @@
 #include "scenario/data.h"
 #include "sound/effect.h"
 
+#include <vector>
+
 static struct {
     int game_year;
     int month;
@@ -82,26 +84,23 @@ static void advance_earthquake_to_tile(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
     if (map_building_exists_at(grid_offset)) {
-        Building building = map_building_at(grid_offset);
-        building *b = const_cast<::building *>(building.record());
+        Building current = map_building_at(grid_offset);
+        ::building *b = const_cast<::building *>(current.record());
 
         if (!b) {
             return;
         }
 
-        if (!building.matches("burning_ruin")) {
+        if (!current.matches("burning_ruin")) {
             // (fort, hippodrome, ect.)
             if (b->prev_part_building_id > 0 || b->next_part_building_id > 0) {
-                // find first part
-                building *part = b;
-                while (part->prev_part_building_id > 0) {
-                    building *prev = building_get(part->prev_part_building_id);
-                    if (!prev) break;
-                    part = prev;
-                }
-                // destroy all part
-                for (building *next; part; part = next) {
-                    next = (part->next_part_building_id > 0) ? building_get(part->next_part_building_id) : NULL;
+                std::vector<::building *> parts;
+                current.main().for_each_part([&](Building part) {
+                    if (::building *record = const_cast<::building *>(part.record())) {
+                        parts.push_back(record);
+                    }
+                });
+                for (::building *part : parts) {
                     building_destroy_by_earthquake(part);
                 }
             } else {
@@ -110,7 +109,7 @@ static void advance_earthquake_to_tile(int x, int y)
         }
         sound_effect_play(SOUND_EFFECT_EXPLOSION);
         if (map_building_exists_at(grid_offset)) {
-            building *ruin = const_cast<::building *>(map_building_at(grid_offset).record());
+            ::building *ruin = const_cast<::building *>(map_building_at(grid_offset).record());
             if (ruin) {
                 ruin->state = BUILDING_STATE_DELETED_BY_GAME;
             }

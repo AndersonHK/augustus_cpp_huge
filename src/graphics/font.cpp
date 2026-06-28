@@ -302,7 +302,7 @@ static int image_y_offset_eastern(uint8_t c, int image_height, int line_height)
     return offset;
 }
 
-static int image_y_offset_cyrillic_normal_small_plain(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_normal_small_plain(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     switch (c) {
         case 36:
@@ -316,12 +316,12 @@ static int image_y_offset_cyrillic_normal_small_plain(uint8_t c, int image_heigh
     }
 }
 
-static int image_y_offset_cyrillic_normal_colored(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_normal_colored(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     return c == 201 ? 3 : 0;
 }
 
-static int image_y_offset_cyrillic_large_plain(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_large_plain(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     switch (c) {
         case 36:
@@ -350,7 +350,7 @@ static int image_y_offset_cyrillic_large_plain(uint8_t c, int image_height, int 
     }
 }
 
-static int image_y_offset_cyrillic_large_black(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_large_black(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     switch (c) {
         case 36:
@@ -383,7 +383,7 @@ static int image_y_offset_cyrillic_large_black(uint8_t c, int image_height, int 
     }
 }
 
-static int image_y_offset_cyrillic_large_brown(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_large_brown(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     switch (c) {
         case 36:
@@ -416,7 +416,7 @@ static int image_y_offset_cyrillic_large_brown(uint8_t c, int image_height, int 
     }
 }
 
-static int image_y_offset_cyrillic_normal_brown(uint8_t c, int image_height, int line_height)
+static int image_y_offset_cyrillic_normal_brown(uint8_t c, int /*image_height*/, int /*line_height*/)
 {
     switch (c) {
         case 36:

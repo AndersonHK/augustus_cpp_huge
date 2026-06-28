@@ -35,16 +35,15 @@ typedef enum {
 
 static int active_devolve_delay;
 
-static void consume_resources(building *b);
+static void consume_resources(Building &house_object, building *b);
 
 static const model_house *model_for_house(Building house)
 {
     return building_house_get_model(house);
 }
 
-static const model_house *model_for_house_requirements(building *house, int for_upgrade, int with_bonus, int *out_level)
+static const model_house *model_for_house_requirements(Building &house_object, building *, int for_upgrade, int with_bonus, int *out_level)
 {
-    Building house_object(house);
     int level = building_house_legacy_level(house_object);
     if (for_upgrade) {
         ++level;
@@ -71,12 +70,12 @@ static const model_house *model_for_house_requirements(building *house, int for_
     return model_get_house(static_cast<house_level>(level));
 }
 
-static evolve_status check_evolve_desirability(building *house, int bonus)
+static evolve_status check_evolve_desirability(Building &house_object, building *house, int bonus)
 {
-    int level = building_house_legacy_level(Building(house));
+    int level = building_house_legacy_level(house_object);
     level -= bonus;
     level = calc_bound(level, HOUSE_MIN, HOUSE_MAX);
-    const model_house *model = model_for_house(Building(house));
+    const model_house *model = model_for_house(house_object);
     int evolve_des = model->evolve_desirability;
     if (level >= HOUSE_LUXURY_PALACE) {
         evolve_des = 1000;
@@ -90,14 +89,14 @@ static evolve_status check_evolve_desirability(building *house, int bonus)
     } else {
         status = NONE;
     }
-    house->data.house.evolve_text_id = status; // BUG? -1 in an unsigned char?
+    house->data.house.evolve_text_id = static_cast<unsigned char>(status); // BUG? -1 in an unsigned char?
     return status;
 }
 
-static int has_required_goods_and_services(building *house, int for_upgrade, int with_bonus, house_demands *demands)
+static int has_required_goods_and_services(Building &house_object, building *house, int for_upgrade, int with_bonus, house_demands *demands)
 {
     int level = 0;
-    const model_house *model = model_for_house_requirements(house, for_upgrade, with_bonus, &level);
+    const model_house *model = model_for_house_requirements(house_object, house, for_upgrade, with_bonus, &level);
     // water
     int water = model->water;
     if (!house->has_water_access) {
@@ -227,17 +226,17 @@ static int has_required_goods_and_services(building *house, int for_upgrade, int
     return 1;
 }
 
-static evolve_status check_requirements(building *house, house_demands *demands)
+static evolve_status check_requirements(Building &house_object, building *house, house_demands *demands)
 {
     int bonus = 0;
     if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) && house->house_pantheon_access) {
         bonus++;
     }
-    evolve_status status = check_evolve_desirability(house, bonus);
-    if (!has_required_goods_and_services(house, 0, bonus, demands)) {
+    evolve_status status = check_evolve_desirability(house_object, house, bonus);
+    if (!has_required_goods_and_services(house_object, house, 0, bonus, demands)) {
         status = DEVOLVE;
     } else if (status == EVOLVE) {
-        status = has_required_goods_and_services(house, 1, bonus, demands) ? EVOLVE : NONE;
+        status = has_required_goods_and_services(house_object, house, 1, bonus, demands) ? EVOLVE : NONE;
     }
     return status;
 }
@@ -253,9 +252,8 @@ static int has_devolve_delay(building *house, evolve_status status)
     }
 }
 
-static int evolve_xml_housing(building *house, house_demands *demands, time_millis last_update)
+static int evolve_xml_housing(Building &house_object, building *house, house_demands *demands, time_millis last_update)
 {
-    Building house_object(house);
     building_type merge_to = house_object.type ?
         house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
         BUILDING_NONE;
@@ -266,10 +264,16 @@ static int evolve_xml_housing(building *house, house_demands *demands, time_mill
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
         unsigned int merged_id = building_house_merge(house_object);
         if (merged_id) {
-            building *merged_house = building_get(merged_id);
-            if (merged_house) {
+            Building *merged_house_object = nullptr;
+            Building::for_each([&](Building *candidate) {
+                if (!merged_house_object && candidate->id == merged_id) {
+                    merged_house_object = candidate;
+                }
+            });
+            if (merged_house_object) {
+                building *merged_house = const_cast<::building *>(merged_house_object->record());
                 if (game_time_day() == 0 || (game_time_day() == 7 && merged_house->house_size > 1)) {
-                    consume_resources(merged_house);
+                    consume_resources(*merged_house_object, merged_house);
                 }
                 merged_house->last_update = last_update;
             }
@@ -281,7 +285,7 @@ static int evolve_xml_housing(building *house, house_demands *demands, time_mill
         return 0;
     }
 
-    evolve_status status = check_requirements(house, demands);
+    evolve_status status = check_requirements(house_object, house, demands);
     if (has_devolve_delay(house, status)) {
         return 0;
     }
@@ -327,12 +331,12 @@ static void consume_resource(building *b, int inventory, int amount)
         if (amount > b->resources[inventory]) {
             b->resources[inventory] = 0;
         } else {
-            b->resources[inventory] -= amount;
+            b->resources[inventory] = static_cast<short>(b->resources[inventory] - amount);
         }
     }
 }
 
-static void consume_resources(building *b)
+static void consume_resources(Building &house_object, building *b)
 {
     int consumption_reduction[RESOURCE_SLOT_COUNT] = { 0 };
 
@@ -354,7 +358,7 @@ static void consume_resources(building *b)
         consumption_reduction[resource_furniture()] += 10;
     }
 
-    const model_house *model = model_for_house(Building(b));
+    const model_house *model = model_for_house(house_object);
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         if (!resource_is_inventory_good(r)) {
             continue;
@@ -382,7 +386,7 @@ void building_house_process_evolve_and_consume_goods(void)
     house_demands *demands = city_houses_demands();
     int has_expanded = 0;
 
-    if (building_monument_working_grand_temple_for_god(GOD_VENUS)) {
+    if (grand_temple_for_god(GOD_VENUS, true)) {
         active_devolve_delay = DEVOLVE_DELAY_WITH_VENUS;
     } else {
         active_devolve_delay = DEVOLVE_DELAY;
@@ -399,7 +403,7 @@ void building_house_process_evolve_and_consume_goods(void)
         building_house_check_for_corruption(house_object);
         if (!b->has_plague) {
             if (house_object.type && house_object.type->has_housing()) {
-                has_expanded |= evolve_xml_housing(b, demands, last_update);
+                has_expanded |= evolve_xml_housing(house_object, b, demands, last_update);
             }
         }
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
@@ -407,7 +411,7 @@ void building_house_process_evolve_and_consume_goods(void)
         }
         // 1x1 houses only consume half of the goods
         if (game_time_day() == 0 || (game_time_day() == 7 && b->house_size > 1)) {
-            consume_resources(b);
+            consume_resources(house_object, b);
         }
         b->last_update = last_update;
     });
@@ -418,7 +422,7 @@ void building_house_process_evolve_and_consume_goods(void)
 
 void building_house_determine_evolve_text(Building house_object, int worst_desirability_building)
 {
-    building *house = house_object.id ? building_get(house_object.id) : nullptr;
+    ::building *house = const_cast<::building *>(house_object.record());
     if (!house) {
         return;
     }
@@ -753,13 +757,12 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
 
 static building_type get_building_type_at_tile(Building house_object, int x, int y)
 {
-    const building *house = house_object.id ? building_get(house_object.id) : nullptr;
+    const ::building *house = house_object.record();
     if (!house) {
         return BUILDING_NONE;
     }
     int grid_offset = map_grid_offset(x, y);
-    unsigned int building_id = (unsigned int) map_building_at(grid_offset);
-    if (building_id <= 0) {
+    if (!map_building_exists_at(grid_offset)) {
         if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
             return building_type_registry_impl::type_from_attr("highway");
         } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
@@ -768,24 +771,24 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
             return BUILDING_NONE;
         }
     }
-    building *b = building_get(building_id);
-    if (b->state != BUILDING_STATE_IN_USE || building_id == house->id) {
+    Building &other = map_building_at(grid_offset);
+    const building *b = other.record();
+    if (!b || b->state != BUILDING_STATE_IN_USE || other.id == house->id) {
         return BUILDING_NONE;
     }
     if (b->house_size) {
         int house_level = building_house_legacy_level(house_object);
-        int other_house_level = building_house_legacy_level(Building(b));
+        int other_house_level = building_house_legacy_level(other);
         if (house_level >= 0 && other_house_level >= house_level) {
             return BUILDING_NONE;
         }
     }
-    Building other(b);
     return other.type ? other.type->type() : BUILDING_NONE;
 }
 
 building_type building_house_determine_worst_desirability_building_type(Building house_object)
 {
-    const building *house = house_object.id ? building_get(house_object.id) : nullptr;
+    const ::building *house = house_object.record();
     if (!house) {
         return BUILDING_NONE;
     }

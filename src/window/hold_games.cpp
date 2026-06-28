@@ -126,7 +126,7 @@ static void draw_background(void)
     }
     data.game_possible = 0;
     const building_type required_building_type = static_cast<building_type>(game->building_id_required);
-    Building game_building = Building::first_of_type(required_building_type);
+    Building *game_building = Building::first_of_type(required_building_type);
 
     if (!building_count_active(required_building_type)) {
         text_draw(translation_for_key("TR_WINDOW_GAMES_NO_VENUE"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -134,7 +134,7 @@ static void draw_background(void)
         text_draw(translation_for_key("TR_WINDOW_GAMES_NOT_ENOUGH_FUNDS"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_resources) {
         text_draw(translation_for_key("TR_WINDOW_GAMES_NOT_ENOUGH_RESOURCES"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    } else if (game->water_access_required && game_building.id && !game_building.has_water_access()) {
+    } else if (game->water_access_required && game_building && !game_building->has_water_access()) {
         text_draw(translation_for_key("TR_WINDOW_GAMES_NO_WATER_ACCESS"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         data.game_possible = 1;
@@ -191,16 +191,22 @@ static void button_game(const generic_button *button)
 
 static void button_help(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     window_message_dialog_show(MESSAGE_DIALOG_ADVISOR_ENTERTAINMENT, 0);
 }
 
 static void button_close(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     close_window();
 }
 
 static void button_hold_games(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (data.game_possible) {
         city_games_schedule(city_data.games.selected_games_id);
         close_window();

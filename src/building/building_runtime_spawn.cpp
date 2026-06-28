@@ -51,35 +51,35 @@ namespace {
 
 int figure_belongs_to_building(const Figure *f, const Building &building)
 {
-    return f && f->building.id == building.id;
+    return f && f->building && f->building->id == building.id;
 }
 
-void attach_figure_to_building(Figure *f, const Building &building)
+void attach_figure_to_building(Figure *f, Building &building)
 {
     if (f) {
-        f->building = building;
+        f->building = &building;
     }
 }
 
-void send_supplier_to_storage_destination(Figure *supplier, const Building &destination)
+void send_supplier_to_storage_destination(Figure *supplier, Building *destination)
 {
     if (!supplier) {
         return;
     }
-    if (supplier->destination_building.id) {
-        supplier->last_destination_id = supplier->destination_building.id;
+    if (supplier->destination_building) {
+        supplier->last_destination_id = supplier->destination_building->id;
     }
 
     supplier->destination_building = destination;
-    if (!destination.type) {
+    if (!destination || !destination->type) {
         return;
     }
 
     map_point road;
-    if (destination.storage_destination_road_access_point(&road)) {
+    if (destination->storage_destination_road_access_point(&road)) {
         supplier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-        supplier->destination_x = road.x;
-        supplier->destination_y = road.y;
+        supplier->destination_x = static_cast<unsigned char>(road.x);
+        supplier->destination_y = static_cast<unsigned char>(road.y);
     } else {
         supplier->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
         supplier->destination_x = supplier->x;
@@ -124,7 +124,7 @@ void building_runtime::check_labor_problem()
 void building_runtime::apply_global_labor_house_coverage(int amount)
 {
     if (building.distance_from_entry()) {
-        record().houses_covered = 2 * amount;
+        record().houses_covered = static_cast<short>(2 * amount);
     } else {
         record().houses_covered = 0;
     }
@@ -189,7 +189,7 @@ void building_runtime::run_workforce_labor_phase(
         return;
     }
 
-    Building current = building;
+    Building &current = building;
     const int trigger_workers = current.employment_required_workers();
     const float workforce_access = building.labor_access_score();
     if (workforce_access < trigger_workers) {
@@ -352,8 +352,8 @@ int building_runtime::spawn_caravanserai_supplier(const map_point &road)
         return 0;
     }
 
-    Building destination = building_caravanserai_get_storage_destination(building);
-    if (!destination.id) {
+    Building *destination = building_caravanserai_get_storage_destination(building);
+    if (!destination) {
         return 0;
     }
 
@@ -378,8 +378,8 @@ int building_runtime::spawn_lighthouse_supplier(const map_point &road)
         return 0;
     }
 
-    Building destination = building_lighthouse_get_storage_destination(building);
-    if (!destination.id) {
+    Building *destination = building_lighthouse_get_storage_destination(building);
+    if (!destination) {
         return 0;
     }
 
@@ -389,7 +389,7 @@ int building_runtime::spawn_lighthouse_supplier(const map_point &road)
     }
 
     attach_figure_to_building(supplier, building);
-    supplier->collecting_item_id = resource_timber();
+    supplier->collecting_item_id = static_cast<unsigned char>(resource_timber());
     building.set_primary_figure_id(supplier->id());
     send_supplier_to_storage_destination(supplier, destination);
     return 1;
@@ -397,14 +397,14 @@ int building_runtime::spawn_lighthouse_supplier(const map_point &road)
 
 int building_runtime::spawn_temple_supplier(const map_point &road)
 {
-    if (!type().is_ceres_temple() && !type().is_venus_temple()) {
+    if (!type().is_temple(GOD_CERES) && !type().is_temple(GOD_VENUS)) {
         return 0;
     }
-    if (type().is_ceres_temple() &&
+    if (type().is_temple(GOD_CERES) &&
         !building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) {
         return 0;
     }
-    if (type().is_venus_temple() &&
+    if (type().is_temple(GOD_VENUS) &&
         !building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
         return 0;
     }
@@ -415,12 +415,12 @@ int building_runtime::spawn_temple_supplier(const map_point &road)
         return 0;
     }
 
-    Building current = building;
+    Building &current = building;
     if (const building_type_registry_impl::Distribution *distribution = current.type->distribution()) {
         distribution->update_demands(current);
     }
-    Building destination = building_temple_get_storage_destination(current);
-    if (!destination.id) {
+    Building *destination = building_temple_get_storage_destination(current);
+    if (!destination) {
         return 0;
     }
 
@@ -458,10 +458,10 @@ int building_runtime::spawn_supplier_to_destination(
     building_type_registry_impl::FigureSlot slot,
     figure_type supplier_type,
     const map_point &road,
-    const Building &destination,
+    Building *destination,
     unsigned char collecting_item_id)
 {
-    if (!destination.id) {
+    if (!destination) {
         return 0;
     }
 
@@ -486,15 +486,19 @@ int building_runtime::spawn_temple_distribution_supplier(const map_point &road)
         return 0;
     }
 
-    Building current = building;
+    Building &current = building;
     if (const building_type_registry_impl::Distribution *distribution = current.type->distribution()) {
         distribution->update_demands(current);
+    }
+    Building *destination = building_temple_get_storage_destination(current);
+    if (!destination) {
+        return 0;
     }
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Secondary,
         FIGURE_PRIEST_SUPPLIER,
         road,
-        building_temple_get_storage_destination(current),
+        destination,
         record().data.market.fetch_inventory_id);
 }
 
@@ -511,12 +515,12 @@ int building_runtime::spawn_market_supplier(const map_point &road)
     if (const building_type_registry_impl::Distribution *distribution = market.type->distribution()) {
         distribution->update_demands(market);
     }
-    const int destination_id = market.storage_destination();
+    Building *destination = market.storage_destination();
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Secondary,
         FIGURE_MARKET_SUPPLIER,
         road,
-        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        destination,
         record().data.market.fetch_inventory_id);
 }
 
@@ -529,12 +533,12 @@ int building_runtime::spawn_tavern_supplier(const map_point &road)
         return 0;
     }
 
-    const int destination_id = Tavern(building).storage_destination();
+    Building *destination = Tavern(building).storage_destination();
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Secondary,
         FIGURE_BARKEEP_SUPPLIER,
         road,
-        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        destination,
         record().data.market.fetch_inventory_id);
 }
 
@@ -546,12 +550,12 @@ int building_runtime::spawn_primary_mess_hall_supplier(const map_point &road)
         return 0;
     }
 
-    const int destination_id = building_mess_hall_get_storage_destination(building);
+    Building *destination = building_mess_hall_get_storage_destination(building);
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Primary,
         FIGURE_MESS_HALL_SUPPLIER,
         road,
-        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        destination,
         record().data.market.fetch_inventory_id);
 }
 
@@ -563,18 +567,18 @@ int building_runtime::spawn_secondary_mess_hall_supplier(const map_point &road)
         return 0;
     }
 
-    const int destination_id = building_mess_hall_get_storage_destination(building);
+    Building *destination = building_mess_hall_get_storage_destination(building);
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Quaternary,
         FIGURE_MESS_HALL_SUPPLIER,
         road,
-        destination_id ? Building(building_get(destination_id)) : Building(nullptr),
+        destination,
         record().data.market.fetch_inventory_id);
 }
 
 int building_runtime::spawn_temple_destination_priest(const map_point &road)
 {
-    if (type().is_pantheon() ||
+    if (type().is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand) ||
         !building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS) ||
         slot_has_live_figure(building_type_registry_impl::FigureSlot::Quaternary, FIGURE_PRIEST)) {
         return 0;
@@ -584,8 +588,8 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
     if (!building_monument_working(pantheon_type)) {
         return 0;
     }
-    Building pantheon = Building::first_of_type(pantheon_type);
-    if (!pantheon.id) {
+    Building *pantheon = Building::first_of_type(pantheon_type);
+    if (!pantheon) {
         return 0;
     }
 
@@ -602,13 +606,22 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
 
 int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
 {
-    if (!type().is_mars_temple() ||
+    if (!type().is_temple(GOD_MARS) ||
         !building_monument_gt_module_is_active(MARS_MODULE_1_MESS_HALL)) {
         return 0;
     }
 
-    Building mess_hall(building_get(city_buildings_get_mess_hall()));
-    if (!mess_hall.id || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
+    Building *mess_hall = nullptr;
+    const int mess_hall_id = city_buildings_get_mess_hall();
+    if (mess_hall_id) {
+        const unsigned int storage_destination_id = static_cast<unsigned int>(mess_hall_id);
+        Building::for_each([&](Building *building) {
+            if (!mess_hall && building->id == storage_destination_id) {
+                mess_hall = building;
+            }
+        });
+    }
+    if (!mess_hall || !mess_hall->type || !mess_hall->type->is_mess_hall()) {
         return 0;
     }
 
@@ -622,7 +635,7 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         }
     }
 
-    int food_to_deliver = building_temple_mars_food_to_deliver(building, mess_hall);
+    int food_to_deliver = building_temple_mars_food_to_deliver(building, *mess_hall);
     if (food_to_deliver < 0) {
         return 0;
     }
@@ -641,7 +654,7 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
 
 int building_runtime::spawn_temple_neptune_chariot(const map_point &road)
 {
-    if (!type().is_neptune_temple() ||
+    if (!type().is_temple(GOD_NEPTUNE) ||
         !building_monument_gt_module_is_active(NEPTUNE_MODULE_1_HIPPODROME_ACCESS) ||
         building.has_secondary_figure()) {
         return 0;
@@ -652,7 +665,7 @@ int building_runtime::spawn_temple_neptune_chariot(const map_point &road)
         return 0;
     }
 
-    Building current = building;
+    Building &current = building;
     Figure *charioteer = figure_runtime_create_profiled(
         FIGURE_CHARIOTEER,
         road.x,
@@ -675,7 +688,7 @@ int building_runtime::spawn_temple_neptune_chariot(const map_point &road)
 
 int building_runtime::spawn_grand_temple_mars_recruit(const map_point &road)
 {
-    if (!type().is_grand_temple_mars()) {
+    if (!type().is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
         return 0;
     }
 
@@ -700,7 +713,7 @@ int building_runtime::spawn_grand_temple_mars_recruit(const map_point &road)
     }
     record().figure_spawn_delay = 0;
 
-    Barracks barracks(record());
+    Barracks barracks(building);
     switch (barracks.priority()) {
         case PRIORITY_FORT:
         case PRIORITY_FORT_JAVELIN:
@@ -916,7 +929,7 @@ void building_runtime::spawn_armoury()
     }
 
     record().figure_spawn_delay = 0;
-    if (!Armoury(record()).is_needed()) {
+    if (!Armoury(building).is_needed()) {
         return;
     }
 
@@ -925,7 +938,7 @@ void building_runtime::spawn_armoury()
         return;
     }
     warehouseman->action_state = FIGURE_ACTION_50_WAREHOUSEMAN_CREATED;
-    warehouseman->collecting_item_id = resource_weapons();
+    warehouseman->collecting_item_id = static_cast<unsigned char>(resource_weapons());
     attach_figure_to_building(warehouseman, building);
     assign_figure_slot(target_slot, warehouseman->id());
 }
@@ -970,7 +983,8 @@ void building_runtime::spawn_figure_delivery_cart(const map_point &road)
     if (resource != RESOURCE_NONE && record().data.industry.has_fish > 0) {
         loads = std::min(static_cast<int>(record().data.industry.has_fish),
             building.output_cart_capacity(resource));
-        record().data.industry.has_fish -= loads;
+        record().data.industry.has_fish =
+            static_cast<unsigned char>(record().data.industry.has_fish - loads);
         reserved_from_figure_delivery = 1;
     } else if (!building.reserve_output_storage_loads(&resource, &loads)) {
         return;
@@ -983,7 +997,8 @@ void building_runtime::spawn_figure_delivery_cart(const map_point &road)
     Figure *cart = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
     if (!cart) {
         if (reserved_from_figure_delivery) {
-            record().data.industry.has_fish += static_cast<unsigned char>(loads);
+            record().data.industry.has_fish =
+                static_cast<unsigned char>(record().data.industry.has_fish + loads);
         } else {
             building.add_storage_resource(
                 resource, loads * resource_units_per_load(), building_type_registry_impl::StorageRole::Output);
@@ -992,11 +1007,11 @@ void building_runtime::spawn_figure_delivery_cart(const map_point &road)
     }
 
     cart->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-    cart->resource_id = resource;
+    cart->resource_id = static_cast<unsigned char>(resource);
     attach_figure_to_building(cart, building);
     record().output_resource_id = static_cast<unsigned char>(resource);
     record().figure_id = cart->id();
-    cart->wait_ticks = game_time_scale_legacy_day_ticks(30);
+    cart->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(30));
     cart->loads_sold_or_carrying = static_cast<unsigned char>(loads);
 }
 
@@ -1053,7 +1068,7 @@ int building_runtime::evaluate_spawn_chance(const building_type_registry_impl::S
             source_value = city_labor_unemployment_percentage();
             break;
         case building_type_registry_impl::SpawnChanceSource::HouseUnemployedWorkers: {
-            Building current = building;
+            Building &current = building;
             source_value = building_local_workforce::house_available_workers(current);
             break;
         }
@@ -1161,7 +1176,7 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
     int spawn_count = policy.spawn_count > 0 ? policy.spawn_count : 1;
     for (int i = 0; i < spawn_count; i++) {
         // XML profiles are the handoff point between BuildingType spawn policy and FigureType behavior.
-        Building current = building;
+        Building &current = building;
         Figure *spawned = policy.profile.empty() ?
             Figure::create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction)) :
             figure_runtime_create_profiled(
@@ -1175,7 +1190,7 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
             continue;
         }
         if (policy.profile.empty() || legacy_profile) {
-            spawned->action_state = policy.action_state;
+            spawned->action_state = static_cast<unsigned char>(policy.action_state);
             attach_figure_to_building(spawned, current);
         }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.

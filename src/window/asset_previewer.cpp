@@ -168,6 +168,8 @@ static int update_entries(void)
 
 static void select_asset(unsigned int index, int unused)
 {
+    (void)unused;
+
     const asset_image *img = asset_image_get_from_id(data.active_group->first_image_index + data.entries[index].index);
     free(data.selected_asset_id);
     data.selected_asset_id = 0;
@@ -192,7 +194,7 @@ static void load_assets(int changed)
         data.main_atlas->buffers, data.main_atlas->image_widths);
     data.active_group = group_get_current();
     int total_entries = update_entries();
-    list_box_update_total_items(&list_box, total_entries);
+    list_box_update_total_items(&list_box, static_cast<unsigned int>(total_entries));
     if (changed) {
         list_box_select_index(&list_box, 0);
     }
@@ -421,13 +423,13 @@ static void draw_background(void)
     outer_panel_draw(8, 10 * BLOCK_SIZE, list_box.width_blocks + 3, outer_height_blocks);
     lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_ASSET",
         32, 11 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    list_box.height_blocks = outer_height_blocks - 4;
+    list_box.height_blocks = static_cast<unsigned int>(outer_height_blocks - 4);
     list_box.x = 24;
     list_box.y = 12 * BLOCK_SIZE;
     list_box_request_refresh(&list_box);
-    toggle_animation_button.x = list_box.x + 2;
-    toggle_animation_button.y = list_box.y + list_box.height_blocks * BLOCK_SIZE;
-    toggle_animation_button.width = list_box.width_blocks * BLOCK_SIZE;
+    toggle_animation_button.x = static_cast<short>(list_box.x + 2);
+    toggle_animation_button.y = static_cast<short>(list_box.y + list_box.height_blocks * BLOCK_SIZE);
+    toggle_animation_button.width = static_cast<short>(list_box.width_blocks * BLOCK_SIZE);
     if (!data.hide_animation_frames) {
         text_draw(string_from_ascii("x"), toggle_animation_button.x + 6, toggle_animation_button.y + 3,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
@@ -566,8 +568,8 @@ static void draw_foreground(void)
 
 static void recalculate_selected_index(void)
 {
-    int selected_index = list_box_get_selected_index(&list_box);
-    int total_entries = list_box_get_total_items(&list_box);
+    unsigned int selected_index = list_box_get_selected_index(&list_box);
+    unsigned int total_entries = list_box_get_total_items(&list_box);
     if (selected_index != LIST_BOX_NO_SELECTION) {
         if (selected_index < total_entries) {
             const asset_image *img =
@@ -576,7 +578,7 @@ static void recalculate_selected_index(void)
                 return;
             }
         }
-        for (int i = 0; i < total_entries; i++) {
+        for (unsigned int i = 0; i < total_entries; i++) {
             const asset_image *img =
                 asset_image_get_from_id(data.active_group->first_image_index + data.entries[i].index);
             if (img->id && data.selected_asset_id && strcmp(data.selected_asset_id, img->id) == 0) {
@@ -585,7 +587,9 @@ static void recalculate_selected_index(void)
             }
         }
     }
-    if (selected_index >= total_entries) {
+    if (selected_index == LIST_BOX_NO_SELECTION) {
+        list_box_select_index(&list_box, selected_index);
+    } else if (selected_index >= total_entries) {
         list_box_select_index(&list_box, total_entries - 1);
     } else {
         list_box_select_index(&list_box, selected_index);
@@ -696,6 +700,8 @@ static void set_zoom(int value)
 
 static void confirm_exit(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         system_exit();
     }
@@ -739,23 +745,26 @@ static void button_top(const generic_button *button)
 
 static void button_toggle_animation_frames(const generic_button *button)
 {
+    (void)button;
+
     data.hide_animation_frames ^= 1;
     int asset_index = 0;
     int is_animation_frame = 0;
     if (list_box_get_total_items(&list_box) > 0) {
         asset_index = data.entries[list_box_get_scroll_position(&list_box)].index;
         is_animation_frame = data.entries[list_box_get_scroll_position(&list_box)].is_animation_frame;
-        if (data.entries[list_box_get_selected_index(&list_box)].is_animation_frame && data.hide_animation_frames) {
-            for (int i = list_box_get_selected_index(&list_box) - 1; i >= 0; i--) {
+        unsigned int selected_index = list_box_get_selected_index(&list_box);
+        if (data.entries[selected_index].is_animation_frame && data.hide_animation_frames) {
+            for (int i = static_cast<int>(selected_index) - 1; i >= 0; i--) {
                 if (!data.entries[i].is_animation_frame) {
-                    list_box_select_index(&list_box, i);
+                    list_box_select_index(&list_box, static_cast<unsigned int>(i));
                     break;
                 }
             }
         }
     }
     int total_entries = update_entries();
-    list_box_update_total_items(&list_box, total_entries);
+    list_box_update_total_items(&list_box, static_cast<unsigned int>(total_entries));
     recalculate_selected_index();
     window_invalidate();
 

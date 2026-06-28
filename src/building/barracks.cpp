@@ -2,7 +2,6 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -28,10 +27,22 @@ static Building *first_building_with_attr(const char *attr)
 
 static int is_valid_destination(const Building &b, int road_network_id)
 {
-    return b.is_in_use() && b.has_road_access(nullptr) &&
-        b.distance_from_entry() > 0 && b.road_network_id() == road_network_id &&
-        b.resource_amount(resource_weapons()) < MAX_WEAPONS_BARRACKS &&
-        b.accepts_good(resource_weapons());
+    if (!b.is_in_use()) {
+        return 0;
+    }
+    if (!b.has_road_access(nullptr)) {
+        return 0;
+    }
+    if (b.distance_from_entry() <= 0) {
+        return 0;
+    }
+    if (b.road_network_id() != road_network_id) {
+        return 0;
+    }
+    if (b.resource_amount(resource_weapons()) >= MAX_WEAPONS_BARRACKS) {
+        return 0;
+    }
+    return b.accepts_good(resource_weapons());
 }
 
 Building *Barracks::for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst)
@@ -55,16 +66,14 @@ Building *Barracks::for_weapon(int x, int y, resource_type resource, int road_ne
             min_building = b;
         }
     }
-    building *monument_record = building_get(building_monument_get_grand_temple_for_god(GOD_MARS));
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(monument_record)) {
-        Building &monument = runtime->building;
-        if (monument.monument_phase() == MONUMENT_FINISHED &&
-            is_valid_destination(monument, road_network_id)) {
-            int dist = monument.max_distance_to(x, y);
-            dist += 8 * monument.resource_amount(resource_weapons());
+    if (Building *monument = grand_temple_for_god(GOD_MARS, false)) {
+        if (monument->monument_phase() == MONUMENT_FINISHED &&
+            is_valid_destination(*monument, road_network_id)) {
+            int dist = monument->max_distance_to(x, y);
+            dist += 8 * monument->resource_amount(resource_weapons());
             if (dist < min_dist) {
                 min_dist = dist;
-                min_building = &monument;
+                min_building = monument;
             }
         }
     }
@@ -177,15 +186,15 @@ static Building *get_closest_military_academy(int x, int y)
 
 int Barracks::priority() const
 {
-    building *record = building_get(id);
+    const building *record = this->record();
     return record ? record->subtype.barracks_priority : 0;
 }
 
 void Barracks::set_priority(int priority)
 {
-    building *record = building_get(id);
+    building *record = const_cast<building *>(this->record());
     if (record) {
-        record->subtype.barracks_priority = priority;
+        record->subtype.barracks_priority = static_cast<short>(priority);
     }
 }
 
@@ -197,7 +206,7 @@ int Barracks::create_soldier(int x, int y)
         formation *m = formation_get(formation_id);
         const int fills_last_open_slot = m->num_figures + 1 >= m->barracks_recruit_capacity();
         Figure *f = Figure::create(static_cast<figure_type>(m->figure_type), x, y, DIR_0_TOP);
-        f->formation_id = formation_id;
+        f->formation_id = static_cast<short>(formation_id);
         f->formation_at_rest = 1;
         if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon()) {
             if (resource_amount(resource_weapons()) > 0) {
@@ -209,9 +218,9 @@ int Barracks::create_soldier(int x, int y)
             map_point road;
             if (academy->has_road_access(&road)) {
                 f->action_state = FIGURE_ACTION_85_SOLDIER_GOING_TO_MILITARY_ACADEMY;
-                f->destination_x = road.x;
-                f->destination_y = road.y;
-                f->destination_grid_offset = map_grid_offset(f->destination_x, f->destination_y);
+                f->destination_x = static_cast<unsigned char>(road.x);
+                f->destination_y = static_cast<unsigned char>(road.y);
+                f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
             } else {
                 f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
             }
@@ -268,13 +277,13 @@ int Barracks::create_tower_sentry(int x, int y)
     Figure *f = Figure::create(FIGURE_TOWER_SENTRY, x, y, DIR_0_TOP);
     f->action_state = FIGURE_ACTION_174_TOWER_SENTRY_GOING_TO_TOWER;
     if (tower->has_road_access(&road)) {
-        f->destination_x = road.x;
-        f->destination_y = road.y;
+        f->destination_x = static_cast<unsigned char>(road.x);
+        f->destination_y = static_cast<unsigned char>(road.y);
     } else {
         f->remove();
         return 0;
     }
     tower->set_primary_figure_id(f->id());
-    f->building = *tower;
+    f->building = tower;
     return 1;
 }

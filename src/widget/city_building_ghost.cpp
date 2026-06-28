@@ -146,7 +146,9 @@ static void prepare_ghost_water_access_state(
     building &ghost)
 {
     if (definition.water_access().has_requirements() || definition.has_water_access_provider()) {
-        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost));
+        BuildingGraphicsState graphics_state;
+        Building ghost_building(ghost, graphics_state);
+        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost_building));
     }
 }
 
@@ -193,16 +195,19 @@ static void draw_runtime_ghost_animation(Building &building, int animation_curso
 
 static void draw_blocked_tile(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
 }
 
 static void city_building_ghost_draw_malus_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_NEGATIVE_RANGE, data.scale);
 }
 
 static void city_building_ghost_draw_bonus_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_POSITIVE_RANGE, data.scale);
 }
 
@@ -216,26 +221,31 @@ static void draw_water_range_overlay(int x, int y, color_t color)
 
 void city_building_ghost_draw_well_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     draw_water_range_overlay(x, y, COLOR_MASK_DARK_BLUE);
 }
 
 void city_building_ghost_draw_fountain_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     draw_water_range_overlay(x, y, COLOR_MASK_BLUE);
 }
 
 void city_building_ghost_draw_reservoir_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
 }
 
 void city_building_ghost_draw_aqueduct_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
 }
 
 void city_building_ghost_draw_latrines_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_DARK_GREEN & ALPHA_FONT_SEMI_TRANSPARENT, data.scale);
 }
 
@@ -279,8 +289,8 @@ static void draw_desirability_range(
     }
 
     // Add bonuses from GT Venus
-    if (building_is_statue_garden_temple(definition.type()) &&
-        building_monument_working_grand_temple_for_god(GOD_VENUS)) {
+    if (definition.flags().venus_gt_bonus() &&
+        grand_temple_for_god(GOD_VENUS, true)) {
         int value_bonus = ((desirability_value / 4) > 1) ? (desirability_value / 4) : 1;
         desirability_value += value_bonus;
         if (!definition.is_temple()) {
@@ -309,34 +319,33 @@ static void draw_water_access_context_overlays(
     const map_tile *tile,
     const building_type_registry_impl::BuildingType &definition)
 {
-    const building_type type = definition.type();
-
     const int uses_reservoir_range =
-        water_access_runtime_building_type_requires_access_text(type, "reservoir") ||
-        water_access_runtime_building_type_provides_access_text(type, "reservoir");
+        water_access_runtime_building_type_requires_access_text(&definition, "reservoir") ||
+        water_access_runtime_building_type_provides_access_text(&definition, "reservoir");
     if (uses_reservoir_range && config_get(CONFIG_UI_BUILD_SHOW_RESERVOIR_RANGES)) {
         city_water_ghost_draw_reservoir_ranges();
     }
 
-    if (!building_is_house(type) &&
+    if (!definition.has_housing() &&
         config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE) &&
-        (water_access_runtime_building_type_requires_access_text(type, "fountain") ||
-         water_access_runtime_building_type_requires_access_text(type, "well"))) {
+        (water_access_runtime_building_type_requires_access_text(&definition, "fountain") ||
+         water_access_runtime_building_type_requires_access_text(&definition, "well"))) {
         city_water_ghost_draw_water_structure_ranges();
     }
 
-    if (water_access_runtime_building_type_provides_access(type) &&
+    if (water_access_runtime_building_type_provides_access(&definition) &&
         config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
-        city_water_ghost_draw_preview(type, tile->grid_offset, 0);
+        city_water_ghost_draw_preview(&definition, tile->grid_offset, 0);
     }
 
-    if (building_is_house(type) && config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE_HOUSES)) {
+    if (definition.has_housing() && config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE_HOUSES)) {
         city_water_ghost_draw_water_structure_ranges();
     }
 }
 
 static void draw_market_range_tile(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_GRAY, data.scale);
 }
 
@@ -351,7 +360,9 @@ static void draw_distribution_context_overlays(
         building market_record = {};
         market_record.type = definition.type();
         market_record.state = BUILDING_STATE_IN_USE;
-        Market market(market_record, &definition);
+        BuildingGraphicsState graphics_state;
+        Building preview_building(market_record, &definition, graphics_state);
+        Market market(preview_building);
         city_view_foreach_tile_in_range(tile->grid_offset, building_size, market.max_supplier_distance(),
             draw_market_range_tile);
     }
@@ -359,6 +370,7 @@ static void draw_distribution_context_overlays(
 
 static void draw_grand_temple_neptune_range(int x, int y, int grid_offset)
 {
+    (void) grid_offset;
     color_t color_mask = data.reservoir_range.blocked ? COLOR_MASK_GRAY : COLOR_MASK_BLUE;
     draw_water_range_overlay(x, y, color_mask);
 }
@@ -374,7 +386,7 @@ static void draw_grand_temple_neptune_context_overlay(
     }
     data.reservoir_range.blocked = blocked;
     int radius = map_water_supply_reservoir_radius();
-    if (!building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+    if (!grand_temple_for_god(GOD_NEPTUNE, true)) {
         radius += 2;
     }
     city_view_foreach_tile_in_range(tile->grid_offset, building_size, radius, draw_grand_temple_neptune_range);
@@ -388,12 +400,12 @@ static building make_plan_ghost_record(
     const building_type_registry_impl::BuildingType &part_definition = *part.definition;
     building record = {};
     record.type = part.type;
-    record.grid_offset = part.grid_offset;
+    record.grid_offset = static_cast<short>(part.grid_offset);
     record.x = static_cast<unsigned char>(part.x);
     record.y = static_cast<unsigned char>(part.y);
     record.state = BUILDING_STATE_IN_USE;
     record.size = static_cast<unsigned char>(part.size);
-    record.num_workers = part_definition.required_workers();
+    record.num_workers = static_cast<short>(part_definition.required_workers());
     record.data.entertainment.days1 = 1;
     record.data.entertainment.days2 = 1;
     if (part_definition.is_granary()) {
@@ -405,7 +417,7 @@ static building make_plan_ghost_record(
         record.data.dock.orientation = static_cast<signed char>(plan.waterside_orientation_absolute());
     } else if (building_rotation_type_has_rotations(root_definition.type()) ||
         part_definition.has_composition()) {
-        record.subtype.orientation = building_rotation_get_rotation();
+        record.subtype.orientation = static_cast<short>(building_rotation_get_rotation());
     }
     prepare_ghost_water_access_state(part_definition, record);
     return record;
@@ -524,10 +536,10 @@ static void draw_single_reservoir(int grid_offset, int x, int y, color_t color, 
 
     building record = {};
     record.type = reservoir_type;
-    record.grid_offset = grid_offset;
+    record.grid_offset = static_cast<short>(grid_offset);
     record.state = BUILDING_STATE_IN_USE;
     record.size = static_cast<unsigned char>(definition->declared_model_size());
-    record.num_workers = definition->required_workers();
+    record.num_workers = static_cast<short>(definition->required_workers());
     record.has_water_access = static_cast<unsigned char>(has_water ? 1 : 0);
     if (grid_offset) {
         record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
@@ -666,7 +678,10 @@ static void draw_draggable_reservoir(const map_tile *tile, int x, int y, buildin
     // mouse pointer = center tile of reservoir instead of north, correct here:
     y -= 30;
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
-        city_water_ghost_draw_preview(type, preview_primary_grid_offset, preview_secondary_grid_offset);
+        city_water_ghost_draw_preview(
+            building_type_registry_impl::definition_for_type(type),
+            preview_primary_grid_offset,
+            preview_secondary_grid_offset);
     }
     draw_single_reservoir(tile->grid_offset, x, y, color, has_water, drawing_two_reservoirs);
     if (!drawing_two_reservoirs) {
@@ -708,7 +723,7 @@ static void draw_aqueduct(const map_tile *tile, int x, int y, building_type type
         image_id += img->group_offset + 15;
     }
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
-        city_water_ghost_draw_preview(type, grid_offset, 0);
+        city_water_ghost_draw_preview(building_type_registry_impl::definition_for_type(type), grid_offset, 0);
     }
     draw_building(image_id, x, y, blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST);
     draw_building_tiles(x, y, 1, &blocked);
@@ -876,7 +891,6 @@ static void draw_partial_grid(
     int y,
     const building_type_registry_impl::BuildingType &definition)
 {
-    const building_type type = definition.type();
     if (definition.tool().is_draggable_reservoir()) {
         int size = 3;
         int orientation_index = city_view_orientation() / 2;

@@ -102,17 +102,17 @@ void building_storage_reset_building_ids(void)
             continue;
         }
         building_type type = definition->type();
-        for (Building b = Building::first_of_type(type); b.id; b = b.next_of_type()) {
-            if (b.state_id() == BUILDING_STATE_UNUSED) {
+        for (Building *b = Building::first_of_type(type); b; b = b->next_of_type()) {
+            if (b->state_id() == BUILDING_STATE_UNUSED) {
                 continue;
             }
-            if (b.storage_id) {
-                data_storage *storage = storage_at(b.storage_id);
+            if (b->storage_id) {
+                data_storage *storage = storage_at(b->storage_id);
                 if (storage && storage->building_id) {
                     // storage is already connected to a building: corrupt, create new
-                    b.set_storage_id(building_storage_create(b.id));
+                    b->set_storage_id(building_storage_create(b->id));
                 } else if (storage) {
-                    storage->building_id = b.id;
+                    storage->building_id = b->id;
                 }
             }
         }
@@ -175,9 +175,17 @@ int building_storage_change_building(int storage_id, int building_id)
     if (!storage) {
         return 0;
     }
+    Building *building = nullptr;
+    Building::for_each([building_id, &building](Building *candidate) {
+        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
+            building = candidate;
+        }
+    });
+    if (!building) {
+        return 0;
+    }
     storage->building_id = building_id;
-    Building b(building_get(building_id));
-    b.set_storage_id(storage_id); // set for the main entry
+    building->set_storage_id(storage_id); // set for the main entry
     return 1;
 }
 
@@ -215,8 +223,16 @@ void building_storage_toggle_empty_all(int storage_id)
 
 int building_storage_get_empty_all(int building_id)
 {
-    Building b(building_get(building_id));
-    unsigned int storage_id = b.storage_id;
+    Building *building = nullptr;
+    Building::for_each([building_id, &building](Building *candidate) {
+        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
+            building = candidate;
+        }
+    });
+    if (!building) {
+        return 0;
+    }
+    unsigned int storage_id = building->storage_id;
     if (storage_id >= storages.size()) {
         return 0;
     }
@@ -225,13 +241,18 @@ int building_storage_get_empty_all(int building_id)
 
 int building_storage_count_stored_resource_types(int building_id)
 {
-    Building b(building_get(building_id));
-    if (!b.storage_id) {
+    Building *building = nullptr;
+    Building::for_each([building_id, &building](Building *candidate) {
+        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
+            building = candidate;
+        }
+    });
+    if (!building || !building->storage_id) {
         return 0;
     }
     int stored_types_count = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (b.resource_amount(r) > 0) {
+        if (building->resource_amount(r) > 0) {
             stored_types_count++;
         }
     }
@@ -351,7 +372,7 @@ int building_storage_get_permission(building_storage_permission_states p, const 
 {
     const building_storage *s = building_storage_get(b.storage_id);
     int permission_bit = 1 << p;
-    return !(s->permissions & permission_bit);
+    return (s->permissions & permission_bit) == 0;
 }
 
 void building_storage_set_permission(building_storage_permission_states p, Building &b, int enable)
@@ -409,9 +430,9 @@ void building_storage_cycle_partial_resource_state(int storage_id, resource_type
 
 int building_storage_accepts_storage(Building &b, resource_type resource, int *understaffed)
 {
-    if (b.type && b.type->is_warehouse()) {
+    if (b.type ? b.type->is_warehouse() : 0) {
         return building_warehouse_accepts_storage(b, resource, understaffed);
-    } else if (b.type && b.type->is_granary()) {
+    } else if (b.type ? b.type->is_granary() : 0) {
         return building_granary_accepts_storage(b, resource, understaffed);
     }
     return 0;
@@ -450,7 +471,7 @@ static const uint8_t *storage_state_text(building_storage_state state, const Bui
         case BUILDING_STORAGE_STATE_ACCEPTING:   return lang_get_string("main_strings.99.7");
         case BUILDING_STORAGE_STATE_NOT_ACCEPTING: return lang_get_string("main_strings.99.8");
         case BUILDING_STORAGE_STATE_GETTING:
-            return lang_get_string(current_string_key(99, 9 + (building_object.type && building_object.type->is_granary())));
+            return lang_get_string(current_string_key(99, 9 + (building_object.type ? building_object.type->is_granary() : 0)));
         case BUILDING_STORAGE_STATE_MAINTAINING: return lang_get_string("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING");
         default: return (const uint8_t *) "";
     }
@@ -468,7 +489,7 @@ int building_storage_summary_tooltip(const Building &building_object, char *tool
         return 1;
     }
 
-    const resource_list *list = building_object.type && building_object.type->is_warehouse()
+    const resource_list *list = (building_object.type ? building_object.type->is_warehouse() : 0)
         ? city_resource_get_potential() : city_resource_get_potential_foods();
 
     building_storage_state state;
@@ -570,8 +591,10 @@ int building_storage_summary_tooltip(const Building &building_object, char *tool
 
 int building_storage_resource_max_storable(const Building &building_object, resource_type resource_id)
 {
-    if (building_object.type && building_object.type->is_granary() && resource_id >= (RESOURCE_NONE + 1)) {
-        return 0;
+    if (building_object.type ? building_object.type->is_granary() : 0) {
+        if (resource_id >= (RESOURCE_NONE + 1)) {
+            return 0;
+        }
     }
 
     const building_storage *s = building_storage_get(building_object.storage_id);
@@ -770,14 +793,14 @@ void building_storage_load_state(buffer *buf, int version)
         if (!definition || !definition->is_granary()) {
             continue;
         }
-        for (Building b = Building::first_of_type(definition->type()); b.id; b = b.next_of_type()) {
+        for (Building *b = Building::first_of_type(definition->type()); b; b = b->next_of_type()) {
             int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-                int amount = b.resource_amount(r) / 100;
-                b.set_resource_amount(r, amount);
+                int amount = b->resource_amount(r) / 100;
+                b->set_resource_amount(r, amount);
                 granary_free_space -= amount;
             }
-            b.set_resource_amount(RESOURCE_NONE, granary_free_space);
+            b->set_resource_amount(RESOURCE_NONE, granary_free_space);
         }
     }
 

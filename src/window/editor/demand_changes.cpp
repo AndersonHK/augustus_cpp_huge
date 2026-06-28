@@ -232,6 +232,7 @@ static void button_demand_change(const grid_box_item *item)
 
 static void button_new_demand_change(const generic_button *button)
 {
+    (void) button;
     int new_demand_change_id = scenario_demand_change_new();
     if (new_demand_change_id >= 0) {
         window_editor_edit_demand_change_show(new_demand_change_id);

@@ -484,7 +484,7 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"forum", "senate"})) {
         overlay = OVERLAY_TAX_INCOME;
     } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
-        resource_is_food(building_output_resource(type.type())) ||
+        resource_is_food(building_output_resource(&type)) ||
         building_type_registry_impl::type_attr_is_any(type.type(), {
             "market", "oil_workshop", "wine_workshop", "wharf"
         })) {
@@ -696,17 +696,18 @@ static void handle_hotkeys(const hotkeys *h)
         building_rotation_rotate_backward();
     }
     if (h->building) {
-        set_construction_building_type(
-            building_type_registry_impl::definition_for_type(static_cast<building_type>(h->building)),
-            0);
+        set_construction_building_type(h->building, 0);
     }
     if (h->undo) {
         game_undo_perform();
         window_invalidate();
     }
     if (h->mothball_toggle) {
-        Building *building = map_building_at(widget_city_current_grid_offset()).main();
-        building ? toggle_mothball_building(building) : (void)0;
+        int grid_offset = widget_city_current_grid_offset();
+        if (map_building_exists_at(grid_offset)) {
+            Building &building = map_building_at(grid_offset).main();
+            toggle_mothball_building(&building);
+        }
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
@@ -721,7 +722,7 @@ static void handle_hotkeys(const hotkeys *h)
     if (h->clone_building) {
         Building building = map_building_at(widget_city_current_grid_offset()).main();
         const building_type_registry_impl::BuildingType *type =
-            building.og_type ? building.og_type : building.type;
+            building.Rubble && building.Rubble->original_type() ? building.Rubble->original_type() : building.type;
         set_construction_building_type(type, building.Graphics().rotation());
     }
     if (h->copy_building_settings) {

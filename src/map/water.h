@@ -34,7 +34,7 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
 
 int map_water_is_connected_to_open_water(int x, int y, int size);
 
-int map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile);
+Building *map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile);
 int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_point *tile);
 void map_water_clear_fishing_boat_from_wharf(Building wharf, unsigned int boat_id);
 int map_water_wharf_live_fishing_boats(Building wharf);

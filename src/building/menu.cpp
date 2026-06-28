@@ -220,21 +220,23 @@ static void enable_cycling_temples_if_allowed(building_type type)
 
 static int is_building_type_allowed(building_type type);
 
-static int can_get_required_resource(building_type type)
+static int can_get_required_resource(
+    building_type type,
+    const building_type_registry_impl::BuildingType *definition)
 {
-    if (building_type_registry_impl::type_attr_is(type, "shipyard")) {
+    if (definition->attr_is("shipyard")) {
         return empire_can_produce_resource_naturally(resource_fish());
-    } else if (building_is_farm(type)) {
-        const resource_type output_resource = building_output_resource(type);
-        return output_resource > RESOURCE_NONE && can_produce_resource_naturally(output_resource);
-    } else if (building_type_registry_impl::type_attr_is(type, "tavern")) {
+    } else if (definition && definition->is_farm()) {
+        const resource_type output_resource = building_output_resource(definition);
+        return output_resource > RESOURCE_NONE && empire_can_produce_resource_naturally(output_resource);
+    } else if (definition->attr_is("tavern")) {
         return empire_can_produce_resource_potentially(resource_wine()) ||
             empire_can_import_resource_potentially(resource_wine());
-    } else if (building_type_registry_impl::type_attr_is(type, "lighthouse")) {
+    } else if (definition->attr_is("lighthouse")) {
         return (empire_can_produce_resource_potentially(resource_timber()) ||
             empire_can_import_resource_potentially(resource_timber())) &&
             building_monument_has_required_resources_to_build(type);
-    } else if (building_type_registry_impl::type_attr_is(type, "city_mint")) {
+    } else if (definition->attr_is("city_mint")) {
         building_type senate = building_type_registry_impl::type_from_attr("senate");
         return senate != BUILDING_NONE && is_building_type_allowed(senate) &&
             building_monument_has_required_resources_to_build(type);
@@ -244,8 +246,10 @@ static int can_get_required_resource(building_type type)
 
 static int is_building_type_allowed(building_type type)
 {
-    return scenario_allowed_building(building_type_registry_impl::definition_for_type(type)) &&
-        can_get_required_resource(type);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return scenario_allowed_building(definition) &&
+        can_get_required_resource(type, definition);
 }
 
 static void enable_if_allowed(int *enabled, building_type menu_building_type, building_type type)

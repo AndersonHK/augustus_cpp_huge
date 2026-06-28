@@ -139,11 +139,6 @@ typedef struct building {
             unsigned char evolve_text_id;
         } house;
         struct {
-            unsigned short og_grid_offset;
-            unsigned char og_size;
-            unsigned char og_orientation;
-        } rubble;
-        struct {
             unsigned short exceptions;
         } roadblock;
         struct {

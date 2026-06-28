@@ -512,14 +512,16 @@ static void calculate_max_prosperity(void)
 {
     int points = 0;
     int houses = 0;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *b = const_cast<building *>(house->record());
         if (b->state && b->house_size) {
-            const model_house *house_model = building_house_get_model(Building(b));
+            const model_house *house_model = building_house_get_model(*house);
             points += house_model ? house_model->prosperity : 0;
             houses++;
         }
-    }
+    });
+
     if (houses > 0) {
         city_data.ratings.prosperity_max = points / houses;
     } else {

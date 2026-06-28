@@ -233,7 +233,7 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    int active_buttons = NUMBER_OF_BUTTONS;
+    unsigned int active_buttons = static_cast<unsigned int>(NUMBER_OF_BUTTONS);
     if (editor_is_active()) {
         active_buttons -= 1;
     }
@@ -256,12 +256,14 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_starting_conditions(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_starting_conditions_show();
 }
 
 static void button_requests(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_requests_show();
 }
@@ -280,54 +282,63 @@ static void button_enemy(const generic_button *button)
 
 static void button_invasions(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_invasions_show();
 }
 
 static void button_allowed_buildings(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_allowed_buildings_show();
 }
 
 static void button_win_criteria(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_win_criteria_show();
 }
 
 static void button_special_events(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_special_events_show();
 }
 
 static void button_price_changes(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_price_changes_show();
 }
 
 static void button_demand_changes(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_demand_changes_show();
 }
 
 static void button_scenario_events(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_scenario_events_show();
 }
 
 static void button_custom_messages(const generic_button *button)
 {
+    (void) button;
     stop();
     window_editor_custom_messages_show();
 }
 
 static void button_change_intro(const generic_button *button)
 {
+    (void) button;
     stop();
     if (!scenario_editor_get_custom_message_introduction()) {
         window_editor_select_custom_message_show(scenario_editor_set_custom_message_introduction);
@@ -339,12 +350,14 @@ static void button_change_intro(const generic_button *button)
 
 static void button_delete_intro(const generic_button *button)
 {
+    (void) button;
     stop();
     scenario_editor_set_custom_message_introduction(0);
 }
 
 static void button_change_victory(const generic_button *button)
 {
+    (void) button;
     stop();
     if (!scenario_editor_get_custom_victory_message()) {
         window_editor_select_custom_message_show(scenario_editor_set_custom_victory_message);
@@ -356,24 +369,28 @@ static void button_change_victory(const generic_button *button)
 
 static void button_delete_victory(const generic_button *button)
 {
+    (void) button;
     stop();
     scenario_editor_set_custom_victory_message(0);
 }
 
 static void button_change_model_data(const generic_button *button)
 {
+    (void) button;
     stop();
     window_model_data_show();
 }
 
 static void button_return_to_city(const generic_button *button)
 {
+    (void) button;
     stop();
     window_city_show();
 }
 
 static void button_change_climate(const generic_button *button)
 {
+    (void) button;
     scenario_editor_cycle_climate();
     image_load_climate(scenario_property_climate(), editor_is_active(), 0, 0, 0);
     widget_minimap_invalidate();
@@ -382,6 +399,7 @@ static void button_change_climate(const generic_button *button)
 
 static void button_change_image(int forward, int param2)
 {
+    (void) param2;
     scenario_editor_cycle_image(forward);
     window_request_refresh();
 }

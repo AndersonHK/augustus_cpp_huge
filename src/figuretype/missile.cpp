@@ -43,15 +43,15 @@ void figure_create_explosion_cloud(int x, int y, int size, int alt_sound)
         Figure *f = Figure::create(FIGURE_EXPLOSION,
             x + tile_offset, y + tile_offset, DIR_0_TOP);
         if (f->id()) {
-            f->cross_country_x += cc_offset;
-            f->cross_country_y += cc_offset;
-            f->destination_x += CLOUD_DIRECTION[i].x;
-            f->destination_y += CLOUD_DIRECTION[i].y;
+            f->cross_country_x = static_cast<short>(f->cross_country_x + cc_offset);
+            f->cross_country_y = static_cast<short>(f->cross_country_y + cc_offset);
+            f->destination_x = static_cast<unsigned char>(f->destination_x + CLOUD_DIRECTION[i].x);
+            f->destination_y = static_cast<unsigned char>(f->destination_y + CLOUD_DIRECTION[i].y);
             figure_movement_set_cross_country_direction(f,
                 f->cross_country_x, f->cross_country_y,
                 figure_movement_tile_to_cross_country(f->destination_x) + cc_offset,
                 figure_movement_tile_to_cross_country(f->destination_y) + cc_offset, 0);
-            f->speed_multiplier = CLOUD_SPEED[i];
+            f->speed_multiplier = static_cast<unsigned char>(CLOUD_SPEED[i]);
         }
     }
     sound_effect_play(alt_sound ? SOUND_EFFECT_BUILD : SOUND_EFFECT_EXPLOSION);
@@ -68,8 +68,8 @@ void figure_create_missile(int figure_id, int x, int y, int x_dst, int y_dst, fi
             f->missile_height = 10;
         }
         f->last_destination_id = figure_id;
-        f->destination_x = x_dst;
-        f->destination_y = y_dst;
+        f->destination_x = static_cast<unsigned char>(x_dst);
+        f->destination_y = static_cast<unsigned char>(y_dst);
         figure_movement_set_cross_country_direction(
             f, f->cross_country_x, f->cross_country_y,
             figure_movement_tile_to_cross_country(x_dst),
@@ -155,9 +155,9 @@ static void missile_hit_target(Figure *f, int target_id, figure_type legionary_t
     }
     int target_damage = damage_inflicted + target->damage;
     if (target_damage <= max_damage) {
-        target->damage = target_damage;
+        target->damage = static_cast<unsigned char>(target_damage);
     } else { // kill target
-        target->damage = max_damage + 1;
+        target->damage = static_cast<unsigned char>(max_damage + 1);
         target->action_state = FIGURE_ACTION_149_CORPSE;
         target->wait_ticks = 0;
         figure_play_die_sound(target);
@@ -267,9 +267,9 @@ void figure_bolt_action(Figure *f)
         }
         int target_damage = damage_inflicted + target->damage;
         if (target_damage <= max_damage) {
-            target->damage = target_damage;
+            target->damage = static_cast<unsigned char>(target_damage);
         } else { // kill target
-            target->damage = max_damage + 1;
+            target->damage = static_cast<unsigned char>(max_damage + 1);
             target->action_state = FIGURE_ACTION_149_CORPSE;
             target->wait_ticks = 0;
             figure_play_die_sound(target);

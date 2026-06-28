@@ -348,7 +348,7 @@ static void init(void)
     window_empire_sidebar_sort_set_hovered_sorting_button(NO_POSITION);
     window_empire_sidebar_sort_set_resource_selection_active(0); // not in resource selection mode
 
-    data.sidebar.width_percent = config_get(CONFIG_UI_EMPIRE_SIDEBAR_WIDTH); // default sidebar width (25%)
+    data.sidebar.width_percent = static_cast<uint8_t>(config_get(CONFIG_UI_EMPIRE_SIDEBAR_WIDTH)); // default sidebar width (25%)
     data.sidebar.dragging = 0; // not dragging initially
     data.sidebar.dragging_width = 0;
     data.sidebar.previous_width = 0;
@@ -1223,6 +1223,7 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
 
 static void draw_trade_city_info(const empire_object *object, const empire_city *city)
 {
+    (void) object;
     int y_offset = data.y_max - 113;
     const int safe_margin_left = data.panel.x_min + 50;
     const int safe_margin_right = data.panel.x_max - 50;
@@ -1386,6 +1387,7 @@ static void draw_city_info(const empire_object *object)
 
 static void draw_roman_army_info(const empire_object *object)
 {
+    (void) object;
     int x_offset = (data.x_min + data.x_max - 240) / 2;
     int y_offset = data.y_max - 68;
     int text_id;
@@ -1399,6 +1401,7 @@ static void draw_roman_army_info(const empire_object *object)
 
 static void draw_enemy_army_info(const empire_object *object)
 {
+    (void) object;
     lang_text_draw_multiline("main_strings.47.14", (data.x_min + data.x_max - 240) / 2, data.y_max - 68, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 }
 
@@ -2042,7 +2045,7 @@ void handle_sidebar_dragging(const mouse *m)
     } else if (new_width > 70) {
         data.sidebar.dragging_width = 70;     // maximum width (70%)
     } else {
-        data.sidebar.dragging_width = new_width;
+        data.sidebar.dragging_width = static_cast<uint8_t>(new_width);
     }
 
     // Immediate layout update for live feedback
@@ -2255,21 +2258,28 @@ static void get_tooltip(tooltip_context *c)
 
 static void button_help(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     window_message_dialog_show(MESSAGE_DIALOG_EMPIRE_MAP, 0);
 }
 
 static void button_return_to_city(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     window_city_show();
 }
 
 static void button_advisor(int advisor, int param2)
 {
+    (void) param2;
     window_advisors_show_advisor(static_cast<advisor_type>(advisor));
 }
 
 static void button_show_prices(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     window_trade_prices_show(0, 0, screen_width(), screen_height());
 }
 
@@ -2281,6 +2291,7 @@ static void button_show_resource_window(int resource_button_index)
 
 static void confirmed_open_trade_by_route(int accepted, int checked)
 {
+    (void) checked;
     if (accepted) {
         int city_id = empire_city_get_for_trade_route(data.selected_trade_route);
         empire_city_open_trade(city_id, 1);

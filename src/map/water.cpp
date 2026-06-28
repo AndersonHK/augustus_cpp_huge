@@ -346,7 +346,7 @@ static int wharf_has_shipyard_fishing_boat_room(Building wharf, int live_boats)
         return 0;
     }
     if (wharf_self_fishing_boat_capacity(wharf) > 0) {
-        const building *record = building_get(wharf.id);
+        const building *record = wharf.record();
         return record && !live_fishing_boat_id(record->data.industry.second_fishing_boat_id);
     }
     return live_boats < shipyard_capacity;
@@ -374,13 +374,13 @@ static void wharf_tile(Building wharf, map_point *tile)
 
 int map_water_wharf_live_fishing_boats(Building wharf)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     return record ? wharf_live_fishing_boat_count(record) : 0;
 }
 
 Figure *map_water_wharf_live_fishing_boat(Building wharf)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     if (!record) {
         return nullptr;
     }
@@ -393,21 +393,21 @@ Figure *map_water_wharf_live_fishing_boat(Building wharf)
 
 int map_water_wharf_has_self_fishing_boat_room(Building wharf)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     return record && wharf_self_fishing_boat_capacity(wharf) > 0 &&
         !live_fishing_boat_id(record->data.industry.fishing_boat_id);
 }
 
 int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_point *tile)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     if (!boat || !record || record->state != BUILDING_STATE_IN_USE) {
         return 0;
     }
     clear_stale_fishing_boat_slots(record);
     if (!wharf_has_boat_id(record, boat->id())) {
         const int self_capacity = wharf_self_fishing_boat_capacity(wharf);
-        const int self_boat = boat->building.id == wharf.id;
+        const int self_boat = boat->building && boat->building->id == wharf.id;
         if (self_capacity > 0 && self_boat && !record->data.industry.fishing_boat_id) {
             record->data.industry.fishing_boat_id = boat->id();
         } else if (self_capacity > 0 && !self_boat &&
@@ -433,7 +433,7 @@ int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_poi
 
 void map_water_clear_fishing_boat_from_wharf(Building wharf, unsigned int boat_id)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     if (!record || !boat_id) {
         return;
     }
@@ -445,39 +445,39 @@ void map_water_clear_fishing_boat_from_wharf(Building wharf, unsigned int boat_i
     }
 }
 
-static int find_wharf_for_new_fishing_boat(Figure *boat, map_point *tile, int assign)
+static Building *find_wharf_for_new_fishing_boat(Figure *boat, map_point *tile, int assign)
 {
-    Building wharf(nullptr);
-    for (int pass = 0; pass < 2 && !wharf.id; pass++) {
-        for (int i = 1; i < Building::count(); i++) {
-            Building candidate(building_get(i));
-            if (candidate.state_id() != BUILDING_STATE_IN_USE) {
-                continue;
+    Building *wharf = nullptr;
+    for (int pass = 0; pass < 2 && !wharf; pass++) {
+        Building::for_each([&](Building *candidate) {
+            if (wharf ||
+                candidate->state_id() != BUILDING_STATE_IN_USE ||
+                !candidate->matches("wharf")) {
+                return;
             }
-            if (!candidate.matches("wharf")) {
-                continue;
+            building *record = const_cast<building *>(candidate->record());
+            if (!record) {
+                return;
             }
-            building *record = building_get(candidate.id);
             clear_stale_fishing_boat_slots(record);
             const int live_boats = wharf_live_fishing_boat_count(record);
             if (wharf_has_boat_id(record, boat ? boat->id() : 0) ||
-                (wharf_has_shipyard_fishing_boat_room(candidate, live_boats) && (pass == 1 || live_boats == 0))) {
+                (wharf_has_shipyard_fishing_boat_room(*candidate, live_boats) && (pass == 1 || live_boats == 0))) {
                 wharf = candidate;
-                break;
             }
-        }
+        });
     }
-    if (!wharf.id) {
-        return 0;
+    if (!wharf) {
+        return nullptr;
     }
     if (assign) {
-        return map_water_assign_fishing_boat_to_wharf(boat, wharf, tile);
+        return map_water_assign_fishing_boat_to_wharf(boat, *wharf, tile) ? wharf : nullptr;
     }
-    wharf_tile(wharf, tile);
-    return wharf.id;
+    wharf_tile(*wharf, tile);
+    return wharf;
 }
 
-int map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
+Building *map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
 {
     return find_wharf_for_new_fishing_boat(boat, tile, 1);
 }
@@ -485,12 +485,12 @@ int map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
 int map_water_has_wharf_for_new_fishing_boat(void)
 {
     map_point tile;
-    return find_wharf_for_new_fishing_boat(nullptr, &tile, 0) != 0;
+    return find_wharf_for_new_fishing_boat(nullptr, &tile, 0) != nullptr;
 }
 
 int map_water_shipyard_can_spawn_fishing_boat(Building shipyard)
 {
-    building *record = building_get(shipyard.id);
+    building *record = const_cast<building *>(shipyard.record());
     map_point tile;
     return record && !live_fishing_boat_id(record->figure_id) &&
         map_water_has_wharf_for_new_fishing_boat() &&
@@ -499,7 +499,7 @@ int map_water_shipyard_can_spawn_fishing_boat(Building shipyard)
 
 int map_water_spawn_fishing_boat_from_shipyard(Building shipyard)
 {
-    building *record = building_get(shipyard.id);
+    building *record = const_cast<building *>(shipyard.record());
     map_point boat_tile;
     if (!record || live_fishing_boat_id(record->figure_id) ||
         !map_water_has_wharf_for_new_fishing_boat() ||
@@ -517,7 +517,7 @@ int map_water_spawn_fishing_boat_from_shipyard(Building shipyard)
 
 int map_water_spawn_fishing_boat_from_wharf(Building wharf)
 {
-    building *record = building_get(wharf.id);
+    building *record = const_cast<building *>(wharf.record());
     map_point boat_tile;
     map_point wharf_point;
     if (!record || !map_water_wharf_has_self_fishing_boat_room(wharf) ||
@@ -534,10 +534,10 @@ int map_water_spawn_fishing_boat_from_wharf(Building wharf)
         return 0;
     }
     boat->action_state = FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF;
-    boat->destination_x = wharf_point.x;
-    boat->destination_y = wharf_point.y;
-    boat->source_x = wharf_point.x;
-    boat->source_y = wharf_point.y;
+    boat->destination_x = static_cast<unsigned char>(wharf_point.x);
+    boat->destination_y = static_cast<unsigned char>(wharf_point.y);
+    boat->source_x = static_cast<unsigned char>(wharf_point.x);
+    boat->source_y = static_cast<unsigned char>(wharf_point.y);
     Route::remove(boat);
     return 1;
 }

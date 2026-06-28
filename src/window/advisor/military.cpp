@@ -317,6 +317,7 @@ static void button_empire_service(const generic_button *button)
 
 static void button_return_all_to_fort(const generic_button *button)
 {
+    (void) button;
     unsigned int num_legions_not_at_fort = get_num_legions_not_at_fort();
     if (num_legions_not_at_fort > 0) {
         for (unsigned int i = 0; i < num_legions; i++) {

@@ -415,28 +415,28 @@ int scenario_request_force_start(int id)
 
 static void request_save(buffer *list, const scenario_request *request)
 {
-    buffer_write_i16(list, request->year);
-    buffer_write_i16(list, request->resource);
-    buffer_write_u16(list, request->amount.min);
-    buffer_write_u16(list, request->amount.max);
-    buffer_write_u16(list, request->amount.requested);
-    buffer_write_i16(list, request->deadline_years);
+    buffer_write_i16(list, static_cast<int16_t>(request->year));
+    buffer_write_i16(list, static_cast<int16_t>(request->resource));
+    buffer_write_u16(list, static_cast<uint16_t>(request->amount.min));
+    buffer_write_u16(list, static_cast<uint16_t>(request->amount.max));
+    buffer_write_u16(list, static_cast<uint16_t>(request->amount.requested));
+    buffer_write_i16(list, static_cast<int16_t>(request->deadline_years));
 
-    buffer_write_u8(list, request->can_comply_dialog_shown);
+    buffer_write_u8(list, static_cast<uint8_t>(request->can_comply_dialog_shown));
 
-    buffer_write_u8(list, request->favor);
-    buffer_write_u8(list, request->month);
-    buffer_write_u8(list, request->state);
-    buffer_write_u8(list, request->visible);
-    buffer_write_u8(list, request->months_to_comply);
+    buffer_write_u8(list, static_cast<uint8_t>(request->favor));
+    buffer_write_u8(list, static_cast<uint8_t>(request->month));
+    buffer_write_u8(list, static_cast<uint8_t>(request->state));
+    buffer_write_u8(list, static_cast<uint8_t>(request->visible));
+    buffer_write_u8(list, static_cast<uint8_t>(request->months_to_comply));
 
-    buffer_write_i16(list, request->extension_months_to_comply);
-    buffer_write_i16(list, request->extension_disfavor);
-    buffer_write_i16(list, request->ignored_disfavor);
+    buffer_write_i16(list, static_cast<int16_t>(request->extension_months_to_comply));
+    buffer_write_i16(list, static_cast<int16_t>(request->extension_disfavor));
+    buffer_write_i16(list, static_cast<int16_t>(request->ignored_disfavor));
 
-    buffer_write_i16(list, request->repeat.times);
-    buffer_write_u16(list, request->repeat.interval.min);
-    buffer_write_u16(list, request->repeat.interval.max);
+    buffer_write_i16(list, static_cast<int16_t>(request->repeat.times));
+    buffer_write_u16(list, static_cast<uint16_t>(request->repeat.interval.min));
+    buffer_write_u16(list, static_cast<uint16_t>(request->repeat.interval.max));
 }
 
 void scenario_request_save_state(buffer *list)

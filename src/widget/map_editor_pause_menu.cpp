@@ -32,6 +32,8 @@
 
 static void menu_file_confirm_exit(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         game_exit_editor();
     } else {
@@ -99,6 +101,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void main_menu_confirmed(int confirmed, int checked)
 {
+    (void)checked;
+
     if (confirmed) {
         if (scenario_editor_is_saved()) {
             game_exit_editor();

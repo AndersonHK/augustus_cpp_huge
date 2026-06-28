@@ -14,7 +14,8 @@
 
 #define HOTKEY_CONFIG_UNVERSIONED 0
 #define HOTKEY_CONFIG_ZOOM 1
-#define HOTKEY_CURRENT_VERSION HOTKEY_CONFIG_ZOOM
+#define HOTKEY_CONFIG_BUILDING_TEXT_ID 2
+#define HOTKEY_CURRENT_VERSION HOTKEY_CONFIG_BUILDING_TEXT_ID
 
 static const char *INI_FILENAME = "augustus-hotkeys.ini";
 
@@ -154,18 +155,56 @@ static struct {
     int num_mappings;
 } data;
 
-static void set_mapping(key_type key, key_modifier_type modifiers, hotkey_action action)
+const char *hotkey_building_text_id_for_action(hotkey_action action)
+{
+    switch (action) {
+        case HOTKEY_BUILD_CLEAR_LAND: return "clear_land";
+        case HOTKEY_BUILD_REPAIR_LAND: return "repair_land";
+        case HOTKEY_BUILD_ROAD: return "road";
+        case HOTKEY_BUILD_PLAZA: return "plaza";
+        case HOTKEY_BUILD_GARDENS: return "gardens";
+        case HOTKEY_BUILD_OVERGROWN_GARDENS: return "overgrown_gardens";
+        case HOTKEY_BUILD_PREFECTURE: return "prefecture";
+        case HOTKEY_BUILD_ENGINEERS_POST: return "engineers_post";
+        case HOTKEY_BUILD_DOCTOR: return "doctor";
+        case HOTKEY_BUILD_BARBER: return "barber";
+        case HOTKEY_BUILD_GRANARY: return "granary";
+        case HOTKEY_BUILD_WAREHOUSE: return "warehouse";
+        case HOTKEY_BUILD_MARKET: return "market";
+        case HOTKEY_BUILD_WALL: return "wall";
+        case HOTKEY_BUILD_GATEHOUSE: return "gatehouse";
+        case HOTKEY_BUILD_RESERVOIR: return "draggable_reservoir";
+        case HOTKEY_BUILD_AQUEDUCT: return "aqueduct";
+        case HOTKEY_BUILD_FOUNTAIN: return "fountain";
+        case HOTKEY_BUILD_ROADBLOCK: return "roadblock";
+        case HOTKEY_BUILD_WHEAT_FARM: return "wheat_farm";
+        case HOTKEY_BUILD_HIGHWAY: return "highway";
+        default: return nullptr;
+    }
+}
+
+static void set_mapping_building_text_id(hotkey_mapping *mapping, const char *building_text_id)
+{
+    if (!mapping || !building_text_id) {
+        return;
+    }
+    snprintf(mapping->building_text_id, sizeof(mapping->building_text_id), "%s", building_text_id);
+}
+
+static hotkey_mapping *set_mapping(key_type key, key_modifier_type modifiers, hotkey_action action)
 {
     hotkey_mapping *mapping = &data.default_mappings[action][0];
     if (mapping->key) {
         mapping = &data.default_mappings[action][1];
     }
     if (mapping->key) {
-        return;
+        return nullptr;
     }
     mapping->key = key;
     mapping->modifiers = modifiers;
     mapping->action = action;
+    set_mapping_building_text_id(mapping, hotkey_building_text_id_for_action(action));
+    return mapping;
 }
 
 static void set_layout_mapping(
@@ -289,6 +328,11 @@ void hotkey_config_add_mapping(const hotkey_mapping *mapping)
 {
     if (data.num_mappings < MAX_MAPPINGS) {
         data.mappings[data.num_mappings] = *mapping;
+        if (!data.mappings[data.num_mappings].building_text_id[0]) {
+            set_mapping_building_text_id(
+                &data.mappings[data.num_mappings],
+                hotkey_building_text_id_for_action(data.mappings[data.num_mappings].action));
+        }
         data.num_mappings++;
     }
 }
@@ -305,11 +349,35 @@ static void load_defaults(void)
     }
 }
 
+static int parse_mapping_value(int hotkey_id, const char *value, hotkey_mapping *mapping)
+{
+    char editable_value[MAX_LINE];
+    snprintf(editable_value, sizeof(editable_value), "%s", value);
+
+    char *building_text_id = strchr(editable_value, '|');
+    if (building_text_id) {
+        *building_text_id = 0;
+        building_text_id++;
+    }
+
+    if (!key_combination_from_name(editable_value, &mapping->key, &mapping->modifiers)) {
+        return 0;
+    }
+
+    mapping->action = static_cast<hotkey_action>(hotkey_id);
+    mapping->building_text_id[0] = 0;
+    set_mapping_building_text_id(
+        mapping,
+        building_text_id && building_text_id[0] ?
+            building_text_id :
+            hotkey_building_text_id_for_action(mapping->action));
+    return 1;
+}
+
 static void add_mapping(int hotkey_id, const char *value)
 {
-    hotkey_mapping mapping;
-    if (key_combination_from_name(value, &mapping.key, &mapping.modifiers)) {
-        mapping.action = static_cast<hotkey_action>(hotkey_id);
+    hotkey_mapping mapping = {};
+    if (parse_mapping_value(hotkey_id, value, &mapping)) {
         hotkey_config_add_mapping(&mapping);
     }
 }
@@ -357,19 +425,18 @@ static void load_file(void)
                 if (strcmp("version", line) == 0) {
                     version = atoi(value);
                 } else {
-                    hotkey_mapping mapping;
-                    if (key_combination_from_name(value, &mapping.key, &mapping.modifiers)) {
-                        mapping.action = static_cast<hotkey_action>(i);
+                    hotkey_mapping mapping = {};
+                    if (parse_mapping_value(i, value, &mapping)) {
                         hotkey_config_add_mapping(&mapping);
                     }
                 }
                 break;
             }
         }
-        // Migrate swapped action keys from older configs without losing the user's binding.
-        if (strcmp("build_clear_land", line) == 0) {
+        // Migrate swapped action keys from unversioned configs without losing the user's binding.
+        if (version == HOTKEY_CONFIG_UNVERSIONED && strcmp("build_clear_land", line) == 0) {
             add_mapping(HOTKEY_BUILD_VACANT_HOUSE, value);
-        } else if (strcmp("build_vacant_house", line) == 0) {
+        } else if (version == HOTKEY_CONFIG_UNVERSIONED && strcmp("build_vacant_house", line) == 0) {
             add_mapping(HOTKEY_BUILD_CLEAR_LAND, value);
         }
     }
@@ -410,7 +477,14 @@ void hotkey_config_save(void)
     fprintf(fp, "version=%d\n", HOTKEY_CURRENT_VERSION);
     for (int i = 0; i < data.num_mappings; i++) {
         const char *key_name = key_combination_name(data.mappings[i].key, data.mappings[i].modifiers);
-        fprintf(fp, "%s=%s\n", ini_keys[data.mappings[i].action], key_name);
+        if (data.mappings[i].building_text_id[0]) {
+            fprintf(fp, "%s=%s|%s\n",
+                ini_keys[data.mappings[i].action],
+                key_name,
+                data.mappings[i].building_text_id);
+        } else {
+            fprintf(fp, "%s=%s\n", ini_keys[data.mappings[i].action], key_name);
+        }
     }
     file_close(fp);
 }

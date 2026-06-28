@@ -82,7 +82,7 @@ int ProductionMethod::labor_access_for(const Building &building) const
 
 int ProductionMethod::can_start_cycle(const Building &building) const
 {
-    const ::building *record = building_get(building.id);
+    const ::building *record = building.record();
     if (!record) {
         return 0;
     }

@@ -2,6 +2,7 @@
 
 #include "building/BuildingGraphicsState.h"
 #include "building/BuildingForEachArgs.h"
+#include "building/RubbleState.h"
 #include "assets/image_group_entry.h"
 #include "building/building.h"
 #include "building/building_type.h"
@@ -11,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,7 +23,7 @@ void building_runtime_begin_load_bridge(int building_count);
 void building_runtime_stage_loaded_graphics_state(
     unsigned int building_id,
     const BuildingGraphicsState &state);
-void building_runtime_stage_loaded_original_type(unsigned int building_id, building_type type);
+void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const RubbleState &state);
 int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state);
 void building_runtime_backup_graphics_state(void);
 void building_runtime_restore_graphics_state(void);
@@ -178,7 +180,7 @@ private:
         building_type_registry_impl::FigureSlot slot,
         figure_type supplier_type,
         const map_point &road,
-        const Building &destination,
+        Building *destination,
         unsigned char collecting_item_id);
     int spawn_grand_temple_mars_recruit(const map_point &road);
     void spawn_architect_guild();
@@ -226,6 +228,7 @@ private:
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
     BuildingGraphicsState graphics_state_;
+    std::unique_ptr<RubbleState> rubble_state_;
     Building building_;
     std::vector<unsigned char> spawn_delay_counters_;
     std::vector<LegacyStorageReservation> legacy_storage_reservations_;

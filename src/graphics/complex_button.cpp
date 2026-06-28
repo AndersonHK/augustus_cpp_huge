@@ -152,7 +152,7 @@ static void draw_grey_style(const complex_button *button)
 
 static void complex_button_ellipsized(complex_button *button, int was_ellipsized)
 {
-    button->is_ellipsized = was_ellipsized;
+    button->is_ellipsized = static_cast<short>(was_ellipsized);
 }
 
 // === Draw a single button ===
@@ -204,7 +204,7 @@ int complex_button_handle_mouse(const mouse *m, complex_button *btn)
     if (btn->is_focused != inside) {
         window_request_refresh(); // redraw to show focus change
     }
-    btn->is_focused = inside;
+    btn->is_focused = static_cast<short>(inside);
     if (btn->is_ellipsized && btn->is_focused) { //if the button is ellipsized, show tooltip
         static uint8_t tooltip_text[512];
         lang_text_concatenate_sequence(btn->sequence, btn->sequence_size, tooltip_text, 512);

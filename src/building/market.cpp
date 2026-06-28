@@ -77,18 +77,30 @@ resource_type Market::fetch_inventory(resource_storage_info info[RESOURCE_SLOT_C
     return RESOURCE_NONE;
 }
 
-int Market::storage_destination()
+Building *Market::storage_destination()
 {
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
     const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!needed_inventory(info) ||
         !distribution ||
         !distribution->find_sources_for_building(info, *this, supply_search_distance())) {
-        return 0;
+        return nullptr;
     }
     resource_type resource = fetch_inventory(info);
-    set_fetch_inventory_id(resource);
-    return info[resource].building_id;
+    if (resource == RESOURCE_NONE) {
+        return nullptr;
+    }
+    Building *destination = nullptr;
+    const unsigned int destination_id = info[resource].building_id;
+    Building::for_each([&](Building *building) {
+        if (!destination && building->id == destination_id) {
+            destination = building;
+        }
+    });
+    if (destination) {
+        set_fetch_inventory_id(resource);
+    }
+    return destination;
 }
 
 int Market::handles_distribution(resource_type resource) const

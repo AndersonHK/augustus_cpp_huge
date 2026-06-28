@@ -1157,7 +1157,7 @@ static void set_player_name_width(void)
         width = 322;
         text_ellipsize(data.player_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), width - 16);
     }
-    select_buttons[SELECT_PLAYER_NAME].width = width;
+    select_buttons[SELECT_PLAYER_NAME].width = static_cast<short>(width);
 }
 
 static void fetch_original_config_values(void)
@@ -1318,8 +1318,8 @@ static void set_language(int index)
 }
 static void button_language_select(const generic_button *button)
 {
-    int height = button->parameter1;
-    window_select_list_show_text(screen_dialog_offset_x(), screen_dialog_offset_y() + height, button,
+    int popup_anchor_y = button->parameter1;
+    window_select_list_show_text(screen_dialog_offset_x(), screen_dialog_offset_y() + popup_anchor_y, button,
         data.language_options.options, data.language_options.total, set_language);
 }
 static void set_player_name(const uint8_t *name)
@@ -1334,12 +1334,16 @@ static void set_player_name(const uint8_t *name)
 }
 static void button_edit_player_name(const generic_button *button)
 {
+    (void)button;
+
     uint8_t player_name[PLAYER_NAME_LENGTH];
     encoding_from_utf8(data.config_string_values[CONFIG_STRING_ORIGINAL_PLAYER_NAME].new_value, player_name, PLAYER_NAME_LENGTH);
     window_text_input_show(lang_get_string("main_strings.31.0"), lang_get_string("main_strings.9.5"), player_name, PLAYER_NAME_LENGTH, set_player_name);
 }
 static void button_change_user_directory(const generic_button *button)
 {
+    (void)button;
+
     window_user_path_setup_show(0);
 }
 
@@ -1365,25 +1369,25 @@ static void init_list_boxes(void)
     //  UI
     ui_list_box.x = LIST_BOX_X;
     ui_list_box.y = LIST_BOX_Y;
-    ui_list_box.width_blocks = LIST_BOX_WIDTH / BLOCK_SIZE;
-    ui_list_box.height_blocks = LIST_BOX_HEIGHT / BLOCK_SIZE;
-    ui_list_box.item_height = LIST_BOX_ITEM_H;
+    ui_list_box.width_blocks = static_cast<unsigned int>(LIST_BOX_WIDTH / BLOCK_SIZE);
+    ui_list_box.height_blocks = static_cast<unsigned int>(LIST_BOX_HEIGHT / BLOCK_SIZE);
+    ui_list_box.item_height = static_cast<unsigned int>(LIST_BOX_ITEM_H);
     ui_list_box.draw_inner_panel = 1;
     ui_list_box.extend_to_hidden_scrollbar = 1;
     ui_list_box.decorate_scrollbar = 1;
     ui_list_box.draw_item = draw_list_box_item;
     ui_list_box.on_select = handle_list_box_select;
     ui_list_box.handle_tooltip = list_box_tooltip;
-    list_box_init(&ui_list_box, CATEGORY_UI_COUNT);
+    list_box_init(&ui_list_box, static_cast<unsigned int>(CATEGORY_UI_COUNT));
 
     //  City management
     city_mgmt_list_box = ui_list_box; //  copy layout
-    list_box_init(&city_mgmt_list_box, CATEGORY_CITY_COUNT);
+    list_box_init(&city_mgmt_list_box, static_cast<unsigned int>(CATEGORY_CITY_COUNT));
     window_config_page original_page = static_cast<window_config_page>(data.page);
     data.page = CONFIG_PAGE_UI_CHANGES;
-    list_box_select_index(&ui_list_box, selected_categories.ui_category);
+    list_box_select_index(&ui_list_box, static_cast<unsigned int>(selected_categories.ui_category));
     data.page = CONFIG_PAGE_CITY_MANAGEMENT_CHANGES;
-    list_box_select_index(&city_mgmt_list_box, selected_categories.city_mgmt_category);
+    list_box_select_index(&city_mgmt_list_box, static_cast<unsigned int>(selected_categories.city_mgmt_category));
     data.page = original_page;
 
 }
@@ -1423,6 +1427,8 @@ static void list_box_tooltip(const list_box_item *item, tooltip_context *c)
 
 static void handle_list_box_select(unsigned int index, int is_double_click)
 {
+    (void)is_double_click;
+
     category_page_properties properties = current_category_properties();
     if (index < (unsigned) properties.count) {
         if (properties.is_ui) {
@@ -1432,7 +1438,7 @@ static void handle_list_box_select(unsigned int index, int is_double_click)
         }
         scrollbar.scroll_position = 0;
         int count = get_widget_count_for(data.page);
-        scrollbar_init(&scrollbar, 0, count);
+        scrollbar_init(&scrollbar, 0, static_cast<unsigned int>(count));
         window_request_refresh();
     }
 }
@@ -1512,10 +1518,15 @@ static int op_input_checkbox(const config_widget *w, int x, int y, int avail_tex
 
 static void op_measure_select(const config_widget *w, int avail_text_w, int *out_h)
 {
+    (void)w;
+    (void)avail_text_w;
+
     *out_h = ITEM_BASE_H;
 }
 static void op_draw_bg_select(const config_widget *w, int x, int y, int avail_text_w)
 {
+    (void)avail_text_w;
+
     text_draw(translation_for(w->description), x, y + 6 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     const generic_button *btn = &select_buttons[w->subtype];
     text_draw_centered(w->get_display_text(), btn->x + 8, y + btn->y + 6 + w->y_offset,
@@ -1523,6 +1534,9 @@ static void op_draw_bg_select(const config_widget *w, int x, int y, int avail_te
 }
 static void op_draw_fg_select(const config_widget *w, int x, int y, int avail_text_w, int focused)
 {
+    (void)x;
+    (void)avail_text_w;
+
     const generic_button *btn = &select_buttons[w->subtype];
     ui_runtime_draw_one_row_button_border(
         btn->x,
@@ -1534,6 +1548,9 @@ static void op_draw_fg_select(const config_widget *w, int x, int y, int avail_te
 }
 static int op_input_select(const config_widget *w, int x, int y, int avail_text_w, const mouse *m, unsigned *focused)
 {
+    (void)x;
+    (void)avail_text_w;
+
     generic_button *btn = &select_buttons[w->subtype];
     btn->parameter1 = y + w->y_offset; //  for popup anchor
 
@@ -1549,10 +1566,15 @@ static int op_input_select(const config_widget *w, int x, int y, int avail_text_
 
 static void op_measure_desc(const config_widget *w, int avail_text_w, int *out_h)
 {
+    (void)w;
+    (void)avail_text_w;
+
     *out_h = ITEM_BASE_H;
 }
 static void op_draw_bg_desc(const config_widget *w, int x, int y, int avail_text_w)
 {
+    (void)avail_text_w;
+
     text_draw(translation_for(w->description), x, y + 10 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 static void op_draw_fg_desc(const config_widget *w, int x, int y, int avail_text_w, int focused)
@@ -1565,6 +1587,13 @@ static void op_draw_fg_desc(const config_widget *w, int x, int y, int avail_text
 }
 static int  op_input_desc(const config_widget *w, int x, int y, int avail_text_w, const mouse *m, unsigned *focused)
 {
+    (void)w;
+    (void)x;
+    (void)y;
+    (void)avail_text_w;
+    (void)m;
+    (void)focused;
+
     return 0;
 }
 
@@ -1624,10 +1653,15 @@ static int handle_slider_mouse(const numerical_range_widget *r, const mouse *m, 
 
 static void op_measure_range(const config_widget *w, int avail_text_w, int *out_h)
 {
+    (void)w;
+    (void)avail_text_w;
+
     *out_h = ITEM_BASE_H;
 }
 static void op_draw_bg_range(const config_widget *w, int x, int y, int avail_text_w)
 {
+    (void)avail_text_w;
+
     int extra_w = data.layout.has_scrollbar ? 0 : 64;
     // content_span_for_page already accounts for category shift; don't offset again.
     numerical_range_draw(&ranges[w->subtype], x, y + w->y_offset, w->get_display_text(), extra_w);
@@ -1643,6 +1677,8 @@ static void op_draw_fg_range(const config_widget *w, int x, int y, int avail_tex
 }
 static int op_input_range(const config_widget *w, int x, int y, int avail_text_w, const mouse *m, unsigned *focused)
 {
+    (void)avail_text_w;
+
     int extra_w = data.layout.has_scrollbar ? 0 : 64;
     // Keep hit-testing aligned with drawing by using x directly.
     (void) focused;
@@ -1652,6 +1688,9 @@ static int op_input_range(const config_widget *w, int x, int y, int avail_text_w
 //  Header
 static void op_measure_header(const config_widget *w, int avail_text_w, int *out_h)
 {
+    (void)w;
+    (void)avail_text_w;
+
     *out_h = ITEM_BASE_H;
 }
 
@@ -1679,6 +1718,13 @@ static void op_draw_fg_header(const config_widget *w, int x, int y, int avail_te
 }
 static int  op_input_header(const config_widget *w, int x, int y, int avail_text_w, const mouse *m, unsigned *focused)
 {
+    (void)w;
+    (void)x;
+    (void)y;
+    (void)avail_text_w;
+    (void)m;
+    (void)focused;
+
     return 0;
 }
 
@@ -1825,8 +1871,8 @@ static void build_layout_for_current_page(void)
     }
 
     // Sync the scrollbar with the new elements_in_view and total count
-    scrollbar.elements_in_view = elements_in_view;
-    scrollbar_update_total_elements(&scrollbar, widget_count); //  important re-sync
+    scrollbar.elements_in_view = static_cast<unsigned int>(elements_in_view);
+    scrollbar_update_total_elements(&scrollbar, static_cast<unsigned int>(widget_count)); //  important re-sync
 
     // change the slice using the clamped scroll position
     const int start_widget_index = (int) scrollbar.scroll_position;
@@ -1891,8 +1937,8 @@ static void draw_background(void)
         } else {
             w = text_draw_ellipsized(translation_for(page_names[i]), page_x_offset, 58, max_closed_w, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        page_buttons[i].x = page_x_offset - 10;
-        page_buttons[i].width = w + 15;
+        page_buttons[i].x = static_cast<short>(page_x_offset - 10);
+        page_buttons[i].width = static_cast<short>(w + 15);
         data.graphics_behind_tab[i] = graphics_save_to_image(
             data.graphics_behind_tab[i],
             page_buttons[i].x,
@@ -1917,8 +1963,8 @@ static void draw_background(void)
         }
     }
     //  bottom buttons text
-    for (size_t i = 0; i < sizeof(bottom_buttons) / sizeof(*bottom_buttons); i++) {
-        int disabled = i == NUM_BOTTOM_BUTTONS - 1 && !data.has_changes;
+    for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_BOTTOM_BUTTONS); i++) {
+        int disabled = i == static_cast<unsigned int>(NUM_BOTTOM_BUTTONS - 1) && !data.has_changes;
         text_draw_centered(translation_for(bottom_button_labels[i]),
             bottom_buttons[i].x, bottom_buttons[i].y + 9, bottom_buttons[i].width,
             disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK)->line_height),
@@ -1961,7 +2007,7 @@ static void draw_foreground(void)
     }
 
     //  bottom buttons borders
-    for (size_t i = 0; i < sizeof(bottom_buttons) / sizeof(*bottom_buttons); i++) {
+    for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_BOTTOM_BUTTONS); i++) {
         ui_runtime_draw_one_row_button_border(
             bottom_buttons[i].x,
             bottom_buttons[i].y,
@@ -1994,7 +2040,7 @@ static int preview_weather_radio_buttons(int selected_key)
         config_key radio_buttons[] = { CONFIG_UI_WT_PREVIEW_RAIN, CONFIG_UI_WT_PREVIEW_SNOW,
             CONFIG_UI_WT_PREVIEW_HEAVY_RAIN, CONFIG_UI_WT_PREVIEW_SANDSTORM };
         for (size_t i = 0; i < sizeof(radio_buttons) / sizeof(*radio_buttons); i++) {
-            if (radio_buttons[i] != selected_key) {
+            if (static_cast<int>(radio_buttons[i]) != selected_key) {
                 data.config_values[radio_buttons[i]].new_value = 0;
             }
         }
@@ -2038,11 +2084,15 @@ static int apply_changed_configs(void)
 
 static void button_hotkeys(const generic_button *button)
 {
+    (void)button;
+
     window_hotkey_config_show(0);
 }
 
 static void button_reset_defaults(const generic_button *button)
 {
+    (void)button;
+
     for (int i = 0; i < CONFIG_MAX_ENTRIES; i++) {
         data.config_values[i].new_value = config_get_default_value(static_cast<config_key>(i));
     }
@@ -2244,8 +2294,8 @@ static void set_page(unsigned int page)
 {
     data.page = page;
     scrollbar.scroll_position = 0;
-    int count = get_widget_count_for((int) page);
-    scrollbar_init(&scrollbar, 0, count);
+    int count = get_widget_count_for(page);
+    scrollbar_init(&scrollbar, 0, static_cast<unsigned int>(count));
 
     window_invalidate();
 }

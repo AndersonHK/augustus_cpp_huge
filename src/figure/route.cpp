@@ -690,7 +690,7 @@ static RouteIntent route_intent_from_figure(Figure &figure)
     const RouteNeighborhood neighborhood = route_neighborhood_from_direction_limit(direction_limit);
     intent.destination = { figure.destination_x, figure.destination_y };
     intent.max_tiles = figure.max_roam_length > 0 ? figure.max_roam_length : 0;
-    intent.only_through_building_id = figure.destination_building.id;
+    intent.only_through_building_id = figure.destination_building ? figure.destination_building->id : 0;
 
     if (figure.is_boat) {
         intent.policy = RoutePolicy::water(figure.is_boat == 2, neighborhood);

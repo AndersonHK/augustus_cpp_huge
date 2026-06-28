@@ -73,6 +73,8 @@ static int get_column_height_academy(const building *b)
 
 static int get_tooltip_education(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     switch (b->data.house.education) {
         case 0: return 100;
         case 1: return 101;
@@ -84,6 +86,8 @@ static int get_tooltip_education(tooltip_context *c, const building *b)
 
 static int get_tooltip_school(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.school <= 0) {
         return 19;
     } else if (b->data.house.school >= 80) {
@@ -97,6 +101,8 @@ static int get_tooltip_school(tooltip_context *c, const building *b)
 
 static int get_tooltip_library(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.library <= 0) {
         return 23;
     } else if (b->data.house.library >= 80) {
@@ -110,6 +116,8 @@ static int get_tooltip_library(tooltip_context *c, const building *b)
 
 static int get_tooltip_academy(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.academy <= 0) {
         return 27;
     } else if (b->data.house.academy >= 80) {

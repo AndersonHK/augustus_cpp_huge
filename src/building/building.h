@@ -3,6 +3,7 @@
 #include "building/building_fwd.h"
 #include "building/BuildingForEachArgs.h"
 #include "building/BuildingGraphics.h"
+#include "building/RubbleModule.h"
 #include "building/building_order.h"
 #include "building/storage_type.h"
 #include "building/building_type.h"
@@ -12,6 +13,7 @@
 #include "graphics/color.h"
 #include "map/point.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <source_location>
@@ -79,6 +81,11 @@ public:
         ::building *record,
         BuildingGraphicsState *graphics_state,
         const std::source_location &location = std::source_location::current());
+    Building(std::nullptr_t) = delete;
+    Building(
+        std::nullptr_t,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current()) = delete;
     Building(
         ::building &record,
         BuildingGraphicsState &graphics_state,
@@ -88,6 +95,18 @@ public:
         const building_type_registry_impl::BuildingType *type_definition,
         BuildingGraphicsState *graphics_state,
         const std::source_location &location = std::source_location::current());
+    Building(
+        ::building *record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const RubbleDef *rubble_definition,
+        RubbleState *rubble_state,
+        const std::source_location &location = std::source_location::current());
+    Building(
+        std::nullptr_t,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current()) = delete;
     Building(
         ::building &record,
         const building_type_registry_impl::BuildingType *type_definition,
@@ -111,7 +130,7 @@ public:
     void for_each_part(const std::function<void(Building)> &visitor) const;
     Building *next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
-    const building_type_registry_impl::BuildingType *og_type = nullptr;
+    RubbleModule *Rubble = nullptr;
     int matches(const char *text_id) const;
     int grid_offset() const;
     int x() const;
@@ -267,10 +286,12 @@ public:
 private:
     void bind_record_fields();
     void bind_graphics(BuildingGraphicsState *graphics_state);
+    void bind_rubble(const RubbleDef *rubble_definition, RubbleState *rubble_state);
 
     ::building *record_ = nullptr;
     std::source_location construction_location_;
     mutable BuildingGraphics graphics_;
+    mutable RubbleModule rubble_;
 };
 
 
@@ -283,6 +304,9 @@ void building_get_from_buffer(buffer *buf, int id, building *b, int includes_bui
     int buffer_offset);
 
 int building_count(void);
+
+// Load/startup bridge: walk full save records before runtime Building instances are materialized.
+void building_for_each_loaded_record(const std::function<void(building *)> &visitor);
 
 int building_find(building_type type);
 
@@ -304,11 +328,9 @@ building *building_create(building_type type, int x, int y);
 
 int building_was_tent(const building *b);
 
-int building_is_storage(building_type b_type);
 /**
  * @brief Repairs a building using it's entry in the buildings array. In cases of warehouses and burning ruins,
- * some information is removed or reset, so data from b->data.rubble is used to help restore the building.
- * in the future, we should implement a more general system for saving and restoring building state.
+ * some information is removed or reset, so the building's RubbleModule state is used to help restore the building.
  * Keeping a building in the array is helpful because it holds the building's ID, and allows keeping the storage structure.
  */
 
@@ -330,31 +352,11 @@ void building_update_state(void);
 
 void building_update_desirability(void);
 
-int building_is_house(building_type type);
-
-int building_get_house_group(building_type type);
-
-int building_is_ceres_temple(building_type type);
-
-int building_is_neptune_temple(building_type type);
-
-int building_is_mercury_temple(building_type type);
-
-int building_is_mars_temple(building_type type);
-
-int building_is_venus_temple(building_type type);
-
-int building_has_supplier_inventory(building_type type);
-
-int building_is_house_group(house_groups group, building_type type);
-
-int building_is_statue_garden_temple(building_type type);
-
 int building_is_fort(building_type type);
 
 int building_is_active(const building *b);
 
-int building_is_primary_product_producer(building_type type);
+int building_mothball_toggle(building *b);
 
 int building_mothball_set(building *b, int value);
 

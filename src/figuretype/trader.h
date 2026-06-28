@@ -2,6 +2,8 @@
 
 #include "figure/figure.h"
 
+class Building;
+
 namespace figuretype {
 
 class Trader : public Figure {
@@ -22,9 +24,9 @@ public:
 
     int figure_create_trade_ship(int x, int y, int city_id);
 
-    int figure_trade_caravan_can_buy(Figure *trader, int warehouse_id, int city_id);
+    int figure_trade_caravan_can_buy(Figure *trader, const Building *storage, int city_id);
 
-    int figure_trade_caravan_can_sell(Figure *trader, int warehouse_id, int city_id);
+    int figure_trade_caravan_can_sell(Figure *trader, const Building *storage, int city_id);
 
     void figure_trade_caravan_action(Figure *f);
 

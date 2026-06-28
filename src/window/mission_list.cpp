@@ -462,6 +462,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_back(const generic_button *button)
 {
+    (void) button;
     window_select_campaign_show();
 }
 
@@ -491,6 +492,7 @@ static void select_item(unsigned int index, int is_double_click)
 
 static void button_start_scenario(const generic_button *button)
 {
+    (void) button;
     if (data.selected_item->type == ITEM_TYPE_NONE) {
         return;
     }

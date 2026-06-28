@@ -11,7 +11,7 @@
 
 int BuildingStorage::handles_resource(resource_type resource) const
 {
-    return type_ && type_->handles_resource(resource);
+    return type_ ? type_->handles_resource(resource) : 0;
 }
 
 int BuildingStorage::amount(resource_type resource) const
@@ -111,7 +111,7 @@ int BuildingStorage::reservation_is_current(const InboundReservation &reservatio
     Figure *figure = Figure::get(reservation.figure_id);
     if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
         static_cast<resource_type>(figure->resource_id) != reservation.resource ||
-        figure->destination_building.id != building_->id) {
+        !figure->destination_building || figure->destination_building->id != building_->id) {
         return 0;
     }
 
@@ -226,18 +226,13 @@ void initialize_city()
 {
     reset();
 
-    const int total_buildings = building_count();
-    for (int id = 1; id < total_buildings; id++) {
-        ::building *building = building_get(id);
-        if (!building || !building->id) {
-            continue;
-        }
-
+    Building::for_each([](Building *building_object) {
+        ::building *building = const_cast<::building *>(building_object->record());
         const size_t slot_count = get_slot_count(building);
         for (size_t i = 0; i < slot_count; i++) {
             get_or_create(building, i);
         }
-    }
+    });
 }
 
 } // namespace storage_runtime_impl

@@ -341,7 +341,7 @@ static void yearly_calculate_births(void)
         int birth_percentage = game_defines_birth_percentage(decennium);
         int births = calc_adjust_with_percentage(people, birth_percentage);
         int added = house_population_add_to_city(births);
-        city_data.population.at_age[0] += added;
+        city_data.population.at_age[0] = static_cast<int16_t>(city_data.population.at_age[0] + added);
         city_data.population.yearly_births += added;
     }
 }
@@ -365,15 +365,15 @@ static int calculate_people_per_house_type(void)
     city_data.population.people_in_tents = 0;
     city_data.population.people_in_large_insula_and_above = 0;
     int total = 0;
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *b = const_cast<building *>(house->record());
         if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
             b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
             !b->house_size) {
-            continue;
+            return;
         }
         int pop = b->house_population;
-        int legacy_level = building_house_legacy_level(Building(b));
+        int legacy_level = building_house_legacy_level(*house);
         total += pop;
         if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
             city_data.population.people_in_tents += pop;
@@ -384,10 +384,10 @@ static int calculate_people_per_house_type(void)
         if (legacy_level >= HOUSE_LARGE_INSULA) {
             city_data.population.people_in_large_insula_and_above += pop;
         }
-        if (building_house_has_patrician_residents(Building(b))) {
+        if (building_house_has_patrician_residents(*house)) {
             city_data.population.people_in_villas_palaces += pop;
         }
-    }
+    });
     return total;
 }
 

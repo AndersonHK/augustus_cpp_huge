@@ -307,7 +307,7 @@ FoundationCellRequirement ConstructionPlacementPlan::requirement_for_tile(
 }
 
 PlacementTileState ConstructionPlacementPlan::validate_tile(
-    ConstructionPlacementPart &part,
+    ConstructionPlacementPart &,
     ConstructionPlacementTile &tile,
     int check_figures)
 {

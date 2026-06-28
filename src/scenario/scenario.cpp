@@ -61,11 +61,21 @@ static struct {
 
 namespace {
 
+void write_i16_value(buffer *buf, int value)
+{
+    buffer_write_i16(buf, static_cast<int16_t>(value));
+}
+
+void write_u8_value(buffer *buf, int value)
+{
+    buffer_write_u8(buf, static_cast<uint8_t>(value));
+}
+
 template <size_t N>
 void write_point_axis(buffer *buf, const map_point (&points)[N], int map_point::*member)
 {
     for (const auto &point : points) {
-        buffer_write_i16(buf, point.*member);
+        write_i16_value(buf, point.*member);
     }
 }
 
@@ -246,13 +256,13 @@ void scenario_save_state(buffer *buf)
     // size
     buffer_write_i32(buf, buf_size);
 
-    buffer_write_i16(buf, scenario.start_year);
-    buffer_write_i16(buf, 0);
-    buffer_write_i16(buf, scenario.empire.id);
+    write_i16_value(buf, scenario.start_year);
+    write_i16_value(buf, 0);
+    write_i16_value(buf, scenario.empire.id);
     buffer_skip(buf, 8);
-    buffer_write_i16(buf, 0);
+    write_i16_value(buf, 0);
     buffer_write_i32(buf, scenario.initial_funds);
-    buffer_write_i16(buf, scenario.enemy_id);
+    write_i16_value(buf, scenario.enemy_id);
     buffer_write_i32(buf, scenario.victory_custom_message_id);
     buffer_write_u16(buf, scenario.caesar_salary);
 
@@ -264,10 +274,10 @@ void scenario_save_state(buffer *buf)
     buffer_write_raw(buf, scenario.brief_description, MAX_BRIEF_DESCRIPTION);
     buffer_write_raw(buf, scenario.briefing, MAX_BRIEFING);
 
-    buffer_write_i16(buf, scenario.image_id);
-    buffer_write_i16(buf, scenario.is_open_play);
-    buffer_write_i16(buf, scenario.reset_favour_monthly);
-    buffer_write_i16(buf, scenario.player_rank);
+    write_i16_value(buf, scenario.image_id);
+    write_i16_value(buf, scenario.is_open_play);
+    write_i16_value(buf, scenario.reset_favour_monthly);
+    write_i16_value(buf, scenario.player_rank);
 
     write_point_axis(buf, scenario.herd_points, &map_point::x);
     write_point_axis(buf, scenario.herd_points, &map_point::y);
@@ -295,10 +305,10 @@ void scenario_save_state(buffer *buf)
     buffer_write_i32(buf, scenario.win_criteria.prosperity.goal);
     buffer_write_i32(buf, scenario.win_criteria.peace.goal);
     buffer_write_i32(buf, scenario.win_criteria.favor.goal);
-    buffer_write_u8(buf, scenario.win_criteria.culture.enabled);
-    buffer_write_u8(buf, scenario.win_criteria.prosperity.enabled);
-    buffer_write_u8(buf, scenario.win_criteria.peace.enabled);
-    buffer_write_u8(buf, scenario.win_criteria.favor.enabled);
+    write_u8_value(buf, scenario.win_criteria.culture.enabled);
+    write_u8_value(buf, scenario.win_criteria.prosperity.enabled);
+    write_u8_value(buf, scenario.win_criteria.peace.enabled);
+    write_u8_value(buf, scenario.win_criteria.favor.enabled);
     buffer_write_i32(buf, scenario.win_criteria.time_limit.enabled);
     buffer_write_i32(buf, scenario.win_criteria.time_limit.years);
     buffer_write_i32(buf, scenario.win_criteria.survival_time.enabled);
@@ -306,25 +316,25 @@ void scenario_save_state(buffer *buf)
 
     buffer_write_i32(buf, scenario.earthquake.severity);
     buffer_write_i32(buf, scenario.earthquake.year);
-    buffer_write_u8(buf, scenario.earthquake.pattern);
+    write_u8_value(buf, scenario.earthquake.pattern);
 
     buffer_write_i32(buf, scenario.win_criteria.population.enabled);
     buffer_write_i32(buf, scenario.win_criteria.population.goal);
 
-    buffer_write_i16(buf, scenario.earthquake_point.x);
-    buffer_write_i16(buf, scenario.earthquake_point.y);
-    buffer_write_i16(buf, scenario.entry_point.x);
-    buffer_write_i16(buf, scenario.entry_point.y);
-    buffer_write_i16(buf, scenario.exit_point.x);
-    buffer_write_i16(buf, scenario.exit_point.y);
+    write_i16_value(buf, scenario.earthquake_point.x);
+    write_i16_value(buf, scenario.earthquake_point.y);
+    write_i16_value(buf, scenario.entry_point.x);
+    write_i16_value(buf, scenario.entry_point.y);
+    write_i16_value(buf, scenario.exit_point.x);
+    write_i16_value(buf, scenario.exit_point.y);
 
     write_point_axis(buf, scenario.invasion_points, &map_point::x);
     write_point_axis(buf, scenario.invasion_points, &map_point::y);
 
-    buffer_write_i16(buf, scenario.river_entry_point.x);
-    buffer_write_i16(buf, scenario.river_entry_point.y);
-    buffer_write_i16(buf, scenario.river_exit_point.x);
-    buffer_write_i16(buf, scenario.river_exit_point.y);
+    write_i16_value(buf, scenario.river_entry_point.x);
+    write_i16_value(buf, scenario.river_entry_point.y);
+    write_i16_value(buf, scenario.river_exit_point.x);
+    write_i16_value(buf, scenario.river_exit_point.y);
 
     buffer_write_i32(buf, scenario.rescue_loan);
     buffer_write_i32(buf, scenario.win_criteria.milestone25_year);
@@ -335,17 +345,17 @@ void scenario_save_state(buffer *buf)
     buffer_write_i32(buf, scenario.native_images.meeting);
     buffer_write_i32(buf, scenario.native_images.crops);
 
-    buffer_write_u8(buf, scenario.climate);
-    buffer_write_u8(buf, scenario.flotsam_enabled);
+    write_u8_value(buf, scenario.climate);
+    write_u8_value(buf, scenario.flotsam_enabled);
 
-    buffer_write_i16(buf, 0);
+    write_i16_value(buf, 0);
 
     buffer_write_i32(buf, scenario.empire.is_expanded);
     buffer_write_i32(buf, scenario.empire.expansion_year);
 
-    buffer_write_u8(buf, scenario.empire.distant_battle_roman_travel_months);
-    buffer_write_u8(buf, scenario.empire.distant_battle_enemy_travel_months);
-    buffer_write_u8(buf, scenario.open_play_scenario_id);
+    write_u8_value(buf, scenario.empire.distant_battle_roman_travel_months);
+    write_u8_value(buf, scenario.empire.distant_battle_enemy_travel_months);
+    write_u8_value(buf, scenario.open_play_scenario_id);
 
     buffer_write_i32(buf, scenario.native_images.alt_hut);
     buffer_write_i32(buf, scenario.native_images.decoration);

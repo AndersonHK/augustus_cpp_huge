@@ -124,7 +124,7 @@ void city_finance_treasury_add(int amount)
 void city_finance_treasury_add_miscellaneous(int amount)
 {
     city_finance_treasury_add(amount);
-    city_data.finance.misc_this_year += amount;
+    city_data.finance.misc_this_year = static_cast<int16_t>(city_data.finance.misc_this_year + amount);
 }
 
 
@@ -195,7 +195,7 @@ void city_finance_process_console(int amount)
 
 void city_finance_process_stolen(int stolen)
 {
-    city_data.finance.stolen_this_year += stolen;
+    city_data.finance.stolen_this_year = static_cast<int16_t>(city_data.finance.stolen_this_year + stolen);
     city_finance_process_sundry(stolen);
 }
 
@@ -264,18 +264,17 @@ void city_finance_estimate_taxes(void)
 {
     city_data.taxes.monthly.collected_plebs = 0;
     city_data.taxes.monthly.collected_patricians = 0;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        Building house(b);
-        if (building_house_is_active(house) && b->house_tax_coverage) {
-            int trm = house_tax_multiplier(house);
-            if (building_house_has_patrician_residents(house)) {
+    Building::for_each({ .hasHousing = true }, [](Building *house) {
+        building *b = const_cast<building *>(house->record());
+        if (building_house_is_active(*house) && b->house_tax_coverage) {
+            int trm = house_tax_multiplier(*house);
+            if (building_house_has_patrician_residents(*house)) {
                 city_data.taxes.monthly.collected_patricians += b->house_population * trm;
             } else {
                 city_data.taxes.monthly.collected_plebs += b->house_population * trm;
             }
         }
-    }
+    });
     int monthly_patricians = calc_adjust_with_percentage(
         city_data.taxes.monthly.collected_patricians / 2,
         city_data.finance.tax_percentage);
@@ -307,17 +306,16 @@ static void collect_monthly_taxes(void)
             city_data.population.at_level[level] = 0;
         }
     }
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        Building house(b);
-        if (!building_house_is_active(house)) {
-            continue;
+    Building::for_each({ .hasHousing = true }, [](Building *house) {
+        building *b = const_cast<building *>(house->record());
+        if (!building_house_is_active(*house)) {
+            return;
         }
 
-        int level = building_house_legacy_level(house);
-        int is_patrician = building_house_has_patrician_residents(house);
+        int level = building_house_legacy_level(*house);
+        int is_patrician = building_house_has_patrician_residents(*house);
         int population = b->house_population;
-        int tax = population * house_tax_multiplier(house);
+        int tax = population * house_tax_multiplier(*house);
         if (level >= 0) {
             city_data.population.at_level[level] += population;
         }
@@ -340,7 +338,7 @@ static void collect_monthly_taxes(void)
                 city_data.taxes.monthly.uncollected_plebs += tax;
             }
         }
-    }
+    });
 
     int collected_patricians = calc_adjust_with_percentage(
         city_data.taxes.monthly.collected_patricians / 2,
@@ -401,7 +399,7 @@ static void pay_monthly_building_levies(void)
     int levies = 0;
     for (int i = 0; building_levies[i].type_id; i++) {
         for (building *b = first_of_type(building_levies[i].type_id); b; b = b->next_of_type) {
-            b->monthly_levy = building_levies[i].amount;
+            b->monthly_levy = static_cast<signed char>(building_levies[i].amount);
             int levy = building_get_levy(b);
             levies += levy;
         }
@@ -427,23 +425,27 @@ static void activate_monthly_tourism(void)
 {
     for (int i = 0; tourism_modifiers[i].type_id; i++) {
         int covered_population = 0;
-        for (building *b = first_of_type(tourism_modifiers[i].type_id); b; b = b->next_of_type) {
+        building_type type = building_type_registry_impl::type_from_attr(tourism_modifiers[i].type_id);
+        if (type == BUILDING_NONE) {
+            continue;
+        }
+        for (Building *venue = Building::first_of_type(type); venue; venue = venue->next_of_type()) {
+            building *b = const_cast<building *>(venue->record());
             if (b->state != BUILDING_STATE_IN_USE || !b->num_workers) {
                 continue;
             }
-            Building venue(b);
             b->is_tourism_venue = 1;
             if (game_time_month() == 0) {
                 b->tourism_income_this_year = 0;
             }
-            const int coverage = tourism_capacity(tourism_modifiers[i], venue);
+            const int coverage = tourism_capacity(tourism_modifiers[i], *venue);
             // disable redundant venues for tourism
             if (coverage > 0 && covered_population + coverage > city_data.population.population) {
                 b->tourism_disabled = 1;
                 b->tourism_income = 0;
             } else {
                 b->tourism_disabled = 0;
-                b->tourism_income = tourism_modifiers[i].income_modifier;
+                b->tourism_income = static_cast<unsigned char>(tourism_modifiers[i].income_modifier);
                 covered_population += coverage;
             }
         }
@@ -469,12 +471,12 @@ static void reset_taxes(void)
     city_data.taxes.yearly.uncollected_plebs = 0;
     city_data.taxes.yearly.uncollected_patricians = 0;
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (building_house_is_active(Building(b))) {
+    Building::for_each({ .hasHousing = true }, [](Building *house) {
+        building *b = const_cast<building *>(house->record());
+        if (building_house_is_active(*house)) {
             b->tax_income_or_storage = 0;
         }
-    }
+    });
 }
 
 static void copy_amounts_to_last_year(void)
@@ -622,7 +624,7 @@ int city_finance_spawn_tourist(void)
         return 0;
     }
     int tick_increase = random_byte() % city_data.ratings.culture;
-    city_data.finance.tourist_spawn_delay += tick_increase;
+    city_data.finance.tourist_spawn_delay = static_cast<int16_t>(city_data.finance.tourist_spawn_delay + tick_increase);
     if (city_data.finance.tourist_spawn_delay > 500) {
         figure_spawn_tourist();
         city_data.finance.tourist_spawn_delay = 0;

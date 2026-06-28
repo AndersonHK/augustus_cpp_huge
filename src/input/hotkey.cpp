@@ -19,7 +19,9 @@
 
 typedef struct {
     int *action;
+    const building_type_registry_impl::BuildingType **building_action;
     int value;
+    const building_type_registry_impl::BuildingType *building_value;
     key_type key;
     key_modifier_type modifiers;
     int repeatable;
@@ -55,21 +57,36 @@ static struct {
     build_menu_hotkeys build_menu_hotkeys;
 } data;
 
-static void set_building_action(hotkey_definition *def, building_type type)
+static int set_building_action(hotkey_definition *def, building_type type)
 {
-    def->action = &data.hotkey_state.building;
-    def->value = type;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        def->building_action = nullptr;
+        def->building_value = nullptr;
+        return 0;
+    }
+    def->building_action = &data.hotkey_state.building;
+    def->building_value = definition;
+    return 1;
 }
 
-static void set_building_action_from_text(hotkey_definition *def, const char *text_id)
+static int set_building_action_from_text(hotkey_definition *def, const char *text_id)
 {
-    set_building_action(def, building_type_registry_impl::type_from_attr(text_id));
+    return set_building_action(def, building_type_registry_impl::type_from_attr(text_id));
 }
 
 static void set_definition_for_action(hotkey_action action, hotkey_definition *def)
 {
+    def->action = nullptr;
+    def->building_action = nullptr;
+    def->building_value = nullptr;
     def->value = 1;
     def->repeatable = 0;
+    if (const char *building_text_id = hotkey_building_text_id_for_action(action)) {
+        set_building_action_from_text(def, building_text_id);
+        return;
+    }
     switch (action) {
         case HOTKEY_TOGGLE_PAUSE:
             def->action = &data.hotkey_state.toggle_pause;
@@ -255,63 +272,6 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
         case HOTKEY_BUILD_VACANT_HOUSE:
             set_building_action(def, building_type_registry_impl::vacant_lot_fill_type());
             break;
-        case HOTKEY_BUILD_CLEAR_LAND:
-            set_building_action_from_text(def, "clear_land");
-            break;
-        case HOTKEY_BUILD_REPAIR_LAND:
-            set_building_action_from_text(def, "repair_land");
-            break;
-        case HOTKEY_BUILD_ROAD:
-            set_building_action_from_text(def, "road");
-            break;
-        case HOTKEY_BUILD_ENGINEERS_POST:
-            set_building_action_from_text(def, "engineers_post");
-            break;
-        case HOTKEY_BUILD_WALL:
-            set_building_action_from_text(def, "wall");
-            break;
-        case HOTKEY_BUILD_GATEHOUSE:
-            set_building_action_from_text(def, "gatehouse");
-            break;
-        case HOTKEY_BUILD_PREFECTURE:
-            set_building_action_from_text(def, "prefecture");
-            break;
-        case HOTKEY_BUILD_GRANARY:
-            set_building_action_from_text(def, "granary");
-            break;
-        case HOTKEY_BUILD_WAREHOUSE:
-            set_building_action_from_text(def, "warehouse");
-            break;
-        case HOTKEY_BUILD_MARKET:
-            set_building_action_from_text(def, "market");
-            break;
-        case HOTKEY_BUILD_PLAZA:
-            set_building_action_from_text(def, "plaza");
-            break;
-        case HOTKEY_BUILD_GARDENS:
-            set_building_action_from_text(def, "gardens");
-            break;
-        case HOTKEY_BUILD_OVERGROWN_GARDENS:
-            set_building_action_from_text(def, "overgrown_gardens");
-            break;
-        case HOTKEY_BUILD_RESERVOIR:
-            set_building_action_from_text(def, "draggable_reservoir");
-            break;
-        case HOTKEY_BUILD_AQUEDUCT:
-            set_building_action_from_text(def, "aqueduct");
-            break;
-        case HOTKEY_BUILD_FOUNTAIN:
-            set_building_action_from_text(def, "fountain");
-            break;
-        case HOTKEY_BUILD_DOCTOR:
-            set_building_action_from_text(def, "doctor");
-            break;
-        case HOTKEY_BUILD_BARBER:
-            set_building_action_from_text(def, "barber");
-            break;
-        case HOTKEY_BUILD_ROADBLOCK:
-            set_building_action_from_text(def, "roadblock");
-            break;
         case HOTKEY_BUILD_CLONE:
             def->action = &data.hotkey_state.clone_building;
             break;
@@ -421,9 +381,6 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
         case HOTKEY_ROTATE_MAP_NORTH:
             def->action = &data.hotkey_state.rotate_map_north;
             break;
-        case HOTKEY_BUILD_WHEAT_FARM:
-            set_building_action_from_text(def, "wheat_farm");
-            break;
         case HOTKEY_SHOW_EMPIRE_MAP:
             def->action = &data.hotkey_state.show_empire_map;
             break;
@@ -433,9 +390,6 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
         case HOTKEY_SHOW_OVERLAY_RISKS_NATIVE:
             def->action = &data.hotkey_state.show_overlay;
             def->value = OVERLAY_NATIVE;
-            break;
-        case HOTKEY_BUILD_HIGHWAY:
-            set_building_action_from_text(def, "highway");
             break;
         case HOTKEY_SHOW_OVERLAY_ENEMY:
             def->action = &data.hotkey_state.show_overlay;
@@ -513,7 +467,10 @@ static void add_definition(const hotkey_mapping *mapping)
     def->key = mapping->key;
     def->modifiers = mapping->modifiers;
     set_definition_for_action(mapping->action, def);
-    if (def->action) {
+    if (mapping->building_text_id[0]) {
+        set_building_action_from_text(def, mapping->building_text_id);
+    }
+    if (def->action || def->building_action) {
         data.num_definitions++;
     }
 }
@@ -557,6 +514,8 @@ static int allocate_mapping_memory(int total_definitions, int total_arrows)
         free(data.arrows);
         return 0;
     }
+    memset(data.definitions, 0, sizeof(hotkey_definition) * total_definitions);
+    memset(data.arrows, 0, sizeof(arrow_definition) * total_arrows);
     return 1;
 }
 
@@ -656,7 +615,11 @@ void hotkey_key_pressed(key_type key, key_modifier_type modifiers, int repeat)
             continue;
         }
         if (def->key == key && def->modifiers == modifiers && (!repeat || def->repeatable)) {
-            *(def->action) = def->value;
+            if (def->action) {
+                *(def->action) = def->value;
+            } else if (def->building_action) {
+                *(def->building_action) = def->building_value;
+            }
             found_action = 1;
         }
     }
@@ -703,6 +666,7 @@ key_modifier_type hotkey_get_modifiers(void)
 
 static void confirm_exit(int accepted, int checked)
 {
+    (void) checked;
     if (accepted) {
         system_exit();
     }
@@ -745,7 +709,9 @@ void hotkey_handle_global_keys(void)
 
 void hotkey_set_value_for_action(hotkey_action action, int value)
 {
-    hotkey_definition def;
+    hotkey_definition def = {};
     set_definition_for_action(action, &def);
-    *(def.action) = value ? def.value : 0;
+    if (def.action) {
+        *(def.action) = value ? def.value : 0;
+    }
 }

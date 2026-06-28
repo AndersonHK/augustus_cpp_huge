@@ -19,9 +19,9 @@ void map_soldier_strength_add(int x, int y, int radius, int amount)
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            strength.items[grid_offset] += amount;
+            strength.items[grid_offset] = static_cast<uint8_t>(strength.items[grid_offset] + amount);
             if (map_has_figure_at(grid_offset) && Figure::get(map_figure_at(grid_offset))->is_legion()) {
-                strength.items[grid_offset] += 2;
+                strength.items[grid_offset] = static_cast<uint8_t>(strength.items[grid_offset] + 2);
             }
         }
     }

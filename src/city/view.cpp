@@ -77,12 +77,12 @@ typedef struct {
     int grid_offset;
 } visible_view_tile;
 
-static Building building_for_render_tile(int grid_offset)
+static Building *building_for_render_tile(int grid_offset)
 {
     if (!map_building_exists_at(grid_offset)) {
-        return Building(nullptr);
+        return nullptr;
     }
-    return map_building_at(grid_offset);
+    return &map_building_at(grid_offset);
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>
@@ -252,7 +252,7 @@ static void calculate_lookup(void)
     }
 }
 
-void city_view_set_custom_lookup(int start_offset, int width, int height, int border_size)
+void city_view_set_custom_lookup(int start_offset, int, int height, int border_size)
 {
     reset_lookup();
 

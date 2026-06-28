@@ -52,7 +52,8 @@ void city_sentiment_change_happiness(int amount)
     Building::for_each({ .hasHousing = true }, [amount](Building *building) {
         if (building_house_is_active(*building)) {
             ::building *record = const_cast<::building *>(building->record());
-            record->sentiment.house_happiness = calc_bound(record->sentiment.house_happiness + amount, 0, 100);
+            record->sentiment.house_happiness =
+                static_cast<signed char>(calc_bound(record->sentiment.house_happiness + amount, 0, 100));
         }
     });
 }
@@ -62,7 +63,7 @@ void city_sentiment_set_happiness(int amount_set)
     Building::for_each({ .hasHousing = true }, [amount_set](Building *building) {
         if (building_house_is_active(*building)) {
             ::building *record = const_cast<::building *>(building->record());
-            record->sentiment.house_happiness = calc_bound(amount_set, 0, 100);
+            record->sentiment.house_happiness = static_cast<signed char>(calc_bound(amount_set, 0, 100));
         }
     });
 }
@@ -74,7 +75,7 @@ void city_sentiment_set_max_happiness(int max)
         if (building_house_is_active(*building)) {
             ::building *record = const_cast<::building *>(building->record());
             if (record->sentiment.house_happiness > max) {
-                record->sentiment.house_happiness = max;
+                record->sentiment.house_happiness = static_cast<signed char>(max);
             }
         }
     });
@@ -87,7 +88,7 @@ void city_sentiment_set_min_happiness(int min)
         if (building_house_is_active(*building)) {
             ::building *record = const_cast<::building *>(building->record());
             if (record->sentiment.house_happiness < min) {
-                record->sentiment.house_happiness = min;
+                record->sentiment.house_happiness = static_cast<signed char>(min);
             }
         }
     });
@@ -309,7 +310,8 @@ void city_sentiment_update(void)
         }
         ::building *record = const_cast<::building *>(building->record());
         if (!record->house_population) {
-            record->sentiment.house_happiness = calc_bound(city_data.sentiment.value + 10, 0, 100);
+            record->sentiment.house_happiness =
+                static_cast<signed char>(calc_bound(city_data.sentiment.value + 10, 0, 100));
             return;
         }
 
@@ -361,7 +363,8 @@ void city_sentiment_update(void)
         // Change sentiment gradually to the new value
         int sentiment_delta = sentiment - record->sentiment.house_happiness;
         sentiment_delta = calc_bound(sentiment_delta, -MAX_SENTIMENT_CHANGE, MAX_SENTIMENT_CHANGE);
-        record->sentiment.house_happiness = calc_bound(record->sentiment.house_happiness + sentiment_delta, 0, 100);
+        record->sentiment.house_happiness =
+            static_cast<signed char>(calc_bound(record->sentiment.house_happiness + sentiment_delta, 0, 100));
         houses_calculated++;
 
         total_pop += record->house_population;

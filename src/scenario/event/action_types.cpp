@@ -268,6 +268,7 @@ int scenario_action_type_favor_add_execute(scenario_action_t *action)
 
 int scenario_action_type_gladiator_revolt_execute(scenario_action_t *action)
 {
+    (void) action;
     scenario_gladiator_revolt_start_new();
 
     return 1;
@@ -850,6 +851,7 @@ int scenario_action_type_change_pop_sentiment_execute(scenario_action_t *action)
 
 int scenario_action_type_win_execute(scenario_action_t *action)
 {
+    (void) action;
     city_victory_force_win();
     city_victory_check();
     return 1;
@@ -857,6 +859,7 @@ int scenario_action_type_win_execute(scenario_action_t *action)
 
 int scenario_action_type_lose_execute(scenario_action_t *action)
 {
+    (void) action;
     city_victory_force_lose();
     city_victory_check();
     return 1;

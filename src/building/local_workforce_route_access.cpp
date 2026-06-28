@@ -126,25 +126,25 @@ HouseRouteSelection RouteAccessSelector::nearestAssignedSourceReleasingUnreachab
                 return;
             }
 
-            building *house = building_get(source.house_id);
+            Building *house_object = nullptr;
+            Building::for_each([&](Building *candidate) {
+                if (!house_object && candidate->id == source.house_id) {
+                    house_object = candidate;
+                }
+            });
+            building *house = house_object ? const_cast<::building *>(house_object->record()) : nullptr;
             if (!houseRecordIsLiveLaborSource(house)) {
                 house_ids_to_release.push_back(source.house_id);
                 return;
             }
 
-            building_runtime *runtime = building_runtime_impl::get_or_create_instance(house);
-            if (!runtime) {
-                house_ids_to_release.push_back(source.house_id);
-                return;
-            }
-            Building &house_object = runtime->building;
-            const Route::RoadResult house_road = findHouseAccessRoad(house_object, *house);
+            const Route::RoadResult house_road = findHouseAccessRoad(*house_object, *house);
             if (!house_road) {
                 house_ids_to_release.push_back(source.house_id);
                 return;
             }
 
-            best = bestSelection(best, house_object, house_road);
+            best = bestSelection(best, *house_object, house_road);
         });
 
     for (unsigned int house_id : house_ids_to_release) {

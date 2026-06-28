@@ -61,7 +61,7 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
                         if (gate_type) {
                             game_undo_record_building_type(gate_record);
                             gate.change_type(gate_type);
-                            Roadblock roadblock(gate_record);
+                            Roadblock roadblock(gate);
                             if (config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
                                 roadblock.accept_all();
                             } else {

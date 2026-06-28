@@ -84,18 +84,13 @@ void initialize_city()
 {
     reset();
 
-    const int total_buildings = building_count();
-    for (int id = 1; id < total_buildings; id++) {
-        Building building(building_get(id));
-        if (!building.id) {
-            continue;
-        }
-
-        const size_t method_count = get_method_count(building);
+    Building::for_each([] (Building *building)
+    {
+        const size_t method_count = get_method_count(*building);
         for (size_t i = 0; i < method_count; i++) {
-            get_or_create(building, i);
+            get_or_create(*building, i);
         }
-    }
+    });
 }
 
 } // namespace production_runtime_impl

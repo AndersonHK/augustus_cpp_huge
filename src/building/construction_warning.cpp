@@ -38,7 +38,7 @@ static int is_vacant_lot_fill_type(building_type type)
 static int is_shrine_tier(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
-    return definition && definition->is_temple_tier(building_type_registry_impl::ReligionTier::Shrine);
+    return definition && definition->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Shrine);
 }
 
 static int active_count(std::string_view attr)
@@ -188,7 +188,7 @@ static void check_water(building_type type, int x, int y, int size)
         return;
     }
 
-    if (!water_access_runtime_building_type_has_required_access_at(type, x, y, size)) {
+    if (!water_access_runtime_building_type_has_required_access_at(definition, x, y, size)) {
         show(WARNING_WATER_PIPE_ACCESS_NEEDED, "TR_CITY_WARNING_WATER_PIPE_ACCESS_NEEDED");
     }
 }
@@ -215,7 +215,7 @@ static void check_barracks(building_type type)
 {
     if (!has_warning) {
         if (building_is_fort(type) && active_count("barracks") <= 0 &&
-            !building_monument_working_grand_temple_for_god(GOD_MARS)) {
+            !grand_temple_for_god(GOD_MARS, true)) {
             show(WARNING_BUILD_BARRACKS, "TR_CITY_WARNING_BUILD_BARRACKS");
         }
     }
@@ -284,9 +284,12 @@ static void check_charioteer_access(building_type type)
     }
 }
 
-static void check_raw_material_access(building_type type)
+static void check_raw_material_access(const building_type_registry_impl::BuildingType *definition)
 {
-    resource_type good = building_output_resource(type);
+    if (!definition) {
+        return;
+    }
+    resource_type good = building_output_resource(definition);
     if (good == RESOURCE_NONE) {
         return;
     }
@@ -311,6 +314,9 @@ static void check_raw_material_access(building_type type)
 
 void building_construction_warning_check_all(building_type type, int x, int y, int size)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+
     building_construction_warning_check_food_stocks(type);
     check_workers(type);
     check_market(type);
@@ -326,7 +332,7 @@ void building_construction_warning_check_all(building_type type, int x, int y, i
     check_wall(type, x, y, size);
     check_water(type, x, y, size);
 
-    check_raw_material_access(type);
+    check_raw_material_access(definition);
 
     check_road_access(type, x, y, size);
 }

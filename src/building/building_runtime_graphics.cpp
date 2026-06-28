@@ -32,7 +32,11 @@ namespace {
 
 void make_building_context(char *buffer, size_t buffer_size, const building_runtime *runtime)
 {
-    const Building b = runtime ? runtime->building : Building(nullptr);
+    if (!runtime) {
+        snprintf(buffer, buffer_size, "building=null");
+        return;
+    }
+    const Building &b = runtime->building;
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (b.type) {
         snprintf(
@@ -49,7 +53,10 @@ void make_building_context(char *buffer, size_t buffer_size, const building_runt
 void log_building_scope_state(void *userdata)
 {
     const building_runtime *runtime = static_cast<const building_runtime *>(userdata);
-    const Building b = runtime ? runtime->building : Building(nullptr);
+    if (!runtime) {
+        return;
+    }
+    const Building &b = runtime->building;
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (!b.type) {
         return;

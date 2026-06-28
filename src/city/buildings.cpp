@@ -109,16 +109,13 @@ void city_buildings_earn_triumphal_arch(void)
 
 int city_buildings_has_working_dock(void)
 {
-    for (building *dock = first_of_type("dock"); dock; dock = dock->next_of_type) {
-        if (!dock || dock->state == BUILDING_STATE_UNUSED) {
-            continue;
+    int has_working_dock = 0;
+    Building::for_each([&](Building *dock) {
+        if (!has_working_dock && dock->matches("dock") && building_dock_is_working(*dock)) {
+            has_working_dock = 1;
         }
-        Building building_object(dock);
-        if (building_dock_is_working(building_object)) {
-            return 1;
-        }
-    }
-    return 0;
+    });
+    return has_working_dock;
 }
 
 void city_buildings_main_native_meeting_center(int *x, int *y)
@@ -156,17 +153,16 @@ int city_buildings_get_closest_plague(int x, int y, int *distance)
         }
     };
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building_object) {
+        building *b = const_cast<building *>(building_object->record());
         if (!b || !b->has_plague || !b->distance_from_entry) {
-            continue;
+            return;
         }
-        Building building_object(b);
-        if (building_house_is_active(building_object) ||
-            (b->state == BUILDING_STATE_IN_USE && is_plague_service_building(building_object))) {
+        if (building_house_is_active(*building_object) ||
+            (b->state == BUILDING_STATE_IN_USE && is_plague_service_building(*building_object))) {
             record_plague_candidate(b);
         }
-    }
+    });
 
     if (!min_free_building_id && min_occupied_dist <= 2) {
         min_free_building_id = min_occupied_building_id;
@@ -175,10 +171,11 @@ int city_buildings_get_closest_plague(int x, int y, int *distance)
     return min_free_building_id;
 }
 
-static void update_sickness_duration(int building_id)
+static void update_sickness_duration(building *b)
 {
-    building *b = building_get(building_id);
-
+    if (!b) {
+        return;
+    }
     if (b->state != BUILDING_STATE_IN_USE || !b->has_plague) {
         return;
     }
@@ -199,14 +196,13 @@ static void update_sickness_duration(int building_id)
 
 void city_buildings_update_plague(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([](Building *building_object) {
+        building *b = const_cast<building *>(building_object->record());
         if (!b) {
-            continue;
+            return;
         }
-        Building building_object(b);
-        if (b->house_size || is_plague_service_building(building_object)) {
-            update_sickness_duration(b->id);
+        if (b->house_size || is_plague_service_building(*building_object)) {
+            update_sickness_duration(b);
         }
-    }
+    });
 }

@@ -137,6 +137,7 @@ static void button_caesar_salary(const generic_button *button)
 
 static void button_start_year(const generic_button *button)
 {
+    (void) button;
     window_editor_start_year_show();
 }
 
@@ -152,11 +153,13 @@ static void button_rescue_loan(const generic_button *button)
 
 static void button_wheat(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_rome_supplies_wheat();
 }
 
 static void button_flotsam(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_flotsam();
 }
 

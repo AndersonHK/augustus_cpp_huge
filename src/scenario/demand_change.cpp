@@ -183,12 +183,12 @@ void scenario_demand_change_save_state(buffer *buf)
     buffer_init_dynamic_array(buf, demand_changes.size(), DEMAND_CHANGES_STRUCT_SIZE_CURRENT);
 
     for (const demand_change_t &demand_change : demand_changes) {
-        buffer_write_i16(buf, demand_change.year);
-        buffer_write_u8(buf, demand_change.month);
-        buffer_write_u8(buf, demand_change.resource);
-        buffer_write_u8(buf, demand_change.route_id);
+        buffer_write_i16(buf, static_cast<int16_t>(demand_change.year));
+        buffer_write_u8(buf, static_cast<uint8_t>(demand_change.month));
+        buffer_write_u8(buf, static_cast<uint8_t>(demand_change.resource));
+        buffer_write_u8(buf, static_cast<uint8_t>(demand_change.route_id));
         buffer_write_i32(buf, demand_change.amount);
-        buffer_write_u8(buf, demand_change.buys);
+        buffer_write_u8(buf, static_cast<uint8_t>(demand_change.buys));
     }
 }
 

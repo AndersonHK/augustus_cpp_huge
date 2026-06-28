@@ -602,7 +602,7 @@ void production_rates_save(buffer *buf)
     for (int i = 0; i < resource_production_count(); i++) {
         resource_type resource = resource_get_production(i);
         const int production = production_method_registry_production_per_month_for_resource(resource);
-        buffer_write_u16(buf, std::clamp(production, 0, 0xffff));
+        buffer_write_u16(buf, static_cast<uint16_t>(std::clamp(production, 0, 0xffff)));
     }
 }
 

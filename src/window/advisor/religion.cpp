@@ -190,6 +190,7 @@ static int handle_mouse(const mouse *m)
 
 static void button_hold_festival(const generic_button *button)
 {
+    (void) button;
     if (!city_festival_is_planned()) {
         window_hold_festival_show();
     }

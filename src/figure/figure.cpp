@@ -135,10 +135,14 @@ Building *loaded_building_ref(unsigned int id)
     if (!id) {
         return nullptr;
     }
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(building_get(static_cast<int>(id)))) {
-        return &runtime->building;
-    }
-    return nullptr;
+
+    Building *found = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!found && building && building->id == id) {
+            found = building;
+        }
+    });
+    return found;
 }
 
 void store_pending_building_refs(
@@ -374,8 +378,8 @@ void save_figure(buffer *buf, const Figure &f)
     buffer_write_u8(buf, f.trader_id);
     buffer_write_u8(buf, f.wait_ticks_next_target);
     buffer_write_u8(buf, f.dont_draw_elevated);
-    buffer_write_u16(buf, f.target_figure.save_id());
-    buffer_write_u16(buf, f.targeted_by_figure.save_id());
+    buffer_write_u16(buf, static_cast<uint16_t>(f.target_figure.save_id()));
+    buffer_write_u16(buf, static_cast<uint16_t>(f.targeted_by_figure.save_id()));
     buffer_write_u16(buf, f.created_sequence);
     buffer_write_u16(buf, f.target_figure_created_sequence);
     buffer_write_u8(buf, f.figures_on_same_tile_index);
@@ -384,7 +388,7 @@ void save_figure(buffer *buf, const Figure &f)
     buffer_write_i32(buf, f.attacker2.save_id());
     buffer_write_i32(buf, f.opponent.save_id());
     buffer_write_i16(buf, f.last_visited_index);
-    buffer_write_i16(buf, f.last_destination_id);
+    buffer_write_i16(buf, static_cast<int16_t>(f.last_destination_id));
 }
 
 void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
@@ -405,9 +409,9 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.type = buffer_read_u8(buf);
     int resource = buffer_read_u8(buf);
     if (f.type == FIGURE_HIPPODROME_HORSES || f.type == FIGURE_FLOTSAM || resource < RESOURCE_NONE) {
-        f.resource_id = resource;
+        f.resource_id = static_cast<unsigned char>(resource);
     } else {
-        f.resource_id = resource_remap(resource);
+        f.resource_id = static_cast<unsigned char>(resource_remap(resource));
     }
     f.use_cross_country = buffer_read_u8(buf);
     f.is_friendly = buffer_read_u8(buf);
@@ -499,9 +503,9 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.height_adjusted_ticks = buffer_read_u8(buf);
     f.current_height = buffer_read_u8(buf);
     f.target_height = buffer_read_u8(buf);
-    f.collecting_item_id = (version <= SAVE_GAME_LAST_STATIC_RESOURCES) ?
+    f.collecting_item_id = static_cast<unsigned char>((version <= SAVE_GAME_LAST_STATIC_RESOURCES) ?
         get_resource_id(static_cast<figure_type>(f.type), buffer_read_u8(buf)) :
-        resource_remap(buffer_read_u8(buf));
+        resource_remap(buffer_read_u8(buf)));
     f.trade_ship_failed_dock_attempts = buffer_read_u8(buf);
     f.phrase_sequence_exact = buffer_read_u8(buf);
     f.phrase_id = buffer_read_i8(buf);
@@ -613,16 +617,16 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
 
     f->state = FIGURE_STATE_ALIVE;
     f->faction_id = 1;
-    f->type = figure_type;
+    f->type = static_cast<unsigned char>(figure_type);
     f->use_cross_country = 0;
     f->is_friendly = 1;
-    f->created_sequence = data.created_sequence++;
-    f->direction = dir;
-    f->source_x = f->destination_x = f->previous_tile_x = f->x = x;
-    f->source_y = f->destination_y = f->previous_tile_y = f->y = y;
-    f->grid_offset = map_grid_offset(x, y);
-    f->cross_country_x = figure_movement_tile_to_cross_country(x);
-    f->cross_country_y = figure_movement_tile_to_cross_country(y);
+    f->created_sequence = static_cast<unsigned short>(data.created_sequence++);
+    f->direction = static_cast<signed char>(dir);
+    f->source_x = f->destination_x = f->previous_tile_x = f->x = static_cast<unsigned char>(x);
+    f->source_y = f->destination_y = f->previous_tile_y = f->y = static_cast<unsigned char>(y);
+    f->grid_offset = static_cast<short>(map_grid_offset(x, y));
+    f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(x));
+    f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(y));
     f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
     f->progress_to_next_tick = 0;
     f->dont_draw_elevated = 0;
@@ -630,12 +634,12 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
     f->resource_id = RESOURCE_NONE;
     f->wait_ticks = 0;
     random_generate_next();
-    f->name = figure_name_get(figure_type, static_cast<enemy_type_t>(0));
+    f->name = static_cast<short>(figure_name_get(figure_type, static_cast<enemy_type_t>(0)));
     f->phrase_sequence_city = f->phrase_sequence_exact = random_byte() & 3;
     map_figure_add(f);
     if (figure_type == FIGURE_TRADE_CARAVAN || figure_type == FIGURE_TRADE_SHIP ||
         figure_type == FIGURE_NATIVE_TRADER) {
-        f->trader_id = trader_create();
+        f->trader_id = static_cast<unsigned char>(trader_create());
     }
     figure_runtime_on_created(f);
     return f;
@@ -738,12 +742,12 @@ int Figure::retarget_building(Building &from, Building &to)
         if (to.has_cached_road_access()) {
             destination_x = static_cast<unsigned char>(to.road_access_x());
             destination_y = static_cast<unsigned char>(to.road_access_y());
-            destination_grid_offset = map_grid_offset(destination_x, destination_y);
+            destination_grid_offset = static_cast<short>(map_grid_offset(destination_x, destination_y));
         }
         if ((type == FIGURE_IMMIGRANT && action_state == FIGURE_ACTION_3_IMMIGRANT_ENTERING_HOUSE) ||
             (type == FIGURE_HOMELESS && action_state == FIGURE_ACTION_9_HOMELESS_ENTERING_HOUSE)) {
             figure_movement_set_cross_country_destination(this, to.x(), to.y());
-            destination_grid_offset = map_grid_offset(destination_x, destination_y);
+            destination_grid_offset = static_cast<short>(map_grid_offset(destination_x, destination_y));
         }
         Route::remove(this);
     }
@@ -884,9 +888,9 @@ void Figure::draw_big_people_image(figure_type figure_type, int x, int y)
     }
 }
 
-void Figure::draw_big_people_image(int x, int y) const
+void Figure::draw_big_people_image(int draw_x, int draw_y) const
 {
-    draw_big_people_image(static_cast<figure_type>(type), x, y);
+    draw_big_people_image(static_cast<figure_type>(type), draw_x, draw_y);
 }
 
 translation_key Figure::new_type_translation_key(figure_type figure_type)
@@ -997,21 +1001,21 @@ int Figure::legacy_static_frame_image_id(int base_image_id, int frame_count) con
 
 int Figure::legacy_directional_frame_image_id(
     int base_image_id,
-    int direction,
+    int frame_direction,
     int frame_offset,
     int frame_stride) const
 {
-    const int normalized_direction = figure_image_normalize_direction(direction);
+    const int normalized_direction = figure_image_normalize_direction(frame_direction);
     return base_image_id + normalized_direction + frame_stride * frame_offset;
 }
 
 int Figure::legacy_image_id_for_direction_major_frame(
     int base_image_id,
-    int direction,
+    int frame_direction,
     int frame_offset,
     int direction_stride) const
 {
-    const int normalized_direction = figure_image_normalize_direction(direction);
+    const int normalized_direction = figure_image_normalize_direction(frame_direction);
     return base_image_id + normalized_direction * direction_stride + frame_offset;
 }
 
@@ -1032,11 +1036,11 @@ void Figure::select_legacy_static_frame_image(int base_image_id, int frame_count
 
 void Figure::select_legacy_directional_frame_image(
     int base_image_id,
-    int direction,
+    int frame_direction,
     int frame_offset,
     int frame_stride)
 {
-    image_id = legacy_directional_frame_image_id(base_image_id, direction, frame_offset, frame_stride);
+    image_id = legacy_directional_frame_image_id(base_image_id, frame_direction, frame_offset, frame_stride);
 }
 
 void Figure::select_legacy_default_or_corpse_image(int base_image_id)
@@ -1072,25 +1076,25 @@ void Figure::select_legacy_cart_overlay_base_image(int base_image_id)
     cart_image_id = base_image_id;
 }
 
-void Figure::select_legacy_cart_overlay_image(int base_image_id, int direction)
+void Figure::select_legacy_cart_overlay_image(int base_image_id, int frame_direction)
 {
     if (!base_image_id) {
         clear_legacy_cart_overlay_image();
         return;
     }
 
-    const int normalized_direction = figure_image_normalize_direction(direction);
+    const int normalized_direction = figure_image_normalize_direction(frame_direction);
     cart_image_id = base_image_id + normalized_direction + 8 * image_offset;
     figure_image_set_cart_offset(this, normalized_direction);
 }
 
-void Figure::finalize_legacy_cartpusher_overlay_image(int direction, bool lift_full_food_load)
+void Figure::finalize_legacy_cartpusher_overlay_image(int frame_direction, bool lift_full_food_load)
 {
     if (!cart_image_id) {
         return;
     }
 
-    const int normalized_direction = figure_image_normalize_direction(direction);
+    const int normalized_direction = figure_image_normalize_direction(frame_direction);
     if (figure_type_registry_impl::FigureGraphics::resource_cart_marker_is(cart_image_id)) {
         cart_image_id = figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(normalized_direction);
     } else {

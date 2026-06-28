@@ -62,14 +62,16 @@ static int is_plague_building(const Building &building)
 
 static int occupied_house_at_level(Building house, int level)
 {
-    const building *b = building_get(house.id);
+    const building *b = house.record();
     return b && building_house_is_active(house) && b->house_population && building_house_legacy_level(house) == level;
 }
 
-static void cause_disease_in_building(int building_id)
+static void cause_disease_in_building(Building &building_object)
 {
-    building *b = building_get(building_id);
-    Building building_object(b);
+    building *b = const_cast<building *>(building_object.record());
+    if (!b) {
+        return;
+    }
     if (!b->has_plague) {
 
         // Remove half the granary's food
@@ -106,11 +108,11 @@ static void cause_disease_in_building(int building_id)
     }
 }
 
-void city_health_update_sickness_level_in_building(int building_id)
+void city_health_update_sickness_level_in_building(Building *runtime_building)
 {
-    building *b = building_get(building_id);
+    building *b = runtime_building ? const_cast<::building *>(runtime_building->record()) : nullptr;
 
-    if (!b->has_plague && b->state == BUILDING_STATE_IN_USE) {
+    if (b && !b->has_plague && b->state == BUILDING_STATE_IN_USE) {
         b->sickness_level += 1;
 
         if (b->sickness_level > 2 * MAX_SICKNESS_LEVEL) {
@@ -121,24 +123,26 @@ void city_health_update_sickness_level_in_building(int building_id)
 
 void city_health_dispatch_sickness(Figure *f)
 {
-    building *b = building_get(f->building.id);
-    building *dest_b = building_get(f->destination_building.id);
+    Building *source = f ? f->building : nullptr;
+    Building *destination = f ? f->destination_building : nullptr;
+    building *b = source ? const_cast<building *>(source->record()) : nullptr;
+    building *dest_b = destination ? const_cast<building *>(destination->record()) : nullptr;
     if (!b || !dest_b) {
         return;
     }
 
     // Dispatch sickness level sub value between granaries, warehouses and docks
-    if (is_plague_building(Building(dest_b)) && b->sickness_level && b->sickness_level > dest_b->sickness_level) {
-        int value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
+    if (is_plague_building(*destination) && b->sickness_level && b->sickness_level > dest_b->sickness_level) {
+        unsigned char value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
             b->sickness_level / SICKNESS_SPREAD_DIVISION_FACTOR;
-        dest_b->sickness_level += value;
+        dest_b->sickness_level = static_cast<unsigned char>(dest_b->sickness_level + value);
         if (dest_b->sickness_level > b->sickness_level) {
             dest_b->sickness_level = b->sickness_level;
         }
-    } else if (is_plague_building(Building(b)) && dest_b->sickness_level && dest_b->sickness_level > b->sickness_level) {
-        int value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
+    } else if (is_plague_building(*source) && dest_b->sickness_level && dest_b->sickness_level > b->sickness_level) {
+        unsigned char value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
             b->sickness_level / SICKNESS_SPREAD_DIVISION_FACTOR;
-        b->sickness_level += value;
+        b->sickness_level = static_cast<unsigned char>(b->sickness_level + value);
         if (b->sickness_level > dest_b->sickness_level) {
             b->sickness_level = dest_b->sickness_level;
         }
@@ -184,13 +188,13 @@ static int cause_disease(void)
     });
 
     if (sick_people) {
-        city_message_post_with_popup_delay(MESSAGE_CAT_ILLNESS, MESSAGE_SICKNESS, sick_building_type, grid_offset);
+        city_message_post_with_popup_delay(MESSAGE_CAT_ILLNESS, MESSAGE_SICKNESS, sick_building_type, static_cast<short>(grid_offset));
     }
 
-    Building::for_each([&](Building *building) {
-        building *record = const_cast<building *>(building->record());
-        if (is_plague_building(*building) && record->sickness_level >= MAX_SICKNESS_LEVEL) {
-            cause_disease_in_building(building->id);
+    Building::for_each([&](Building *runtime_building) {
+        building *record = const_cast<building *>(runtime_building->record());
+        if (is_plague_building(*runtime_building) && record->sickness_level >= MAX_SICKNESS_LEVEL) {
+            cause_disease_in_building(*runtime_building);
         }
     });
 
@@ -291,9 +295,9 @@ static void cause_plague(int total_people)
 
 static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonus)
 {
-    Building::for_each([hospital_coverage_bonus](Building *building) {
-        building *record = const_cast<building *>(building->record());
-        if (!is_plague_building(*building) || record->has_plague || !record->sickness_level) {
+    Building::for_each([hospital_coverage_bonus](Building *runtime_building) {
+        building *record = const_cast<building *>(runtime_building->record());
+        if (!is_plague_building(*runtime_building) || record->has_plague || !record->sickness_level) {
             return;
         }
         int decrease_percentage = city_health();
@@ -301,19 +305,19 @@ static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonu
         if (decrease_percentage > 100) {
             decrease_percentage = 100;
         }
-        record->sickness_level -= calc_adjust_with_percentage(record->sickness_level, decrease_percentage);
+        record->sickness_level = static_cast<unsigned char>(
+            record->sickness_level - calc_adjust_with_percentage(record->sickness_level, decrease_percentage));
     });
 }
 
-static void adjust_sickness_level_in_house(building *b, int house_health, int population_health_offset,
-    int hospital_coverage_bonus)
+static void adjust_sickness_level_in_house(building *, int, int, int)
 {
 }
 
 // House Health Calculation
 int city_health_get_house_health_level(Building house, int update_city_data)
 {
-    const building *b = building_get(house.id);
+    const building *b = house.record();
     if (!b) {
         return 0;
     }
@@ -321,7 +325,7 @@ int city_health_get_house_health_level(Building house, int update_city_data)
     int house_health = 0;
 
     // Check if the building is a house
-    if (building_is_house(b->type)) {
+    if (house.type && house.type->has_housing()) {
         // House Level: What is the level of the house?
         house_health = calc_bound(building_house_legacy_level(house), 0, 10);
 
@@ -464,9 +468,9 @@ int city_health_get_global_sickness_level(void)
         }
     });
 
-    Building::for_each([&](Building *building) {
-        building *record = const_cast<building *>(building->record());
-        if (!is_plague_building(*building)) {
+    Building::for_each([&](Building *runtime_building) {
+        building *record = const_cast<building *>(runtime_building->record());
+        if (!is_plague_building(*runtime_building)) {
             return;
         }
         building_number++;

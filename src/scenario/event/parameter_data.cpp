@@ -1315,7 +1315,7 @@ const uint8_t *scenario_events_parameter_data_get_display_string(special_attribu
             break;
         case PARAMETER_TYPE_ALLOWED_BUILDING:
             if (entry->key == "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE") {
-                return get_allowed_building_name(entry->value);
+                return get_allowed_building_name(static_cast<building_type>(entry->value));
             } else {
                 return translation_for(entry->key);
             }

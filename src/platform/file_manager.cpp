@@ -196,11 +196,9 @@ static void preserve_timestamps(std::string_view src, std::string_view dst)
     fs::last_write_time(make_path(dst), last, dst_ec);
 }
 
+#if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__APPLE__)
 static bool resolve_exec_directory(std::string &buffer)
 {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
-    return false;
-#else
     char arg0_dir[FILE_NAME_MAX];
     ssize_t chars_read = readlink("/proc/self/exe", arg0_dir, FILE_NAME_MAX - 1);
     if (chars_read == -1) {
@@ -215,8 +213,8 @@ static bool resolve_exec_directory(std::string &buffer)
     arg0_dir[chars_read] = 0;
     buffer = to_utf8(fs::path(arg0_dir).parent_path());
     return true;
-#endif
 }
+#endif
 
 static bool write_base_path_to(std::string &destination)
 {
@@ -355,6 +353,8 @@ static std::string resolve_directory_for_listing(std::string_view dir)
 
 static int do_nothing(const char *name, long unused)
 {
+    (void) name;
+    (void) unused;
     return LIST_MATCH;
 }
 

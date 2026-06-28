@@ -3,6 +3,7 @@
 #include "city_water_ghost.h"
 
 #include "building/water_access_runtime.h"
+#include "building/building_type.h"
 #include "widget/city_building_ghost.h"
 
 #include "city/view.h"
@@ -55,9 +56,9 @@ void draw_preview_access(int x, int y, int grid_offset)
     }
 }
 
-const char *preview_access_type_for_building(building_type type)
+const char *preview_access_type_for_building(const building_type_registry_impl::BuildingType *definition)
 {
-    const char *access_type = water_access_runtime_primary_provider_access_text(type);
+    const char *access_type = water_access_runtime_primary_provider_access_text(definition);
     return access_type && *access_type ? access_type : "fountain";
 }
 
@@ -73,10 +74,13 @@ void city_water_ghost_draw_reservoir_ranges(void)
     city_view_foreach_valid_map_tile(draw_reservoir_access);
 }
 
-void city_water_ghost_draw_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
+void city_water_ghost_draw_preview(
+    const building_type_registry_impl::BuildingType *definition,
+    int primary_grid_offset,
+    int secondary_grid_offset)
 {
-    g_preview_access_type = preview_access_type_for_building(type);
-    water_access_runtime_begin_preview(type, primary_grid_offset, secondary_grid_offset);
+    g_preview_access_type = preview_access_type_for_building(definition);
+    water_access_runtime_begin_preview(definition, primary_grid_offset, secondary_grid_offset);
     city_view_foreach_valid_map_tile(draw_preview_access);
     water_access_runtime_end_preview();
 }

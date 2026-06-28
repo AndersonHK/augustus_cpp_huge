@@ -19,6 +19,7 @@ typedef enum {
 class Barracks : public Building {
 public:
     using Building::Building;
+    explicit Barracks(Building building) : Building(building) {}
 
     static Building *for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst);
 

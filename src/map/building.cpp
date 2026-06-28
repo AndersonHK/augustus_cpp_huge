@@ -5,15 +5,19 @@
 #include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
 #include "core/config.h"
+#include "core/crash_context.h"
 #include "core/log.h"
 #include "game/save_version.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "platform/screen.h"
 
+#include <cstdio>
 #include <cstring>
 #include <exception>
+#include <vector>
 
 static grid_u32 buildings_grid;
 static grid_u8 damage_grid;
@@ -133,8 +137,10 @@ int map_building_ruins_left(const Building &building)
         return 0;
     }
     const unsigned int building_id = building.id;
-    int size = record->data.rubble.og_size ? record->data.rubble.og_size : record->size;
-    int slice_offset = record->data.rubble.og_grid_offset ? record->data.rubble.og_grid_offset : record->grid_offset;
+    const RubbleState *rubble_state = building.Rubble ? building.Rubble->state() : nullptr;
+    int size = rubble_state && rubble_state->original_size ? rubble_state->original_size : record->size;
+    int slice_offset =
+        rubble_state && rubble_state->original_grid_offset ? rubble_state->original_grid_offset : record->grid_offset;
     grid_slice *slice = map_grid_get_grid_slice_square(slice_offset, size);
     for (int i = 0; i < slice->size; i++) {
         int grid_offset = slice->grid_offsets[i];
@@ -142,7 +148,7 @@ int map_building_ruins_left(const Building &building)
             ruins_count++;
         } else if (map_building_exists_at(grid_offset)) {
             const Building &tile_building = map_building_at(grid_offset);
-            if (tile_building.id == building_id && tile_building.matches("burning_ruin")) {
+            if (tile_building.id == building_id && tile_building.Rubble) {
                 ruins_count++;
             }
         }
@@ -202,6 +208,18 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
 
+unsigned int map_building_loaded_id_at(int grid_offset)
+{
+    return map_grid_is_valid_offset(grid_offset) ? buildings_grid.items[grid_offset] : 0;
+}
+
+void map_building_set_loaded_id(int grid_offset, unsigned int building_id)
+{
+    if (map_grid_is_valid_offset(grid_offset)) {
+        buildings_grid.items[grid_offset] = building_id;
+    }
+}
+
 static int map_building_reference_is_live(Building *building)
 {
     if (!building) {
@@ -215,15 +233,21 @@ void map_building_rebind_runtime_references(void)
 {
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 
-    const int total_buildings = building_count();
+    std::vector<building *> records_by_id(static_cast<size_t>(building_count()), nullptr);
+    building_for_each_loaded_record([&](building *record) {
+        if (record && record->id < records_by_id.size()) {
+            records_by_id[record->id] = record;
+        }
+    });
+
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         const unsigned int building_id = buildings_grid.items[grid_offset];
-        if (!building_id || building_id >= static_cast<unsigned int>(total_buildings)) {
+        if (!building_id || building_id >= records_by_id.size()) {
             continue;
         }
 
-        building *record = building_get(building_id);
-        if (!record || record->id != building_id || record->state == BUILDING_STATE_UNUSED) {
+        building *record = records_by_id[building_id];
+        if (!record) {
             continue;
         }
 
@@ -243,18 +267,55 @@ static void clear_single_invalid_building_reference(int grid_offset)
     }
 }
 
+static void report_malformed_terrain_building_tiles_after_load(int count, int first_grid_offset)
+{
+    if (count <= 0) {
+        return;
+    }
+
+    char detail[256];
+    snprintf(detail, sizeof(detail),
+        "tiles=%d first_grid_offset=%d first_x=%d first_y=%d action=removed TERRAIN_BUILDING",
+        count,
+        first_grid_offset,
+        map_grid_offset_to_x(first_grid_offset),
+        map_grid_offset_to_y(first_grid_offset));
+
+    ErrorContextScope scope("Save load building map normalization", detail);
+    error_context_report_error(
+        "Save load found TERRAIN_BUILDING tiles without live building records.",
+        detail);
+
+    char message[512];
+    snprintf(message, sizeof(message),
+        "This save contained %d tile%s marked as a building without a valid building record.\n\n"
+        "Vespasian repaired the map by removing the invalid building terrain flag and continued loading.\n\n"
+        "%s\n\nMore details were written to augustus-log.txt.",
+        count,
+        count == 1 ? "" : "s",
+        detail);
+    platform_screen_show_error_message_box("Vespasian Save Load Error", message);
+}
+
 void map_building_remove_invalid_references(void)
 {
     map_building_rebind_runtime_references();
 
     int removed = 0;
+    int malformed_terrain_building_tiles = 0;
+    int first_malformed_terrain_building_offset = 0;
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         Building *building = building_objects_grid[grid_offset];
         if (map_building_reference_is_live(building)) {
             continue;
         }
+        const int has_terrain_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
         if (!building) {
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+            if (has_terrain_building) {
+                if (!malformed_terrain_building_tiles) {
+                    first_malformed_terrain_building_offset = grid_offset;
+                }
+                malformed_terrain_building_tiles++;
                 clear_single_invalid_building_reference(grid_offset);
                 removed++;
             } else if (buildings_grid.items[grid_offset]) {
@@ -263,9 +324,18 @@ void map_building_remove_invalid_references(void)
             }
             continue;
         }
+        if (has_terrain_building) {
+            if (!malformed_terrain_building_tiles) {
+                first_malformed_terrain_building_offset = grid_offset;
+            }
+            malformed_terrain_building_tiles++;
+        }
         clear_single_invalid_building_reference(grid_offset);
         removed++;
     }
+    report_malformed_terrain_building_tiles_after_load(
+        malformed_terrain_building_tiles,
+        first_malformed_terrain_building_offset);
     if (removed) {
         log_warning("Removed invalid building references from map grid after save load", 0, removed);
     }

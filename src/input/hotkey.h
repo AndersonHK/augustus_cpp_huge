@@ -3,6 +3,9 @@
 #include "core/hotkey_config.h"
 #include "input/keys.h"
 
+namespace building_type_registry_impl {
+class BuildingType;
+}
 
 typedef struct {
     // fixed keys with multiple functions

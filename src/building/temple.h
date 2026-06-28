@@ -5,7 +5,8 @@
 class Temple : public Building {
 public:
     using Building::Building;
+    explicit Temple(Building building) : Building(building) {}
 };
 
-Building building_temple_get_storage_destination(Building temple);
+Building *building_temple_get_storage_destination(Building &temple);
 int building_temple_mars_food_to_deliver(Building temple, Building mess_hall);

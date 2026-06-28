@@ -66,7 +66,7 @@ static int city_has_sea_trade_buildings(void)
 
 static int temple_definition_serves_god(const building_type_registry_impl::BuildingType *definition, god_type god)
 {
-    return definition && definition->is_temple_for_god(god);
+    return definition && definition->is_temple(god);
 }
 
 static int temple_count_for_god(god_type god)
@@ -356,7 +356,8 @@ void city_gods_calculate_moods(int update_moods)
 {
     // base happiness: percentage of houses covered
     for (int i = 0; i < city_gods_count(); i++) {
-        city_data.religion.gods[i].target_happiness = city_culture_coverage_religion(static_cast<god_type>(i));
+        city_data.religion.gods[i].target_happiness =
+            static_cast<int8_t>(city_culture_coverage_religion(static_cast<god_type>(i)));
     }
 
     int max_temples = 0;
@@ -384,7 +385,8 @@ void city_gods_calculate_moods(int update_moods)
         if (festival_penalty > 40) {
             festival_penalty = 40;
         }
-        city_data.religion.gods[i].target_happiness += 12 - festival_penalty;
+        city_data.religion.gods[i].target_happiness =
+            static_cast<int8_t>(city_data.religion.gods[i].target_happiness + 12 - festival_penalty);
     }
 
     if (!(config_get(CONFIG_GP_CH_JEALOUS_GODS))) {
@@ -415,7 +417,7 @@ void city_gods_calculate_moods(int update_moods)
     }
     for (int i = 0; i < city_gods_count(); i++) {
         city_data.religion.gods[i].target_happiness =
-            calc_bound(city_data.religion.gods[i].target_happiness, min_happiness, 100);
+            static_cast<int8_t>(calc_bound(city_data.religion.gods[i].target_happiness, min_happiness, 100));
     }
     if (update_moods) {
         update_god_moods();
@@ -453,10 +455,12 @@ void city_god_change_happiness(int god_id, int amount)
         return;
     } else if (god_id == GOD_ALL) {
         for (int i = 0; i < city_gods_count(); i++) {
-            city_data.religion.gods[i].happiness = calc_bound(amount + city_data.religion.gods[i].happiness, 0, 100);
+            city_data.religion.gods[i].happiness =
+                static_cast<int8_t>(calc_bound(amount + city_data.religion.gods[i].happiness, 0, 100));
         }
     } else {
-        city_data.religion.gods[god_id].happiness = calc_bound(amount + city_data.religion.gods[god_id].happiness, 0, 100);
+        city_data.religion.gods[god_id].happiness =
+            static_cast<int8_t>(calc_bound(amount + city_data.religion.gods[god_id].happiness, 0, 100));
     }
 }
 
@@ -466,10 +470,12 @@ void city_god_set_happiness(int god_id, int amount_set)
         return;
     } else if (god_id == GOD_ALL) {
         for (int i = 0; i < city_gods_count(); i++) {
-            city_data.religion.gods[i].happiness = calc_bound(amount_set, 0, 100);
+            city_data.religion.gods[i].happiness =
+                static_cast<int8_t>(calc_bound(amount_set, 0, 100));
         }
     } else {
-        city_data.religion.gods[god_id].happiness = calc_bound(amount_set, 0, 100);
+        city_data.religion.gods[god_id].happiness =
+            static_cast<int8_t>(calc_bound(amount_set, 0, 100));
     }
 }
 

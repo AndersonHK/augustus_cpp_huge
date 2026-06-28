@@ -155,7 +155,7 @@ static void shift_edge_indices(const empire_object *const_obj)
     if (const_obj->order_index < data.foreach_param1) {
         return;
     }
-    if (const_obj->parent_object_id != empire_object_get_border()->id) {
+    if (const_obj->parent_object_id != static_cast<int>(empire_object_get_border()->id)) {
         return;
     }
     empire_object *obj = empire_object_get(const_obj->id);
@@ -502,7 +502,7 @@ static void shift_trade_waypoints(const empire_object *const_obj)
     obj->order_index--;
 }
 
-static void deletion_confirmed(int confirmed, int checked)
+static void deletion_confirmed(int confirmed, int)
 {
     if (!confirmed) {
         return;

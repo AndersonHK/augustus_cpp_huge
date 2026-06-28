@@ -511,9 +511,9 @@ static int start_invasion(enemy_type_t enemy_type, int amount, int invasion_poin
                 f->is_friendly = 0;
                 f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
                 // TODO: should we adjust wait ticks to make enemy camping harder?
-                f->wait_ticks = 200 * seq + 10 * fig + 10;
+                f->wait_ticks = static_cast<short>(200 * seq + 10 * fig + 10);
                 f->formation_id = formation_id;
-                f->name = figure_name_get(type, enemy_type);
+                f->name = static_cast<short>(figure_name_get(type, enemy_type));
                 f->is_ghost = 1;
             }
             seq++;
@@ -839,23 +839,23 @@ void scenario_invasion_start_from_console(invasion_type_enum invasion_type, int 
 
 void scenario_invasion_warning_save_state(buffer *invasion_id, buffer *warnings)
 {
-    buffer_write_u16(invasion_id, data.last_internal_invasion_id);
+    buffer_write_u16(invasion_id, static_cast<uint16_t>(data.last_internal_invasion_id));
 
     buffer_init_dynamic_array(warnings, data.warnings.size(), WARNINGS_STRUCT_SIZE_CURRENT);
 
     for (const invasion_warning &w : data.warnings) {
-        buffer_write_u8(warnings, w.in_use);
-        buffer_write_u8(warnings, w.handled);
-        buffer_write_u8(warnings, w.invasion_path_id);
-        buffer_write_u8(warnings, w.warning_years);
-        buffer_write_i16(warnings, w.x);
-        buffer_write_i16(warnings, w.y);
-        buffer_write_i16(warnings, w.image_id);
-        buffer_write_i16(warnings, w.empire_object_id);
-        buffer_write_i16(warnings, w.month_notified);
-        buffer_write_i16(warnings, w.year_notified);
+        buffer_write_u8(warnings, static_cast<uint8_t>(w.in_use));
+        buffer_write_u8(warnings, static_cast<uint8_t>(w.handled));
+        buffer_write_u8(warnings, static_cast<uint8_t>(w.invasion_path_id));
+        buffer_write_u8(warnings, static_cast<uint8_t>(w.warning_years));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.x));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.y));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.image_id));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.empire_object_id));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.month_notified));
+        buffer_write_i16(warnings, static_cast<int16_t>(w.year_notified));
         buffer_write_i32(warnings, w.months_to_go);
-        buffer_write_u8(warnings, w.invasion_id);
+        buffer_write_u8(warnings, static_cast<uint8_t>(w.invasion_id));
     }
 }
 
@@ -893,16 +893,16 @@ void scenario_invasion_save_state(buffer *buf)
     buffer_init_dynamic_array(buf, data.invasions.size(), INVASIONS_STRUCT_SIZE_CURRENT);
 
     for (const invasion_t &invasion : data.invasions) {
-        buffer_write_i16(buf, invasion.type);
-        buffer_write_i16(buf, invasion.year);
-        buffer_write_u16(buf, invasion.amount.min);
-        buffer_write_u16(buf, invasion.amount.max);
-        buffer_write_i16(buf, invasion.from);
-        buffer_write_i16(buf, invasion.attack_type);
-        buffer_write_u8(buf, invasion.month);
-        buffer_write_i16(buf, invasion.repeat.times);
-        buffer_write_u16(buf, invasion.repeat.interval.min);
-        buffer_write_u16(buf, invasion.repeat.interval.max);
+        buffer_write_i16(buf, static_cast<int16_t>(invasion.type));
+        buffer_write_i16(buf, static_cast<int16_t>(invasion.year));
+        buffer_write_u16(buf, static_cast<uint16_t>(invasion.amount.min));
+        buffer_write_u16(buf, static_cast<uint16_t>(invasion.amount.max));
+        buffer_write_i16(buf, static_cast<int16_t>(invasion.from));
+        buffer_write_i16(buf, static_cast<int16_t>(invasion.attack_type));
+        buffer_write_u8(buf, static_cast<uint8_t>(invasion.month));
+        buffer_write_i16(buf, static_cast<int16_t>(invasion.repeat.times));
+        buffer_write_u16(buf, static_cast<uint16_t>(invasion.repeat.interval.min));
+        buffer_write_u16(buf, static_cast<uint16_t>(invasion.repeat.interval.max));
     }
 }
 

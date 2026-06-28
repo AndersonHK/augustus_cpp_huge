@@ -87,7 +87,7 @@ static void button_menu_button_clicked(const generic_button *button);
 static void rebuild_visible_menu_buttons(void);
 static void request_visible_menu_button_rebuild(void);
 static const BuildMenuButton *focused_menu_button(void);
-static ImageGroupEntryRef produced_resource_icon(building_type type);
+static ImageGroupEntryRef produced_resource_icon(const building_type_registry_impl::BuildingType *type);
 
 static std::vector<generic_button> build_menu_button_widgets;
 static std::vector<BuildMenuButton> build_menu_buttons;
@@ -127,7 +127,7 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     type_definition = building_type_registry_impl::definition_for_type(cost_type());
     menu_icon_ref = definition() ? definition()->button_icon_ref() : ImageGroupEntryRef();
     if (!menu_icon_ref.is_bound()) {
-        menu_icon_ref = produced_resource_icon(building);
+        menu_icon_ref = produced_resource_icon(definition());
     }
 
     button_widget.reset();
@@ -307,8 +307,11 @@ static void draw_menu_money_centered(int value, int x, int y, int box_width, fon
     text_draw_money(value, x + offset, y, font, pixel_size);
 }
 
-static ImageGroupEntryRef produced_resource_icon(building_type type)
+static ImageGroupEntryRef produced_resource_icon(const building_type_registry_impl::BuildingType *type)
 {
+    if (!type) {
+        return ImageGroupEntryRef();
+    }
     resource_type r = building_output_resource(type);
     if (r != RESOURCE_NONE) {
         return resource_graphics(r).panel_icon();

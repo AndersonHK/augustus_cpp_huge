@@ -41,7 +41,7 @@ int house_population_add_to_city(int num_people)
 
     size_t house_index = 0;
     for (size_t i = 0; i < houses.size(); i++) {
-        if (houses[i]->id > building_id) {
+        if (houses[i]->id > static_cast<unsigned int>(building_id)) {
             house_index = i;
             break;
         }
@@ -50,7 +50,7 @@ int house_population_add_to_city(int num_people)
     for (size_t checked = 0; checked < houses.size() && added < num_people; checked++) {
         Building *house = houses[house_index];
         house_index = (house_index + 1) % houses.size();
-        building *b = const_cast<building *>(house->record());
+    ::building *b = const_cast<::building *>(house->record());
         if (b->state == BUILDING_STATE_IN_USE && b->house_size
             && b->distance_from_entry > 0 && b->house_population > 0) {
             city_population_set_last_used_house_add(b->id);
@@ -58,7 +58,7 @@ int house_population_add_to_city(int num_people)
             if (b->house_population < capacity) {
                 ++added;
                 ++b->house_population;
-                b->house_population_room = capacity - b->house_population;
+                b->house_population_room = static_cast<short>(capacity - b->house_population);
             }
         }
     }
@@ -79,7 +79,7 @@ int house_population_remove_from_city(int num_people)
 
     size_t house_index = 0;
     for (size_t i = 0; i < houses.size(); i++) {
-        if (houses[i]->id > building_id) {
+        if (houses[i]->id > static_cast<unsigned int>(building_id)) {
             house_index = i;
             break;
         }
@@ -89,7 +89,7 @@ int house_population_remove_from_city(int num_people)
     while (removed < num_people && houses_without_removal < houses.size()) {
         Building *house = houses[house_index];
         house_index = (house_index + 1) % houses.size();
-        building *b = const_cast<building *>(house->record());
+    ::building *b = const_cast<::building *>(house->record());
         if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population > 0) {
             city_population_set_last_used_house_remove(b->id);
             ++removed;
@@ -105,7 +105,7 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(Building house_object)
 {
-    const building *house = house_object.record();
+    const ::building *house = house_object.record();
     if (!house || !house_object.type) {
         return 0;
     }
@@ -128,7 +128,7 @@ void house_population_update_room(void)
     city_population_clear_capacity();
 
     Building::for_each({ .hasHousing = true }, [](Building *building) {
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
             return;
         }
@@ -136,7 +136,7 @@ void house_population_update_room(void)
         if (b->distance_from_entry > 0) {
             int capacity = house_population_get_capacity(*building);
             city_population_add_capacity(b->house_population, capacity);
-            b->house_population_room = capacity - b->house_population;
+            b->house_population_room = static_cast<short>(capacity - b->house_population);
             if (b->house_population > b->house_highest_population) {
                 b->house_highest_population = b->house_population;
             }
@@ -152,7 +152,7 @@ int house_population_create_immigrants(int num_people)
     int to_immigrate = num_people;
     // clean up any dead immigrants
     Building::for_each({ .hasHousing = true }, [](Building *building) {
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->house_size && b->immigrant_figure_id && Figure::get(b->immigrant_figure_id)->state != FIGURE_STATE_ALIVE) {
             b->immigrant_figure_id = 0;
         }
@@ -162,7 +162,7 @@ int house_population_create_immigrants(int num_people)
         if (to_immigrate <= 0) {
             return;
         }
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
             return;
         }
@@ -181,7 +181,7 @@ int house_population_create_immigrants(int num_people)
         if (to_immigrate <= 0) {
             return;
         }
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
             return;
         }
@@ -205,7 +205,7 @@ int house_population_create_emigrants(int num_people)
         if (to_emigrate <= 0) {
             return;
         }
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population <= 0 ||
             !house_is_plebeian(*building)) {
             return;
@@ -227,7 +227,7 @@ static void calculate_working_population(void)
     int num_plebs = 0;
     int num_patricians = 0;
     Building::for_each({ .hasHousing = true }, [&num_plebs, &num_patricians](Building *building) {
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
             return;
         }
@@ -280,14 +280,14 @@ void house_population_update_migration(void)
 void house_population_evict_overcrowded(void)
 {
     Building::for_each({ .hasHousing = true }, [](Building *building) {
-        building *b = const_cast<building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population_room >= 0) {
             return;
         }
         int num_people_to_evict = -b->house_population_room;
         migrant_create_homeless(*building, num_people_to_evict);
         if (num_people_to_evict < b->house_population) {
-            b->house_population -= num_people_to_evict;
+            b->house_population = static_cast<short>(b->house_population - num_people_to_evict);
             building_local_workforce::reconcile_house(*building);
         } else {
             // house has been removed

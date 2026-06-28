@@ -154,8 +154,11 @@ static void draw_employment_details(building_info_context *c, const Building &cu
 
 void window_building_draw_employment(building_info_context *c, int y_offset)
 {
-    Building current = c->building.main();
-    building *b = building_get(current.id);
+    if (!c->building) {
+        return;
+    }
+    Building current = c->building->main();
+    building *b = const_cast<building *>(current.record());
     if (!b) {
         return;
     }
@@ -165,8 +168,11 @@ void window_building_draw_employment(building_info_context *c, int y_offset)
 
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset)
 {
-    Building current = c->building.main();
-    building *b = building_get(current.id);
+    if (!c->building) {
+        return;
+    }
+    Building current = c->building->main();
+    building *b = const_cast<building *>(current.record());
     if (!b) {
         return;
     }
@@ -216,12 +222,12 @@ void window_building_play_sound(building_info_context *c, const char *sound_file
 
 static int output_storage_capacity(building_info_context *c, resource_type resource)
 {
-    if (!c->building.type) {
+    if (!c->building || !c->building->type) {
         return 0;
     }
 
     int capacity = 0;
-    for (const building_type_registry_impl::StorageType *storage : c->building.type->storage_types()) {
+    for (const building_type_registry_impl::StorageType *storage : c->building->type->storage_types()) {
         if (storage && storage->is_output() && storage->handles_resource(resource)) {
             capacity += storage->capacity();
         }
@@ -242,10 +248,11 @@ static int draw_output_storage_amount(
         return 0;
     }
 
-    const int amount = c->building.storage_resource_amount(
+    const Building &current_building = *c->building;
+    const int amount = current_building.storage_resource_amount(
         resource, building_type_registry_impl::StorageRole::Output);
-    const building *record = building_get(c->building.id);
-    const int max_progress = method ? method->max_progress_for(c->building) : 0;
+    const ::building *record = current_building.record();
+    const int max_progress = method ? method->max_progress_for(current_building) : 0;
     const int is_full_and_complete = amount >= capacity && record && max_progress > 0 &&
         record->data.industry.progress >= max_progress;
     const font_t font = is_full_and_complete ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
@@ -330,7 +337,7 @@ static int production_method_matches_current_output(
         return 1;
     }
 
-    const building *record = building_get(c->building.id);
+    const building *record = c->building ? c->building->record() : nullptr;
     const resource_type output = record ? static_cast<resource_type>(record->output_resource_id) : RESOURCE_NONE;
     return resource_slot(output) < 0 || method->output_resource() == output;
 }
@@ -362,7 +369,7 @@ static int draw_production_rows_for_type(
                 if (input_slot >= 0 && !seen_inputs[input_slot]) {
                     seen_inputs[input_slot] = 1;
                     consumed_height += draw_production_resource_row(c, nullptr, input.resource,
-                        c->building.storage_resource_amount(input.resource,
+                        c->building->storage_resource_amount(input.resource,
                             building_type_registry_impl::StorageRole::Input),
                         method->scaled_input_amount(input),
                         y_offset + consumed_height, 0);
@@ -415,18 +422,18 @@ static int has_figure_delivery_output_for_type(
 
 int window_building_draw_production_rows(building_info_context *c, int y_offset, int flags)
 {
-    if (!c->building.type) {
+    if (!c->building || !c->building->type) {
         return 0;
     }
 
     unsigned char seen_outputs[RESOURCE_SLOT_COUNT] = {};
     unsigned char seen_inputs[RESOURCE_SLOT_COUNT] = {};
     int consumed_height = draw_production_rows_for_type(
-        c, *c->building.type, y_offset, flags, seen_outputs, seen_inputs);
+        c, *c->building->type, y_offset, flags, seen_outputs, seen_inputs);
 
-    if (c->building.type->has_composition()) {
+    if (c->building->type->has_composition()) {
         for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building.type->composition().parts()) {
+            c->building->type->composition().parts()) {
             const building_type_registry_impl::BuildingType *part_type =
                 building_type_registry_impl::definition_for_type(part.type);
             if (part_type) {
@@ -440,18 +447,18 @@ int window_building_draw_production_rows(building_info_context *c, int y_offset,
 
 int window_building_draw_production_outputs_inline(building_info_context *c, int x_offset, int y_offset)
 {
-    if (!c->building.type) {
+    if (!c->building || !c->building->type) {
         return 0;
     }
 
     unsigned char seen_outputs[RESOURCE_SLOT_COUNT] = {};
     const int x = c->x_offset + x_offset;
     const int y = c->y_offset + y_offset;
-    int consumed_width = draw_production_outputs_inline_for_type(c, *c->building.type, x, y, seen_outputs);
+    int consumed_width = draw_production_outputs_inline_for_type(c, *c->building->type, x, y, seen_outputs);
 
-    if (c->building.type->has_composition()) {
+    if (c->building->type->has_composition()) {
         for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building.type->composition().parts()) {
+            c->building->type->composition().parts()) {
             const building_type_registry_impl::BuildingType *part_type =
                 building_type_registry_impl::definition_for_type(part.type);
             if (part_type) {
@@ -472,17 +479,17 @@ int window_building_draw_production_outputs_inline(building_info_context *c, int
 
 int window_building_has_figure_delivery_output(building_info_context *c)
 {
-    if (!c->building.type) {
+    if (!c->building || !c->building->type) {
         return 0;
     }
 
-    if (has_figure_delivery_output_for_type(c, *c->building.type)) {
+    if (has_figure_delivery_output_for_type(c, *c->building->type)) {
         return 1;
     }
 
-    if (c->building.type->has_composition()) {
+    if (c->building->type->has_composition()) {
         for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building.type->composition().parts()) {
+            c->building->type->composition().parts()) {
             const building_type_registry_impl::BuildingType *part_type =
                 building_type_registry_impl::definition_for_type(part.type);
             if (part_type && has_figure_delivery_output_for_type(c, *part_type)) {
@@ -495,7 +502,10 @@ int window_building_has_figure_delivery_output(building_info_context *c)
 
 static void window_building_draw_monument_resources_needed(building_info_context *c)
 {
-    building *b = building_get(c->building.id);
+    building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
+    if (!b) {
+        return;
+    }
     int y_offset = 95;
     inner_panel_draw(c->x_offset + 16, c->y_offset + y_offset, c->width_blocks - 2, 5);
     if (building_monument_needs_resources(b)) {
@@ -614,7 +624,10 @@ static translation_key monument_phase_text_key(translation_key first_phase_text,
 void window_building_draw_monument_construction_process(building_info_context *c,
     translation_key tr_phase_name, translation_key tr_phase_name_text, translation_key tr_construction_desc)
 {
-    building *b = building_get(c->building.id);
+    building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
+    if (!b) {
+        return;
+    }
 
     if (b->monument.phase != MONUMENT_FINISHED) {
         if (!c->has_road_access) {
@@ -665,7 +678,10 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     c->risk_icons.x_offset = x_offset;
     c->risk_icons.y_offset = y_offset;
 
-    const building *b = building_get(c->building.id);
+    const building *b = c->building ? c->building->record() : nullptr;
+    if (!b) {
+        return;
+    }
     static const ImageGroupEntryRef collapse_icon =
         ImageGroupEntryRef::from_group("UI\\Risk_Widget_Collapse", "Risk_Widget_Collapse");
     static const ImageGroupEntryRef fire_icon =
@@ -694,7 +710,7 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     // Damage risk
     graphics_draw_inset_rect(x_offset + 28, y_offset, 24, 24,
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-    int house_level = building_house_legacy_level(c->building);
+    int house_level = building_house_legacy_level(*c->building);
     if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
         collapse_icon.draw(x_offset + 28, y_offset);
         cross_icon.draw(x_offset + 28, y_offset);
@@ -710,7 +726,10 @@ void window_building_get_risks_tooltip(
         return;
     }
 
-    const building *b = building_get(c->building.id);
+    const building *b = c->building ? c->building->record() : nullptr;
+    if (!b) {
+        return;
+    }
     const mouse *m = mouse_get();
 
     // Health tooltip

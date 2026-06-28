@@ -83,32 +83,32 @@ int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 
 const char *profile_id_for_priest_owner(const Figure *f)
 {
-    if (!f || !f->building.id) {
+    if (!f || !f->building) {
         return nullptr;
     }
 
     // Legacy saves do not persist XML profile bindings. Priest recovery keeps
     // the old temple-to-god mapping, then the recovered profile owns the effect.
-    const building_type_registry_impl::BuildingType *type = f->building.type;
+    const building_type_registry_impl::BuildingType *type = f->building->type;
     if (!type) {
         return nullptr;
     }
-    if (type->is_pantheon()) {
+    if (type->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand)) {
         return "pantheon_service";
     }
-    if (type->is_ceres_temple()) {
+    if (type->is_temple(GOD_CERES)) {
         return "ceres_service";
     }
-    if (type->is_neptune_temple()) {
+    if (type->is_temple(GOD_NEPTUNE)) {
         return "neptune_service";
     }
-    if (type->is_mercury_temple()) {
+    if (type->is_temple(GOD_MERCURY)) {
         return "mercury_service";
     }
-    if (type->is_mars_temple()) {
+    if (type->is_temple(GOD_MARS)) {
         return "mars_service";
     }
-    if (type->is_venus_temple()) {
+    if (type->is_temple(GOD_VENUS)) {
         return "venus_service";
     }
     return nullptr;
@@ -152,10 +152,10 @@ const char *infer_profile_id(const Figure *f)
                     return "venue_seeker";
                 case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
                 case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
-                    if (!f->building.id) {
+                    if (!f->building) {
                         return nullptr;
                     }
-                    const building_type_registry_impl::BuildingType *building_type = f->building.type;
+                    const building_type_registry_impl::BuildingType *building_type = f->building->type;
                     if (f->type == FIGURE_ACTOR) {
                         return building_type && building_type->attr_is("amphitheater") ?
                             "amphitheater_service" :
@@ -341,7 +341,7 @@ Figure *figure_runtime_create_profiled(
         return nullptr;
     }
 
-    f->building = building;
+    f->building = &building;
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);

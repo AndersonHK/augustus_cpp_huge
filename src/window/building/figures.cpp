@@ -117,7 +117,7 @@ int window_building_handle_mouse_figure_list(const mouse *m, building_info_conte
     Figure *f = Figure::get(c->figure.figure_ids[c->figure.selected_index]);
     const int button_y = f && f->uses_tall_info_panel() ? 17 : 46;
     for (int i = 0; i < c->figure.count; i++) {
-        figure_buttons[i].y = button_y;
+        figure_buttons[i].y = static_cast<short>(button_y);
     }
     generic_button *buttons = figure_buttons;
     int button_count = c->figure.count;

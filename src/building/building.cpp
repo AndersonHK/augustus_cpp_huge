@@ -81,7 +81,7 @@ static struct {
     std::deque<building> buildings;
     building *first_of_type[BUILDING_TYPE_MAX];
     building *last_of_type[BUILDING_TYPE_MAX];
-} data;
+} data = {};
 
 using building_type_registry_impl::type_attr_is;
 using building_type_registry_impl::type_attr_is_any;
@@ -146,6 +146,26 @@ static building *building_slot(unsigned int id)
     return id < data.buildings.size() ? &data.buildings[id] : nullptr;
 }
 
+static Building *runtime_building_for_record(building *record)
+{
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
+    return runtime ? &runtime->building : nullptr;
+}
+
+static const building_type_registry_impl::BuildingType *definition_for_record(const building *record)
+{
+    return record ? definition_for_type(record->type) : nullptr;
+}
+
+static int record_matches(const building *record, const char *attr)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_record(record);
+    if (definition == nullptr) {
+        return 0;
+    }
+    return definition->attr_is(attr);
+}
+
 static building *first_building_slot()
 {
     return data.buildings.empty() ? nullptr : &data.buildings.front();
@@ -153,7 +173,10 @@ static building *first_building_slot()
 
 static int building_slot_is_active(const building &record)
 {
-    return record.state != BUILDING_STATE_UNUSED || game_undo_contains_building(record.id);
+    if (record.state != BUILDING_STATE_UNUSED) {
+        return 1;
+    }
+    return game_undo_contains_building(record.id);
 }
 
 static void trim_buildings()
@@ -184,6 +207,51 @@ static const char *safe_text(const char *text)
 static int building_record_requires_type_definition(const building *record)
 {
     return record && record->state != BUILDING_STATE_UNUSED;
+}
+
+[[noreturn]] static void report_invalid_building_constructor(
+    const std::source_location &location,
+    const char *message)
+{
+    char detail[700];
+    std::snprintf(
+        detail,
+        sizeof(detail),
+        "caller=%s:%u function=%s",
+        safe_text(location.file_name()),
+        static_cast<unsigned>(location.line()),
+        safe_text(location.function_name()));
+
+    error_context_report_fatal_error_dialog(
+        "Building runtime error",
+        message,
+        detail);
+    std::terminate();
+}
+
+static building *require_building_record(building *record, const std::source_location &location)
+{
+    if (!record) {
+        report_invalid_building_constructor(location, "Building cannot be constructed from a null record.");
+    }
+    return record;
+}
+
+static BuildingGraphicsState *require_building_graphics_state(
+    BuildingGraphicsState *graphics_state,
+    const std::source_location &location)
+{
+    if (!graphics_state) {
+        report_invalid_building_constructor(location, "Building cannot be constructed without a BuildingGraphicsState.");
+    }
+    return graphics_state;
+}
+
+static const building_type_registry_impl::BuildingType *definition_for_constructor_record(
+    building *record,
+    const std::source_location &location)
+{
+    return building_type_registry_impl::definition_for_type(require_building_record(record, location)->type);
 }
 
 static void report_missing_building_type_definition(
@@ -274,8 +342,10 @@ static void report_missing_building_graphics_state(
 Building::Building(::building *record, BuildingGraphicsState *graphics_state, const std::source_location &location)
     : Building(
         record,
-        record ? building_type_registry_impl::definition_for_type(record->type) : nullptr,
+        definition_for_constructor_record(record, location),
         graphics_state,
+        nullptr,
+        nullptr,
         location)
 {}
 
@@ -288,13 +358,24 @@ Building::Building(
     const building_type_registry_impl::BuildingType *type_definition,
     BuildingGraphicsState *graphics_state,
     const std::source_location &location)
-    : type(type_definition),
-    og_type(nullptr),
-    record_(record),
-    construction_location_(location)
+    : Building(record, type_definition, graphics_state, nullptr, nullptr, location)
+{}
+
+Building::Building(
+    ::building *record,
+    const building_type_registry_impl::BuildingType *type_definition,
+    BuildingGraphicsState *graphics_state,
+    const RubbleDef *rubble_definition,
+    RubbleState *rubble_state,
+    const std::source_location &location)
+    : type(type_definition)
+    , Rubble(nullptr)
+    , record_(require_building_record(record, location))
+    , construction_location_(location)
 {
     bind_record_fields();
-    bind_graphics(graphics_state);
+    bind_graphics(require_building_graphics_state(graphics_state, location));
+    bind_rubble(rubble_definition, rubble_state);
     if (building_record_requires_type_definition(record_) && !type) {
         report_missing_building_type_definition(record_, location, "constructor");
     }
@@ -309,13 +390,14 @@ Building::Building(
 {}
 
 Building::Building(const Building &other)
-    : type(other.type),
-    og_type(other.og_type),
-    record_(other.record_),
-    construction_location_(other.construction_location_)
+    : type(other.type)
+    , Rubble(nullptr)
+    , record_(other.record_)
+    , construction_location_(other.construction_location_)
 {
     bind_record_fields();
     bind_graphics(other.graphics_.state());
+    bind_rubble(other.Rubble ? other.Rubble->definition() : nullptr, other.Rubble ? other.Rubble->state() : nullptr);
 }
 
 Building &Building::operator=(const Building &other)
@@ -324,11 +406,12 @@ Building &Building::operator=(const Building &other)
         return *this;
     }
     type = other.type;
-    og_type = other.og_type;
+    Rubble = nullptr;
     record_ = other.record_;
     construction_location_ = other.construction_location_;
     bind_record_fields();
     bind_graphics(other.graphics_.state());
+    bind_rubble(other.Rubble ? other.Rubble->definition() : nullptr, other.Rubble ? other.Rubble->state() : nullptr);
     return *this;
 }
 
@@ -343,6 +426,17 @@ void Building::bind_record_fields()
 void Building::bind_graphics(BuildingGraphicsState *graphics_state)
 {
     graphics_.bind(*this, type ? &type->graphics() : nullptr, graphics_state);
+}
+
+void Building::bind_rubble(const RubbleDef *rubble_definition, RubbleState *rubble_state)
+{
+    if (!rubble_definition || !rubble_definition->has_any() || !rubble_state) {
+        rubble_.clear();
+        Rubble = nullptr;
+        return;
+    }
+    rubble_.bind(*this, rubble_definition, rubble_state);
+    Rubble = &rubble_;
 }
 
 Building::TypeRange::iterator::iterator(::building *record)
@@ -493,7 +587,7 @@ int Building::next_part_id() const
 
 int Building::is_main_part() const
 {
-    return !previous_part_id();
+    return previous_part_id() == 0;
 }
 
 int Building::road_network_id() const
@@ -509,7 +603,7 @@ int Building::distance_from_entry() const
 void Building::set_distance_from_entry(int value)
 {
     if (record_) {
-        record_->distance_from_entry = value;
+        record_->distance_from_entry = static_cast<short>(value);
     }
 }
 
@@ -536,7 +630,7 @@ int Building::formation_id() const
 void Building::set_formation_id(int formation_id)
 {
     if (record_) {
-        record_->formation_id = formation_id;
+        record_->formation_id = static_cast<short>(formation_id);
     }
 }
 
@@ -621,7 +715,7 @@ int Building::house_population() const
 void Building::set_house_population(int value)
 {
     if (record_) {
-        record_->house_population = value;
+        record_->house_population = static_cast<short>(value);
     }
 }
 
@@ -633,7 +727,7 @@ int Building::house_population_room() const
 void Building::set_house_population_room(int value)
 {
     if (record_) {
-        record_->house_population_room = value;
+        record_->house_population_room = static_cast<short>(value);
     }
 }
 
@@ -642,10 +736,10 @@ unsigned int Building::immigrant_figure_id() const
     return record_ ? record_->immigrant_figure_id : 0;
 }
 
-void Building::set_immigrant_figure_id(unsigned int id)
+void Building::set_immigrant_figure_id(unsigned int figure_id)
 {
     if (record_) {
-        record_->immigrant_figure_id = id;
+        record_->immigrant_figure_id = figure_id;
     }
 }
 
@@ -846,7 +940,7 @@ static int composed_record_road_access_area(const building *owner, int *x, int *
         if (part->next_part_building_id <= 0) {
             break;
         }
-        part = building_get(part->next_part_building_id);
+        part = building_slot(part->next_part_building_id);
     }
 
     if (!saw_part) {
@@ -884,7 +978,10 @@ int Building::has_road_access(map_point *road) const
     if (composed_record_road_access_area(owner, &access_x, &access_y, &access_size)) {
         return map_has_road_access(access_x, access_y, access_size, road);
     }
-    return owner && map_has_road_access(owner->x, owner->y, owner->size, road);
+    if (owner == nullptr) {
+        return 0;
+    }
+    return map_has_road_access(owner->x, owner->y, owner->size, road);
 }
 
 int Building::query_road_access_point(map_point *road) const
@@ -901,7 +998,7 @@ int Building::query_road_access_point(map_point *road) const
     if (definition && definition->is_granary()) {
         return map_has_road_access_granary(owner->x, owner->y, road);
     }
-    return Building(owner).has_road_access(road);
+    return map_has_road_access(owner->x, owner->y, owner->size, road);
 }
 
 int Building::storage_destination_road_access_point(map_point *road) const
@@ -910,7 +1007,7 @@ int Building::storage_destination_road_access_point(map_point *road) const
     if (!owner.type ||
         (!owner.type->is_warehouse() &&
             !owner.type->is_granary() &&
-            !owner.type->is_grand_temple_venus())) {
+            !owner.type->is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Grand))) {
         return 0;
     }
     return owner.query_road_access_point(road);
@@ -1011,7 +1108,7 @@ unsigned int Building::distribution_cartpusher_id(int index) const
 void Building::set_figure_spawn_delay(int ticks)
 {
     if (record_) {
-        record_->figure_spawn_delay = ticks;
+        record_->figure_spawn_delay = static_cast<unsigned char>(ticks);
     }
 }
 
@@ -1023,7 +1120,7 @@ int Building::resource_amount(resource_type resource) const
 void Building::add_resource(resource_type resource, int amount)
 {
     if (record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
-        record_->resources[resource] += amount;
+        record_->resources[resource] = static_cast<short>(record_->resources[resource] + amount);
     }
 }
 
@@ -1228,10 +1325,10 @@ void Building::set_accepted_goods(const unsigned char *src, int count)
     memcpy(record_->accepted_goods, src, count);
 }
 
-void Building::set_primary_figure_id(unsigned int id)
+void Building::set_primary_figure_id(unsigned int figure_id)
 {
     if (record_) {
-        record_->figure_id = id;
+        record_->figure_id = figure_id;
     }
 }
 
@@ -1253,13 +1350,13 @@ int Building::orientation() const
 void Building::set_orientation(int orientation)
 {
     if (record_) {
-        record_->subtype.orientation = orientation;
+        record_->subtype.orientation = static_cast<short>(orientation);
     }
 }
 
 int Building::image_id() const
 {
-    return record_ ? building_image_get(record_) : 0;
+    return record_ ? building_image_get(this) : 0;
 }
 
 void Building::add_map_tiles(int image_id)
@@ -1316,7 +1413,14 @@ void Building::set_warehouse_resource_id(resource_type resource)
 
 int Building::loads_stored() const
 {
-    return record_ ? building_loads_stored(record_) : 0;
+    if (!record_) {
+        return 0;
+    }
+    int amount = 0;
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
+        amount += record_->resources[resource_index];
+    }
+    return amount;
 }
 
 int Building::industry_has_raw_materials() const
@@ -1337,7 +1441,7 @@ int Building::dock_trade_ship_id() const
 void Building::set_dock_trade_ship_id(int figure_id)
 {
     if (record_) {
-        record_->data.dock.trade_ship_id = figure_id;
+        record_->data.dock.trade_ship_id = static_cast<short>(figure_id);
     }
 }
 
@@ -1349,7 +1453,7 @@ int Building::dock_num_ships() const
 void Building::set_dock_num_ships(int ticks)
 {
     if (record_) {
-        record_->data.dock.num_ships = ticks;
+        record_->data.dock.num_ships = static_cast<unsigned char>(ticks);
     }
 }
 
@@ -1368,7 +1472,7 @@ int Building::dock_queued_docker_id() const
 void Building::set_dock_queued_docker_id(int figure_id)
 {
     if (record_) {
-        record_->data.dock.queued_docker_id = figure_id;
+        record_->data.dock.queued_docker_id = static_cast<short>(figure_id);
     }
 }
 
@@ -1420,7 +1524,7 @@ int Building::has_required_raw_amount_for_production(resource_type resource) con
 {
     return record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ?
         storage_resource_amount(resource, building_type_registry_impl::StorageRole::Input) >=
-            building_get_required_raw_amount_for_production(record_->type, resource) :
+            building_get_required_raw_amount_for_production(type, resource) :
         0;
 }
 
@@ -1479,14 +1583,15 @@ int Building::industry_has_fish() const
 void Building::add_industry_fish(int amount)
 {
     if (record_) {
-        record_->data.industry.has_fish += amount;
+        record_->data.industry.has_fish = static_cast<unsigned char>(record_->data.industry.has_fish + amount);
     }
 }
 
 void Building::add_industry_production_current_month(int amount)
 {
     if (record_) {
-        record_->data.industry.production_current_month += amount;
+        record_->data.industry.production_current_month =
+            static_cast<short>(record_->data.industry.production_current_month + amount);
     }
 }
 
@@ -1575,10 +1680,10 @@ void Building::set_mothballed(int value)
     }
 }
 
-void Building::change_type(building_type type, const std::source_location &location)
+void Building::change_type(building_type new_type, const std::source_location &location)
 {
     if (record_) {
-        building_change_type(record_, type);
+        building_change_type(record_, new_type);
         this->type = building_type_registry_impl::definition_for_type(record_->type);
         if (building_record_requires_type_definition(record_) && !this->type) {
             report_missing_building_type_definition(record_, location, "change_type()");
@@ -1586,26 +1691,26 @@ void Building::change_type(building_type type, const std::source_location &locat
     }
 }
 
-int Building::configure_house_replacement(building_type type, int x, int y, int size, int merged)
+int Building::configure_house_replacement(building_type house_type, int x, int y, int size, int merged)
 {
     if (!record_ || size <= 0) {
         return 0;
     }
     const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
+        building_type_registry_impl::definition_for_type(house_type);
     const int level = definition && definition->has_housing() ? definition->housing_type()->level() : -1;
     if (level < 0) {
         return 0;
     }
-    change_type(type);
-    record_->subtype.house_level = level;
+    change_type(house_type);
+    record_->subtype.house_level = static_cast<short>(level);
     record_->state = BUILDING_STATE_IN_USE;
     record_->x = static_cast<unsigned char>(x);
     record_->y = static_cast<unsigned char>(y);
-    record_->grid_offset = map_grid_offset(x, y);
+    record_->grid_offset = static_cast<short>(map_grid_offset(x, y));
     record_->size = record_->house_size = static_cast<unsigned char>(size);
     record_->house_is_merged = static_cast<unsigned char>(merged);
-    record_->is_close_to_water = building_is_close_to_water(record_);
+    record_->is_close_to_water = static_cast<unsigned char>(building_is_close_to_water(record_));
     record_->local_workforce_assigned = 0;
     record_->local_workforce_unemployed = 0;
     record_->local_workforce_validation_delay = 0;
@@ -1689,7 +1794,7 @@ int Building::fumigation_frame() const
 void Building::set_fumigation_direction(int direction)
 {
     if (record_) {
-        record_->fumigation_direction = direction;
+        record_->fumigation_direction = static_cast<unsigned char>(direction);
     }
 }
 
@@ -1765,10 +1870,11 @@ std::uint64_t Building::graphics_state_signature(int selected_graphics_option) c
     mix(static_cast<std::uint64_t>(record_->monument.phase));
     mix(static_cast<std::uint64_t>(record_->monument.upgrades));
     const BuildingGraphicsState *graphics_state = graphics_.state();
-    if (!graphics_state) {
+    if (graphics_state == nullptr) {
         report_missing_building_graphics_state(record_, type, construction_location_, std::source_location::current());
+    } else {
+        mix(static_cast<std::uint64_t>(graphics_state->variant()));
     }
-    mix(static_cast<std::uint64_t>(graphics_state->variant()));
     mix(static_cast<std::uint64_t>(blocked_storage_permission_mask()));
     if (selected_graphics_option >= 0) {
         mix(static_cast<std::uint64_t>(selected_graphics_option));
@@ -1817,6 +1923,21 @@ int building_count(void)
     return static_cast<int>(data.buildings.size());
 }
 
+void building_for_each_loaded_record(const std::function<void(building *)> &visitor)
+{
+    if (!visitor) {
+        return;
+    }
+
+    for (size_t id = 1; id < data.buildings.size(); id++) {
+        building *record = &data.buildings[id];
+        if (!record->id || record->state == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+        visitor(record);
+    }
+}
+
 int building_find(building_type type)
 {
     for (building *b = data.first_of_type[type]; b; b = b->next_of_type) {
@@ -1847,12 +1968,12 @@ building *building_main(const building *b)
     if (!b) {
         return nullptr;
     }
-    building *part = building_get(b->id);
+    building *part = building_slot(b->id);
     for (int guard = 0; guard < 64; guard++) {
         if (!part || part->prev_part_building_id <= 0) {
             return part;
         }
-        part = building_get(part->prev_part_building_id);
+        part = building_slot(part->prev_part_building_id);
     }
     return first_building_slot();
 }
@@ -1869,7 +1990,7 @@ building *building_repair_target(building *b)
 
 building *building_next(building *b)
 {
-    return building_get(b->next_part_building_id);
+    return building_slot(b->next_part_building_id);
 }
 
 static int composed_record_is_live(const building *b)
@@ -1894,7 +2015,7 @@ static building *chain_child_after(building *previous)
     if (!previous || previous->next_part_building_id <= 0) {
         return nullptr;
     }
-    building *child = building_get(previous->next_part_building_id);
+    building *child = building_slot(previous->next_part_building_id);
     if (!composed_record_is_live(child) || child->id == previous->id) {
         return nullptr;
     }
@@ -2003,9 +2124,12 @@ static void publish_loaded_composed_record(building *record)
     if (!record || !map_grid_is_inside(record->x, record->y, record->size)) {
         return;
     }
-    Building building_object(record);
-    if (!building_object.refresh_graphic_if_native()) {
-        building_object.add_map_tiles(building_image_get(record));
+    Building *building_object = runtime_building_for_record(record);
+    if (!building_object) {
+        return;
+    }
+    if (!building_object->refresh_graphic_if_native()) {
+        building_object->add_map_tiles(building_image_get(building_object));
     }
 }
 
@@ -2035,16 +2159,16 @@ static void normalize_loaded_composed_main(building *main_record,
         }
     }
 
-    main_record->size = props->size;
+    main_record->size = static_cast<unsigned char>(props->size);
     main_record->x = static_cast<unsigned char>(expected_x);
     main_record->y = static_cast<unsigned char>(expected_y);
-    main_record->grid_offset = map_grid_offset(expected_x, expected_y);
-    main_record->house_size = definition.has_housing() ? props->size : 0;
-    main_record->output_resource_id = building_output_resource(main_record->type);
+    main_record->grid_offset = static_cast<short>(map_grid_offset(expected_x, expected_y));
+    main_record->house_size = static_cast<unsigned char>(definition.has_housing() ? props->size : 0);
+    main_record->output_resource_id = static_cast<unsigned char>(building_output_resource(&definition));
     main_record->prev_part_building_id = 0;
 
     if (definition.is_warehouse() && !main_record->storage_id) {
-        Building(main_record, &definition).set_storage_id(building_storage_create(main_record->id));
+        main_record->storage_id = static_cast<unsigned char>(building_storage_create(main_record->id));
     }
 }
 
@@ -2084,12 +2208,12 @@ static building *repair_loaded_composed_child(building *main_record, building *p
     if (child->type != part.type) {
         building_change_type(child, part.type);
     }
-    child->size = props->size;
+    child->size = static_cast<unsigned char>(props->size);
     child->x = static_cast<unsigned char>(expected_x);
     child->y = static_cast<unsigned char>(expected_y);
-    child->grid_offset = map_grid_offset(expected_x, expected_y);
+    child->grid_offset = static_cast<short>(map_grid_offset(expected_x, expected_y));
     child->house_size = 0;
-    child->output_resource_id = building_output_resource(part.type);
+    child->output_resource_id = static_cast<unsigned char>(building_output_resource(definition_for_record(child)));
     if (was_created) {
         child->state = main_record->state;
     } else if (child->state != BUILDING_STATE_IN_USE &&
@@ -2097,8 +2221,8 @@ static building *repair_loaded_composed_child(building *main_record, building *p
         child->state != BUILDING_STATE_CREATED) {
         child->state = main_record->state;
     }
-    child->prev_part_building_id = previous->id;
-    previous->next_part_building_id = child->id;
+    child->prev_part_building_id = static_cast<short>(previous->id);
+    previous->next_part_building_id = static_cast<short>(child->id);
 
     initialize_loaded_composed_child(main_record, child, main_definition, part, was_created);
     publish_loaded_composed_record(child);
@@ -2138,9 +2262,9 @@ static void repair_loaded_composed_main(building *main_record)
     }
     previous->next_part_building_id = 0;
 
-    Building main_object(main_record);
-    if (main_object.type && main_object.type->is_warehouse()) {
-        building_warehouse_recount_resources(main_object);
+    if (Building *main_object = runtime_building_for_record(main_record);
+        main_object && main_object->type && main_object->type->is_warehouse()) {
+        building_warehouse_recount_resources(*main_object);
     }
 }
 
@@ -2173,7 +2297,7 @@ static void fill_adjacent_types(building *b)
     } else if (b != first && b != last) {
         int id = b->id - 1;
         while (id) {
-            building *prev = building_get(id);
+            building *prev = building_slot(id);
             if (prev->state != BUILDING_STATE_UNUSED && prev->type == b->type) {
                 b->prev_of_type = prev;
                 b->next_of_type = prev->next_of_type;
@@ -2224,35 +2348,38 @@ building *building_create(building_type type, int x, int y)
     b->state = BUILDING_STATE_CREATED;
     b->faction_id = 1;
     b->type = type;
-    b->size = props->size;
-    b->created_sequence = extra.created_sequence++;
+    b->size = static_cast<unsigned char>(props->size);
+    b->created_sequence = static_cast<unsigned short>(extra.created_sequence++);
     b->sentiment.house_happiness = 100;
 
     fill_adjacent_types(b);
     city_culture_add_building_module_capacity(b);
 
-    Building building_obj(b);
+    Building *building_obj = runtime_building_for_record(b);
+    if (!building_obj) {
+        return b;
+    }
 
     // house size
-    if (building_obj.type && building_obj.type->has_housing()) {
-        b->house_size = props->size;
+    if (building_obj->type && building_obj->type->has_housing()) {
+        b->house_size = static_cast<unsigned char>(props->size);
     }
 
     // subtype
-    if (building_is_house(type)) {
-        int level = building_obj.type && building_obj.type->housing_type() ?
-            building_obj.type->housing_type()->level() :
+    if (building_obj->type && building_obj->type->has_housing()) {
+        int level = building_obj->type && building_obj->type->housing_type() ?
+            building_obj->type->housing_type()->level() :
             -1;
         b->subtype.house_level = static_cast<short>(level);
     }
 
-    b->output_resource_id = building_output_resource(type);
+    b->output_resource_id = static_cast<unsigned char>(building_output_resource(building_obj->type));
 
-    if (building_obj.type && building_obj.type->is_granary()) {
+    if (building_obj->type && building_obj->type->is_granary()) {
         b->resources[RESOURCE_NONE] = FULL_GRANARY;
     }
 
-    const building_type_registry_impl::BuildingType *definition = building_obj.type;
+    const building_type_registry_impl::BuildingType *definition = building_obj->type;
     const building_type_registry_impl::Distribution *distribution =
         definition ? definition->distribution() : nullptr;
 
@@ -2260,29 +2387,30 @@ building *building_create(building_type type, int x, int y)
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         b->accepted_goods[r] = distribution && distribution->handles_resource(r);
     }
-    if (building_obj.matches("dock")) {
+    if (building_obj->matches("dock")) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
             b->accepted_goods[r] = 1;
         }
     }
 
     // Exception for Venus temples which should never accept wine by default to prevent unwanted evolutions
-    if (building_is_venus_temple(type)) {
+    if (building_obj->type && building_obj->type->is_temple(GOD_VENUS)) {
         b->accepted_goods[resource_wine()] = 0;
     }
 
-    if (building_obj.type &&
-        (building_obj.type->is_warehouse() || building_obj.type->composition().child_inherits_orientation())) {
-        b->subtype.orientation = building_rotation_get_rotation();
+    if (building_obj->type &&
+        (building_obj->type->is_warehouse() || building_obj->type->composition().child_inherits_orientation())) {
+        b->subtype.orientation = static_cast<short>(building_rotation_get_rotation());
     }
 
     // Most roadblock-like buildings should allow everything by default
-    if (Roadblock(b).kind() != ROADBLOCK_NONE &&
-        Roadblock(b).kind() != ROADBLOCK_STANDARD &&
+    if (definition &&
+        definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+        definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::Standard &&
         !type_attr_is(b->type, "gatehouse") &&
         !type_attr_is(b->type, "palisade_gate") &&
-        (!building_obj.type || !building_obj.type->is_granary()) &&
-        (!building_obj.type || !building_obj.type->is_warehouse()) &&
+        !definition->is_granary() &&
+        !definition->is_warehouse() &&
         config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
@@ -2290,34 +2418,34 @@ building *building_create(building_type type, int x, int y)
         // Bridges should allow all walkers by default.
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
-    if (building_obj.type && building_obj.type->is_granary() &&
+    if (building_obj->type && building_obj->type->is_granary() &&
         !config_get(CONFIG_GP_CH_GRANARY_DEFAULT_TO_PASS_ALL_WALKERS)) {
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
-    if (building_obj.type && building_obj.type->is_warehouse() &&
+    if (building_obj->type && building_obj->type->is_warehouse() &&
         !config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
 
     if (type_attr_is(b->type, "market") && config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
-            building_obj.type ? building_obj.type->distribution() : nullptr) {
-            market_distribution->set_acceptance(building_obj, 0);
+            building_obj->type ? building_obj->type->distribution() : nullptr) {
+            market_distribution->set_acceptance(*building_obj, 0);
         }
     } else if (type_attr_is(b->type, "market") && !config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
-            building_obj.type ? building_obj.type->distribution() : nullptr) {
-            market_distribution->set_acceptance(building_obj, 1);
+            building_obj->type ? building_obj->type->distribution() : nullptr) {
+            market_distribution->set_acceptance(*building_obj, 1);
         }
     }
 
-    b->x = x;
-    b->y = y;
-    b->grid_offset = map_grid_offset(x, y);
+    b->x = static_cast<unsigned char>(x);
+    b->y = static_cast<unsigned char>(y);
+    b->grid_offset = static_cast<short>(map_grid_offset(x, y));
     b->house_figure_generation_delay = map_random_get(b->grid_offset) & 0x7f;
     b->figure_roam_direction = b->house_figure_generation_delay & 6;
-    b->fire_proof = props->fire_proof;
-    b->is_close_to_water = building_is_close_to_water(b);
+    b->fire_proof = static_cast<unsigned char>(props->fire_proof);
+    b->is_close_to_water = static_cast<unsigned char>(building_is_close_to_water(b));
 
     return b;
 }
@@ -2350,13 +2478,14 @@ void building_clear_related_data(building *b)
 {
     if (b->storage_id) {
         building_storage_delete(b->storage_id);
-        Building(b).set_storage_id(0);
+        b->storage_id = 0;
     }
     if (building_is_fort(b->type)) {
-        Building fort(*b);
-        formation_legion_delete_for_fort(fort);
+        if (Building *fort = runtime_building_for_record(b)) {
+            formation_legion_delete_for_fort(*fort);
+        }
     }
-    if (Building(b).matches("triumphal_arch")) {
+    if (record_matches(b, "triumphal_arch")) {
         city_buildings_remove_triumphal_arch();
         building_menu_update();
     }
@@ -2371,12 +2500,14 @@ building *building_restore_from_undo(building *to_restore)
     if (to_restore->id >= data.buildings.size()) {
         resize_buildings(to_restore->id + 1);
     }
-    building *b = building_get(to_restore->id);
+    building *b = building_slot(to_restore->id);
     memcpy(b, to_restore, sizeof(building));
     fill_adjacent_types(b);
     city_culture_add_building_module_capacity(b);
     if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) {
-        Building(b).refresh_graphic();
+        if (Building *building = runtime_building_for_record(b)) {
+            building->refresh_graphic();
+        }
     }
     return b;
 }
@@ -2391,23 +2522,23 @@ int building_was_tent(const building *b)
     if (!b) {
         return 0;
     }
-    const building_type_registry_impl::BuildingType *definition = Building(b).og_type;
+    Building *building_object = runtime_building_for_record(const_cast<building *>(b));
+    const building_type_registry_impl::BuildingType *definition =
+        building_object && building_object->Rubble ? building_object->Rubble->original_type() : nullptr;
     int level = definition && definition->housing_type() ? definition->housing_type()->level() : -1;
     return level >= HOUSE_SMALL_TENT && level <= HOUSE_LARGE_TENT;
 }
 
-int building_is_storage(building_type b_type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(b_type);
-    return definition && (definition->is_granary() || definition->is_warehouse());
-}
-
 int building_is_still_burning(building *b)
 {
-    Building current(b);
-    int hot = current.matches("burning_ruin");
-    int grid_offset = hot ? b->data.rubble.og_grid_offset : b->grid_offset;
-    int size = hot ? b->data.rubble.og_size : b->size;
+    Building *building_obj = runtime_building_for_record(b);
+    int hot = building_obj && building_obj->Rubble && building_obj->Rubble->is_burning();
+    if (!hot) {
+        return 0;
+    }
+    RubbleState *rubble_state = building_obj && building_obj->Rubble ? building_obj->Rubble->state() : nullptr;
+    int grid_offset = rubble_state ? rubble_state->original_grid_offset : b->grid_offset;
+    int size = rubble_state ? rubble_state->original_size : b->size;
     grid_slice *b_area = map_grid_get_grid_slice_square(grid_offset, size);
     for (int i = 0; i < b_area->size; i++) {
         int offset = b_area->grid_offsets[i];
@@ -2418,7 +2549,7 @@ int building_is_still_burning(building *b)
             continue;
         }
         const Building &tile_building = map_building_at(offset);
-        if (tile_building.matches("burning_ruin")) {
+        if (tile_building.Rubble && tile_building.Rubble->is_burning()) {
             const building *tile_record = tile_building.record();
             if (tile_record && tile_record->state == BUILDING_STATE_RUBBLE) {
                 continue; // extinguished tile
@@ -2435,23 +2566,25 @@ int building_can_repair(building *b)
     if (!b) {
         return 0;
     }
-    Building building(b);
-    if (building.matches("burning_ruin")) {
-        if (building_is_still_burning(b)) {
+    Building *building = runtime_building_for_record(b);
+    if (!building) {
+        return 0;
+    }
+    if (building->Rubble) {
+        if (building->Rubble->is_burning() && building_is_still_burning(b)) {
             return 0;
         }
-        if (!building.og_type || !building_can_repair_type(building.og_type->type())) {
+        const building_type_registry_impl::BuildingType *original_type = building->Rubble->original_type();
+        if (!original_type || !building_can_repair_type(original_type->type())) {
             return 0;
         } else {
             return 1;
         }
-    } else {
-        if (b->state != BUILDING_STATE_RUBBLE) {
-            return 0;
-        } else {
-            return building_can_repair_type(b->type);
-        }
     }
+    if (b->state != BUILDING_STATE_RUBBLE) {
+        return 0;
+    }
+    return building_can_repair_type(b->type);
 }
 
 static void get_repair_footprint(
@@ -2468,29 +2601,36 @@ int building_repair_cost(building *b)
     if (!b || !building_can_repair(b)) {
         return 0;
     }
-    Building building_obj(b);
-    int is_ruin = building_obj.matches("burning_ruin") || // ruins and collapsed warehouse parts all use rubble data
-        building_obj.matches("warehouse_space") || (building_obj.type && building_obj.type->is_warehouse());
+    Building *building_obj = runtime_building_for_record(b);
+    if (!building_obj) {
+        return 0;
+    }
+    RubbleState *rubble_state = building_obj->Rubble ? building_obj->Rubble->state() : nullptr;
+    int is_ruin = rubble_state != nullptr;
 
-    og_grid_offset = is_ruin ? b->data.rubble.og_grid_offset : b->grid_offset;
-    og_size = is_ruin ? b->data.rubble.og_size : b->size;
-    og_type = is_ruin && building_obj.og_type ? building_obj.og_type->type() : static_cast<building_type>(b->type);
-    const int og_orientation = is_ruin ? b->data.rubble.og_orientation : b->subtype.orientation;
+    og_grid_offset = is_ruin ? rubble_state->original_grid_offset : b->grid_offset;
+    og_size = is_ruin ? rubble_state->original_size : b->size;
+    const building_type_registry_impl::BuildingType *original_definition =
+        is_ruin ? building_obj->Rubble->original_type() : definition_for_type(static_cast<building_type>(b->type));
+    og_type = original_definition ? original_definition->type() : BUILDING_NONE;
+    const int og_orientation = is_ruin ? rubble_state->original_orientation : b->subtype.orientation;
+    if (og_type == BUILDING_NONE) {
+        return 0;
+    }
 
-    if (building_is_house(og_type)) {
+    if (original_definition && original_definition->has_housing()) {
         grid_slice *house_slice = map_grid_get_grid_slice_house(b->id, 1);
         int clear_cost = house_slice->size * (11 + 3); // 10.5 per new house tile + 3 per rubble tile to clear
         return clear_cost;
     }
-    if (building_obj.matches("warehouse_space")) {
+    if (building_obj->matches("warehouse_space")) {
         og_size = 1; // dont charge for clearing the whole warehouse, just the collapsed part, otherwise its *9
     }
     get_repair_footprint(og_type, og_orientation, &og_grid_offset, &og_size);
     grid_slice *grid_slice = map_grid_get_grid_slice_square(og_grid_offset, og_size); // wont work correctly for hippo
     int clear_cost = building_construction_prepare_terrain(grid_slice, CLEAR_MODE_RUBBLE, COST_MEASURE);
     int placement_cost = model_get_building(og_type)->cost;
-    const building_type_registry_impl::BuildingType *original_definition = definition_for_type(og_type);
-    if (original_definition && original_definition->is_warehouse() && building_obj.matches("warehouse_space")) {
+    if (original_definition && original_definition->is_warehouse() && building_obj->matches("warehouse_space")) {
         placement_cost = 0; // collapsed warehouse parts only need clearing cost, no placement cost
     }
     return clear_cost + placement_cost + placement_cost / 20; // +5% fee on a building price
@@ -2502,17 +2642,26 @@ static int get_rubble_data(building *b, int *og_size, int *og_grid_offset, int *
         return 0;
     }
 
-    Building building_obj(b);
-    int has = b->data.rubble.og_size || b->data.rubble.og_grid_offset ||
-        b->data.rubble.og_orientation || building_obj.og_type;
+    Building *building_obj = runtime_building_for_record(b);
+    if (!building_obj) {
+        return 0;
+    }
+    if (!building_obj->Rubble) {
+        return 0;
+    }
+    RubbleState *state = building_obj->Rubble->state();
+    int has = state && state->has_original_data();
 
     if (!has) {
         return 0;
     } else {
-        if (og_size) { *og_size = b->data.rubble.og_size; }
-        if (og_grid_offset) { *og_grid_offset = b->data.rubble.og_grid_offset; }
-        if (og_orientation) { *og_orientation = b->data.rubble.og_orientation; }
-        if (og_type) { *og_type = building_obj.og_type ? building_obj.og_type->type() : BUILDING_NONE; }
+        if (og_size) { *og_size = state->original_size; }
+        if (og_grid_offset) { *og_grid_offset = state->original_grid_offset; }
+        if (og_orientation) { *og_orientation = state->original_orientation; }
+        if (og_type) {
+            const building_type_registry_impl::BuildingType *original_type = building_obj->Rubble->original_type();
+            *og_type = original_type ? original_type->type() : BUILDING_NONE;
+        }
         return 1;
     }
 }
@@ -2556,13 +2705,17 @@ static void get_repair_footprint(
 static int is_warehouse_ruin(building *b)
 {
     int is_warehouse = 0;
-    Building building_obj(b);
-    if ((building_obj.type && building_obj.type->is_warehouse()) || building_obj.matches("warehouse_space")) {
+    Building *building_obj = runtime_building_for_record(b);
+    if (!building_obj) {
+        return 0;
+    }
+    if ((building_obj->type && building_obj->type->is_warehouse()) || building_obj->matches("warehouse_space")) {
         is_warehouse = 1;
-    } else if (building_obj.matches("burning_ruin")) { // shouldnt happen - wh are fireproof - but just in case
-        const building_type_registry_impl::BuildingType *original_definition = building_obj.og_type;
+    } else if (building_obj->Rubble) {
+        const building_type_registry_impl::BuildingType *original_definition =
+            building_obj->Rubble ? building_obj->Rubble->original_type() : nullptr;
         if ((original_definition && original_definition->is_warehouse()) ||
-            (building_obj.og_type && building_obj.og_type->has_attr("warehouse_space"))) {
+            (original_definition && original_definition->attr_is("warehouse_space"))) {
             is_warehouse = 1;
         }
     }
@@ -2572,7 +2725,7 @@ static int is_warehouse_ruin(building *b)
 static void retire_repaired_rubble_chain(building *main_record)
 {
     for (building *part = main_record, *next = nullptr; part && part->id > 0; part = next) {
-        next = part->next_part_building_id > 0 ? building_get(part->next_part_building_id) : nullptr;
+        next = part->next_part_building_id > 0 ? building_slot(part->next_part_building_id) : nullptr;
         part->prev_part_building_id = 0;
         part->next_part_building_id = 0;
         part->state = BUILDING_STATE_DELETED_BY_GAME;
@@ -2589,10 +2742,14 @@ static int warehouse_repair(building *b)
     int og_size = 3, og_grid_offset = 0, og_orientation = 0, success = 0;
     get_rubble_data(main_warehouse, 0, &og_grid_offset, &og_orientation, 0); // no og_type or size we know it should be warehouse, 3
     int og_storage_id = main_warehouse->storage_id; //store the original storage id before clearing it
+    Building *main_warehouse_object = runtime_building_for_record(main_warehouse);
+    Building *repair_building = runtime_building_for_record(b);
+    if (!main_warehouse_object || !repair_building) {
+        return 0;
+    }
     building_data_transfer_backup();
-    Building main_warehouse_object(main_warehouse);
-    building_data_transfer_copy(&main_warehouse_object, 1);
-    int standard_grid_offset = building_warehouse_get_main_grid_offset(Building(b));
+    building_data_transfer_copy(main_warehouse_object, 1);
+    int standard_grid_offset = building_warehouse_get_main_grid_offset(*repair_building);
     int std_x = map_grid_offset_to_x(standard_grid_offset);
     int std_y = map_grid_offset_to_y(standard_grid_offset);
     grid_slice *grid_slice = map_grid_get_grid_slice_square(standard_grid_offset, og_size);
@@ -2606,13 +2763,22 @@ static int warehouse_repair(building *b)
     building_type warehouse_type = type_from_attr("warehouse");
     if (cleared) {
         success = building_construction_place_building(warehouse_type, std_x, std_y, 1);
-        if (success && map_building_exists_at(map_grid_offset(std_x, std_y))) {
-            Building new_building_object = map_building_at(map_grid_offset(std_x, std_y)).main();
-            new_building = const_cast<building *>(new_building_object.record());
+        if (success) {
+            if (map_building_exists_at(map_grid_offset(std_x, std_y))) {
+                Building new_building_object = map_building_at(map_grid_offset(std_x, std_y)).main();
+                new_building = const_cast<building *>(new_building_object.record());
+            }
         }
     }
 
-    if (!success || !cleared) {
+    int repair_failed = success == 0;
+    if (cleared == 0) {
+        repair_failed = 1;
+    }
+    if (new_building == nullptr) {
+        repair_failed = 1;
+    }
+    if (repair_failed) {
         map_terrain_restore(); // restore terrain on failure
         city_finance_process_construction(-cleared); // refund clearing cost
         city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
@@ -2622,17 +2788,19 @@ static int warehouse_repair(building *b)
     if (new_building->storage_id != og_storage_id) {
         building_storage_delete(new_building->storage_id);
         building_storage_change_building(og_storage_id, new_building->id);
-        Building(b).set_storage_id(0);
+        b->storage_id = 0;
     }
 
     int placement_cost = model_get_building(warehouse_type)->cost * success;
     int full_cost = (placement_cost + placement_cost / 20);// +5%
 
     city_finance_process_construction(full_cost);
-    new_building->subtype.orientation = og_orientation;
+    new_building->subtype.orientation = static_cast<short>(og_orientation);
     map_building_set_rubble_grid_building_id(standard_grid_offset, 0, 3); // remove rubble marker
-    Building new_warehouse_object(new_building);
-    building_data_transfer_paste(&new_warehouse_object, 1);
+    Building *new_warehouse_object = runtime_building_for_record(new_building);
+    if (new_warehouse_object) {
+        building_data_transfer_paste(new_warehouse_object, 1);
+    }
     new_building->state = BUILDING_STATE_CREATED;
     building_data_transfer_restore_and_clear_backup();
     figure_create_explosion_cloud(
@@ -2650,18 +2818,23 @@ int building_repair(building *b)
     if (!b) {
         return 0;
     }
-    Building building_obj(b);
-    if (building_obj.matches("burning_ruin") && building_is_still_burning(b)) {
+    Building *building_obj = runtime_building_for_record(b);
+    if (!building_obj) {
+        return 0;
+    }
+    if (building_obj->Rubble && building_obj->Rubble->is_burning() && building_is_still_burning(b)) {
         city_warning_show(WARNING_REPAIR_BURNING, translation_for_key("TR_WARNING_REPAIR_BURNING"));
         return 0;
     }
-    const building_type original_type = building_obj.og_type ? building_obj.og_type->type() : BUILDING_NONE;
+    const building_type_registry_impl::BuildingType *original_definition =
+        building_obj->Rubble ? building_obj->Rubble->original_type() : nullptr;
+    const building_type original_type = original_definition ? original_definition->type() : BUILDING_NONE;
     if (!building_can_repair_type(b->type) && (!original_type || !building_can_repair_type(original_type))) {
         if (building_monument_is_limited(b->type) ||
             (original_type && building_monument_is_limited(original_type))) {
             city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
-        } else if (building_obj.matches("aqueduct") ||
-            (building_obj.og_type && building_obj.og_type->has_attr("aqueduct"))) {
+        } else if (building_obj->matches("aqueduct") ||
+            (original_definition && original_definition->attr_is("aqueduct"))) {
             city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
         } else {
             city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
@@ -2677,8 +2850,12 @@ int building_repair(building *b)
     get_rubble_data(b, &og_size, &og_grid_offset, &og_orientation, &og_type);
     //  Backup building data
     building_data_transfer_backup();
-    Building repair_source(b);
-    building_data_transfer_copy(&repair_source, 1);
+    Building *repair_source = runtime_building_for_record(b);
+    if (!repair_source) {
+        building_data_transfer_restore_and_clear_backup();
+        return 0;
+    }
+    building_data_transfer_copy(repair_source, 1);
     //  Resolve placement data
     int grid_offset = og_grid_offset ? og_grid_offset : b->grid_offset;
     int x = map_grid_offset_to_x(grid_offset);
@@ -2690,7 +2867,12 @@ int building_repair(building *b)
     x = map_grid_offset_to_x(grid_offset);
     y = map_grid_offset_to_y(grid_offset);
 
-    if (building_is_house(type) || type == 1) {
+    const building_type_registry_impl::BuildingType *repair_type_definition = definition_for_type(type);
+    int repair_is_house_lot = type == 1;
+    if (repair_is_house_lot == 0 && repair_type_definition && repair_type_definition->has_housing()) {
+        repair_is_house_lot = 1;
+    }
+    if (repair_is_house_lot) {
         is_house_lot = 1;
         building_change_type(b, building_type_registry_impl::vacant_lot_fill_type());
     }
@@ -2732,7 +2914,7 @@ int building_repair(building *b)
     if (success && map_building_exists_at(map_grid_offset(x, y))) {
         new_building = const_cast<building *>(map_building_at(map_grid_offset(x, y)).record());
     }
-    if (!success || !cleared) {
+    if (!success || !cleared || !new_building) {
         map_terrain_restore(); // restore terrain on failure
         city_finance_process_construction(-cleared); // refund clearing cost
         city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
@@ -2743,21 +2925,27 @@ int building_repair(building *b)
         city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
         return 0;
     }
-    if (building_is_storage(type_to_place) && b->storage_id) {
+    const building_type_registry_impl::BuildingType *type_to_place_definition = definition_for_type(type_to_place);
+    const int type_to_place_is_storage =
+        type_to_place_definition &&
+        (type_to_place_definition->is_granary() || type_to_place_definition->is_warehouse());
+    if (type_to_place_is_storage && b->storage_id) {
         if (new_building->storage_id != og_storage_id) {
             building_storage_delete(new_building->storage_id);
             building_storage_change_building(og_storage_id, new_building->id);
-            Building(b).set_storage_id(0);
+            b->storage_id = 0;
         }
     }
     placement_cost += model_get_building(type_to_place)->cost * success;
     int full_cost = (placement_cost + placement_cost / 20);// +5%
 
     city_finance_process_construction(full_cost);
-    new_building->subtype.orientation = og_orientation;
+    new_building->subtype.orientation = static_cast<short>(og_orientation);
     map_building_set_rubble_grid_building_id(grid_offset, 0, size); // remove rubble marker
-    Building repaired_building(new_building);
-    building_data_transfer_paste(&repaired_building, 1);
+    Building *repaired_building = runtime_building_for_record(new_building);
+    if (repaired_building) {
+        building_data_transfer_paste(repaired_building, 1);
+    }
     new_building->state = BUILDING_STATE_CREATED;
     building_data_transfer_restore_and_clear_backup();
     figure_create_explosion_cloud(new_building->x, new_building->y, og_size, 1);
@@ -2780,35 +2968,41 @@ void building_update_state(void)
         building *b = &data.buildings[i];
         if (b->state == BUILDING_STATE_CREATED) {
             b->state = BUILDING_STATE_IN_USE;
-            map_water_supply_refresh_building(b);
-            // When a created building becomes live, rebuild its cached native image-group bindings immediately.
-            Building(b).refresh_graphic();
+            if (Building *building_obj = runtime_building_for_record(b)) {
+                map_water_supply_refresh_building(building_obj);
+                // When a created building becomes live, rebuild its cached native image-group bindings immediately.
+                building_obj->refresh_graphic();
+            }
             city_culture_refresh_building_module_capacity(b);
         }
         if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
             continue;
         }
         if (b->state == BUILDING_STATE_UNDO || b->state == BUILDING_STATE_DELETED_BY_PLAYER) {
-            Building building_obj(b);
-            if (building_obj.matches("tower") || building_obj.matches("gatehouse")) {
+            Building *building_obj = runtime_building_for_record(b);
+            const building_type_registry_impl::BuildingType *definition = building_obj ? building_obj->type :
+                definition_for_record(b);
+            if (record_matches(b, "tower") || record_matches(b, "gatehouse")) {
                 wall_recalc = 1;
                 road_recalc = 1;
-            } else if (building_obj.matches("reservoir")) {
+            } else if (record_matches(b, "reservoir")) {
                 aqueduct_recalc = 1;
             } else {
-                if (building_obj.type &&
-                    (building_obj.type->is_granary() || building_obj.type->roadblock().is_bridge())) {
+                if (definition &&
+                    (definition->is_granary() || definition->roadblock().is_bridge())) {
                     road_recalc = 1;
                 } else if (building_monument_is_grand_temple(b->type) ||
-                    building_obj.matches("pantheon") || building_obj.matches("lighthouse")) {
+                    record_matches(b, "pantheon") || record_matches(b, "lighthouse")) {
                     road_recalc = 1;
                 }
             }
             if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
                 map_building_tiles_remove(&runtime->building, b->x, b->y);
             }
-            if (Roadblock(b).kind() != ROADBLOCK_NONE && b->size == 1 &&
-                (!building_obj.type || !building_obj.type->roadblock().is_bridge())) {
+            if (definition &&
+                definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+                b->size == 1 &&
+                !definition->roadblock().is_bridge()) {
                 // Leave the road behind the deleted roadblock
                 // except for bridges - they are coded as size 1 too
                 map_tiles_set_road(b->x, b->y);
@@ -2821,7 +3015,7 @@ void building_update_state(void)
                 city_population_remove_home_removed(b->house_population);
                 b->house_population = 0;
             }
-            if (building_is_fort(b->type) || Building(b).matches("fort_ground")) {
+            if (building_is_fort(b->type) || record_matches(b, "fort_ground")) {
                 b->state = BUILDING_STATE_DELETED_BY_GAME;
                 if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
                     map_building_tiles_remove(&runtime->building, b->x, b->y);
@@ -2899,119 +3093,57 @@ int building_is_active(const building *b)
     if (b->state != BUILDING_STATE_IN_USE) {
         return 0;
     }
-    if (building_is_house(b->type)) {
-        return b->house_size > 0 && b->house_population > 0;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (definition && definition->has_housing()) {
+        if (b->house_size <= 0) {
+            return 0;
+        }
+        return b->house_population > 0;
     }
     if (building_monument_is_unfinished_monument(b)) {
         return 0;
     }
-    if (type_attr_is(b->type, "reservoir") || type_attr_is(b->type, "fountain")) {
+    if (type_attr_is(b->type, "reservoir")) {
         return b->has_water_access;
     }
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(b->type);
-    if (definition && definition->is_oracle()) {
-        return !building_monument_is_monument(b) || b->monument.phase == MONUMENT_FINISHED;
+    if (type_attr_is(b->type, "fountain")) {
+        return b->has_water_access;
     }
-    if (type_attr_is(b->type, "nymphaeum") || type_attr_is(b->type, "small_mausoleum") ||
-        type_attr_is(b->type, "large_mausoleum")) {
+    if (definition != nullptr) {
+        if (definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Oracle)) {
+            if (building_monument_is_monument(b) == 0) {
+                return 1;
+            }
+            return b->monument.phase == MONUMENT_FINISHED;
+        }
+    }
+    if (type_attr_is(b->type, "nymphaeum")) {
+        return b->monument.phase == MONUMENT_FINISHED;
+    }
+    if (type_attr_is(b->type, "small_mausoleum")) {
+        return b->monument.phase == MONUMENT_FINISHED;
+    }
+    if (type_attr_is(b->type, "large_mausoleum")) {
         return b->monument.phase == MONUMENT_FINISHED;
     }
     if (type_attr_is(b->type, "wharf")) {
-        return b->num_workers > 0 && map_water_wharf_live_fishing_boats(Building(const_cast<building *>(b))) > 0;
+        Building *wharf = runtime_building_for_record(const_cast<building *>(b));
+        if (wharf == nullptr) {
+            return 0;
+        }
+        if (b->num_workers <= 0) {
+            return 0;
+        }
+        return map_water_wharf_live_fishing_boats(*wharf) > 0;
     }
     if (type_attr_is(b->type, "dock")) {
-        return b->num_workers > 0 && b->has_water_access;
+        if (b->num_workers <= 0) {
+            return 0;
+        }
+        return b->has_water_access != 0;
     }
     return b->num_workers > 0;
-}
-
-int building_is_primary_product_producer(building_type type)
-{
-    return building_is_raw_resource_producer(type) || building_is_farm(type);
-}
-
-int building_is_house(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->has_housing();
-}
-
-int building_get_house_group(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    int legacy_level = definition && definition->housing_type() ? definition->housing_type()->level() : -1;
-    if (legacy_level < 0) {
-        return 0;
-    }
-    if (legacy_level <= HOUSE_LARGE_TENT) {
-        return HOUSE_GROUP_TENT;
-    }
-    if (legacy_level <= HOUSE_LARGE_SHACK) {
-        return HOUSE_GROUP_SHACK;
-    }
-    if (legacy_level <= HOUSE_LARGE_HOVEL) {
-        return HOUSE_GROUP_HOVEL;
-    }
-    if (legacy_level <= HOUSE_LARGE_CASA) {
-        return HOUSE_GROUP_CASA;
-    }
-    if (legacy_level <= HOUSE_GRAND_INSULA) {
-        return HOUSE_GROUP_INSULA;
-    }
-    if (legacy_level <= HOUSE_GRAND_VILLA) {
-        return HOUSE_GROUP_VILLA;
-    }
-    return legacy_level <= HOUSE_LUXURY_PALACE ? HOUSE_GROUP_PALACE : 0;
-}
-
-int building_is_house_group(house_groups group, building_type type)
-{
-    return building_get_house_group(type) == group;
-}
-
-// For Venus GT base bonus
-int building_is_statue_garden_temple(building_type type)
-{
-    const building_properties *props = building_properties_for_type(type);
-    return props->venus_gt_bonus;
-}
-
-int building_is_ceres_temple(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_ceres_temple();
-}
-
-int building_is_neptune_temple(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_neptune_temple();
-}
-
-int building_is_mercury_temple(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_mercury_temple();
-}
-
-int building_is_mars_temple(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_mars_temple();
-}
-
-int building_is_venus_temple(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_venus_temple();
-}
-
-int building_has_supplier_inventory(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->distribution();
 }
 
 int building_is_fort(building_type type)
@@ -3025,7 +3157,12 @@ int building_is_fort(building_type type)
     });
 }
 
-int building_mothball_toggle()
+int Building::building_mothball_toggle()
+{
+    return record_ ? ::building_mothball_toggle(record_) : 0;
+}
+
+int building_mothball_toggle(building *b)
 {
     if (b->state == BUILDING_STATE_IN_USE) {
         city_culture_remove_building_module_capacity(b);
@@ -3060,7 +3197,7 @@ int building_mothball_set(building *b, int mothball)
 
 unsigned char building_stockpiling_toggle(building *b)
 {
-    b->data.industry.is_stockpiling = !b->data.industry.is_stockpiling;
+    b->data.industry.is_stockpiling = b->data.industry.is_stockpiling ? 0 : 1;
     return b->data.industry.is_stockpiling;
 }
 
@@ -3112,7 +3249,7 @@ int building_get_laborers(building_type type)
     const model_building *model = model_get_building(type);
     int workers = model->laborers;
     // Neptune GT bonus
-    if (type_attr_is(type, "fountain") && building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+    if (type_attr_is(type, "fountain") && grand_temple_for_god(GOD_NEPTUNE, true)) {
         workers /= 2;
         if (workers == 0) {
             workers = 1;
@@ -3152,10 +3289,19 @@ void building_make_immune_cheat(void)
 
 static int building_resource_save_value(resource_type resource, int value)
 {
-    if (!value || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+    if (value == 0) {
         return 0;
     }
-    return resource == RESOURCE_NONE || resource_is_tradeable(resource);
+    if (resource < RESOURCE_NONE) {
+        return 0;
+    }
+    if (resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+    if (resource == RESOURCE_NONE) {
+        return 1;
+    }
+    return resource_is_tradeable(resource);
 }
 
 static resource_type building_resource_save_ref(resource_type resource)
@@ -3230,7 +3376,7 @@ static int building_uses_fetch_inventory(const building *b)
         return 0;
     }
     const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
-    return definition && (definition->has_distribution() || definition->is_caravanserai());
+    return definition && (definition->has_distribution() || definition->is_caravanserai()) ? 1 : 0;
 }
 
 static void building_resource_state_write_payload(buffer *buf)
@@ -3252,16 +3398,15 @@ static void building_resource_state_write_payload(buffer *buf)
 
         buffer_write_u32(buf, b->id);
         resource_save_write_ref(buf, building_resource_save_ref(static_cast<resource_type>(b->output_resource_id)));
-        Building building_obj(b);
         resource_save_write_ref(buf, building_resource_save_ref(
-            building_obj.matches("warehouse_space") ? static_cast<resource_type>(b->subtype.warehouse_resource_id) :
+            record_matches(b, "warehouse_space") ? static_cast<resource_type>(b->subtype.warehouse_resource_id) :
                 RESOURCE_NONE));
         resource_save_write_ref(buf, building_resource_save_ref(
             building_uses_fetch_inventory(b) ?
                 static_cast<resource_type>(b->data.market.fetch_inventory_id) :
                 RESOURCE_NONE));
         resource_save_write_ref(buf, building_resource_save_ref(
-            building_obj.matches("cart_depot") ? static_cast<resource_type>(b->data.depot.current_order.resource_type) :
+            record_matches(b, "cart_depot") ? static_cast<resource_type>(b->data.depot.current_order.resource_type) :
                 RESOURCE_NONE));
         building_write_resource_i16_values(buf, b->resources);
         building_write_resource_u8_values(buf, b->accepted_goods);
@@ -3322,7 +3467,7 @@ static int dock_has_any_accepted_goods(const building *b)
 
 static void repair_dock_accepted_goods_if_empty(building *b)
 {
-    if (!b || !Building(b).matches("dock") || dock_has_any_accepted_goods(b)) {
+    if (!b || !record_matches(b, "dock") || dock_has_any_accepted_goods(b)) {
         return;
     }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -3337,12 +3482,12 @@ static void restore_omitted_native_storage_resources(
         return;
     }
 
-    Building building_obj(b);
-    if (!building_obj.type || !building_obj.type->has_native_storage()) {
+    const building_type_registry_impl::BuildingType *definition = definition_for_record(b);
+    if (!definition || !definition->has_native_storage()) {
         return;
     }
 
-    for (const building_type_registry_impl::StorageType *storage_type : building_obj.type->storage_types()) {
+    for (const building_type_registry_impl::StorageType *storage_type : definition->storage_types()) {
         if (!storage_type) {
             continue;
         }
@@ -3363,11 +3508,11 @@ void building_resource_state_save(buffer *buf)
     }
 
     size_t capacity = 65536;
-    std::vector<uint8_t> data;
+    std::vector<uint8_t> payload;
     buffer scratch;
     for (;;) {
-        data.assign(capacity, 0);
-        buffer_init(&scratch, data.data(), data.size());
+        payload.assign(capacity, 0);
+        buffer_init(&scratch, payload.data(), payload.size());
         building_resource_state_write_payload(&scratch);
         if (!scratch.overflow) {
             break;
@@ -3380,7 +3525,7 @@ void building_resource_state_save(buffer *buf)
     }
 
     buffer_init_dynamic(buf, scratch.index);
-    buffer_write_raw(buf, data.data(), scratch.index);
+    buffer_write_raw(buf, payload.data(), scratch.index);
 }
 
 void building_resource_state_load(buffer *buf)
@@ -3405,7 +3550,7 @@ void building_resource_state_load(buffer *buf)
     int building_entries = building_resource_state_read_count(&payload, "buildings");
     for (int i = 0; i < building_entries; i++) {
         uint32_t id = buffer_read_u32(&payload);
-        building *b = id < static_cast<uint32_t>(data.buildings.size()) ? building_get(id) : nullptr;
+        building *b = building_slot(id);
         if (b && b->state == BUILDING_STATE_UNUSED) {
             b = nullptr;
         }
@@ -3421,8 +3566,7 @@ void building_resource_state_load(buffer *buf)
             memcpy(flat_resources, b->resources, sizeof(flat_resources));
             b->output_resource_id = static_cast<unsigned char>(
                 output >= RESOURCE_NONE && output < RESOURCE_SLOT_COUNT ? output : RESOURCE_NONE);
-            Building building_obj(b);
-            if (building_obj.matches("warehouse_space")) {
+            if (record_matches(b, "warehouse_space")) {
                 b->subtype.warehouse_resource_id =
                     warehouse_resource >= RESOURCE_NONE && warehouse_resource < RESOURCE_SLOT_COUNT ?
                         static_cast<short>(warehouse_resource) :
@@ -3434,7 +3578,7 @@ void building_resource_state_load(buffer *buf)
                         static_cast<unsigned char>(fetch_inventory) :
                         RESOURCE_NONE;
             }
-            if (building_obj.matches("cart_depot")) {
+            if (record_matches(b, "cart_depot")) {
                 b->data.depot.current_order.resource_type =
                     depot_order_resource >= RESOURCE_NONE && depot_order_resource < RESOURCE_SLOT_COUNT ?
                         static_cast<resource_type>(depot_order_resource) :
@@ -3473,6 +3617,256 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
 
     buffer_write_i32(corrupt_houses, extra.incorrect_houses);
     buffer_write_i32(corrupt_houses, extra.unfixable_houses);
+}
+
+struct LegacyTilePromotionTypes {
+    building_type gardens;
+    building_type overgrown_gardens;
+    building_type plaza;
+    building_type aqueduct;
+    building_type wall;
+    building_type road;
+    building_type highway;
+    building_type burning_ruin;
+};
+
+static LegacyTilePromotionTypes legacy_tile_promotion_types()
+{
+    return {
+        type_from_attr("gardens"),
+        type_from_attr("overgrown_gardens"),
+        type_from_attr("plaza"),
+        type_from_attr("aqueduct"),
+        type_from_attr("wall"),
+        type_from_attr("road"),
+        type_from_attr("highway"),
+        type_from_attr("burning_ruin"),
+    };
+}
+
+static int legacy_highway_tile_is_complete_top_left(int grid_offset)
+{
+    if (map_grid_is_valid_offset(grid_offset) == 0) {
+        return 0;
+    }
+    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY_TOP_LEFT) == 0) {
+        return 0;
+    }
+
+    const int x = map_grid_offset_to_x(grid_offset);
+    const int y = map_grid_offset_to_y(grid_offset);
+    if (map_grid_is_inside(x, y, 2) == 0) {
+        return 0;
+    }
+
+    const int bottom_left = map_grid_offset(x, y + 1);
+    const int top_right = map_grid_offset(x + 1, y);
+    const int bottom_right = map_grid_offset(x + 1, y + 1);
+    if (map_building_loaded_id_at(grid_offset)) {
+        return 0;
+    }
+    if (map_building_loaded_id_at(bottom_left)) {
+        return 0;
+    }
+    if (map_building_loaded_id_at(top_right)) {
+        return 0;
+    }
+    if (map_building_loaded_id_at(bottom_right)) {
+        return 0;
+    }
+    if (map_terrain_is(bottom_left, TERRAIN_HIGHWAY_BOTTOM_LEFT) == 0) {
+        return 0;
+    }
+    if (map_terrain_is(top_right, TERRAIN_HIGHWAY_TOP_RIGHT) == 0) {
+        return 0;
+    }
+    return map_terrain_is(bottom_right, TERRAIN_HIGHWAY_BOTTOM_RIGHT);
+}
+
+static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTilePromotionTypes &types)
+{
+    if (map_building_loaded_id_at(grid_offset)) {
+        return BUILDING_NONE;
+    }
+
+    const int x = map_grid_offset_to_x(grid_offset);
+    const int y = map_grid_offset_to_y(grid_offset);
+    if (map_grid_is_inside(x, y, 1) == 0) {
+        return BUILDING_NONE;
+    }
+
+    if (types.highway != BUILDING_NONE) {
+        if (legacy_highway_tile_is_complete_top_left(grid_offset)) {
+            return types.highway;
+        }
+    }
+    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+        return BUILDING_NONE;
+    }
+    if (types.aqueduct != BUILDING_NONE) {
+        if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            return types.aqueduct;
+        }
+    }
+    if (types.wall != BUILDING_NONE) {
+        if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+            if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE) == 0) {
+                return types.wall;
+            }
+        }
+    }
+    if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
+            return types.overgrown_gardens;
+        }
+        return types.gardens;
+    }
+    if (types.plaza != BUILDING_NONE) {
+        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+            if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
+                return types.plaza;
+            }
+        }
+    }
+    if (types.road != BUILDING_NONE) {
+        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+            return types.road;
+        }
+    }
+    if (types.burning_ruin != BUILDING_NONE) {
+        if (map_terrain_is(grid_offset, TERRAIN_RUBBLE)) {
+            if (map_terrain_is(grid_offset, TERRAIN_WATER) == 0) {
+                return types.burning_ruin;
+            }
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static int legacy_tile_promoted_state(building_type type, int grid_offset, const LegacyTilePromotionTypes &types)
+{
+    if (type == types.burning_ruin) {
+        if (map_terrain_is(grid_offset, TERRAIN_BUILDING) == 0) {
+            return BUILDING_STATE_RUBBLE;
+        }
+    }
+    return BUILDING_STATE_CREATED;
+}
+
+static building *append_legacy_tile_building_record(building_type type, int grid_offset, int state)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
+    if (definition == nullptr) {
+        return nullptr;
+    }
+
+    const building_properties *props = building_properties_for_type(type);
+    int size = definition->declared_model_size();
+    if (size <= 0 && props) {
+        size = props->size;
+    }
+    if (size <= 0) {
+        size = 1;
+    }
+
+    data.buildings.resize(data.buildings.size() + 1);
+    building *record = &data.buildings.back();
+    memset(record, 0, sizeof(*record));
+
+    record->id = static_cast<unsigned int>(data.buildings.size() - 1);
+    record->state = static_cast<unsigned char>(state);
+    record->faction_id = 1;
+    record->type = type;
+    record->size = static_cast<unsigned char>(size);
+    record->x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
+    record->y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
+    record->grid_offset = static_cast<short>(grid_offset);
+    record->created_sequence = static_cast<unsigned short>(extra.created_sequence++);
+    record->sentiment.house_happiness = static_cast<signed char>(100);
+    record->fire_proof = static_cast<unsigned char>(props ? props->fire_proof : 0);
+    record->output_resource_id = static_cast<unsigned char>(building_output_resource(definition));
+
+    if (type_attr_is(type, "burning_ruin")) {
+        record->fire_duration = static_cast<short>(state == BUILDING_STATE_RUBBLE ? 0 : 1);
+        record->fire_proof = static_cast<unsigned char>(1);
+        RubbleState rubble_state;
+        rubble_state.original_grid_offset = static_cast<unsigned short>(grid_offset);
+        rubble_state.original_size = static_cast<unsigned char>(size);
+        rubble_state.original_orientation = 0;
+        rubble_state.original_type = nullptr;
+        building_runtime_stage_loaded_rubble_state(record->id, rubble_state);
+    }
+
+    return record;
+}
+
+static void bind_legacy_tile_building_record_to_map(const building *record, const LegacyTilePromotionTypes &types)
+{
+    if (!record) {
+        return;
+    }
+
+    const int grid_offset = record->grid_offset;
+    const unsigned int id = record->id;
+    if (record->type == types.highway && record->size == 2) {
+        const int x = record->x;
+        const int y = record->y;
+        map_building_set_loaded_id(map_grid_offset(x, y), id);
+        map_building_set_loaded_id(map_grid_offset(x, y + 1), id);
+        map_building_set_loaded_id(map_grid_offset(x + 1, y), id);
+        map_building_set_loaded_id(map_grid_offset(x + 1, y + 1), id);
+        return;
+    }
+
+    map_building_set_loaded_id(grid_offset, id);
+    if (record->type == types.wall) {
+        map_terrain_add(grid_offset, TERRAIN_WALL | TERRAIN_BUILDING);
+    } else if (record->type == types.burning_ruin) {
+        map_terrain_add(grid_offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
+    }
+}
+
+static void rebuild_loaded_record_type_links()
+{
+    memset(data.first_of_type, 0, sizeof(data.first_of_type));
+    memset(data.last_of_type, 0, sizeof(data.last_of_type));
+
+    for (building &record : data.buildings) {
+        record.prev_of_type = nullptr;
+        record.next_of_type = nullptr;
+    }
+
+    for (building &record : data.buildings) {
+        if (record.state != BUILDING_STATE_UNUSED) {
+            fill_adjacent_types(&record);
+        }
+    }
+}
+
+static int building_promote_legacy_tile_buildings_after_load()
+{
+    const LegacyTilePromotionTypes types = legacy_tile_promotion_types();
+    int promoted = 0;
+
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
+        const building_type type = legacy_tile_type_for_offset(grid_offset, types);
+        if (type == BUILDING_NONE) {
+            continue;
+        }
+
+        const int state = legacy_tile_promoted_state(type, grid_offset, types);
+        building *record = append_legacy_tile_building_record(type, grid_offset, state);
+        if (!record) {
+            continue;
+        }
+        bind_legacy_tile_building_record_to_map(record, types);
+        promoted++;
+    }
+
+    if (promoted) {
+        rebuild_loaded_record_type_links();
+    }
+    return promoted;
 }
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version)
@@ -3517,5 +3911,6 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
+    building_promote_legacy_tile_buildings_after_load();
     city_culture_rebuild_module_capacity_cache();
 }

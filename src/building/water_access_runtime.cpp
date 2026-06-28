@@ -28,6 +28,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -65,7 +66,7 @@ struct RuntimeState {
 } g_state;
 
 struct PlannedProvider {
-    building_type type = BUILDING_NONE;
+    const BuildingType *definition = nullptr;
     int grid_offset = 0;
 };
 
@@ -91,36 +92,36 @@ uint8_t access_mask(const char *text_id)
     return building_type_registry_impl::water_access_mask_from_text(text_id);
 }
 
-building_type runtime_type_id(const char *text_id)
+const BuildingType *definition_from_attr(const char *text_id)
 {
-    return building_type_registry_impl::type_from_attr(text_id);
+    return building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr(text_id));
 }
 
-building_type reservoir_type_id()
+const BuildingType *reservoir_definition()
 {
-    static building_type type = BUILDING_NONE;
-    if (type == BUILDING_NONE) {
-        type = runtime_type_id("reservoir");
+    static const BuildingType *definition = nullptr;
+    if (!definition) {
+        definition = definition_from_attr("reservoir");
     }
-    return type;
+    return definition;
 }
 
-building_type draggable_reservoir_type_id()
+const BuildingType *draggable_reservoir_definition()
 {
-    static building_type type = BUILDING_NONE;
-    if (type == BUILDING_NONE) {
-        type = runtime_type_id("draggable_reservoir");
+    static const BuildingType *definition = nullptr;
+    if (!definition) {
+        definition = definition_from_attr("draggable_reservoir");
     }
-    return type;
+    return definition;
 }
 
-building_type aqueduct_type_id()
+const BuildingType *aqueduct_definition()
 {
-    static building_type type = BUILDING_NONE;
-    if (type == BUILDING_NONE) {
-        type = runtime_type_id("aqueduct");
+    static const BuildingType *definition = nullptr;
+    if (!definition) {
+        definition = definition_from_attr("aqueduct");
     }
-    return type;
+    return definition;
 }
 
 const char *text_from_mask(uint8_t mask)
@@ -134,28 +135,25 @@ const char *text_from_mask(uint8_t mask)
     return nullptr;
 }
 
-building_type normalize_provider_building_type(building_type type)
+const BuildingType *normalize_provider_definition(const BuildingType *definition)
 {
-    return type == draggable_reservoir_type_id() ? reservoir_type_id() : type;
+    return definition == draggable_reservoir_definition() ? reservoir_definition() : definition;
 }
 
-const BuildingType *definition_for_provider(building_type type)
+const BuildingType *definition_for_provider(const BuildingType *definition)
 {
-    type = normalize_provider_building_type(type);
-    return type >= BUILDING_NONE && type < BUILDING_TYPE_MAX ?
-        building_type_registry_impl::g_building_types[type].get() :
-        nullptr;
+    return normalize_provider_definition(definition);
 }
 
-const WaterAccessDefinition *water_definition_for_building_type(building_type type)
+const WaterAccessDefinition *water_definition_for_provider(const BuildingType *definition)
 {
-    const BuildingType *definition = definition_for_provider(type);
+    definition = definition_for_provider(definition);
     return definition ? &definition->water_access() : nullptr;
 }
 
-const WaterAccessProvideRule *primary_provider_rule(building_type type)
+const WaterAccessProvideRule *primary_provider_rule(const BuildingType *definition)
 {
-    const WaterAccessDefinition *water = water_definition_for_building_type(type);
+    const WaterAccessDefinition *water = water_definition_for_provider(definition);
     if (!water || water->provide_rules().empty()) {
         return nullptr;
     }
@@ -167,9 +165,9 @@ const WaterAccessProvideRule *primary_provider_rule(building_type type)
     return &water->provide_rules().front();
 }
 
-int provider_size_for_building_type(building_type type)
+int provider_size_for_definition(const BuildingType *definition)
 {
-    const BuildingType *definition = definition_for_provider(type);
+    definition = definition_for_provider(definition);
     const int declared_size = definition ? definition->declared_model_size() : 0;
     return declared_size > 0 ? declared_size : 1;
 }
@@ -196,6 +194,18 @@ void clear_masks(MaskSet &masks)
 {
     masks.access.fill(0);
     masks.providers.fill(0);
+}
+
+void clear_simulation_result(SimulationResult &result)
+{
+    clear_masks(result.masks);
+    result.wet_aqueduct.fill(0);
+}
+
+void clear_preview_state()
+{
+    g_state.preview.active = 0;
+    g_state.preview.highlight.fill(0);
 }
 
 void ensure_runtime_refreshed();
@@ -396,35 +406,39 @@ int mark_provider_rules(
     return changed;
 }
 
-int building_has_required_workers(const building *b)
+int building_has_required_workers(const Building *building)
 {
-    if (!b) {
+    if (!building) {
         return 0;
     }
-    const model_building *model = model_get_building(b->type);
-    return !model || model->laborers <= 0 || b->num_workers > 0;
+    const int required_workers = building->type ? building->type->required_workers() : 0;
+    return required_workers <= 0 || building->worker_count() > 0;
 }
 
-int live_provider_is_active(const building *b, const WaterAccessDefinition &water, const MaskSet &requirement_masks)
+int live_provider_is_active(const Building *building, const WaterAccessDefinition &water, const MaskSet &requirement_masks)
 {
-    return b && b->state == BUILDING_STATE_IN_USE &&
-        building_has_required_workers(b) &&
-        requirements_are_satisfied(water, b->x, b->y, b->size, requirement_masks);
+    if (!building || !building->is_in_use() || !building_has_required_workers(building)) {
+        return 0;
+    }
+    return requirements_are_satisfied(water, building->x(), building->y(), building->size(), requirement_masks);
 }
 
 int mark_live_building_providers(SimulationResult &result, const MaskSet &requirement_masks)
 {
     int changed = 0;
     Building::for_each([&](Building *building_object) {
-        const building *b = building_object->record();
-        if (b->state != BUILDING_STATE_IN_USE) {
+        if (!building_object->is_in_use()) {
             return;
         }
-        const WaterAccessDefinition *water = water_definition_for_building_type(b->type);
-        if (!water || !water->has_provider() || !live_provider_is_active(b, *water, requirement_masks)) {
+        const WaterAccessDefinition *water = water_definition_for_provider(building_object->type);
+        if (!water || !water->has_provider() || !live_provider_is_active(building_object, *water, requirement_masks)) {
             return;
         }
-        changed |= mark_provider_rules(result.masks, *water, b->x, b->y, b->grid_offset, b->size);
+        changed |= mark_provider_rules(result.masks, *water,
+            building_object->x(),
+            building_object->y(),
+            building_object->grid_offset(),
+            building_object->size());
     });
     return changed;
 }
@@ -440,14 +454,14 @@ int mark_planned_providers(
         if (!planned.grid_offset) {
             continue;
         }
-        const building_type type = normalize_provider_building_type(planned.type);
-        const WaterAccessDefinition *water = water_definition_for_building_type(type);
+        const BuildingType *definition = definition_for_provider(planned.definition);
+        const WaterAccessDefinition *water = water_definition_for_provider(definition);
         if (!water || !water->has_provider()) {
             continue;
         }
         const int x = map_grid_offset_to_x(planned.grid_offset);
         const int y = map_grid_offset_to_y(planned.grid_offset);
-        const int size = provider_size_for_building_type(type);
+        const int size = provider_size_for_definition(definition);
         if (input.force_planned_provider_access ||
             !water->has_requirements() ||
             requirements_are_satisfied(*water, x, y, size, requirement_masks)) {
@@ -463,9 +477,8 @@ int mark_neptune_bonus(SimulationResult &result)
         return 0;
     }
 
-    int neptune_gt_id = building_monument_get_grand_temple_for_god(GOD_NEPTUNE);
-    building *b = neptune_gt_id ? building_get(neptune_gt_id) : nullptr;
-    if (!b || !b->id) {
+    Building *neptune_gt = grand_temple_for_god(GOD_NEPTUNE, false);
+    if (!neptune_gt) {
         return 0;
     }
 
@@ -475,9 +488,15 @@ int mark_neptune_bonus(SimulationResult &result)
     }
     WaterAccessProvideRule rule;
     rule.mask = reservoir_mask;
-    rule.range = water_access_runtime_range_for_building(reservoir_type_id());
+    rule.range = water_access_runtime_range_for_building(reservoir_definition());
     rule.origin = WaterAccessOrigin::Footprint;
-    return mark_rule_from_footprint(result.masks, rule, b->x, b->y, b->grid_offset, 7);
+    return mark_rule_from_footprint(
+        result.masks,
+        rule,
+        neptune_gt->x(),
+        neptune_gt->y(),
+        neptune_gt->grid_offset(),
+        7);
 }
 
 int is_aqueduct_tile_for_simulation(int grid_offset, const SimulationInput &input)
@@ -488,10 +507,14 @@ int is_aqueduct_tile_for_simulation(int grid_offset, const SimulationInput &inpu
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         return 1;
     }
-    if (input.include_constructing_aqueduct && map_property_is_constructing(grid_offset)) {
-        return 1;
+    if (input.include_constructing_aqueduct) {
+        if (map_property_is_constructing(grid_offset)) {
+            return 1;
+        }
     }
-    return input.preview_aqueduct_grid_offset && input.preview_aqueduct_grid_offset == grid_offset;
+    return input.preview_aqueduct_grid_offset ?
+        input.preview_aqueduct_grid_offset == grid_offset :
+        0;
 }
 
 int mark_aqueduct_tile_providers(
@@ -499,7 +522,7 @@ int mark_aqueduct_tile_providers(
     SimulationResult &result,
     const MaskSet &requirement_masks)
 {
-    const WaterAccessDefinition *water = water_definition_for_building_type(aqueduct_type_id());
+    const WaterAccessDefinition *water = water_definition_for_provider(aqueduct_definition());
     if (!water || !water->has_provider() || !water->has_requirements()) {
         return 0;
     }
@@ -508,11 +531,16 @@ int mark_aqueduct_tile_providers(
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            const int is_preview_tile = input.preview_aqueduct_grid_offset && input.preview_aqueduct_grid_offset == grid_offset;
-            if (!is_aqueduct_tile_for_simulation(grid_offset, input) ||
-                ((!input.force_planned_provider_access || !is_preview_tile) &&
-                    !requirements_are_satisfied(*water, x, y, 1, requirement_masks))) {
+            const int is_preview_tile = input.preview_aqueduct_grid_offset ?
+                input.preview_aqueduct_grid_offset == grid_offset :
+                0;
+            if (!is_aqueduct_tile_for_simulation(grid_offset, input)) {
                 continue;
+            }
+            if (!input.force_planned_provider_access || !is_preview_tile) {
+                if (!requirements_are_satisfied(*water, x, y, 1, requirement_masks)) {
+                    continue;
+                }
             }
             result.wet_aqueduct[grid_offset] = 1;
             changed |= mark_provider_rules(result.masks, *water, x, y, grid_offset, 1);
@@ -523,25 +551,26 @@ int mark_aqueduct_tile_providers(
 
 void build_water_masks(const SimulationInput &input, SimulationResult &result)
 {
-    SimulationResult current;
+    auto current = std::make_unique<SimulationResult>();
+    auto next = std::make_unique<SimulationResult>();
 
     for (;;) {
-        SimulationResult next;
+        clear_simulation_result(*next);
         // Providers are evaluated against the previous pass and written into a
         // fresh mask. This keeps node/range-0 connectors from satisfying their
         // own requirements in the same pass and removes scan-order propagation.
-        mark_neptune_bonus(next);
-        mark_live_building_providers(next, current.masks);
-        mark_planned_providers(input, next, current.masks);
-        mark_aqueduct_tile_providers(input, next, current.masks);
+        mark_neptune_bonus(*next);
+        mark_live_building_providers(*next, current->masks);
+        mark_planned_providers(input, *next, current->masks);
+        mark_aqueduct_tile_providers(input, *next, current->masks);
 
-        if (next.masks.access == current.masks.access &&
-            next.masks.providers == current.masks.providers &&
-            next.wet_aqueduct == current.wet_aqueduct) {
-            result = next;
+        if (next->masks.access == current->masks.access &&
+            next->masks.providers == current->masks.providers &&
+            next->wet_aqueduct == current->wet_aqueduct) {
+            result = *next;
             return;
         }
-        current = next;
+        std::swap(current, next);
     }
 }
 
@@ -600,34 +629,54 @@ void project_terrain_ranges(const SimulationResult &result)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (reservoir_mask && (result.masks.access[grid_offset] & reservoir_mask)) {
+            if (reservoir_mask ? (result.masks.access[grid_offset] & reservoir_mask) : 0) {
                 map_terrain_add(grid_offset, TERRAIN_RESERVOIR_RANGE);
             }
-            if (fountain_mask && (result.masks.access[grid_offset] & fountain_mask)) {
+            if (fountain_mask ? (result.masks.access[grid_offset] & fountain_mask) : 0) {
                 map_terrain_add(grid_offset, TERRAIN_FOUNTAIN_RANGE);
             }
         }
     }
 }
 
-void project_house_water_state(building *b, const SimulationResult &result)
+void project_house_water_state(Building *building_object, const SimulationResult &result)
 {
-    b->has_well_access = area_has_access(result.masks.access, b->x, b->y, b->size, access_mask(kAccessWell)) ? 1 : 0;
-    b->has_water_access = area_has_access(result.masks.access, b->x, b->y, b->size, access_mask(kAccessFountain)) ? 1 : 0;
-    b->has_latrines_access = area_has_access(result.masks.access, b->x, b->y, b->size, access_mask(kAccessLatrines)) ? 1 : 0;
+    building *record = const_cast<::building *>(building_object->record());
+    if (!record) {
+        return;
+    }
+    record->has_well_access =
+        area_has_access(result.masks.access,
+            building_object->x(),
+            building_object->y(),
+            building_object->size(),
+            access_mask(kAccessWell)) ? 1 : 0;
+    building_object->set_has_water_access(
+        area_has_access(result.masks.access,
+            building_object->x(),
+            building_object->y(),
+            building_object->size(),
+            access_mask(kAccessFountain)) ? 1 : 0);
+    record->has_latrines_access =
+        area_has_access(result.masks.access,
+            building_object->x(),
+            building_object->y(),
+            building_object->size(),
+            access_mask(kAccessLatrines)) ? 1 : 0;
 }
 
-void refresh_water_graphic(building *b, const BuildingType *definition)
+void refresh_water_graphic(Building *building, const BuildingType *definition)
 {
-    if (!b || !definition || !definition->has_graphic() || !definition->water_access().has_requirements()) {
+    if (!building || !definition || !definition->has_graphic() || !definition->water_access().has_requirements()) {
         return;
     }
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    if (!runtime) {
-        return;
-    }
-    if (!runtime->building.refresh_graphic_if_native()) {
-        map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (!building->refresh_graphic_if_native()) {
+        map_building_tiles_add(*building,
+            building->x(),
+            building->y(),
+            building->size(),
+            building_image_get(building),
+            TERRAIN_BUILDING);
     }
 }
 
@@ -635,47 +684,55 @@ void project_building_state(const SimulationResult &result)
 {
     Building::for_each([&](Building *building_object) {
         building *b = const_cast<building *>(building_object->record());
-        if (b->state != BUILDING_STATE_IN_USE) {
+        if (!building_object->is_in_use()) {
             return;
         }
 
-        if (b->house_size) {
-            project_house_water_state(b, result);
+        if (building_object->has_house_size()) {
+            project_house_water_state(building_object, result);
         }
 
-        const BuildingType *definition = definition_for_provider(b->type);
+        const BuildingType *definition = definition_for_provider(building_object->type);
         if (!definition) {
             return;
         }
 
         const WaterAccessDefinition &water = definition->water_access();
         if (water.has_requirements()) {
-            b->has_water_access = static_cast<unsigned char>(
-                building_has_required_workers(b) &&
-                requirements_are_satisfied(water, b->x, b->y, b->size, result.masks));
+            int has_access = 0;
+            if (building_has_required_workers(building_object)) {
+                has_access = requirements_are_satisfied(water,
+                    building_object->x(),
+                    building_object->y(),
+                    building_object->size(),
+                    result.masks);
+            }
+            building_object->set_has_water_access(has_access);
         }
-        if (definition->attr_is("fountain")) {
-            if (b->desirability > 60) {
-                b->upgrade_level = 3;
-            } else if (b->desirability > 40) {
-                b->upgrade_level = 2;
-            } else if (b->desirability > 20) {
-                b->upgrade_level = 1;
-            } else {
-                b->upgrade_level = 0;
+        if (b) {
+            if (definition->attr_is("fountain")) {
+                if (b->desirability > 60) {
+                    b->upgrade_level = 3;
+                } else if (b->desirability > 40) {
+                    b->upgrade_level = 2;
+                } else if (b->desirability > 20) {
+                    b->upgrade_level = 1;
+                } else {
+                    b->upgrade_level = 0;
+                }
             }
         }
-        refresh_water_graphic(b, definition);
+        refresh_water_graphic(building_object, definition);
     });
 }
 
-void build_preview_highlight(building_type type, const SimulationResult &preview_result)
+void build_preview_highlight(const BuildingType *definition, const SimulationResult &preview_result)
 {
     g_state.preview.highlight.fill(0);
     g_state.preview.active = 0;
 
     uint8_t bit = 0;
-    if (const WaterAccessProvideRule *rule = primary_provider_rule(type)) {
+    if (const WaterAccessProvideRule *rule = primary_provider_rule(definition)) {
         bit = rule->mask;
     }
     if (!bit) {
@@ -703,30 +760,30 @@ void ensure_runtime_refreshed()
 void water_access_runtime_reset(void)
 {
     clear_masks(g_state.masks);
-    g_state.preview = PreviewState();
+    clear_preview_state();
     g_state.refreshed = 0;
 }
 
 void water_access_runtime_refresh(void)
 {
     SimulationInput input;
-    SimulationResult result;
-    build_water_masks(input, result);
-    g_state.masks = result.masks;
+    auto result = std::make_unique<SimulationResult>();
+    build_water_masks(input, *result);
+    g_state.masks = result->masks;
     g_state.refreshed = 1;
 
-    project_aqueduct_state(result);
-    project_terrain_ranges(result);
-    project_building_state(result);
+    project_aqueduct_state(*result);
+    project_terrain_ranges(*result);
+    project_building_state(*result);
 }
 
-void water_access_runtime_refresh_building(building *b)
+void water_access_runtime_refresh_building(Building *building)
 {
-    if (!b) {
+    if (!building) {
         return;
     }
 
-    const BuildingType *definition = definition_for_provider(b->type);
+    const BuildingType *definition = definition_for_provider(building->type);
     if (!definition) {
         return;
     }
@@ -738,60 +795,67 @@ void water_access_runtime_refresh_building(building *b)
 
     water_access_runtime_refresh();
     if (water.has_requirements()) {
-        b->has_water_access = static_cast<unsigned char>(
-            building_has_required_workers(b) &&
-            requirements_are_satisfied(water, b->x, b->y, b->size, g_state.masks));
+        int has_access = 0;
+        if (building_has_required_workers(building)) {
+            has_access = requirements_are_satisfied(water,
+                building->x(),
+                building->y(),
+                building->size(),
+                g_state.masks);
+        }
+        building->set_has_water_access(has_access);
     }
-    if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED || b->state == BUILDING_STATE_CREATED) {
-        refresh_water_graphic(b, definition);
+    const int state = building->state_id();
+    if (state == BUILDING_STATE_IN_USE || state == BUILDING_STATE_MOTHBALLED || state == BUILDING_STATE_CREATED) {
+        refresh_water_graphic(building, definition);
     }
 }
 
-int water_access_runtime_range_for_building(building_type type)
+int water_access_runtime_range_for_building(const BuildingType *definition)
 {
-    type = normalize_provider_building_type(type);
-    const WaterAccessProvideRule *rule = primary_provider_rule(type);
+    definition = definition_for_provider(definition);
+    const WaterAccessProvideRule *rule = primary_provider_rule(definition);
     int radius = rule ? rule->range : 0;
     const uint8_t mask = rule ? rule->mask : 0;
 
     if (mask & access_mask(kAccessWell)) {
-        if (building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+        if (grand_temple_for_god(GOD_NEPTUNE, true)) {
             radius++;
         }
     } else if (mask & access_mask(kAccessFountain)) {
         if (scenario_property_climate() == CLIMATE_DESERT) {
             radius--;
         }
-        if (building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+        if (grand_temple_for_god(GOD_NEPTUNE, true)) {
             radius++;
         }
     } else if (mask & access_mask(kAccessReservoir)) {
-        if (building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+        if (grand_temple_for_god(GOD_NEPTUNE, true)) {
             radius += 2;
         }
     }
     return radius < 0 ? 0 : radius;
 }
 
-const char *water_access_runtime_primary_provider_access_text(building_type type)
+const char *water_access_runtime_primary_provider_access_text(const BuildingType *definition)
 {
-    const WaterAccessProvideRule *rule = primary_provider_rule(type);
+    const WaterAccessProvideRule *rule = primary_provider_rule(definition);
     return rule ? text_from_mask(rule->mask) : nullptr;
 }
 
-int water_access_runtime_building_type_provides_access(building_type type)
+int water_access_runtime_building_type_provides_access(const BuildingType *definition)
 {
-    const WaterAccessDefinition *water = water_definition_for_building_type(type);
-    return water && water->has_provider();
+    const WaterAccessDefinition *water = water_definition_for_provider(definition);
+    return water ? water->has_provider() : 0;
 }
 
-int water_access_runtime_building_type_provides_access_text(building_type type, const char *text_id)
+int water_access_runtime_building_type_provides_access_text(const BuildingType *definition, const char *text_id)
 {
     const uint8_t mask = access_mask(text_id);
     if (!mask) {
         return 0;
     }
-    const WaterAccessDefinition *water = water_definition_for_building_type(type);
+    const WaterAccessDefinition *water = water_definition_for_provider(definition);
     if (!water) {
         return 0;
     }
@@ -803,17 +867,19 @@ int water_access_runtime_building_type_provides_access_text(building_type type, 
     return 0;
 }
 
-int water_access_runtime_building_type_requires_access_text(building_type type, const char *text_id)
+int water_access_runtime_building_type_requires_access_text(const BuildingType *definition, const char *text_id)
 {
     const uint8_t mask = access_mask(text_id);
-    const WaterAccessDefinition *water = water_definition_for_building_type(type);
+    const WaterAccessDefinition *water = water_definition_for_provider(definition);
     if (!mask || !water) {
         return 0;
     }
     for (const WaterAccessRequirementRule &rule : water->requirement_rules()) {
         for (const WaterAccessRequirementTerm &term : rule.terms) {
-            if (term.kind == WaterAccessRequirementTermKind::Access && (term.mask & mask)) {
-                return 1;
+            if (term.kind == WaterAccessRequirementTermKind::Access) {
+                if (term.mask & mask) {
+                    return 1;
+                }
             }
         }
     }
@@ -827,36 +893,44 @@ int water_access_runtime_tile_has_access(int grid_offset, const char *text_id)
         return 0;
     }
     const uint8_t mask = access_mask(text_id);
-    return mask && (g_state.masks.access[grid_offset] & mask);
+    return mask ? (g_state.masks.access[grid_offset] & mask) : 0;
 }
 
-int water_access_runtime_building_area_has_access(const building *b, const char *text_id)
+int water_access_runtime_building_area_has_access(const Building *building, const char *text_id)
 {
-    if (!b) {
+    if (!building) {
         return 0;
     }
     ensure_runtime_refreshed();
-    return area_has_access(g_state.masks.access, b->x, b->y, b->size, access_mask(text_id));
+    return area_has_access(g_state.masks.access,
+        building->x(),
+        building->y(),
+        building->size(),
+        access_mask(text_id));
 }
 
-int water_access_runtime_building_has_required_access(const building *b)
+int water_access_runtime_building_has_required_access(const Building *building)
 {
-    if (!b) {
+    if (!building) {
         return 0;
     }
     ensure_runtime_refreshed();
 
-    const BuildingType *definition = definition_for_provider(b->type);
+    const BuildingType *definition = definition_for_provider(building->type);
     if (!definition || !definition->water_access().has_requirements()) {
         return 0;
     }
-    return requirements_are_satisfied(definition->water_access(), b->x, b->y, b->size, g_state.masks);
+    return requirements_are_satisfied(definition->water_access(),
+        building->x(),
+        building->y(),
+        building->size(),
+        g_state.masks);
 }
 
-int water_access_runtime_building_type_has_required_access_at(building_type type, int x, int y, int size)
+int water_access_runtime_building_type_has_required_access_at(const BuildingType *definition, int x, int y, int size)
 {
     ensure_runtime_refreshed();
-    const BuildingType *definition = definition_for_provider(type);
+    definition = definition_for_provider(definition);
     if (!definition || !definition->water_access().has_requirements()) {
         return 1;
     }
@@ -866,7 +940,7 @@ int water_access_runtime_building_type_has_required_access_at(building_type type
 int water_access_runtime_reservoir_has_network_access(int grid_offset)
 {
     ensure_runtime_refreshed();
-    const BuildingType *definition = definition_for_provider(reservoir_type_id());
+    const BuildingType *definition = definition_for_provider(reservoir_definition());
     if (!definition) {
         return 0;
     }
@@ -874,11 +948,11 @@ int water_access_runtime_reservoir_has_network_access(int grid_offset)
         definition->water_access(),
         map_grid_offset_to_x(grid_offset),
         map_grid_offset_to_y(grid_offset),
-        provider_size_for_building_type(reservoir_type_id()),
+        provider_size_for_definition(definition),
         g_state.masks);
 }
 
-void water_access_runtime_begin_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
+void water_access_runtime_begin_preview(const BuildingType *definition, int primary_grid_offset, int secondary_grid_offset)
 {
     ensure_runtime_refreshed();
 
@@ -886,38 +960,43 @@ void water_access_runtime_begin_preview(building_type type, int primary_grid_off
     // Coverage previews answer "what range would this provider emit once working?";
     // ghost graphics still use the real requirement check to show wet/dry state.
     input.force_planned_provider_access = 1;
-    if (type == aqueduct_type_id()) {
+    if (definition == aqueduct_definition()) {
         input.preview_aqueduct_grid_offset = primary_grid_offset;
         input.include_constructing_aqueduct = 1;
     } else {
         if (primary_grid_offset) {
             PlannedProvider &provider = input.planned_providers[input.planned_provider_count++];
-            provider.type = type;
+            provider.definition = definition;
             provider.grid_offset = primary_grid_offset;
         }
-        if (secondary_grid_offset && secondary_grid_offset != primary_grid_offset && input.planned_provider_count < 2) {
-            PlannedProvider &provider = input.planned_providers[input.planned_provider_count++];
-            provider.type = type;
-            provider.grid_offset = secondary_grid_offset;
+        if (secondary_grid_offset) {
+            if (secondary_grid_offset != primary_grid_offset && input.planned_provider_count < 2) {
+                PlannedProvider &provider = input.planned_providers[input.planned_provider_count++];
+                provider.definition = definition;
+                provider.grid_offset = secondary_grid_offset;
+            }
         }
-        if (type == draggable_reservoir_type_id()) {
+        if (definition == draggable_reservoir_definition()) {
             input.include_constructing_aqueduct = 1;
         }
     }
 
-    SimulationResult preview_result;
-    build_water_masks(input, preview_result);
-    build_preview_highlight(type, preview_result);
+    auto preview_result = std::make_unique<SimulationResult>();
+    build_water_masks(input, *preview_result);
+    build_preview_highlight(definition, *preview_result);
 }
 
 void water_access_runtime_end_preview(void)
 {
-    g_state.preview = PreviewState();
+    clear_preview_state();
 }
 
 int water_access_runtime_tile_has_preview_highlight(int grid_offset)
 {
-    return g_state.preview.active && map_grid_is_valid_offset(grid_offset) && g_state.preview.highlight[grid_offset];
+    if (!g_state.preview.active || !map_grid_is_valid_offset(grid_offset)) {
+        return 0;
+    }
+    return g_state.preview.highlight[grid_offset];
 }
 
 int water_access_runtime_should_draw_overlay_at(int grid_offset)
@@ -929,8 +1008,8 @@ int water_access_runtime_should_draw_overlay_at(int grid_offset)
         return 0;
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        const building *b = map_building_exists_at(grid_offset) ? map_building_at(grid_offset).record() : nullptr;
-        const BuildingType *definition = b ? definition_for_provider(b->type) : nullptr;
+        const Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+        const BuildingType *definition = building ? definition_for_provider(building->type) : nullptr;
         if (definition && definition->water_access().has_provider()) {
             return 0;
         }

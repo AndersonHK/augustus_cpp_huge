@@ -630,16 +630,24 @@ int widget_sidebar_military_exit(void)
 
 static void button_military_menu(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_military_menu_show();
 }
 
 static void button_close_military_sidebar(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     widget_sidebar_military_exit();
 }
 
 static void button_cycle_legion(int cycle_forward, int param2)
 {
+    (void)param2;
+
     legion_info *legion = &data.active_legion;
     int step = cycle_forward ? 1 : -1;
     for (int i = legion->formation_id + step; i != legion->formation_id; i += step) {
@@ -689,12 +697,16 @@ static void button_select_formation_layout(const generic_button *button)
 
 static void button_go_to_legion(const generic_button *button)
 {
+    (void)button;
+
     const formation *m = formation_get(data.active_legion.formation_id);
     city_view_go_to_grid_offset(map_grid_offset(m->x_home, m->y_home));
 }
 
 static void button_return_to_fort(const generic_button *button)
 {
+    (void)button;
+
     formation *m = formation_get(data.active_legion.formation_id);
     if (!m->in_distant_battle) {
         formation_legion_return_home(m);
@@ -703,6 +715,8 @@ static void button_return_to_fort(const generic_button *button)
 
 static void button_empire_service(const generic_button *button)
 {
+    (void)button;
+
     formation_toggle_empire_service(data.active_legion.formation_id);
     formation_calculate_figures();
 }

@@ -23,14 +23,21 @@ void RuntimeBuildingLists::forEachLaborSourceHouse(const std::function<void(Buil
 {
     ensureCurrent();
     for (unsigned int house_id : labor_source_house_ids_) {
-        building *house = building_get(house_id);
+        if (house_id >= building_runtime_impl::g_runtime_instances.size()) {
+            dirty_ = true;
+            continue;
+        }
+        building_runtime *runtime = building_runtime_impl::g_runtime_instances[house_id].get();
+        if (!runtime) {
+            dirty_ = true;
+            continue;
+        }
+        building *house = const_cast<building *>(runtime->building.record());
         if (!isLaborSourceHouse(house)) {
             dirty_ = true;
             continue;
         }
-        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
-            visitor(runtime->building, *house);
-        }
+        visitor(runtime->building, *house);
     }
 }
 
@@ -66,7 +73,7 @@ void RuntimeBuildingLists::rebuild()
     labor_source_house_ids_.clear();
     building_count_snapshot_ = building_count();
     Building::for_each({ .hasHousing = true }, [this](Building *building) {
-        building *house = const_cast<::building *>(building->record());
+        ::building *house = const_cast<::building *>(building->record());
         if (isLaborSourceHouse(house)) {
             labor_source_house_ids_.push_back(building->id);
         }

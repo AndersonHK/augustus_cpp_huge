@@ -260,15 +260,15 @@ int building_granaries_count_available_resource(resource_type resource, int resp
     return total;
 }
 
-static void try_create_cart_to_rome(const Building &b, resource_type resource, int loads)
+static void try_create_cart_to_rome(Building &b, resource_type resource, int loads)
 {
     map_point road;
     if (map_has_road_access_rotation(b.orientation(), b.x(), b.y(), 3, &road)) {
         Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
         f->action_state = FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED;
-        f->resource_id = resource;
-        f->loads_sold_or_carrying = loads;
-        f->building = b;
+        f->resource_id = static_cast<unsigned char>(resource);
+        f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
+        f->building = &b;
     }
 }
 
@@ -500,17 +500,17 @@ Building *building_granary_get_granary_needing_food(const Building &source, reso
     return nullptr;
 }
 
-int building_granary_for_storing(int x, int y, resource_type resource, int road_network_id,
+Building *building_granary_for_storing(int x, int y, resource_type resource, int road_network_id,
     int force_on_stockpile, int *understaffed, map_point *dst)
 {
     if (scenario_property_rome_supplies_wheat()) {
-        return 0;
+        return nullptr;
     }
     if (!resource_is_food(resource)) {
-        return 0;
+        return nullptr;
     }
     if (city_resource_is_stockpiled(resource) && !force_on_stockpile) {
-        return 0;
+        return nullptr;
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
@@ -527,24 +527,24 @@ int building_granary_for_storing(int x, int y, resource_type resource, int road_
         }
     }
     if (!min_building) {
-        return 0;
+        return nullptr;
     }
     // deliver to center of granary
     map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
-    return min_building->id;
+    return min_building;
 }
 
-int building_getting_granary_for_storing(int x, int y, resource_type resource, int road_network_id, map_point *dst)
+Building *building_getting_granary_for_storing(int x, int y, resource_type resource, int road_network_id, map_point *dst)
 {
     if (scenario_property_rome_supplies_wheat()) {
-        return 0;
+        return nullptr;
     }
     if (!resource_is_food(resource)) {
-        return 0;
+        return nullptr;
     }
 
     if (city_resource_is_stockpiled(resource)) {
-        return 0;
+        return nullptr;
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
@@ -572,10 +572,10 @@ int building_getting_granary_for_storing(int x, int y, resource_type resource, i
         }
     }
     if (!min_building) {
-        return 0;
+        return nullptr;
     }
     map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
-    return min_building->id;
+    return min_building;
 }
 
 int building_granary_amount_can_get_from(const Building &destination, const Building &origin, resource_type resource)
@@ -591,14 +591,14 @@ int building_granary_amount_can_get_from(const Building &destination, const Buil
     return amount_gettable;
 }
 
-int building_granary_for_getting(const Building &src, map_point *dst, int min_amount)
+Building *building_granary_for_getting(const Building &src, map_point *dst, int min_amount)
 {
     const building_storage *s_src = building_storage_get(src.storage_id);
     if (s_src->empty_all) {
-        return 0;
+        return nullptr;
     }
     if (scenario_property_rome_supplies_wheat()) {
-        return 0;
+        return nullptr;
     }
     resource_type food_to_get = RESOURCE_NONE;
     for (resource_type food = (RESOURCE_NONE + 1); food < RESOURCE_SLOT_COUNT; food = static_cast<resource_type>(food + 1)) {
@@ -611,11 +611,11 @@ int building_granary_for_getting(const Building &src, map_point *dst, int min_am
         }
     }
     if (!food_to_get) {
-        return 0;
+        return nullptr;
     }
     int min_dist = INFINITE;
-    const Building *min_building = nullptr;
-    for (const Building &b : non_getting_granaries.buildings) {
+    Building *min_building = nullptr;
+    for (Building &b : non_getting_granaries.buildings) {
         if (!config_get(CONFIG_GP_CH_GETTING_GRANARIES_GO_OFFROAD)) {
             if (b.road_network_id() != src.road_network_id()) {
                 continue;
@@ -633,10 +633,10 @@ int building_granary_for_getting(const Building &src, map_point *dst, int min_am
         }
     }
     if (!min_building) {
-        return 0;
+        return nullptr;
     }
     map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
-    return min_building->id;
+    return min_building;
 }
 
 void building_granary_bless(void)
@@ -718,7 +718,7 @@ void building_granary_warehouse_curse(int big)
             MESSAGE_FIRE,
             max_building->type ? max_building->type->type() : BUILDING_NONE,
             max_building->grid_offset());
-        building_destroy_by_fire(building_get(max_building->id));
+        building_destroy_by_fire(const_cast<building *>(max_building->record()));
         sound_effect_play(SOUND_EFFECT_EXPLOSION);
         Route::updateLandTerrain();
     } else {

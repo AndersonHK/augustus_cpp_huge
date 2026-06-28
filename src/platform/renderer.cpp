@@ -43,6 +43,11 @@
 
 #define MAX_PACKED_IMAGE_SIZE 64000
 
+static Uint8 color_channel_to_u8(color_t color, color_t mask, int shift)
+{
+    return static_cast<Uint8>((color & mask) >> shift);
+}
+
 #if (defined(__ANDROID__) || defined(__EMSCRIPTEN__)) && !SDL_VERSION_ATLEAST(2, 24, 0)
 // On the arm versions of android, on SDL < 2.24.0, atlas textures that are too large will make the renderer fetch
 // some images from the atlas with an off-by-one pixel, making things look terrible. Defining a smaller atlas texture
@@ -241,10 +246,10 @@ static void draw_line(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_RenderDrawLine(data.renderer, x_start, y_start, x_end, y_end);
 }
 
@@ -254,10 +259,10 @@ static void draw_rect(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_Rect rect = { x_start, y_start, x_end, y_end };
     SDL_RenderDrawRect(data.renderer, &rect);
 }
@@ -268,10 +273,10 @@ static void fill_rect(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_Rect rect = { x_start, y_start, x_end, y_end };
     SDL_RenderFillRect(data.renderer, &rect);
 }
@@ -807,10 +812,10 @@ static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, im
     }
 
     SDL_SetTextureColorMod(texture,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE);
-    SDL_SetTextureAlphaMod(texture, (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE));
+    SDL_SetTextureAlphaMod(texture, color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
 
 #ifdef USE_TEXTURE_SCALE_MODE
     if (!HAS_TEXTURE_SCALE_MODE) {
@@ -1329,9 +1334,9 @@ static void create_blend_texture(custom_image_type type)
     SDL_SetTextureBlendMode(flat_tile, SDL_BLENDMODE_BLEND);
 
     SDL_SetTextureColorMod(flat_tile,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE));
     SDL_SetTextureAlphaMod(flat_tile, 0xff);
     SDL_Rect src_coords = { img && img->resource_handle ? 0 : img->atlas.x_offset,
         img && img->resource_handle ? 0 : img->atlas.y_offset, img->width, img->height };
@@ -1833,7 +1838,7 @@ static void draw_tooltip(void)
     dst.y = data.tooltip.y;
     dst.w = data.tooltip.width;
     dst.h = data.tooltip.height;
-    SDL_SetTextureAlphaMod(data.tooltip.texture, data.tooltip.opacity);
+    SDL_SetTextureAlphaMod(data.tooltip.texture, static_cast<Uint8>(data.tooltip.opacity));
     SDL_RenderCopy(data.renderer, data.tooltip.texture, &src, &dst);
 }
 

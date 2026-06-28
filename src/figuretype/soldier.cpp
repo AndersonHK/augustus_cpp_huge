@@ -55,15 +55,15 @@ void figure_military_standard_action(Figure *f)
     figure_image_increase_offset(f, 16);
     map_figure_delete(f);
     if (m->is_at_fort) {
-        f->x = m->x;
-        f->y = m->y;
+        f->x = static_cast<unsigned char>(m->x);
+        f->y = static_cast<unsigned char>(m->y);
     } else {
-        f->x = m->standard_x;
-        f->y = m->standard_y;
+        f->x = static_cast<unsigned char>(m->standard_x);
+        f->y = static_cast<unsigned char>(m->standard_y);
     }
-    f->grid_offset = map_grid_offset(f->x, f->y);
-    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
-    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
+    f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
+    f->cross_country_x = static_cast<short>(figure_movement_tile_center_cross_country(f->x));
+    f->cross_country_y = static_cast<short>(figure_movement_tile_center_cross_country(f->y));
     map_figure_add(f);
 
     int pole_offset = 20 - m->morale / 5;
@@ -134,7 +134,8 @@ static Figure *soldier_launch_missile(Figure *f)
         f->wait_ticks_missile = 0;
         if (figure_combat_get_missile_target_for_soldier(f, range, &tile)) {
             f->attack_image_offset = 1;
-            f->direction = calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y);
+            f->direction =
+                static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
         } else {
             f->attack_image_offset = 0;
         }
@@ -144,7 +145,8 @@ static Figure *soldier_launch_missile(Figure *f)
             if (ticks_to_shoot(f) > 1) {
                 // Adjust the target in case of long delay
                 if (figure_combat_get_missile_target_for_soldier(f, range, &tile)) {
-                    f->direction = calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y);
+                    f->direction =
+                        static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
                 }
             }
             if (tile.x == -1 || tile.y == -1) {
@@ -330,8 +332,8 @@ void figure_soldier_action(Figure *f)
     }
     FormationLayoutPosition position =
         formation_layout_position(layout, f->index_in_formation, m->declared_capacity());
-    f->formation_position_x.soldier = m->x + position.x;
-    f->formation_position_y.soldier = m->y + position.y;
+    f->formation_position_x.soldier = static_cast<unsigned char>(m->x + position.x);
+    f->formation_position_y.soldier = static_cast<unsigned char>(m->y + position.y);
 
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
@@ -356,7 +358,7 @@ void figure_soldier_action(Figure *f)
             f->formation_at_rest = 1;
             f->destination_x = f->formation_position_x.soldier;
             f->destination_y = f->formation_position_y.soldier;
-            f->destination_grid_offset = map_grid_offset(f->destination_x, f->destination_y);
+            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
             figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;
@@ -381,13 +383,15 @@ void figure_soldier_action(Figure *f)
             f->attack_image_offset = 0;
             f->formation_at_rest = 0;
             position = formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
-            f->destination_x = m->standard_x + position.x;
-            f->destination_y = m->standard_y + position.y;
+            f->destination_x = static_cast<unsigned char>(m->standard_x + position.x);
+            f->destination_y = static_cast<unsigned char>(m->standard_y + position.y);
             if (f->alternative_location_index) {
-                f->destination_x += ALTERNATIVE_POINTS[f->alternative_location_index].x;
-                f->destination_y += ALTERNATIVE_POINTS[f->alternative_location_index].y;
+                f->destination_x = static_cast<unsigned char>(
+                    f->destination_x + ALTERNATIVE_POINTS[f->alternative_location_index].x);
+                f->destination_y = static_cast<unsigned char>(
+                    f->destination_y + ALTERNATIVE_POINTS[f->alternative_location_index].y);
             }
-            f->destination_grid_offset = map_grid_offset(f->destination_x, f->destination_y);
+            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
             figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
@@ -407,11 +411,13 @@ void figure_soldier_action(Figure *f)
             f->image_offset = 0;
             map_figure_update(f);
             position = formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
-            f->destination_x = m->standard_x + position.x;
-            f->destination_y = m->standard_y + position.y;
+            f->destination_x = static_cast<unsigned char>(m->standard_x + position.x);
+            f->destination_y = static_cast<unsigned char>(m->standard_y + position.y);
             if (f->alternative_location_index) {
-                f->destination_x += ALTERNATIVE_POINTS[f->alternative_location_index].x;
-                f->destination_y += ALTERNATIVE_POINTS[f->alternative_location_index].y;
+                f->destination_x = static_cast<unsigned char>(
+                    f->destination_x + ALTERNATIVE_POINTS[f->alternative_location_index].x);
+                f->destination_y = static_cast<unsigned char>(
+                    f->destination_y + ALTERNATIVE_POINTS[f->alternative_location_index].y);
             }
             if (f->x != f->destination_x || f->y != f->destination_y) {
                 if (m->missile_fired <= 0 && m->recent_fight <= 0 && m->missile_attack_timeout <= 0) {
@@ -466,8 +472,8 @@ void figure_soldier_action(Figure *f)
             {
                 const map_tile *exit = city_map_exit_point();
                 f->formation_at_rest = 0;
-                f->destination_x = exit->x;
-                f->destination_y = exit->y;
+                f->destination_x = static_cast<unsigned char>(exit->x);
+                f->destination_y = static_cast<unsigned char>(exit->y);
                 figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
                 if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                     f->action_state = FIGURE_ACTION_89_SOLDIER_AT_DISTANT_BATTLE;
@@ -485,7 +491,7 @@ void figure_soldier_action(Figure *f)
             f->formation_at_rest = 1;
             f->destination_x = f->formation_position_x.soldier;
             f->destination_y = f->formation_position_y.soldier;
-            f->destination_grid_offset = map_grid_offset(f->destination_x, f->destination_y);
+            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
             figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;

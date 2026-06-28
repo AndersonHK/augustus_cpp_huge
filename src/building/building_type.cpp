@@ -1290,6 +1290,26 @@ void BuildingType::set_roadblock_passage_type(RoadblockPassageType type)
     roadblock_.set_passage_type(type);
 }
 
+void BuildingType::set_rubble(RubbleType type)
+{
+    rubble_.set(type, this);
+}
+
+void BuildingType::set_rubble_burn_days(int days)
+{
+    rubble_.burn_days = days;
+}
+
+void BuildingType::set_rubble_decay_reference(std::string attr)
+{
+    rubble_.decays_to = std::move(attr);
+}
+
+void BuildingType::set_rubble_decay_type(const BuildingType *type)
+{
+    rubble_.decay_type = type;
+}
+
 void BuildingType::set_tile_kind(TileKind kind)
 {
     tile_.set_kind(kind);
@@ -1763,6 +1783,11 @@ const RoadblockDefinition &BuildingType::roadblock() const
     return roadblock_;
 }
 
+const RubbleDef &BuildingType::rubble() const
+{
+    return rubble_;
+}
+
 LaborCategory BuildingType::labor_category() const
 {
     return labor_category_;
@@ -1881,76 +1906,16 @@ int BuildingType::has_data_only_graphics() const
     return 0;
 }
 
-int BuildingType::is_temple() const
-{
-    return religion_ ? 1 : 0;
-}
-
-int BuildingType::is_temple(god_type god, ReligionTier tier) const
+int BuildingType::is_temple(std::optional<god_type> god, ReligionTier tier) const
 {
     const Religion *religion = religion_;
     if (!religion) {
         return 0;
     }
-    if (god != GOD_ALL && !religion->has_god(god)) {
+    if (god.has_value() && !religion->has_god(god.value())) {
         return 0;
     }
     return tier == ReligionTier::None || religion->is_tier(tier);
-}
-
-int BuildingType::is_temple_for_god(god_type god) const
-{
-    return is_temple(god, ReligionTier::None);
-}
-
-int BuildingType::is_temple_tier(ReligionTier tier) const
-{
-    return is_temple(GOD_ALL, tier);
-}
-
-int BuildingType::is_ceres_temple() const
-{
-    return is_temple_for_god(GOD_CERES);
-}
-
-int BuildingType::is_venus_temple() const
-{
-    return is_temple_for_god(GOD_VENUS);
-}
-
-int BuildingType::is_mars_temple() const
-{
-    return is_temple_for_god(GOD_MARS);
-}
-
-int BuildingType::is_mercury_temple() const
-{
-    return is_temple_for_god(GOD_MERCURY);
-}
-
-int BuildingType::is_neptune_temple() const
-{
-    return is_temple_for_god(GOD_NEPTUNE);
-}
-
-int BuildingType::is_pantheon() const
-{
-    return religion_ && religion_->is_tier(ReligionTier::Grand) && religion_->has_all_gods();
-}
-
-int BuildingType::is_oracle() const
-{
-    return is_temple_tier(ReligionTier::Oracle);
-}
-
-int BuildingType::is_grand_temple_mars() const
-{
-    return is_temple(GOD_MARS, ReligionTier::Grand);
-}
-
-int BuildingType::is_grand_temple_venus() const
-{
-    return is_temple(GOD_VENUS, ReligionTier::Grand);
 }
 
 int BuildingType::is_theater() const
@@ -2080,6 +2045,11 @@ int BuildingType::has_button() const
 int BuildingType::has_roadblock() const
 {
     return roadblock_.has_any();
+}
+
+int BuildingType::has_rubble() const
+{
+    return rubble_.has_any();
 }
 
 int BuildingType::has_tile() const

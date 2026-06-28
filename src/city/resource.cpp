@@ -32,7 +32,6 @@
 #include "scenario/property.h"
 
 #include <math.h>
-#include <empire/city.cpp>
 
 static struct {
     resource_list resources;
@@ -234,7 +233,7 @@ int city_resource_last_used_warehouse(void)
 
 void city_resource_set_last_used_warehouse(int warehouse_id)
 {
-    city_data.resource.last_used_warehouse = warehouse_id;
+    city_data.resource.last_used_warehouse = static_cast<int16_t>(warehouse_id);
 }
 
 resource_trade_status city_resource_trade_status(resource_type resource)
@@ -266,7 +265,8 @@ int city_resource_import_over(resource_type resource)
 
 void city_resource_change_import_over(resource_type resource, int change)
 {
-    city_data.resource.import_over[resource] = calc_bound(city_data.resource.import_over[resource] + change, 0, 100);
+    city_data.resource.import_over[resource] =
+        static_cast<int16_t>(calc_bound(city_data.resource.import_over[resource] + change, 0, 100));
 }
 
 int city_resource_export_over(resource_type resource)
@@ -276,7 +276,8 @@ int city_resource_export_over(resource_type resource)
 
 void city_resource_change_export_over(resource_type resource, int change)
 {
-    city_data.resource.export_over[resource] = calc_bound(city_data.resource.export_over[resource] + change, 0, 100);
+    city_data.resource.export_over[resource] =
+        static_cast<int16_t>(calc_bound(city_data.resource.export_over[resource] + change, 0, 100));
 }
 
 int city_resource_is_stockpiled(resource_type resource)
@@ -324,14 +325,18 @@ void city_resource_remove_from_granary(resource_type food, int amount)
 
 void city_resource_add_to_warehouse(resource_type resource, int amount)
 {
-    city_data.resource.space_in_warehouses[resource] -= amount;
-    city_data.resource.stored_in_warehouses[resource] += amount;
+    city_data.resource.space_in_warehouses[resource] =
+        static_cast<int16_t>(city_data.resource.space_in_warehouses[resource] - amount);
+    city_data.resource.stored_in_warehouses[resource] =
+        static_cast<int16_t>(city_data.resource.stored_in_warehouses[resource] + amount);
 }
 
 void city_resource_remove_from_warehouse(resource_type resource, int amount)
 {
-    city_data.resource.space_in_warehouses[resource] += amount;
-    city_data.resource.stored_in_warehouses[resource] -= amount;
+    city_data.resource.space_in_warehouses[resource] =
+        static_cast<int16_t>(city_data.resource.space_in_warehouses[resource] + amount);
+    city_data.resource.stored_in_warehouses[resource] =
+        static_cast<int16_t>(city_data.resource.stored_in_warehouses[resource] - amount);
 }
 
 void city_resource_calculate_warehouse_stocks(void)
@@ -348,22 +353,29 @@ void city_resource_calculate_warehouse_stocks(void)
             }
         }
     }
-    for (building *b = first_of_type("warehouse_space"); b; b = b->next_of_type) {
+    building_type warehouse_space_type = building_type_registry_impl::type_from_attr("warehouse_space");
+    for (Building *space = warehouse_space_type == BUILDING_NONE ? nullptr : Building::first_of_type(warehouse_space_type);
+         space;
+         space = space->next_of_type()) {
+        building *b = const_cast<building *>(space->record());
         if (b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        building *warehouse = building_main(b);
-        Building warehouse_obj(warehouse);
-        if (warehouse->state != BUILDING_STATE_IN_USE || !warehouse_obj.type || !warehouse_obj.type->is_warehouse()) {
+        Building &warehouse = space->main();
+        const building *warehouse_record = warehouse.record();
+        if (!warehouse_record || warehouse_record->state != BUILDING_STATE_IN_USE ||
+            !warehouse.type || !warehouse.type->is_warehouse()) {
             continue;
         }
-        if (warehouse->has_road_access) {
-            b->has_road_access = warehouse->has_road_access;
+        if (warehouse_record->has_road_access) {
+            b->has_road_access = warehouse_record->has_road_access;
             const int resource = b->subtype.warehouse_resource_id;
             if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && b->resources[resource] > 0) {
                 int loads = b->resources[resource];
-                city_data.resource.stored_in_warehouses[resource] += loads;
-                city_data.resource.space_in_warehouses[resource] += 4 - loads;
+                city_data.resource.stored_in_warehouses[resource] =
+                    static_cast<int16_t>(city_data.resource.stored_in_warehouses[resource] + loads);
+                city_data.resource.space_in_warehouses[resource] =
+                    static_cast<int16_t>(city_data.resource.space_in_warehouses[resource] + 4 - loads);
             } else {
                 if (resource != RESOURCE_NONE) {
                     b->subtype.warehouse_resource_id = RESOURCE_NONE;
@@ -434,7 +446,7 @@ resource_type city_resource_ceres_temple_food(void)
         if (!resource_is_food(r)) {
             continue;
         }
-        if (can_produce_resource_naturally(r)) {
+        if (empire_can_produce_resource_naturally(r)) {
             return r;
         }
         if (imported == RESOURCE_NONE && empire_can_import_resource_potentially(r)) {
@@ -539,12 +551,14 @@ static int house_consume_food(void)
 {
     int total_consumed = 0;
     int ceres_module = (building_monument_gt_module_is_active(CERES_MODULE_1_REDUCE_FOOD));
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!building_house_is_active(Building(b))) {
-            continue;
+
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *b = const_cast<building *>(house->record());
+        if (!building_house_is_active(*house)) {
+            return;
         }
-        const model_house *house_model = building_house_get_model(Building(b));
+
+        const model_house *house_model = building_house_get_model(*house);
         int num_types = house_model ? house_model->food_types : 0;
         int amount_per_type;
         if (ceres_module && b->data.house.temple_ceres) {
@@ -566,7 +580,7 @@ static int house_consume_food(void)
         if (scenario_property_rome_supplies_wheat()) {
             city_data.resource.food_types_eaten = 1;
             city_data.resource.food_types_available = 1;
-            b->resources[resource_wheat()] = amount_per_type;
+            b->resources[resource_wheat()] = static_cast<short>(amount_per_type);
             b->data.house.num_foods = 1;
         } else if (num_types > 0) {
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -574,7 +588,7 @@ static int house_consume_food(void)
                     continue;
                 }
                 if (b->resources[r] >= amount_per_type) {
-                    b->resources[r] -= amount_per_type;
+                    b->resources[r] = static_cast<short>(b->resources[r] - amount_per_type);
                     b->data.house.num_foods++;
                     total_consumed += amount_per_type;
                 } else if (b->resources[r]) {
@@ -588,7 +602,8 @@ static int house_consume_food(void)
                 }
             }
         }
-    }
+    });
+
     return total_consumed;
 }
 
@@ -638,7 +653,7 @@ static int mess_hall_consume_food(void)
             proportionate_amount = food_required * b->resources[r] / total_food_in_mess_hall;
             if (proportionate_amount > 0) {
                 amount_for_type = calc_bound((int) ceil(proportionate_amount), 0, b->resources[r]);
-                b->resources[r] -= amount_for_type;
+                b->resources[r] = static_cast<short>(b->resources[r] - amount_for_type);
                 ++num_foods;
             }
         }
@@ -701,7 +716,7 @@ static int caravanserai_consume_food(void)
         proportionate_amount = food_required * b->resources[r] / total_food_in_caravanserai;
         if (proportionate_amount > 0) {
             amount_for_type = calc_bound(proportionate_amount, 0, b->resources[r]);
-            b->resources[r] -= amount_for_type;
+            b->resources[r] = static_cast<short>(b->resources[r] - amount_for_type);
         }
     }
 

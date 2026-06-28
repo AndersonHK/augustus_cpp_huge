@@ -43,15 +43,15 @@ static void add_desirability_at_distance(int x, int y, int size, int distance, i
         for (int i = start; i < end; i++) {
             const ring_tile *tile = map_ring_tile(i);
             if (map_ring_is_inside_map(x + tile->x, y + tile->y)) {
-                desirability_grid.items[base_offset + tile->grid_offset] =
-                    calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100);
+                desirability_grid.items[base_offset + tile->grid_offset] = static_cast<int8_t>(
+                    calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100));
             }
         }
     } else {
         for (int i = start; i < end; i++) {
             const ring_tile *tile = map_ring_tile(i);
-            desirability_grid.items[base_offset + tile->grid_offset] =
-                calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100);
+            desirability_grid.items[base_offset + tile->grid_offset] = static_cast<int8_t>(
+                calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100));
         }
     }
 }
@@ -85,59 +85,64 @@ static void update_buildings(void)
     int step_size;
     int range;
     int venus_module2 = building_monument_gt_module_is_active(VENUS_MODULE_2_DESIRABILITY_ENTERTAINMENT);
-    int venus_gt = building_monument_working_grand_temple_for_god(GOD_VENUS);
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (b->state == BUILDING_STATE_IN_USE) {
-
-            const model_building *model = model_get_building(b->type);
-            value = model->desirability_value;
-            step = model->desirability_step;
-            step_size = model->desirability_step_size;
-            range = model->desirability_range;
-
-            // Venus Module 2 House Desirability Bonus
-            if (building_is_house(b->type) && b->data.house.temple_venus && venus_module2) {
-                int legacy_level = building_house_legacy_level(Building(b));
-                if (building_house_has_patrician_residents(Building(b))) {
-                    value += 4;
-                    range += 1;
-                } else if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
-                    // tents normally confer -3, -2, -1, 0, 0, 0 (range=3)
-                    // now this becomes -1, 0, 0, 0, 0, 0 (range=1)
-                    value += 2;
-                    range = 1;
-                } else {
-                    if (range <= 1) {
-                        range = 1;
-                    }
-                    value += 2;
-                }
-            }
-
-            if (building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED) {
-                value = 0;
-                step = 0;
-                step_size = 0;
-                range = 0;
-            }
-
-            // Venus GT Base Bonus
-            if (building_is_statue_garden_temple(b->type) && venus_gt) {
-                value_bonus = ((value / 4) > 1) ? (value / 4) : 1;
-                value += value_bonus;
-                step += 1;
-                range += 1;
-            }
-
-            add_to_terrain(
-                b->x, b->y, b->size,
-                value,
-                step,
-                step_size,
-                range);
+    Building *venus_gt = grand_temple_for_god(GOD_VENUS, true);
+    Building::for_each([&](Building *building) {
+        if (!building || building->state_id() != BUILDING_STATE_IN_USE) {
+            return;
         }
-    }
+
+        const ::building *b = building->record();
+        if (!b) {
+            return;
+        }
+
+        const model_building *model = model_get_building(b->type);
+        value = model->desirability_value;
+        step = model->desirability_step;
+        step_size = model->desirability_step_size;
+        range = model->desirability_range;
+
+        // Venus Module 2 House Desirability Bonus
+        if (building->type && building->type->has_housing() && b->data.house.temple_venus && venus_module2) {
+            int legacy_level = building_house_legacy_level(*building);
+            if (building_house_has_patrician_residents(*building)) {
+                value += 4;
+                range += 1;
+            } else if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
+                // tents normally confer -3, -2, -1, 0, 0, 0 (range=3)
+                // now this becomes -1, 0, 0, 0, 0, 0 (range=1)
+                value += 2;
+                range = 1;
+            } else {
+                if (range <= 1) {
+                    range = 1;
+                }
+                value += 2;
+            }
+        }
+
+        if (building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED) {
+            value = 0;
+            step = 0;
+            step_size = 0;
+            range = 0;
+        }
+
+        // Venus GT Base Bonus
+        if (building->type->flags().venus_gt_bonus() && venus_gt) {
+            value_bonus = ((value / 4) > 1) ? (value / 4) : 1;
+            value += value_bonus;
+            step += 1;
+            range += 1;
+        }
+
+        add_to_terrain(
+            b->x, b->y, b->size,
+            value,
+            step,
+            step_size,
+            range);
+    });
 }
 
 static void add_garden_desirability(int x, int y)
@@ -152,7 +157,7 @@ static void add_garden_desirability(int x, int y)
     int step_size = model->desirability_step_size;
     int range = model->desirability_range;
 
-    if (building_monument_working_grand_temple_for_god(GOD_VENUS)) {
+    if (grand_temple_for_god(GOD_VENUS, true)) {
         int value_bonus = ((value / 4) > 1) ? (value / 4) : 1;
         value += value_bonus;
         step += 1;

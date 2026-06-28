@@ -15,6 +15,7 @@
 #include "figure/figure.h"
 #include "figure/formation.h"
 #include "figure/route.h"
+#include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/soldier_strength.h"
@@ -207,77 +208,82 @@ static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
 
 static building *first_active_building_matching(const TargetSpec &target)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    building *result = nullptr;
+    Building::for_each([&](Building *candidate_object) {
+        if (result) {
+            return;
         }
-        Building candidate(b);
+        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
+            return;
+        }
         const bool matches = target.kind == TargetKind::Farm ?
-            candidate.type && candidate.type->is_farm() :
-            candidate.matches(target.text_id);
+            candidate_object->type && candidate_object->type->is_farm() :
+            candidate_object->matches(target.text_id);
         if (matches) {
-            return b;
+            result = b;
         }
-    }
-    return nullptr;
+    });
+    return result;
 }
 
 static building *first_active_housing_at_level(int level)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(b->type);
-        if (b->state == BUILDING_STATE_IN_USE &&
-            definition && definition->housing_level() == level) {
-            return b;
+    building *result = nullptr;
+    Building::for_each({ .hasHousing = true }, [&](Building *candidate_object) {
+        if (result) {
+            return;
         }
-    }
-    return nullptr;
+        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
+        const building_type_registry_impl::BuildingType *definition =
+            candidate_object ? candidate_object->type : nullptr;
+        if (b && b->state == BUILDING_STATE_IN_USE &&
+            definition && definition->housing_level() == level) {
+            result = b;
+        }
+    });
+    return result;
 }
 
 static building *closest_active_building_matching(const TargetSpec &target, int x, int y, int *min_distance)
 {
     building *best_building = nullptr;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([&](Building *candidate_object) {
+        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
+            return;
         }
-        Building candidate(b);
         const bool matches = target.kind == TargetKind::Farm ?
-            candidate.type && candidate.type->is_farm() :
-            candidate.matches(target.text_id);
+            candidate_object->type && candidate_object->type->is_farm() :
+            candidate_object->matches(target.text_id);
         if (!matches) {
-            continue;
+            return;
         }
         int distance = calc_maximum_distance(x, y, b->x, b->y);
         if (distance < *min_distance) {
             best_building = b;
             *min_distance = distance;
         }
-    }
+    });
     return best_building;
 }
 
 static building *closest_active_housing_at_level(int level, int x, int y, int *min_distance)
 {
     building *best_building = nullptr;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(b->type);
-        if (b->state != BUILDING_STATE_IN_USE ||
+    Building::for_each({ .hasHousing = true }, [&](Building *candidate_object) {
+        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
+        const building_type_registry_impl::BuildingType *definition = candidate_object ? candidate_object->type : nullptr;
+        if (!b || b->state != BUILDING_STATE_IN_USE ||
             !definition || definition->housing_level() != level) {
-            continue;
+            return;
         }
         int distance = calc_maximum_distance(x, y, b->x, b->y);
         if (distance < *min_distance) {
             best_building = b;
             *min_distance = distance;
         }
-    }
+    });
     return best_building;
 }
 
@@ -369,20 +375,20 @@ int formation_rioter_get_target_building_for_robbery(int x, int y, int *x_tile, 
 
     static const char *const building_targets[] = { "senate", "forum" };
     for (int i = 0; i < 2; i++) {
-        for (int building_id = 1; building_id < building_count(); building_id++) {
-            building *b = building_get(building_id);
-            if (b->state != BUILDING_STATE_IN_USE || !Building(b).matches(building_targets[i])) {
-                continue;
+        Building::for_each([&](Building *candidate) {
+            building *b = candidate ? const_cast<building *>(candidate->record()) : nullptr;
+            if (!b || b->state != BUILDING_STATE_IN_USE || !candidate->matches(building_targets[i])) {
+                return;
             }
             int distance = calc_maximum_distance(x, y, b->x, b->y);
             if (distance >= 150) {
-                continue;
+                return;
             }
             if (distance < closest) {
                 closest = distance;
                 best_building = b;
             }
-        }
+        });
     }
     if (!best_building) {
         return 0;
@@ -407,12 +413,14 @@ static int set_enemy_target_building(formation *m)
         best_building = get_best_and_closest_building(m->x_home, m->y_home, RIOTER_ATTACK_PRIORITY);
     }
     if (best_building) {
-        if (Building(best_building).matches("warehouse")) {
-            Building destination(building_get(best_building->id + 1));
-            formation_set_destination_building(m, best_building->x + 1, best_building->y, &destination);
+        Building *best_object = map_building_exists_at(best_building->grid_offset) ?
+            &map_building_at(best_building->grid_offset).main() :
+            nullptr;
+        if (best_object && best_object->matches("warehouse")) {
+            Building *destination = best_object->next();
+            formation_set_destination_building(m, best_building->x + 1, best_building->y, destination);
         } else {
-            Building destination(best_building);
-            formation_set_destination_building(m, best_building->x, best_building->y, &destination);
+            formation_set_destination_building(m, best_building->x, best_building->y, best_object);
         }
     }
     return best_building != 0;
@@ -438,13 +446,13 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
     int min_distance = INFINITE;
 
     for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]) && min_distance == INFINITE; i++) {
-        for (int building_id = 1; building_id < building_count(); building_id++) {
-            building *b = building_get(building_id);
-            if (!Building(b).matches(native_buildings[i]) || !native_target_can_anchor_search(b)) {
-                continue;
+        Building::for_each([&](Building *candidate) {
+            building *b = candidate ? const_cast<building *>(candidate->record()) : nullptr;
+            if (!b || !candidate->matches(native_buildings[i]) || !native_target_can_anchor_search(b)) {
+                return;
             }
             const building_type_registry_impl::BuildingType *definition =
-                building_type_registry_impl::definition_for_type(b->type);
+                candidate->type;
             int size = definition ? definition->declared_model_size() : 0;
             if (size <= 0) {
                 size = building_properties_for_type(b->type)->size;
@@ -464,7 +472,7 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
                     }
                 }
             }
-        }
+        });
     }
     return min_distance < INFINITE;
 }
@@ -473,7 +481,7 @@ static void set_native_target_building(formation *m)
 {
     int meeting_x, meeting_y;
     city_buildings_main_native_meeting_center(&meeting_x, &meeting_y);
-    building *min_building = 0;
+    Building *min_building = nullptr;
     int min_distance = INFINITE;
     static const char *const excluded_types[] = {
         "mission_post",
@@ -500,25 +508,23 @@ static void set_native_target_building(formation *m)
         "low_bridge",
         "ship_bridge"
     };
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        Building target(b);
-        if (b->state != BUILDING_STATE_IN_USE || target.matches("gardens") ||
+    Building::for_each([&](Building *target) {
+        building *b = target ? const_cast<building *>(target->record()) : nullptr;
+        if (!b || b->state != BUILDING_STATE_IN_USE || target->matches("gardens") ||
             building_type_registry_impl::type_attr_is_any(
                 b->type,
                 excluded_types,
                 sizeof(excluded_types) / sizeof(excluded_types[0]))) {
-            continue;
+            return;
         }
         int distance = calc_maximum_distance(meeting_x, meeting_y, b->x, b->y);
         if (distance < min_distance) {
-            min_building = b;
+            min_building = target;
             min_distance = distance;
         }
-    }
+    });
     if (min_building) {
-        Building destination(min_building);
-        formation_set_destination_building(m, min_building->x, min_building->y, &destination);
+        formation_set_destination_building(m, min_building->x(), min_building->y(), min_building);
     } else {
         int dst_x = 0;
         int dst_y = 0;
@@ -798,8 +804,13 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     m->wait_ticks++;
     if (!army->started_retreating) {
         if (army->destination_building_id) {
-            Building destination(building_get(army->destination_building_id));
-            formation_set_destination_building(m, army->destination_x, army->destination_y, &destination);
+            Building *destination = nullptr;
+            Building::for_each([&](Building *building) {
+                if (!destination && building && building->id == static_cast<unsigned int>(army->destination_building_id)) {
+                    destination = building;
+                }
+            });
+            formation_set_destination_building(m, army->destination_x, army->destination_y, destination);
         } else {
             formation_set_destination_building(m, army->destination_x, army->destination_y, nullptr);
         }

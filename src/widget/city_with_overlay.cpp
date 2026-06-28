@@ -53,21 +53,9 @@ static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -
 
 #define SELECTED_BUILDING_COLOR_MASK COLOR_MASK_SKY_BLUE
 
-static Building runtime_building_for_draw(unsigned int building_id)
+static Building *runtime_building_for_draw_at(int grid_offset)
 {
-    building *record = building_get(building_id);
-    if (!record || record->state == BUILDING_STATE_UNUSED) {
-        return Building(nullptr);
-    }
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
-        return runtime->building;
-    }
-    return Building(nullptr);
-}
-
-static Building runtime_building_for_draw_at(int grid_offset)
-{
-    return map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
+    return map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
 }
 
 static const city_overlay *get_city_overlay(void)
@@ -492,7 +480,7 @@ static color_t building_top_color_mask(const Building &building)
         city_draw_building_as_deleted(building) ? building_construction_clear_color() : 0;
 }
 
-static void draw_building_top(Building building, int x, int y, int grid_offset)
+static void draw_building_top(Building &building, int x, int y, int grid_offset)
 {
     color_t color_mask = building_top_color_mask(building);
 
@@ -509,14 +497,17 @@ static void draw_building_top(Building building, int x, int y, int grid_offset)
     Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
 }
 
-static void city_with_overlay_draw_building_top_for_building(Building building, int x, int y, int grid_offset)
+static void city_with_overlay_draw_building_top_for_building(Building *building, int x, int y, int grid_offset)
 {
-    const ::building *overlay_building = building.record();
+    if (!building) {
+        return;
+    }
+    const ::building *overlay_building = building->record();
     if (overlay->show_building(overlay_building)) {
-        draw_building_top(building, x, y, grid_offset);
+        draw_building_top(*building, x, y, grid_offset);
     } else {
         int column_height = overlay->get_column_height(overlay_building);
-        if (column_height != NO_COLUMN && building_draws_overlay_summary_at(building, grid_offset)) {
+        if (column_height != NO_COLUMN && building_draws_overlay_summary_at(*building, grid_offset)) {
             draw_overlay_column(x, y, column_height, overlay->column_type);
         }
     }
@@ -527,7 +518,7 @@ void city_with_overlay_draw_building_top(int x, int y, int grid_offset)
     city_with_overlay_draw_building_top_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
 }
 
-static void draw_top_for_building(Building building, int x, int y, int grid_offset)
+static void draw_top_for_building(Building *building, int x, int y, int grid_offset)
 {
     if (overlay->draw_custom_top && overlay->draw_custom_top(x, y, scale, grid_offset)) {
         return;
@@ -535,7 +526,7 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building.id) {
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building) {
         city_with_overlay_draw_building_top_for_building(building, x, y, grid_offset);
     } else if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         if (!map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_AQUEDUCT | TERRAIN_ROAD)) {
@@ -553,7 +544,9 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
 
 static void draw_top_render_tile(const CityViewRenderTile &tile)
 {
-    draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (tile.building) {
+        draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    }
 }
 
 static int overlay_draws_building_animation(const Building &building)
@@ -585,18 +578,18 @@ static int overlay_draws_building_animation(const Building &building)
     }
 }
 
-static void draw_animation_for_building(Building building, int x, int y, int grid_offset)
+static void draw_animation_for_building(Building *building, int x, int y, int grid_offset)
 {
     if (map_is_bridge(grid_offset)) {
         city_draw_bridge(x, y, scale, grid_offset);
         return;
     }
-    if (!building.id || !overlay_draws_building_animation(building) || !map_property_is_draw_tile(grid_offset)) {
+    if (!building || !overlay_draws_building_animation(*building) || !map_property_is_draw_tile(grid_offset)) {
         return;
     }
 
-    color_t color_mask = building_top_color_mask(building);
-    if (building.draw_animation({ x, y, grid_offset, color_mask, scale })) {
+    color_t color_mask = building_top_color_mask(*building);
+    if (building->draw_animation({ x, y, grid_offset, color_mask, scale })) {
         return;
     }
 
@@ -605,7 +598,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
     if (!img->animation) {
         return;
     }
-    int frame_offset = building.animate().offset_for(Image::from_id(image_id), grid_offset);
+    int frame_offset = building->animate().offset_for(Image::from_id(image_id), grid_offset);
     if (frame_offset > 0) {
         if (frame_offset > img->animation->num_sprites) {
             frame_offset = img->animation->num_sprites;
@@ -617,7 +610,9 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
 
 static void draw_animation_render_tile(const CityViewRenderTile &tile)
 {
-    draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (tile.building) {
+        draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    }
 }
 
 static void draw_figures(int x, int y, int grid_offset)
@@ -644,7 +639,7 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
         Figure *f = Figure::get(figure_id);
         if (((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
-        } else if (f->building.id == city_roamer_preview_selected_building_id) { //figure from selected building
+        } else if (f->building && f->building->id == city_roamer_preview_selected_building_id) { //figure from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
                 if (f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY) {
@@ -667,8 +662,8 @@ static void deletion_draw_terrain_top(int x, int y, int grid_offset)
 
 static void deletion_draw_animations(int x, int y, int grid_offset)
 {
-    Building building = runtime_building_for_draw_at(grid_offset);
-    if (map_property_is_deleted(grid_offset) || city_draw_building_as_deleted(building)) {
+    Building *building = runtime_building_for_draw_at(grid_offset);
+    if (map_property_is_deleted(grid_offset) || (building && city_draw_building_as_deleted(*building))) {
         Image::blend_footprint_color(x, y, building_construction_clear_color(), scale);
     }
     if (!city_draw_should_draw_top_before_deletion(grid_offset)) {
@@ -744,8 +739,8 @@ void city_with_overlay_draw(const map_tile *tile, unsigned int roamer_preview_bu
 int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset)
 {
     int overlay_type = overlay->type;
-    Building building = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
-    if (overlay->get_tooltip_for_building && !building.id) {
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (overlay->get_tooltip_for_building && !building) {
         return 0;
     }
     int overlay_requires_house =
@@ -754,8 +749,8 @@ int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset)
         overlay_type != OVERLAY_PROBLEMS && overlay_type != OVERLAY_MOTHBALL && overlay_type != OVERLAY_ENEMY &&
         overlay_type != OVERLAY_LOGISTICS && overlay_type != OVERLAY_SICKNESS && overlay_type != OVERLAY_EFFICIENCY &&
         overlay_type != OVERLAY_HEALTH && overlay_type != OVERLAY_EMPLOYMENT;
-    const ::building *overlay_building = building.record();
-    if (overlay_requires_house && !building.has_house_size()) {
+    const ::building *overlay_building = building ? building->record() : nullptr;
+    if (overlay_requires_house && (!building || !building->has_house_size())) {
         return 0;
     }
     if (overlay->get_tooltip_for_building) {

@@ -61,18 +61,21 @@ void map_image_init_edges(void)
 void map_image_update_all(void)
 {
     map_tiles_update_all();
-    for (int i = 1; i < Building::count(); i++) {
-        building *record = building_get(i);
-        Building b(record);
+    Building::for_each([](Building *building) {
+        if (!building) {
+            return;
+        }
+
+        Building &b = *building;
         if (b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED &&
             b.state_id() != BUILDING_STATE_CREATED) {
-            continue;
+            return;
         }
         if ((b.type && b.type->roadblock().is_bridge()) || b.matches("wall")) {
-            continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
+            return; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         if (b.refresh_graphic_if_native()) {
-            continue;
+            return;
         }
         int image_id = b.image_id();
 
@@ -81,7 +84,7 @@ void map_image_update_all(void)
                 map_image_set(map_grid_offset(b.x() + dx, b.y() + dy), image_id);
             }
         }
-    }
+    });
 }
 
 void map_image_save_state_legacy(buffer *buf)

@@ -24,7 +24,7 @@ int city_health_get_house_health_level(Building house, int update_city_data);
 
 void city_health_update(void);
 
-void city_health_update_sickness_level_in_building(int building_id);
+void city_health_update_sickness_level_in_building(Building *runtime_building);
 
 int city_health_get_global_sickness_level(void);
 

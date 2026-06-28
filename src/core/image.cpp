@@ -795,7 +795,7 @@ static void update_native_images(int old_climate, int new_climate)
                 building.x(),
                 building.y(),
                 building.size(),
-                building_image_get_for_type(type),
+                building.image_id(),
                 TERRAIN_BUILDING);
         }
     }

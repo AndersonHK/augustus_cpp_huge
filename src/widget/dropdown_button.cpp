@@ -110,12 +110,12 @@ void dropdown_button_init(dropdown_button *dd, complex_button *buttons,
     dd->calculated_width = calc_width;
     dd->calculated_height = origin->height;
     // --- Apply geometry ---
-    origin->width = calc_width;
+    origin->width = static_cast<short>(calc_width);
     for (unsigned int i = 1; i < num_buttons; i++) {
         buttons[i].x = origin->x;
-        buttons[i].y = origin->y + origin->height + (i - 1) * (dd->calculated_height + spacing);
-        buttons[i].width = calc_width;
-        buttons[i].height = dd->calculated_height;
+        buttons[i].y = static_cast<short>(origin->y + origin->height + (i - 1) * (dd->calculated_height + spacing));
+        buttons[i].width = static_cast<short>(calc_width);
+        buttons[i].height = static_cast<short>(dd->calculated_height);
     }
 }
 
@@ -137,10 +137,10 @@ void dropdown_button_init_simple(int x, int y, const lang_fragment *frags, unsig
 
     // Setup origin (button 0)
     complex_button *origin = &dd->buttons[0];
-    origin->x = x;
-    origin->y = y;
-    origin->height = font_definition_for(FONT_NORMAL_BLACK)->line_height + 6;
-    origin->width = buttons_width;
+    origin->x = static_cast<short>(x);
+    origin->y = static_cast<short>(y);
+    origin->height = static_cast<short>(font_definition_for(FONT_NORMAL_BLACK)->line_height + 6);
+    origin->width = static_cast<short>(buttons_width);
     origin->style = COMPLEX_BUTTON_STYLE_DEFAULT;
     origin->is_hidden = 0;
     origin->is_disabled = 0;
@@ -162,8 +162,8 @@ void dropdown_button_init_simple(int x, int y, const lang_fragment *frags, unsig
 
         // store backref to dropdown + index + value
         opt->user_data = dd; // pointer to parent 
-        opt->parameters[0] = i;    // keep index in int slot
-        opt->parameters[1] = i;    // default "value" = index, can override
+        opt->parameters[0] = static_cast<int>(i);    // keep index in int slot
+        opt->parameters[1] = static_cast<int>(i);    // default "value" = index, can override
         opt->left_click_handler = dropdown_button_default_option_click;
         opt->right_click_handler = dropdown_cancel;
     }

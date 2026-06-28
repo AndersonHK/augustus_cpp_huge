@@ -176,9 +176,9 @@ void Route::updateCitizenLandTerrain(void)
                     map_property_set_multi_tile_size(grid_offset, 1);
                     continue;
                 }
-                terrain_land_citizen.items[grid_offset] = get_land_type_citizen_building(grid_offset);
+                terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_building(grid_offset));
             } else if (terrain & TERRAIN_AQUEDUCT) {
-                terrain_land_citizen.items[grid_offset] = get_land_type_citizen_aqueduct(grid_offset);
+                terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_aqueduct(grid_offset));
             } else if (terrain & TERRAIN_NOT_CLEAR) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_N1_BLOCKED;
             } else {
@@ -228,7 +228,7 @@ static void update_land_terrain_noncitizen(void)
             if (terrain & TERRAIN_GATEHOUSE) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_4_GATEHOUSE;
             } else if (terrain & TERRAIN_BUILDING) {
-                terrain_land_noncitizen.items[grid_offset] = get_land_type_noncitizen(grid_offset);
+                terrain_land_noncitizen.items[grid_offset] = static_cast<int8_t>(get_land_type_noncitizen(grid_offset));
             } else if (is_road_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
             } else if (terrain & TERRAIN_HIGHWAY) {

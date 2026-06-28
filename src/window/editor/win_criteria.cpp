@@ -194,6 +194,7 @@ static void button_rating_value(const generic_button *button)
 
 static void button_time_limit_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_time_limit();
 }
 
@@ -204,6 +205,7 @@ static void button_time_limit_years(const generic_button *button)
 
 static void button_survival_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_survival_time();
 }
 
@@ -214,6 +216,7 @@ static void button_survival_years(const generic_button *button)
 
 static void button_population_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_population();
 }
 
@@ -224,11 +227,13 @@ static void button_population_value(const generic_button *button)
 
 static void button_open_play_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_open_play();
 }
 
 static void button_reset_favor_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_toggle_favour_reset();
 }
 

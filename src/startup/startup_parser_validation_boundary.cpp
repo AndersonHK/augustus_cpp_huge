@@ -4,18 +4,18 @@
 #include "scenario/allowed_building.h"
 #include "scenario/map.h"
 
-int building_is_house(building_type type)
-{
-    (void) type;
-    return 0;
-}
-
 int scenario_map_has_fishing_points(void)
 {
     return 0;
 }
 
 int scenario_allowed_building(building_type type)
+{
+    (void) type;
+    return 0;
+}
+
+int scenario_allowed_building(const building_type_registry_impl::BuildingType *type)
 {
     (void) type;
     return 0;

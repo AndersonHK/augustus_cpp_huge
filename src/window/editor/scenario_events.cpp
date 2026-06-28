@@ -241,6 +241,7 @@ static void button_click(const generic_button *button)
 
 static void button_open_variables(const generic_button *button)
 {
+    (void) button;
     window_editor_custom_variables_show(0);
 }
 

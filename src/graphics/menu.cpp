@@ -49,13 +49,13 @@ int menu_bar_draw(menu_bar_item *items, int num_items, int max_width)
     int spacing_width = (max_width - total_text_width - TOP_MENU_BASE_X_OFFSET) / (num_items - 1);
     spacing_width = calc_bound(spacing_width, 0, 32);
 
-    short x_offset = TOP_MENU_BASE_X_OFFSET;
+    int x_offset = TOP_MENU_BASE_X_OFFSET;
     for (int i = 0; i < num_items; i++) {
-        items[i].x_start = x_offset;
+        items[i].x_start = static_cast<short>(x_offset);
         x_offset += menu_bar_item_draw(
             items[i], x_offset, MENU_BASE_TEXT_Y_OFFSET, FONT_NORMAL_GREEN,
             screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        items[i].x_end = x_offset;
+        items[i].x_end = static_cast<short>(x_offset);
         x_offset += spacing_width;
     }
 

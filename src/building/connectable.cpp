@@ -552,20 +552,25 @@ int building_connectable_num_variants(building_type type)
 
 void building_connectable_update_connections_for_type(building_type type)
 {
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+    for (Building *runtime_building = Building::first_of_type(type);
+         runtime_building;
+         runtime_building = runtime_building->next_of_type()) {
+        building *b = const_cast<::building *>(runtime_building->record());
+        if (!b) {
+            continue;
+        }
         if (b->state == BUILDING_STATE_RUBBLE) {
             continue;
         }
-        if (Building(b).refresh_graphic_if_native()) {
+        if (runtime_building->refresh_graphic_if_native()) {
             continue;
         }
         int image_id;
-        Building building_obj(b);
-        building_type type = building_obj.type ? building_obj.type->type() : BUILDING_NONE;
-        if (building_connectable_gate_type(type) && map_terrain_is(b->grid_offset, TERRAIN_ROAD)) {
+        building_type current_type = runtime_building->type ? runtime_building->type->type() : BUILDING_NONE;
+        if (building_connectable_gate_type(current_type) && map_terrain_is(b->grid_offset, TERRAIN_ROAD)) {
             image_id = building_image_get_garden_gate_image(b->grid_offset);
         } else {
-            image_id = building_image_get(b);
+            image_id = building_image_get(runtime_building);
         }
         map_image_set(b->grid_offset, image_id);
     }

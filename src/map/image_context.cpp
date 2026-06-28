@@ -458,8 +458,7 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
                 tiles[i] = (offset == base) ? 1 : 0;
             }
             if (current.type &&
-                (current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Grand) ||
-                    current.type->is_pantheon())) {
+                current.type->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(3, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(0, 3)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(6, 3)) ? 1 : 0;
@@ -467,7 +466,7 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
             }
             if ((current.type &&
                     (current.type->is_lighthouse() ||
-                        current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Large))) ||
+                        current.type->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Large))) ||
                 current.matches("large_mausoleum") ||
                 current.matches("nymphaeum") ||
                 current.matches("city_mint")) {

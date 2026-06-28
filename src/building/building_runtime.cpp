@@ -50,11 +50,33 @@
 #include <cstdint>
 #include <string>
 
+static const RubbleDef *runtime_rubble_definition_for_record(
+    const ::building *building_data,
+    const building_type_registry_impl::BuildingType *definition)
+{
+    if (definition && definition->has_rubble()) {
+        return &definition->rubble();
+    }
+    if (building_data && building_data->state == BUILDING_STATE_RUBBLE) {
+        const building_type rubble_type = building_type_registry_impl::type_from_attr("rubble");
+        const building_type_registry_impl::BuildingType *rubble_definition =
+            building_type_registry_impl::definition_for_type(rubble_type);
+        return rubble_definition && rubble_definition->has_rubble() ? &rubble_definition->rubble() : nullptr;
+    }
+    return nullptr;
+}
+
 building_runtime::building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition)
     : record_(building_data)
     , definition_(definition)
     , graphics_state_()
-    , building_(building_data, definition, graphics_state_)
+    , rubble_state_(runtime_rubble_definition_for_record(building_data, definition) ? std::make_unique<RubbleState>() : nullptr)
+    , building_(
+        building_data,
+        definition,
+        &graphics_state_,
+        runtime_rubble_definition_for_record(building_data, definition),
+        rubble_state_.get())
     , data(*building_data)
     , building(building_)
 {
@@ -94,8 +116,8 @@ struct LoadedBuildingRuntimeState {
     int valid = 0;
     int graphics_state_valid = 0;
     BuildingGraphicsState graphics_state;
-    int original_type_valid = 0;
-    building_type original_type = BUILDING_NONE;
+    int rubble_state_valid = 0;
+    RubbleState rubble_state;
 };
 
 std::vector<GraphicsStateBackup> g_graphics_state_backup;
@@ -150,11 +172,23 @@ building_runtime *get_or_create_instance(::building *building_data)
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(building_data->type);
 
+    const RubbleDef *rubble_definition = runtime_rubble_definition_for_record(building_data, definition);
     std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
-    const building_type_registry_impl::BuildingType *original_type = slot ? slot->building.og_type : nullptr;
-    if (!slot || &slot->data != building_data || slot->definition() != definition) {
+    RubbleState existing_rubble_state;
+    const int existing_rubble_state_valid =
+        slot && slot->building.Rubble && slot->building.Rubble->state();
+    if (existing_rubble_state_valid) {
+        existing_rubble_state = *slot->building.Rubble->state();
+    }
+    const int has_expected_rubble_module =
+        (!rubble_definition && (!slot || !slot->building.Rubble)) ||
+        (rubble_definition && slot && slot->building.Rubble &&
+            slot->building.Rubble->definition() == rubble_definition);
+    if (!slot || &slot->data != building_data || slot->definition() != definition || !has_expected_rubble_module) {
         slot = std::make_unique<building_runtime>(building_data, definition);
-        slot->building.og_type = original_type;
+        if (existing_rubble_state_valid && slot->building.Rubble && slot->building.Rubble->state()) {
+            *slot->building.Rubble->state() = existing_rubble_state;
+        }
     }
     return slot.get();
 }
@@ -218,7 +252,7 @@ void building_runtime::refresh_runtime_state()
     if (type().water_access().has_requirements()) {
         record().has_water_access =
             building_runtime_impl::building_has_required_workers_for_runtime_water(building) &&
-            water_access_runtime_building_has_required_access(&record()) ? 1 : 0;
+            water_access_runtime_building_has_required_access(&building) ? 1 : 0;
     }
 
     if (type().has_graphic()) {
@@ -375,7 +409,7 @@ void building_runtime_stage_loaded_graphics_state(
     g_loaded_building_runtime_state[building_id].graphics_state = state;
 }
 
-void building_runtime_stage_loaded_original_type(unsigned int building_id, building_type type)
+void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const RubbleState &state)
 {
     using building_runtime_impl::g_loaded_building_runtime_state;
 
@@ -386,8 +420,8 @@ void building_runtime_stage_loaded_original_type(unsigned int building_id, build
         g_loaded_building_runtime_state.resize(static_cast<size_t>(building_id) + 1);
     }
     g_loaded_building_runtime_state[building_id].valid = 1;
-    g_loaded_building_runtime_state[building_id].original_type_valid = 1;
-    g_loaded_building_runtime_state[building_id].original_type = type;
+    g_loaded_building_runtime_state[building_id].rubble_state_valid = 1;
+    g_loaded_building_runtime_state[building_id].rubble_state = state;
 }
 
 int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state)
@@ -444,24 +478,17 @@ void building_runtime_initialize_city_graphics_cache(void)
     map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
 
-    const int total_buildings = building_count();
-    for (int id = 1; id < total_buildings; id++) {
-        building *b = building_get(id);
-        if (!b || !b->id) {
-            continue;
-        }
-        if (b->state == BUILDING_STATE_UNUSED) {
-            continue;
-        }
+    building_for_each_loaded_record([](building *b) {
         if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
             if (const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
                     building_runtime_impl::loaded_runtime_state_for(b->id)) {
                 if (loaded->graphics_state_valid) {
                     instance->restore_graphics_state(loaded->graphics_state);
                 }
-                if (loaded->original_type_valid) {
-                    instance->building.og_type =
-                        building_type_registry_impl::definition_for_type(loaded->original_type);
+                if (loaded->rubble_state_valid) {
+                    if (instance->building.Rubble && instance->building.Rubble->state()) {
+                        *instance->building.Rubble->state() = loaded->rubble_state;
+                    }
                 }
             }
             if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
@@ -469,7 +496,7 @@ void building_runtime_initialize_city_graphics_cache(void)
                 instance->set_building_graphic();
             }
         }
-    }
+    });
 
     storage_runtime_impl::initialize_city();
     production_runtime_impl::initialize_city();

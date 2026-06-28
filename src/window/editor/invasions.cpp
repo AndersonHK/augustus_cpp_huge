@@ -239,6 +239,7 @@ static void button_invasion(const grid_box_item *item)
 
 static void button_new_invasion(const generic_button *button)
 {
+    (void) button;
     int new_invasion_id = scenario_invasion_new();
     if (new_invasion_id >= 0) {
         window_editor_edit_invasion_show(new_invasion_id);

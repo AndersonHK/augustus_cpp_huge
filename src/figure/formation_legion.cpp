@@ -16,7 +16,7 @@
 #include "map/routing.h"
 #include "scenario/distant_battle.h"
 
-int formation_legion_create_for_fort(const Building &fort)
+int formation_legion_create_for_fort(Building &fort)
 {
     formation_calculate_legion_totals();
 
@@ -25,7 +25,7 @@ int formation_legion_create_for_fort(const Building &fort)
         return 0;
     }
     Figure *standard = Figure::create(FIGURE_FORT_STANDARD, 0, 0, DIR_0_TOP);
-    standard->building = fort;
+    standard->building = &fort;
     standard->formation_id = m->id;
     m->standard_figure_id = standard->id();
 

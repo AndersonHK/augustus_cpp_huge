@@ -598,11 +598,12 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                             building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
                     }
                 } else {
-                    b->subtype.orientation = rotation;
+                    b->subtype.orientation = static_cast<short>(rotation);
                 }
                 game_undo_add_building(b);
                 if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                    map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                    map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                        building_image_get(&runtime->building), TERRAIN_BUILDING);
                 }
             } else if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR_EXCEPT_ROAD)) {
                 if (gate_type) {
@@ -615,11 +616,12 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                                 building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
                         }
                     } else {
-                        b->subtype.orientation = rotation;
+                        b->subtype.orientation = static_cast<short>(rotation);
                     }
                     game_undo_add_building(b);
                     if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                        map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                        map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                            building_image_get(&runtime->building), TERRAIN_BUILDING);
                     }
                     map_terrain_add(grid_offset, TERRAIN_ROAD);
                 }

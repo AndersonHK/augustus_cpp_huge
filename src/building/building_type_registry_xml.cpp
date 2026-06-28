@@ -1144,6 +1144,78 @@ static RoadblockPassageType parse_roadblock_passage_type(const char *text)
     return RoadblockPassageType::None;
 }
 
+static RubbleType parse_rubble_type(const char *text)
+{
+    if (compare_text(text, "rubble") == 0) {
+        return RubbleType::Rubble;
+    }
+    if (compare_text(text, "burning_ruin") == 0) {
+        return RubbleType::BurningRubble;
+    }
+    return RubbleType::None;
+}
+
+static int parse_rubble()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered rubble definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_rubble) {
+        log_error("BuildingType xml contains duplicate rubble nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("kind")) {
+        log_error("BuildingType rubble is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *kind_text = xml_parser_get_attribute_string("kind");
+    RubbleType type = parse_rubble_type(kind_text);
+    if (type == RubbleType::None) {
+        log_error("Unsupported BuildingType rubble kind", kind_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_rubble(type);
+    int burn_days = 0;
+    int has_burn_days = 0;
+    if (!parse_optional_int_attribute("BuildingType rubble burn_days must be an integer", "burn_days", &burn_days, &has_burn_days)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_burn_days) {
+        if (burn_days <= 0) {
+            log_error("BuildingType rubble burn_days must be positive", g_parse_state.definition->attr(), burn_days);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_rubble_burn_days(burn_days);
+    }
+
+    if (xml_parser_has_attribute("decays_to")) {
+        std::string decay_attr = xml_value::trim_copy(xml_parser_get_attribute_string("decays_to"));
+        if (decay_attr.empty()) {
+            log_error("BuildingType rubble decays_to cannot be empty", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_rubble_decay_reference(std::move(decay_attr));
+    }
+
+    if (type == RubbleType::BurningRubble && (!has_burn_days || g_parse_state.definition->rubble().decays_to.empty())) {
+        log_error("Burning rubble requires burn_days and decays_to", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_rubble = 1;
+    return 1;
+}
+
 static int parse_roadblock()
 {
     if (!g_parse_state.definition) {
@@ -4111,6 +4183,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "menu", parse_button, nullptr, "building", nullptr },
     { "cycle", parse_cycle, nullptr, "building", nullptr },
     { "roadblock", parse_roadblock, nullptr, "building", nullptr },
+    { "rubble", parse_rubble, nullptr, "building", nullptr },
     { "tile", parse_tile, finish_tile, "building", nullptr },
     { "tool", parse_tool, nullptr, "building", nullptr },
     { "temple", parse_temple, nullptr, "building", nullptr },
@@ -4621,7 +4694,7 @@ static int parse_definition_buffer(const char *filename, const std::vector<char>
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
         g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_roadblock ||
-        g_parse_state.saw_tile || g_parse_state.saw_tool ||
+        g_parse_state.saw_rubble || g_parse_state.saw_tile || g_parse_state.saw_tool ||
         g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_military ||
         g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
@@ -4716,6 +4789,30 @@ static building_type resolve_building_type_reference(const std::string &text_id)
         }
     }
     return target;
+}
+
+static int resolve_rubble_decay_references()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_rubble_decay_references");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_rubble() || definition->rubble().decays_to.empty()) {
+            continue;
+        }
+
+        const building_type target_type = resolve_building_type_reference(definition->rubble().decays_to);
+        const BuildingType *target_definition = definition_for_type(target_type);
+        if (target_type == BUILDING_NONE || !target_definition || !target_definition->has_rubble()) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s decays_to=%s",
+                definition->attr(), definition->rubble().decays_to.c_str());
+            error_context_report_error("BuildingType rubble decay target does not exist or is not rubble.", detail);
+            log_error("Unable to resolve BuildingType rubble decay target", detail, 0);
+            return 0;
+        }
+        definition->set_rubble_decay_type(target_definition);
+    }
+    return 1;
 }
 
 static int resolve_construction_references()
@@ -5097,6 +5194,10 @@ int building_type_registry_load(void)
 
     if (!resolve_housing_transitions()) {
         log_error("Unable to resolve BuildingType housing transitions", 0, 0);
+        return 0;
+    }
+    if (!resolve_rubble_decay_references()) {
+        log_error("Unable to resolve BuildingType rubble decay references", 0, 0);
         return 0;
     }
     if (!resolve_construction_references()) {

@@ -9,6 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
+    <rubble kind="burning_ruin" burn_days="32" decays_to="rubble" />
     <event_data attr="burning_ruin" />
     <flags fire_proof="1" />
     <labor>

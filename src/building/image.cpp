@@ -1,6 +1,7 @@
 #include "image.h"
 
 #include "assets/assets.h"
+#include "building/BuildingGraphicsState.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
@@ -24,16 +25,22 @@ struct type_image_handler {
     int (*image)(const building *b);
 };
 
-static unsigned char graphics_variant_for_image_lookup(const building *b)
+static const ::building *record_for(const Building *building)
 {
-    if (!b || !b->id) {
+    return building ? building->record() : nullptr;
+}
+
+static unsigned char graphics_variant_for_image_lookup(const Building *building)
+{
+    const ::building *record = record_for(building);
+    if (!record || !record->id) {
         return 0;
     }
     BuildingGraphicsState loaded_graphics_state;
-    if (building_runtime_loaded_graphics_state(b->id, &loaded_graphics_state)) {
+    if (building_runtime_loaded_graphics_state(record->id, &loaded_graphics_state)) {
         return loaded_graphics_state.variant();
     }
-    if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
+    if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<::building *>(record))) {
         return runtime->graphics_variant();
     }
     return 0;
@@ -69,37 +76,37 @@ static int image_medium_statue(const building *b)
     return image_group(GROUP_BUILDING_STATUE) + 1;
 }
 
-static int image_no_fallback(const building *b)
+static int image_no_fallback(const building *)
 {
     return 0;
 }
 
-static int image_mission_post(const building *b)
+static int image_mission_post(const building *)
 {
     return image_group(GROUP_BUILDING_MISSION_POST);
 }
 
-static int image_military_academy(const building *b)
+static int image_military_academy(const building *)
 {
     return image_group(GROUP_BUILDING_MILITARY_ACADEMY);
 }
 
-static int image_tower(const building *b)
+static int image_tower(const building *)
 {
     return image_group(GROUP_BUILDING_TOWER);
 }
 
-static int image_barracks(const building *b)
+static int image_barracks(const building *)
 {
     return image_group(GROUP_BUILDING_BARRACKS);
 }
 
-static int image_warehouse(const building *b)
+static int image_warehouse(const building *)
 {
     return image_group(GROUP_BUILDING_WAREHOUSE);
 }
 
-static int image_fort_ground(const building *b)
+static int image_fort_ground(const building *)
 {
     return image_group(GROUP_BUILDING_FORT) + 1;
 }
@@ -187,7 +194,7 @@ static int image_hippodrome(const building *b)
     return image_id;
 }
 
-static int image_fort(const building *b)
+static int image_fort(const building *)
 {
     switch (city_view_orientation() / 2) {
         case 0:
@@ -206,10 +213,14 @@ static int image_burning_ruin(const building *b)
     return image_group(GROUP_TERRAIN_RUBBLE_GENERAL) + 9 * (map_random_get(b->grid_offset) & 3);
 }
 
-static int type_handler_image(const building *b, int *image_id)
+static int type_handler_image(const Building *building, int *image_id)
 {
-    if (building_type_registry_impl::type_attr_is(b->type, "dock")) {
-        *image_id = image_dock(b);
+    const ::building *record = record_for(building);
+    if (!building || !building->type || !record) {
+        return 0;
+    }
+    if (building->type->attr_is("dock")) {
+        *image_id = image_dock(record);
         return 1;
     }
 
@@ -237,8 +248,8 @@ static int type_handler_image(const building *b, int *image_id)
     };
 
     for (const type_image_handler &handler : handlers) {
-        if (building_type_registry_impl::type_attr_is(b->type, handler.text_id)) {
-            *image_id = handler.image(b);
+        if (building->type->attr_is(handler.text_id)) {
+            *image_id = handler.image(record);
             return 1;
         }
     }
@@ -256,39 +267,47 @@ int building_image_get_garden_gate_image(int grid_offset)
     building fake_gate = {};
     fake_gate.type = gate_type;
     fake_gate.state = BUILDING_STATE_IN_USE;
-    fake_gate.grid_offset = grid_offset;
+    fake_gate.grid_offset = static_cast<short>(grid_offset);
     fake_gate.size = 1;
-    return building_runtime_graphics_image_id(Building(fake_gate), 0);
+    BuildingGraphicsState graphics_state;
+    Building gate(fake_gate, building_type_registry_impl::definition_for_type(gate_type), graphics_state);
+    return building_runtime_graphics_image_id(gate, 0);
 }
 
-int building_image_get(const building *b)
+int building_image_get(const Building *building)
 {
-    if (!b) {
+    const ::building *record = record_for(building);
+    if (!building || !record) {
         return 0;
     }
 
-    Building building_object(const_cast<building *>(b));
-    int xml_image_id = building_runtime_graphics_image_id(building_object, graphics_variant_for_image_lookup(b));
+    int xml_image_id = building_runtime_graphics_image_id(*building, graphics_variant_for_image_lookup(building));
     if (xml_image_id) {
         return xml_image_id;
     }
 
-    if (b->type == building_type_registry_impl::vacant_lot_fill_type() && b->house_population == 0) {
+    if (building->type && building->type->is_vacant_lot() && record->house_population == 0) {
         return image_group(GROUP_BUILDING_HOUSE_VACANT_LOT);
     }
 
     int image_id = 0;
-    if (type_handler_image(b, &image_id)) {
+    if (type_handler_image(building, &image_id)) {
         return image_id;
     }
     return 0;
 }
 
-int building_image_get_for_type(building_type type)
+int building_image_get_for_type(const building_type_registry_impl::BuildingType *definition)
 {
+    if (!definition) {
+        return 0;
+    }
     building b = {};
-    b.type = type;
+    b.type = definition->type();
     b.state = BUILDING_STATE_IN_USE;
-    b.size = building_properties_for_type(type)->size;
-    return building_image_get(&b);
+    const int declared_size = definition->declared_model_size();
+    b.size = static_cast<unsigned char>(declared_size > 0 ? declared_size : 1);
+    BuildingGraphicsState graphics_state;
+    Building building(b, definition, graphics_state);
+    return building_image_get(&building);
 }

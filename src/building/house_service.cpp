@@ -29,7 +29,7 @@ void house_service_decay_culture(void)
         if (!building_house_is_active(*building)) {
             return;
         }
-        building *b = const_cast<::building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         decay(&b->data.house.theater);
         decay(&b->data.house.amphitheater_actor);
         decay(&b->data.house.amphitheater_gladiator);
@@ -65,7 +65,7 @@ void house_service_decay_tax_collector(void)
         if (!building_house_is_active(*building)) {
             return;
         }
-        building *b = const_cast<::building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->house_tax_coverage) {
             b->house_tax_coverage--;
         }
@@ -75,7 +75,7 @@ void house_service_decay_tax_collector(void)
 void house_service_decay_houses_covered(void)
 {
     Building::for_each([](Building *building) {
-        building *b = const_cast<::building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_UNUSED && !is_tower_coverage_type(b->type)) {
             if (b->houses_covered <= 1) {
                 b->houses_covered = 0;
@@ -96,7 +96,7 @@ void house_service_calculate_culture_aggregates(void)
         if (!building_house_is_active(*building)) {
             return;
         }
-        building *b = const_cast<::building *>(building->record());
+        ::building *b = const_cast<::building *>(building->record());
         int arena_total = 0;
         int colosseum_total = 0;
 
@@ -130,7 +130,8 @@ void house_service_calculate_culture_aggregates(void)
             colosseum_total = b->data.house.colosseum_lion ? 25 : 15;
         }
 
-        b->data.house.entertainment += arena_total > colosseum_total ? arena_total : colosseum_total;
+        b->data.house.entertainment = static_cast<unsigned char>(
+            b->data.house.entertainment + (arena_total > colosseum_total ? arena_total : colosseum_total));
 
         if (b->data.house.hippodrome) {
             b->data.house.entertainment += 30;

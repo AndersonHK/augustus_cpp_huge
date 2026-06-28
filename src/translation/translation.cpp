@@ -434,7 +434,7 @@ const uint8_t *lang_get_building_type_string(int type)
     }
 
     // Original names still live in the localized JSON as generated keys while the old binary tables are being retired.
-    return lang_get_string(current_string_key(building_is_house(building_type_id) ? 41 : 28, type));
+    return lang_get_string(current_string_key(definition && definition->has_housing() ? 41 : 28, type));
 }
 
 const lang_message *lang_get_message(int id)

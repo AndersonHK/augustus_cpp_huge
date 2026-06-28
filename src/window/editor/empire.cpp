@@ -251,11 +251,11 @@ static struct {
 
 static void image_buttons_init(void)
 {
-    add_resource_buttons[0].y_offset = data.y_max - 133;
-    add_resource_buttons[1].y_offset = data.y_max - 93;
-    edit_city_name_button[0].y_offset = data.y_max - 133;
-    all_empire_tools_button[0].x_offset = data.panel.x_max - 76;
-    all_empire_tools_button[0].y_offset = data.y_max - 133;
+    add_resource_buttons[0].y_offset = static_cast<short>(data.y_max - 133);
+    add_resource_buttons[1].y_offset = static_cast<short>(data.y_max - 93);
+    edit_city_name_button[0].y_offset = static_cast<short>(data.y_max - 133);
+    all_empire_tools_button[0].x_offset = static_cast<short>(data.panel.x_max - 76);
+    all_empire_tools_button[0].y_offset = static_cast<short>(data.y_max - 133);
 }
 
 static void update_button(int button, int x)
@@ -724,7 +724,7 @@ static void draw_city_info(const empire_city *city)
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         width += 10;
     }
-    edit_city_name_button[0].x_offset = width + x_offset;
+    edit_city_name_button[0].x_offset = static_cast<short>(width + x_offset);
     edit_city_name_button[0].dont_draw = 0;
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         width += 24;
@@ -762,7 +762,7 @@ static void draw_city_info(const empire_city *city)
                     sell_buttons[r] = {0, 0, 0, 0};
                 }
             }
-            add_resource_buttons[0].x_offset = resource_x_offset;
+            add_resource_buttons[0].x_offset = static_cast<short>(resource_x_offset);
             if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
                 image_buttons_draw(0, 0, add_resource_buttons, NUM_PLUS_BUTTONS);
             }
@@ -777,7 +777,7 @@ static void draw_city_info(const empire_city *city)
             trade_city_buttons[0].parameter1 = 0;
             trade_city_buttons[2].parameter1 = city->type != EMPIRE_CITY_FUTURE_TRADE;
             trade_city_buttons[1].parameter1 = 0;
-            trade_city_buttons[1].x = 44 * (city->type != EMPIRE_CITY_FUTURE_TRADE);
+            trade_city_buttons[1].x = static_cast<short>(44 * (city->type != EMPIRE_CITY_FUTURE_TRADE));
             int text_width = lang_text_draw("main_strings.47.5", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             width += text_width;
             int resource_x_offset = x_offset + 30 + width;
@@ -803,7 +803,7 @@ static void draw_city_info(const empire_city *city)
                     sell_buttons[r] = {0, 0, 0, 0};
                 }
             }
-            add_resource_buttons[0].x_offset = resource_x_offset;
+            add_resource_buttons[0].x_offset = static_cast<short>(resource_x_offset);
             y_offset = data.y_max - 85;
             resource_x_offset = x_offset + 20 + width_after_name;
             int coords_bonus = 0;
@@ -838,7 +838,7 @@ static void draw_city_info(const empire_city *city)
                     buy_buttons[r] = {0, 0, 0, 0};
                 }
             }
-            add_resource_buttons[1].x_offset = resource_x_offset;
+            add_resource_buttons[1].x_offset = static_cast<short>(resource_x_offset);
             if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
                 image_buttons_draw(0, 0, add_resource_buttons, NUM_PLUS_BUTTONS);
             }
@@ -912,9 +912,9 @@ static void draw_object_info(void)
         width += text_draw_number(is_battle_icon ? obj->invasion_years : obj->distant_battle_travel_months, '\0', NULL,
             data.panel.x_min + 28 + width, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         if (is_battle_icon) {
-            set_order_button[0].x = data.panel.x_min + 28 + width;
-            order_buttons[0].x_offset = data.panel.x_min + 28 + width;
-            order_buttons[1].x_offset = data.panel.x_min + 28 + width + 24;
+            set_order_button[0].x = static_cast<short>(data.panel.x_min + 28 + width);
+            order_buttons[0].x_offset = static_cast<short>(data.panel.x_min + 28 + width);
+            order_buttons[1].x_offset = static_cast<short>(data.panel.x_min + 28 + width + 24);
             order_buttons[0].parameter2 = 1;
             order_buttons[1].parameter2 = 1;
             arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
@@ -943,9 +943,9 @@ static void draw_object_info(void)
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
-        set_order_button[0].x = data.panel.x_min + 28 + width;
-        order_buttons[0].x_offset = data.panel.x_min + 28 + width;
-        order_buttons[1].x_offset = data.panel.x_min + 28 + width + 24;
+        set_order_button[0].x = static_cast<short>(data.panel.x_min + 28 + width);
+        order_buttons[0].x_offset = static_cast<short>(data.panel.x_min + 28 + width);
+        order_buttons[1].x_offset = static_cast<short>(data.panel.x_min + 28 + width + 24);
         order_buttons[0].parameter2 = 1;
         order_buttons[1].parameter2 = 1;
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
@@ -955,9 +955,9 @@ static void draw_object_info(void)
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
-        set_order_button[0].x = data.panel.x_min + 28 + width;
-        order_buttons[0].x_offset = data.panel.x_min + 28 + width;
-        order_buttons[1].x_offset = data.panel.x_min + 28 + width + 24;
+        set_order_button[0].x = static_cast<short>(data.panel.x_min + 28 + width);
+        order_buttons[0].x_offset = static_cast<short>(data.panel.x_min + 28 + width);
+        order_buttons[1].x_offset = static_cast<short>(data.panel.x_min + 28 + width + 24);
         order_buttons[0].parameter2 = 1;
         order_buttons[1].parameter2 = 1;
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
@@ -1045,8 +1045,8 @@ static void draw_panel_buttons(const empire_city *city)
         }
 
         if (!generic_buttons[7].parameter1) {
-            generic_buttons[7].x = data.panel.x_max - 96 - width - 12 - 20;
-            generic_buttons[7].width = width + 8;
+            generic_buttons[7].x = static_cast<short>(data.panel.x_max - 96 - width - 12 - 20);
+            generic_buttons[7].width = static_cast<short>(width + 8);
             button_border_draw(generic_buttons[7].x + 20, data.y_max - 92, width + 8, 24, data.focus_button_id == 8);
             lang_text_draw_centered(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
                 generic_buttons[7].x + 20, data.y_max - 85, width + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -1290,6 +1290,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_change_empire(int is_down, int param2)
 {
+    (void) param2;
     scenario_editor_change_empire(is_down ? -1 : 1);
     empire_load_editor(scenario_empire_id(), map_viewport_width(), map_viewport_height());
     window_request_refresh();
@@ -1297,21 +1298,25 @@ static void button_change_empire(int is_down, int param2)
 
 static void button_ok(const generic_button *button)
 {
+    (void) button;
     window_editor_map_show();
 }
 
 static void button_toggle_invasions(const generic_button *button)
 {
+    (void) button;
     data.show_battle_objects = !data.show_battle_objects;
 }
 
 static void button_toggle_waypoints(const generic_button *button)
 {
+    (void) button;
     data.show_edges = !data.show_edges;
 }
 
 static void button_cycle_preview(const generic_button *button)
 {
+    (void) button;
     if (data.button_is_preview) {
         empire_editor_change_tool(1);
         empire_editor_move_object_stop();
@@ -1333,6 +1338,7 @@ static void button_cycle_preview(const generic_button *button)
 
 static void button_recycle_preview(const generic_button *button)
 {
+    (void) button;
     if (data.button_is_preview) {
         empire_editor_change_tool(-1);
         empire_editor_move_object_stop();
@@ -1354,6 +1360,7 @@ static void button_recycle_preview(const generic_button *button)
 
 static void button_icon_preview(const generic_button *button)
 {
+    (void) button;
     data.button_is_preview = 1 - data.button_is_preview;
     window_request_refresh();
 }
@@ -1371,6 +1378,7 @@ static void add_resource(int value)
 
 static void button_add_resource(int param1, int param2)
 {
+    (void) param2;
     data.add_to_buying = param1;
     static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
@@ -1397,6 +1405,8 @@ static void set_city_name(const uint8_t *name)
 
 static void button_edit_city_name(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     // 49 because city_custom_name is declared as uint8_t [50]
     window_text_input_show(string_from_ascii("Edit city name"), NULL, NULL, 49, set_city_name);
 }
@@ -1412,6 +1422,7 @@ static void button_delete_object(const generic_button *button)
 
 static void button_move_object(const generic_button *button)
 {
+    (void) button;
     empire_editor_move_object_start(empire_selected_object() - 1);
 }
 
@@ -1541,6 +1552,7 @@ static void set_index(int value)
 
 static void button_set_index(const generic_button *button)
 {
+    (void) button;
     window_numeric_input_bound_show((data.x_min + data.x_max) / 2 - 4 * BLOCK_SIZE - screen_dialog_offset_x(),
         ((data.y_min + data.y_max) - 15 * BLOCK_SIZE) / 2 - screen_dialog_offset_y(), NULL, 4, 1, 9999, set_index);
 }
@@ -1601,6 +1613,8 @@ static void set_tool(int value)
 
 static void button_empire_tools(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     static const uint8_t *tool_texts[EMPIRE_TOOL_MAX];
     for (int tool = EMPIRE_TOOL_MIN; tool < EMPIRE_TOOL_MAX; tool++) {
         tool_texts[tool] = translation_for(empire_tool_key(tool));

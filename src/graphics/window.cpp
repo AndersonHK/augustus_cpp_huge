@@ -28,10 +28,15 @@ static void noop(void)
 {}
 
 static void noop_input(const mouse *m, const hotkeys *h)
-{}
+{
+    (void) m;
+    (void) h;
+}
 
 static void noop_return(window_id from)
-{}
+{
+    (void) from;
+}
 
 static void increase_queue_index(void)
 {

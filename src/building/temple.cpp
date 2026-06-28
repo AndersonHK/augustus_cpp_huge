@@ -10,60 +10,78 @@
 #define MAX_FOOD 600
 #define MAX_MESS_HALL_FOOD 1600
 
-Building building_temple_get_storage_destination(Building temple)
+Building *building_temple_get_storage_destination(Building &temple)
 {
-    if (temple.type && temple.type->is_venus_temple()) {
-        if (!temple.accepts_good(resource_wine()) || temple.accepts_good(resource_wine()) <= 1) {
-            return Building(nullptr);
+    auto building_for_id = [](unsigned int building_id) -> Building * {
+        if (!building_id) {
+            return nullptr;
         }
-        Building grand_temple(building_get(building_monument_get_venus_gt()));
-        if (grand_temple.id != 0 && grand_temple.road_network_id() == temple.road_network_id() &&
+        Building *destination = nullptr;
+        Building::for_each([&](Building *building) {
+            if (!destination && building->id == building_id) {
+                destination = building;
+            }
+        });
+        return destination;
+    };
+    auto destination_for_resource = [&](resource_type resource, unsigned int building_id) -> Building * {
+        Building *destination = building_for_id(building_id);
+        if (destination) {
+            temple.set_fetch_inventory_id(resource);
+        }
+        return destination;
+    };
+
+    if (temple.type->is_temple(GOD_VENUS)) {
+        if (!temple.accepts_good(resource_wine()) || temple.accepts_good(resource_wine()) <= 1) {
+            return nullptr;
+        }
+        Building *grand_temple = grand_temple_for_god(GOD_VENUS, false);
+        if (grand_temple && grand_temple->road_network_id() == temple.road_network_id() &&
             temple.resource_amount(resource_wine()) < BASELINE_STOCK &&
-            grand_temple.resource_amount(resource_wine()) > 0) {
+            grand_temple->resource_amount(resource_wine()) > 0) {
             temple.set_fetch_inventory_id(resource_wine());
             return grand_temple;
         }
-        return Building(nullptr);
+        return nullptr;
     }
 
-    if (!temple.type || !temple.type->is_ceres_temple()) { // Ceres module 2
-        return Building(nullptr);
+    if (!temple.type->is_temple(GOD_CERES)) { // Ceres module 2
+        return nullptr;
     }
 
     resource_type food = city_resource_ceres_temple_food();
 
     if (food == RESOURCE_NONE) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     const building_type_registry_impl::Distribution *distribution = temple.type->distribution();
     if (!distribution) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
     if (!distribution->needed_resources_for(temple, info)) {
-        return Building(nullptr);
+        return nullptr;
     }
     info[resource_oil()].needed = temple.accepts_good(resource_oil()) > 1;
 
     if (!distribution->find_sources_for_building(info, temple, INFINITE)) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     // Get food if below threshold
     if (info[food].building_id && temple.resource_amount(food) < MAX_FOOD) {
-        temple.set_fetch_inventory_id(food);
-        return Building(building_get(info[food].building_id));
+        return destination_for_resource(food, info[food].building_id);
     }
 
     // Otherwise get allowed oil depending on stock
     resource_type fetch_resource = distribution->fetch_resource(temple, info, BASELINE_STOCK, 0, 0);
     if (fetch_resource == RESOURCE_NONE) {
-        return Building(nullptr);
+        return nullptr;
     }
-    temple.set_fetch_inventory_id(fetch_resource);
-    return Building(building_get(info[fetch_resource].building_id));
+    return destination_for_resource(fetch_resource, info[fetch_resource].building_id);
 }
 
 int building_temple_mars_food_to_deliver(Building temple, Building mess_hall)

@@ -93,6 +93,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void replay_map_confirmed(int confirmed, int checked)
 {
+    (void)checked;
+
     if (!confirmed) {
         return;
     }
@@ -116,6 +118,8 @@ static void replay_map_confirmed(int confirmed, int checked)
 
 static void main_menu_confirmed(int confirmed, int checked)
 {
+    (void)checked;
+
     if (confirmed) {
         building_construction_clear_type();
         game_undo_disable();
@@ -126,6 +130,8 @@ static void main_menu_confirmed(int confirmed, int checked)
 
 static void confirm_exit(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         system_exit();
     }

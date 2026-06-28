@@ -317,6 +317,7 @@ static bool load_music_for_vita(const char *filename)
 
 static MixMusicPtr load_music_for_filename(const char *filename, bool allow_platform_loaders)
 {
+    (void) allow_platform_loaders;
     if (!filename || !*filename) {
         return {};
     }
@@ -606,7 +607,9 @@ int sound_device_play_file_on_channel_panned(const char *filename, sound_type ty
         }
         data.channels[channel].filename = filename;
     }
-    Mix_SetPanning(channel, left_pct * 255 / 100, right_pct * 255 / 100);
+    Mix_SetPanning(channel,
+        static_cast<Uint8>(left_pct * 255 / 100),
+        static_cast<Uint8>(right_pct * 255 / 100));
     Mix_VolumeChunk(data.channels[channel].chunk.get(), percentage_to_volume(volume_pct));
     if (Mix_PlayChannel(channel, data.channels[channel].chunk.get(), loop ? -1 : 0) == -1) {
         return 0;
@@ -675,6 +678,7 @@ void sound_device_stop_type(sound_type type)
 
 static void custom_music_callback(void *dummy, Uint8 *dst, int len)
 {
+    (void) dummy;
     std::memset(dst, 0, len);
 
     int volume = config_get(CONFIG_GENERAL_ENABLE_AUDIO) && config_get(CONFIG_GENERAL_ENABLE_VIDEO_SOUND) ?

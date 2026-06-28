@@ -54,21 +54,27 @@ typedef struct {
     tile_color center;
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
+static unsigned int runtime_building_id_at(int grid_offset);
 
 static minimap_functions default_functions = {
     scenario_property_climate,
-    building_get,
+    nullptr,
     {map_grid_width, map_grid_height},
     {
         map_figure_foreach_until,
         map_terrain_get,
-        map_building_at,
+        runtime_building_id_at,
         map_property_is_draw_tile,
         map_property_multi_tile_size,
         map_random_get
     },
     get_viewport
 };
+
+static unsigned int runtime_building_id_at(int grid_offset)
+{
+    return map_building_exists_at(grid_offset) ? map_building_at(grid_offset).id : 0;
+}
 
 static const tile_color_climate_variants CLIMATE_VARIANTS[3] = {
     // central
@@ -346,10 +352,10 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
     return 1;
 }
 
-static int building_is_industry(building_type type)
+static int building_is_industry(const building_type_registry_impl::BuildingType *type)
 {
     return building_is_raw_resource_producer(type) || building_is_workshop(type) ||
-        building_type_registry_impl::type_attr_is(type, "wharf");
+        type->attr_is("wharf");
 }
 
 static int building_is_military(building_type type)
@@ -383,9 +389,15 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
     const building_tile_color *colors = &minimap_colors.building;
     int size = data.functions->offset.tile_size(grid_offset);
 
-    if (data.functions->building) {
+    if (data.functions->offset.building_id) {
+        Building *runtime_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
         const int building_id = data.functions->offset.building_id(grid_offset);
-        building *b = building_id ? data.functions->building(building_id) : nullptr;
+        building *b = nullptr;
+        if (data.functions->building) {
+            b = building_id ? data.functions->building(building_id) : nullptr;
+        } else if (runtime_building) {
+            b = const_cast<building *>(runtime_building->record());
+        }
 
         // Palisades are drawn like walls
         if (b && building_type_registry_impl::type_attr_is(b->type, "palisade")) {
@@ -394,9 +406,10 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         }
 
         const building_type_registry_impl::BuildingType *type_definition = nullptr;
-        if (b) {
-            const Building building(b);
-            type_definition = building.type;
+        if (runtime_building) {
+            type_definition = runtime_building->type;
+        } else if (b) {
+            type_definition = building_type_registry_impl::definition_for_type(b->type);
         }
         if (b && b->house_size) {
             colors = &minimap_colors.house;
@@ -404,9 +417,9 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
             colors = &minimap_colors.water_structure;
         } else if (b && building_monument_is_monument(b)) {
             colors = &minimap_colors.monument;
-        } else if (b && building_is_farm(b->type)) {
+        } else if (b && type_definition && type_definition->is_farm()) {
             colors = &minimap_colors.farm;
-        } else if (b && building_is_industry(b->type)) {
+        } else if (b && type_definition && building_is_industry(type_definition)) {
             colors = &minimap_colors.industry;
         } else if (b && building_is_military(b->type)) {
             colors = &minimap_colors.military;

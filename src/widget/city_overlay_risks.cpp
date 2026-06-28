@@ -42,9 +42,12 @@ static int is_problem_cartpusher(int figure_id)
 
 void city_overlay_problems_prepare_building(building *b)
 {
-    b = building_main(b);
-    Building building(b);
-    const auto *type = building.type;
+    Building *building = b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
+    if (!building) {
+        return;
+    }
+    b = const_cast<::building *>(building->record());
+    const auto *type = building->type;
 
     if (b->strike_duration_days > 0) {
         b->show_on_problem_overlay = 1;
@@ -59,14 +62,14 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (type && type->water_access().has_requirements() && !b->has_water_access) {
         b->show_on_problem_overlay = 1;
-    } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
+    } else if (type->is_farm() || building_is_raw_resource_producer(type)) {
         if (is_problem_cartpusher(b->figure_id)) {
             b->show_on_problem_overlay = 1;
         }
-    } else if (building_is_workshop(b->type)) {
+    } else if (building_is_workshop(type)) {
         if (is_problem_cartpusher(b->figure_id)) {
             b->show_on_problem_overlay = 1;
-        } else if (!building_industry_has_raw_materials_for_production(b)) {
+        } else if (!building->native_production_has_raw_materials()) {
             b->show_on_problem_overlay = 1;
         }
     } else if (((type && type->is_theater()) || building_type_registry_impl::type_attr_is_any(
@@ -86,10 +89,12 @@ void city_overlay_problems_prepare_building(building *b)
     }
 
     if (b->show_on_problem_overlay) {
-        while (b->next_part_building_id) {
-            b = building_get(b->next_part_building_id);
-            b->show_on_problem_overlay = 1;
-        }
+        building->for_each_part([](Building part) {
+            ::building *record = const_cast<::building *>(part.record());
+            if (record) {
+                record->show_on_problem_overlay = 1;
+            }
+        });
     }
 }
 
@@ -174,7 +179,8 @@ static int show_figure_crime(const Figure *f)
 static int show_figure_problems(const Figure *f)
 {
     if (f->type == FIGURE_LABOR_SEEKER) {
-        return building_get(f->building.id)->show_on_problem_overlay;
+        const building *owner = f->building ? f->building->record() : nullptr;
+        return owner && owner->show_on_problem_overlay;
     } else if (f->type == FIGURE_CART_PUSHER) {
         return f->action_state == FIGURE_ACTION_20_CARTPUSHER_INITIAL || f->min_max_seen;
     } else if (f->type == FIGURE_PROTESTER || f->type == FIGURE_BEGGAR) {
@@ -252,11 +258,13 @@ static int get_column_height_crime(const building *b)
 
 static int get_column_height_none(const building *b)
 {
+    (void) b;
     return NO_COLUMN;
 }
 
 static int get_tooltip_fire(tooltip_context *c, const building *b)
 {
+    (void) c;
     if (b->fire_risk <= 0) {
         return 46;
     } else if (b->fire_risk <= 20) {
@@ -274,6 +282,7 @@ static int get_tooltip_fire(tooltip_context *c, const building *b)
 
 static int get_tooltip_damage(tooltip_context *c, const building *b)
 {
+    (void) c;
     if (b->damage_risk <= 0) {
         return 52;
     } else if (b->damage_risk <= 40) {
@@ -291,6 +300,7 @@ static int get_tooltip_damage(tooltip_context *c, const building *b)
 
 static int get_tooltip_crime(tooltip_context *c, const building *b)
 {
+    (void) c;
     int crime = get_crime_level(b);
     if (crime == RAMPANT_CRIME) {
         return 63;
@@ -309,21 +319,14 @@ static int get_tooltip_crime(tooltip_context *c, const building *b)
 
 static int get_tooltip_problems(tooltip_context *c, const building *b)
 {
-    const building *main_building = b;
-    const Building building(const_cast<struct building *>(b));
-    const auto *type = building.type;
-
-    int guard = 0;
-    while (guard < 9) {
-        if (main_building->prev_part_building_id <= 0) {
-            break;
+    Building *building = b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
+    if (building) {
+        if (const ::building *main_record = building->record()) {
+            b = main_record;
         }
-        main_building = building_get(main_building->prev_part_building_id);
-        guard++;
     }
-    if (guard < 9) {
-        b = main_building;
-    }
+    const auto *type = building ? building->type : nullptr;
+
     if (b->has_plague) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_PLAGUE";
     }
@@ -335,14 +338,14 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR";
     } else if (type && type->water_access().has_requirements() && !b->has_water_access) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS";
-    } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
+    } else if (type && (type->is_farm() || building_is_raw_resource_producer(type))) {
         if (is_problem_cartpusher(b->figure_id)) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER";
         }
-    } else if (building_is_workshop(b->type)) {
+    } else if (building_is_workshop(type)) {
         if (is_problem_cartpusher(b->figure_id)) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER";
-        } else if (!building_industry_has_raw_materials_for_production(b)) {
+        } else if (building && !building->native_production_has_raw_materials()) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_RESOURCES";
         }
     } else if (type && type->is_theater() && !b->data.entertainment.days1) {
@@ -486,7 +489,7 @@ static int draw_footprint_native(int x, int y, float scale, int grid_offset)
         }
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
-                                        && !map_building_at(grid_offset)) {
+                                        && !map_building_exists_at(grid_offset)) {
         city_draw_grid_overlay(x, y, scale);
     }
     return 1;
@@ -506,7 +509,7 @@ static int draw_top_native(int x, int y, float scale, int grid_offset)
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
 
-    } else if (map_building_at(grid_offset)) {
+    } else if (map_building_exists_at(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
     }
     return 1;

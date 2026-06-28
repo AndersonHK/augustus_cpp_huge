@@ -85,6 +85,7 @@ static int has_custom_victory_message(void)
 
 static void fadeout_music(sound_type unused)
 {
+    (void) unused;
     sound_device_fadeout_music(5000);
     sound_device_on_audio_finished(0);
 }
@@ -334,6 +335,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_fired(const generic_button *button)
 {
+    (void)button;
+
     sound_music_stop();
     sound_speech_stop();
     city_victory_stop_governing();

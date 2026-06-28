@@ -88,6 +88,8 @@ static void draw_foreground(void)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
+    (void)h;
+
     int num_buttons;
     if (scenario_campaign_rank() >= 2 || !game_campaign_is_original()) {
         num_buttons = 3;
@@ -104,6 +106,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_accept(const generic_button *button)
 {
+    (void)button;
+
     window_city_show();
 }
 

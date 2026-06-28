@@ -12,7 +12,7 @@ public:
     void generate();
 
 private:
-    Building working_pantheon();
+    Building *working_pantheon();
     int type_is_basic_temple(building_type type);
     int type_uses_native_spawn(building_type type);
     int figure_belongs_to_building(const Figure *figure, const building *owner);

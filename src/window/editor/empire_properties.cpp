@@ -165,7 +165,7 @@ static list_box_type default_cities_list_box = {
 
 static void init(void)
 {
-    list_box_init(&default_cities_list_box, NUM_DEFAULT_CITIES);
+    list_box_init(&default_cities_list_box, static_cast<unsigned int>(NUM_DEFAULT_CITIES));
 }
 
 static void default_cities_list_box_draw_item(const list_box_item *item)
@@ -236,10 +236,11 @@ static void draw_foreground(void)
         "TR_EDITOR_EMPIRE_PROPERTIES_HOTKEYS",
     };
     
-    for (int i = 0; i < NUM_GENERIC_BUTTONS; i++) {
-        font_t font = !(EMPIRE_IS_DEFAULT_IMAGE) && i >= 4 && i <= 7 ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
+    for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_GENERIC_BUTTONS); i++) {
+        int button_index = static_cast<int>(i);
+        font_t font = !(EMPIRE_IS_DEFAULT_IMAGE) && button_index >= 4 && button_index <= 7 ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
         button_border_draw(generic_buttons[i].x, generic_buttons[i].y, generic_buttons[i].width,
-            generic_buttons[i].height, data.focus_button_id == i + 1 && (i >= 4 && i <= 7 ? EMPIRE_IS_DEFAULT_IMAGE : 1));
+            generic_buttons[i].height, data.focus_button_id == i + 1 && (button_index >= 4 && button_index <= 7 ? EMPIRE_IS_DEFAULT_IMAGE : 1));
         lang_text_draw_centered(button_texts[i], generic_buttons[i].x,
             generic_buttons[i].y + 8, generic_buttons[i].width, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
@@ -254,7 +255,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
 
-    if (GenericButtonList(generic_buttons, NUM_GENERIC_BUTTONS).handle_mouse(
+    if (GenericButtonList(generic_buttons, static_cast<unsigned int>(NUM_GENERIC_BUTTONS)).handle_mouse(
         *m_dialog,
         0,
         0,
@@ -274,11 +275,13 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_select_image(const generic_button *button)
 {
+    (void) button;
      window_file_dialog_show(FILE_TYPE_EMPIRE_IMAGE, FILE_DIALOG_LOAD);
 }
 
 static void button_default_image(const generic_button *button)
 {
+    (void) button;
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
     resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
@@ -331,6 +334,7 @@ static void button_add_ornament(const generic_button *button)
 
 static void button_add_all_ornaments(const generic_button *button)
 {
+    (void) button;
     if (!(EMPIRE_IS_DEFAULT_IMAGE)) {
         return;
     }
@@ -342,6 +346,7 @@ static void button_add_all_ornaments(const generic_button *button)
 
 static void button_toggle_ireland(const generic_button *button)
 {
+    (void) button;
     if (!(EMPIRE_IS_DEFAULT_IMAGE)) {
         return;
     }
@@ -361,10 +366,11 @@ static void button_toggle_ireland(const generic_button *button)
 
 static void button_add_all_cities(const generic_button *button)
 {
+    (void) button;
     if (!(EMPIRE_IS_DEFAULT_IMAGE)) {
         return;
     }
-    for (int i = 0; i < NUM_DEFAULT_CITIES; i++) {
+    for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_DEFAULT_CITIES); i++) {
         add_city(&default_cities[i]);
     }
     window_request_refresh();
@@ -372,11 +378,13 @@ static void button_add_all_cities(const generic_button *button)
 
 static void button_empire_settings(const generic_button *button)
 {
+    (void) button;
     window_config_show(CONFIG_PAGE_UI_CHANGES, CATEGORY_UI_EMPIRE, 0);
 }
 
 static void button_hotkeys(const generic_button *button)
 {
+    (void) button;
     window_hotkey_config_show(get_position_for_widget("TR_HOTKEY_HEADER_EDITOR"));
 }
 

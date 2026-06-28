@@ -5,30 +5,20 @@
 #include "map/point.h"
 
 
-int building_is_farm(building_type type);
-int building_is_raw_resource_producer(building_type type);
-int building_is_workshop(building_type type);
-resource_type building_output_resource(building_type type);
+int building_is_raw_resource_producer(const building_type_registry_impl::BuildingType *type);
+int building_is_workshop(const building_type_registry_impl::BuildingType *type);
+resource_type building_output_resource(const building_type_registry_impl::BuildingType *type);
 building_type building_producer_for_resource(resource_type resource);
-int building_production_per_month(building_type type);
-int building_default_production_per_month(building_type type);
-int building_set_production_per_month(building_type type, int production);
+int building_production_per_month(const building_type_registry_impl::BuildingType *type);
+int building_default_production_per_month(const building_type_registry_impl::BuildingType *type);
+int building_set_production_per_month(const building_type_registry_impl::BuildingType *type, int production);
 
-int building_get_raw_materials_for_workshop(resource_supply_chain *chain, building_type type);
-int building_get_required_raw_amount_for_production(building_type type, int resource);
-int building_industry_has_raw_materials_for_production(const building *b);
-
-/** Returns 0-100 representing building efficiency, or -1 if building type does
- * not have efficiency. Wharfs are calculated against an arbitrary benchmark. */
-int building_get_efficiency(const building *b);
+int building_get_raw_materials_for_workshop(resource_supply_chain *chain, const building_type_registry_impl::BuildingType *type);
+int building_get_required_raw_amount_for_production(const building_type_registry_impl::BuildingType *type, int resource);
 
 void building_industry_update_production(int new_day);
 
-int building_industry_get_max_progress(const building *b);
-
-int building_stockpiling_enabled(building *b);
 void building_industry_start_new_production(building *b);
-int building_loads_stored(const building *b);
 
 void building_bless_farms(void);
 void building_curse_farms(int big_curse);
@@ -36,9 +26,9 @@ void building_bless_industry(void);
 
 int building_workshop_add_raw_material(Building *b, int resource, int loads, unsigned int figure_id);
 
-int building_get_workshop_for_raw_material(int x, int y, int resource, int road_network_id, map_point *dst);
+Building *building_get_workshop_for_raw_material(int x, int y, int resource, int road_network_id, map_point *dst);
 int building_has_workshop_for_raw_material_with_room(int resource, int road_network_id);
-int building_get_workshop_for_raw_material_with_room(int x, int y, int resource, int road_network_id, map_point *dst);
+Building *building_get_workshop_for_raw_material_with_room(int x, int y, int resource, int road_network_id, map_point *dst);
 
 void building_industry_advance_stats(void);
 void building_industry_start_strikes(void);

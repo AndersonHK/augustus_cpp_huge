@@ -63,30 +63,38 @@ public:
     int graphic_draw_request(FigureGraphicDrawRequest &request) const;
     static int big_people_image_id(figure_type type);
     static void draw_big_people_image(figure_type type, int x, int y);
-    void draw_big_people_image(int x, int y) const;
+    void draw_big_people_image(int draw_x, int draw_y) const;
     static translation_key new_type_translation_key(figure_type type);
     translation_key type_translation_key() const;
     int target_is_alive() const;
     int legacy_corpse_image_id(int base_image_id) const;
     int legacy_frame_image_id(int base_image_id, int frame_offset) const;
     int legacy_static_frame_image_id(int base_image_id, int frame_count) const;
-    int legacy_directional_frame_image_id(int base_image_id, int direction, int frame_offset, int frame_stride = 8) const;
+    int legacy_directional_frame_image_id(
+        int base_image_id,
+        int frame_direction,
+        int frame_offset,
+        int frame_stride = 8) const;
     int legacy_image_id_for_direction_major_frame(
         int base_image_id,
-        int direction,
+        int frame_direction,
         int frame_offset,
         int direction_stride) const;
     void select_legacy_corpse_image(int base_image_id);
     void select_legacy_frame_image(int base_image_id, int frame_offset);
     void select_legacy_static_frame_image(int base_image_id, int frame_count);
-    void select_legacy_directional_frame_image(int base_image_id, int direction, int frame_offset, int frame_stride = 8);
+    void select_legacy_directional_frame_image(
+        int base_image_id,
+        int frame_direction,
+        int frame_offset,
+        int frame_stride = 8);
     void select_legacy_default_or_corpse_image(int base_image_id);
     void clear_legacy_image();
     void adjust_legacy_gladiator_attack_image_row();
     void clear_legacy_cart_overlay_image();
     void select_legacy_cart_overlay_base_image(int base_image_id);
-    void select_legacy_cart_overlay_image(int base_image_id, int direction);
-    void finalize_legacy_cartpusher_overlay_image(int direction, bool lift_full_food_load = false);
+    void select_legacy_cart_overlay_image(int base_image_id, int frame_direction);
+    void finalize_legacy_cartpusher_overlay_image(int frame_direction, bool lift_full_food_load = false);
 
     unsigned int image_id;
     unsigned int cart_image_id;

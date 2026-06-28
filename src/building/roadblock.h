@@ -30,6 +30,7 @@ typedef enum {
 class Roadblock : public Building {
 public:
     using Building::Building;
+    explicit Roadblock(Building building) : Building(building) {}
 
     roadblock_type kind() const; //By the time we are asking the kind, we already estabilished it is a roadblock, so it should be safe to run this, modify on callers instead. Removed: static roadblock_type kind_for(building_type type);
     int exceptions() const;

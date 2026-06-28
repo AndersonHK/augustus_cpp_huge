@@ -37,6 +37,9 @@
     <ClCompile Include="src\building\building_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
     <ClCompile Include="src\building\building_type_startup_bridge.cpp" />
+    <ClCompile Include="src\building\RubbleDef.cpp" />
+    <ClCompile Include="src\building\RubbleModule.cpp" />
+    <ClCompile Include="src\building\RubbleState.cpp" />
     <ClCompile Include="src\building\water_access_type.cpp" />
     <ClCompile Include="src\building\water_access_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
@@ -581,6 +584,9 @@
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_startup_bridge.h" />
+    <ClInclude Include="src\building\RubbleDef.h" />
+    <ClInclude Include="src\building\RubbleModule.h" />
+    <ClInclude Include="src\building\RubbleState.h" />
     <ClInclude Include="src\building\water_access_type.h" />
     <ClInclude Include="src\building\water_access_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
@@ -1162,7 +1168,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <Optimization>MaxSpeed</Optimization>
@@ -1175,6 +1181,10 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ForceSynchronousPDBWrites>true</ForceSynchronousPDBWrites>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableVectorLength>VectorLength256</EnableVectorLength>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

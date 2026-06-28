@@ -385,7 +385,7 @@ static void prepare_event(int event_id)
 
 static void set_repeat_interval_type(dropdown_button *dd)
 {
-    data.event->repeat_interval = dd->selected_index;//callback
+    data.event->repeat_interval = static_cast<uint8_t>(dd->selected_index);//callback
 }
 
 static void dropdown_init(void)
@@ -923,6 +923,7 @@ static void button_set_selected_to_group(const generic_button *button)
 
 static void button_add_new_condition(const generic_button *button)
 {
+    (void) button;
     condition_types type = CONDITION_TYPE_TIME_PASSED;
     scenario_condition_t *condition =
         scenario_event_condition_create(scenario_event_condition_group_get(data.event, 0), type);
@@ -969,6 +970,7 @@ static void delete_selected(int is_ok, int checked)
 
 static void button_delete_selected(const generic_button *button)
 {
+    (void) button;
     if (data.conditions.selection_type == CHECKBOX_NO_SELECTION &&
         data.actions.selection_type == CHECKBOX_NO_SELECTION) {
         return;
@@ -986,6 +988,7 @@ static void button_delete_selected(const generic_button *button)
 
 static void button_add_new_action(const generic_button *button)
 {
+    (void) button;
     action_types type = ACTION_TYPE_ADJUST_FAVOR;
     scenario_event_action_create(data.event, type);
     select_no_actions();
@@ -994,6 +997,7 @@ static void button_add_new_action(const generic_button *button)
 
 static void button_delete_event(const generic_button *button)
 {
+    (void) button;
     scenario_event_delete(data.event);
     stop_input();
     window_go_back();
@@ -1011,6 +1015,7 @@ static void set_repeat_type(void)
 
 static void button_ok(const generic_button *button)
 {
+    (void) button;
     stop_input();
     set_repeat_type();
     window_go_back();
@@ -1150,6 +1155,7 @@ static void get_tooltip(tooltip_context *c)
 
 static void on_return(window_id from)
 {
+    (void) from;
     start_input();
 }
 

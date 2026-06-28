@@ -59,7 +59,8 @@ int BuildingEntertainment::has_figure_of_type(figure_type type) const
 void BuildingEntertainment::attach_figure_to_venue(Figure *figure) const
 {
     if (figure) {
-        figure->building = venue_;
+        building_runtime *runtime = venue_.runtime_instance();
+        figure->building = runtime ? &runtime->building : nullptr;
     }
 }
 
@@ -99,7 +100,9 @@ int BuildingEntertainment::find_venue_road(map_point &road) const
 
 void BuildingEntertainment::run_labor_phase(const map_point &road) const
 {
-    building_runtime(venue_).run_labor_phase_if_defined(road);
+    if (building_runtime *runtime = venue_.runtime_instance()) {
+        runtime->run_labor_phase_if_defined(road);
+    }
 }
 
 int BuildingEntertainment::delay_has_elapsed(
@@ -110,7 +113,8 @@ int BuildingEntertainment::delay_has_elapsed(
         return 0;
     }
 
-    const int spawn_delay = building_runtime(venue_).evaluate_delay(delay_bands);
+    building_runtime *runtime = venue_.runtime_instance();
+    const int spawn_delay = runtime ? runtime->evaluate_delay(delay_bands) : 0;
     if (spawn_delay <= 0) {
         return 0;
     }
@@ -146,7 +150,7 @@ Figure *BuildingEntertainment::create_charioteer(
         return nullptr;
     }
 
-    figure->action_state = fallback_action;
+    figure->action_state = static_cast<unsigned char>(fallback_action);
     attach_figure_to_venue(figure);
     figure_movement_init_roaming(figure);
     return figure;
@@ -225,7 +229,9 @@ void BuildingEntertainment::post_colosseum_message_if_active() const
 
 void BuildingEntertainment::spawn_hippodrome_service()
 {
-    building_runtime(venue_).check_labor_problem();
+    if (building_runtime *runtime = venue_.runtime_instance()) {
+        runtime->check_labor_problem();
+    }
 
     building *venue_record = record();
     if (!venue_record || venue_record->prev_part_building_id) {
@@ -268,7 +274,9 @@ void BuildingEntertainment::spawn_hippodrome_service()
 
 void BuildingEntertainment::spawn_colosseum_service()
 {
-    building_runtime(venue_).check_labor_problem();
+    if (building_runtime *runtime = venue_.runtime_instance()) {
+        runtime->check_labor_problem();
+    }
     if (has_figure_of_types(FIGURE_GLADIATOR, FIGURE_LION_TAMER)) {
         return;
     }
@@ -328,7 +336,7 @@ void BuildingEntertainment::run_show_countdown()
         --venue_record->data.entertainment.days2;
         ++shows;
     }
-    venue_record->data.entertainment.num_shows = shows;
+    venue_record->data.entertainment.num_shows = static_cast<unsigned char>(shows);
 }
 
 void building_entertainment_run_shows(void)

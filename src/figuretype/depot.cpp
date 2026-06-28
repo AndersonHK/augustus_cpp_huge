@@ -24,10 +24,10 @@ void figuretype::DepotCartPusher::draw(building_info_context *c)
 {
     draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
 
-    if (!building.id) {
+    if (!building) {
         return;
     }
-    resource_type resource = building.depot_order().resource_type;
+    resource_type resource = building->depot_order().resource_type;
 
     lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
         FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
@@ -53,17 +53,17 @@ void figuretype::DepotCartPusher::draw(building_info_context *c)
     resource_graphics(resource).panel_icon().draw(c->x_offset + 40 + width, c->y_offset + 194);
     int y_offset = 0;
 
-    if (!destination_building.id) {
+    if (!destination_building) {
         return;
     }
-    if (building.storage_id) {
+    if (building->storage_id) {
         y_offset = 16;
         width = text_draw(translation_for_key("TR_FIGURE_INFO_DEPOT_FROM"),
             c->x_offset + 40, c->y_offset + 200 + y_offset,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-        if (building.type) {
-            width += text_draw_label_and_number(lang_get_building_type_string(building.type->type()),
-                building.storage_id, "",
+        if (building->type) {
+            width += text_draw_label_and_number(lang_get_building_type_string(building->type->type()),
+                building->storage_id, "",
                 c->x_offset + 40 + width, c->y_offset + 200 + y_offset,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         }
@@ -73,9 +73,9 @@ void figuretype::DepotCartPusher::draw(building_info_context *c)
     width += text_draw(translation_for_key("TR_FIGURE_INFO_DEPOT_TO"),
         c->x_offset + 40 + width, c->y_offset + 200 + y_offset,
         FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-    if (destination_building.type) {
-        text_draw_label_and_number(lang_get_building_type_string(destination_building.type->type()),
-            destination_building.storage_id, "",
+    if (destination_building->type) {
+        text_draw_label_and_number(lang_get_building_type_string(destination_building->type->type()),
+            destination_building->storage_id, "",
             c->x_offset + 40 + width, c->y_offset + 200 + y_offset,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }

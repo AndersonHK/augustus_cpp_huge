@@ -17,8 +17,8 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-void map_building_tiles_add_remove(
-    Building &building,
+static void map_tiles_add_remove(
+    Building *building,
     int x,
     int y,
     int size,
@@ -53,7 +53,11 @@ void map_building_tiles_add_remove(
             int grid_offset = map_grid_offset(x + dx, y + dy);
             map_terrain_remove(grid_offset, terrain_to_remove);
             map_terrain_add(grid_offset, terrain_to_add);
-            map_building_set(grid_offset, building);
+            if (building) {
+                map_building_set(grid_offset, *building);
+            } else {
+                map_building_clear_at(grid_offset);
+            }
             map_property_clear_constructing(grid_offset);
             map_property_set_multi_tile_size(grid_offset, size);
             map_image_set(grid_offset, image_id);
@@ -63,9 +67,26 @@ void map_building_tiles_add_remove(
     }
 }
 
+void map_building_tiles_add_remove(
+    Building &building,
+    int x,
+    int y,
+    int size,
+    int image_id,
+    int terrain_to_add,
+    int terrain_to_remove)
+{
+    map_tiles_add_remove(&building, x, y, size, image_id, terrain_to_add, terrain_to_remove);
+}
+
 void map_building_tiles_add(Building &building, int x, int y, int size, int image_id, int terrain)
 {
     map_building_tiles_add_remove(building, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
+}
+
+void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain)
+{
+    map_tiles_add_remove(nullptr, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
 }
 
 int map_building_tiles_add_aqueduct(int x, int y)
@@ -138,7 +159,7 @@ void map_building_tiles_set_rubble(const Building *building, int x, int y, int s
         return;
     }
     // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
-    const bool is_burning_ruin = building && building->matches("burning_ruin");
+    const bool is_burning_ruin = building && building->Rubble && building->Rubble->is_burning();
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);

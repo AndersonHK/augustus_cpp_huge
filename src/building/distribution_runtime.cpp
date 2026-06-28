@@ -81,15 +81,15 @@ int find_distribution_sources(
             if (!definition || !definition->is_granary()) {
                 continue;
             }
-    for (Building source = Building::first_of_type(definition->type()); source.id; source = source.next_of_type()) {
-                if (type && invalid_distribution_source(source, permission, road_network)) {
+            for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
+                if (type && invalid_distribution_source(*source, permission, road_network)) {
                     continue;
                 }
-                int distance = distance_to_building_box(x, y, width, height, source);
+                int distance = distance_to_building_box(x, y, width, height, *source);
                 for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                     resource = static_cast<resource_type>(resource + 1)) {
                     if (info[resource].needed && resource_is_food(resource)) {
-                        update_food_source(info, resource, source, distance);
+                        update_food_source(info, resource, *source, distance);
                     }
                 }
             }
@@ -100,15 +100,15 @@ int find_distribution_sources(
         if (!definition || !definition->is_warehouse()) {
             continue;
         }
-        for (Building source = Building::first_of_type(definition->type()); source.id; source = source.next_of_type()) {
-            if (type && invalid_distribution_source(source, permission, road_network)) {
+        for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
+            if (type && invalid_distribution_source(*source, permission, road_network)) {
                 continue;
             }
-            int distance = distance_to_building_box(x, y, width, height, source);
+            int distance = distance_to_building_box(x, y, width, height, *source);
             for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                 resource = static_cast<resource_type>(resource + 1)) {
                 if (info[resource].needed && resource_is_storable(resource)) {
-                    update_warehouse_source(info, resource, source, distance);
+                    update_warehouse_source(info, resource, *source, distance);
                 }
             }
         }

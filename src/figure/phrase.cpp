@@ -335,7 +335,7 @@ static int tax_collector_phrase(Figure *f)
 static int market_trader_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_126_ROAMER_RETURNING) {
-        if (Market(f->building).max_food_stock() <= 0) {
+        if (Market(*f->building).max_food_stock() <= 0) {
             return 9; // run out of goods
         }
     }
@@ -379,6 +379,7 @@ static int cart_pusher_phrase(Figure *f)
 
 static int mess_hall_supplier_phrase(Figure *f)
 {
+    (void)f;
     return 0;
 }
 
@@ -540,10 +541,10 @@ static int trade_caravan_phrase(Figure *f)
     if (f->action_state == FIGURE_ACTION_103_TRADE_CARAVAN_LEAVING) {
         return trader_has_traded(f->trader_id) ? TRADE_CARAVAN_PHRASE_SUCCESS : TRADE_CARAVAN_PHRASE_NO_TRADE;
     } else if (f->action_state == FIGURE_ACTION_102_TRADE_CARAVAN_TRADING) {
-        const unsigned int destination_id = f->destination_building.id;
-        if (figure_trade_caravan_can_buy(f, destination_id, f->empire_city_id)) {
+        const Building *destination = f->destination_building;
+        if (figure_trade_caravan_can_buy(f, destination, f->empire_city_id)) {
             return TRADE_CARAVAN_PHRASE_BUYING;
-        } else if (figure_trade_caravan_can_sell(f, destination_id, f->empire_city_id)) {
+        } else if (figure_trade_caravan_can_sell(f, destination, f->empire_city_id)) {
             return TRADE_CARAVAN_PHRASE_SELLING;
         }
     }
@@ -764,8 +765,8 @@ void figure_phrase_determine(Figure *f)
 
     int phrase_id = phrase_based_on_figure_state(f);
     if (phrase_id != -1) {
-        f->phrase_id = phrase_id;
+        f->phrase_id = static_cast<signed char>(phrase_id);
     } else {
-        f->phrase_id = phrase_based_on_city_state(f);
+        f->phrase_id = static_cast<signed char>(phrase_based_on_city_state(f));
     }
 }

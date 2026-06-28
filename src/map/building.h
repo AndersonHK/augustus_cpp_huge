@@ -61,6 +61,9 @@ void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble);
 
 void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, savegame_version_t version);
 
+unsigned int map_building_loaded_id_at(int grid_offset);
+void map_building_set_loaded_id(int grid_offset, unsigned int building_id);
+
 void map_building_rebind_runtime_references(void);
 void map_building_remove_invalid_references(void);
 

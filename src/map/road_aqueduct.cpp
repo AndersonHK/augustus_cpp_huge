@@ -126,8 +126,8 @@ int map_get_aqueduct_with_road_image(int grid_offset)
 static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
 {
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        Building current = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_building_exists_at(grid_offset)) {
+        Building &current = map_building_at(grid_offset);
         building *b = const_cast<::building *>(current.record());
         if (b && current.type && current.type->roadblock().is_wall_gate()) {
             if (b->subtype.orientation == gate_orientation) {

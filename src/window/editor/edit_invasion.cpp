@@ -481,6 +481,7 @@ static void button_repeat_between(const generic_button *button)
 
 static void button_delete(const generic_button *button)
 {
+    (void) button;
     if (data.is_new_invasion) {
         return;
     }
@@ -491,6 +492,7 @@ static void button_delete(const generic_button *button)
 
 static void button_cancel(const generic_button *button)
 {
+    (void) button;
     window_go_back();
 }
 
@@ -517,6 +519,7 @@ static unsigned int validate(void)
 
 static void button_save(const generic_button *button)
 {
+    (void) button;
     unsigned int num_errors = validate();
     if (num_errors) {
         window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",

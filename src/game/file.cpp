@@ -272,13 +272,21 @@ static void check_hippodrome_compatibility(Building b)
 {
     // if we got the middle part of the hippodrome
     if (b.next_part_id() && b.previous_part_id()) {
-        Building next(building_get(b.next_part_id()));
-        Building prev(building_get(b.previous_part_id()));
+        Building *next = b.next();
+        Building *prev = nullptr;
+        Building::for_each([&](Building *building) {
+            if (!prev && building && building->id == static_cast<unsigned int>(b.previous_part_id())) {
+                prev = building;
+            }
+        });
+        if (!next || !prev) {
+            return;
+        }
         // if orientation is different, it means that rotation was not available yet in augustus, so it should be set to 0
-        if (b.orientation() != next.orientation() || b.orientation() != prev.orientation()) {
-            prev.set_orientation(0);
+        if (b.orientation() != next->orientation() || b.orientation() != prev->orientation()) {
+            prev->set_orientation(0);
             b.set_orientation(0);
-            next.set_orientation(0);
+            next->set_orientation(0);
         }
     }
 }
@@ -289,8 +297,8 @@ static void check_backward_compatibility(void)
     if (hippodrome == BUILDING_NONE) {
         return;
     }
-    for (Building b = Building::first_of_type(hippodrome); b.id; b = b.next_of_type()) {
-        check_hippodrome_compatibility(b);
+    for (Building *building = Building::first_of_type(hippodrome); building; building = building->next_of_type()) {
+        check_hippodrome_compatibility(*building);
     }
 }
 

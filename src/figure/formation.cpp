@@ -25,6 +25,7 @@
 #include "widget/sidebar/military.h"
 
 #include <stdio.h>
+#include <exception>
 #include <vector>
 
 
@@ -189,7 +190,18 @@ void formation::refresh_legion_definition_from_home()
     if (!is_legion || building_id <= 0) {
         return;
     }
-    bind_legion_definition_from_fort(Building(building_get(building_id)));
+
+    Building *home = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!home && building->id == static_cast<unsigned int>(building_id)) {
+            home = building;
+        }
+    });
+    if (!home) {
+        log_error("Legion formation references missing fort building", 0, building_id);
+        return;
+    }
+    bind_legion_definition_from_fort(*home);
 }
 
 void formation::initialize_legion_from_fort(const Building &fort, int assigned_legion_id)
@@ -208,9 +220,12 @@ void formation::initialize_legion_from_fort(const Building &fort, int assigned_l
         legion_id = 20;
     }
 
-    Building fort_ground(building_get(fort.next_part_id()));
-    x = standard_x = x_home = fort_ground.x();
-    y = standard_y = y_home = fort_ground.y();
+    Building *fort_ground = fort.next();
+    if (!fort_ground) {
+        std::terminate();
+    }
+    x = standard_x = x_home = fort_ground->x();
+    y = standard_y = y_home = fort_ground->y();
     target_formation_id = 0;
 }
 
@@ -310,7 +325,7 @@ int formation::roster_figure_id(int slot) const
 void formation::write_legacy_figure_slots(buffer *buf) const
 {
     for (int slot = 0; slot < legacy_storage_slot_count(); slot++) {
-        buffer_write_i16(buf, roster_figure_id(slot));
+        buffer_write_i16(buf, static_cast<int16_t>(roster_figure_id(slot)));
     }
 }
 
@@ -483,7 +498,7 @@ int formation::kill_alive_figures(int limit) const
 void formation::set_all_figures_action(int action_state) const
 {
     for_each_figure_id([&](int figure_id, int) {
-        Figure::get(figure_id)->action_state = action_state;
+        Figure::get(figure_id)->action_state = static_cast<unsigned char>(action_state);
     });
 }
 
@@ -492,7 +507,7 @@ void formation::set_alive_figures_action(int action_state, bool mark_at_rest) co
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
         if (!f->is_dead()) {
-            f->action_state = action_state;
+            f->action_state = static_cast<unsigned char>(action_state);
             if (mark_at_rest) {
                 f->formation_at_rest = 1;
             }
@@ -510,7 +525,7 @@ void formation::set_non_combat_figures_action(int action_state, bool remove_rout
         if (f->action_state == action_state) {
             return;
         }
-        f->action_state = action_state;
+        f->action_state = static_cast<unsigned char>(action_state);
         if (remove_route) {
             Route::remove(f);
         }
@@ -524,7 +539,7 @@ void formation::reset_non_combat_figures_action(int action_state) const
         if (figure_is_combat_locked(*f)) {
             return;
         }
-        f->action_state = action_state;
+        f->action_state = static_cast<unsigned char>(action_state);
         f->wait_ticks = 0;
     });
 }
@@ -895,7 +910,7 @@ int formation_get_max_legions(void)
     // Mars base bonus
     if (game_cheat_extra_legions()) {
         return MAX_LEGIONS + 14;
-    } else if (building_monument_working_grand_temple_for_god(GOD_MARS)) {
+    } else if (grand_temple_for_god(GOD_MARS, true)) {
         return MAX_LEGIONS + 4;
     } else {
         return MAX_LEGIONS;
@@ -1174,7 +1189,7 @@ void formation_calculate_figures(void)
             f->formation_at_rest != 1, f->damage,
             figure_properties_for_type(static_cast<figure_type>(f->type))->max_damage
         );
-        f->index_in_formation = index;
+        f->index_in_formation = static_cast<unsigned char>(index);
     }
 
     enemy_army_totals_clear();
@@ -1310,67 +1325,67 @@ void formations_save_state(buffer *buf, buffer *totals)
 
     for (unsigned int i = 0; i < formations.size(); i++) {
         formation *f = formation_get(i);
-        buffer_write_u8(buf, f->in_use);
-        buffer_write_u8(buf, f->faction_id);
-        buffer_write_u8(buf, f->legion_id);
-        buffer_write_u8(buf, f->is_at_fort);
-        buffer_write_i16(buf, f->figure_type);
-        buffer_write_i16(buf, f->building_id);
+        buffer_write_u8(buf, static_cast<uint8_t>(f->in_use));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->faction_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->legion_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->is_at_fort));
+        buffer_write_i16(buf, static_cast<int16_t>(f->figure_type));
+        buffer_write_i16(buf, static_cast<int16_t>(f->building_id));
         f->write_legacy_figure_slots(buf);
-        buffer_write_u8(buf, f->num_figures);
-        buffer_write_u8(buf, f->max_figures);
-        buffer_write_i16(buf, f->layout);
-        buffer_write_i16(buf, f->morale);
-        buffer_write_u8(buf, f->x_home);
-        buffer_write_u8(buf, f->y_home);
-        buffer_write_u8(buf, f->standard_x);
-        buffer_write_u8(buf, f->standard_y);
-        buffer_write_u8(buf, f->x);
-        buffer_write_u8(buf, f->y);
-        buffer_write_u8(buf, f->destination_x);
-        buffer_write_u8(buf, f->destination_y);
-        buffer_write_i16(buf, f->destination_building_id);
-        buffer_write_i16(buf, f->standard_figure_id);
-        buffer_write_u8(buf, f->is_legion);
-        buffer_write_u8(buf, f->mess_hall_max_morale_modifier);
+        buffer_write_u8(buf, static_cast<uint8_t>(f->num_figures));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->max_figures));
+        buffer_write_i16(buf, static_cast<int16_t>(f->layout));
+        buffer_write_i16(buf, static_cast<int16_t>(f->morale));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->x_home));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->y_home));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->standard_x));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->standard_y));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->x));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->y));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->destination_x));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->destination_y));
+        buffer_write_i16(buf, static_cast<int16_t>(f->destination_building_id));
+        buffer_write_i16(buf, static_cast<int16_t>(f->standard_figure_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->is_legion));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->mess_hall_max_morale_modifier));
         buffer_write_i32(buf, f->legion_flag_id);
         buffer_write_i32(buf, f->legion_name_id);
         buffer_write_i32(buf, f->legion_name_group);
-        buffer_write_i16(buf, f->attack_type);
-        buffer_write_i16(buf, f->legion_recruit_type);
-        buffer_write_i16(buf, f->has_military_training);
-        buffer_write_i16(buf, f->total_damage);
-        buffer_write_i16(buf, f->max_total_damage);
-        buffer_write_i16(buf, f->wait_ticks);
-        buffer_write_i16(buf, f->recent_fight);
-        buffer_write_i16(buf, f->enemy_state.duration_advance);
-        buffer_write_i16(buf, f->enemy_state.duration_regroup);
-        buffer_write_i16(buf, f->enemy_state.duration_halt);
-        buffer_write_i16(buf, f->enemy_legion_index);
-        buffer_write_i16(buf, f->is_halted);
-        buffer_write_i16(buf, f->missile_fired);
-        buffer_write_i16(buf, f->missile_attack_timeout);
-        buffer_write_i16(buf, f->missile_attack_formation_id);
-        buffer_write_i16(buf, f->prev.layout);
-        buffer_write_i16(buf, f->cursed_by_mars);
-        buffer_write_u8(buf, f->months_low_morale);
-        buffer_write_u8(buf, f->empire_service);
-        buffer_write_u8(buf, f->in_distant_battle);
-        buffer_write_u8(buf, f->is_herd);
-        buffer_write_u8(buf, f->enemy_type);
-        buffer_write_u8(buf, f->direction);
-        buffer_write_u8(buf, f->prev.x_home);
-        buffer_write_u8(buf, f->prev.y_home);
-        buffer_write_u8(buf, f->unknown_fired);
-        buffer_write_u8(buf, f->orientation);
-        buffer_write_u8(buf, f->months_from_home);
-        buffer_write_u8(buf, f->months_very_low_morale);
-        buffer_write_u8(buf, f->invasion_id);
-        buffer_write_u8(buf, f->herd_wolf_spawn_delay);
-        buffer_write_u8(buf, f->herd_direction);
+        buffer_write_i16(buf, static_cast<int16_t>(f->attack_type));
+        buffer_write_i16(buf, static_cast<int16_t>(f->legion_recruit_type));
+        buffer_write_i16(buf, static_cast<int16_t>(f->has_military_training));
+        buffer_write_i16(buf, static_cast<int16_t>(f->total_damage));
+        buffer_write_i16(buf, static_cast<int16_t>(f->max_total_damage));
+        buffer_write_i16(buf, static_cast<int16_t>(f->wait_ticks));
+        buffer_write_i16(buf, static_cast<int16_t>(f->recent_fight));
+        buffer_write_i16(buf, static_cast<int16_t>(f->enemy_state.duration_advance));
+        buffer_write_i16(buf, static_cast<int16_t>(f->enemy_state.duration_regroup));
+        buffer_write_i16(buf, static_cast<int16_t>(f->enemy_state.duration_halt));
+        buffer_write_i16(buf, static_cast<int16_t>(f->enemy_legion_index));
+        buffer_write_i16(buf, static_cast<int16_t>(f->is_halted));
+        buffer_write_i16(buf, static_cast<int16_t>(f->missile_fired));
+        buffer_write_i16(buf, static_cast<int16_t>(f->missile_attack_timeout));
+        buffer_write_i16(buf, static_cast<int16_t>(f->missile_attack_formation_id));
+        buffer_write_i16(buf, static_cast<int16_t>(f->prev.layout));
+        buffer_write_i16(buf, static_cast<int16_t>(f->cursed_by_mars));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->months_low_morale));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->empire_service));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->in_distant_battle));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->is_herd));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->enemy_type));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->direction));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->prev.x_home));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->prev.y_home));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->unknown_fired));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->orientation));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->months_from_home));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->months_very_low_morale));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->invasion_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->herd_wolf_spawn_delay));
+        buffer_write_u8(buf, static_cast<uint8_t>(f->herd_direction));
         buffer_write_i32(buf, f->target_formation_id);
         buffer_skip(buf, 13);
-        buffer_write_i16(buf, f->invasion_sequence);
+        buffer_write_i16(buf, static_cast<int16_t>(f->invasion_sequence));
         f->write_extended_figure_slots(buf);
     }
     buffer_write_i32(totals, data.id_last_in_use);

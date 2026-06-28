@@ -33,6 +33,7 @@ static struct {
 
 static void export_model_data(buffer *buf)
 {
+    (void) buf;
     xml_exporter_new_element("model_data");
     xml_exporter_add_attribute_int("version", MODEL_DATA_VERSION);
 
@@ -66,9 +67,11 @@ static void export_model_data(buffer *buf)
         if (!model) {
             continue;
         }
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
 
-        const int production_per_month = building_production_per_month(type);
-        const int default_production_per_month = building_default_production_per_month(type);
+        const int production_per_month = definition ? building_production_per_month(definition) : 0;
+        const int default_production_per_month = definition ? building_default_production_per_month(definition) : 0;
         const int production_changed = production_per_month != default_production_per_month;
         if (!production_changed) {
             if (model == prop_model) {
@@ -88,7 +91,9 @@ static void export_model_data(buffer *buf)
         xml_exporter_add_attribute_int("desirability_step_size", model->desirability_step_size);
         xml_exporter_add_attribute_int("desirability_range", model->desirability_range);
         xml_exporter_add_attribute_int("laborers", model->laborers);
-        if ((building_is_raw_resource_producer(type) || building_is_workshop(type) || building_type_registry_impl::type_attr_is(type, "wharf"))) {
+        if (definition &&
+            (building_is_raw_resource_producer(definition) || building_is_workshop(definition) ||
+                definition->attr_is("wharf"))) {
             if (production_changed) {
                 xml_exporter_add_attribute_int("production_rate", production_per_month);
             }
@@ -156,6 +161,8 @@ static int start_building_model(void)
         return 0;
     }
     building_type type = static_cast<building_type>(found->value);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
 
     if (!xml_parser_has_attribute("cost")) {
         xml_import_log_error("Attribute missing. 'cost' not given");
@@ -191,7 +198,11 @@ static int start_building_model(void)
     model_ptr->desirability_range = xml_parser_get_attribute_int("desirability_range");
     model_ptr->laborers = xml_parser_get_attribute_int("laborers");
     if (xml_parser_has_attribute("production_rate")) {
-        building_set_production_per_month(type, xml_parser_get_attribute_int("production_rate"));
+        if (!definition) {
+            xml_import_log_error("Could not resolve production definition for building_type");
+            return 0;
+        }
+        building_set_production_per_month(definition, xml_parser_get_attribute_int("production_rate"));
     }
 
     return 1;

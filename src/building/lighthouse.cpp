@@ -28,29 +28,38 @@ int building_lighthouse_enough_timber(Building lighthouse)
 
 Building building_lighthouse_first(void)
 {
-    return Building::first_of_type(lighthouse_type());
+    return *Building::first_of_type(lighthouse_type());
 }
 
-Building building_lighthouse_get_storage_destination(Building lighthouse)
+Building *building_lighthouse_get_storage_destination(Building lighthouse)
 {
     const building_type_registry_impl::Distribution *distribution =
         lighthouse.type ? lighthouse.type->distribution() : nullptr;
     if (!distribution) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
     if (!distribution->needed_resources_for(lighthouse, info) ||
         !distribution->find_sources_for_building(info, lighthouse, INFINITE)) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     resource_type resource = distribution->fetch_resource(lighthouse, info, 0, 0, 1);
     if (resource == RESOURCE_NONE) {
-        return Building(nullptr);
+        return nullptr;
     }
-    lighthouse.set_fetch_inventory_id(resource);
-    return Building(building_get(info[resource].building_id));
+    Building *destination = nullptr;
+    const unsigned int destination_id = info[resource].building_id;
+    Building::for_each([&](Building *building) {
+        if (building->id == destination_id) {
+            destination = building;
+        }
+    });
+    if (destination) {
+        lighthouse.set_fetch_inventory_id(resource);
+    }
+    return destination;
 }
 
 int building_lighthouse_is_fully_functional(void)
@@ -72,11 +81,11 @@ static void set_lighthouse_graphic(Building lighthouse)
         lighthouse.refresh_graphic();
     } else {
         map_building_tiles_add(
-            lighthouse.id,
+            lighthouse,
             lighthouse.x(),
             lighthouse.y(),
             lighthouse.size(),
-            building_image_get(building_get(lighthouse.id)),
+            lighthouse.image_id(),
             TERRAIN_BUILDING);
     }
 }

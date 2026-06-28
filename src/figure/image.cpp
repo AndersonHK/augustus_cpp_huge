@@ -54,8 +54,8 @@ void figure_image_increase_offset(Figure *f, int max)
 
 void figure_image_set_cart_offset(Figure *f, int direction)
 {
-    f->x_offset_cart = CART_OFFSETS_X[direction];
-    f->y_offset_cart = CART_OFFSETS_Y[direction];
+    f->x_offset_cart = static_cast<signed char>(CART_OFFSETS_X[direction]);
+    f->y_offset_cart = static_cast<signed char>(CART_OFFSETS_Y[direction]);
 }
 
 int figure_image_corpse_offset(Figure *f)

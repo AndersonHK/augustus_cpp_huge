@@ -83,9 +83,9 @@ static Building *warehouse_first()
     return Building::first_of_type(warehouse_type_id());
 }
 
-Building building_warehouse_first()
+Building *building_warehouse_first()
 {
-    return *warehouse_first();
+    return warehouse_first();
 }
 
 static Building *warehouse_main_for_storage(Building &building)
@@ -93,7 +93,7 @@ static Building *warehouse_main_for_storage(Building &building)
     if (building.type->is_warehouse()) {
         return &building;
     }
-    Building *main = building.main();
+    Building *main = &building.main();
     if (main && main->type->is_warehouse()) {
         return main;
     }
@@ -309,7 +309,7 @@ int building_warehouse_try_add_resource(
     if (!warehouse || quantity <= 0 || !resource) {
         return 0;
     }
-    signed short max_acceptable = respect_settings ?
+    int max_acceptable = respect_settings ?
         building_warehouse_maximum_receptible_amount(*warehouse, resource, ignore_figure_id) :
         building_warehouse_get_free_space_amount(*warehouse);
     if (!max_acceptable) {
@@ -318,16 +318,16 @@ int building_warehouse_try_add_resource(
     if (quantity > max_acceptable) { //if trying to add more than acceptable, limit it
         quantity = max_acceptable;
     }
-    signed short added = 0;
+    int added = 0;
     while (added < quantity) {
         Building *space = building_warehouse_find_space(*warehouse, resource, 1);
         if (!space) {
             break;
         }
-        signed short space_remaining = MAX_CARTLOADS_PER_SPACE - space->resource_amount(resource);
+        int space_remaining = MAX_CARTLOADS_PER_SPACE - space->resource_amount(resource);
         //we cannot ignore the individual space limitations, since it will affect the image shown
         //we cannot mix multiple resources in one space either
-        signed short to_add = ((quantity - added) < space_remaining) ? (quantity - added) : space_remaining;
+        int to_add = ((quantity - added) < space_remaining) ? (quantity - added) : space_remaining;
 
         space->add_resource(resource, to_add);
         space->set_warehouse_resource_id(resource);
@@ -635,15 +635,15 @@ int building_warehouses_count_available_resource(resource_type resource, int res
     return total;
 }
 
-static void try_create_cart_to_rome(const Building &b, resource_type resource, int loads)
+static void try_create_cart_to_rome(Building &b, resource_type resource, int loads)
 {
     map_point road;
     if (map_has_road_access_rotation(b.orientation(), b.x(), b.y(), 3, &road)) {
         Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
         f->action_state = FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED;
-        f->resource_id = resource;
-        f->loads_sold_or_carrying = loads;
-        f->building = b;
+        f->resource_id = static_cast<unsigned char>(resource);
+        f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
+        f->building = &b;
     }
 }
 
@@ -761,7 +761,7 @@ int building_warehouse_accepts_storage(Building &warehouse, resource_type resour
     return 0;
 }
 
-int building_warehouse_for_storing(int src_building_id, int x, int y, resource_type resource, int road_network_id,
+Building *building_warehouse_for_storing(int src_building_id, int x, int y, resource_type resource, int road_network_id,
     int *understaffed, map_point *dst)
 {
     int min_dist = INFINITE;
@@ -780,14 +780,14 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
         }
     }
     if (!nearest_warehouse) {
-        return 0;
+        return nullptr;
     }
     if (nearest_warehouse->has_cached_road_access() == 1) {
         map_point_store_result(nearest_warehouse->x(), nearest_warehouse->y(), dst);
     } else if (!map_has_road_access_warehouse(nearest_warehouse->x(), nearest_warehouse->y(), dst)) {
-        return 0;
+        return nullptr;
     }
-    return nearest_warehouse->id;
+    return nearest_warehouse;
 }
 
 int building_warehouse_amount_can_get_from(const Building &destination, resource_type resource)
@@ -807,7 +807,7 @@ int building_warehouse_amount_can_get_from(const Building &destination, resource
     return loads_stored;
 }
 
-int building_warehouse_for_getting(const Building &src, resource_type resource, map_point *dst)
+Building *building_warehouse_for_getting(const Building &src, resource_type resource, map_point *dst)
 {
     int min_dist = INFINITE;
     Building *min_building = nullptr;
@@ -832,13 +832,13 @@ int building_warehouse_for_getting(const Building &src, resource_type resource, 
         if (dst) {
             min_building->cached_road_access_point(dst);
         }
-        return min_building->id;
+        return min_building;
     } else {
-        return 0;
+        return nullptr;
     }
 }
 
-int building_warehouse_with_resource(int x, int y, resource_type resource, int road_network_id,
+Building *building_warehouse_with_resource(int x, int y, resource_type resource, int road_network_id,
      int *understaffed, map_point *dst, building_storage_permission_states p)
 {
     int min_dist = INFINITE;
@@ -875,9 +875,9 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
         if (dst) {
             min_building->cached_road_access_point(dst);
         }
-        return min_building->id;
+        return min_building;
     } else {
-        return 0;
+        return nullptr;
     }
 }
 
@@ -911,7 +911,7 @@ int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
         if (!config_get(CONFIG_GP_CH_ENABLE_GETTING_WHILE_STOCKPILED) && city_resource_is_stockpiled(r)) {
             continue; // skip if stockpiled
         }
-        unsigned char needed = building_warehouse_maximum_receptible_amount(warehouse, r);
+        int needed = building_warehouse_maximum_receptible_amount(warehouse, r);
 
         int fetch_amount = MAX_CARTLOADS_PER_SPACE;
         if (needed >= fetch_amount && fetch_amount > 0) {

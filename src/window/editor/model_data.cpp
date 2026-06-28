@@ -96,12 +96,15 @@ static int is_hidden_editor_model_type(building_type type)
     return building_type_registry_impl::type_attr_is(type, "grand_garden") || building_type_registry_impl::type_attr_is(type, "dolphin_fountain");
 }
 
-static int has_production_field(building_type type)
+static int has_production_field(const building_type_registry_impl::BuildingType *type)
 {
+    if (!type) {
+        return 0;
+    }
     return building_is_raw_resource_producer(type) ||
         building_is_workshop(type) ||
-        building_type_registry_impl::type_attr_is(type, "wharf") ||
-        building_is_farm(type);
+        type->attr_is("wharf") ||
+        type->is_farm();
 }
 
 static void init(void)
@@ -225,14 +228,18 @@ static void button_edit_laborers(const generic_button *button)
 
 static void set_production(int value)
 {
-    building_set_production_per_month(data.items[data.target_index], value);
+    const building_type_registry_impl::BuildingType *type =
+        building_type_registry_impl::definition_for_type(data.items[data.target_index]);
+    building_set_production_per_month(type, value);
     data.target_index = NO_SELECTION;
 }
 
 static void button_edit_production(const generic_button *button)
 {
     building_type type = data.items[data.target_index];
-    if (has_production_field(type)) {
+    const building_type_registry_impl::BuildingType *type_definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (has_production_field(type_definition)) {
         window_numeric_input_bound_show(model_buttons.focused_item.x, model_buttons.focused_item.y, button,
             9, 0, 1000000000, set_production);
     }
@@ -253,12 +260,14 @@ static void draw_model_item(const grid_box_item *item)
 {
     button_border_draw(item->x, item->y, item->width, item->height, 0);
     building_type b_type = data.items[item->index];
+    const building_type_registry_impl::BuildingType *type_definition =
+        building_type_registry_impl::definition_for_type(b_type);
     uint8_t b_string[128];
 
     get_building_translation(b_type, b_string, sizeof(b_string));
     text_draw_ellipsized(b_string, item->x + 8, item->y + 8, 12 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!has_production_field(b_type)); i++) {
+    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!has_production_field(type_definition)); i++) {
         button_border_draw(item->x + data_buttons[i].x, item->y + data_buttons[i].y,
             data_buttons[i].width, data_buttons[i].height, item->is_focused && data.data_buttons_focus_id == i + 1);
 
@@ -277,7 +286,7 @@ static void draw_model_item(const grid_box_item *item)
             case 5:
                 value = model_get_building(b_type)->laborers; break;
             case 6:
-                value = building_production_per_month(b_type);
+                value = building_production_per_month(type_definition);
         }
         text_draw_number(value, 0, NULL, item->x + data_buttons[i].x + 8, item->y + data_buttons[i].y + 6,
                   FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);

@@ -39,13 +39,13 @@ using building_type_registry_impl::type_from_attr;
 int type_has_distribution(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->has_distribution();
+    return definition ? definition->has_distribution() : 0;
 }
 
 int type_is_caravanserai(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->is_caravanserai();
+    return definition ? definition->is_caravanserai() : 0;
 }
 
 int type_is_large_temple_supplier(building_type type)
@@ -73,6 +73,14 @@ int type_is_depot(building_type type)
     return type_attr_is(type, "cart_depot");
 }
 
+int type_is_roadblock_record(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
+    return definition ?
+        definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None :
+        0;
+}
+
 int type_is_burning_ruin(building_type type)
 {
     return type_attr_is(type, "burning_ruin");
@@ -80,24 +88,37 @@ int type_is_burning_ruin(building_type type)
 
 int type_is_rubble_shell(building_type type)
 {
-    return type_is_burning_ruin(type) || type_is_warehouse_space(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
+    return definition ? definition->has_rubble() : 0;
 }
 
-building_type original_type_for_save(const building *b)
+const building_type_registry_impl::BuildingType *original_type_for_save(const building *b)
 {
     if (!b || !b->id) {
-        return BUILDING_NONE;
+        return nullptr;
     }
     if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
-        return runtime->building.og_type ? runtime->building.og_type->type() : BUILDING_NONE;
+        return runtime->building.Rubble ? runtime->building.Rubble->original_type() : nullptr;
     }
-    return BUILDING_NONE;
+    return nullptr;
+}
+
+const RubbleState *rubble_state_for_save(const building *b)
+{
+    if (!b || !b->id) {
+        return nullptr;
+    }
+    building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b));
+    return runtime && runtime->building.Rubble ? runtime->building.Rubble->state() : nullptr;
 }
 
 int type_uses_industry_state(const building *b)
 {
-    return b && (b->output_resource_id || type_attr_is(b->type, "native_crops") ||
-        type_attr_is(b->type, "shipyard") || type_attr_is(b->type, "wharf"));
+    if (!b) {
+        return 0;
+    }
+    return (b->output_resource_id || type_attr_is(b->type, "native_crops") ||
+        type_attr_is(b->type, "shipyard") || type_attr_is(b->type, "wharf")) ? 1 : 0;
 }
 
 int type_uses_monthly_production_stats(building_type type)
@@ -134,14 +155,42 @@ int type_is_legacy_large_temple_or_oracle(building_type type)
 
 } // namespace
 
-static uint16_t save_id_from_runtime_type(unsigned short runtime_id)
+static uint16_t save_id_from_runtime_type(const building_type_registry_impl::BuildingType *runtime_type)
 {
-    return building_type_id_bridge_save_id_from_runtime(static_cast<building_type>(runtime_id));
+    return building_type_id_bridge_save_id_from_runtime(runtime_type ? runtime_type->type() : BUILDING_NONE);
 }
 
-static unsigned short runtime_type_from_save_id(uint16_t save_id)
+static const building_type_registry_impl::BuildingType *runtime_type_from_save_id(uint16_t save_id)
 {
-    return static_cast<unsigned short>(building_type_id_bridge_runtime_from_save_id(save_id));
+    return definition_for_type(building_type_id_bridge_runtime_from_save_id(save_id));
+}
+
+static void write_rubble_type_data(buffer *buf, const building *b)
+{
+    const RubbleState *rubble_state = rubble_state_for_save(b);
+    buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
+    buffer_write_u16(buf, rubble_state ? rubble_state->original_grid_offset : 0);
+    buffer_write_u8(buf, rubble_state ? rubble_state->original_size : 0);
+    buffer_write_u8(buf, rubble_state ? rubble_state->original_orientation : 0);
+}
+
+static void read_rubble_type_data(buffer *buf, building *b, int for_preview)
+{
+    const building_type_registry_impl::BuildingType *original_type =
+        runtime_type_from_save_id(buffer_read_u16(buf));
+    const unsigned short original_grid_offset = buffer_read_u16(buf);
+    const unsigned char original_size = buffer_read_u8(buf);
+    const unsigned char original_orientation = buffer_read_u8(buf);
+    if (!b || for_preview) {
+        return;
+    }
+
+    RubbleState rubble_state;
+    rubble_state.original_grid_offset = original_grid_offset;
+    rubble_state.original_size = original_size;
+    rubble_state.original_orientation = original_orientation;
+    rubble_state.original_type = original_type;
+    building_runtime_stage_loaded_rubble_state(b->id, rubble_state);
 }
 
 static const char *safe_text(const char *text)
@@ -151,7 +200,7 @@ static const char *safe_text(const char *text)
 
 static int building_record_requires_type_definition(const building *b)
 {
-    return b && b->state != BUILDING_STATE_UNUSED;
+    return b ? b->state != BUILDING_STATE_UNUSED : 0;
 }
 
 static const char *loaded_building_type_problem(const building *b, uint16_t saved_type, int missing_save_type)
@@ -233,9 +282,9 @@ static void remove_figures_referencing_unsupported_building(unsigned int buildin
         if (!f || !f->state) {
             continue;
         }
-        if (f->building.id == building_id ||
-            f->destination_building.id == building_id ||
-            f->immigrant_building.id == building_id) {
+        if ((f->building && f->building->id == building_id) ||
+            (f->destination_building && f->destination_building->id == building_id) ||
+            (f->immigrant_building && f->immigrant_building->id == building_id)) {
             f->remove();
         }
     }
@@ -255,12 +304,7 @@ static void remove_tiles_for_unsupported_building(const building *b)
         x = map_grid_offset_to_x(b->grid_offset);
         y = map_grid_offset_to_y(b->grid_offset);
     }
-    building *record = const_cast<building *>(b);
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
-        map_building_tiles_remove(&runtime->building, x, y);
-    } else {
-        map_building_tiles_remove(nullptr, x, y);
-    }
+    map_building_tiles_remove(nullptr, x, y);
 }
 
 static void quarantine_loaded_building_type_problem(
@@ -381,7 +425,7 @@ static void normalize_native_housing_after_load(building *b)
         building_type vacant_lot_type = building_type_registry_impl::vacant_lot_fill_type();
         if (vacant_lot_type != BUILDING_NONE) {
             b->type = vacant_lot_type;
-            b->subtype.house_level = housing_level;
+            b->subtype.house_level = static_cast<short>(housing_level);
             b->size = b->house_size = 1;
             b->house_is_merged = 0;
         }
@@ -398,14 +442,14 @@ static void normalize_native_housing_after_load(building *b)
     }
 
     b->type = native_type;
-    b->subtype.house_level = housing_level;
+    b->subtype.house_level = static_cast<short>(housing_level);
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(native_type);
     int model_size = definition ? definition->declared_model_size() : 0;
     if (model_size > 0) {
-        b->size = model_size;
-        b->house_size = model_size;
-        b->house_is_merged = model_size > 1 ? 1 : b->house_is_merged;
+        b->size = static_cast<unsigned char>(model_size);
+        b->house_size = static_cast<unsigned char>(model_size);
+        b->house_is_merged = static_cast<unsigned char>(model_size > 1 ? 1 : b->house_is_merged);
     }
 }
 
@@ -422,8 +466,9 @@ static void write_type_data(buffer *buf, const building *b)
     // If you need more than 26 bytes, don't use the type data.
     size_t buffer_index = buf->index;
     const int is_dock = type_attr_is(b->type, "dock");
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
 
-    if (building_is_house(b->type)) {
+    if (definition && definition->has_housing()) {
         buffer_write_u8(buf, b->data.house.theater);
         buffer_write_u8(buf, b->data.house.amphitheater_actor);
         buffer_write_u8(buf, b->data.house.amphitheater_gladiator);
@@ -456,13 +501,13 @@ static void write_type_data(buffer *buf, const building *b)
         buffer_write_u8(buf, b->data.market.fetch_inventory_id);
         buffer_write_u8(buf, b->data.market.is_mess_hall);
     } else if (type_is_depot(b->type)) {
-        buffer_write_i8(buf, b->data.depot.current_order.resource_type);
+        buffer_write_i8(buf, static_cast<int8_t>(b->data.depot.current_order.resource_type));
         buffer_write_i32(buf, b->data.depot.current_order.src_storage_id);
         buffer_write_i32(buf, b->data.depot.current_order.dst_storage_id);
-        buffer_write_i8(buf, b->data.depot.current_order.condition.condition_type);
-        buffer_write_i8(buf, b->data.depot.current_order.condition.threshold);
+        buffer_write_i8(buf, static_cast<int8_t>(b->data.depot.current_order.condition.condition_type));
+        buffer_write_i8(buf, static_cast<int8_t>(b->data.depot.current_order.condition.threshold));
         for (int i = 0; i < 3; i++) {
-            buffer_write_i16(buf, b->data.distribution.cartpusher_ids[i]);
+            buffer_write_i16(buf, static_cast<int16_t>(b->data.distribution.cartpusher_ids[i]));
         }
     } else if (is_dock) {
         buffer_write_i16(buf, b->data.dock.queued_docker_id);
@@ -471,16 +516,13 @@ static void write_type_data(buffer *buf, const building *b)
         buffer_write_u8(buf, b->data.dock.num_ships);
         buffer_write_i8(buf, b->data.dock.orientation);
         for (int i = 0; i < 3; i++) {
-            buffer_write_i16(buf, b->data.distribution.cartpusher_ids[i]);
+            buffer_write_i16(buf, static_cast<int16_t>(b->data.distribution.cartpusher_ids[i]));
         }
         buffer_write_i16(buf, b->data.dock.trade_ship_id);
-    } else if (Roadblock(const_cast<building *>(b)).kind() != ROADBLOCK_NONE) {
+    } else if (type_is_roadblock_record(b->type)) {
         buffer_write_u16(buf, b->data.roadblock.exceptions);
         if (type_is_warehouse(b->type)) {
-            buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
-            buffer_write_u16(buf, b->data.rubble.og_grid_offset);
-            buffer_write_u8(buf, b->data.rubble.og_size);
-            buffer_write_u8(buf, b->data.rubble.og_orientation);
+            write_rubble_type_data(buf, b);
         }
     } else if (is_industry_type(b)) {
         buffer_write_i16(buf, b->data.industry.progress);
@@ -495,13 +537,10 @@ static void write_type_data(buffer *buf, const building *b)
             buffer_write_u8(buf, b->data.industry.average_production_per_month);
             buffer_write_i16(buf, b->data.industry.production_current_month);
         }
-        buffer_write_i16(buf, b->data.industry.fishing_boat_id);
-        buffer_write_i16(buf, b->data.industry.second_fishing_boat_id);
+        buffer_write_i16(buf, static_cast<int16_t>(b->data.industry.fishing_boat_id));
+        buffer_write_i16(buf, static_cast<int16_t>(b->data.industry.second_fishing_boat_id));
     } else if (type_is_rubble_shell(b->type)) {
-        buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
-        buffer_write_u16(buf, b->data.rubble.og_grid_offset);
-        buffer_write_u8(buf, b->data.rubble.og_size);
-        buffer_write_u8(buf, b->data.rubble.og_orientation);
+        write_rubble_type_data(buf, b);
     } else {
         buffer_write_u8(buf, b->data.entertainment.num_shows);
         buffer_write_u8(buf, b->data.entertainment.days1);
@@ -539,10 +578,10 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_i16(buf, b->house_unreachable_ticks);
     buffer_write_u8(buf, b->road_access_x);
     buffer_write_u8(buf, b->road_access_y);
-    buffer_write_i16(buf, b->figure_id);
-    buffer_write_i16(buf, b->figure_id2);
-    buffer_write_i16(buf, b->immigrant_figure_id);
-    buffer_write_i16(buf, b->figure_id4);
+    buffer_write_i16(buf, static_cast<int16_t>(b->figure_id));
+    buffer_write_i16(buf, static_cast<int16_t>(b->figure_id2));
+    buffer_write_i16(buf, static_cast<int16_t>(b->immigrant_figure_id));
+    buffer_write_i16(buf, static_cast<int16_t>(b->figure_id4));
     buffer_write_u8(buf, b->figure_spawn_delay);
     buffer_write_u8(buf, b->days_since_offering);
     buffer_write_u8(buf, b->figure_roam_direction);
@@ -593,6 +632,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_u8(buf, b->tourism_income_this_year);
 
     // Variants and upgrades
+    // Save writes the full building record table; runtime modules are only consulted here to recompose peeled fields.
     unsigned char graphics_variant = 0;
     if (b->id && (b->state == BUILDING_STATE_CREATED || b->state == BUILDING_STATE_IN_USE ||
             b->state == BUILDING_STATE_MOTHBALLED)) {
@@ -632,7 +672,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     // up until that point in Augustus' development
 }
 
-static void read_type_data(buffer *buf, building *b, int version, int save_type_is_monument)
+static void read_type_data(buffer *buf, building *b, int version, int save_type_is_monument, int for_preview)
 {
     // This function should ALWAYS read 42 bytes for versions before or at SAVE_GAME_LAST_STATIC_RESOURCES.
     // The only exception is for Caravanserai on old savegame versions, which due to an oversight only read 41 bytes.
@@ -652,8 +692,9 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
     }
     size_t buffer_index = buf->index;
     const int is_dock = type_attr_is(b->type, "dock");
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
 
-    if (building_is_house(b->type)) {
+    if (definition && definition->has_housing()) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             for (int i = 0; i < resource_id_bridge_legacy_inventory_count(); i++) {
                 b->resources[resource_map_legacy_inventory(i)] = buffer_read_i16(buf);
@@ -698,7 +739,8 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->monument.progress = buffer_read_i16(buf);
             b->monument.phase = buffer_read_i16(buf);
         }
-        b->data.market.fetch_inventory_id = resource_map_legacy_inventory(buffer_read_u8(buf));
+        b->data.market.fetch_inventory_id =
+            static_cast<unsigned char>(resource_map_legacy_inventory(buffer_read_u8(buf)));
         // As above, Ceres and Venus temples are both monuments and suppliers
     } else if (type_is_large_temple_supplier(b->type)) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -714,7 +756,8 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
                 b->monument.phase = MONUMENT_FINISHED;
             }
         }
-        b->data.market.fetch_inventory_id = resource_map_legacy_inventory(buffer_read_u8(buf));
+        b->data.market.fetch_inventory_id =
+            static_cast<unsigned char>(resource_map_legacy_inventory(buffer_read_u8(buf)));
     } else if (type_has_distribution(b->type)) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             buffer_skip(buf, 2);
@@ -723,22 +766,27 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             }
             int pottery_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_pottery()]) {
-                b->accepted_goods[resource_pottery()] += pottery_demand;
+                b->accepted_goods[resource_pottery()] =
+                    static_cast<unsigned char>(b->accepted_goods[resource_pottery()] + pottery_demand);
             }
             int furniture_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_furniture()]) {
-                b->accepted_goods[resource_furniture()] += furniture_demand;
+                b->accepted_goods[resource_furniture()] =
+                    static_cast<unsigned char>(b->accepted_goods[resource_furniture()] + furniture_demand);
             }
             int oil_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_oil()]) {
-                b->accepted_goods[resource_oil()] += oil_demand;
+                b->accepted_goods[resource_oil()] =
+                    static_cast<unsigned char>(b->accepted_goods[resource_oil()] + oil_demand);
             }
             int wine_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_wine()]) {
-                b->accepted_goods[resource_wine()] += wine_demand;
+                b->accepted_goods[resource_wine()] =
+                    static_cast<unsigned char>(b->accepted_goods[resource_wine()] + wine_demand);
             }
         }
-        b->data.market.fetch_inventory_id = resource_map_legacy_inventory(buffer_read_u8(buf));
+        b->data.market.fetch_inventory_id =
+            static_cast<unsigned char>(resource_map_legacy_inventory(buffer_read_u8(buf)));
         b->data.market.is_mess_hall = buffer_read_u8(buf);
     } else if (type_is_granary(b->type) && version <= SAVE_GAME_LAST_GRANARY_WAREHOUSE_NON_ROADBLOCKS) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -755,10 +803,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.roadblock.exceptions = buffer_read_u16(buf);
         }
         if (type_is_warehouse(b->type)) {
-            building_runtime_stage_loaded_original_type(b->id, runtime_type_from_save_id(buffer_read_u16(buf)));
-            b->data.rubble.og_grid_offset = buffer_read_u16(buf);
-            b->data.rubble.og_size = buffer_read_u8(buf);
-            b->data.rubble.og_orientation = buffer_read_u8(buf);
+            read_rubble_type_data(buf, b, for_preview);
         }
     } else if (save_type_is_monument && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -801,7 +846,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.distribution.cartpusher_ids[i] = buffer_read_i16(buf);
         }
         b->data.dock.trade_ship_id = buffer_read_i16(buf);
-    } else if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+    } else if (type_is_roadblock_record(b->type)) {
         b->data.roadblock.exceptions = buffer_read_u16(buf);
     } else if (is_industry_type(b)) {
         b->data.industry.progress = buffer_read_i16(buf);
@@ -837,10 +882,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.industry.second_fishing_boat_id = 0;
         }
     } else if (type_is_rubble_shell(b->type) && version > SAVE_GAME_LAST_U16_GRIDS) {
-        building_runtime_stage_loaded_original_type(b->id, runtime_type_from_save_id(buffer_read_u16(buf)));
-        b->data.rubble.og_grid_offset = buffer_read_u16(buf);
-        b->data.rubble.og_size = buffer_read_u8(buf);
-        b->data.rubble.og_orientation = buffer_read_u8(buf);
+        read_rubble_type_data(buf, b, for_preview);
     } else {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             buffer_skip(buf, 26);
@@ -850,8 +892,10 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
         b->data.entertainment.days2 = buffer_read_u8(buf);
         b->data.entertainment.play = buffer_read_u8(buf);
         if (version <= SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS) {
-            b->data.entertainment.days1 = migrate_legacy_entertainment_show_days(b->data.entertainment.days1);
-            b->data.entertainment.days2 = migrate_legacy_entertainment_show_days(b->data.entertainment.days2);
+            b->data.entertainment.days1 =
+                static_cast<unsigned char>(migrate_legacy_entertainment_show_days(b->data.entertainment.days1));
+            b->data.entertainment.days2 =
+                static_cast<unsigned char>(migrate_legacy_entertainment_show_days(b->data.entertainment.days2));
         }
     }
     int remaining_bytes = type_data_bytes - (int) (buf->index - buffer_index);
@@ -912,7 +956,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
     const int is_dock = type_attr_is(b->type, "dock");
     if (type_is_warehouse_space(b->type)) {
-        b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
+        b->subtype.warehouse_resource_id = static_cast<short>(resource_remap(buffer_read_i16(buf)));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
         (is_dock || type_has_distribution(b->type))) {
         migrate_accepted_goods(b, buffer_read_i16(buf));
@@ -952,7 +996,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->has_well_access = buffer_read_u8(buf);
     b->num_workers = buffer_read_i16(buf);
     b->labor_category = buffer_read_u8(buf);
-    b->output_resource_id = resource_remap(buffer_read_u8(buf));
+    b->output_resource_id = static_cast<unsigned char>(resource_remap(buffer_read_u8(buf)));
     b->has_road_access = buffer_read_u8(buf);
     b->house_criminal_active = buffer_read_u8(buf);
     b->damage_risk = buffer_read_i16(buf);
@@ -972,7 +1016,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     int save_type_monument = saved_type_is_monument(saved_building_type, b->type);
-    read_type_data(buf, b, save_version, save_type_monument);
+    read_type_data(buf, b, save_version, save_type_monument, for_preview);
     normalize_native_housing_after_load(b);
     b->tax_income_or_storage = buffer_read_i32(buf);
     b->house_days_without_food = buffer_read_u8(buf);
@@ -980,13 +1024,13 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->desirability = buffer_read_i8(buf);
     b->is_deleted = buffer_read_u8(buf);
     b->is_close_to_water = buffer_read_u8(buf);
-    Building(b).set_storage_id(buffer_read_u8(buf));
+    b->storage_id = buffer_read_u8(buf);
     b->sentiment.house_happiness = buffer_read_i8(buf); // which union field we use does not matter
     b->show_on_problem_overlay = buffer_read_u8(buf);
 
     // Wharves produce fish and don't need any progress
     if (type_attr_is(b->type, "wharf")) {
-        b->output_resource_id = resource_fish();
+        b->output_resource_id = static_cast<unsigned char>(resource_fish());
         b->data.industry.progress = 0;
     }
 
@@ -1019,7 +1063,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 
     if (save_version < SAVE_GAME_ROADBLOCK_DATA_MOVED_FROM_SUBTYPE) {
         // Backwards compatibility - roadblock data used to be stored in b->subtype
-        if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+        if (type_is_roadblock_record(b->type)) {
             b->data.roadblock.exceptions = b->subtype.orientation;
         }
     }
@@ -1115,7 +1159,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
             int resource_needed_for_phase =
                 building_monument_resources_needed_for_monument_type(b->type, resource_type_id, b->monument.phase);
             if (b->resources[resource_type_id] > resource_needed_for_phase) {
-                b->resources[resource_type_id] = resource_needed_for_phase;
+                b->resources[resource_type_id] = static_cast<short>(resource_needed_for_phase);
             }
         }
     }
@@ -1123,27 +1167,27 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     // Backwards compatibility - update loads stored to the proper new variable
     if (save_version <= SAVE_GAME_LAST_NO_NEW_MONUMENT_RESOURCES && !building_monument_is_unfinished_monument(b)) {
         if (type_attr_is(b->type, "grand_temple_mars") || type_attr_is(b->type, "barracks")) {
-            b->resources[resource_weapons()] = loads_stored;
+            b->resources[resource_weapons()] = static_cast<short>(loads_stored);
         } else if (type_attr_is(b->type, "pottery_workshop")) {
-            b->resources[resource_clay()] = loads_stored * resource_units_per_load();
+            b->resources[resource_clay()] = static_cast<short>(loads_stored * resource_units_per_load());
         } else if (type_attr_is(b->type, "oil_workshop")) {
-            b->resources[resource_oil()] = loads_stored * resource_units_per_load();
+            b->resources[resource_oil()] = static_cast<short>(loads_stored * resource_units_per_load());
         } else if (type_attr_is(b->type, "wine_workshop")) {
-            b->resources[resource_vines()] = loads_stored * resource_units_per_load();
+            b->resources[resource_vines()] = static_cast<short>(loads_stored * resource_units_per_load());
         } else if (type_attr_is(b->type, "furniture_workshop")) {
-            b->resources[resource_timber()] = loads_stored * resource_units_per_load();
+            b->resources[resource_timber()] = static_cast<short>(loads_stored * resource_units_per_load());
         } else if (type_attr_is(b->type, "weapons_workshop")) {
-            b->resources[resource_iron()] = loads_stored * resource_units_per_load();
+            b->resources[resource_iron()] = static_cast<short>(loads_stored * resource_units_per_load());
         } else if (type_attr_is(b->type, "city_mint")) {
-            b->resources[resource_gold()] = loads_stored;
+            b->resources[resource_gold()] = static_cast<short>(loads_stored);
         } else if (type_attr_is(b->type, "small_temple_neptune") || type_attr_is(b->type, "large_temple_neptune")) {
-            b->days_since_offering = loads_stored;
+            b->days_since_offering = static_cast<unsigned char>(loads_stored);
         } else if (type_is_warehouse_space(b->type)) {
-            b->resources[b->subtype.warehouse_resource_id] = loads_stored;
+            b->resources[b->subtype.warehouse_resource_id] = static_cast<short>(loads_stored);
         } else if (type_attr_is(b->type, "lighthouse")) {
-            b->resources[resource_timber()] = loads_stored;
+            b->resources[resource_timber()] = static_cast<short>(loads_stored);
         } else if (type_attr_is(b->type, "grand_temple_venus")) {
-            b->resources[resource_wine()] = loads_stored;
+            b->resources[resource_wine()] = static_cast<short>(loads_stored);
         }
     }
 
@@ -1186,6 +1230,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     if (!for_preview) {
+        // Keep load as full records plus staged module state until building_runtime_initialize_city_graphics_cache().
         BuildingGraphicsState graphics_state;
         graphics_state.set_variant(legacy_graphics_variant);
         building_runtime_stage_loaded_graphics_state(

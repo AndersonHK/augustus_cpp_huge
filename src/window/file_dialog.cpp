@@ -662,6 +662,7 @@ static void confirm_save_file(int accepted, int checked)
 
 static void confirm_small_image(int accepted, int checked)
 {
+    (void) checked;
     if (!accepted) {
         return;
     }
@@ -678,6 +679,7 @@ static void confirm_small_image(int accepted, int checked)
 
 static void button_ok_cancel(int is_ok, int param2)
 {
+    (void) param2;
     if (!is_ok) {
         input_box_stop(&main_input);
         window_go_back();
@@ -805,6 +807,7 @@ static void button_ok_cancel(int is_ok, int param2)
 
 static void button_toggle_sort_type(const generic_button *button)
 {
+    (void) button;
     if (data.sort_type == FILE_DIALOG_SORT_BY_NAME) {
         data.sort_type = FILE_DIALOG_SORT_BY_DATE;
     } else {

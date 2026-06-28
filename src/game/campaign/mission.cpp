@@ -42,10 +42,10 @@ campaign_mission *campaign_mission_next(int last_index)
 campaign_scenario *campaign_mission_new_scenario(void)
 {
     data.scenarios.emplace_back();
-    campaign_scenario &scenario = data.scenarios.back();
-    scenario = {};
-    scenario.id = static_cast<unsigned int>(data.scenarios.size() - 1);
-    return &scenario;
+    campaign_scenario &new_scenario = data.scenarios.back();
+    new_scenario = {};
+    new_scenario.id = static_cast<unsigned int>(data.scenarios.size() - 1);
+    return &new_scenario;
 }
 
 campaign_scenario *campaign_mission_get_scenario(unsigned int scenario_id)
@@ -69,12 +69,12 @@ void campaign_mission_clear(void)
         }
     }
     data.missions.clear();
-    for (campaign_scenario &scenario : data.scenarios) {
-        free((uint8_t *) scenario.name);
+    for (campaign_scenario &campaign_entry : data.scenarios) {
+        free((uint8_t *) campaign_entry.name);
         if (game_campaign_is_custom()) {
-            free((uint8_t *) scenario.description);
-            free((char *) scenario.fanfare);
-            free((char *) scenario.path);
+            free((uint8_t *) campaign_entry.description);
+            free((char *) campaign_entry.fanfare);
+            free((char *) campaign_entry.path);
         }
     }
     data.scenarios.clear();

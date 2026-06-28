@@ -2,6 +2,7 @@
 #include "maintenance.h"
 
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/house.h"
@@ -47,8 +48,9 @@ static int composed_main_uses_union_road_access(const building *b)
         !building_is_fort(b->type);
 }
 
-static int composed_main_road_access_area(const building *b, int *x, int *y, int *size)
+static int composed_main_road_access_area(const Building &building_object, int *x, int *y, int *size)
 {
+    const building *b = building_object.record();
     if (!b || !x || !y || !size || !composed_main_uses_union_road_access(b)) {
         return 0;
     }
@@ -58,8 +60,8 @@ static int composed_main_road_access_area(const building *b, int *x, int *y, int
     int max_x = b->x + b->size;
     int max_y = b->y + b->size;
     int saw_child = 0;
-    const building *part = b;
-    for (int guard = 0; part && guard < 64; guard++) {
+    building_object.for_each_part([&](Building part_object) {
+        const building *part = part_object.record();
         if (part != b) {
             saw_child = 1;
         }
@@ -75,11 +77,7 @@ static int composed_main_road_access_area(const building *b, int *x, int *y, int
         if (part->y + part->size > max_y) {
             max_y = part->y + part->size;
         }
-        if (part->next_part_building_id <= 0) {
-            break;
-        }
-        part = building_get(part->next_part_building_id);
-    }
+    });
 
     if (!saw_child) {
         const building_type_registry_impl::BuildingType *definition =
@@ -125,17 +123,21 @@ void building_maintenance_update_burning_ruins(void)
     Building::for_each([&](Building *building_object) {
         building *b = const_cast<::building *>(building_object->record());
         if ((b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) ||
-            !building_type_registry_impl::type_attr_is(b->type, "burning_ruin")) {
+            !building_object->Rubble || !building_object->Rubble->is_burning()) {
             return;
         }
+        const RubbleDef &rubble_definition = *building_object->Rubble->definition();
         if (b->fire_duration < 0) {
             b->fire_duration = 0;
         }
         b->fire_duration++;
-        if (b->fire_duration > 32) {
+        if (b->fire_duration > rubble_definition.burn_days) {
             game_undo_disable();
-            b->state = BUILDING_STATE_RUBBLE;
             map_building_tiles_set_rubble(building_object, b->x, b->y, b->size);
+            building_change_type(b, rubble_definition.decay_type->type());
+            b->fire_duration = 0;
+            b->state = BUILDING_STATE_RUBBLE;
+            building_runtime_impl::get_or_create_instance(b);
             recalculate_terrain = 1;
             return;
         }
@@ -197,9 +199,19 @@ int building_maintenance_get_closest_burning_ruin(int x, int y, int *distance)
     int burning_size = building_list_burning_size();
     for (int i = 0; i < burning_size; i++) {
         int building_id = building_list_burning_item(i);
-        building *b = building_get(building_id);
+        building *b = nullptr;
+        Building *burning_building = nullptr;
+        Building::for_each([&](Building *candidate) {
+            if (!b && candidate->id == static_cast<unsigned int>(building_id)) {
+                burning_building = candidate;
+                b = const_cast<::building *>(candidate->record());
+            }
+        });
+        if (!b) {
+            continue;
+        }
         if ((b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) &&
-            building_type_registry_impl::type_attr_is(b->type, "burning_ruin") && !b->has_plague && b->distance_from_entry) {
+            burning_building->Rubble && burning_building->Rubble->is_burning() && !b->has_plague && b->distance_from_entry) {
             int dist = calc_maximum_distance(x, y, b->x, b->y);
             if (b->figure_id4) {
                 if (dist < min_occupied_dist) {
@@ -297,7 +309,7 @@ void building_maintenance_check_fire_collapse(void)
                 fire_increase += 3;
             }
 
-            b->fire_risk += fire_increase;
+            b->fire_risk = static_cast<short>(b->fire_risk + fire_increase);
         }
         if (b->fire_risk > 100) {
             fire_building(b);
@@ -353,12 +365,12 @@ void building_maintenance_check_rome_access(void)
                 Route::RoadResult route = entry_route.findRoad({ x_road, y_road });
                 if (route) {
                     // reachable from rome
-                    b->distance_from_entry = route.distance;
+                    b->distance_from_entry = static_cast<short>(route.distance);
                     b->house_unreachable_ticks = 0;
                 } else if ((route = entry_route.findReachableRoad(b->x, b->y, b->size, 2))) {
                     x_road = route.road.x;
                     y_road = route.road.y;
-                    b->distance_from_entry = route.distance;
+                    b->distance_from_entry = static_cast<short>(route.distance);
                     b->house_unreachable_ticks = 0;
                 } else {
                     // no reachable road in radius
@@ -372,8 +384,8 @@ void building_maintenance_check_rome_access(void)
                         b->state = BUILDING_STATE_UNDO;
                     }
                 }
-                b->road_access_x = x_road;
-                b->road_access_y = y_road;
+                b->road_access_x = static_cast<unsigned char>(x_road);
+                b->road_access_y = static_cast<unsigned char>(y_road);
             }
         } else if (building_type_registry_impl::type_attr_is(b->type, "granary")) {
             map_point road_acces_point;
@@ -389,7 +401,7 @@ void building_maintenance_check_rome_access(void)
             int access_x = 0;
             int access_y = 0;
             int access_size = 0;
-            if (composed_main_road_access_area(b, &access_x, &access_y, &access_size)) {
+            if (composed_main_road_access_area(*building_object, &access_x, &access_y, &access_size)) {
                 road_access = entry_route.findRoadToLargestNetwork(access_x, access_y, access_size);
             } else if (building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
                 int rotated = b->subtype.orientation != 0;
@@ -406,10 +418,10 @@ void building_maintenance_check_rome_access(void)
             }
         }
         if (road_access) {
-            b->road_network_id = map_road_network_get(road_access.grid_offset);
-            b->distance_from_entry = road_access.distance;
-            b->road_access_x = road_access.road.x;
-            b->road_access_y = road_access.road.y;
+            b->road_network_id = static_cast<unsigned char>(map_road_network_get(road_access.grid_offset));
+            b->distance_from_entry = static_cast<short>(road_access.distance);
+            b->road_access_x = static_cast<unsigned char>(road_access.road.x);
+            b->road_access_y = static_cast<unsigned char>(road_access.road.y);
         }
         if (!is_storage_road_access_type(b->type) && b->house_unreachable_ticks == 0) {
             b->has_road_access = b->distance_from_entry > 0;

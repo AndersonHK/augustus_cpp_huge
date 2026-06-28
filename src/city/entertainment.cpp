@@ -9,11 +9,10 @@
 static void accumulate_venue_shows(std::string_view attr, int no_show_weight, int has_second_show,
     int *shows, int *no_shows_weighted)
 {
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        Building building(b);
-        if (!b || b->state != BUILDING_STATE_IN_USE || !building.type || !building.type->attr_is(attr)) {
-            continue;
+    Building::for_each([&](Building *venue) {
+        building *b = const_cast<building *>(venue->record());
+        if (!b || b->state != BUILDING_STATE_IN_USE || !venue->type || !venue->type->attr_is(attr)) {
+            return;
         }
         if (b->data.entertainment.days1) {
             (*shows)++;
@@ -21,14 +20,14 @@ static void accumulate_venue_shows(std::string_view attr, int no_show_weight, in
             *no_shows_weighted += no_show_weight;
         }
         if (!has_second_show) {
-            continue;
+            return;
         }
         if (b->data.entertainment.days2) {
             (*shows)++;
         } else {
             *no_shows_weighted += no_show_weight;
         }
-    }
+    });
 }
 
 int city_entertainment_theater_shows(void)

@@ -166,7 +166,7 @@ int editor_tool_is_brush(void)
     }
 }
 
-static int raise_land_tile(int x, int y, int grid_offset, int terrain)
+static int raise_land_tile(int, int, int grid_offset, int terrain)
 {
     int elevation = map_elevation_at(grid_offset);
     if (elevation < 5 && elevation == data.start_elevation) {
@@ -179,7 +179,7 @@ static int raise_land_tile(int x, int y, int grid_offset, int terrain)
     return terrain;
 }
 
-static int lower_land_tile(int x, int y, int grid_offset, int terrain)
+static int lower_land_tile(int, int, int grid_offset, int terrain)
 {
     if (terrain & TERRAIN_ACCESS_RAMP) {
         terrain |= TERRAIN_ELEVATION;
@@ -280,6 +280,7 @@ static void add_terrain(const void *tile_data, int dx, int dy)
             break;
         case TOOL_EARTHQUAKE_CUSTOM_REMOVE:
             map_property_clear_future_earthquake(grid_offset);
+            break;
         default:
             break;
     }
@@ -423,7 +424,7 @@ static void place_building(const map_tile *tile)
             break;
         case TOOL_NATIVE_HUT_ALT:
             type = building_type_registry_impl::type_from_attr("native_hut_alt");
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             size = 1;
             break;
         case TOOL_NATIVE_CENTER:
@@ -439,17 +440,17 @@ static void place_building(const map_tile *tile)
         case TOOL_NATIVE_DECORATION:
             type = building_type_registry_impl::type_from_attr("native_decor");
             size = 1;
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_MONUMENT:
             type = building_type_registry_impl::type_from_attr("native_monument");
             size = 4;
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_WATCHTOWER:
             type = building_type_registry_impl::type_from_attr("native_watchtower");
             size = 1;
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         default:
             return;
@@ -459,7 +460,7 @@ static void place_building(const map_tile *tile)
     }
 
     if (editor_tool_can_place_building(tile, size * size, 0)) {
-        Building building = Building(building_create(type, tile->x, tile->y));
+        Building building = Building::create(type, tile->x, tile->y);
         map_building_tiles_add(building, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {
@@ -493,7 +494,7 @@ static void place_access_ramp(const map_tile *tile)
                 map_property_clear_future_earthquake(grid_offset);
             }
         }
-        map_building_tiles_add(0, tile->x, tile->y, 2,
+        map_terrain_tiles_add(tile->x, tile->y, 2,
             image_group(GROUP_TERRAIN_ACCESS_RAMP) + orientation, TERRAIN_ACCESS_RAMP);
 
         update_terrain_after_elevation_changes();

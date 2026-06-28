@@ -32,7 +32,7 @@ void city_emperor_init_scenario(int rank)
     city_data.ratings.favor = scenario_starting_favor();
     city_data.emperor.personal_savings = scenario_starting_personal_savings();
     city_data.emperor.player_rank = rank;
-    city_data.emperor.caesar_salary = scenario_property_caesar_salary();
+    city_data.emperor.caesar_salary = static_cast<uint16_t>(scenario_property_caesar_salary());
     if (city_data.emperor.caesar_salary == 0) {
         city_data.emperor.caesar_salary = 100;
     }

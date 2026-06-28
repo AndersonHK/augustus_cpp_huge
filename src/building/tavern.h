@@ -8,5 +8,5 @@ public:
     using Building::Building;
     explicit Tavern(Building building) : Building(building) {}
 
-    int storage_destination();
+    Building *storage_destination();
 };

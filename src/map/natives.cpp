@@ -51,7 +51,6 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
             int grid_offset = map_grid_offset(xx, yy);
             if (map_building_exists_at(grid_offset)) {
                 Building existing = map_building_at(grid_offset);
-                building *record = const_cast<::building *>(existing.record());
                 building_type type = existing.type ? existing.type->type() : BUILDING_NONE;
                 static const char *const native_land_allowed[] = {
                     "mission_post",
@@ -72,7 +71,7 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
                     (existing.type->is_granary() || existing.type->is_warehouse());
                 if (!building_type_registry_impl::type_attr_is_any(type, native_land_allowed,
                         sizeof(native_land_allowed) / sizeof(native_land_allowed[0])) &&
-                    (Roadblock(record).kind() == ROADBLOCK_NONE ||
+                    (Roadblock(existing).kind() == ROADBLOCK_NONE ||
                         building_type_registry_impl::type_attr_is_any(type, roadblock_pass_allowed,
                             sizeof(roadblock_pass_allowed) / sizeof(roadblock_pass_allowed[0])) ||
                         is_storage)) {
@@ -105,13 +104,14 @@ static void determine_meeting_center(void)
                     min_meeting_id = m->id;
                 }
             }
-            b->subtype.native_meeting_center_id = min_meeting_id;
+            b->subtype.native_meeting_center_id = static_cast<short>(min_meeting_id);
         }
     }
 }
 
 static int native_hut_alt_get_image_id(void) {
-    return building_image_get_for_type(building_type_registry_impl::type_from_attr("native_hut_alt"));
+    return building_image_get_for_type(building_type_registry_impl::definition_for_type(
+        building_type_registry_impl::type_from_attr("native_hut_alt")));
 }
 
 struct native_tile_match {
@@ -140,15 +140,15 @@ static native_tile_match native_tile_match_for_image(
     }
     if (scenario.native_images.decoration != 0 && source_image_id == scenario.native_images.decoration) {
         const building_type type = building_type_registry_impl::type_from_attr("native_decor");
-        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+        return { type, building_image_get_for_type(building_type_registry_impl::definition_for_type(type)), 0 };
     }
     if (scenario.native_images.monument != 0 && source_image_id == scenario.native_images.monument) {
         const building_type type = building_type_registry_impl::type_from_attr("native_monument");
-        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+        return { type, building_image_get_for_type(building_type_registry_impl::definition_for_type(type)), 0 };
     }
     if (scenario.native_images.watchtower != 0 && source_image_id == scenario.native_images.watchtower) {
         const building_type type = building_type_registry_impl::type_from_attr("native_watchtower");
-        return { type, type == BUILDING_NONE ? 0 : building_image_get_for_type(type), 0 };
+        return { type, building_image_get_for_type(building_type_registry_impl::definition_for_type(type)), 0 };
     }
     if (source_image_id == scenario.native_images.meeting) {
         return { building_type_registry_impl::type_from_attr("native_meeting"), native_image + 2, 1 };
@@ -178,7 +178,7 @@ void map_natives_init(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_at(grid_offset)) {
+            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_exists_at(grid_offset)) {
                 continue;
             }
 
@@ -202,7 +202,7 @@ void map_natives_init(void)
             map_building_set(grid_offset, runtime->building);
             b->state = BUILDING_STATE_IN_USE;
             if (building_type_registry_impl::type_attr_is(type, "native_crops")) {
-                b->data.industry.progress = random_bit;
+                b->data.industry.progress = static_cast<short>(random_bit);
             } else if (building_type_registry_impl::type_attr_is(type, "native_meeting")) {
                 b->sentiment.native_anger = 100;
                 map_building_set(grid_offset + map_grid_delta(1, 0), runtime->building);
@@ -218,10 +218,11 @@ void map_natives_init(void)
                 if (building_type_registry_impl::type_attr_is_any(type, native_single_tile_land,
                         sizeof(native_single_tile_land) / sizeof(native_single_tile_land[0]))) {
                     b->sentiment.native_anger = 100;
-                    b->figure_spawn_delay = random_bit;
+                    b->figure_spawn_delay = static_cast<unsigned char>(random_bit);
                     mark_native_land(b->x, b->y, 1, 3);
                 } else if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
-                    map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get_for_type(type), TERRAIN_BUILDING);
+                    map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                        building_image_get(&runtime->building), TERRAIN_BUILDING);
                 }
             }
         }
@@ -265,7 +266,8 @@ void map_natives_init_editor(void)
                 map_building_set(grid_offset + map_grid_delta(1, 1), runtime->building);
             }
             if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
-                map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get_for_type(type), TERRAIN_BUILDING);
+                map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                    building_image_get(&runtime->building), TERRAIN_BUILDING);
             }
         }
     }

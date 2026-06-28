@@ -349,9 +349,9 @@ void city_culture_refresh_building_module_capacity(const building *b)
 void city_culture_rebuild_module_capacity_cache(void)
 {
     city_culture_clear_module_capacity_cache();
-    for (int id = 1; id < building_count(); id++) {
-        city_culture_add_building_module_capacity(building_get(id));
-    }
+    Building::for_each([](Building *building) {
+        city_culture_add_building_module_capacity(building->record());
+    });
 }
 
 int city_culture_average_education(void)
@@ -436,10 +436,9 @@ void city_culture_calculate(void)
     city_data.culture.population_with_venus_access = 0; //venus
 
     int num_houses = 0;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        const Building house(b);
-        if (building_house_is_active(house)) {
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *b = const_cast<building *>(house->record());
+        if (building_house_is_active(*house)) {
             num_houses++;
             city_data.culture.average_entertainment += b->data.house.entertainment;
             city_data.culture.average_religion += b->data.house.num_gods;
@@ -450,7 +449,7 @@ void city_culture_calculate(void)
                 city_data.culture.population_with_venus_access += b->house_population;
             }
         }
-    }
+    });
     if (num_houses) {
         city_data.culture.average_entertainment /= num_houses;
         city_data.culture.average_religion /= num_houses;
