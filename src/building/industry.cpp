@@ -323,11 +323,6 @@ int building_stockpiling_enabled(building *b)
     return b->data.industry.is_stockpiling;
 }
 
-void building_industry_start_new_production(building *b)
-{
-    Building(b).start_native_production();
-}
-
 int building_loads_stored(const building *b)
 {
     int amount = 0;
@@ -339,48 +334,32 @@ int building_loads_stored(const building *b)
 
 void building_bless_farms(void)
 {
-    for (size_t index = 0; index < building_type_registry_impl::g_building_types.size(); index++) {
-        building_type type = static_cast<building_type>(index);
-        if (!building_is_farm(type)) {
-            continue;
+    Building::for_each([] (Building *building)
+    {
+        if (building_is_farm(building->type->type()) && building->is_in_use()) {
+            building->bless_native_farm();
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE) {
-                Building(b).bless_native_farm();
-            }
-        }
-    }
+    });
 }
 
 void building_bless_industry(void)
 {
-    for (size_t index = 0; index < building_type_registry_impl::g_building_types.size(); index++) {
-        building_type type = static_cast<building_type>(index);
-        if (!has_native_production_type(type)) {
-            continue;
+    Building::for_each([] (Building *building)
+    {
+        if (has_native_production_type(building->type->type()) && building->is_in_use()) {
+            building->bless_native_industry();
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
-                continue;
-            }
-            Building(b).bless_native_industry();
-        }
-    }
+    });
 }
 
 void building_curse_farms(int big_curse)
 {
-    for (size_t index = 0; index < building_type_registry_impl::g_building_types.size(); index++) {
-        building_type type = static_cast<building_type>(index);
-        if (!building_is_farm(type)) {
-            continue;
+    Building::for_each([big_curse] (Building *building)
+    {
+        if (building_is_farm(building->type->type()) && building->is_in_use()) {
+            building->curse_native_farm(big_curse);
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE) {
-                Building(b).curse_native_farm(big_curse);
-            }
-        }
-    }
+    });
 }
 
 int building_get_required_raw_amount_for_production(building_type type, int raw_material)
@@ -404,12 +383,12 @@ int building_get_required_raw_amount_for_production(building_type type, int raw_
     return amount;
 }
 
-int building_workshop_add_raw_material(building *b, int resource, int loads, unsigned int figure_id)
+int building_workshop_add_raw_material(Building *b, int resource, int loads, unsigned int figure_id)
 {
     if (!b || !b->id || loads <= 0 || resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
-    return Building(b).receive_input_storage_loads(static_cast<resource_type>(resource), loads, figure_id);
+    return b->receive_input_storage_loads(static_cast<resource_type>(resource), loads, figure_id);
 }
 
 int building_has_workshop_for_raw_material_with_room(int resource, int road_network_id)
@@ -454,12 +433,12 @@ int building_get_workshop_for_raw_material(int x, int y, int resource, int road_
 
 static void update_stats_for_type(building_type type)
 {
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) {
-            continue;
+    Building::for_each([type] (Building *building)
+    {
+        if (building->type->type() == type && (building->is_in_use() || building->is_mothballed())) {
+            building->advance_native_production_stats();
         }
-        Building(b).advance_native_production_stats();
-    }
+    });
 }
 
 void building_industry_advance_stats(void)

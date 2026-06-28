@@ -9,7 +9,7 @@ namespace building_local_workforce {
 class RouteAccessSelectorContext;
 
 struct HouseRouteSelection {
-    Building house{ nullptr };
+    Building *house = nullptr;
     Route::RoadResult access_road;
 
     explicit operator bool() const;
@@ -42,7 +42,7 @@ private:
     Route::RoadResult findHouseAccessRoad(const Building &house, const building &house_record) const;
     HouseRouteSelection bestSelection(
         const HouseRouteSelection &current,
-        const Building &house,
+        Building &house,
         const Route::RoadResult &access_road) const;
 
     RouteAccessSelectorContext *context_ = nullptr;

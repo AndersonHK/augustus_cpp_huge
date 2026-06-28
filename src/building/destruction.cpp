@@ -315,15 +315,15 @@ void building_destroy_last_placed(void)
 {
     int highest_sequence = 0;
     building *last_building = 0;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building) {
+        building *b = const_cast<::building *>(building->record());
         if (b->state == BUILDING_STATE_CREATED || b->state == BUILDING_STATE_IN_USE) {
             if (b->created_sequence > highest_sequence) {
                 highest_sequence = b->created_sequence;
                 last_building = b;
             }
         }
-    }
+    });
     if (last_building) {
         city_message_post(1, MESSAGE_ROAD_TO_ROME_BLOCKED, 0, last_building->grid_offset);
         game_undo_disable();

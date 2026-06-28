@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/BuildingGraphicsState.h"
+#include "building/BuildingForEachArgs.h"
 #include "assets/image_group_entry.h"
 #include "building/building.h"
 #include "building/building_type.h"
@@ -9,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -24,6 +26,10 @@ int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGra
 void building_runtime_backup_graphics_state(void);
 void building_runtime_restore_graphics_state(void);
 void building_runtime_initialize_city_graphics_cache(void);
+void building_runtime_for_each(const std::function<void(Building *)> &visitor);
+void building_runtime_for_each(
+    const BuildingForEachArgs &args,
+    const std::function<void(Building *)> &visitor);
 
 class building_runtime {
     friend class Building;

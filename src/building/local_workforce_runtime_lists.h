@@ -11,8 +11,8 @@ class RuntimeBuildingLists {
 public:
     void clear();
     void markDirty();
-    void forEachLaborSourceHouse(const std::function<void(Building, building &)> &visitor);
-    void forEachPopulatedLaborSourceHouse(const std::function<void(Building, building &)> &visitor);
+    void forEachLaborSourceHouse(const std::function<void(Building &, building &)> &visitor);
+    void forEachPopulatedLaborSourceHouse(const std::function<void(Building &, building &)> &visitor);
 
 private:
     int buildingCountChanged() const;

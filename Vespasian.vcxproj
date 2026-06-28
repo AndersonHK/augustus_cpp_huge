@@ -565,6 +565,7 @@
     <ClInclude Include="src\assets\layer.h" />
     <ClInclude Include="src\assets\xml.h" />
     <ClInclude Include="src\assets\xml_path_resolution.h" />
+    <ClInclude Include="src\building\BuildingForEachArgs.h" />
     <ClInclude Include="src\building\BuildingGraphics.h" />
     <ClInclude Include="src\building\BuildingGraphicsDef.h" />
     <ClInclude Include="src\building\BuildingGraphicsState.h" />

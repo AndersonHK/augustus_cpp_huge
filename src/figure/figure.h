@@ -45,7 +45,7 @@ public:
 
     void remove();
     void release_destination_reservations();
-    int retarget_building(const Building &from, const Building &to);
+    int retarget_building(Building &from, Building &to);
     int is_dead() const;
     int is_enemy() const;
     int is_melee_enemy() const;
@@ -150,9 +150,9 @@ public:
     short cc_delta_xy;
     unsigned char cc_direction; // 1 = x, 2 = y
     unsigned char speed_multiplier;
-    Building building{nullptr};
-    Building immigrant_building{nullptr};
-    Building destination_building{nullptr};
+    Building *building = nullptr;
+    Building *immigrant_building = nullptr;
+    Building *destination_building = nullptr;
     unsigned int formation_id;
     unsigned char index_in_formation;
     unsigned char formation_at_rest;

@@ -151,47 +151,48 @@ static int cause_disease(void)
     building_type sick_building_type = BUILDING_NONE;
     int grid_offset = 0;
     // Kill people who have sickness level to max in houses
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (building_house_is_active(Building(b)) && b->house_population) {
-            if (b->sickness_level >= MAX_SICKNESS_LEVEL) {
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *record = const_cast<building *>(house->record());
+        int population = house->house_population();
+        if (building_house_is_active(*house) && population) {
+            if (record->sickness_level >= MAX_SICKNESS_LEVEL) {
                 sick_people = 1;
-                sick_building_type = b->type;
-                grid_offset = b->grid_offset;
+                sick_building_type = record->type;
+                grid_offset = house->grid_offset();
                 if (city_health() < 40) {
-                    building_destroy_by_plague(b);
+                    building_destroy_by_plague(record);
                 } else {
-                    int killed_people = b->house_population -
-                        calc_adjust_with_percentage(b->house_population, city_health());
+                    int killed_people = population -
+                        calc_adjust_with_percentage(population, city_health());
                     if (killed_people == 0) {
                         killed_people = 1;
                     }
-                    if (killed_people < b->house_population) {
-                        b->house_population -= killed_people;
+                    if (killed_people < population) {
+                        house->set_house_population(population - killed_people);
                     } else {
-                        building_house_change_to_vacant_lot(Building(b));
+                        building_house_change_to_vacant_lot(*house);
                     }
                     city_population_remove_home_removed(killed_people);
 
                     // Cause plague in the house
-                    b->immigrant_figure_id = 0;
-                    b->has_plague = 1;
-                    b->sickness_duration = 0;
+                    house->set_immigrant_figure_id(0);
+                    record->has_plague = 1;
+                    record->sickness_duration = 0;
                 }
             }
         }
-    }
+    });
 
     if (sick_people) {
         city_message_post_with_popup_delay(MESSAGE_CAT_ILLNESS, MESSAGE_SICKNESS, sick_building_type, grid_offset);
     }
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (is_plague_building(Building(b)) && b->sickness_level >= MAX_SICKNESS_LEVEL) {
-            cause_disease_in_building(b->id);
+    Building::for_each([&](Building *building) {
+        building *record = const_cast<building *>(building->record());
+        if (is_plague_building(*building) && record->sickness_level >= MAX_SICKNESS_LEVEL) {
+            cause_disease_in_building(building->id);
         }
-    }
+    });
 
     return sick_people;
 }
@@ -250,17 +251,20 @@ static void cause_plague(int total_people)
         if (level < 0) {
             continue;
         }
-        for (int i = 1; i < building_count(); i++) {
-            building *b = building_get(i);
-            if (occupied_house_at_level(Building(b), level)) {
-                if (!b->data.house.clinic) {
-                    people_to_kill -= b->house_population;
-                    building_destroy_by_plague(b);
-                    if (people_to_kill <= 0) {
-                        return;
-                    }
+        Building::for_each({ .hasHousing = true }, [&](Building *house) {
+            if (people_to_kill <= 0) {
+                return;
+            }
+            building *record = const_cast<building *>(house->record());
+            if (occupied_house_at_level(*house, level)) {
+                if (!record->data.house.clinic) {
+                    people_to_kill -= house->house_population();
+                    building_destroy_by_plague(record);
                 }
             }
+        });
+        if (people_to_kill <= 0) {
+            return;
         }
     }
     // kill anyone, starting with tents and working up the housing levels
@@ -269,33 +273,36 @@ static void cause_plague(int total_people)
         if (level < 0) {
             continue;
         }
-        for (int i = 1; i < building_count(); i++) {
-            building *b = building_get(i);
-            if (occupied_house_at_level(Building(b), level)) {
-                people_to_kill -= b->house_population;
-                building_destroy_by_plague(b);
-                if (people_to_kill <= 0) {
-                    return;
-                }
+        Building::for_each({ .hasHousing = true }, [&](Building *house) {
+            if (people_to_kill <= 0) {
+                return;
             }
+            building *record = const_cast<building *>(house->record());
+            if (occupied_house_at_level(*house, level)) {
+                people_to_kill -= house->house_population();
+                building_destroy_by_plague(record);
+            }
+        });
+        if (people_to_kill <= 0) {
+            return;
         }
     }
 }
 
 static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonus)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!is_plague_building(Building(b)) || b->has_plague || !b->sickness_level) {
-            continue;
+    Building::for_each([hospital_coverage_bonus](Building *building) {
+        building *record = const_cast<building *>(building->record());
+        if (!is_plague_building(*building) || record->has_plague || !record->sickness_level) {
+            return;
         }
         int decrease_percentage = city_health();
         decrease_percentage += calc_adjust_with_percentage(decrease_percentage, hospital_coverage_bonus);
         if (decrease_percentage > 100) {
             decrease_percentage = 100;
         }
-        b->sickness_level -= calc_adjust_with_percentage(b->sickness_level, decrease_percentage);
-    }
+        record->sickness_level -= calc_adjust_with_percentage(record->sickness_level, decrease_percentage);
+    });
 }
 
 static void adjust_sickness_level_in_house(building *b, int house_health, int population_health_offset,
@@ -399,23 +406,24 @@ void city_health_update(void)
     city_data.health.population_access.latrines = 0;
     city_data.health.population_access.fountains = 0;
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!building_house_is_active(Building(b))) {
-            continue;
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *record = const_cast<building *>(house->record());
+        if (!building_house_is_active(*house)) {
+            return;
         }
-        if (!b->house_population) {
-            b->sickness_level = 0;
-            continue;
+        int population = house->house_population();
+        if (!population) {
+            record->sickness_level = 0;
+            return;
         }
-        int house_health = city_health_get_house_health_level(Building(b), 1);
+        int house_health = city_health_get_house_health_level(*house, 1);
 
-        total_population += b->house_population;
+        total_population += population;
         if (!only_gather_stats) {
-            healthy_population += calc_adjust_with_percentage(b->house_population, house_health);
-            adjust_sickness_level_in_house(b, house_health, population_health_offset, hospital_coverage_bonus);
+            healthy_population += calc_adjust_with_percentage(population, house_health);
+            adjust_sickness_level_in_house(record, house_health, population_health_offset, hospital_coverage_bonus);
         }
-    }
+    });
     if (only_gather_stats) {
         return;
     }
@@ -444,29 +452,29 @@ int city_health_get_global_sickness_level(void)
     int building_sickness_level = 0;
     int max_sickness_level = 0;
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (building_house_is_active(Building(b)) && b->house_population) {
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *record = const_cast<building *>(house->record());
+        if (building_house_is_active(*house) && house->house_population()) {
             building_number++;
-            building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
+            building_sickness_level += calc_bound(record->sickness_level, 0, MAX_SICKNESS_LEVEL);
 
-            if (b->sickness_level > max_sickness_level) {
-                max_sickness_level = b->sickness_level;
+            if (record->sickness_level > max_sickness_level) {
+                max_sickness_level = record->sickness_level;
             }
         }
-    }
+    });
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!is_plague_building(Building(b))) {
-            continue;
+    Building::for_each([&](Building *building) {
+        building *record = const_cast<building *>(building->record());
+        if (!is_plague_building(*building)) {
+            return;
         }
         building_number++;
-        building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
-        if (b->sickness_level > max_sickness_level) {
-            max_sickness_level = b->sickness_level;
+        building_sickness_level += calc_bound(record->sickness_level, 0, MAX_SICKNESS_LEVEL);
+        if (record->sickness_level > max_sickness_level) {
+            max_sickness_level = record->sickness_level;
         }
-    }
+    });
 
     if (max_sickness_level < MAX_SICKNESS_LEVEL) {
         for (building *b = first_building_of_type("burning_ruin"); b; b = b->next_of_type) {

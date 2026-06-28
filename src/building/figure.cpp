@@ -764,19 +764,16 @@ int BuildingFigureGenerator::building_uses_runtime_spawn(const building *b)
 
 void BuildingFigureGenerator::generate()
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(static_cast<unsigned int>(i));
-        if (!b || !b->id) {
-            continue;
-        }
+    Building::for_each([&](Building *runtime_building) {
+        building *b = const_cast<building *>(runtime_building->record());
 
-        Building building_object(b);
+        Building &building_object = *runtime_building;
         if (b->state != BUILDING_STATE_IN_USE) {
             b->show_on_problem_overlay = 1;
-            continue;
+            return;
         }
         if (!building_object.is_main_part() || building_monument_is_unfinished_monument(b)) {
-            continue;
+            return;
         }
 
         b->show_on_problem_overlay = 0;
@@ -824,7 +821,7 @@ void BuildingFigureGenerator::generate()
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "cart_depot")) {
             spawn_figure_depot(b);
         }
-    }
+    });
 }
 
 void building_figure_generate(void)

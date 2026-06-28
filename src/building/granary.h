@@ -18,7 +18,7 @@ enum {
 };
 
 int building_granary_get_amount(const Building &b, resource_type resource);
-Building building_granary_first();
+Building *building_granary_first();
 int building_granary_get_free_space_amount(const Building &b);
 int building_granary_count_available_resource(const Building &b, resource_type resource, int respect_maintaining);
 int building_granaries_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request);
@@ -33,7 +33,7 @@ int building_granaries_add_resource(resource_type resource, int amount, int resp
 int building_granary_remove_export(Building &granary, resource_type resource, int amount, int trader_type);
 int building_granary_try_remove_resource(Building &granary, resource_type resource, int desired_amount);
 int building_granaries_remove_resource(resource_type resource, int amount);
-Building building_granary_get_granary_needing_food(const Building &source, resource_type resource, int getting);
+Building *building_granary_get_granary_needing_food(const Building &source, resource_type resource, int getting);
 int building_granary_for_storing(int x, int y, resource_type resource, int road_network_id,
     int force_on_stockpile, int *understaffed, map_point *dst);
 int building_getting_granary_for_storing(int x, int y, resource_type resource, int road_network_id, map_point *dst);

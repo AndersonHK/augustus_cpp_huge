@@ -932,9 +932,10 @@ static void determine_armoury_supplier_destination(Figure *f, Building &armoury)
 
     // Has weapons, deliver to barracks
     if (f->resource_id) {
-        dst_building_id =
+        Building *destination =
             Barracks::for_weapon(armoury.x(), armoury.y(), resource_weapons(),
-                armoury.road_network_id(), &dst).id;
+                armoury.road_network_id(), &dst);
+        dst_building_id = destination ? destination->id : 0;
         if (dst_building_id) {
             set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
                 armoury, dst_building_id, dst.x, dst.y);
@@ -999,8 +1000,12 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     }
     // delivering resource
     // priority 1: weapons to barracks
-    dst_building_id = Barracks::for_weapon(f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, &dst)
-        .id;
+    if (Building *destination = Barracks::for_weapon(
+            f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, &dst)) {
+        dst_building_id = destination->id;
+    } else {
+        dst_building_id = 0;
+    }
     if (dst_building_id) {
         set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             warehouse, dst_building_id, dst.x, dst.y);

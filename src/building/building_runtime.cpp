@@ -161,6 +161,54 @@ building_runtime *get_or_create_instance(::building *building_data)
 
 }
 
+void building_runtime_for_each(const std::function<void(Building *)> &visitor)
+{
+    building_runtime_for_each({}, visitor);
+}
+
+void building_runtime_for_each(
+    const BuildingForEachArgs &args,
+    const std::function<void(Building *)> &visitor)
+{
+    if (!visitor) {
+        return;
+    }
+
+    const auto matches_bool = [](const std::optional<bool> &filter, int value) {
+        return !filter.has_value() || filter.value() == (value != 0);
+    };
+
+    for (std::unique_ptr<building_runtime> &instance : building_runtime_impl::g_runtime_instances) {
+        if (!instance) {
+            continue;
+        }
+
+        Building *building = &instance->building;
+        if (!building->id) {
+            continue;
+        }
+        if (building->state_id() == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+
+        const building_type_registry_impl::BuildingType *definition = building->type;
+        if (args.BuildingType && definition != args.BuildingType) {
+            continue;
+        }
+        if (!matches_bool(args.hasHousing, definition && definition->has_housing())) {
+            continue;
+        }
+        if (!matches_bool(args.hasLabor, definition && definition->has_labor())) {
+            continue;
+        }
+        if (!matches_bool(args.hasProductionMethod, definition && definition->has_native_production())) {
+            continue;
+        }
+
+        visitor(building);
+    }
+}
+
 void building_runtime::refresh_runtime_state()
 {
     if (!record_ || !definition()) {
@@ -225,7 +273,7 @@ int building_runtime::legacy_storage_reservation_is_current(const LegacyStorageR
 
     Figure *figure = Figure::get(reservation.figure_id);
     if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
-        figure->destination_building.id != record_->id ||
+        !figure->destination_building || figure->destination_building->id != record_->id ||
         static_cast<resource_type>(figure->resource_id) != reservation.resource ||
         figure->loads_sold_or_carrying <= 0) {
         return 0;
@@ -402,8 +450,7 @@ void building_runtime_initialize_city_graphics_cache(void)
         if (!b || !b->id) {
             continue;
         }
-        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED &&
-            b->state != BUILDING_STATE_CREATED) {
+        if (b->state == BUILDING_STATE_UNUSED) {
             continue;
         }
         if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
@@ -417,7 +464,10 @@ void building_runtime_initialize_city_graphics_cache(void)
                         building_type_registry_impl::definition_for_type(loaded->original_type);
                 }
             }
-            instance->set_building_graphic();
+            if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
+                b->state == BUILDING_STATE_CREATED) {
+                instance->set_building_graphic();
+            }
         }
     }
 

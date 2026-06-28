@@ -395,6 +395,16 @@ Building Building::create(building_type type, int x, int y)
     return building_runtime_impl::get_or_create_instance(building_create(type, x, y))->building;
 }
 
+void Building::for_each(const std::function<void(Building *)> &visitor)
+{
+    building_runtime_for_each(visitor);
+}
+
+void Building::for_each(const BuildingForEachArgs &args, const std::function<void(Building *)> &visitor)
+{
+    building_runtime_for_each(args, visitor);
+}
+
 int Building::count()
 {
     return building_count();
@@ -405,19 +415,21 @@ const ::building *Building::record() const
     return record_;
 }
 
-Building *Building::main() const
+Building &Building::main() const
 {
     if (!record_ || !record_->id) {
-        return nullptr;
+        std::terminate();
     }
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(building_main(record_));
-    return runtime ? &runtime->building : nullptr;
+    if (!runtime) {
+        std::terminate();
+    }
+    return runtime->building;
 }
 
-Building *Building::composition_owner() const
+Building &Building::composition_owner() const
 {
-    Building *owner = main();
-    return owner ? owner : const_cast<Building *>(this);
+    return main();
 }
 
 Building *Building::next() const
@@ -428,7 +440,7 @@ Building *Building::next() const
 
 void Building::for_each_part(const std::function<void(Building)> &visitor) const
 {
-    Building *part = main();
+    Building *part = &main();
     for (int guard = 0; part && guard < 64; guard++) {
         visitor(*part);
         if (!part->next_part_id()) {
@@ -2827,7 +2839,8 @@ void building_update_state(void)
             building_delete(b);
         } else if (b->immigrant_figure_id) {
             const Figure *f = Figure::get(b->immigrant_figure_id);
-            if (!f || f->state != FIGURE_STATE_ALIVE || f->destination_building.id != b->id) {
+            if (!f || f->state != FIGURE_STATE_ALIVE ||
+                !f->destination_building || f->destination_building->id != b->id) {
                 b->immigrant_figure_id = 0;
             }
         }

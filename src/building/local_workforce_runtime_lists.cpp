@@ -1,6 +1,7 @@
 #include "building/local_workforce_runtime_lists.h"
 
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type.h"
 #include "building/count.h"
 
@@ -18,7 +19,7 @@ void RuntimeBuildingLists::markDirty()
     dirty_ = true;
 }
 
-void RuntimeBuildingLists::forEachLaborSourceHouse(const std::function<void(Building, building &)> &visitor)
+void RuntimeBuildingLists::forEachLaborSourceHouse(const std::function<void(Building &, building &)> &visitor)
 {
     ensureCurrent();
     for (unsigned int house_id : labor_source_house_ids_) {
@@ -27,14 +28,16 @@ void RuntimeBuildingLists::forEachLaborSourceHouse(const std::function<void(Buil
             dirty_ = true;
             continue;
         }
-        visitor(Building(*house), *house);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
+            visitor(runtime->building, *house);
+        }
     }
 }
 
 void RuntimeBuildingLists::forEachPopulatedLaborSourceHouse(
-    const std::function<void(Building, building &)> &visitor)
+    const std::function<void(Building &, building &)> &visitor)
 {
-    forEachLaborSourceHouse([&visitor](Building house_object, building &house) {
+    forEachLaborSourceHouse([&visitor](Building &house_object, building &house) {
         if (house.house_population > 0) {
             visitor(house_object, house);
         }
@@ -62,12 +65,12 @@ void RuntimeBuildingLists::rebuild()
 {
     labor_source_house_ids_.clear();
     building_count_snapshot_ = building_count();
-    for (int id = 1; id < building_count_snapshot_; id++) {
-        building *house = building_get(id);
+    Building::for_each({ .hasHousing = true }, [this](Building *building) {
+        building *house = const_cast<::building *>(building->record());
         if (isLaborSourceHouse(house)) {
-            labor_source_house_ids_.push_back(static_cast<unsigned int>(id));
+            labor_source_house_ids_.push_back(building->id);
         }
-    }
+    });
     dirty_ = false;
 }
 

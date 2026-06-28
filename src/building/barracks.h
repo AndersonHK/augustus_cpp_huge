@@ -20,12 +20,12 @@ class Barracks : public Building {
 public:
     using Building::Building;
 
-    static Building for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst);
+    static Building *for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst);
 
     int priority() const;
     void set_priority(int priority);
     int create_soldier(int x, int y);
-    Building unmanned_tower(map_point *road) const;
+    Building *unmanned_tower(map_point *road) const;
     int create_tower_sentry(int x, int y);
 
 private:

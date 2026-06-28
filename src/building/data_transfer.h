@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/building_fwd.h"
+#include "building/building_type.h"
 
 
 typedef enum {
@@ -26,5 +27,5 @@ int building_data_transfer_paste(Building *b, int supress_warnings);
 
 int building_data_transfer_possible(Building *b, int supress_warnings);
 
-building_data_type building_data_transfer_data_type_from_building_type(::BuildingType type);
+building_data_type building_data_transfer_data_type_from_building_type(building_type type);
 

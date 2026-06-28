@@ -76,14 +76,14 @@ int city_resource_count_warehouses_amount(resource_type resource)
     }
 
     int total = 0;
-    for (Building warehouse = building_warehouse_first(); warehouse.id; warehouse = warehouse.next_of_type()) {
-        if (!warehouse.is_in_use()) {
+    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+        if (!warehouse->is_in_use()) {
             continue;
         }
-        if (!warehouse.has_cached_road_access() && !map_has_road_access_warehouse(warehouse.x(), warehouse.y(), 0)) {
+        if (!warehouse->has_cached_road_access() && !map_has_road_access_warehouse(warehouse->x(), warehouse->y(), 0)) {
             continue;
         }
-        total += building_warehouse_get_amount(warehouse, resource);
+        total += building_warehouse_get_amount(*warehouse, resource);
     }
     return total;
 }
@@ -148,12 +148,12 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
         return 0;
     }
 
-    for (Building granary = building_granary_first(); granary.id; granary = granary.next_of_type()) {
-        if (!granary.is_in_use()) {
+    for (Building *granary = building_granary_first(); granary; granary = granary->next_of_type()) {
+        if (!granary->is_in_use()) {
             continue;
         }
 
-        available_storage += building_granary_maximum_receptible_amount(granary, food);
+        available_storage += building_granary_maximum_receptible_amount(*granary, food);
     }
 
     return available_storage;
@@ -162,11 +162,11 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
 int city_resource_get_available_empty_space_warehouses(resource_type resource)
 {
     int available_storage = 0;
-    for (Building warehouse = building_warehouse_first(); warehouse.id; warehouse = warehouse.next_of_type()) {
-        if (!warehouse.is_in_use()) {
+    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+        if (!warehouse->is_in_use()) {
             continue;
         }
-        available_storage += building_warehouse_maximum_receptible_amount(warehouse, resource);
+        available_storage += building_warehouse_maximum_receptible_amount(*warehouse, resource);
     }
 
     return available_storage;

@@ -25,11 +25,11 @@ static void decay(unsigned char *value)
 
 void house_service_decay_culture(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!building_house_is_active(Building(b))) {
-            continue;
+    Building::for_each({ .hasHousing = true }, [](Building *building) {
+        if (!building_house_is_active(*building)) {
+            return;
         }
+        building *b = const_cast<::building *>(building->record());
         decay(&b->data.house.theater);
         decay(&b->data.house.amphitheater_actor);
         decay(&b->data.house.amphitheater_gladiator);
@@ -56,23 +56,26 @@ void house_service_decay_culture(void)
         if (b->days_since_offering < 125) {
             ++b->days_since_offering;
         }
-    }
+    });
 }
 
 void house_service_decay_tax_collector(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (building_house_is_active(Building(b)) && b->house_tax_coverage) {
+    Building::for_each({ .hasHousing = true }, [](Building *building) {
+        if (!building_house_is_active(*building)) {
+            return;
+        }
+        building *b = const_cast<::building *>(building->record());
+        if (b->house_tax_coverage) {
             b->house_tax_coverage--;
         }
-    }
+    });
 }
 
 void house_service_decay_houses_covered(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([](Building *building) {
+        building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_UNUSED && !is_tower_coverage_type(b->type)) {
             if (b->houses_covered <= 1) {
                 b->houses_covered = 0;
@@ -80,7 +83,7 @@ void house_service_decay_houses_covered(void)
                 b->houses_covered--;
             }
         }
-    }
+    });
 }
 
 void house_service_calculate_culture_aggregates(void)
@@ -89,11 +92,11 @@ void house_service_calculate_culture_aggregates(void)
     int completed_colosseum = building_monument_working(building_type_registry_impl::type_from_attr("colosseum"));
     int completed_hippodrome = building_monument_working(building_type_registry_impl::type_from_attr("hippodrome"));
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!building_house_is_active(Building(b))) {
-            continue;
+    Building::for_each({ .hasHousing = true }, [&](Building *building) {
+        if (!building_house_is_active(*building)) {
+            return;
         }
+        building *b = const_cast<::building *>(building->record());
         int arena_total = 0;
         int colosseum_total = 0;
 
@@ -184,5 +187,5 @@ void house_service_calculate_culture_aggregates(void)
         if (b->data.house.hospital) {
             ++b->data.house.health;
         }
-    }
+    });
 }

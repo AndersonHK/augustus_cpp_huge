@@ -17,7 +17,7 @@ int Armoury::is_needed() const
     }
 
     if (city_resource_is_stockpiled(resource_weapons()) ||
-        !Barracks::for_weapon(x(), y(), resource_weapons(), road_network_id(), nullptr).id) {
+        !Barracks::for_weapon(x(), y(), resource_weapons(), road_network_id(), nullptr)) {
         return 0;
     }
 

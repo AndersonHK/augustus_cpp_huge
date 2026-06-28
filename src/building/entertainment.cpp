@@ -20,7 +20,7 @@ BuildingEntertainment::BuildingEntertainment(const Building &venue)
 
 building *BuildingEntertainment::record() const
 {
-    return building_get(venue_.id);
+    return const_cast<::building *>(venue_.record());
 }
 
 int BuildingEntertainment::is_show_venue(const Building &building)
@@ -42,7 +42,7 @@ int BuildingEntertainment::has_figure_of_types(figure_type primary_type, figure_
     }
 
     Figure *figure = Figure::get(venue_record->figure_id);
-    if (figure && !figure->is_dead() && figure->building.id == venue_.id &&
+    if (figure && !figure->is_dead() && figure->building && figure->building->id == venue_.id &&
         (figure->type == primary_type || figure->type == secondary_type)) {
         return 1;
     }
@@ -333,11 +333,11 @@ void BuildingEntertainment::run_show_countdown()
 
 void building_entertainment_run_shows(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([](Building *building) {
+        const ::building *b = building->record();
+        if (b->state != BUILDING_STATE_IN_USE) {
+            return;
         }
-        BuildingEntertainment(Building(b)).run_show_countdown();
-    }
+        BuildingEntertainment(*building).run_show_countdown();
+    });
 }

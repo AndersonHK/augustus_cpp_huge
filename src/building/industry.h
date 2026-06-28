@@ -34,7 +34,7 @@ void building_bless_farms(void);
 void building_curse_farms(int big_curse);
 void building_bless_industry(void);
 
-int building_workshop_add_raw_material(building *b, int resource, int loads, unsigned int figure_id);
+int building_workshop_add_raw_material(Building *b, int resource, int loads, unsigned int figure_id);
 
 int building_get_workshop_for_raw_material(int x, int y, int resource, int road_network_id, map_point *dst);
 int building_has_workshop_for_raw_material_with_room(int resource, int road_network_id);

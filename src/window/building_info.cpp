@@ -466,7 +466,7 @@ static void init(int grid_offset)
 
         if (building_type_registry_impl::type_attr_is(btype, "barracks")) {
             context.barracks_soldiers_requested = formation_legion_recruits_needed();
-            if (Barracks(b).unmanned_tower(nullptr).id) {
+            if (Barracks(b).unmanned_tower(nullptr)) {
                 context.barracks_soldiers_requested++;
             }
         } else if (b->house_size) {

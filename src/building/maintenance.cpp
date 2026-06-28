@@ -122,11 +122,11 @@ void building_maintenance_update_burning_ruins(void)
     scenario_climate climate = scenario_property_climate();
     int recalculate_terrain = 0;
     building_list_burning_clear();
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building_object) {
+        building *b = const_cast<::building *>(building_object->record());
         if ((b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) ||
             !building_type_registry_impl::type_attr_is(b->type, "burning_ruin")) {
-            continue;
+            return;
         }
         if (b->fire_duration < 0) {
             b->fire_duration = 0;
@@ -135,26 +135,25 @@ void building_maintenance_update_burning_ruins(void)
         if (b->fire_duration > 32) {
             game_undo_disable();
             b->state = BUILDING_STATE_RUBBLE;
-            Building building(*b);
-            map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
+            map_building_tiles_set_rubble(building_object, b->x, b->y, b->size);
             recalculate_terrain = 1;
-            continue;
+            return;
         }
         if (b->has_plague) {
-            continue;
+            return;
         }
-        building_list_burning_add(i);
+        building_list_burning_add(b->id);
         if (climate == CLIMATE_DESERT) {
             if (b->fire_duration & 3) { // check spread every 4 ticks
-                continue;
+                return;
             }
         } else {
             if (b->fire_duration & 7) { // check spread every 8 ticks
-                continue;
+                return;
             }
         }
         if ((b->house_figure_generation_delay & 3) != (random_byte() & 3)) {
-            continue;
+            return;
         }
         int dir1 = data.fire_spread_direction - 1;
         if (dir1 < 0) {
@@ -183,7 +182,7 @@ void building_maintenance_update_burning_ruins(void)
             !spread_fire_to(grid_offset + map_grid_direction_delta(dir1))) {
             spread_fire_to(grid_offset + map_grid_direction_delta(dir2));
         }
-    }
+    });
     if (recalculate_terrain) {
         Route::updateLandTerrain();
     }
@@ -252,16 +251,16 @@ void building_maintenance_check_fire_collapse(void)
     if (city_population() < 10) {
         return; // skip fire/collapse checks in very early game to avoid frustrating the player
     }
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building_object) {
+        building *b = const_cast<::building *>(building_object->record());
         if (b->state != BUILDING_STATE_IN_USE || b->fire_proof || b->state == BUILDING_STATE_RUBBLE) {
-            continue;
+            return;
         }
         if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") && b->prev_part_building_id) {
-            continue;
+            return;
         }
-        int random_building = (i + map_random_get(b->grid_offset)) & 7;
-        int house_level = building_house_legacy_level(Building(b));
+        int random_building = (b->id + map_random_get(b->grid_offset)) & 7;
+        int house_level = building_house_legacy_level(*building_object);
         // damage
         b->damage_risk += random_building == random_global ? 3 : 1;
         if (tutorial_extra_damage_risk()) {
@@ -273,7 +272,7 @@ void building_maintenance_check_fire_collapse(void)
         if (b->damage_risk > 200) {
             collapse_building(b);
             recalculate_terrain = 1;
-            continue;
+            return;
         }
         // fire
         if (random_building == random_global) {
@@ -304,7 +303,7 @@ void building_maintenance_check_fire_collapse(void)
             fire_building(b);
             recalculate_terrain = 1;
         }
-    }
+    });
 
     if (recalculate_terrain) {
         Route::updateLandTerrain();
@@ -317,10 +316,10 @@ void building_maintenance_check_rome_access(void)
     const Route::DistanceQuery entry_route =
         Route::DistanceQuery::fromPoint({ entry_point->x, entry_point->y });
     int problem_grid_offset = 0;
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building_object) {
+        building *b = const_cast<::building *>(building_object->record());
         if (b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
         Route::RoadResult road_access;
         b->distance_from_entry = 0;
@@ -334,7 +333,7 @@ void building_maintenance_check_rome_access(void)
                 b->has_road_access = main_building->has_road_access;
                 b->labor_access_score = main_building->labor_access_score;
             }
-            continue;
+            return;
         }
         if (b->house_size) {
             int x_road = 0;
@@ -344,8 +343,7 @@ void building_maintenance_check_rome_access(void)
                 b->house_unreachable_ticks++;
                 if (b->house_unreachable_ticks > 4) {
                     if (b->house_population) {
-                        Building house(b);
-                        migrant_create_homeless(house, b->house_population);
+                        migrant_create_homeless(*building_object, b->house_population);
                         b->house_population = 0;
                         b->house_unreachable_ticks = 0;
                     }
@@ -416,7 +414,7 @@ void building_maintenance_check_rome_access(void)
         if (!is_storage_road_access_type(b->type) && b->house_unreachable_ticks == 0) {
             b->has_road_access = b->distance_from_entry > 0;
         }
-    }
+    });
     const map_tile *exit_point = city_map_exit_point();
 
     if (!entry_route.distanceTo(exit_point->grid_offset)) {

@@ -390,12 +390,12 @@ void building_house_process_evolve_and_consume_goods(void)
 
     time_millis last_update = time_get_millis();
 
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (!b || b->state != BUILDING_STATE_IN_USE || !b->house_size || b->last_update == last_update) {
-            continue;
+    Building::for_each({ .hasHousing = true }, [&](Building *building_object) {
+        building *b = const_cast<building *>(building_object->record());
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->last_update == last_update) {
+            return;
         }
-        Building house_object(b);
+        Building &house_object = *building_object;
         building_house_check_for_corruption(house_object);
         if (!b->has_plague) {
             if (house_object.type && house_object.type->has_housing()) {
@@ -403,14 +403,14 @@ void building_house_process_evolve_and_consume_goods(void)
             }
         }
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-            continue;
+            return;
         }
         // 1x1 houses only consume half of the goods
         if (game_time_day() == 0 || (game_time_day() == 7 && b->house_size > 1)) {
             consume_resources(b);
         }
         b->last_update = last_update;
-    }
+    });
     if (has_expanded) {
         Route::updateLandTerrain();
     }

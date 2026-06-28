@@ -1,6 +1,7 @@
 #include "building/local_workforce_route_access.h"
 
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/local_workforce.h"
 #include "building/local_workforce_runtime_lists.h"
 #include "game/performance_tracker.h"
@@ -11,7 +12,7 @@ namespace building_local_workforce {
 
 HouseRouteSelection::operator bool() const
 {
-    return house.id && access_road;
+    return house && house->id && access_road;
 }
 
 const map_point &HouseRouteSelection::road() const
@@ -84,13 +85,13 @@ Route::RoadResult RouteAccessSelector::findHouseAccessRoad(
 
 HouseRouteSelection RouteAccessSelector::bestSelection(
     const HouseRouteSelection &current,
-    const Building &house,
+    Building &house,
     const Route::RoadResult &access_road) const
 {
     if (!access_road || (current && current.access_road.distance <= access_road.distance)) {
         return current;
     }
-    return { house, access_road };
+    return { &house, access_road };
 }
 
 HouseRouteSelection RouteAccessSelector::nearestUnemployedHouse() const
@@ -100,7 +101,7 @@ HouseRouteSelection RouteAccessSelector::nearestUnemployedHouse() const
         return best;
     }
 
-    context_->runtimeLists().forEachPopulatedLaborSourceHouse([&best, this](Building house_object, building &house) {
+    context_->runtimeLists().forEachPopulatedLaborSourceHouse([&best, this](Building &house_object, building &house) {
         if (!context_->houseHasUnemployedWorkers(house_object, house)) {
             return;
         }
@@ -131,7 +132,12 @@ HouseRouteSelection RouteAccessSelector::nearestAssignedSourceReleasingUnreachab
                 return;
             }
 
-            Building house_object(*house);
+            building_runtime *runtime = building_runtime_impl::get_or_create_instance(house);
+            if (!runtime) {
+                house_ids_to_release.push_back(source.house_id);
+                return;
+            }
+            Building &house_object = runtime->building;
             const Route::RoadResult house_road = findHouseAccessRoad(house_object, *house);
             if (!house_road) {
                 house_ids_to_release.push_back(source.house_id);

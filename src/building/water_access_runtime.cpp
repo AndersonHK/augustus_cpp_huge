@@ -415,17 +415,17 @@ int live_provider_is_active(const building *b, const WaterAccessDefinition &wate
 int mark_live_building_providers(SimulationResult &result, const MaskSet &requirement_masks)
 {
     int changed = 0;
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([&](Building *building_object) {
+        const building *b = building_object->record();
+        if (b->state != BUILDING_STATE_IN_USE) {
+            return;
         }
         const WaterAccessDefinition *water = water_definition_for_building_type(b->type);
         if (!water || !water->has_provider() || !live_provider_is_active(b, *water, requirement_masks)) {
-            continue;
+            return;
         }
         changed |= mark_provider_rules(result.masks, *water, b->x, b->y, b->grid_offset, b->size);
-    }
+    });
     return changed;
 }
 
@@ -633,10 +633,10 @@ void refresh_water_graphic(building *b, const BuildingType *definition)
 
 void project_building_state(const SimulationResult &result)
 {
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+    Building::for_each([&](Building *building_object) {
+        building *b = const_cast<building *>(building_object->record());
+        if (b->state != BUILDING_STATE_IN_USE) {
+            return;
         }
 
         if (b->house_size) {
@@ -645,7 +645,7 @@ void project_building_state(const SimulationResult &result)
 
         const BuildingType *definition = definition_for_provider(b->type);
         if (!definition) {
-            continue;
+            return;
         }
 
         const WaterAccessDefinition &water = definition->water_access();
@@ -666,7 +666,7 @@ void project_building_state(const SimulationResult &result)
             }
         }
         refresh_water_graphic(b, definition);
-    }
+    });
 }
 
 void build_preview_highlight(building_type type, const SimulationResult &preview_result)

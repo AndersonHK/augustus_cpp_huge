@@ -26,7 +26,6 @@
 #include "building/granary.h"
 
 #include <algorithm>
-#include <optional>
 
 #define INFINITE 10000
 #define MAX_CARTLOADS_PER_SPACE 4
@@ -79,50 +78,49 @@ static building_type warehouse_type_id()
     return type;
 }
 
-Building building_warehouse_first()
+static Building *warehouse_first()
 {
     return Building::first_of_type(warehouse_type_id());
 }
 
-static std::optional<Building> warehouse_first()
+Building building_warehouse_first()
 {
-    for (Building building : Building::of_type(warehouse_type_id())) {
-        return building;
-    }
-    return std::nullopt;
+    return *warehouse_first();
 }
 
-static std::optional<Building> warehouse_main_for_storage(const Building &building)
+static Building *warehouse_main_for_storage(Building &building)
 {
-    if (building.type && building.type->is_warehouse()) {
-        return building;
+    if (building.type->is_warehouse()) {
+        return &building;
     }
-    if (!building.id) {
-        return std::nullopt;
-    }
-    Building main = building.main();
-    if (main.type && main.type->is_warehouse()) {
+    Building *main = building.main();
+    if (main && main->type->is_warehouse()) {
         return main;
     }
-    return std::nullopt;
+    return nullptr;
+}
+
+static const Building *warehouse_main_for_storage(const Building &building)
+{
+    return warehouse_main_for_storage(const_cast<Building &>(building));
 }
 
 int building_warehouse_get_space_info(const Building &warehouse)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    const Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
         return 0;
     }
     int total_loads = 0;
     int empty_spaces = 0;
-    Building space = *main;
+    const Building *space = main;
     for (int i = 0; i < 8; i++) {
-        space = space.next();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             return 0;
         }
-        const int stored_loads = warehouse_space_assigned_loads(space);
-        if (warehouse_space_is_empty_or_stale(space)) {
+        const int stored_loads = warehouse_space_assigned_loads(*space);
+        if (warehouse_space_is_empty_or_stale(*space)) {
             empty_spaces++;
         } else {
             total_loads += stored_loads;
@@ -139,23 +137,23 @@ int building_warehouse_get_space_info(const Building &warehouse)
 
 int building_warehouse_get_main_grid_offset(const Building &warehouse)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    const Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
         return warehouse.grid_offset();
     }
     int lowest_x = main->x();
     int lowest_y = main->y();
-    Building next = *main;
+    const Building *next = main;
     for (int i = 0; i < 9; i++) {
-        next = next.next();
-        if (!next.id) {
+        next = next->next();
+        if (!next) {
             break;
         }
-        if (next.x() < lowest_x) {
-            lowest_x = next.x();
+        if (next->x() < lowest_x) {
+            lowest_x = next->x();
         }
-        if (next.y() < lowest_y) {
-            lowest_y = next.y();
+        if (next->y() < lowest_y) {
+            lowest_y = next->y();
         }
 
     }
@@ -164,25 +162,25 @@ int building_warehouse_get_main_grid_offset(const Building &warehouse)
 
 int building_warehouse_get_tower_grid_offset(const Building &warehouse)
 {
-    std::optional<Building> tower = warehouse_main_for_storage(warehouse);
+    const Building *tower = warehouse_main_for_storage(warehouse);
     return tower ? tower->grid_offset() : warehouse.grid_offset();
 }
 
 int building_warehouse_get_amount(const Building &warehouse, resource_type resource)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    const Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
         return 0;
     }
     int loads = 0;
-    Building space = *main;
+    const Building *space = main;
     for (int i = 0; i < 8; i++) {
-        space = space.next();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             return 0;
         }
-        if (space.warehouse_resource_id() == resource) {
-            loads += space.resource_amount(resource);
+        if (space->warehouse_resource_id() == resource) {
+            loads += space->resource_amount(resource);
         }
     }
     return loads;
@@ -190,7 +188,7 @@ int building_warehouse_get_amount(const Building &warehouse, resource_type resou
 
 int building_warehouse_get_free_space_amount(Building &warehouse)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
         return 0;
     }
@@ -200,7 +198,7 @@ int building_warehouse_get_free_space_amount(Building &warehouse)
 
 int building_warehouse_get_available_amount(const Building &warehouse, resource_type resource)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    const Building *main = warehouse_main_for_storage(warehouse);
     if (!main || !main->is_in_use() || main->has_plague()) {
         return 0;
     }
@@ -212,103 +210,102 @@ int building_warehouse_get_available_amount(const Building &warehouse, resource_
     return building_warehouse_get_amount(*main, resource);
 }
 
-static std::optional<Building> building_warehouse_find_space(const Building &warehouse, resource_type resource, int adding)
+static Building *building_warehouse_find_space(Building &warehouse, resource_type resource, int adding)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
-        return std::nullopt;
+        return nullptr;
     }
-    Building space = *main;
+    Building *space = main;
 
     if (adding) {
         // Step 1: Try partially filled bay
         for (int i = 0; i < 8; i++) {
-            space = space.next();
-            if (!space.id) {
-                return std::nullopt;
+            space = space->next();
+            if (!space) {
+                return nullptr;
             }
-            const resource_type stored_resource = space.warehouse_resource_id();
+            const resource_type stored_resource = space->warehouse_resource_id();
             if (!warehouse_resource_is_valid(stored_resource) || stored_resource != resource) {
                 continue;
             }
-            if (space.resource_amount(resource) > 0 &&
-                space.resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
+            if (space->resource_amount(resource) > 0 &&
+                space->resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
                 return space;
             }
         }
 
         // Step 2: Try empty or assignable bay
-        space = *main;
+        space = main;
         for (int i = 0; i < 8; i++) {
-            space = space.next();
-            if (!space.id) {
-                return std::nullopt;
+            space = space->next();
+            if (!space) {
+                return nullptr;
             }
-            if ((space.warehouse_resource_id() == resource || warehouse_space_is_empty_or_stale(space)) &&
-                space.resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
+            if ((space->warehouse_resource_id() == resource || warehouse_space_is_empty_or_stale(*space)) &&
+                space->resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
                 return space;
             }
         }
     } else {
         // Removing: find first bay with at least one unit of the resource
         for (int i = 0; i < 8; i++) {
-            space = space.next();
-            if (!space.id) {
-                return std::nullopt;
+            space = space->next();
+            if (!space) {
+                return nullptr;
             }
-            if (space.warehouse_resource_id() == resource &&
-                space.resource_amount(resource) > 0) {
+            if (space->warehouse_resource_id() == resource &&
+                space->resource_amount(resource) > 0) {
                 return space;
             }
         }
     }
-    return std::nullopt;
+    return nullptr;
 }
 
-void building_warehouse_recount_resources(Building &main)
+void building_warehouse_recount_resources(Building &warehouse)
 {
-    std::optional<Building> resolved_main = warehouse_main_for_storage(main);
-    if (!resolved_main) {
+    Building *main = warehouse_main_for_storage(warehouse);
+    if (!main) {
         return;
     }
-    main = *resolved_main;
     //helper to reflect the resources in the main warehouse, like granary does
-    if (!main.type || !main.type->is_warehouse()) {
+    if (!main->type || !main->type->is_warehouse()) {
         return;
     }
 
     // Reset all resource counters in the main warehouse
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        main.set_resource_amount(r, 0);
+        main->set_resource_amount(r, 0);
     }
 
-    Building space = main;
+    Building *space = main;
     for (int i = 0; i < 8; i++) {
-        space = space.next();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             continue;
         }
 
-        resource_type resource = space.warehouse_resource_id();
-        if (warehouse_resource_is_valid(resource) && space.resource_amount(resource) > 0) {
-            main.add_resource(resource, space.resource_amount(resource));
+        resource_type resource = space->warehouse_resource_id();
+        if (warehouse_resource_is_valid(resource) && space->resource_amount(resource) > 0) {
+            main->add_resource(resource, space->resource_amount(resource));
         } else {
-            clear_empty_or_invalid_warehouse_space_assignment(space);
+            clear_empty_or_invalid_warehouse_space_assignment(*space);
         }
-        refresh_warehouse_space_graphic(space);
+        refresh_warehouse_space_graphic(*space);
     }
     // Total sum of all loads (regardless of type)
     int total_loads = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        total_loads += main.resource_amount(r);
+        total_loads += main->resource_amount(r);
     }
-    main.set_resource_amount(RESOURCE_NONE, BUILDING_STORAGE_QUANTITY_MAX - total_loads);
+    main->set_resource_amount(RESOURCE_NONE, BUILDING_STORAGE_QUANTITY_MAX - total_loads);
 }
 
 int building_warehouse_try_add_resource(
     Building &b, resource_type resource, int quantity, int respect_settings, unsigned int ignore_figure_id)
 {
-    std::optional<Building> warehouse = warehouse_main_for_storage(b);
+    Building *warehouse = warehouse_main_for_storage(b);
     if (!warehouse || quantity <= 0 || !resource) {
         return 0;
     }
@@ -323,7 +320,7 @@ int building_warehouse_try_add_resource(
     }
     signed short added = 0;
     while (added < quantity) {
-        std::optional<Building> space = building_warehouse_find_space(*warehouse, resource, 1);
+        Building *space = building_warehouse_find_space(*warehouse, resource, 1);
         if (!space) {
             break;
         }
@@ -353,7 +350,7 @@ int building_warehouses_add_resource(resource_type resource, int amount, int res
         return 0;
     }
 
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (amount <= 0) {
             break;
         }
@@ -370,7 +367,7 @@ int building_warehouses_add_resource(resource_type resource, int amount, int res
 
 int building_warehouse_try_remove_resource(Building &warehouse, resource_type resource, int desired_amount)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (desired_amount <= 0 || !resource) {
         return 0;
     }
@@ -379,33 +376,33 @@ int building_warehouse_try_remove_resource(Building &warehouse, resource_type re
     }
     int remaining_desired = desired_amount;
     int removed_amount = 0;
-    Building space = *main;
+    Building *space = main;
     for (int i = 0; i < 8; i++) {
         if (remaining_desired <= 0) {
             building_warehouse_recount_resources(*main);
             return removed_amount;
         }
-        space = space.next();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             continue;
         }
-        if (space.warehouse_resource_id() != resource || space.resource_amount(resource) <= 0) {
+        if (space->warehouse_resource_id() != resource || space->resource_amount(resource) <= 0) {
             continue;
         }
-        if (space.resource_amount(resource) > remaining_desired) {
+        if (space->resource_amount(resource) > remaining_desired) {
             removed_amount += remaining_desired;
             city_resource_remove_from_warehouse(static_cast<resource_type>(resource), remaining_desired);
-            space.add_resource(resource, -remaining_desired);
+            space->add_resource(resource, -remaining_desired);
             remaining_desired = 0;
         } else {
-            const int stored = space.resource_amount(resource);
+            const int stored = space->resource_amount(resource);
             removed_amount += stored;
             city_resource_remove_from_warehouse(static_cast<resource_type>(resource), stored);
             remaining_desired -= stored;
-            space.set_resource_amount(resource, 0);
-            space.set_warehouse_resource_id(RESOURCE_NONE);
+            space->set_resource_amount(resource, 0);
+            space->set_warehouse_resource_id(RESOURCE_NONE);
         }
-        refresh_warehouse_space_graphic(space);
+        refresh_warehouse_space_graphic(*space);
     }
     if (removed_amount) {
         building_warehouse_recount_resources(*main);
@@ -415,35 +412,35 @@ int building_warehouse_try_remove_resource(Building &warehouse, resource_type re
 
 void building_warehouse_remove_resource_curse(Building &warehouse, int amount)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (!main || !main->type || !main->type->is_warehouse()) {
         return;
     }
 
-    Building space = *main;
+    Building *space = main;
     for (int i = 0; i < 8 && amount > 0; i++) {
-        space = space.next();
-        resource_type resource = space.warehouse_resource_id();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             continue;
         }
-        if (!warehouse_resource_is_valid(resource) || space.resource_amount(resource) <= 0) {
-            clear_empty_or_invalid_warehouse_space_assignment(space);
-            refresh_warehouse_space_graphic(space);
+        resource_type resource = space->warehouse_resource_id();
+        if (!warehouse_resource_is_valid(resource) || space->resource_amount(resource) <= 0) {
+            clear_empty_or_invalid_warehouse_space_assignment(*space);
+            refresh_warehouse_space_graphic(*space);
             continue;
         }
-        if (space.resource_amount(resource) > amount) {
+        if (space->resource_amount(resource) > amount) {
             city_resource_remove_from_warehouse(static_cast<resource_type>(resource), amount);
-            space.add_resource(resource, -amount);
+            space->add_resource(resource, -amount);
             amount = 0;
         } else {
-            const int stored = space.resource_amount(resource);
+            const int stored = space->resource_amount(resource);
             city_resource_remove_from_warehouse(static_cast<resource_type>(resource), stored);
             amount -= stored;
-            space.set_resource_amount(resource, 0);
-            space.set_warehouse_resource_id(RESOURCE_NONE);
+            space->set_resource_amount(resource, 0);
+            space->set_warehouse_resource_id(RESOURCE_NONE);
         }
-        refresh_warehouse_space_graphic(space);
+        refresh_warehouse_space_graphic(*space);
     }
     building_warehouse_recount_resources(*main);
 }
@@ -455,7 +452,7 @@ static void refresh_warehouse_space_graphic(Building &space)
 
 int building_warehouse_add_import(Building &warehouse, resource_type resource, int amount, int trader_type)
 {
-    std::optional<Building> target = warehouse_main_for_storage(warehouse);
+    Building *target = warehouse_main_for_storage(warehouse);
     if (!target || resource == RESOURCE_NONE || amount <= 0) {
         return 0;
     }
@@ -490,7 +487,7 @@ int building_warehouse_add_import(Building &warehouse, resource_type resource, i
 
 int building_warehouse_remove_export(Building &warehouse, resource_type resource, int amount, int trader_type)
 {
-    std::optional<Building> target = warehouse_main_for_storage(warehouse);
+    Building *target = warehouse_main_for_storage(warehouse);
     if (!target || resource == RESOURCE_NONE || amount <= 0) {
         return 0; // invalid resource or amount
     }
@@ -518,19 +515,19 @@ int building_warehouse_remove_export(Building &warehouse, resource_type resource
     return removed_amount;
 }
 
-static std::optional<Building> get_next_warehouse(void)
+static Building *get_next_warehouse(void)
 {
     unsigned int building_id = city_resource_last_used_warehouse();
-    std::optional<Building> first_in_use;
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    Building *first_in_use = nullptr;
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!b.is_in_use()) {
             continue;
         }
         if (!first_in_use) {
-            first_in_use = b;
+            first_in_use = &b;
         }
         if (b.id > building_id) {
-            return b;
+            return &b;
         }
     }
     return first_in_use;
@@ -564,23 +561,23 @@ static int get_acceptable_quantity(const Building &b, resource_type resource)
 
 static int building_warehouse_max_space_for_resource(const Building &b, resource_type resource)
 {
-    std::optional<Building> main = warehouse_main_for_storage(b);
+    const Building *main = warehouse_main_for_storage(b);
     if (!main) {
         return 0;
     }
     // internal function to check space with respect to tiled storage - keep static
     int max_storable = 0;
-    Building space = *main;
+    const Building *space = main;
     for (int i = 0; i < 8; i++) {
-        space = space.next();
-        if (!space.id) {
+        space = space->next();
+        if (!space) {
             return 0;
         }
-        const resource_type stored_resource = space.warehouse_resource_id();
-        const int stored_loads = warehouse_space_assigned_loads(space);
+        const resource_type stored_resource = space->warehouse_resource_id();
+        const int stored_loads = warehouse_space_assigned_loads(*space);
         if (stored_resource == resource && stored_loads > 0) {
             max_storable += MAX_CARTLOADS_PER_SPACE - stored_loads;
-        } else if (warehouse_space_is_empty_or_stale(space)) {
+        } else if (warehouse_space_is_empty_or_stale(*space)) {
             max_storable += MAX_CARTLOADS_PER_SPACE;
         }
     }
@@ -590,7 +587,7 @@ static int building_warehouse_max_space_for_resource(const Building &b, resource
 int building_warehouse_maximum_receptible_amount(
     Building &warehouse, resource_type resource, unsigned int ignore_figure_id)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (!main) {
         return 0;
     }
@@ -624,7 +621,7 @@ int building_warehouse_maximum_receptible_amount(
 int building_warehouses_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request)
 {
     int total = 0;
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!b.is_in_use() || (caesars_request &&
             !building_storage_get_permission(BUILDING_STORAGE_PERMISSION_CAESAR, b))) {
             continue;
@@ -653,7 +650,7 @@ static void try_create_cart_to_rome(const Building &b, resource_type resource, i
 int building_warehouses_send_resources_to_rome(resource_type resource, int amount)
 {
     // First go for emptying or non-getting, non-maintaining warehouses with Caesar permission.
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!amount) {
             break;
         }
@@ -673,7 +670,7 @@ int building_warehouses_send_resources_to_rome(resource_type resource, int amoun
         return 0;
     }
     // if that doesn't work, take it anyway, but not from maintaining and no caesar permission warehouses
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!amount) {
             break;
         }
@@ -693,30 +690,29 @@ int building_warehouses_send_resources_to_rome(resource_type resource, int amoun
 
 int building_warehouses_remove_resource(resource_type resource, int amount)
 {
-    std::optional<Building> next_warehouse = get_next_warehouse();
-    if (!next_warehouse) {
+    Building *b = get_next_warehouse();
+    if (!b) {
         return amount;
     }
-    Building b = *next_warehouse;
-    const unsigned int initial_warehouse_id = b.id;
+    const unsigned int initial_warehouse_id = b->id;
 
     // First go for non-getting, non-maintaining warehouses
     do {
-        if (b.is_in_use()) {
-            if (building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_GETTING) {
-                city_resource_set_last_used_warehouse(b.id);
-                amount -= building_warehouse_try_remove_resource(b, resource, amount);
+        if (b->is_in_use()) {
+            if (building_storage_get_state(*b, resource, 1) < BUILDING_STORAGE_STATE_GETTING) {
+                city_resource_set_last_used_warehouse(b->id);
+                amount -= building_warehouse_try_remove_resource(*b, resource, amount);
             }
         }
-        Building next = b.next_of_type();
-        if (next.id) {
+        Building *next = b->next_of_type();
+        if (next) {
             b = next;
-        } else if (std::optional<Building> first = warehouse_first()) {
-            b = *first;
+        } else if (Building *first = warehouse_first()) {
+            b = first;
         } else {
             break;
         }
-    } while (b.id != initial_warehouse_id && amount > 0);
+    } while (b->id != initial_warehouse_id && amount > 0);
 
     if (amount <= 0) {
         return 0;
@@ -724,26 +720,26 @@ int building_warehouses_remove_resource(resource_type resource, int amount)
 
     // If that doesn't work, take it anyway
     do {
-        if (b.is_in_use()) {
-            city_resource_set_last_used_warehouse(b.id);
-            amount -= building_warehouse_try_remove_resource(b, resource, amount);
+        if (b->is_in_use()) {
+            city_resource_set_last_used_warehouse(b->id);
+            amount -= building_warehouse_try_remove_resource(*b, resource, amount);
         }
-        Building next = b.next_of_type();
-        if (next.id) {
+        Building *next = b->next_of_type();
+        if (next) {
             b = next;
-        } else if (std::optional<Building> first = warehouse_first()) {
-            b = *first;
+        } else if (Building *first = warehouse_first()) {
+            b = first;
         } else {
             break;
         }
-    } while (b.id != initial_warehouse_id && amount > 0);
+    } while (b->id != initial_warehouse_id && amount > 0);
 
     return amount;
 }
 
 int building_warehouse_accepts_storage(Building &warehouse, resource_type resource, int *understaffed)
 {
-    std::optional<Building> main = warehouse_main_for_storage(warehouse);
+    Building *main = warehouse_main_for_storage(warehouse);
     if (!main || !main->is_in_use() || !main->type || !main->type->is_warehouse() ||
         !main->has_cached_road_access() || main->distance_from_entry() <= 0 || main->has_plague()) {
         return 0;
@@ -769,8 +765,8 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
     int *understaffed, map_point *dst)
 {
     int min_dist = INFINITE;
-    std::optional<Building> nearest_warehouse;
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    Building *nearest_warehouse = nullptr;
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (b.id == (unsigned int) src_building_id ||
             (road_network_id != -1 && b.road_network_id() != road_network_id) ||
             !building_warehouse_accepts_storage(b, resource, understaffed) ||
@@ -780,7 +776,7 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
         int dist = b.max_distance_to(x, y);
         if (dist < min_dist) {
             min_dist = dist;
-            nearest_warehouse = b;
+            nearest_warehouse = &b;
         }
     }
     if (!nearest_warehouse) {
@@ -796,16 +792,16 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
 
 int building_warehouse_amount_can_get_from(const Building &destination, resource_type resource)
 {
-    std::optional<Building> main = warehouse_main_for_storage(destination);
+    const Building *main = warehouse_main_for_storage(destination);
     if (!main) {
         return 0;
     }
     int loads_stored = 0;
-    Building space = *main;
+    const Building *space = main;
     for (int t = 0; t < 8; t++) {
-        space = space.next();
-        if (space.id && space.warehouse_resource_id() == resource) {
-            loads_stored += space.resource_amount(resource);
+        space = space->next();
+        if (space && space->warehouse_resource_id() == resource) {
+            loads_stored += space->resource_amount(resource);
         }
     }
     return loads_stored;
@@ -814,8 +810,8 @@ int building_warehouse_amount_can_get_from(const Building &destination, resource
 int building_warehouse_for_getting(const Building &src, resource_type resource, map_point *dst)
 {
     int min_dist = INFINITE;
-    std::optional<Building> min_building;
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    Building *min_building = nullptr;
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!b.is_in_use() || b.has_plague()) {
             continue;
         }
@@ -828,7 +824,7 @@ int building_warehouse_for_getting(const Building &src, resource_type resource, 
             dist -= 4 * loads_stored;
             if (dist < min_dist) {
                 min_dist = dist;
-                min_building = b;
+                min_building = &b;
             }
         }
     }
@@ -846,8 +842,8 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
      int *understaffed, map_point *dst, building_storage_permission_states p)
 {
     int min_dist = INFINITE;
-    std::optional<Building> min_building;
-    for (Building b : Building::of_type(warehouse_type_id())) {
+    Building *min_building = nullptr;
+    for (Building &b : Building::of_type(warehouse_type_id())) {
         if (!b.is_in_use() || b.has_plague()) {
             continue;
         }
@@ -871,7 +867,7 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
             dist -= 2 * loads_stored;
             if (dist < min_dist) {
                 min_dist = dist;
-                min_building = b;
+                min_building = &b;
             }
         }
     }
@@ -892,14 +888,14 @@ int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
         return WAREHOUSE_TASK_NONE;
     }
     building_warehouse_recount_resources(warehouse);
-    Building space(nullptr);
+    Building *space = nullptr;
     //TASK 1: emptying takes priority
     if (building_storage_get_empty_all(warehouse.id)) {
         resource_type resource_to_empty = building_storage_get_highest_quantity_resource(warehouse);
         if (resource_to_empty) {
             space = building_warehouse_find_space(warehouse, resource_to_empty, 0);
 
-            if (space.resource_amount(resource_to_empty)) {
+            if (space && space->resource_amount(resource_to_empty)) {
                 *resource = resource_to_empty;
                 return WAREHOUSE_TASK_DELIVERING;
             }
@@ -950,12 +946,12 @@ int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
             state == BUILDING_STORAGE_STATE_GETTING || state == BUILDING_STORAGE_STATE_MAINTAINING) {
             continue; // skip if no resource, not food, held by policy, or stockpiled
         }
-        if (building_granary_get_granary_needing_food(warehouse, r, 1).id) {
+        if (building_granary_get_granary_needing_food(warehouse, r, 1)) {
             *resource = r;
             delivering_food = 1;
             break; //found a getting granary in need of food
         }
-        if (building_granary_get_granary_needing_food(warehouse, r, 0).id) {
+        if (building_granary_get_granary_needing_food(warehouse, r, 0)) {
             *resource = r; // keep checking in case there is a getting granary
             delivering_food = 1;
         }

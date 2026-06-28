@@ -8,19 +8,18 @@ void building_government_distribute_treasury(void)
 {
     int units = 0;
     building *senate = nullptr;
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        Building building(b);
-        if (!building.is_in_use() || building_main(b) != b) {
-            continue;
+    Building::for_each([&](Building *building) {
+        if (!building->is_in_use() || !building->is_main_part()) {
+            return;
         }
-        if (building.type && building.type->attr_is("forum")) {
+        ::building *b = const_cast<::building *>(building->record());
+        if (building->type && building->type->attr_is("forum")) {
             units++;
-        } else if (building.type && building.type->attr_is("senate")) {
+        } else if (building->type && building->type->attr_is("senate")) {
             units += 8;
             senate = b;
         }
-    }
+    });
 
     int amount_per_unit = 0;
     int remainder = 0;
@@ -36,16 +35,15 @@ void building_government_distribute_treasury(void)
         remainder = 0;
     }
 
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        Building building(b);
-        if (!building.type || !building.type->attr_is("forum")) {
-            continue;
+    Building::for_each([&](Building *building) {
+        if (!building->type || !building->type->attr_is("forum")) {
+            return;
         }
+        ::building *b = const_cast<::building *>(building->record());
         if (b->state != BUILDING_STATE_IN_USE || b->house_size || b->num_workers <= 0) {
-            continue;
+            return;
         }
         b->tax_income_or_storage = amount_per_unit + remainder;
         remainder = 0;
-    }
+    });
 }
