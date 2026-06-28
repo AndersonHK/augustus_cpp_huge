@@ -21,6 +21,7 @@
 #include "construction_building.h"
 
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 #include "figure/formation_legion.h"
@@ -305,7 +306,9 @@ static void add_building(building *b)
     }
     int image_id = building_image_get(b);
     if (image_id) {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+            map_building_tiles_add(runtime->building, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
+        }
     }
 }
 
@@ -314,7 +317,9 @@ static void register_single_tile_building_terrain(building *b, int terrain)
     int grid_offset = map_grid_offset(b->x, b->y);
     map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
     map_terrain_add(grid_offset, terrain);
-    map_building_set(grid_offset, b->id);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        map_building_set(grid_offset, runtime->building);
+    }
     map_property_clear_constructing(grid_offset);
     map_property_set_multi_tile_size(grid_offset, 1);
     map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
@@ -393,7 +398,11 @@ static void add_composed_building(
         child->houses_covered = main_record->houses_covered;
         child->percentage_houses_covered = main_record->percentage_houses_covered;
         child->labor_access_score = main_record->labor_access_score;
-        child->variant = main_record->variant;
+        building_runtime *child_runtime = building_runtime_impl::get_or_create_instance(child);
+        building_runtime *main_runtime = building_runtime_impl::get_or_create_instance(main_record);
+        if (child_runtime && main_runtime) {
+            child_runtime->set_graphics_variant(main_runtime->graphics_variant());
+        }
         building_get(previous_id)->next_part_building_id = child->id;
         add_building(child);
         previous_id = child->id;
@@ -450,12 +459,18 @@ static void add_to_map(
     Building building_obj(b);
     const building_type_registry_impl::BuildingType &definition = *building_obj.type;
     const building_type_registry_impl::RoadblockKind roadblock_kind = definition.roadblock().kind();
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     if (building_variant_has_variants(b->type)) {
-        b->variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type));
+        if (runtime) {
+            runtime->set_graphics_variant(
+                building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
+        }
     }
     // Native graphics options share the saved variant byte, so XML-owned
     // buildings seed it after legacy variant/rotation setup has run.
-    building_obj.assign_graphic_variant(1);
+    if (runtime) {
+        runtime->assign_graphic_variant(1);
+    }
     if (definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Small) ||
         definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Large)) {
         if (const building_type_registry_impl::Distribution *distribution = definition.distribution()) {
@@ -523,15 +538,15 @@ static void add_to_map(
     } else if (definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
         b->subtype.orientation = waterside_orientation_abs;
         b->data.dock.orientation = waterside_orientation_abs;
-        map_water_add_building(b->id, b->x, b->y, size);
+        map_water_add_building(building_obj, b->x, b->y, size);
     } else if (definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall) {
         map_terrain_remove_with_radius(b->x, b->y, 2, 0, TERRAIN_WALL);
-        map_building_tiles_add(b->id, b->x, b->y, size, building_image_get(b),
+        map_building_tiles_add(building_obj, b->x, b->y, size, building_image_get(b),
             TERRAIN_BUILDING | TERRAIN_GATEHOUSE);
         map_tiles_update_area_walls(b->x, b->y, 5);
     } else if (definition.roadblock().is_wall_gate()) {
         b->subtype.orientation = orientation;
-        map_building_tiles_add_remove(b->id, b->x, b->y, size,
+        map_building_tiles_add_remove(building_obj, b->x, b->y, size,
             building_image_get(b), TERRAIN_BUILDING | TERRAIN_GATEHOUSE, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
         map_orientation_update_buildings();
         map_terrain_add_gatehouse_roads(b->x, b->y, orientation);
@@ -608,7 +623,7 @@ int building_construction_fill_vacant_lots(grid_slice *area)
         if (!success) {
             continue;
         }
-        building *b = building_get(map_building_at(grid_offset));
+        building *b = const_cast<building *>(map_building_at(grid_offset).record());
         game_undo_add_building(b);
         items_placed++;
     }

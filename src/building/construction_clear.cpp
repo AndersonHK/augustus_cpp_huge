@@ -51,11 +51,11 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
 
 static building *get_deletable_building(int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
-    if (!building_id) {
+    if (!map_building_exists_at(grid_offset)) {
         return 0;
     }
-    building *b = building_main(building_get(building_id));
+    Building building = map_building_at(grid_offset).main();
+    building *b = const_cast<::building *>(building.record());
     static const char *const protected_types[] = {
         "burning_ruin",
         "native_crops",
@@ -332,9 +332,8 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
-            int building_id = map_building_at(grid_offset);
-            if (building_id) {
-                building *b = building_get(building_id);
+            if (map_building_exists_at(grid_offset)) {
+                building *b = const_cast<::building *>(map_building_at(grid_offset).record());
                 if (building_is_fort(b->type) || building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
                     ask_confirm_fort = 1;
                 }

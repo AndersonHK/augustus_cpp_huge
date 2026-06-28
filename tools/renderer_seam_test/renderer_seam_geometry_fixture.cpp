@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 
 bool RendererSeamGeometryAssertionResult::failed() const
 {
@@ -281,6 +282,12 @@ void RendererSeamGeometryFixture::assert_east_west_shared_edge(
     const RunConfig &config) const
 {
     const TileBounds bounds = tile_bounds(tile_x, tile_y, config);
+    const TileBounds east_neighbor_bounds = tile_bounds(tile_x + 1, tile_y, config);
+    assert_shared_edge_geometry(
+        result,
+        { bounds.right, bounds.bottom },
+        { east_neighbor_bounds.top, east_neighbor_bounds.left },
+        "east-west canonical isometric seam");
     for (int edge_y = bounds.right.y + 1; edge_y < bounds.bottom.y; ++edge_y) {
         const int edge_x = interpolate_x_for_y(bounds.right, bounds.bottom, edge_y);
         sample_covered_edge_pixel(
@@ -305,6 +312,12 @@ void RendererSeamGeometryFixture::assert_north_south_shared_edge(
     const RunConfig &config) const
 {
     const TileBounds bounds = tile_bounds(tile_x, tile_y, config);
+    const TileBounds south_neighbor_bounds = tile_bounds(tile_x, tile_y + 1, config);
+    assert_shared_edge_geometry(
+        result,
+        { bounds.left, bounds.bottom },
+        { south_neighbor_bounds.top, south_neighbor_bounds.right },
+        "north-south canonical isometric seam");
     for (int edge_y = bounds.left.y + 1; edge_y < bounds.bottom.y; ++edge_y) {
         const int edge_x = interpolate_x_for_y(bounds.left, bounds.bottom, edge_y);
         sample_covered_edge_pixel(
@@ -319,6 +332,34 @@ void RendererSeamGeometryFixture::assert_north_south_shared_edge(
             { edge_x - 1, edge_y },
             "north-south canonical isometric seam");
     }
+}
+
+void RendererSeamGeometryFixture::assert_shared_edge_geometry(
+    RendererSeamGeometryAssertionResult &result,
+    SharedEdge first,
+    SharedEdge second,
+    const char *seam_name) const
+{
+    if (first.start.x == second.start.x &&
+        first.start.y == second.start.y &&
+        first.end.x == second.end.x &&
+        first.end.y == second.end.y) {
+        return;
+    }
+
+    result.same_surface_delta = 0;
+    record_shared_edge_geometry_failure(result, first, second, seam_name);
+}
+
+void RendererSeamGeometryFixture::record_shared_edge_geometry_failure(
+    RendererSeamGeometryAssertionResult &result,
+    SharedEdge first,
+    SharedEdge second,
+    const char *seam_name) const
+{
+    result.record_failure(
+        std::string("rounded shared edge mismatch on ") + seam_name +
+        ": " + shared_edge_text(first) + " != " + shared_edge_text(second));
 }
 
 void RendererSeamGeometryFixture::sample_same_surface_pair(
@@ -464,6 +505,18 @@ int RendererSeamGeometryFixture::interpolate_x_for_y(PixelCoordinate start, Pixe
     }
     const int numerator = (end.x - start.x) * (y - start.y);
     return start.x + round_divide(numerator, denominator);
+}
+
+std::string RendererSeamGeometryFixture::pixel_coordinate_text(PixelCoordinate coordinate) const
+{
+    std::ostringstream out;
+    out << "(" << coordinate.x << "," << coordinate.y << ")";
+    return out.str();
+}
+
+std::string RendererSeamGeometryFixture::shared_edge_text(SharedEdge edge) const
+{
+    return pixel_coordinate_text(edge.start) + "->" + pixel_coordinate_text(edge.end);
 }
 
 int RendererSeamGeometryFixture::max_rgb_delta(SDL_PixelFormat &format, uint32_t left, uint32_t right) const

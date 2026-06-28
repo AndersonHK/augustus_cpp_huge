@@ -133,7 +133,7 @@ int building_variant_get_number_of_variants(building_type type)
     return 0;
 }
 
-int building_variant_get_graphics_option(const Building &building_obj, int force_reseed)
+int building_variant_get_graphics_option(const Building &building_obj, int force_reseed, unsigned char graphics_variant)
 {
     const building_type_registry_impl::BuildingType *definition = building_obj.type;
     if (!definition || !definition->has_graphic()) {
@@ -151,10 +151,10 @@ int building_variant_get_graphics_option(const Building &building_obj, int force
         return 0;
     }
     if (target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
-        return building_obj.variant() % option_count;
+        return graphics_variant % option_count;
     }
     if (force_reseed) {
         return map_random_get(building_obj.grid_offset()) % option_count;
     }
-    return building_obj.variant() % option_count;
+    return graphics_variant % option_count;
 }

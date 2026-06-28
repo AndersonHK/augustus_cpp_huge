@@ -473,7 +473,8 @@ static void draw_tile_tooltip(tooltip_context *c)
     if (city_view_pixels_to_view_tile(c->mouse_x, c->mouse_y, &view)) {
         int grid_offset = city_view_tile_to_grid_offset(&view);
         int num_flags = terrain_info_string(grid_offset, flags, 32);
-        int b_id_at = map_building_at(grid_offset);
+        const Building *building_at_grid = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+        int b_id_at = building_at_grid ? building_at_grid->id : 0;
         int rubble_id_at = map_building_rubble_building_id(grid_offset);
         city_view_set_selected_view_tile(&view);
         int x_tile = map_grid_offset_to_x(grid_offset);
@@ -541,7 +542,8 @@ static void draw_tile_tooltip(tooltip_context *c)
                 "", 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 drawn_width += text_draw_label_and_number(string_from_ascii(" (type: "), map_building_type_at(grid_offset),
                     ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
-                text_draw_label_and_number(string_from_ascii(" (state: "), building_get(b_id_at)->state,
+                const ::building *record = building_at_grid ? building_at_grid->record() : nullptr;
+                text_draw_label_and_number(string_from_ascii(" (state: "), record ? record->state : 0,
                     ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }

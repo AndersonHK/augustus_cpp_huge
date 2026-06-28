@@ -188,11 +188,12 @@ static int count_unique_buildings_in_area(int minx, int miny, int maxx, int maxy
     found_buildings.reserve(static_cast<size_t>(building_count()));
     for (int x = minx; x <= maxx; x++) {
         for (int y = miny; y <= maxy; y++) {
-            const int building_id = map_building_at(map_grid_offset(x, y));
-            if (!building_id) {
+            const int grid_offset = map_grid_offset(x, y);
+            if (!map_building_exists_at(grid_offset)) {
                 continue;
             }
-            building *b = building_main(building_get(building_id));
+            Building building = map_building_at(grid_offset).main();
+            building *b = const_cast<::building *>(building.record());
             if (!accepts(b) || std::find(found_buildings.begin(), found_buildings.end(), b->id) != found_buildings.end()) {
                 continue;
             }
@@ -450,11 +451,11 @@ int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int s
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
             const int grid_offset = map_grid_offset(x, y);
-            const int building_id = map_building_at(grid_offset);
-            if (!building_id) {
+            if (!map_building_exists_at(grid_offset)) {
                 continue;
             }
-            building *b = building_main(building_get(building_id));
+            Building building = map_building_at(grid_offset).main();
+            building *b = const_cast<::building *>(building.record());
             if (!b) {
                 continue;
             }

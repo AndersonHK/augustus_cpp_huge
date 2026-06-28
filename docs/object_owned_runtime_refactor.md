@@ -11,11 +11,13 @@ The long-term goal is to stop writing code where every tick scans every building
 The preferred shape is:
 
 - Objects create valid runtime state when they are created.
+- Save/load creates objects from records once. One saved building record should either hydrate one valid `Building` object and its module state or be discarded with a logged error.
 - Objects register themselves with the runtime lists they belong to.
 - Objects deregister themselves when they are destroyed, replaced, retargeted, or disabled.
 - Objects keep their own data private where practical and expose behavior through narrow methods.
 - Callers receive object references or pointers that already represent the intended relationship.
 - Save/load bridges translate ids into object relationships once, then normal runtime code uses those relationships directly.
+- Save-record structs are compatibility input/output at the bridge. They should not remain the runtime object model once a module has been peeled into object state.
 
 ## What To Replace
 
@@ -112,6 +114,7 @@ Examples:
 - A building changing type deregisters from old type lists and registers with new type lists.
 - A building being destroyed releases storage reservations, figure ownership, labor demand, production membership, and graphics/connectable memberships.
 - A save/load bridge hydrates runtime pointers and runtime lists once after records are loaded.
+- A save/load bridge rejects bad saved records at the boundary, instead of letting incomplete records survive as runtime objects.
 
 Do not make every consumer rediscover and repair these cases independently.
 

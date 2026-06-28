@@ -127,8 +127,8 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
 {
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        building *b = building_get(map_building_at(grid_offset));
-        Building current(b);
+        Building current = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
+        building *b = const_cast<::building *>(current.record());
         if (b && current.type && current.type->roadblock().is_wall_gate()) {
             if (b->subtype.orientation == gate_orientation) {
                 is_road = 1;
@@ -188,8 +188,7 @@ static int is_aqueduct(int x, int y, int check_routing)
     } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         return 1;
     }
-    unsigned int building_id = map_building_at(grid_offset);
-    if (building_id && Building(building_get(building_id)).matches("reservoir")) {
+    if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("reservoir")) {
         return 1;
     } else if (check_routing && Route::constructionDistanceTo(grid_offset) > 0) {
         return 1;

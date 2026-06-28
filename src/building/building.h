@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/building_fwd.h"
+#include "building/BuildingGraphics.h"
 #include "building/building_order.h"
 #include "building/storage_type.h"
 #include "building/building_type.h"
@@ -15,6 +16,7 @@
 #include <source_location>
 
 class building_runtime;
+class BuildingGraphicsState;
 
 class Building {
     friend class building_runtime;
@@ -54,7 +56,7 @@ public:
         class iterator {
         public:
             explicit iterator(::building *record);
-            Building operator*() const;
+            Building &operator*() const;
             iterator &operator++();
             bool operator!=(const iterator &other) const;
 
@@ -72,25 +74,40 @@ public:
         building_type type_ = BUILDING_NONE;
     };
 
-    explicit Building(::building *record, const std::source_location &location = std::source_location::current());
-    explicit Building(::building &record, const std::source_location &location = std::source_location::current());
-    Building(::building *record, const building_type_registry_impl::BuildingType *type_definition,
+    Building(
+        ::building *record,
+        BuildingGraphicsState *graphics_state,
         const std::source_location &location = std::source_location::current());
-    Building(::building &record, const building_type_registry_impl::BuildingType *type_definition,
+    Building(
+        ::building &record,
+        BuildingGraphicsState &graphics_state,
         const std::source_location &location = std::source_location::current());
+    Building(
+        ::building *record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current());
+    Building(
+        ::building &record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState &graphics_state,
+        const std::source_location &location = std::source_location::current());
+    Building(const Building &other);
+    Building &operator=(const Building &other);
 
     static TypeRange of_type(building_type type);
-    static Building first_of_type(building_type type);
+    static Building *first_of_type(building_type type);
     static Building create(building_type type, int x, int y);
     static int count();
 
     const ::building *record() const;
-    Building main() const;
-    Building composition_owner() const;
-    Building next() const;
+    Building *main() const;
+    Building *composition_owner() const;
+    Building *next() const;
     void for_each_part(const std::function<void(Building)> &visitor) const;
-    Building next_of_type() const;
+    Building *next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
+    const building_type_registry_impl::BuildingType *og_type = nullptr;
     int matches(const char *text_id) const;
     int grid_offset() const;
     int x() const;
@@ -123,14 +140,15 @@ public:
     void set_immigrant_figure_id(unsigned int id);
     int house_figure_generation_delay() const;
     building_runtime *runtime_instance() const;
+    BuildingGraphics &Graphics(const std::source_location &location = std::source_location::current()) const;
     building_type_registry_impl::BuildingAnimation animate();
     int draw_footprint(const BuildingDrawContext &ctx);
     int draw_top(const BuildingDrawContext &ctx);
     int draw_animation(const BuildingDrawContext &ctx);
     int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation);
+    int mothball_status_icon_offset(int grid_offset, int icon_width, int icon_height, int *x, int *y) const;
     void refresh_graphic();
     int refresh_graphic_if_native();
-    void assign_graphic_variant(int force_reseed);
     void spawn_figure();
     int worker_count() const;
     int employment_worker_count() const;
@@ -177,10 +195,8 @@ public:
     int max_distance_to(const Building &other) const;
     int orientation() const;
     void set_orientation(int orientation);
-    int variant() const;
-    void set_variant(int variant);
     int image_id() const;
-    void add_map_tiles(int image_id) const;
+    void add_map_tiles(int image_id);
     void set_storage_id(int new_storage_id);
     int blocked_storage_permission_mask() const;
     int warehouse_flag_frame() const;
@@ -238,20 +254,24 @@ public:
     int entertainment_days2() const;
     int desirability() const;
     std::uint64_t graphics_state_signature(int selected_graphics_option) const;
+    int building_mothball_toggle();
 
     RecordField<unsigned int> id;
     RecordField<unsigned char, unsigned int> storage_id;
     RecordField<unsigned char, int> dock_has_accepted_route_ids;
 
 private:
+    void bind_record_fields();
+    void bind_graphics(BuildingGraphicsState *graphics_state);
+
     ::building *record_ = nullptr;
+    std::source_location construction_location_;
+    mutable BuildingGraphics graphics_;
 };
 
 
 #include "core/buffer.h"
 #include "translation/translation.h"
-
-building *building_get(unsigned int id);
 
 int building_dist(int x, int y, int w, int h, building *b);
 
@@ -331,8 +351,6 @@ int building_is_fort(building_type type);
 int building_is_active(const building *b);
 
 int building_is_primary_product_producer(building_type type);
-
-int building_mothball_toggle(building *b);
 
 int building_mothball_set(building *b, int value);
 

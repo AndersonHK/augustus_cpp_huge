@@ -9,6 +9,7 @@
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_runtime.h"
+#include "building/building_runtime_internal.h"
 #include "building/barracks.h"
 #include "building/mess_hall.h"
 #include "building/temple.h"
@@ -564,7 +565,9 @@ void BuildingFigureGenerator::spawn_figure_native_hut(building *b)
 
 void BuildingFigureGenerator::spawn_figure_native_meeting(building *b)
 {
-    map_building_tiles_add(b->id, b->x, b->y, 2, building_image_get(b), TERRAIN_BUILDING);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        map_building_tiles_add(runtime->building, b->x, b->y, 2, building_image_get(b), TERRAIN_BUILDING);
+    }
     int pacified = b->sentiment.native_anger < 100;
     if (pacified && !has_figure_of_type(b, FIGURE_NATIVE_TRADER)) {
         int x_out, y_out;

@@ -107,8 +107,6 @@ typedef enum {
     SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3,
     SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4,
     SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5,
-    // building.variant existed before this, but older saves did not use it for native BuildingType graphics options.
-    SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6,
     SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7,
     SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8,
     SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE = 0xb8,

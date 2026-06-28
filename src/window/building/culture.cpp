@@ -154,7 +154,8 @@ static int scenario_allows_any_fort(void)
 {
     for (int type = BUILDING_NONE + 1; type < BUILDING_TYPE_MAX; type++) {
         building_type building_type_id = static_cast<building_type>(type);
-        if (building_is_fort(building_type_id) && scenario_allowed_building(building_type_id)) {
+        if (building_is_fort(building_type_id) &&
+            scenario_allowed_building(building_type_registry_impl::definition_for_type(building_type_id))) {
             return 1;
         }
     }
@@ -173,7 +174,8 @@ static int temple_module_option_is_allowed(int index)
     }
 
     building_type required_building = building_type_registry_impl::type_from_attr(required_building_text_id);
-    return required_building != BUILDING_NONE && scenario_allowed_building(required_building);
+    return required_building != BUILDING_NONE &&
+        scenario_allowed_building(building_type_registry_impl::definition_for_type(required_building));
 }
 
 static void draw_culture_info(building_info_context *c, int help_id, const char *sound_file, int group_id)

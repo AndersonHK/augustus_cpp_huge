@@ -224,7 +224,7 @@ static int direct_tool_button_enabled(int submenu)
     if (type == BUILDING_NONE) {
         return -1;
     }
-    return scenario_allowed_building(type);
+    return scenario_allowed_building(building_type_registry_impl::definition_for_type(type));
 }
 
 static int build_button_enabled(int submenu)
@@ -409,7 +409,7 @@ static void button_build(int submenu, int param2)
         window_build_menu_hide();
         widget_city_clear_current_tile();
         building_construction_cancel();
-        building_construction_set_type(direct_tool_type, 0);
+        building_construction_set_type(building_type_registry_impl::definition_for_type(direct_tool_type), 0);
         window_request_refresh();
         return;
     }

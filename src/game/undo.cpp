@@ -11,6 +11,8 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
 
@@ -29,6 +31,7 @@
 #include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "map/tile_runtime_api.h"
 
 #include <string.h>
 
@@ -174,6 +177,8 @@ int game_undo_start_build(building_type type)
     map_property_backup();
     map_sprite_backup();
     map_building_backup();
+    building_runtime_backup_graphics_state();
+    tile_runtime_backup();
 
     return 1;
 }
@@ -204,7 +209,7 @@ static void restore_map_images(void)
     for (int y = 0; y < map_height; y++) {
         for (int x = 0; x < map_width; x++) {
             int grid_offset = map_grid_offset(x, y);
-            if (!map_building_at(grid_offset) || map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            if (!map_building_exists_at(grid_offset) || map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
                 map_image_restore_at(grid_offset);
             }
         }
@@ -220,6 +225,8 @@ void game_undo_restore_map(int include_properties)
         map_property_restore();
     }
     restore_map_images();
+    building_runtime_restore_graphics_state();
+    tile_runtime_restore();
 }
 
 void game_undo_finish_build(int cost)
@@ -236,12 +243,16 @@ static void add_building_to_terrain(building *b)
         return;
     }
     b->state = BUILDING_STATE_IN_USE;
-    if (!Building(b).refresh_graphic_if_native()) {
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
+    if (!runtime) {
+        return;
+    }
+    if (!runtime->building.refresh_graphic_if_native()) {
         int size = building_properties_for_type(b->type)->size;
         if (building_is_house(b->type) && b->house_is_merged) {
             size = 2;
         }
-        map_building_tiles_add(b->id, b->x, b->y, size, 0, 0);
+        map_building_tiles_add(runtime->building, b->x, b->y, size, 0, 0);
     }
     if (building_type_registry_impl::type_attr_is(b->type, "wharf")) {
         b->data.industry.fishing_boat_id = 0;
@@ -269,7 +280,8 @@ void game_undo_perform(void)
                     const building_type arch = b->type;
                     city_buildings_build_triumphal_arch();
                     building_menu_update();
-                    if (building_construction_type() == arch && !building_menu_is_enabled(arch)) {
+                    if (building_construction_type() == arch &&
+                        !building_menu_is_enabled(building_type_registry_impl::definition_for_type(arch))) {
                         building_construction_clear_type();
                     }
                 }
@@ -315,6 +327,8 @@ void game_undo_perform(void)
         }
         building_update_state();
     }
+    building_runtime_restore_graphics_state();
+    tile_runtime_restore();
     Route::updateLandTerrain();
     Route::updateWallTerrain();
     figure_roamer_preview_reset(building_construction_type());

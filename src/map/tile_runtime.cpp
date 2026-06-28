@@ -331,6 +331,8 @@ tile_runtime *get_or_create_direct_instance(
 
 }
 
+static std::unordered_map<int, tile_runtime> g_runtime_tiles_backup;
+
 // Input: one runtime tile wrapper that already knows its authored payload image id.
 // Output: the native payload entry for that tile, or null when the authored runtime tile graphic cannot be resolved.
 const ImageGroupEntry *tile_runtime::resolve_graphic_entry() const
@@ -401,7 +403,28 @@ const RuntimeDrawSlice *tile_runtime::resolve_graphic_top_slice() const
 void tile_runtime_reset(void)
 {
     tile_runtime_impl::g_runtime_tiles.clear();
+    g_runtime_tiles_backup.clear();
     g_logged_tile_graphics_issues.clear();
+}
+
+void tile_runtime_backup(void)
+{
+    g_runtime_tiles_backup.clear();
+    for (const auto &entry : tile_runtime_impl::g_runtime_tiles) {
+        if (entry.second) {
+            g_runtime_tiles_backup.emplace(entry.first, *entry.second);
+        }
+    }
+}
+
+void tile_runtime_restore(void)
+{
+    tile_runtime_impl::g_runtime_tiles.clear();
+    for (const auto &entry : g_runtime_tiles_backup) {
+        tile_runtime_impl::g_runtime_tiles.emplace(
+            entry.first,
+            std::make_unique<tile_runtime>(entry.second));
+    }
 }
 
 void tile_runtime_clear(int grid_offset)

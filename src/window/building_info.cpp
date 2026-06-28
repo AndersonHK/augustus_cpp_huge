@@ -391,12 +391,12 @@ static void init(int grid_offset)
     context.type = BUILDING_INFO_TERRAIN;
     context.figure.drawn = 0;
 
-    const unsigned int selected_building_id = map_building_at(grid_offset);
-    building *selected_building = selected_building_id ? building_get(selected_building_id) : nullptr;
+    Building selected_runtime_building = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
+    building *selected_building = const_cast<::building *>(selected_runtime_building.record());
 
     if (map_is_bridge(grid_offset)) {
         if (selected_building) {
-            context.building = Building(selected_building);
+            context.building = selected_runtime_building;
         }
         if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
             context.terrain_type = TERRAIN_INFO_BRIDGE;

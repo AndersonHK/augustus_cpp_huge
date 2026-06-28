@@ -1437,7 +1437,7 @@ void BuildingType::mark_graphics_default_node()
 
 void BuildingType::clear_graphics()
 {
-    graphics_ = BuildingGraphics();
+    graphics_ = BuildingGraphicsDef();
 }
 
 GraphicsTarget &BuildingType::default_graphics_target()
@@ -1818,7 +1818,7 @@ const WaterAccessDefinition &BuildingType::water_access() const
     return water_access_;
 }
 
-const BuildingGraphics &BuildingType::graphics() const
+const BuildingGraphicsDef &BuildingType::graphics() const
 {
     return graphics_;
 }

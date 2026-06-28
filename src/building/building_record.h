@@ -5,7 +5,8 @@
 #include "core/time.h"
 #include "game/resource.h"
 
-// Legacy saved building record. Keep this out of building.h while Building becomes the public object API.
+// Transitional runtime building record. Do not add peeled module state here:
+// save/load bridges must read and write legacy payload fields through the owning runtime modules.
 typedef struct building {
     unsigned int id;
 
@@ -138,7 +139,6 @@ typedef struct building {
             unsigned char evolve_text_id;
         } house;
         struct {
-            unsigned short og_type;
             unsigned short og_grid_offset;
             unsigned char og_size;
             unsigned char og_orientation;
@@ -179,7 +179,6 @@ typedef struct building {
     unsigned char tourism_disabled;
     unsigned char tourism_income;
     unsigned char tourism_income_this_year;
-    unsigned char variant;
     unsigned char upgrade_level;
     unsigned char strike_duration_days;
     unsigned char sickness_level;

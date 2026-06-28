@@ -81,6 +81,11 @@ private:
         PixelCoordinate left;
     };
 
+    struct SharedEdge {
+        PixelCoordinate start;
+        PixelCoordinate end;
+    };
+
     static constexpr int kTiles = 8;
     static constexpr int kTileWidth = 60;
     static constexpr int kTileHalfWidth = kTileWidth / 2;
@@ -111,6 +116,16 @@ private:
         int tile_x,
         int tile_y,
         const RunConfig &config) const;
+    void assert_shared_edge_geometry(
+        RendererSeamGeometryAssertionResult &result,
+        SharedEdge first,
+        SharedEdge second,
+        const char *seam_name) const;
+    void record_shared_edge_geometry_failure(
+        RendererSeamGeometryAssertionResult &result,
+        SharedEdge first,
+        SharedEdge second,
+        const char *seam_name) const;
     void sample_same_surface_pair(
         SDL_Surface &surface,
         RendererSeamGeometryAssertionResult &result,
@@ -146,6 +161,8 @@ private:
     int scale_round_nearest(int value, const RunConfig &config) const;
     int round_divide(int numerator, int denominator) const;
     int interpolate_x_for_y(PixelCoordinate start, PixelCoordinate end, int y) const;
+    std::string pixel_coordinate_text(PixelCoordinate coordinate) const;
+    std::string shared_edge_text(SharedEdge edge) const;
     int max_rgb_delta(SDL_PixelFormat &format, uint32_t left, uint32_t right) const;
     bool is_background_pixel(SDL_PixelFormat &format, uint32_t pixel) const;
     bool is_opaque_black_pixel(SDL_PixelFormat &format, uint32_t pixel) const;

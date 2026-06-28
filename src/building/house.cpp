@@ -10,6 +10,7 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house_population.h"
 #include "building/housing_type.h"
@@ -44,6 +45,12 @@ static const struct {
 
 static int find_best_corner_for_devolve(int x, int y, int old_size, int new_size);
 static int split_blocking_houses(Building source, int x, int y, int num_tiles, int dry_run);
+
+static Building *runtime_building(building *record)
+{
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
+    return runtime ? &runtime->building : nullptr;
+}
 
 int building_house_is_active(Building house)
 {
@@ -123,11 +130,17 @@ static void add_house_tiles(Building &house_object)
     if (!house) {
         return;
     }
+    Building *runtime_house = runtime_building(house);
+    if (!runtime_house) {
+        return;
+    }
     // House evolution redraws often. Clamp the existing stable option here instead
     // of reseeding so a valid visual choice survives normal evolve/devolve cycles.
-    house_object.assign_graphic_variant(0);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
+        runtime->assign_graphic_variant(0);
+    }
     if (!house_object.refresh_graphic_if_native()) {
-        map_building_tiles_add(house->id, house->x, house->y, house->size, building_image_get(house), TERRAIN_BUILDING);
+        map_building_tiles_add(*runtime_house, house->x, house->y, house->size, building_image_get(house), TERRAIN_BUILDING);
     }
 }
 
@@ -199,7 +212,9 @@ void building_house_change_to(Building house_object, building_type type)
     }
     // Vacant lots do not carry a meaningful house visual variant, so first
     // occupation gets a fresh stable choice. Other transitions preserve it.
-    house_object.assign_graphic_variant(should_reseed_graphics);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
+        runtime->assign_graphic_variant(should_reseed_graphics);
+    }
     add_house_tiles(house_object);
 }
 
@@ -213,7 +228,9 @@ static void create_vacant_lot(int x, int y)
     b->house_population = 0;
     set_house_legacy_level_from_type(b, type);
     b->distance_from_entry = 0;
-    map_building_tiles_add(b->id, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+    if (Building *building = runtime_building(b)) {
+        map_building_tiles_add(*building, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+    }
 }
 
 void building_house_change_to_vacant_lot(Building house_object)
@@ -230,11 +247,15 @@ void building_house_change_to_vacant_lot(Building house_object)
     house_object.change_type(type);
     set_house_legacy_level_from_type(house, type);
     if (house->house_is_merged) {
-        map_building_tiles_remove(house->id, house->x, house->y);
+        if (Building *building = runtime_building(house)) {
+            map_building_tiles_remove(building, house->x, house->y);
+        }
         house->house_is_merged = 0;
         house->size = house->house_size = 1;
         house->is_close_to_water = building_is_close_to_water(house);
-        map_building_tiles_add(house->id, house->x, house->y, 1, building_image_get(house), TERRAIN_BUILDING);
+        if (Building *building = runtime_building(house)) {
+            map_building_tiles_add(*building, house->x, house->y, 1, building_image_get(house), TERRAIN_BUILDING);
+        }
         create_vacant_lot(house->x + 1, house->y);
         create_vacant_lot(house->x, house->y + 1);
         create_vacant_lot(house->x + 1, house->y + 1);
@@ -264,8 +285,7 @@ enum class HouseExpandMode {
 
 static Building building_at_tile(int grid_offset)
 {
-    unsigned int building_id = map_building_at(grid_offset);
-    return building_id ? Building(building_get(building_id)) : Building(nullptr);
+    return map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
 }
 
 static int plan_has_participant(const HouseMergePlan &plan, unsigned int building_id)
@@ -560,7 +580,9 @@ static void split_size2(building *house, building_type new_type)
     int population_per_tile = house->house_population / 4;
     int population_remainder = house->house_population % 4;
 
-    map_building_tiles_remove(house->id, house->x, house->y);
+    if (Building *building = runtime_building(house)) {
+        map_building_tiles_remove(building, house->x, house->y);
+    }
 
     // main tile
     building_change_type(house, new_type);
@@ -602,7 +624,9 @@ static void split_size3(building *house)
     int population_per_tile = house->house_population / 9;
     int population_remainder = house->house_population % 9;
 
-    map_building_tiles_remove(house->id, house->x, house->y);
+    if (Building *building = runtime_building(house)) {
+        map_building_tiles_remove(building, house->x, house->y);
+    }
 
     // main tile
     building_change_type(house, medium_insula_type);
@@ -662,8 +686,8 @@ static int split_blocking_houses(Building source, int x, int y, int num_tiles, i
     int grid_offset = map_grid_offset(x, y);
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + HOUSE_TILE_OFFSETS[i];
-        if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
-            building *other_house = building_get(map_building_at(tile_offset));
+        if (map_terrain_is(tile_offset, TERRAIN_BUILDING) && map_building_exists_at(tile_offset)) {
+            building *other_house = const_cast<::building *>(map_building_at(tile_offset).record());
             if (other_house && other_house->id != source_id && other_house->house_size) {
                 if (!expansion_contains_house_footprint(grid_offset, num_tiles, other_house)) {
                     return 0;
@@ -747,7 +771,9 @@ static void desize_house_to_type(building *house, building_type type)
         return;
     }
 
-    map_building_tiles_remove(house->id, house->x, house->y);
+    if (Building *building = runtime_building(house)) {
+        map_building_tiles_remove(building, house->x, house->y);
+    }
     int road_tile_offset = find_best_corner_for_devolve(house->x, house->y, house->size, target_size);
 
     house->x = map_grid_offset_to_x(road_tile_offset);
@@ -786,7 +812,9 @@ static void shrink_house_to_type(building *house, building_type type)
     int population_per_tile = house->house_population / shares;
     int population_remainder = house->house_population % shares;
 
-    map_building_tiles_remove(house->id, house->x, house->y);
+    if (Building *building = runtime_building(house)) {
+        map_building_tiles_remove(building, house->x, house->y);
+    }
 
     building_change_type(house, type);
     set_house_legacy_level_from_type(house, type);
@@ -907,13 +935,15 @@ void building_house_check_for_corruption(Building house_object)
     }
     int calc_grid_offset = map_grid_offset(house->x, house->y);
     house->data.house.no_space_to_expand = 0;
-    if (house->grid_offset != calc_grid_offset || map_building_at(house->grid_offset) != house->id) {
+    if (house->grid_offset != calc_grid_offset ||
+        !map_building_exists_at(house->grid_offset) ||
+        map_building_at(house->grid_offset).id != house->id) {
         int map_width, map_height;
         map_grid_size(&map_width, &map_height);
         for (int y = 0; y < map_height; y++) {
             for (int x = 0; x < map_width; x++) {
                 int grid_offset = map_grid_offset(x, y);
-                if (map_building_at(grid_offset) == house->id) {
+                if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).id == house->id) {
                     house->grid_offset = grid_offset;
                     house->x = map_grid_offset_to_x(grid_offset);
                     house->y = map_grid_offset_to_y(grid_offset);

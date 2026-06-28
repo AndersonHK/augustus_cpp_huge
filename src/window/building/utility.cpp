@@ -1,4 +1,3 @@
-#include "building/clone.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -314,14 +313,15 @@ void window_building_draw_rubble(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.140.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     building *b = building_repair_target(building_get(c->rubble_building_id));
-    building_type og_type = static_cast<building_type>(b->data.rubble.og_type);
-    building_type type = og_type == BUILDING_NONE ? static_cast<building_type>(b->type) : og_type;
+    const building_type_registry_impl::BuildingType *og_type = Building(b).og_type;
+    const building_type original_type = og_type ? og_type->type() : BUILDING_NONE;
+    building_type type = original_type == BUILDING_NONE ? static_cast<building_type>(b->type) : original_type;
     int is_burning_ruins = building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "burning_ruin");
 
     if (building_can_repair(b)) {
         init_repair_building_button(c);
         complex_button_draw(repair_building_button);
-    } else if (building_clone_type_from_building_type(type) != BUILDING_NONE) {
+    } else if (type != BUILDING_NONE) {
         // cant repair but can clone - aqueducts or limited monuments. Show disabled button
         init_repair_building_button(c);
         complex_button_draw(repair_building_button);

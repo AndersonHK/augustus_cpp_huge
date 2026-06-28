@@ -11,7 +11,7 @@
 #include "building/production_runtime.h"
 
 #include "assets/image_group_payload.h"
-#include "building/BuildingGraphics.h"
+#include "building/BuildingGraphicsDef.h"
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/calc.h"
@@ -32,7 +32,7 @@ namespace {
 
 void make_building_context(char *buffer, size_t buffer_size, const building_runtime *runtime)
 {
-    const Building b = runtime ? runtime->building() : Building(nullptr);
+    const Building b = runtime ? runtime->building : Building(nullptr);
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (b.type) {
         snprintf(
@@ -49,7 +49,7 @@ void make_building_context(char *buffer, size_t buffer_size, const building_runt
 void log_building_scope_state(void *userdata)
 {
     const building_runtime *runtime = static_cast<const building_runtime *>(userdata);
-    const Building b = runtime ? runtime->building() : Building(nullptr);
+    const Building b = runtime ? runtime->building : Building(nullptr);
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (!b.type) {
         return;
@@ -59,7 +59,7 @@ void log_building_scope_state(void *userdata)
         definition && runtime ?
             building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(
                 definition,
-                runtime->building()) :
+                runtime->building) :
             nullptr;
 
     char details[256];
@@ -170,7 +170,8 @@ int runtime_tile_sentinel_image_id()
 int selected_option_for_selection(
     const Building &building,
     building_type_registry_impl::GraphicsOptionSelection selection,
-    int option_count)
+    int option_count,
+    unsigned char graphics_variant)
 {
     if (option_count <= 0) {
         return 0;
@@ -198,15 +199,15 @@ int selected_option_for_selection(
     if (selection == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
         int option = option_count == 4 ?
             (building.orientation() + city_view_orientation() / 2) % option_count :
-            building.variant() % option_count;
+            graphics_variant % option_count;
         return option < 0 ? option + option_count : option;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
         return (4 + building.orientation() - city_view_orientation() / 2) % 4;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::ProductionProgress) {
-        const ::building *record = building.id ? building_get(building.id) : building.record();
-        Production *production = building.id ? production_runtime_impl::get_or_create_primary(building) : nullptr;
+        const ::building *record = building.record();
+        Production *production = record ? production_runtime_impl::get_or_create_primary(building) : nullptr;
         const int max_value = production ? production->max_progress() :
             (building.type && !building.type->production_methods().empty() ?
                 building.type->production_methods().front()->max_progress_for(building.main()) :
@@ -235,15 +236,16 @@ int selected_option_for_selection(
         const int rotated = (gate_orientation == 1) != vertical_view;
         return rotated ? 1 % option_count : 0;
     }
-    int option = building_variant_get_graphics_option(building, 0);
+    int option = building_variant_get_graphics_option(building, 0, graphics_variant);
     return option < 0 ? 0 : option;
 }
 
 int selected_option_for_layer(
     const Building &building,
-    const building_type_registry_impl::GraphicsLayer &layer)
+    const building_type_registry_impl::GraphicsLayer &layer,
+    unsigned char graphics_variant)
 {
-    return selected_option_for_selection(building, layer.option_selection(), layer.option_count());
+    return selected_option_for_selection(building, layer.option_selection(), layer.option_count(), graphics_variant);
 }
 
 void draw_shifted_runtime_slice(
@@ -264,12 +266,13 @@ void draw_shifted_runtime_slice(
 
 int building_runtime_graphics_selected_option(
     const Building &building,
-    const building_type_registry_impl::GraphicsTarget &target)
+    const building_type_registry_impl::GraphicsTarget &target,
+    unsigned char graphics_variant)
 {
-    return selected_option_for_selection(building, target.option_selection(), target.option_count());
+    return selected_option_for_selection(building, target.option_selection(), target.option_count(), graphics_variant);
 }
 
-int building_runtime_graphics_image_id(const Building &building_object)
+int building_runtime_graphics_image_id(const Building &building_object, unsigned char graphics_variant)
 {
     const building_type_registry_impl::BuildingType *definition = building_object.type;
     if (!definition || !definition->has_graphic() || definition->has_data_only_graphics()) {
@@ -284,7 +287,8 @@ int building_runtime_graphics_image_id(const Building &building_object)
     }
 
     building_type_registry_impl::GraphicsTarget resolved_target =
-        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building_object, *target)));
+        target->resolved_option(
+            static_cast<unsigned char>(building_runtime_graphics_selected_option(building_object, *target, graphics_variant)));
     if (resolved_target.is_resource_storage()) {
         return runtime_tile_sentinel_image_id();
     }
@@ -318,7 +322,7 @@ int building_runtime_graphics_image_id(const Building &building_object)
         if (!layer.matches(building_object)) {
             continue;
         }
-        const int selected_layer_option = selected_option_for_layer(building_object, layer);
+        const int selected_layer_option = selected_option_for_layer(building_object, layer, graphics_variant);
         if (selected_layer_option < 0) {
             continue;
         }
@@ -350,7 +354,7 @@ void building_runtime::clear_cached_graphics_bindings()
 
 int building_runtime::uses_new_graphics() const
 {
-    const Building b = building();
+    const Building b = building;
     return b.type &&
         b.type->has_graphic() &&
         !b.type->has_data_only_graphics();
@@ -358,7 +362,7 @@ int building_runtime::uses_new_graphics() const
 
 int building_runtime::building_state_supports_native_graphics() const
 {
-    const Building b = building();
+    const Building b = building;
     return b.state_id() == BUILDING_STATE_CREATED ||
         b.state_id() == BUILDING_STATE_IN_USE ||
         b.state_id() == BUILDING_STATE_MOTHBALLED;
@@ -371,7 +375,7 @@ void building_runtime::invalidate_graphics_cache()
 
 std::uint64_t building_runtime::graphics_state_signature() const
 {
-    const Building b = building();
+    const Building b = building;
     if (!b.type) {
         return 0;
     }
@@ -379,13 +383,15 @@ std::uint64_t building_runtime::graphics_state_signature() const
     int selected_option = -1;
     if (const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target()) {
         if (target->has_options()) {
-            selected_option = building_runtime_graphics_selected_option(b, *target);
+            selected_option = building_runtime_graphics_selected_option(b, *target, graphics_variant());
         }
     }
     std::uint64_t signature = b.graphics_state_signature(selected_option);
-    const Building owner = b.composition_owner();
-    if (owner.id && owner.id != b.id) {
-        signature ^= owner.graphics_state_signature(-1);
+    ::building *owner_record = record_->id ? building_main(record_) : nullptr;
+    if (owner_record && owner_record->id && owner_record->id != record_->id) {
+        if (building_runtime *owner_runtime = building_runtime_impl::get_or_create_instance(owner_record)) {
+            signature ^= owner_runtime->building.graphics_state_signature(-1);
+        }
         signature *= 1099511628211ull;
     }
     return signature;
@@ -396,28 +402,27 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     if (!uses_new_graphics()) {
         return nullptr;
     }
-    return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(&type(), building());
+    return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(&type(), building);
 }
 
 void building_runtime::assign_graphic_variant(int force_reseed)
 {
-    Building b = building();
+    Building b = building;
     if (!b.type) {
         return;
     }
 
     refresh_runtime_state();
-    int graphics_option = building_variant_get_graphics_option(b, force_reseed);
+    int graphics_option = building_variant_get_graphics_option(b, force_reseed, graphics_variant());
     if (graphics_option < 0) {
         return;
     }
 
     unsigned char variant = static_cast<unsigned char>(graphics_option);
-    if (b.variant() == variant) {
+    if (graphics_variant() == variant) {
         return;
     }
-    b.set_variant(variant);
-    invalidate_graphics_cache();
+    set_graphics_variant(variant);
 }
 
 int building_runtime::resolve_graphic_binding(
@@ -513,7 +518,7 @@ void building_runtime::advance_graphic_animation(int animation_cursor)
         return;
     }
 
-    building().animate().frame_offset(*animation, 1, animation_cursor);
+    building.animate().frame_offset(*animation, 1, animation_cursor);
     // The frame cursor has just moved; the draw slice is rebuilt lazily by
     // graphic_animation() so ghosts and normal city draws share one read path.
     graphics_cache_.animation_slice = RuntimeDrawSlice();
@@ -556,7 +561,7 @@ void building_runtime::advance_cached_graphic_animation(int animation_cursor)
         return;
     }
 
-    building().animate().frame_offset(*animation, 1, animation_cursor);
+    building.animate().frame_offset(*animation, 1, animation_cursor);
     graphics_cache_.animation_slice = RuntimeDrawSlice();
 }
 
@@ -590,7 +595,7 @@ void building_runtime::draw_cached_graphic_layers(
         }
         if (layer.owns_animation && layer.entry && layer.entry->has_animation()) {
             const Animation &animation = layer.entry->animation();
-            const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
+            const int animation_offset = building.animate().frame_offset(animation, 1, animation_cursor);
             if (animation_offset > 0) {
                 RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
                 if (frame_slice.is_valid()) {
@@ -635,7 +640,7 @@ int building_runtime::draw_cached_graphic_layer_role(
         }
         if (layer.owns_animation && layer.entry && layer.entry->has_animation()) {
             const Animation &animation = layer.entry->animation();
-            const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
+            const int animation_offset = building.animate().frame_offset(animation, 1, animation_cursor);
             if (animation_offset > 0) {
                 RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
                 if (frame_slice.is_valid()) {
@@ -674,7 +679,7 @@ void building_runtime::draw_cached_graphic_layer_animations(
             continue;
         }
         const Animation &animation = layer.entry->animation();
-        const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
+        const int animation_offset = building.animate().frame_offset(animation, 1, animation_cursor);
         if (animation_offset <= 0) {
             layer.animation_slice = RuntimeDrawSlice();
             continue;
@@ -706,7 +711,7 @@ void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
     }
 
     const Animation &animation = *animation_ptr;
-    const int animation_offset = building().animate().frame_offset(animation, 0, animation_cursor);
+    const int animation_offset = building.animate().frame_offset(animation, 0, animation_cursor);
     if (animation_offset <= 0) {
         return;
     }
@@ -765,7 +770,8 @@ void building_runtime::rebuild_cached_graphics_bindings()
     // Conditional graphics pick a target first; the saved variant byte only picks
     // among equivalent options inside that already-selected target.
     building_type_registry_impl::GraphicsTarget resolved_target =
-        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building(), *target)));
+        target->resolved_option(
+            static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target, graphics_variant())));
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
@@ -778,7 +784,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
         return;
     }
 
-    const int animation_owner_is_working = animation_owner_is_working_for_runtime_preview(building());
+    const int animation_owner_is_working = animation_owner_is_working_for_runtime_preview(building);
 
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
@@ -788,11 +794,11 @@ void building_runtime::rebuild_cached_graphics_bindings()
         graphics_cache_.owns_graphic_animation = 1;
     }
     for (const building_type_registry_impl::GraphicsLayer &layer : resolved_target.layers()) {
-        if (!layer.matches(building())) {
+        if (!layer.matches(building)) {
             continue;
         }
 
-        const int selected_layer_option = selected_option_for_layer(building(), layer);
+        const int selected_layer_option = selected_option_for_layer(building, layer, graphics_variant());
         if (selected_layer_option < 0) {
             continue;
         }
@@ -891,7 +897,7 @@ void building_runtime::set_building_graphic()
 
     rebuild_cached_graphics_bindings();
     // XML payload graphics render from cached RuntimeDrawSlice entries; map_image only keeps legacy tile bookkeeping alive.
-    Building b = building();
+    Building b = building;
     int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : b.image_id();
     if (!image_id) {
         image_id = runtime_tile_sentinel_image_id();

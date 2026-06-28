@@ -558,7 +558,7 @@ void BuildMenuButton::activate() const
         window_invalidate();
         return;
     }
-    building_construction_set_type(building, 0);
+        building_construction_set_type(building_type_registry_impl::definition_for_type(building), 0);
 
     if (set_submenu_for_type(building)) {
         data.num_items = building_menu_count_items(data.selected_submenu);

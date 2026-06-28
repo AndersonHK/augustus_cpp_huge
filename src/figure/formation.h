@@ -237,6 +237,8 @@ struct formation {
     }
 
     int base_morale_limit() const;
+    int barracks_recruit_capacity() const;
+    int barracks_recruit_overflow_count() const;
     int declared_recruit_type() const;
     int legion_distant_battle_strength_factor() const;
     int legion_curse_weight() const;
@@ -309,7 +311,7 @@ struct formation {
     void set_non_combat_figures_action(int action_state, bool remove_route = false) const;
     void reset_non_combat_figures_action(int action_state) const;
     void move_herd_animals(int attacking_animals) const;
-    void mark_overflow_figures_returning_to_barracks() const;
+    void mark_barracks_recruit_overflow_returning() const;
     bool prepare_legion_to_move();
     void send_non_combat_figures_to_standard();
     void send_non_combat_figures_to_fort();

@@ -13,7 +13,18 @@ Current measured state:
 - Current Part6 implementation batch has root-session Release x64 build verification and focused renderer seam geometry verification, but has not been deployed or manually runtime-tested.
 - Latest manual runtime validation belongs to the Part5 baseline; do not treat it as evidence for the current Part6 working tree.
 - Current validation evidence: `MSBuild Vespasian.sln /p:Configuration=Release /p:Platform=x64 /nr:false` exited 0 after the local-workforce, renderer-seam fixture, farm-overlay draw cleanup, native-crop graphics cleanup, storage-flag XML ownership, and gatehouse overlay ownership slices; local XML well-formed parsing passed for the modified `native_crops.xml`, `warehouse.xml`, `granary.xml`, and `gatehouse.xml` files; `RendererSeamTest.exe --matrix city-tile-geometry --artifacts out\renderer_seams_geometry` passed the expanded 8-case matrix; standalone `StartupParserTest.exe` was not run because generated graphics extraction stamps are missing in the repo-local Mods folder; `RendererSeamTest.exe --matrix terrain-water` was not run from the repo because it requires a real Caesar 3 game root.
-- Current validation priority: deploy/manual runtime testing after the next user-controlled asset extraction/deploy point.
+- Current regression-batch validation: `git diff --check` passed and `MSBuild Vespasian.sln /p:Configuration=Release /p:Platform=x64 /nr:false` exited 0 after the fort recruitment cap, garden preview/runtime snapshot fix, and land-trader sound phrase correction.
+- Current graphics-state/refactor validation: `MSBuild Vespasian.sln /p:Configuration=Release /p:Platform=x64 /nr:false` exited 0 with 0 warnings and 0 errors after the `BuildingGraphicsState` variant peel was corrected to copy the save-record byte into module state without a save-version gate; `x64\Release\StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` passed; `x64\Release\RendererSeamTest.exe --matrix city-tile-geometry --artifacts out\renderer_seams` passed all 8 cases; `x64\Release\RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams` completed with 4608 expected skips and 0 failures; `git diff --check` passed with only CRLF conversion warnings.
+- Current deploy state: `python tools\deploy_release_to_game.py --no-pause-on-exit` completed to `D:\Games\GOG Games\Caesar 3`; `JuliusGraphicsExtractor.exe --game-root "D:\Games\GOG Games\Caesar 3"`, `AugustusGraphicsExtractor.exe --game-root "D:\Games\GOG Games\Caesar 3" --no-force --stamp`, and deployed `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` all passed after deploy.
+- Current validation priority: manual runtime testing of building graphics variant save/load and pavilion R-key rotation.
+
+Latest manual checkpoint findings, 2026-06-28:
+
+- Confirmed new regression: forts can briefly show 17 soldiers, then remove the overflow soldier and respawn the missing slot forever; current fix keeps barracks recruitment/status capped to the current 16-soldier fort recruitment capacity while leaving declared formation storage/counting intact for the larger-formation work. Manual spot test indicates the regression is fixed.
+- Unconfirmed regression watch: native farms may be growing or animating too fast, but local timing matches the checked Augustus `upstream/master` source shape: `building_figure_generate()` advances crop progress once per day and cycles five frames. Leave Vespasian timing unchanged unless manual testing confirms a real divergence that should become XML-owned data.
+- Confirmed old regression fix: land trader sound phrases no longer use the success phrase as a generic pre-trade line; success now requires `trader_has_traded(...)`, while no-trade remains tied to a leaving caravan with no completed exchange. Manual retest confirms the reported pre-trade success sound is fixed.
+- Confirmed returned regression: garden area preview/placement can mutate adjacent committed garden graphics, and merely attempting to place over an existing real garden can glitch that real garden's composition. Manual retest confirms the runtime snapshot/stateless-preview fix resolves the reported symptoms.
+- Future figure-native-graphics clue: inspect runtime logs for FigureType graphics fallback errors before finishing the remaining native figure graphics transition.
 
 ## Coordination
 
@@ -25,7 +36,7 @@ Requirement: keep work planned, delegated, build-gated, and regression-testable.
 - [x] Split verbose requirement text out of this tracker.
 - [x] Keep two agents busy with long-lived implementation or cleanup slices.
 - [x] Update this checklist when a slice lands or a dependency order changes.
-- [ ] Record manual regression findings only as short current-state notes.
+- [x] Record manual regression findings only as short current-state notes.
 - [ ] Treat manual-test/deploy milestones as: terrain/water seam pixel checks, Vespasian half-size FigureType XML, deletion of strategy-obsolete compatibility branches, deletion of 16-soldier formation constants, and HDR scene target plus shader-side lighting/material policies.
 
 ## Validation And Deployment
@@ -216,9 +227,11 @@ Gate: half-size Vespasian FigureType XML must wait until every `Renderer Scaling
 - [x] Move figure draw-request resolution/submission out of `city_figure.cpp`; city drawing now asks `Figure` for a `FigureGraphicDrawRequest`, and the request owns layer submission plus map-flag number overlay drawing.
 - [x] Replace the map-flag number overlay field triplet with a header-ledgered `FigureMapFlagNumberOverlay` draw component on `FigureGraphicDrawRequest`.
 - [x] Move draw-request layer capacity checks and `FigureGraphicsLayer` adaptation onto `FigureGraphicDrawRequest`, deleting the local `add_draw_layer` helper pair.
+- [x] Route simple XML-owned service walkers with flat legacy `image_group` graphics through `FigureGraphics` draw requests instead of the city-level `Image::from_id` fallback.
 - [ ] Move cart/resource/animal/standard overlays into figure graphics layers.
 - [ ] Transition figure graphics to image group payload manager ownership with real file-path references instead of legacy group/image-id references.
 - [ ] Add Vespasian half-size FigureType XML overrides using existing source art after all Renderer Scaling Seams work and figure payload ownership are complete.
+- [ ] Review runtime logs for FigureType graphics fallback errors before the next native-figure graphics finishing slice.
 - [ ] Delete legacy figure image-id arithmetic and duplicate corpse/direction/cart tables.
 
 ## Renderer Scaling Seams
@@ -231,7 +244,7 @@ Gate: this entire section blocks Vespasian half-size FigureType XML. The XML sli
 
 - [x] Add focused terrain render test matrix for scale filters, grid state, zoom, and atlas/native paths; `RendererSeamTest` now generates the matrix, JSON results, and scale-aware real-pixel software fixture cases for city-tile geometry.
 - [x] Split the software isometric geometry fixture into explicit scale-aware `--matrix city-tile-geometry` coverage and remove it from the `terrain-water` false-pass path.
-- [x] Move city-tile geometry fixture SDL setup, scale-aware canonical tile geometry, BMP artifact naming/writing, and artifact status reporting behind the header-ledgered fixture object.
+- [x] Move city-tile geometry fixture SDL setup, scale-aware canonical tile geometry, rounded shared-edge endpoint assertions, BMP artifact naming/writing, and artifact status reporting behind the header-ledgered fixture object.
 - [x] Move seam report JSON serialization, status derivation, expected-skip artifact paths, fixture-result adaptation, result-file artifact preparation, and summary counting behind a header-ledgered report writer.
 - [x] Remove grid-rendering tile-size mutation.
 - [ ] Introduce exact city-tile destination geometry with shared rounded edges.
@@ -282,9 +295,10 @@ Requirement: BuildingType XML graphics should drive preview, overlay, and live-b
 - [x] Move `native_crops` frame selection into XML `production_progress` options and delete the direct `GROUP_BUILDING_FARM_CROPS` map-image mutation.
 - [x] Move Augustus/Vespasian warehouse/granary storage permission flags into XML `storage_permission` graphics layers, keep Julius flagless to match upstream Julius, and delete the old city-draw storage helper branches.
 - [x] Move the gatehouse top overlay image/offset/orientation mapping into BuildingType graphics data and `BuildingGraphics::draw_gatehouse_overlay`.
-- [ ] Finish remaining farm draw-adjacent UI cleanup, especially no-overlay mothball icon placement/field suppression.
-- [ ] Finish remaining storage and tile composite cleanup, especially `resource_storage` genericization plus decorative-gate and road-surface drawing.
-- [ ] Finish network/water preview graphics cleanup.
+- [x] Peel the native graphics variant byte out of the runtime building record into `BuildingGraphicsState`; `Building` owns the `BuildingGraphics` container, the container binds owner/state/definition, and save/load copies the existing record byte into/out of module state with no save-version gate or load-time special case.
+- [x] Move no-overlay mothball/stockpile icon placement and farm field suppression behind `Building::mothball_status_icon_offset(...)` and `BuildingGraphics`.
+- [~] Finish remaining storage and tile composite cleanup; `resource_storage` footprint/top drawing is genericized behind `BuildingGraphics`, while decorative-gate and road-surface drawing remain open.
+- [~] Finish network/water preview graphics cleanup; draggable reservoir preview now routes through `BuildingGraphics`, while aqueduct, bridge, road, and garden-gate preview branches remain hardcoded.
 - [ ] Delete compatibility branches made obsolete by strategy data.
 
 ## Unit And Formation XML
@@ -306,6 +320,7 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 - [x] Move enemy movement layout-offset generation onto `formation` using the resolved `FormationType` footprint.
 - [x] Move fixed 16-slot roster save/load serialization behind `formation` legacy storage bridge methods.
 - [x] Split live formation roster storage from the fixed 16-slot legacy save prefix and add an extended roster save section.
+- [x] Cap current barracks recruitment and recruit-overflow ejection to the 16-soldier fort recruitment capacity while Vespasian 8x8 formation XML remains declared data behind the larger-formation gates.
 - [ ] Add fort-owned `Formation` object links with live formations pointing to resolved `FormationType` definitions.
 - [ ] Replace remaining hardcoded formation-size loops with `Formation` object iteration.
 - [x] Split fixed roster save/storage from 16-offset layout tables before enabling more than 16 live slots.
@@ -317,4 +332,4 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 
 Requirement: keep only active manual-test notes here; resolved findings belong in git history or focused docs.
 
-- [ ] Garden/plaza area placement now uses `ConstructionAreaTilePlacement`; manual runtime validation is still needed for large drag previews, undo/redo, plaza routing refresh, and isolated garden recomposition.
+- [ ] Plaza routing refresh and broader area-tool undo/redo still need runtime sweep; the reported garden adjacency/overlap regression was manually confirmed fixed.

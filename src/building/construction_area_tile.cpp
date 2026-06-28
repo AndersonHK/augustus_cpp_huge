@@ -6,49 +6,29 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
-#include "map/tile_runtime_api.h"
 #include "map/tiles.h"
-
-#include <algorithm>
 
 using TileDefinition = building_type_registry_impl::TileDefinition;
 using TilePlacementBehavior = building_type_registry_impl::TilePlacementBehavior;
 
-void ConstructionAreaTilePlacement::Region::include(const Region &other)
+int ConstructionAreaTilePlacement::GardenTileSet::placed_count() const
 {
-    if (!other.active) {
-        return;
-    }
-    if (!active) {
-        *this = other;
-        return;
-    }
-    x_min = std::min(x_min, other.x_min);
-    y_min = std::min(y_min, other.y_min);
-    x_max = std::max(x_max, other.x_max);
-    y_max = std::max(y_max, other.y_max);
+    return static_cast<int>(grid_offsets_.size());
 }
 
-ConstructionAreaTilePlacement::Region ConstructionAreaTilePlacement::GardenPreviewState::consume()
+void ConstructionAreaTilePlacement::GardenTileSet::add(int grid_offset)
 {
-    Region previous = region_;
-    if (!region_.active) {
-        return previous;
-    }
-
-    for (int y = region_.y_min; y <= region_.y_max; y++) {
-        for (int x = region_.x_min; x <= region_.x_max; x++) {
-            tile_runtime_clear(map_grid_offset(x, y));
-        }
-    }
-
-    region_ = {};
-    return previous;
+    grid_offsets_.push_back(grid_offset);
 }
 
-void ConstructionAreaTilePlacement::GardenPreviewState::remember(const Region &region)
+void ConstructionAreaTilePlacement::GardenTileSet::refresh_preview_tiles() const
 {
-    region_ = region;
+    if (grid_offsets_.empty()) {
+        return;
+    }
+    map_tiles_update_garden_preview_tiles(
+        grid_offsets_.data(),
+        static_cast<int>(grid_offsets_.size()));
 }
 
 ConstructionAreaTilePlacement::ConstructionAreaTilePlacement(
@@ -75,9 +55,7 @@ int ConstructionAreaTilePlacement::place()
         return place_garden_area(region(), *tile, preview_);
     }
 
-    Region previous_preview = garden_preview().consume();
     game_undo_restore_map(1);
-    refresh_garden_preview_region(previous_preview);
     refresh_area_tile_after_restore(*tile);
 
     int items_placed = 0;
@@ -101,13 +79,7 @@ bool ConstructionAreaTilePlacement::is_area_tile_type(building_type type)
 
 ConstructionAreaTilePlacement::Region ConstructionAreaTilePlacement::region() const
 {
-    return { true, x_min_, y_min_, x_max_, y_max_ };
-}
-
-ConstructionAreaTilePlacement::GardenPreviewState &ConstructionAreaTilePlacement::garden_preview()
-{
-    static GardenPreviewState state;
-    return state;
+    return { x_min_, y_min_, x_max_, y_max_ };
 }
 
 const TileDefinition *ConstructionAreaTilePlacement::tile_definition_for_type(building_type type)
@@ -115,22 +87,6 @@ const TileDefinition *ConstructionAreaTilePlacement::tile_definition_for_type(bu
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
     return definition && definition->has_tile() ? &definition->tile() : nullptr;
-}
-
-const TileDefinition *ConstructionAreaTilePlacement::tile_definition_for_kind(
-    building_type_registry_impl::TileKind kind)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->has_tile() && definition->tile().kind() == kind) {
-            return &definition->tile();
-        }
-    }
-    return nullptr;
-}
-
-const TileDefinition *ConstructionAreaTilePlacement::garden_tile_definition()
-{
-    return tile_definition_for_kind(building_type_registry_impl::TileKind::Garden);
 }
 
 bool ConstructionAreaTilePlacement::is_garden_area_tile(const TileDefinition &tile)
@@ -148,18 +104,7 @@ void ConstructionAreaTilePlacement::refresh_area_tile_after_restore(const TileDe
 
 void ConstructionAreaTilePlacement::refresh_garden_region(const Region &region, const TileDefinition &tile)
 {
-    if (!region.active) {
-        return;
-    }
     map_tiles_update_region_tile(region.x_min, region.y_min, region.x_max, region.y_max, tile);
-}
-
-void ConstructionAreaTilePlacement::refresh_garden_preview_region(const Region &region)
-{
-    const TileDefinition *garden_tile = garden_tile_definition();
-    if (garden_tile) {
-        refresh_garden_region(region, *garden_tile);
-    }
 }
 
 int ConstructionAreaTilePlacement::place_garden_area(
@@ -167,19 +112,16 @@ int ConstructionAreaTilePlacement::place_garden_area(
     const TileDefinition &tile,
     bool preview)
 {
-    Region refresh_region = garden_preview().consume();
     game_undo_restore_map(1);
-    refresh_garden_preview_region(refresh_region);
-    refresh_region.include(region);
 
-    int items_placed = 0;
+    GardenTileSet placed_tiles;
     for (int y = region.y_min; y <= region.y_max; y++) {
         for (int x = region.x_min; x <= region.x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
                 continue;
             }
-            items_placed++;
+            placed_tiles.add(grid_offset);
             map_terrain_add(grid_offset, TERRAIN_GARDEN);
             if (tile.overgrown()) {
                 map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
@@ -187,9 +129,11 @@ int ConstructionAreaTilePlacement::place_garden_area(
         }
     }
 
-    refresh_garden_region(refresh_region, tile);
+    int items_placed = placed_tiles.placed_count();
     if (preview && items_placed > 0) {
-        garden_preview().remember(region);
+        placed_tiles.refresh_preview_tiles();
+    } else if (!preview && items_placed > 0) {
+        refresh_garden_region(region, tile);
     }
     return items_placed;
 }
@@ -224,9 +168,7 @@ bool ConstructionAreaTilePlacement::updates_land_routing(building_type type)
 
 void ConstructionAreaTilePlacement::restore_preview_map(building_type type)
 {
-    Region previous_preview = garden_preview().consume();
     game_undo_restore_map(1);
-    refresh_garden_preview_region(previous_preview);
 
     const TileDefinition *tile = tile_definition_for_type(type);
     if (!tile) {

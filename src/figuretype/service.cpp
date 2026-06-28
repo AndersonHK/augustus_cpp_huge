@@ -480,7 +480,7 @@ void figure_tax_collector_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                if (map_building_at(f->grid_offset) == f->building.id) {
+                if (map_building_exists_at(f->grid_offset) && map_building_at(f->grid_offset).id == f->building.id) {
                     // returned to own building
                     f->state = FIGURE_STATE_DEAD;
                 } else {

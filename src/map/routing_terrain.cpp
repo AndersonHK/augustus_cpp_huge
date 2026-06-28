@@ -97,10 +97,13 @@ void Route::updateLandTerrain(void)
 
 static int get_land_type_citizen_building(int grid_offset)
 {
-    building *b = building_get(map_building_at(grid_offset));
+    if (!map_building_exists_at(grid_offset)) {
+        return CITIZEN_4_CLEAR_TERRAIN;
+    }
+    Building current = map_building_at(grid_offset);
+    building *b = const_cast<::building *>(current.record());
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    Building current(b);
     if (current.type && current.type->is_warehouse()) {
         type = CITIZEN_0_ROAD;
     } else if (current.type && current.type->roadblock().is_wall_gate()) {
@@ -164,7 +167,7 @@ void Route::updateCitizenLandTerrain(void)
             } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
-                if (!map_building_at(grid_offset)) {
+                if (!map_building_exists_at(grid_offset)) {
                     // shouldn't happen
                     terrain_land_noncitizen.items[grid_offset] = CITIZEN_4_CLEAR_TERRAIN; // BUG: should be citizen?
                     map_terrain_remove(grid_offset, TERRAIN_BUILDING);
@@ -187,9 +190,12 @@ void Route::updateCitizenLandTerrain(void)
 
 static int get_land_type_noncitizen(int grid_offset)
 {
+    if (!map_building_exists_at(grid_offset)) {
+        return NONCITIZEN_2_CLEARABLE;
+    }
     int type = NONCITIZEN_1_BUILDING;
-    building *b = building_get(map_building_at(grid_offset));
-    Building current(b);
+    Building current = map_building_at(grid_offset);
+    building *b = const_cast<::building *>(current.record());
     if ((current.type && current.type->is_warehouse()) ||
         building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = NONCITIZEN_0_PASSABLE;

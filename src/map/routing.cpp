@@ -486,7 +486,7 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
             return 1;
         }
         if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-            if (Building(building_get(map_building_at(grid_offset))).matches("reservoir")) {
+            if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("reservoir")) {
                 return 1;
             }
         }
@@ -612,7 +612,9 @@ static int citizen_can_enter_roadblock(int grid_offset)
         return 1;
     }
 
-    Roadblock roadblock(building_get(map_building_at(grid_offset)));
+    Roadblock roadblock(map_building_exists_at(grid_offset) ?
+        const_cast<::building *>(map_building_at(grid_offset).record()) :
+        nullptr);
     return roadblock.kind() == ROADBLOCK_NONE || roadblock.has_permission(state.roadblock_permission);
 }
 
@@ -696,7 +698,7 @@ static int callback_travel_noncitizen_land_through_building(int offset, int next
     if (terrain == NONCITIZEN_0_PASSABLE || terrain == NONCITIZEN_2_CLEARABLE) {
         return 1;
     }
-    int map_building_id = map_building_at(next_offset);
+    int map_building_id = map_building_exists_at(next_offset) ? map_building_at(next_offset).id : 0;
     if (terrain == NONCITIZEN_1_BUILDING && (map_building_id == state.through_building_id || map_building_id == state.dest_building_id)) {
         return 1;
     }
@@ -724,7 +726,8 @@ int map_routing_noncitizen_can_travel_over_land(
     if (only_through_building_id) {
         state.through_building_id = only_through_building_id;
         // due to formation offsets, the destination building may not be the same as the "through building" (a.k.a. target building)
-        state.dest_building_id = map_building_at(map_grid_offset(dst_x, dst_y));
+        int destination_offset = map_grid_offset(dst_x, dst_y);
+        state.dest_building_id = map_building_exists_at(destination_offset) ? map_building_at(destination_offset).id : 0;
         route_queue_from_to(src_x, src_y, dst_x, dst_y, num_directions, 0, callback_travel_noncitizen_land_through_building);
     } else {
         route_queue_from_to(src_x, src_y, dst_x, dst_y, num_directions, max_tiles, callback_travel_noncitizen_land);

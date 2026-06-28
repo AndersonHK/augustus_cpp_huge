@@ -51,7 +51,8 @@ int formation_legion_recruits_needed(void)
 {
     for (int i = 1; i < formation_count(); i++) {
         formation *m = formation_get(i);
-        if (m->in_use && m->is_legion && m->legion_recruit_type != LEGION_RECRUIT_NONE) {
+        if (m->in_use && m->is_legion && m->legion_recruit_type != LEGION_RECRUIT_NONE &&
+            m->num_figures < m->barracks_recruit_capacity()) {
             return 1;
         }
     }
@@ -62,13 +63,13 @@ void formation_legion_update_recruit_status(const Building &fort)
 {
     formation *m = formation_get(fort.formation_id());
     m->legion_recruit_type = LEGION_RECRUIT_NONE;
-    if (!m->is_at_fort || m->cursed_by_mars || m->is_full()) {
+    if (!m->is_at_fort || m->cursed_by_mars) {
         return;
     }
-    if (m->has_open_slot()) {
+    if (m->num_figures < m->barracks_recruit_capacity()) {
         m->legion_recruit_type = m->declared_recruit_type();
-    } else { // too many figures
-        m->mark_overflow_figures_returning_to_barracks();
+    } else if (m->barracks_recruit_overflow_count() > 0) {
+        m->mark_barracks_recruit_overflow_returning();
         formation_calculate_figures();
     }
 }
@@ -276,8 +277,8 @@ int formation_legion_or_herd_at_grid_offset(int grid_offset)
 
 int formation_legion_at_building(int grid_offset)
 {
-    if (int id = map_building_at(grid_offset)) {
-        Building b(building_get(id));
+    if (map_building_exists_at(grid_offset)) {
+        Building &b = map_building_at(grid_offset);
         const building_type fort_ground = building_type_registry_impl::runtime_id_from_text("fort_ground");
         const building_type type = b.type ? b.type->type() : BUILDING_NONE;
         if (b.is_in_use() && (building_is_fort(type) ||

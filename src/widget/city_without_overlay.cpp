@@ -27,6 +27,7 @@
 #include "building/BuildingGraphics.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/dock.h"
 #include "widget/city_draw.h"
@@ -74,6 +75,23 @@ static struct {
     float scale;
 } draw_context;
 
+static Building runtime_building_for_draw(unsigned int building_id)
+{
+    building *record = building_get(building_id);
+    if (!record || record->state == BUILDING_STATE_UNUSED) {
+        return Building(nullptr);
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
+        return runtime->building;
+    }
+    return Building(nullptr);
+}
+
+static Building runtime_building_for_draw_at(int grid_offset)
+{
+    return map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
+}
+
 static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_coord, int highlighted_formation)
 {
     draw_context.advance_water_animation = 0;
@@ -95,9 +113,8 @@ static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_c
     draw_context.hovered_building_id = 0;
     if (config_get(CONFIG_UI_CV_CURSOR_SHADOW) && draw_context.cursor_tile && draw_context.cursor_tile->grid_offset &&
         !scroll_in_progress()) {
-        int building_id = map_building_at(draw_context.cursor_tile->grid_offset);
-        if (building_id) {
-            draw_context.hovered_building_id = Building(building_get(building_id)).main().id;
+        if (map_building_exists_at(draw_context.cursor_tile->grid_offset)) {
+            draw_context.hovered_building_id = map_building_at(draw_context.cursor_tile->grid_offset).main().id;
 
         }
     }
@@ -185,13 +202,12 @@ static void draw_footprint(int x, int y, int grid_offset)
         return;
     }
     // Valid grid_offset and leftmost tile -> draw
-    int building_id = map_building_at(grid_offset);
-    Building building(nullptr);
+    Building building = runtime_building_for_draw_at(grid_offset);
+    int building_id = building.id;
     color_t color_mask = 0;
     int is_cursor_tile = (draw_context.cursor_tile && grid_offset == draw_context.cursor_tile->grid_offset);
 
     if (building_id) {
-        building = Building(building_get(building_id));
         color_mask = building_draw_color_mask(building);
         int view_x, view_y, view_width, view_height;
         city_view_get_viewport(&view_x, &view_y, &view_width, &view_height);
@@ -368,52 +384,30 @@ static void draw_workshop_raw_material_storage(const Building &building, int x, 
     }
 }
 
-static void get_mothball_icon_position(const Building &building, int *x, int *y)
-{
-    const Image &building_image = Image::from_id(building.image_id());
-    const ImageGroupEntryRef icon = ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite");
-
-    if (building.type && building.type->is_warehouse()) {
-        *x += 21;
-        *y -= 60;
-    } else if (building.type && building.type->is_granary()) {
-        *x += 83;
-        *y -= 120;
-    } else if (building.matches("fountain")) {
-        *x += 20;
-        *y -= 15;
-    } else if (building.type && building.type->is_farm()) {
-        *x += 50;
-        *y -= 50;
-    } else {
-        *x = (building_image.width() - icon.width()) / 2;
-        *y = (-icon.height() / 2) + 10;
-    }
-    if (const Image *top = building_image.top()) {
-        *y -= top->original_height();
-    }
-}
-
 static void draw_mothball_icon(const Building &building, int x, int y, int grid_offset)
 {
     const bool mothballed = building.is_mothballed();
     if (!building.industry_is_stockpiling() && !mothballed) {
         return;
     }
-    if (!building.is_main_part() ||
-        (building.type && building.type->is_farm() && map_property_multi_tile_size(grid_offset) == 1)) {
-        return;
-    }
-
+    const ImageGroupEntryRef icon = ImageGroupEntryRef::from_group(
+        mothballed ? "UI\\Mothball_Sprite" : "UI\\Stockpile_Sprite",
+        mothballed ? "Mothball_Sprite" : "Stockpile_Sprite");
+    const ImageGroupEntryRef placement_icon = ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite");
     int mothball_x = 0;
     int mothball_y = 0;
-    get_mothball_icon_position(building, &mothball_x, &mothball_y);
+    if (!building.mothball_status_icon_offset(
+            grid_offset,
+            placement_icon.width(),
+            placement_icon.height(),
+            &mothball_x,
+            &mothball_y)) {
+        return;
+    }
     x += mothball_x;
     y += mothball_y;
 
-    ImageGroupEntryRef::from_group(
-        mothballed ? "UI\\Mothball_Sprite" : "UI\\Stockpile_Sprite",
-        mothballed ? "Mothball_Sprite" : "Stockpile_Sprite").draw(x, y, COLOR_MASK_NONE, draw_context.scale);
+    icon.draw(x, y, COLOR_MASK_NONE, draw_context.scale);
 }
 
 static void draw_senate_rating_flags(const Building &building, int x, int y, color_t color_mask)
@@ -754,13 +748,13 @@ static void draw_hippodrome_ornaments_render_tile(const CityViewRenderTile &tile
 static void deletion_draw_terrain_top(int x, int y, int grid_offset)
 {
     if (map_property_is_draw_tile(grid_offset) && city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+        draw_top_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
     }
 }
 
 static void deletion_draw_figures_animations(int x, int y, int grid_offset)
 {
-    Building building(building_get(map_building_at(grid_offset)));
+    Building building = runtime_building_for_draw_at(grid_offset);
     if (map_property_is_deleted(grid_offset) || city_draw_building_as_deleted(building)) {
         color_t color = building_construction_clear_color();
         if (color == COLOR_MASK_RED || color == COLOR_MASK_GREEN) {
@@ -782,7 +776,7 @@ static void deletion_draw_figures_animations(int x, int y, int grid_offset)
 static void deletion_draw_remaining(int x, int y, int grid_offset)
 {
     draw_elevated_figures(x, y, grid_offset);
-    draw_hippodrome_ornaments_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+    draw_hippodrome_ornaments_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
 }
 
 static void draw_connectable_construction_ghost(int x, int y, int grid_offset)

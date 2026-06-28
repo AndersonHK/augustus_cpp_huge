@@ -11,6 +11,7 @@
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 #include "building/water_access_type.h"
@@ -621,8 +622,12 @@ void refresh_water_graphic(building *b, const BuildingType *definition)
     if (!b || !definition || !definition->has_graphic() || !definition->water_access().has_requirements()) {
         return;
     }
-    if (!Building(b).refresh_graphic_if_native()) {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
+    if (!runtime) {
+        return;
+    }
+    if (!runtime->building.refresh_graphic_if_native()) {
+        map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
     }
 }
 
@@ -924,7 +929,7 @@ int water_access_runtime_should_draw_overlay_at(int grid_offset)
         return 0;
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        const building *b = building_get(map_building_at(grid_offset));
+        const building *b = map_building_exists_at(grid_offset) ? map_building_at(grid_offset).record() : nullptr;
         const BuildingType *definition = b ? definition_for_provider(b->type) : nullptr;
         if (definition && definition->water_access().has_provider()) {
             return 0;

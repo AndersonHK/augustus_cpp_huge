@@ -16,4 +16,4 @@ int building_variant_get_number_of_variants(building_type type);
 
 class Building;
 
-int building_variant_get_graphics_option(const Building &building, int force_reseed);
+int building_variant_get_graphics_option(const Building &building, int force_reseed, unsigned char graphics_variant);

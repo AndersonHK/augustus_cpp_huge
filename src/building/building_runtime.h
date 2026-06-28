@@ -1,7 +1,8 @@
 #pragma once
 
+#include "building/BuildingGraphicsState.h"
 #include "assets/image_group_entry.h"
-#include "building/building_fwd.h"
+#include "building/building.h"
 #include "building/building_type.h"
 #include "figure/figure.h"
 #include "game/resource.h"
@@ -14,18 +15,30 @@
 class ImageGroupPayload;
 
 void building_runtime_reset(void);
+void building_runtime_begin_load_bridge(int building_count);
+void building_runtime_stage_loaded_graphics_state(
+    unsigned int building_id,
+    const BuildingGraphicsState &state);
+void building_runtime_stage_loaded_original_type(unsigned int building_id, building_type type);
+int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state);
+void building_runtime_backup_graphics_state(void);
+void building_runtime_restore_graphics_state(void);
 void building_runtime_initialize_city_graphics_cache(void);
 
 class building_runtime {
-public:
-    building_runtime(::building *building, const building_type_registry_impl::BuildingType *definition);
-    explicit building_runtime(const Building &building);
+    friend class Building;
 
-    // Transitional public access to the legacy saved struct while behavior is still migrating into methods.
-    ::building &data;
+public:
+    building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition);
 
     void set_building_graphic();
     void assign_graphic_variant(int force_reseed);
+    unsigned char graphics_variant() const;
+    void set_graphics_variant(int variant);
+    BuildingGraphicsState &graphics_state();
+    const BuildingGraphicsState &graphics_state() const;
+    BuildingGraphicsState graphics_state_snapshot() const;
+    void restore_graphics_state(const BuildingGraphicsState &state);
     void spawn_figure();
     int uses_new_graphics() const;
     const RuntimeDrawSlice *graphic_footprint();
@@ -61,7 +74,6 @@ public:
     int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
     void release_legacy_storage_reservation(unsigned int figure_id);
 
-    Building building() const;
     void check_labor_problem();
     void run_labor_phase_if_defined(const map_point &road);
     int spawn_temple_distribution_supplier(const map_point &road);
@@ -207,7 +219,14 @@ private:
 
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
+    BuildingGraphicsState graphics_state_;
+    Building building_;
     std::vector<unsigned char> spawn_delay_counters_;
     std::vector<LegacyStorageReservation> legacy_storage_reservations_;
     CachedGraphicsBindings graphics_cache_;
+
+public:
+    // Transitional public access to the legacy saved struct while behavior is still migrating into methods.
+    ::building &data;
+    Building &building;
 };

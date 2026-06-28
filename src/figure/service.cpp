@@ -47,6 +47,16 @@ static resource_type next_resource(resource_type resource)
     return static_cast<resource_type>(resource + 1);
 }
 
+static Building *service_building_at(int grid_offset)
+{
+    return map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+}
+
+static building *service_building_record(Building &building)
+{
+    return const_cast<::building *>(building.record());
+}
+
 static int provide_culture(int x, int y, void (*callback)(building *))
 {
     int serviced = 0;
@@ -55,9 +65,8 @@ static int provide_culture(int x, int y, void (*callback)(building *))
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 if (b->house_size && b->house_population > 0) {
                     callback(b);
                     serviced++;
@@ -75,9 +84,8 @@ static void provide_sickness(int x, int y, void (*callback)(building *, int sick
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 random_generate_next();
                 // 1/16 chance of spreading sickness
                 if (b->house_size && b->house_population > 0 && !(random_short() & 0xf)) {
@@ -96,9 +104,8 @@ static int provide_entertainment(int x, int y, int shows, void (*callback)(build
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 if (b->house_size && b->house_population > 0) {
                     callback(b, shows);
                     serviced++;
@@ -234,14 +241,12 @@ static int provide_missionary_coverage(int x, int y)
     map_grid_get_area(x, y, 1, 4, &x_min, &y_min, &x_max, &y_max);
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
-            int id = map_building_at(map_grid_offset(xx, yy));
-            if (id) {
-                building *b = building_get(id);
-                Building native_building(b);
-                if (native_building.matches("native_hut") ||
-                    native_building.matches("native_hut_alt") ||
-                    native_building.matches("native_meeting") ||
-                    native_building.matches("native_watchtower")) {
+            if (Building *native_building = service_building_at(map_grid_offset(xx, yy))) {
+                building *b = service_building_record(*native_building);
+                if (native_building->matches("native_hut") ||
+                    native_building->matches("native_hut_alt") ||
+                    native_building->matches("native_meeting") ||
+                    native_building->matches("native_watchtower")) {
                     b->sentiment.native_anger = 0;
                 }
             }
@@ -258,9 +263,8 @@ static int tourist_visit(int x, int y, Figure *f, void (*callback)(building *, F
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 callback(b, f);
             }
         }
@@ -310,9 +314,8 @@ static int provide_service(int x, int y, int *data, void (*callback)(building *,
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 callback(b, data);
                 if (b->house_size && b->house_population > 0) {
                     serviced++;
@@ -483,9 +486,8 @@ static int provide_market_goods(building *market, int x, int y)
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 if (b->house_size && b->house_population > 0) {
                     distribute_market_resources(b, market);
                     serviced++;
@@ -505,10 +507,9 @@ static int provide_venus_wine_to_taverns(building *market, int x, int y)
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
-                if (Building(b).matches("tavern")) {
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
+                if (building_object->matches("tavern")) {
                     int amount_wanted = 200 - b->resources[resource_wine()];
                     if (market->resources[resource_wine()] > 0 && amount_wanted > 0) {
                         if (amount_wanted <= market->resources[resource_wine()]) {
@@ -535,9 +536,8 @@ static int collect_offerings(building *market, int x, int y)
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            int id = map_building_at(grid_offset);
-            if (id) {
-                building *b = building_get(id);
+            if (Building *building_object = service_building_at(grid_offset)) {
+                building *b = service_building_record(*building_object);
                 if (b->house_size && b->house_population > 0) {
                     collect_offerings_from_house(b, market);
                     serviced++;

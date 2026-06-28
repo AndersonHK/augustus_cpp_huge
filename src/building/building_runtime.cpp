@@ -3,6 +3,7 @@
 #include "building/image.h"
 #include "building/industry.h"
 #include "figure/action.h"
+#include "map/building.h"
 #include "map/building_tiles.h"
 #include "map/road_access.h"
 
@@ -50,25 +51,75 @@
 #include <string>
 
 building_runtime::building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition)
-    : building_runtime(Building(building_data, definition))
+    : record_(building_data)
+    , definition_(definition)
+    , graphics_state_()
+    , building_(building_data, definition, graphics_state_)
+    , data(*building_data)
+    , building(building_)
 {
 }
 
-building_runtime::building_runtime(const Building &building_object)
-    : data(*building_object.record_)
-    , record_(building_object.record_)
-    , definition_(building_object.type)
+BuildingGraphicsState &building_runtime::graphics_state()
 {
+    return graphics_state_;
 }
 
-Building building_runtime::building() const
+const BuildingGraphicsState &building_runtime::graphics_state() const
 {
-    return Building(record_, definition_);
+    return graphics_state_;
+}
+
+BuildingGraphicsState building_runtime::graphics_state_snapshot() const
+{
+    return graphics_state_;
+}
+
+void building_runtime::restore_graphics_state(const BuildingGraphicsState &state)
+{
+    graphics_state_ = state;
+    invalidate_graphics_cache();
 }
 
 namespace building_runtime_impl {
 
 std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
+
+struct GraphicsStateBackup {
+    int valid = 0;
+    BuildingGraphicsState state;
+};
+
+struct LoadedBuildingRuntimeState {
+    int valid = 0;
+    int graphics_state_valid = 0;
+    BuildingGraphicsState graphics_state;
+    int original_type_valid = 0;
+    building_type original_type = BUILDING_NONE;
+};
+
+std::vector<GraphicsStateBackup> g_graphics_state_backup;
+std::vector<LoadedBuildingRuntimeState> g_loaded_building_runtime_state;
+
+void reset_live_runtime_modules()
+{
+    g_runtime_instances.clear();
+    g_graphics_state_backup.clear();
+    production_runtime_impl::reset();
+    storage_runtime_impl::reset();
+}
+
+const LoadedBuildingRuntimeState *loaded_runtime_state_for(unsigned int building_id)
+{
+    return building_id < g_loaded_building_runtime_state.size() && g_loaded_building_runtime_state[building_id].valid ?
+        &g_loaded_building_runtime_state[building_id] :
+        nullptr;
+}
+
+void clear_loaded_runtime_state()
+{
+    g_loaded_building_runtime_state.clear();
+}
 
 static int building_has_required_workers_for_runtime_water(const Building &building)
 {
@@ -96,12 +147,14 @@ building_runtime *get_or_create_instance(::building *building_data)
     }
 
     // Every live building gets a runtime object, even before that type has migrated to XML-driven behavior.
-    const Building runtime_building(building_data);
-    const building_type_registry_impl::BuildingType *definition = runtime_building.type;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(building_data->type);
 
     std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
+    const building_type_registry_impl::BuildingType *original_type = slot ? slot->building.og_type : nullptr;
     if (!slot || &slot->data != building_data || slot->definition() != definition) {
         slot = std::make_unique<building_runtime>(building_data, definition);
+        slot->building.og_type = original_type;
     }
     return slot.get();
 }
@@ -116,13 +169,13 @@ void building_runtime::refresh_runtime_state()
 
     if (type().water_access().has_requirements()) {
         record().has_water_access =
-            building_runtime_impl::building_has_required_workers_for_runtime_water(building()) &&
+            building_runtime_impl::building_has_required_workers_for_runtime_water(building) &&
             water_access_runtime_building_has_required_access(&record()) ? 1 : 0;
     }
 
     if (type().has_graphic()) {
         city_culture_remove_building_module_capacity(&record());
-        record().upgrade_level = type().upgrade_level_for(building());
+        record().upgrade_level = type().upgrade_level_for(building);
         city_culture_add_building_module_capacity(&record());
     }
 }
@@ -135,6 +188,19 @@ int building_runtime::owns_native_storage() const
 int building_runtime::owns_native_production() const
 {
     return definition() && type().has_native_production();
+}
+
+unsigned char building_runtime::graphics_variant() const
+{
+    return graphics_state_.variant();
+}
+
+void building_runtime::set_graphics_variant(int variant)
+{
+    const int changed = graphics_state_.set_variant(variant);
+    if (changed) {
+        invalidate_graphics_cache();
+    }
 }
 
 building_runtime::LegacyStorageReservation *building_runtime::legacy_storage_reservation_for(unsigned int figure_id)
@@ -232,16 +298,102 @@ void building_runtime::release_legacy_storage_reservation(unsigned int figure_id
 
 void building_runtime_reset(void)
 {
-    building_runtime_impl::g_runtime_instances.clear();
-    production_runtime_impl::reset();
-    storage_runtime_impl::reset();
+    building_runtime_impl::reset_live_runtime_modules();
+    building_runtime_impl::clear_loaded_runtime_state();
+}
+
+void building_runtime_begin_load_bridge(int building_count)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+
+    g_loaded_building_runtime_state.clear();
+    g_loaded_building_runtime_state.resize(building_count > 0 ? static_cast<size_t>(building_count) : 0);
+}
+
+void building_runtime_stage_loaded_graphics_state(
+    unsigned int building_id,
+    const BuildingGraphicsState &state)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+
+    if (!building_id) {
+        return;
+    }
+    if (g_loaded_building_runtime_state.size() <= building_id) {
+        g_loaded_building_runtime_state.resize(static_cast<size_t>(building_id) + 1);
+    }
+    g_loaded_building_runtime_state[building_id].valid = 1;
+    g_loaded_building_runtime_state[building_id].graphics_state_valid = 1;
+    g_loaded_building_runtime_state[building_id].graphics_state = state;
+}
+
+void building_runtime_stage_loaded_original_type(unsigned int building_id, building_type type)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+
+    if (!building_id) {
+        return;
+    }
+    if (g_loaded_building_runtime_state.size() <= building_id) {
+        g_loaded_building_runtime_state.resize(static_cast<size_t>(building_id) + 1);
+    }
+    g_loaded_building_runtime_state[building_id].valid = 1;
+    g_loaded_building_runtime_state[building_id].original_type_valid = 1;
+    g_loaded_building_runtime_state[building_id].original_type = type;
+}
+
+int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state)
+{
+    if (!state) {
+        return 0;
+    }
+    const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
+        building_runtime_impl::loaded_runtime_state_for(building_id);
+    if (!loaded || !loaded->graphics_state_valid) {
+        return 0;
+    }
+    *state = loaded->graphics_state;
+    return 1;
+}
+
+void building_runtime_backup_graphics_state(void)
+{
+    using building_runtime_impl::g_graphics_state_backup;
+    using building_runtime_impl::g_runtime_instances;
+
+    g_graphics_state_backup.clear();
+    g_graphics_state_backup.resize(g_runtime_instances.size());
+    for (size_t id = 1; id < g_runtime_instances.size(); id++) {
+        building_runtime *instance = g_runtime_instances[id].get();
+        if (!instance) {
+            continue;
+        }
+        g_graphics_state_backup[id].valid = 1;
+        g_graphics_state_backup[id].state = instance->graphics_state_snapshot();
+    }
+}
+
+void building_runtime_restore_graphics_state(void)
+{
+    using building_runtime_impl::g_graphics_state_backup;
+    using building_runtime_impl::g_runtime_instances;
+
+    const size_t count = std::min(g_runtime_instances.size(), g_graphics_state_backup.size());
+    for (size_t id = 1; id < count; id++) {
+        building_runtime *instance = g_runtime_instances[id].get();
+        if (!instance || !g_graphics_state_backup[id].valid) {
+            continue;
+        }
+        instance->restore_graphics_state(g_graphics_state_backup[id].state);
+    }
 }
 
 // After save load/new city init, bind each live building instance to its runtime wrapper, rebuild native storage/production instances,
 // and precompute cached image-group bindings.
 void building_runtime_initialize_city_graphics_cache(void)
 {
-    building_runtime_reset();
+    building_runtime_impl::reset_live_runtime_modules();
+    map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
 
     const int total_buildings = building_count();
@@ -255,10 +407,21 @@ void building_runtime_initialize_city_graphics_cache(void)
             continue;
         }
         if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+            if (const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
+                    building_runtime_impl::loaded_runtime_state_for(b->id)) {
+                if (loaded->graphics_state_valid) {
+                    instance->restore_graphics_state(loaded->graphics_state);
+                }
+                if (loaded->original_type_valid) {
+                    instance->building.og_type =
+                        building_type_registry_impl::definition_for_type(loaded->original_type);
+                }
+            }
             instance->set_building_graphic();
         }
     }
 
     storage_runtime_impl::initialize_city();
     production_runtime_impl::initialize_city();
+    building_runtime_impl::clear_loaded_runtime_state();
 }

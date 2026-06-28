@@ -1,5 +1,6 @@
 #include "building/construction.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "graphics/menu.h"
 #include "map/image.h"
 #include "widget/minimap.h"
@@ -78,12 +79,10 @@ typedef struct {
 
 static Building building_for_render_tile(int grid_offset)
 {
-    const unsigned int building_id = map_building_at(grid_offset);
-    if (!building_id) {
+    if (!map_building_exists_at(grid_offset)) {
         return Building(nullptr);
     }
-    building *record = building_get(building_id);
-    return record && record->state != BUILDING_STATE_UNUSED ? Building(record) : Building(nullptr);
+    return map_building_at(grid_offset);
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>

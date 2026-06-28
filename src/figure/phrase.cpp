@@ -527,24 +527,27 @@ static int docker_phrase(Figure *f)
     return -1;
 }
 
+enum {
+    TRADE_CARAVAN_PHRASE_NO_TRADE = 7,
+    TRADE_CARAVAN_PHRASE_OFFER = 8,
+    TRADE_CARAVAN_PHRASE_SUCCESS = 9,
+    TRADE_CARAVAN_PHRASE_SELLING = 10,
+    TRADE_CARAVAN_PHRASE_BUYING = 11,
+};
+
 static int trade_caravan_phrase(Figure *f)
 {
-    if (++f->phrase_sequence_exact >= 2) {
-        f->phrase_sequence_exact = 0;
-    }
     if (f->action_state == FIGURE_ACTION_103_TRADE_CARAVAN_LEAVING) {
-        if (!trader_has_traded(f->trader_id)) {
-            return 7; // no trade
-        }
+        return trader_has_traded(f->trader_id) ? TRADE_CARAVAN_PHRASE_SUCCESS : TRADE_CARAVAN_PHRASE_NO_TRADE;
     } else if (f->action_state == FIGURE_ACTION_102_TRADE_CARAVAN_TRADING) {
         const unsigned int destination_id = f->destination_building.id;
         if (figure_trade_caravan_can_buy(f, destination_id, f->empire_city_id)) {
-            return 11; // buying goods
+            return TRADE_CARAVAN_PHRASE_BUYING;
         } else if (figure_trade_caravan_can_sell(f, destination_id, f->empire_city_id)) {
-            return 10; // selling goods
+            return TRADE_CARAVAN_PHRASE_SELLING;
         }
     }
-    return 8 + f->phrase_sequence_exact;
+    return trader_has_traded(f->trader_id) ? TRADE_CARAVAN_PHRASE_SUCCESS : TRADE_CARAVAN_PHRASE_OFFER;
 }
 
 static int trade_ship_phrase(Figure *f)

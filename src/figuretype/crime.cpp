@@ -535,11 +535,11 @@ int figure_rioter_collapse_building(Figure *f)
 
     for (int dir = 0; dir < 8; dir += 2) {
         int grid_offset = f->grid_offset + map_grid_direction_delta(dir);
-        if (!map_building_at(grid_offset)) {
+        if (!map_building_exists_at(grid_offset)) {
             continue;
         }
-        building *b = building_get(map_building_at(grid_offset));
-        Building building(b);
+        Building building = map_building_at(grid_offset);
+        building *b = const_cast<::building *>(building.record());
         if (building.type && building.type->is_well()) {
             continue;
         }

@@ -91,15 +91,33 @@ static int has_recruitment_priority(int current_type, int legion_type, int prior
     return dist < min_distance;
 }
 
-static int get_closest_legion_needing_soldiers(const Barracks &barracks)
+int Barracks::can_recruit_soldier_for(const formation &legion) const
+{
+    if (!legion.in_use || !legion.is_legion) {
+        return 0;
+    }
+    if (legion.in_distant_battle || legion.legion_recruit_type == LEGION_RECRUIT_NONE) {
+        return 0;
+    }
+    if (legion.num_figures >= legion.barracks_recruit_capacity()) {
+        return 0;
+    }
+    if (legion.formation_type() && legion.formation_type()->primary_unit_requires_weapon() &&
+        resource_amount(resource_weapons()) <= 0) {
+        return 0;
+    }
+    return 1;
+}
+
+int Barracks::closest_legion_needing_soldiers() const
 {
     int recruit_type = LEGION_RECRUIT_NONE;
     int min_formation_id = 0;
     int min_distance = INFINITE;
     int required_recruitment = recruit_type;
 
-    switch (barracks.priority()) {
-        case PRIORITY_FORT: 
+    switch (priority()) {
+        case PRIORITY_FORT:
             required_recruitment = LEGION_RECRUIT_LEGIONARY;
             break;
         case PRIORITY_FORT_JAVELIN:
@@ -121,17 +139,10 @@ static int get_closest_legion_needing_soldiers(const Barracks &barracks)
     // find by recruitment priority
     for (int i = 1; i < formation_count(); i++) {
         formation *m = formation_get(i);
-        if (!m->in_use || !m->is_legion) {
+        if (!can_recruit_soldier_for(*m)) {
             continue;
         }
-        if (m->in_distant_battle || m->legion_recruit_type == LEGION_RECRUIT_NONE) {
-            continue;
-        }
-        if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon() &&
-            barracks.resource_amount(resource_weapons()) <= 0) {
-            continue;
-        }
-        int dist = barracks.max_distance_to(m->x, m->y);
+        int dist = max_distance_to(m->x, m->y);
 
         // find closest one by priority
         if (has_recruitment_priority(recruit_type, m->legion_recruit_type, required_recruitment, dist, min_distance)) {
@@ -176,9 +187,11 @@ void Barracks::set_priority(int priority)
 
 int Barracks::create_soldier(int x, int y)
 {
-    int formation_id = get_closest_legion_needing_soldiers(*this);
+    formation_calculate_figures();
+    int formation_id = closest_legion_needing_soldiers();
     if (formation_id > 0) {
         formation *m = formation_get(formation_id);
+        const int fills_last_open_slot = m->num_figures + 1 >= m->barracks_recruit_capacity();
         Figure *f = Figure::create(static_cast<figure_type>(m->figure_type), x, y, DIR_0_TOP);
         f->formation_id = formation_id;
         f->formation_at_rest = 1;
@@ -201,7 +214,7 @@ int Barracks::create_soldier(int x, int y)
         } else {
             f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
         }
-        if (m->num_figures == m->slot_capacity() - 1) {
+        if (fills_last_open_slot) {
             m->legion_recruit_type = LEGION_RECRUIT_NONE;
         }
     }

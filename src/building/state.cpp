@@ -3,8 +3,11 @@
 #include "map/building_tiles.h"
 
 #include "game/resource_id_bridge.h"
+#include "building/BuildingGraphicsState.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure.h"
 #include "building/building_type_id_bridge.h"
@@ -78,6 +81,17 @@ int type_is_burning_ruin(building_type type)
 int type_is_rubble_shell(building_type type)
 {
     return type_is_burning_ruin(type) || type_is_warehouse_space(type);
+}
+
+building_type original_type_for_save(const building *b)
+{
+    if (!b || !b->id) {
+        return BUILDING_NONE;
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
+        return runtime->building.og_type ? runtime->building.og_type->type() : BUILDING_NONE;
+    }
+    return BUILDING_NONE;
 }
 
 int type_uses_industry_state(const building *b)
@@ -241,7 +255,12 @@ static void remove_tiles_for_unsupported_building(const building *b)
         x = map_grid_offset_to_x(b->grid_offset);
         y = map_grid_offset_to_y(b->grid_offset);
     }
-    map_building_tiles_remove(b->id, x, y);
+    building *record = const_cast<building *>(b);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
+        map_building_tiles_remove(&runtime->building, x, y);
+    } else {
+        map_building_tiles_remove(nullptr, x, y);
+    }
 }
 
 static void quarantine_loaded_building_type_problem(
@@ -458,7 +477,7 @@ static void write_type_data(buffer *buf, const building *b)
     } else if (Roadblock(const_cast<building *>(b)).kind() != ROADBLOCK_NONE) {
         buffer_write_u16(buf, b->data.roadblock.exceptions);
         if (type_is_warehouse(b->type)) {
-            buffer_write_u16(buf, save_id_from_runtime_type(b->data.rubble.og_type));
+            buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
             buffer_write_u16(buf, b->data.rubble.og_grid_offset);
             buffer_write_u8(buf, b->data.rubble.og_size);
             buffer_write_u8(buf, b->data.rubble.og_orientation);
@@ -479,7 +498,7 @@ static void write_type_data(buffer *buf, const building *b)
         buffer_write_i16(buf, b->data.industry.fishing_boat_id);
         buffer_write_i16(buf, b->data.industry.second_fishing_boat_id);
     } else if (type_is_rubble_shell(b->type)) {
-        buffer_write_u16(buf, save_id_from_runtime_type(b->data.rubble.og_type));
+        buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
         buffer_write_u16(buf, b->data.rubble.og_grid_offset);
         buffer_write_u8(buf, b->data.rubble.og_size);
         buffer_write_u8(buf, b->data.rubble.og_orientation);
@@ -574,7 +593,14 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_u8(buf, b->tourism_income_this_year);
 
     // Variants and upgrades
-    buffer_write_u8(buf, b->variant);
+    unsigned char graphics_variant = 0;
+    if (b->id && (b->state == BUILDING_STATE_CREATED || b->state == BUILDING_STATE_IN_USE ||
+            b->state == BUILDING_STATE_MOTHBALLED)) {
+        if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
+            graphics_variant = runtime->graphics_variant();
+        }
+    }
+    buffer_write_u8(buf, graphics_variant);
     buffer_write_u8(buf, b->upgrade_level);
 
     //strikes
@@ -729,7 +755,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.roadblock.exceptions = buffer_read_u16(buf);
         }
         if (type_is_warehouse(b->type)) {
-            b->data.rubble.og_type = runtime_type_from_save_id(buffer_read_u16(buf));
+            building_runtime_stage_loaded_original_type(b->id, runtime_type_from_save_id(buffer_read_u16(buf)));
             b->data.rubble.og_grid_offset = buffer_read_u16(buf);
             b->data.rubble.og_size = buffer_read_u8(buf);
             b->data.rubble.og_orientation = buffer_read_u8(buf);
@@ -811,7 +837,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.industry.second_fishing_boat_id = 0;
         }
     } else if (type_is_rubble_shell(b->type) && version > SAVE_GAME_LAST_U16_GRIDS) {
-        b->data.rubble.og_type = runtime_type_from_save_id(buffer_read_u16(buf));
+        building_runtime_stage_loaded_original_type(b->id, runtime_type_from_save_id(buffer_read_u16(buf)));
         b->data.rubble.og_grid_offset = buffer_read_u16(buf);
         b->data.rubble.og_size = buffer_read_u8(buf);
         b->data.rubble.og_orientation = buffer_read_u8(buf);
@@ -871,6 +897,7 @@ static void repair_dock_accepted_goods_if_empty(building *b)
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
 {
     size_t record_start = buf->index;
+    unsigned char legacy_graphics_variant = 0;
     b->state = buffer_read_u8(buf);
     b->faction_id = buffer_read_u8(buf);
     b->unknown_value = buffer_read_u8(buf);
@@ -1043,14 +1070,14 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     if (building_buf_size >= BUILDING_STATE_VARIANTS_AND_UPGRADES) {
-        b->variant = buffer_read_u8(buf);
+        legacy_graphics_variant = buffer_read_u8(buf);
         b->upgrade_level = buffer_read_u8(buf);
     }
     if (building_buf_size < BUILDING_STATE_VARIANTS_AND_UPGRADES &&
         saved_building_type >= LEGACY_SAVE_TYPE_PAVILION_FIRST &&
         saved_building_type <= LEGACY_SAVE_TYPE_PAVILION_LAST &&
         type_attr_is(b->type, "pavilion")) {
-        b->variant = static_cast<unsigned char>(saved_building_type - LEGACY_SAVE_TYPE_PAVILION_FIRST);
+        legacy_graphics_variant = static_cast<unsigned char>(saved_building_type - LEGACY_SAVE_TYPE_PAVILION_FIRST);
     }
 
     if (building_buf_size >= BUILDING_STATE_STRIKES) {
@@ -1158,8 +1185,12 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         return 1;
     }
 
-    // Do this after the whole record is read: conditional native graphics may
-    // inspect fields loaded after the variant byte itself.
-    Building(b).assign_graphic_variant(save_version <= SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS);
+    if (!for_preview) {
+        BuildingGraphicsState graphics_state;
+        graphics_state.set_variant(legacy_graphics_variant);
+        building_runtime_stage_loaded_graphics_state(
+            b->id,
+            graphics_state);
+    }
     return 0;
 }

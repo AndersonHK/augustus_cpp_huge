@@ -6,6 +6,7 @@
 
 #include "building/building_record.h"
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 #include "city/culture.h"
@@ -391,7 +392,9 @@ int building_monument_add_module(building *b, int module)
     if (definition && definition->has_phased_construction()) {
         Building(b).refresh_graphic();
     } else {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+            map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        }
     }
     return 1;
 }
@@ -492,7 +495,9 @@ void building_monument_set_phase(building *b, int phase)
     if (definition && definition->has_phased_construction()) {
         Building(b).refresh_graphic();
     } else {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+            map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        }
     }
     if (b->monument.phase != MONUMENT_FINISHED) {
         for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {

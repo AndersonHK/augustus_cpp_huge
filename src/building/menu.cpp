@@ -226,7 +226,7 @@ static int can_get_required_resource(building_type type)
         return empire_can_produce_resource_naturally(resource_fish());
     } else if (building_is_farm(type)) {
         const resource_type output_resource = building_output_resource(type);
-        return output_resource > RESOURCE_NONE && empire_can_produce_resource_locally(output_resource);
+        return output_resource > RESOURCE_NONE && can_produce_resource_naturally(output_resource);
     } else if (building_type_registry_impl::type_attr_is(type, "tavern")) {
         return empire_can_produce_resource_potentially(resource_wine()) ||
             empire_can_import_resource_potentially(resource_wine());
@@ -244,7 +244,8 @@ static int can_get_required_resource(building_type type)
 
 static int is_building_type_allowed(building_type type)
 {
-    return scenario_allowed_building(type) && can_get_required_resource(type);
+    return scenario_allowed_building(building_type_registry_impl::definition_for_type(type)) &&
+        can_get_required_resource(type);
 }
 
 static void enable_if_allowed(int *enabled, building_type menu_building_type, building_type type)
@@ -572,12 +573,16 @@ build_menu_group building_menu_for_type(building_type type)
     return SUBMENU_NONE;
 }
 
-int building_menu_is_enabled(building_type type)
+int building_menu_is_enabled(const building_type_registry_impl::BuildingType *type)
 {
+    if (!type) {
+        return 0;
+    }
+    const building_type type_id = type->type();
     ensure_menu_catalog();
     for (int sub = 0; sub < BUILD_MENU_MAX; sub++) {
         for (const menu_entry &entry : menu_entries[sub]) {
-            if (entry.type != type) {
+            if (entry.type != type_id) {
                 continue;
             }
             if (!entry.enabled) {
@@ -585,7 +590,7 @@ int building_menu_is_enabled(building_type type)
             }
             building_type expander = submenu_expander_type(sub);
             if (expander != BUILDING_NONE) {
-                return building_menu_is_enabled(expander);
+                return building_menu_is_enabled(building_type_registry_impl::definition_for_type(expander));
             } else {
                 return 1;
             }

@@ -142,6 +142,7 @@ This also creates the right place for composed state: the fort owns the formatio
 - [x] Save/load now routes the fixed 16 roster slot serialization through `formation` methods, naming the legacy storage bridge without changing the old save prefix.
 - [x] Formation save data now keeps the legacy 16-slot prefix for old-version compatibility and appends an extended roster section for larger XML-declared formations.
 - [x] Formation live storage is now a dynamically sized roster owned by `formation`, with direct external `figures[]` access removed from runtime callers.
+- [x] Barracks recruitment and recruit-overflow ejection are temporarily capped to the 16-soldier fort recruitment capacity while Vespasian 8x8 definitions remain declared data; this prevents the Part6 17th-soldier respawn loop without changing normal declared formation storage/counting.
 - [ ] Layout still carries a 16-position legacy compatibility table for existing formation layouts; larger formations need adaptive spacing or data-driven slot coordinates before >16 live slots can render correctly.
 - [ ] Add real fort-owned `Formation` object links so forts hold pointers/ids to live formations, and each live formation holds its `FormationType` pointer plus per-slot unit state.
 - [ ] Add adaptive slot spacing for larger formations inside the current fort mustering-ground footprint.
@@ -152,7 +153,7 @@ This also creates the right place for composed state: the fort owns the formatio
 
 - Larger Vespasian formations should not be visually validated until figure logical-size ownership is complete enough to author half-size figures.
 - Adaptive spacing must fit the current fortress mustering-ground footprint; do not assume a larger formation can simply occupy a larger world footprint.
-- The bridge should preserve the legacy 16-slot prefix only as save compatibility. Runtime iteration should continue using the dynamic formation roster.
+- The bridge should preserve the legacy 16-slot prefix only as save compatibility. Runtime storage can keep the dynamic roster, but barracks recruitment should stay at 16 until adaptive spacing and half-size figure ownership make larger formations testable.
 - Unit coverage should include every combat actor family, not only Roman fort soldiers.
 
 ## Runtime Boundaries

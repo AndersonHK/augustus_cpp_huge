@@ -238,7 +238,25 @@ static void clear_garden_image(int x, int y, int grid_offset)
     }
 }
 
-static int is_large_garden(int x, int y, int is_overgrown_garden)
+static int offset_is_in_list(const int *grid_offsets, int grid_offset_count, int grid_offset)
+{
+    if (!grid_offsets) {
+        return 1;
+    }
+    for (int i = 0; i < grid_offset_count; i++) {
+        if (grid_offsets[i] == grid_offset) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_large_garden(
+    int x,
+    int y,
+    int is_overgrown_garden,
+    const int *allowed_grid_offsets,
+    int allowed_grid_offset_count)
 {
     if (!map_grid_is_inside(x, y, 2)) {
         return 0;
@@ -246,6 +264,9 @@ static int is_large_garden(int x, int y, int is_overgrown_garden)
     for (int dy = 0; dy < 2; dy++) {
         for (int dx = 0; dx < 2; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
+            if (!offset_is_in_list(allowed_grid_offsets, allowed_grid_offset_count, grid_offset)) {
+                return 0;
+            }
             if ((map_terrain_get(grid_offset) & TERRAIN_NOT_CLEAR) != TERRAIN_GARDEN) {
                 return 0;
             }
@@ -284,13 +305,23 @@ static int multi_tile_draw_grid_offset(int x, int y, int size)
     return map_grid_offset(x + dx, y + dy);
 }
 
-static void set_garden_image(int x, int y, int grid_offset)
+static void set_garden_image_with_boundary(
+    int x,
+    int y,
+    int grid_offset,
+    const int *allowed_grid_offsets,
+    int allowed_grid_offset_count)
 {
     if (map_terrain_is(grid_offset, TERRAIN_GARDEN) &&
         !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
         if (!map_image_at(grid_offset)) {
             int is_overgrown_garden = map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) != 0;
-            int is_large = is_large_garden(x, y, is_overgrown_garden);
+            int is_large = is_large_garden(
+                x,
+                y,
+                is_overgrown_garden,
+                allowed_grid_offsets,
+                allowed_grid_offset_count);
             int option_count = tile_runtime_garden_option_count(is_large, is_overgrown_garden);
             int option_index = is_large ?
                 (option_count > 0 ? map_random_get(grid_offset) % option_count : 0) :
@@ -312,6 +343,11 @@ static void set_garden_image(int x, int y, int grid_offset)
             }
         }
     }
+}
+
+static void set_garden_image(int x, int y, int grid_offset)
+{
+    set_garden_image_with_boundary(x, y, grid_offset, nullptr, 0);
 }
 
 static void remove_plaza_below_building(int x, int y, int grid_offset)
@@ -413,6 +449,23 @@ static void foreach_map_tile_in_region(
     }
 }
 
+static void foreach_map_tile_in_offsets(
+    const int *grid_offsets,
+    int grid_offset_count,
+    void (*callback)(int, int, int))
+{
+    if (!grid_offsets || grid_offset_count <= 0) {
+        return;
+    }
+    for (int i = 0; i < grid_offset_count; i++) {
+        int grid_offset = grid_offsets[i];
+        if (!map_grid_is_valid_offset(grid_offset)) {
+            continue;
+        }
+        callback(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), grid_offset);
+    }
+}
+
 static void update_all_tile_refresh_behavior(building_type_registry_impl::TileRefreshBehavior behavior)
 {
     switch (behavior) {
@@ -446,6 +499,26 @@ static void update_region_tile_refresh_behavior(
             break;
         default:
             break;
+    }
+}
+
+void map_tiles_update_garden_preview_tiles(const int *grid_offsets, int grid_offset_count)
+{
+    foreach_map_tile_in_offsets(grid_offsets, grid_offset_count, clear_garden_image);
+    if (!grid_offsets || grid_offset_count <= 0) {
+        return;
+    }
+    for (int i = 0; i < grid_offset_count; i++) {
+        int grid_offset = grid_offsets[i];
+        if (!map_grid_is_valid_offset(grid_offset)) {
+            continue;
+        }
+        set_garden_image_with_boundary(
+            map_grid_offset_to_x(grid_offset),
+            map_grid_offset_to_y(grid_offset),
+            grid_offset,
+            grid_offsets,
+            grid_offset_count);
     }
 }
 
@@ -764,9 +837,8 @@ static void set_wall_image(int x, int y, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_WALL)) {
         return;
     }
-    int building_id = map_building_at(grid_offset);
-    if (building_id) {
-        Building wall(building_get(building_id));
+    if (map_building_exists_at(grid_offset)) {
+        Building wall = map_building_at(grid_offset);
         if (wall.matches("wall") && wall.refresh_graphic_if_native()) {
             map_property_set_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
@@ -819,7 +891,9 @@ int map_tiles_is_adjacent_to_building_type(int grid_offset, int building_type, i
             break; // skip checking diagonal tiles if not included
         }
         if (map_terrain_is(tiles[i], TERRAIN_BUILDING) &&
-            building_get(map_building_at(tiles[i]))->type == building_type) {
+            map_building_exists_at(tiles[i]) &&
+            map_building_at(tiles[i]).type &&
+            map_building_at(tiles[i]).type->type() == building_type) {
             return 1;
         }
     }
@@ -842,8 +916,7 @@ static int map_tiles_is_adjacent_to_granary(int grid_offset, int diagonals_inclu
             break;
         }
         if (map_terrain_is(tiles[i], TERRAIN_BUILDING)) {
-            building *b = building_get(map_building_at(tiles[i]));
-            Building current(b);
+            Building current = map_building_exists_at(tiles[i]) ? map_building_at(tiles[i]) : Building(nullptr);
             if (current.type && current.type->is_granary()) {
                 return 1;
             }
@@ -1003,9 +1076,12 @@ static void update_granaries(int x, int y)
 {
     for (int yy = y - 1; yy <= y + 1; yy++) {
         for (int xx = x - 1; xx <= x + 1; xx++) {
-            building *b = building_get(map_building_at(map_grid_offset(xx, yy)));
+            const int grid_offset = map_grid_offset(xx, yy);
+            building *b = map_building_exists_at(grid_offset) ?
+                const_cast<::building *>(map_building_at(grid_offset).record()) :
+                nullptr;
             if (b) {
-                Building current(b);
+                Building current = map_building_at(grid_offset);
                 if (current.type && current.type->is_granary()) {
                     map_update_granary_internal_roads(b);
                 }
@@ -1133,7 +1209,7 @@ static void set_empty_land_image(int x, int y, int size, int image_id)
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
             map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
-            map_building_set(grid_offset, 0);
+            map_building_clear_at(grid_offset);
             map_property_clear_constructing(grid_offset);
             map_property_set_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);

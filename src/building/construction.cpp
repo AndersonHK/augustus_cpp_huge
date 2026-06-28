@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/construction_area_tile.h"
 #include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
@@ -318,7 +319,7 @@ static unsigned int count_enabled_buildings_for_cycling(const std::vector<constr
 {
     unsigned int count = 0;
     for (const construction_cycle_entry &entry : entries) {
-        count += scenario_allowed_building(entry.type) ? 1 : 0;
+        count += scenario_allowed_building(building_type_registry_impl::definition_for_type(entry.type)) ? 1 : 0;
     }
     return count;
 }
@@ -374,7 +375,7 @@ int building_construction_cycle_forward(void)
             for (int attempts = 0; attempts < size; attempts++) {
                 j = (j + 1) % size;
                 building_type new_type = entries[j].type;
-                if (scenario_allowed_building(new_type)) {
+                if (scenario_allowed_building(building_type_registry_impl::definition_for_type(new_type))) {
                     data.tool.force_type(new_type);
                     return 1;
                 }
@@ -405,7 +406,7 @@ int building_construction_cycle_back(void)
             for (int attempts = 0; attempts < size; attempts++) {
                 j = j - 1 < 0 ? size - 1 : j - 1;
                 building_type new_type = entries[j].type;
-                if (scenario_allowed_building(new_type)) {
+                if (scenario_allowed_building(building_type_registry_impl::definition_for_type(new_type))) {
                     data.tool.force_type(new_type);
                     return 1;
                 }
@@ -455,8 +456,10 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
                 game_undo_add_building(b);
                 if (b->id > 0) {
                     items_placed++;
-                    map_building_tiles_add(b->id, x, y, 1,
-                        image_group(GROUP_BUILDING_HOUSE_VACANT_LOT), TERRAIN_BUILDING);
+                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                        map_building_tiles_add(runtime->building, x, y, 1,
+                            image_group(GROUP_BUILDING_HOUSE_VACANT_LOT), TERRAIN_BUILDING);
+                    }
                     if (!map_terrain_exists_tile_in_radius_with_type(x, y, 1, 2, TERRAIN_ROAD)) {
                         needs_road_warning = 1;
                     }
@@ -514,7 +517,9 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                 map_tiles_set_wall(x, y);
                 if (!measure_only) {
                     building *wall = building_create(wall_type, x, y);
-                    map_building_set(grid_offset, wall->id);
+                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(wall)) {
+                        map_building_set(grid_offset, runtime->building);
+                    }
                     map_terrain_add(grid_offset, TERRAIN_BUILDING);
                     map_terrain_add(grid_offset, TERRAIN_WALL);
                     map_property_clear_multi_tile_xy(grid_offset);
@@ -588,24 +593,34 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                 items_placed++;
                 building *b = building_create(type, x, y);
                 if (building_variant_has_variants(type)) {
-                    b->variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type));
+                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                        runtime->set_graphics_variant(
+                            building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
+                    }
                 } else {
                     b->subtype.orientation = rotation;
                 }
                 game_undo_add_building(b);
-                map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                    map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                }
             } else if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR_EXCEPT_ROAD)) {
                 if (gate_type) {
                     items_placed++;
                     gates_placed++;
                     building *b = building_create(gate_type, x, y);
                     if (building_variant_has_variants(gate_type)) {
-                        b->variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type));
+                        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                            runtime->set_graphics_variant(
+                                building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
+                        }
                     } else {
                         b->subtype.orientation = rotation;
                     }
                     game_undo_add_building(b);
-                    map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                        map_building_tiles_add(runtime->building, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                    }
                     map_terrain_add(grid_offset, TERRAIN_ROAD);
                 }
             }
@@ -768,10 +783,10 @@ int building_construction_can_rotate(void)
     return building_rotation_type_has_rotations(data.tool.type);
 }
 
-void building_construction_set_type(building_type type, int setup_rotation)
+void building_construction_set_type(const building_type_registry_impl::BuildingType *type, int setup_rotation)
 {
     const building_type old_type = data.tool.type;
-    data.tool.select_requested_type(type, hotkey_get_modifiers());
+    data.tool.select_requested_type(type ? type->type() : BUILDING_NONE, hotkey_get_modifiers());
     if (data.tool.type != old_type) {
         building_rotation_remove_rotation();
     }
@@ -1248,15 +1263,19 @@ void building_construction_place(void)
             building *reservoir = building_create(reservoir_type, x_start - 1, y_start - 1);
             game_undo_add_building(reservoir);
             removed_aqueduct_tiles += remove_aqueduct_tiles_for_reservoir(x_start - 1, y_start - 1);
-            map_building_tiles_add(reservoir->id, x_start - 1, y_start - 1, 3,
-                image_group(GROUP_BUILDING_RESERVOIR), TERRAIN_BUILDING);
+            if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(reservoir)) {
+                map_building_tiles_add(runtime->building, x_start - 1, y_start - 1, 3,
+                    image_group(GROUP_BUILDING_RESERVOIR), TERRAIN_BUILDING);
+            }
         }
         if (info.place_reservoir_at_end == PLACE_RESERVOIR_YES) {
             building *reservoir = building_create(reservoir_type, x_end - 1, y_end - 1);
             game_undo_add_building(reservoir);
             removed_aqueduct_tiles += remove_aqueduct_tiles_for_reservoir(x_end - 1, y_end - 1);
-            map_building_tiles_add(reservoir->id, x_end - 1, y_end - 1, 3,
-                image_group(GROUP_BUILDING_RESERVOIR), TERRAIN_BUILDING);
+            if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(reservoir)) {
+                map_building_tiles_add(runtime->building, x_end - 1, y_end - 1, 3,
+                    image_group(GROUP_BUILDING_RESERVOIR), TERRAIN_BUILDING);
+            }
             if (!map_terrain_exists_tile_in_area_with_type(x_start - 2, y_start - 2, 5, TERRAIN_WATER)
                 && info.place_reservoir_at_start == PLACE_RESERVOIR_NO &&
                 !map_water_supply_has_aqueduct_access(reservoir->grid_offset)) {

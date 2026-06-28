@@ -127,6 +127,35 @@ int enemy_missile_native_direction(const Figure *f)
     return figure_image_normalize_direction(direction);
 }
 
+int simple_legacy_image_group_draw_request_type(figure_type type)
+{
+    switch (type) {
+        case FIGURE_ENGINEER:
+        case FIGURE_DOCTOR:
+        case FIGURE_SURGEON:
+        case FIGURE_TAX_COLLECTOR:
+        case FIGURE_BATHHOUSE_WORKER:
+        case FIGURE_BARBER:
+        case FIGURE_TEACHER:
+        case FIGURE_LIBRARIAN:
+        case FIGURE_SCHOOL_CHILD:
+        case FIGURE_PRIEST:
+        case FIGURE_LABOR_SEEKER:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+int legacy_xml_default_draw_direction(const Figure &figure)
+{
+    int direction = figure.direction - city_view_orientation();
+    if (direction < 0) {
+        direction += 8;
+    }
+    return direction;
+}
+
 const ImageGroupPayload *loaded_payload_for_path(const char *path)
 {
     if (!path || !*path) {
@@ -528,17 +557,26 @@ bool is_road_history_tile(int grid_offset)
 class GenericFigureGraphics {
 public:
     explicit GenericFigureGraphics(const figure_type_registry_impl::FigureTypeDefinition &definition)
-        : policy_(definition.graphics())
+        : type_(definition.type())
+        , policy_(definition.graphics())
     {
     }
 
     int draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
     {
         reset_draw_request(request);
-        if (!f || !request || !policy_.has_native_payload()) {
+        if (!f || !request) {
             return 0;
         }
+        if (!policy_.has_native_payload()) {
+            return legacy_image_group_draw_request_for(f, request);
+        }
+        return native_payload_draw_request_for(f, request);
+    }
 
+private:
+    int native_payload_draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
+    {
         const figure_type_registry_impl::GraphicsTargetBinding *binding = target_for(f);
         if (!binding) {
             return 1;
@@ -573,7 +611,24 @@ public:
         return 1;
     }
 
-private:
+    int legacy_image_group_draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
+    {
+        if (!simple_legacy_image_group_draw_request_type(type_) ||
+            !policy_.has_legacy_default_source() ||
+            f->cart_image_id) {
+            return 0;
+        }
+
+        const int image_id = policy_.legacy_image_id_for_figure_direction(
+            *f,
+            legacy_xml_default_draw_direction(*f));
+        if (!set_legacy_base_draw_request_image(*request, image_id)) {
+            return 0;
+        }
+        apply_policy_draw_size(policy_, *request);
+        return 1;
+    }
+
     const figure_type_registry_impl::GraphicsTargetBinding *target_for(const Figure *f) const
     {
         if (f->action_state == FIGURE_ACTION_149_CORPSE && !policy_.has_corpse_native_payload()) {
@@ -610,6 +665,7 @@ private:
         error_context_report_error(message, detail.c_str());
     }
 
+    figure_type type_ = FIGURE_NONE;
     const figure_type_registry_impl::FigureGraphics &policy_;
 };
 
@@ -1967,7 +2023,7 @@ public:
                 f->use_cross_country = 1;
                 f->is_ghost = 1;
                 if (figure_movement_move_ticks_cross_country(f, movement.roam_ticks) == 1) {
-                    if (map_building_at(f->grid_offset) == owner->id) {
+                    if (map_building_exists_at(f->grid_offset) && map_building_at(f->grid_offset).id == owner->id) {
                         f->state = FIGURE_STATE_DEAD;
                     } else {
                         f->action_state = FIGURE_ACTION_62_ENGINEER_ROAMING;
@@ -2059,7 +2115,7 @@ public:
                 f->use_cross_country = 1;
                 f->is_ghost = 1;
                 if (figure_movement_move_ticks_cross_country(f, movement.roam_ticks) == 1) {
-                    if (map_building_at(f->grid_offset) == owner->id) {
+                    if (map_building_exists_at(f->grid_offset) && map_building_at(f->grid_offset).id == owner->id) {
                         f->state = FIGURE_STATE_DEAD;
                     } else {
                         f->action_state = FIGURE_ACTION_72_PREFECT_ROAMING;

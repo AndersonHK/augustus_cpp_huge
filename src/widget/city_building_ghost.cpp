@@ -29,6 +29,7 @@
 
 #include "city_building_ghost.h"
 
+#include "building/BuildingGraphicsState.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/construction_plan.h"
@@ -253,11 +254,11 @@ static void set_roamer_path(building_type type, int size, const map_tile *tile, 
     if (!is_blocked) {
         figure_roamer_preview_create(type, grid_x, grid_y);
     } else {
-        int building_id = map_building_at(tile->grid_offset);
-        if (!building_id) {
+        if (!map_building_exists_at(tile->grid_offset)) {
             return;
         }
-        building *b = building_main(building_get(building_id));
+        Building existing = map_building_at(tile->grid_offset).main();
+        const building *b = existing.record();
         if (b->type == type && b->x == grid_x && b->y == grid_y) {
             figure_roamer_preview_create(type, grid_x, grid_y);
         }
@@ -398,12 +399,6 @@ static building make_plan_ghost_record(
     if (part_definition.is_granary()) {
         record.resources[RESOURCE_NONE] = FULL_GRANARY;
     }
-    if (building_variant_has_variants(part.type)) {
-        record.variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(part.type));
-    } else if (building_variant_has_variants(root_definition.type())) {
-        record.variant =
-            building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(root_definition.type()));
-    }
     if (plan.waterside_orientation_absolute() >= 0 &&
         part_definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
         record.subtype.orientation = static_cast<short>(plan.waterside_orientation_absolute());
@@ -414,6 +409,20 @@ static building make_plan_ghost_record(
     }
     prepare_ghost_water_access_state(part_definition, record);
     return record;
+}
+
+static BuildingGraphicsState make_plan_ghost_graphics_state(
+    const building_construction::ConstructionPlacementPart &part,
+    const building_type_registry_impl::BuildingType &root_definition)
+{
+    BuildingGraphicsState state;
+    if (building_variant_has_variants(part.type)) {
+        state.set_variant(building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(part.type)));
+    } else if (building_variant_has_variants(root_definition.type())) {
+        state.set_variant(
+            building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(root_definition.type())));
+    }
+    return state;
 }
 
 static void draw_plan_tiles(
@@ -451,7 +460,8 @@ static void draw_plan_part(
     const int draw_x = tile_x + x_size_offset;
     const int draw_y = tile_y + y_size_offset;
     building record = make_plan_ghost_record(plan, part, root_definition);
-    Building building(record, part.definition);
+    BuildingGraphicsState graphics_state = make_plan_ghost_graphics_state(part, root_definition);
+    Building building(record, part.definition, graphics_state);
     building.draw_footprint({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
     building.draw_top({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
     draw_runtime_ghost_animation(building, record.grid_offset, draw_x, draw_y, color);
@@ -505,16 +515,31 @@ static void draw_default(
 
 static void draw_single_reservoir(int grid_offset, int x, int y, color_t color, int has_water, int draw_blocked)
 {
-    int image_id = Image::group(GROUP_BUILDING_RESERVOIR);
-    draw_building(image_id, x, y, color);
+    const building_type reservoir_type = building_type_registry_impl::type_from_attr("reservoir");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(reservoir_type);
+    if (!definition) {
+        return;
+    }
+
+    building record = {};
+    record.type = reservoir_type;
+    record.grid_offset = grid_offset;
+    record.state = BUILDING_STATE_IN_USE;
+    record.size = static_cast<unsigned char>(definition->declared_model_size());
+    record.num_workers = definition->required_workers();
+    record.has_water_access = static_cast<unsigned char>(has_water ? 1 : 0);
+    if (grid_offset) {
+        record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
+        record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
+    }
+
+    BuildingGraphicsState graphics_state;
+    Building reservoir(record, definition, graphics_state);
+    reservoir.draw_footprint({ x, y, grid_offset, color, data.scale, 1 });
+    reservoir.draw_top({ x, y, grid_offset, color, data.scale, 1 });
     if (has_water) {
-        const image *img = image_get(image_id);
-        if (img->animation) {
-            int x_water = x - FOOTPRINT_WIDTH + img->animation->sprite_offset_x - 2;
-            int top_height = img->top ? img->top->original.height : 0;
-            int y_water = y + img->animation->sprite_offset_y - top_height + FOOTPRINT_HALF_HEIGHT * 3;
-            Image::from_id(image_id + 1).draw(x_water, y_water, color, data.scale);
-        }
+        draw_runtime_ghost_animation(reservoir, grid_offset, x, y, color);
     }
     if (data.reservoir_range.blocked && draw_blocked) {
         for (int i = 0; i < 9; i++) {

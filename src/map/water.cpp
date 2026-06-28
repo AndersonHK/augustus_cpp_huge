@@ -19,13 +19,13 @@
 
 #define OFFSET(x,y) ((x) + GRID_SIZE * (y))
 
-void map_water_add_building(int building_id, int x, int y, int size, int image_id)
+void map_water_add_building(Building &building, int x, int y, int size, int image_id)
 {
     if (!map_grid_is_inside(x, y, size)) {
         return;
     }
     if (!image_id) {
-        image_id = building_image_get(building_get(building_id));
+        image_id = building.image_id();
     }
     map_point leftmost;
     switch (city_view_orientation()) {
@@ -54,7 +54,7 @@ void map_water_add_building(int building_id, int x, int y, int size, int image_i
                 map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
                 map_terrain_add(grid_offset, TERRAIN_BUILDING);
             }
-            map_building_set(grid_offset, building_id);
+            map_building_set(grid_offset, building);
             map_property_clear_constructing(grid_offset);
             map_property_set_multi_tile_size(grid_offset, size);
             map_image_set(grid_offset, image_id);

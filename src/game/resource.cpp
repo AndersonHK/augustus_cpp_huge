@@ -1,5 +1,5 @@
 #include "building/building_type.h"
-#include "building/BuildingGraphics.h"
+#include "building/BuildingGraphicsDef.h"
 #include "building/industry.h"
 #include "figure/figure_type_registry_internal.h"
 #include "translation/translation.h"
@@ -309,7 +309,7 @@ static void finish_resource_root()
     resource_text_id_lookup[resource_text_id_storage[static_cast<size_t>(type)]] = type;
     loaded_resources.push_back(type);
 
-    building_type_registry_impl::BuildingGraphics::set_resource_storage_images(
+    building_type_registry_impl::BuildingGraphicsDef::set_resource_storage_images(
         type,
         resource_parse_state.storage_images);
     figure_type_registry_impl::FigureGraphics::set_resource_cart_images(
@@ -468,7 +468,7 @@ int resource_get_supply_chain_for_raw_material(resource_supply_chain *chain, res
 void resource_init(void)
 {
     resource_graphics_reset();
-    building_type_registry_impl::BuildingGraphics::reset_resource_storage_images();
+    building_type_registry_impl::BuildingGraphicsDef::reset_resource_storage_images();
     figure_type_registry_impl::FigureGraphics::reset_resource_cart_images();
     production_method_registry_reset_production_overrides();
     load_resource_definitions();

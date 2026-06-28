@@ -159,7 +159,8 @@ bool fishing_industry_is_available()
         return false;
     }
     building_type wharf = building_type_registry_impl::type_from_attr("wharf");
-    return wharf != BUILDING_NONE && scenario_allowed_building(wharf);
+    return wharf != BUILDING_NONE &&
+        scenario_allowed_building(building_type_registry_impl::definition_for_type(wharf));
 }
 
 resource_type runtime_from_text_id(const char *text_id)

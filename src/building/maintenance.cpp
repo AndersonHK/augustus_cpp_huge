@@ -166,25 +166,22 @@ void building_maintenance_update_burning_ruins(void)
         }
 
         int grid_offset = b->grid_offset;
-        int next_building_id = map_building_at(grid_offset + map_grid_direction_delta(data.fire_spread_direction));
-        if (next_building_id && !building_get(next_building_id)->fire_proof) {
-            building_destroy_by_fire(building_get(next_building_id));
+        auto spread_fire_to = [&recalculate_terrain](int target_offset) {
+            if (!map_building_exists_at(target_offset)) {
+                return 0;
+            }
+            building *target = const_cast<::building *>(map_building_at(target_offset).record());
+            if (!target || target->fire_proof) {
+                return 0;
+            }
+            building_destroy_by_fire(target);
             sound_effect_play(SOUND_EFFECT_EXPLOSION);
             recalculate_terrain = 1;
-        } else {
-            next_building_id = map_building_at(grid_offset + map_grid_direction_delta(dir1));
-            if (next_building_id && !building_get(next_building_id)->fire_proof) {
-                building_destroy_by_fire(building_get(next_building_id));
-                sound_effect_play(SOUND_EFFECT_EXPLOSION);
-                recalculate_terrain = 1;
-            } else {
-                next_building_id = map_building_at(grid_offset + map_grid_direction_delta(dir2));
-                if (next_building_id && !building_get(next_building_id)->fire_proof) {
-                    building_destroy_by_fire(building_get(next_building_id));
-                    sound_effect_play(SOUND_EFFECT_EXPLOSION);
-                    recalculate_terrain = 1;
-                }
-            }
+            return 1;
+        };
+        if (!spread_fire_to(grid_offset + map_grid_direction_delta(data.fire_spread_direction)) &&
+            !spread_fire_to(grid_offset + map_grid_direction_delta(dir1))) {
+            spread_fire_to(grid_offset + map_grid_direction_delta(dir2));
         }
     }
     if (recalculate_terrain) {

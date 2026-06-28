@@ -2,6 +2,7 @@
 #include "bridge.h"
 
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
@@ -257,10 +258,15 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
     }
 
     building *b = building_create(bridge_type, x, y);
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
+    if (!runtime) {
+        bridge.length = 0;
+        return bridge.length;
+    }
     for (int i = 0; i < bridge.length; i++) {
         map_terrain_add(grid_offset, TERRAIN_ROAD);
         map_terrain_add(grid_offset, TERRAIN_BUILDING);
-        map_building_set(grid_offset, b->id);
+        map_building_set(grid_offset, runtime->building);
         int value = map_bridge_get_sprite_id(i, bridge.length, bridge.direction, is_ship_bridge);
         map_sprite_bridge_set(grid_offset, value);
 
@@ -290,7 +296,10 @@ int map_bridge_find_start_and_direction(int grid_offset, int *axis, int *axis_di
         return -1;
     }
 
-    building *b = building_get(map_building_at(grid_offset));
+    if (!map_building_exists_at(grid_offset)) {
+        return -1;
+    }
+    building *b = const_cast<::building *>(map_building_at(grid_offset).record());
     if (!b) return -1;
 
     int start = map_grid_offset(b->x, b->y);
@@ -307,7 +316,7 @@ int map_bridge_find_start_and_direction(int grid_offset, int *axis, int *axis_di
         int dx = dirs[i][0];
         int dy = dirs[i][1];
         int neighbor = start + map_grid_delta(dx, dy);
-        if (map_building_at(neighbor) == building_id) {
+        if (map_building_exists_at(neighbor) && map_building_at(neighbor).id == building_id) {
             *axis = (dx != 0) ? 0 : 1;
             *axis_direction = (dx + dy > 0) ? +1 : -1;
             return start;
@@ -336,13 +345,13 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
         ? map_grid_delta(dir, 0)  // horizontal
         : map_grid_delta(0, dir); // vertical
 
-    unsigned int building_id = map_building_at(start);
+    unsigned int building_id = map_building_exists_at(start) ? map_building_at(start).id : 0;
     int current = start;
 
     int bridge_x_start = map_grid_offset_to_x(start);
     int bridge_y_start = map_grid_offset_to_y(start);
 
-    while (map_is_bridge(current) && map_building_at(current) == building_id) {
+    while (map_is_bridge(current) && map_building_exists_at(current) && map_building_at(current).id == building_id) {
         if (mark_deleted) {
             map_property_mark_deleted(current);
         } else {
@@ -352,7 +361,7 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
             map_sprite_clear_tile(current);
             map_terrain_remove(current, TERRAIN_ROAD);
             map_terrain_remove(current, TERRAIN_BUILDING);
-            map_building_set(current, 0);
+            map_building_clear_at(current);
         }
         current += delta;
     }
@@ -382,10 +391,10 @@ int map_bridge_has_figures(int grid_offset)
         ? map_grid_delta(dir, 0)  // horizontal
         : map_grid_delta(0, dir); // vertical
 
-    unsigned int building_id = map_building_at(start);
+    unsigned int building_id = map_building_exists_at(start) ? map_building_at(start).id : 0;
     int current = start;
     // find lower end of the bridge
-    while (map_is_bridge(current) && map_building_at(current) == building_id) {
+    while (map_is_bridge(current) && map_building_exists_at(current) && map_building_at(current).id == building_id) {
         if (map_has_figure_category_at(current, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE)) {
             return 1;
         }

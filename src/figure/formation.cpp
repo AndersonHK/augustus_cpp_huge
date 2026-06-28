@@ -274,6 +274,21 @@ int formation::legacy_storage_slot_count() const
     return LEGACY_FORMATION_ROSTER_SLOTS;
 }
 
+int formation::barracks_recruit_capacity() const
+{
+    const int capacity = slot_capacity();
+    if (!is_legion) {
+        return capacity;
+    }
+    return std::min(capacity, legacy_storage_slot_count());
+}
+
+int formation::barracks_recruit_overflow_count() const
+{
+    const int overflow = num_figures - barracks_recruit_capacity();
+    return overflow > 0 ? overflow : 0;
+}
+
 void formation::ensure_roster_capacity(int capacity)
 {
     if (capacity <= 0) {
@@ -542,9 +557,9 @@ void formation::move_herd_animals(int attacking_animals) const
     });
 }
 
-void formation::mark_overflow_figures_returning_to_barracks() const
+void formation::mark_barracks_recruit_overflow_returning() const
 {
-    int too_many = overflow_count();
+    int too_many = barracks_recruit_overflow_count();
     for_each_figure_id_reverse([&](int figure_id, int) {
         if (too_many <= 0) {
             return;

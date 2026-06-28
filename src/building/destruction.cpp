@@ -10,6 +10,7 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "city/ratings.h"
 #include "city/culture.h"
@@ -59,7 +60,9 @@ static void destroy_without_rubble(building *b)
     }
     building_clear_related_data(b);
 
-    map_building_tiles_remove(b->id, b->x, b->y);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        map_building_tiles_remove(&runtime->building, b->x, b->y);
+    }
     b->state = BUILDING_STATE_DELETED_BY_GAME;
 }
 
@@ -75,7 +78,7 @@ static void destroy_on_fire(building *b, int plagued)
         city_population_remove_home_removed(b->house_population);
     }
     // save original info for rubble data
-    int og_type = b->type;
+    building_type og_type = static_cast<building_type>(b->type);
     int og_size = b->size;
     int og_orientation = b->subtype.orientation;
     int og_grid_offset = b->grid_offset;
@@ -103,7 +106,9 @@ static void destroy_on_fire(building *b, int plagued)
         num_tiles = 0;
     }
     const building_type burning_ruin = burning_ruin_type();
-    map_building_tiles_remove(b->id, b->x, b->y);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        map_building_tiles_remove(&runtime->building, b->x, b->y);
+    }
     if (map_terrain_is(b->grid_offset, TERRAIN_WATER)) {
         b->state = BUILDING_STATE_RUBBLE;
     } else if (burning_ruin != BUILDING_NONE) {
@@ -121,12 +126,16 @@ static void destroy_on_fire(building *b, int plagued)
         memset(&b->data, 0, sizeof(b->data)); // removes all data - don't do it for repairable buildings
     }
     map_building_set_rubble_grid_building_id(og_grid_offset, b->id, og_size);
-    b->data.rubble.og_type = og_type;
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        runtime->building.og_type = building_type_registry_impl::definition_for_type(og_type);
+    }
     b->data.rubble.og_grid_offset = og_grid_offset;
     b->data.rubble.og_size = og_size;
     b->data.rubble.og_orientation = og_orientation;
     if (!waterside_building) {
-        map_building_tiles_add(b->id, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+            map_building_tiles_add(runtime->building, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+        }
     }
 
     static const int x_tiles[] = {
@@ -145,15 +154,19 @@ static void destroy_on_fire(building *b, int plagued)
             continue;
         }
         building *ruin = building_create(burning_ruin, x, y);
-        map_building_tiles_add(ruin->id, ruin->x, ruin->y, 1, building_image_get(ruin), TERRAIN_BUILDING);
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(ruin)) {
+            map_building_tiles_add(runtime->building, ruin->x, ruin->y, 1, building_image_get(ruin), TERRAIN_BUILDING);
+        }
         ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
         ruin->figure_id4 = 0;
         ruin->fire_proof = 1;
         ruin->has_plague = plagued;
-        ruin->data.rubble.og_type = og_type;
         ruin->data.rubble.og_grid_offset = og_grid_offset;
         ruin->data.rubble.og_size = og_size;
         ruin->data.rubble.og_orientation = og_orientation;
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(ruin)) {
+            runtime->building.og_type = building_type_registry_impl::definition_for_type(og_type);
+        }
     }
     if (waterside_building) {
         Route::updateWaterTerrain();
@@ -335,7 +348,9 @@ static void set_rubble_grid_info_for_all_parts(building *b)
     building *part = b; //initialize part iterator - start with main building
     for (int i = 0; i < 9 && part->id > 0; i++) {
         building *next_part = building_next(part);
-        part->data.rubble.og_type = b->type;
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(part)) {
+            runtime->building.og_type = building_type_registry_impl::definition_for_type(b->type);
+        }
         part->data.rubble.og_grid_offset = b->grid_offset;
         part->data.rubble.og_size = main_type && main_type->is_warehouse() ? 3 : b->size;
         part->data.rubble.og_orientation = (unsigned char) b->subtype.orientation;
@@ -345,11 +360,10 @@ static void set_rubble_grid_info_for_all_parts(building *b)
 
 void building_destroy_by_enemy(int x, int y, int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
-    if (building_id > 0) {
-        building *b = building_get(building_id);
+    if (map_building_exists_at(grid_offset)) {
+        Building &destroyed_building = map_building_at(grid_offset);
+        building *b = const_cast<::building *>(destroyed_building.record());
         if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) {
-            Building destroyed_building(b);
             city_ratings_peace_building_destroyed(destroyed_building);
             building_destroy_by_collapse(b);
         }

@@ -28,7 +28,7 @@ namespace {
 
 int hit_points_for_building_at(int grid_offset)
 {
-    Building building_obj(building_get(map_building_at(grid_offset)));
+    Building building_obj = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
     return building_obj.type && building_obj.type->model().has_hit_points() ?
         building_obj.type->model().hit_points() :
         game_defines_default_building_hit_points();
@@ -215,8 +215,10 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         }
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
         if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
-            building *b = building_get(map_building_at(target_grid_offset));
-            Building building_obj(b);
+            Building building_obj = map_building_exists_at(target_grid_offset) ?
+                map_building_at(target_grid_offset) :
+                Building(nullptr);
+            building *b = const_cast<::building *>(building_obj.record());
             if (roaming_enabled && b && building_obj.type && building_obj.type->is_granary()) {
                 if (map_road_get_granary_inner_road_tiles_count(b) < 3) {
                     f->direction = DIR_FIGURE_REROUTE; // do not roam into dead-end granaries
@@ -234,14 +236,16 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             (figure_type_registry_impl::PathingMode::citizenIsRoad(target_grid_offset) && !roaming_enabled))) {
             return; // passable terrain - no reroute
         }
-        building *b = building_get(map_building_at(target_grid_offset));
+        building *b = map_building_exists_at(target_grid_offset) ?
+            const_cast<::building *>(map_building_at(target_grid_offset).record()) :
+            nullptr;
         Roadblock roadblock(b);
         if (roadblock.kind() != ROADBLOCK_NONE) {
             if (!roadblock.has_permission(figure_runtime_roadblock_permission(f))) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
-            if (!Building(b).matches("fort_ground")) {
+            if (!b || !map_building_at(target_grid_offset).matches("fort_ground")) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
 
@@ -351,7 +355,11 @@ static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadbloc
         return true;
     }
 
-    building *b = building_get(map_building_at(grid_offset));
+    if (!map_building_exists_at(grid_offset)) {
+        return false;
+    }
+    Building building_obj = map_building_at(grid_offset);
+    building *b = const_cast<::building *>(building_obj.record());
     if (!b) {
         return false;
     }
@@ -362,7 +370,6 @@ static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadbloc
 
     // Granaries mix road and non-road building tiles; walkers should only roam
     // across the internal cross when it connects to at least two exits.
-    Building building_obj(b);
     if (building_obj.type && building_obj.type->is_granary()) {
         return figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset) &&
             map_road_get_granary_inner_road_tiles_count(b) >= 3;
@@ -841,7 +848,9 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
     f->cross_country_x = figure_movement_tile_to_cross_country(x_src);
     f->cross_country_y = figure_movement_tile_to_cross_country(y_src);
     const int source_grid_offset = map_grid_offset(x_src, y_src);
-    Building source_building(building_get(map_building_at(source_grid_offset)));
+    Building source_building = map_building_exists_at(source_grid_offset) ?
+        map_building_at(source_grid_offset) :
+        Building(nullptr);
     if (map_terrain_is(source_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
         (source_building.type && source_building.type->is_watchtower())) {
         height = 6;
@@ -871,7 +880,7 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
                 break;
             }
             if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_property_multi_tile_size(grid_offset) > 1) {
-                if (!Building(building_get(map_building_at(grid_offset))).matches("fort_ground")) {
+                if (!map_building_exists_at(grid_offset) || !map_building_at(grid_offset).matches("fort_ground")) {
                     break;
                 }
             }

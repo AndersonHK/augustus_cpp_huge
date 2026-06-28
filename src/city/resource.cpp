@@ -32,6 +32,7 @@
 #include "scenario/property.h"
 
 #include <math.h>
+#include <empire/city.cpp>
 
 static struct {
     resource_list resources;
@@ -433,7 +434,7 @@ resource_type city_resource_ceres_temple_food(void)
         if (!resource_is_food(r)) {
             continue;
         }
-        if (empire_can_produce_resource_locally(r)) {
+        if (can_produce_resource_naturally(r)) {
             return r;
         }
         if (imported == RESOURCE_NONE && empire_can_import_resource_potentially(r)) {

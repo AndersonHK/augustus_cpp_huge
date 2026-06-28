@@ -537,9 +537,15 @@ void window_building_draw_concrete_maker(building_info_context *c)
 
 static int governor_palace_is_allowed(void)
 {
-    return scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_house")) ||
-        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_villa")) ||
-        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_palace"));
+    return scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_house"))) ||
+        scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_villa"))) ||
+        scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_palace")));
 }
 
 void window_building_draw_city_mint(building_info_context *c)

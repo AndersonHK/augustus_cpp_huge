@@ -209,7 +209,7 @@ static void add_terrain(const void *tile_data, int dx, int dy)
     int terrain = map_terrain_get(grid_offset);
     if (data.type != TOOL_EARTHQUAKE_CUSTOM && data.type != TOOL_EARTHQUAKE_CUSTOM_REMOVE) {
         if (terrain & TERRAIN_BUILDING) {
-            map_building_tiles_remove(0, x, y);
+            map_building_tiles_remove(nullptr, x, y);
             terrain = map_terrain_get(grid_offset);
         }
         if (!(terrain & (TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP))) {
@@ -460,7 +460,7 @@ static void place_building(const map_tile *tile)
 
     if (editor_tool_can_place_building(tile, size * size, 0)) {
         Building building = Building(building_create(type, tile->x, tile->y));
-        map_building_tiles_add(building.id, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
+        map_building_tiles_add(building, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {
         city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);

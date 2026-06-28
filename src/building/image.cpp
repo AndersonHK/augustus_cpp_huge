@@ -3,6 +3,7 @@
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_runtime_graphics.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
@@ -22,6 +23,21 @@ struct type_image_handler {
     const char *text_id;
     int (*image)(const building *b);
 };
+
+static unsigned char graphics_variant_for_image_lookup(const building *b)
+{
+    if (!b || !b->id) {
+        return 0;
+    }
+    BuildingGraphicsState loaded_graphics_state;
+    if (building_runtime_loaded_graphics_state(b->id, &loaded_graphics_state)) {
+        return loaded_graphics_state.variant();
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
+        return runtime->graphics_variant();
+    }
+    return 0;
+}
 
 static int orientation_pair(const building *b)
 {
@@ -242,7 +258,7 @@ int building_image_get_garden_gate_image(int grid_offset)
     fake_gate.state = BUILDING_STATE_IN_USE;
     fake_gate.grid_offset = grid_offset;
     fake_gate.size = 1;
-    return building_runtime_graphics_image_id(Building(fake_gate));
+    return building_runtime_graphics_image_id(Building(fake_gate), 0);
 }
 
 int building_image_get(const building *b)
@@ -252,7 +268,7 @@ int building_image_get(const building *b)
     }
 
     Building building_object(const_cast<building *>(b));
-    int xml_image_id = building_runtime_graphics_image_id(building_object);
+    int xml_image_id = building_runtime_graphics_image_id(building_object, graphics_variant_for_image_lookup(b));
     if (xml_image_id) {
         return xml_image_id;
     }

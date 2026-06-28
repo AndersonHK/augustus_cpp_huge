@@ -29,7 +29,9 @@ static int tile_accepts_storage_road_access(int grid_offset, int global_labor)
         return 0;
     }
     return global_labor ||
-        Roadblock(building_get(map_building_at(grid_offset))).kind() == ROADBLOCK_NONE;
+        Roadblock(map_building_exists_at(grid_offset) ?
+            const_cast<::building *>(map_building_at(grid_offset).record()) :
+            nullptr).kind() == ROADBLOCK_NONE;
 }
 
 static int first_storage_road_access_point(
@@ -56,7 +58,7 @@ static int first_storage_road_access_point(
 static int candidate_for_road_access_tile(int grid_offset, road_access_candidate *candidate)
 {
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        Building adjacent(building_get(map_building_at(grid_offset)));
+        Building adjacent = map_building_exists_at(grid_offset) ? map_building_at(grid_offset) : Building(nullptr);
         if (adjacent.type && adjacent.type->roadblock().is_wall_gate()) {
             return 0;
         }
@@ -65,8 +67,9 @@ static int candidate_for_road_access_tile(int grid_offset, road_access_candidate
         return 0;
     }
 
-    const int building_id = map_building_at(grid_offset);
-    roadblock_type kind = building_id ? Roadblock(building_get(building_id)).kind() : ROADBLOCK_NONE;
+    roadblock_type kind = map_building_exists_at(grid_offset) ?
+        Roadblock(const_cast<::building *>(map_building_at(grid_offset).record())).kind() :
+        ROADBLOCK_NONE;
     if (kind == ROADBLOCK_STANDARD || kind == ROADBLOCK_STORAGE) {
         return 0; // ignore non-bridge roadblocks
     }
@@ -268,7 +271,12 @@ void map_update_granary_internal_roads(const building *b)
 
 int map_has_road_access_warehouse(int x, int y, map_point *road)
 {
-    building *warehouse = building_main(building_get(map_building_at(map_grid_offset(x, y))));
+    int grid_offset = map_grid_offset(x, y);
+    if (!map_building_exists_at(grid_offset)) {
+        return 0;
+    }
+    Building warehouse_building = map_building_at(grid_offset).main();
+    building *warehouse = const_cast<::building *>(warehouse_building.record());
     if (!warehouse) {
         return 0; //unable to map the building
     }
@@ -333,7 +341,10 @@ int map_has_road_access_granary(int x, int y, map_point *road)
         config_get(CONFIG_GP_CH_GLOBAL_LABOUR),
         &rx,
         &ry)) {
-        building *b = building_get(map_building_at(map_grid_offset(x, y)));
+        int grid_offset = map_grid_offset(x, y);
+        building *b = map_building_exists_at(grid_offset) ?
+            const_cast<::building *>(map_building_at(grid_offset).record()) :
+            nullptr;
         if (b) {
             b->road_access_x = rx;
             b->road_access_y = ry;
@@ -360,7 +371,10 @@ static int road_within_radius(int x, int y, int size, int radius, int *x_road, i
         for (int xx = x_min; xx <= x_max; xx++) {
             if (terrain_is_road_like(map_grid_offset(xx, yy))) {
                 // Don't spawn walkers on roadblocks
-                if (Roadblock(building_get(map_building_at(map_grid_offset(xx, yy)))).kind() != ROADBLOCK_NONE) {
+                const int grid_offset = map_grid_offset(xx, yy);
+                if (Roadblock(map_building_exists_at(grid_offset) ?
+                        const_cast<::building *>(map_building_at(grid_offset).record()) :
+                        nullptr).kind() != ROADBLOCK_NONE) {
                     continue;
                 }
                 if (x_road && y_road) {

@@ -39,8 +39,10 @@ int has_adjacent_deletion(int grid_offset)
     int total_adjacent_offsets = size * 2 + 1;
     const int *adjacent_offset = kAdjacentDeletionOffsets[size - 2][city_view_orientation() / 2];
     for (int i = 0; i < total_adjacent_offsets; ++i) {
-        if (map_property_is_deleted(grid_offset + adjacent_offset[i]) ||
-            city_draw_building_as_deleted(Building(building_get(map_building_at(grid_offset + adjacent_offset[i]))))) {
+        const int adjacent_grid_offset = grid_offset + adjacent_offset[i];
+        if (map_property_is_deleted(adjacent_grid_offset) ||
+            (map_building_exists_at(adjacent_grid_offset) &&
+                city_draw_building_as_deleted(map_building_at(adjacent_grid_offset)))) {
             return 1;
         }
     }
@@ -95,7 +97,7 @@ int city_draw_building_as_deleted(const Building &building)
 
 int city_draw_is_multi_tile_terrain(int grid_offset)
 {
-    return !map_building_at(grid_offset) && map_property_multi_tile_size(grid_offset) > 1;
+    return !map_building_exists_at(grid_offset) && map_property_multi_tile_size(grid_offset) > 1;
 }
 
 int city_draw_should_draw_top_before_deletion(int grid_offset)

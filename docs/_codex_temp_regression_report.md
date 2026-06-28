@@ -8,7 +8,10 @@ Delete this file once all listed regressions are fixed and reflected in the norm
 - [x] Timber yard / raw producer stale cart output regression resolved in later runtime testing.
 - [x] Entertainment overlay animation regression resolved in later runtime testing.
 - [x] Vespasian amphitheater no-show animation gate has a candidate fix and has not reappeared in recent reports.
-- [ ] Garden area placement still needs a full rewrite; current fixes are bridge fixes.
+- [x] Garden area placement adjacency/overlap regression manually confirmed fixed after the runtime snapshot/stateless-preview rewrite.
+- [x] Land trader sound phrase regression manually confirmed fixed after the sound phrase state gate.
+- [ ] Building graphics variant save/load needs manual confirmation after the `BuildingGraphicsState` load-packet bridge.
+- [ ] Pavilion R-key rotation should cycle available variants instead of random stable-variant selection; candidate XML policy fix is pending manual confirmation.
 - [ ] Concrete carts with no destination still need explicit idle-at-source behavior if not already covered by the current cart wait action.
 
 ## Resolved: Actor Colony / Theater Regression
@@ -51,14 +54,34 @@ Delete this file once all listed regressions are fixed and reflected in the norm
 - Candidate fix: Vespasian amphitheater default and upgrade-off graphics are marked non-animated; animated variants still require positive show days.
 - Current status: not recently reported after the candidate fix; leave here until a focused Vespasian amphitheater retest confirms both no-show and one-show states.
 
-## Open: Garden Area Placement Regression
+## Resolved: Garden Area Placement Regression
 
-- Non-blocking after the current checkpoint because clear-land fixes the corrupted tiles and saves remain usable.
-- Garden area placement still has edge cases when a preview or placement overlaps existing committed gardens.
+- Reopened after the current checkpoint: placing gardens beside existing committed gardens can mutate the adjacent real gardens, and merely attempting to place over an existing real garden can update/glitch its graphics.
+- This matches the previous failed local-update approach: preview or failed placement work is still reaching committed garden composition instead of staying isolated until a valid commit.
 - Expanding/retracting a garden drag can still interact badly with 2x2 garden composition.
 - Placing overgrown gardens over regular gardens can instantiate 1x1 garden runtime tiles on top of existing 2x2 garden tiles.
 - Required fix: rewrite garden area placement from the ground up so preview and commit operate on an isolated placement model, then atomically refresh committed garden tiles. Preview must never be allowed to re-anchor, peel, or partially overwrite existing 2x2 garden composition.
-- First guard was too strict and blocked normal drag extension over existing gardens. Current targeted fix allows existing garden terrain inside the drag rectangle again, clears the previous preview's garden runtime bindings narrowly, and globally recomposes gardens after preview restore/placement as a bridge; full atomic garden replacement remains open.
+- Fix: construction undo now snapshots tile runtime state, garden preview is stateless, and preview composition only uses tiles owned by the current preview set; committed placement still recomposes the real garden region atomically after the undo restore.
+- Current status: manually confirmed fixed for the reported garden adjacency and overlap symptoms.
+
+## Resolved: Land Trader Sound Phrase Regression
+
+- Land trader audio can still play the positive "I love coming here" phrase before any trade has completed.
+- The building-info dialog text was not the reported issue; the sound phrase path lives in `src/figure/phrase.cpp`.
+- Candidate fix: land caravan phrases no longer alternate between offer and success as generic pre-trade lines. Success is returned only after `trader_has_traded(...)`; no-trade still plays on a leaving caravan that completed no exchange.
+- Current status: manually confirmed fixed for the reported pre-trade success sound.
+
+## Pending Manual Confirmation: Building Graphics Variant Save/Load
+
+- The 2026-06-28 1:43am deployed build applied native building graphics variants at runtime but did not preserve them through save/load.
+- Candidate fix: `variant` is no longer stored on `struct building`; load copies the saved record byte into a per-building `BuildingGraphicsState` packet, `building_runtime_initialize_city_graphics_cache()` consumes that packet while materializing runtime objects, and save writes the byte back through `Building(...).graphics().variant()`. This does not add a save-version gate or reinterpret older saves.
+- Current status: Release build, parser, seam validation, deploy, post-deploy extraction, and deployed startup parse passed; needs user save/load retest.
+
+## Pending Manual Confirmation: Pavilion Rotation Variants
+
+- Pavilion graphics should cycle through available variants with build rotation / `R`, not pick a random stable decorative variant like plaza graphics.
+- Candidate fix: Augustus and Vespasian pavilion XML now use `<options selection="build_rotation">`, allowing `Building::graphics().variant()` to follow the rotation-driven value instead of seeded stable selection.
+- Current status: pending manual placement/rotation retest.
 
 ## Open: Concrete Cart No-Destination Regression
 

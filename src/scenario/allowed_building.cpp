@@ -92,12 +92,16 @@ static void refresh_dynamic_original_allowed_slots(void)
     conversion_from_original_initialized = 1;
 }
 
-int scenario_allowed_building(building_type type)
+int scenario_allowed_building(const building_type_registry_impl::BuildingType *type)
 {
-    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+    if (!type) {
         return 0;
     }
-    return allowed_buildings[type];
+    const building_type type_id = type->type();
+    if (type_id <= BUILDING_NONE || type_id >= BUILDING_TYPE_MAX) {
+        return 0;
+    }
+    return allowed_buildings[type_id];
 }
 
 static int enable_submenu_buildings(building_type type, int allowed)
