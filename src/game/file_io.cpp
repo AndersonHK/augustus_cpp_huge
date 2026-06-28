@@ -999,6 +999,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     }
 
     scenario_version_t scenario_version = save_version_to_scenario_version(version, state->scenario_version);
+    game_file_clear_scenario_data_for_save_load();
     scenario_settings_load_state(state->scenario_campaign_mission,
         state->scenario_settings,
         state->scenario_is_custom,

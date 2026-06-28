@@ -92,9 +92,10 @@ void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain)
 int map_building_tiles_add_aqueduct(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
+    int tile_set = !map_terrain_is(grid_offset, TERRAIN_AQUEDUCT);
     map_terrain_add(grid_offset, TERRAIN_AQUEDUCT);
     map_property_clear_constructing(grid_offset);
-    return 1;
+    return tile_set;
 }
 
 static int north_tile_grid_offset(int x, int y, int *size)

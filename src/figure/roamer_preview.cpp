@@ -23,6 +23,16 @@ static struct {
     int stored_building_types;
 } data;
 
+static figure_type preview_figure_type_for(building_type type)
+{
+    if (type == BUILDING_NONE) {
+        return FIGURE_NONE;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition->preview_figure_type();
+}
+
 static int roam_length_for_figure_type(figure_type type)
 {
     return figure_type_registry_impl::default_profile_for(type)->movement_profile().max_roam_length;
@@ -90,10 +100,11 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
         figure_roamer_preview_reset_building_types();
         return;
     }
+    if (b_type == BUILDING_NONE) {
+        return;
+    }
 
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(b_type);
-    figure_type fig_type = definition->preview_figure_type();
+    const figure_type fig_type = preview_figure_type_for(b_type);
     if (fig_type == FIGURE_NONE) {
         return;
     }
@@ -110,6 +121,8 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
 
     data.travelled_tiles.items[grid_offset] = SHOWN_BUILDING_OFFSET;
 
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b_type);
     int b_size = definition->is_farm() ? 3 : building_properties_for_type(b_type)->size;
 
     map_point road;
@@ -212,9 +225,7 @@ void figure_roamer_preview_reset(building_type type)
 {
     map_grid_clear_u8(data.travelled_tiles.items);
     int show_other_roamers = 0;
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    figure_type fig_type = definition->preview_figure_type();
+    figure_type fig_type = preview_figure_type_for(type);
     if (fig_type == FIGURE_LABOR_SEEKER && config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
         fig_type = FIGURE_NONE;
     }

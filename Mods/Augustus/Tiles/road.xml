@@ -11,6 +11,7 @@
     <foundation policy="land" />
     <tool kind="road" />
     <event_data attr="road" />
+    <flags fire_proof="1" />
     <labor>
         <employees count="0" />
     </labor>

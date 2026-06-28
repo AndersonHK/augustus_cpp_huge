@@ -75,7 +75,11 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
     (void) building;
     return 0;
 #else
-    const Building state = building.composition_owner();
+    const auto condition_state_for = [](const Building &building) {
+        const ::building *record = building.record();
+        return record && record->id ? building.composition_owner() : building;
+    };
+    const Building state = condition_state_for(building);
     int matches = 0;
     switch (condition.type) {
         case GraphicsConditionType::HasWorkers:

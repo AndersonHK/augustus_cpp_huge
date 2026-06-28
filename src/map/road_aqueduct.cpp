@@ -95,6 +95,18 @@ int map_can_place_aqueduct_on_road(int grid_offset)
     return 1;
 }
 
+int map_can_place_aqueduct_on_aqueduct(int grid_offset)
+{
+    if (!map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+        return 1;
+    }
+    int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);
+    return image_id <= 3 ||
+        (image_id >= 8 && image_id <= 9) ||
+        (image_id >= 15 && image_id <= 18) ||
+        (image_id >= 23 && image_id <= 24);
+}
+
 int map_get_aqueduct_with_road_image(int grid_offset)
 {
     int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);

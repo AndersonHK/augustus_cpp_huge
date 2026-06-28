@@ -439,6 +439,13 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
     int x_min, x_max, y_min, y_max;
     map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
 
+    const building_type vacant_lot_type = building_type_registry_impl::vacant_lot_fill_type();
+    const building_type_registry_impl::BuildingType *vacant_lot =
+        building_type_registry_impl::definition_for_type(vacant_lot_type);
+    if (!vacant_lot) {
+        return 0;
+    }
+
     int needs_road_warning = 0;
     int items_placed = 0;
     game_undo_restore_building_state();
@@ -449,17 +456,18 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
                 continue;
             }
             if (measure_only) {
-                map_property_mark_constructing(grid_offset);
+                building_construction_assessment assessment =
+                    building_construction_assess_placement(*vacant_lot, x, y, 1, 0);
+                if (!assessment.can_place) {
+                    continue;
+                }
+                for (const building_construction::ConstructionPlacementPart &part : assessment.placement.parts()) {
+                    mark_construction(part.x, part.y, part.size, TERRAIN_ALL, 1);
+                }
                 items_placed++;
             } else {
-                building *b = building_create(building_type_registry_impl::vacant_lot_fill_type(), x, y);
-                game_undo_add_building(b);
-                if (b->id > 0) {
+                if (building_construction_place_building(vacant_lot_type, x, y, 1)) {
                     items_placed++;
-                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                        map_building_tiles_add(runtime->building, x, y, 1,
-                            image_group(GROUP_BUILDING_HOUSE_VACANT_LOT), TERRAIN_BUILDING);
-                    }
                     if (!map_terrain_exists_tile_in_radius_with_type(x, y, 1, 2, TERRAIN_ROAD)) {
                         needs_road_warning = 1;
                     }
@@ -468,7 +476,7 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
         }
     }
     if (!measure_only) {
-        building_construction_warning_check_food_stocks(building_type_registry_impl::vacant_lot_fill_type());
+        building_construction_warning_check_food_stocks(vacant_lot_type);
         if (needs_road_warning) {
             city_warning_show_translated(WARNING_HOUSE_TOO_FAR_FROM_ROAD);
         }

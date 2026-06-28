@@ -1204,6 +1204,7 @@ void Figure::resolve_loaded_building_references()
         f->immigrant_building = loaded_building_ref(refs.immigrant_building_id);
         f->destination_building = loaded_building_ref(refs.destination_building_id);
     }
-    data.pending_building_refs.clear();
+    // Saved ids remain available until the final saved-game initialization pass,
+    // because building runtime initialization can rebuild Building wrappers.
     clear_dead_loaded_producer_cart_slots();
 }

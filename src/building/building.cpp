@@ -68,6 +68,7 @@
 #include "map/elevation.h"
 #include "map/figure.h"
 #include "map/grid.h"
+#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/road_network.h"
@@ -1359,6 +1360,120 @@ int Building::image_id() const
     return record_ ? building_image_get(this) : 0;
 }
 
+int Building::is_surface_terrain_tile() const
+{
+    if (!type) {
+        return 0;
+    }
+
+    const building_type_registry_impl::TileKind tile_kind = type->tile().kind();
+    return tile_kind == building_type_registry_impl::TileKind::Garden ||
+        tile_kind == building_type_registry_impl::TileKind::Plaza ||
+        type->tool().is_road() ||
+        type->tool().is_highway() ||
+        type->tool().is_aqueduct();
+}
+
+void Building::bind_surface_map_tiles()
+{
+    if (!record_ || !map_grid_is_inside(record_->x, record_->y, record_->size)) {
+        return;
+    }
+    for (int dy = 0; dy < record_->size; dy++) {
+        for (int dx = 0; dx < record_->size; dx++) {
+            const int grid_offset = map_grid_offset(record_->x + dx, record_->y + dy);
+            normalize_surface_map_tile(grid_offset, dx, dy);
+            map_building_set(grid_offset, *this);
+            map_property_clear_constructing(grid_offset);
+        }
+    }
+}
+
+void Building::normalize_surface_map_tile(int grid_offset, int dx, int dy)
+{
+    if (!type) {
+        return;
+    }
+
+    const int blocking_surface_bits = TERRAIN_BUILDING | TERRAIN_WALL | TERRAIN_GATEHOUSE;
+    const building_type_registry_impl::TileKind tile_kind = type->tile().kind();
+    if (tile_kind == building_type_registry_impl::TileKind::Garden) {
+        map_terrain_remove(grid_offset, blocking_surface_bits | TERRAIN_ROAD | TERRAIN_HIGHWAY);
+        map_terrain_add(grid_offset, TERRAIN_GARDEN);
+        if (type->tile().overgrown()) {
+            map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
+        } else {
+            map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
+        }
+        map_image_set(grid_offset, 0);
+        return;
+    }
+
+    if (tile_kind == building_type_registry_impl::TileKind::Plaza) {
+        map_terrain_remove(grid_offset, blocking_surface_bits | TERRAIN_HIGHWAY | TERRAIN_AQUEDUCT);
+        map_terrain_add(grid_offset, TERRAIN_ROAD);
+        map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
+        map_image_set(grid_offset, 0);
+        return;
+    }
+
+    if (type->tool().is_highway()) {
+        map_terrain_remove(grid_offset, blocking_surface_bits | TERRAIN_ROAD);
+        map_terrain_add(grid_offset, highway_terrain_for_surface_tile(dx, dy));
+        map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
+        map_image_set(grid_offset, 0);
+        return;
+    }
+
+    if (type->tool().is_road()) {
+        map_terrain_remove(grid_offset, blocking_surface_bits | TERRAIN_HIGHWAY);
+        map_terrain_add(grid_offset, TERRAIN_ROAD);
+        map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
+        map_image_set(grid_offset, 0);
+        return;
+    }
+
+    if (type->tool().is_aqueduct()) {
+        map_terrain_remove(grid_offset, blocking_surface_bits);
+        map_terrain_add(grid_offset, TERRAIN_AQUEDUCT);
+        map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
+        map_image_set(grid_offset, 0);
+    }
+}
+
+int Building::highway_terrain_for_surface_tile(int dx, int dy) const
+{
+    if (dx == 0 && dy == 0) {
+        return TERRAIN_HIGHWAY_TOP_LEFT;
+    }
+    if (dx == 0 && dy == 1) {
+        return TERRAIN_HIGHWAY_BOTTOM_LEFT;
+    }
+    if (dx == 1 && dy == 0) {
+        return TERRAIN_HIGHWAY_TOP_RIGHT;
+    }
+    if (dx == 1 && dy == 1) {
+        return TERRAIN_HIGHWAY_BOTTOM_RIGHT;
+    }
+    return TERRAIN_HIGHWAY_TOP_LEFT;
+}
+
+int Building::terrain_for_map_tiles() const
+{
+    int terrain = TERRAIN_BUILDING;
+    if (!type) {
+        return terrain;
+    }
+    if (matches("wall")) {
+        terrain |= TERRAIN_WALL;
+    }
+    if (type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+        type->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
+        terrain |= TERRAIN_ROAD;
+    }
+    return terrain;
+}
+
 void Building::add_map_tiles(int image_id)
 {
     if (record_) {
@@ -1367,16 +1482,11 @@ void Building::add_map_tiles(int image_id)
             map_water_add_building(*this, record_->x, record_->y, record_->size, image_id);
             return;
         }
-        int terrain = TERRAIN_BUILDING;
-        if (matches("wall")) {
-            terrain |= TERRAIN_WALL;
+        if (is_surface_terrain_tile()) {
+            bind_surface_map_tiles();
+            return;
         }
-        if (type &&
-            type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
-            type->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
-            terrain |= TERRAIN_ROAD;
-        }
-        map_building_tiles_add(*this, record_->x, record_->y, record_->size, image_id, terrain);
+        map_building_tiles_add(*this, record_->x, record_->y, record_->size, image_id, terrain_for_map_tiles());
     }
 }
 
@@ -3644,6 +3754,14 @@ static LegacyTilePromotionTypes legacy_tile_promotion_types()
     };
 }
 
+static int legacy_tile_has_loaded_record(int grid_offset)
+{
+    const unsigned int building_id = map_building_loaded_id_at(grid_offset);
+    return building_id > 0 &&
+        building_id < data.buildings.size() &&
+        data.buildings[building_id].state != BUILDING_STATE_UNUSED;
+}
+
 static int legacy_highway_tile_is_complete_top_left(int grid_offset)
 {
     if (map_grid_is_valid_offset(grid_offset) == 0) {
@@ -3662,16 +3780,16 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
     const int bottom_left = map_grid_offset(x, y + 1);
     const int top_right = map_grid_offset(x + 1, y);
     const int bottom_right = map_grid_offset(x + 1, y + 1);
-    if (map_building_loaded_id_at(grid_offset)) {
+    if (legacy_tile_has_loaded_record(grid_offset)) {
         return 0;
     }
-    if (map_building_loaded_id_at(bottom_left)) {
+    if (legacy_tile_has_loaded_record(bottom_left)) {
         return 0;
     }
-    if (map_building_loaded_id_at(top_right)) {
+    if (legacy_tile_has_loaded_record(top_right)) {
         return 0;
     }
-    if (map_building_loaded_id_at(bottom_right)) {
+    if (legacy_tile_has_loaded_record(bottom_right)) {
         return 0;
     }
     if (map_terrain_is(bottom_left, TERRAIN_HIGHWAY_BOTTOM_LEFT) == 0) {
@@ -3685,7 +3803,7 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
 
 static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTilePromotionTypes &types)
 {
-    if (map_building_loaded_id_at(grid_offset)) {
+    if (legacy_tile_has_loaded_record(grid_offset)) {
         return BUILDING_NONE;
     }
 
@@ -3847,6 +3965,13 @@ static int building_promote_legacy_tile_buildings_after_load()
 {
     const LegacyTilePromotionTypes types = legacy_tile_promotion_types();
     int promoted = 0;
+    bool promoted_garden_tiles = false;
+    bool promoted_road_tiles = false;
+    bool promoted_highway_tiles = false;
+    bool promoted_plaza_tiles = false;
+    bool promoted_aqueduct_tiles = false;
+    bool promoted_wall_tiles = false;
+    bool promoted_rubble_tiles = false;
 
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         const building_type type = legacy_tile_type_for_offset(grid_offset, types);
@@ -3861,10 +3986,38 @@ static int building_promote_legacy_tile_buildings_after_load()
         }
         bind_legacy_tile_building_record_to_map(record, types);
         promoted++;
+        promoted_garden_tiles = promoted_garden_tiles || type == types.gardens || type == types.overgrown_gardens;
+        promoted_road_tiles = promoted_road_tiles || type == types.road;
+        promoted_highway_tiles = promoted_highway_tiles || type == types.highway;
+        promoted_plaza_tiles = promoted_plaza_tiles || type == types.plaza;
+        promoted_aqueduct_tiles = promoted_aqueduct_tiles || type == types.aqueduct;
+        promoted_wall_tiles = promoted_wall_tiles || type == types.wall;
+        promoted_rubble_tiles = promoted_rubble_tiles || type == types.burning_ruin;
     }
 
     if (promoted) {
         rebuild_loaded_record_type_links();
+        if (promoted_garden_tiles) {
+            map_tiles_update_all_gardens();
+        }
+        if (promoted_road_tiles || promoted_plaza_tiles || promoted_aqueduct_tiles) {
+            map_tiles_update_all_roads();
+        }
+        if (promoted_highway_tiles) {
+            map_tiles_update_all_highways();
+        }
+        if (promoted_plaza_tiles) {
+            map_tiles_update_all_plazas();
+        }
+        if (promoted_aqueduct_tiles) {
+            map_tiles_update_all_aqueducts(0);
+        }
+        if (promoted_wall_tiles) {
+            map_tiles_update_all_walls();
+        }
+        if (promoted_rubble_tiles) {
+            map_tiles_update_all_rubble();
+        }
     }
     return promoted;
 }

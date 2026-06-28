@@ -171,7 +171,11 @@ void building_maintenance_update_burning_ruins(void)
             if (!map_building_exists_at(target_offset)) {
                 return 0;
             }
-            building *target = const_cast<::building *>(map_building_at(target_offset).record());
+            Building &target_building = map_building_at(target_offset);
+            if (target_building.is_surface_terrain_tile()) {
+                return 0;
+            }
+            building *target = const_cast<::building *>(target_building.record());
             if (!target || target->fire_proof) {
                 return 0;
             }
@@ -265,6 +269,11 @@ void building_maintenance_check_fire_collapse(void)
     }
     Building::for_each([&](Building *building_object) {
         building *b = const_cast<::building *>(building_object->record());
+        if (building_object->is_surface_terrain_tile()) {
+            b->fire_risk = 0;
+            b->damage_risk = 0;
+            return;
+        }
         if (b->state != BUILDING_STATE_IN_USE || b->fire_proof || b->state == BUILDING_STATE_RUBBLE) {
             return;
         }

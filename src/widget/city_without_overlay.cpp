@@ -250,6 +250,9 @@ static void draw_footprint(int x, int y, int grid_offset)
     }
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
+    } else if (building && building->is_surface_terrain_tile() && !use_custom_ghost_preview &&
+        city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
+        // Surface buildings keep runtime identity; merged garden/plaza visuals are tile-composed.
     } else if (building_id &&
         building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
         // Runtime-managed buildings draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
@@ -447,7 +450,8 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     color_t color_mask = building ? building_draw_color_mask(*building, grid_offset, false) :
         terrain_draw_color_mask(grid_offset, false);
 
-    if (!building && city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+    if ((!building || building->is_surface_terrain_tile()) &&
+        city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
         return;
     }
     if (!building || !building->draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
@@ -464,9 +468,7 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
 
 static void draw_top_render_tile(const CityViewRenderTile &tile)
 {
-    if (tile.building) {
-        draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
-    }
+    draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
 }
 
 static void draw_figures(int x, int y, int grid_offset)
@@ -790,17 +792,29 @@ static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
     if (!map_property_is_constructing(grid_offset)) {
         return;
     }
-    static building b;
-    b.type = static_cast<building_type>(building_construction_type());
-    if (building_connectable_gate_type(b.type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        b.type = static_cast<building_type>(building_connectable_gate_type(b.type));
+    building_type type = static_cast<building_type>(building_construction_type());
+    if (building_connectable_gate_type(type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        type = static_cast<building_type>(building_connectable_gate_type(type));
     }
-    b.grid_offset = static_cast<short>(grid_offset);
-    if (building_properties_for_type(b.type)->rotation_offset) {
-        b.subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
     }
+
+    building record = {};
+    record.type = type;
+    record.state = BUILDING_STATE_IN_USE;
+    record.grid_offset = static_cast<short>(grid_offset);
+    record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
+    record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
+    record.size = static_cast<unsigned char>(definition->declared_model_size() > 0 ? definition->declared_model_size() : 1);
+    if (building_rotation_type_has_rotations(type)) {
+        record.subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+    }
+
     BuildingGraphicsState graphics_state;
-    Building building(b, graphics_state);
+    Building building(record, definition, graphics_state);
     int image_id = building_image_get(&building);
     Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
     Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);

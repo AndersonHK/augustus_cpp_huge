@@ -6,6 +6,7 @@
 #include "building/building_runtime.h"
 #include "building/construction.h"
 #include "building/granary.h"
+#include "building/house_population.h"
 #include "building/maintenance.h"
 #include "building/menu.h"
 #include "building/monument.h"
@@ -28,6 +29,7 @@
 #include "empire/empire.h"
 #include "empire/trade_prices.h"
 #include "figure/enemy_army.h"
+#include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/formation.h"
 #include "figure/name.h"
@@ -161,6 +163,11 @@ static void clear_scenario_data(void)
     map_image_context_init();
     map_random_init();
     building_runtime_reset();
+}
+
+void game_file_clear_scenario_data_for_save_load(void)
+{
+    clear_scenario_data();
 }
 
 static void initialize_scenario_data(const uint8_t *scenario_name)
@@ -325,7 +332,6 @@ static void initialize_saved_game(void)
     Route::clean();
     map_road_network_update();
     Route::updateLandTerrain();
-    building_maintenance_check_rome_access();
     building_granaries_calculate_stocks();
     building_menu_update();
     city_message_init_problem_areas();
@@ -354,6 +360,17 @@ static void initialize_saved_game(void)
     weather_reset();
     // This is where restored saved buildings rebuild renderer/runtime state again after the world has finished loading.
     building_runtime_initialize_city_graphics_cache();
+    map_tiles_update_all_gardens();
+    map_tiles_update_all_roads();
+    map_tiles_update_all_highways();
+    map_tiles_update_all_plazas();
+    map_tiles_update_all_aqueducts(0);
+    Route::updateAllTerrain();
+    map_road_network_update();
+    Route::updateLandTerrain();
+    building_maintenance_check_rome_access();
+    house_population_update_room();
+    Figure::resolve_loaded_building_references();
     figure_runtime_initialize_city();
 }
 

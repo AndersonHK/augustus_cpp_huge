@@ -456,6 +456,11 @@ static int callback_calc_distance_build_aqueduct(int next_offset, int dist, int 
     int blocked = 0;
     switch (terrain_land_citizen.items[next_offset]) {
         case CITIZEN_N3_AQUEDUCT:
+            if (!map_can_place_aqueduct_on_aqueduct(next_offset)) {
+                distance.determined.items[next_offset] = -1;
+                blocked = 1;
+            }
+            break;
         case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden
         case CITIZEN_N1_BLOCKED: // non-empty land
             blocked = 1;
