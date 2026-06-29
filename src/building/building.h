@@ -267,6 +267,7 @@ public:
     int configure_house_replacement(building_type type, int x, int y, int size, int merged);
     void copy_house_data_from(const Building &source);
     void retire_replaced_house();
+    void cleanup_figure_references_for_removal();
     int is_being_fumigated() const;
     int fumigation_frame() const;
     void set_fumigation_direction(int direction);

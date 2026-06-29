@@ -157,6 +157,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     game_undo_add_building(b);
                 }
                 building_local_workforce::remove_building(*building_obj);
+                if (!b->house_size) {
+                    building_obj->cleanup_figure_references_for_removal();
+                }
                 city_culture_remove_building_module_capacity(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
@@ -169,6 +172,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     building *space = const_cast<::building *>(space_obj->record());
                     game_undo_add_building(space);
                     building_local_workforce::remove_building(*space_obj);
+                    if (!space->house_size) {
+                        space_obj->cleanup_figure_references_for_removal();
+                    }
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }

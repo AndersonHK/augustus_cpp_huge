@@ -324,28 +324,13 @@ static int fishing_boat_capacity(Building wharf, building_type_registry_impl::Sp
     return capacity;
 }
 
-static int wharf_total_fishing_boat_capacity(Building wharf)
-{
-    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::None);
-}
-
-static int wharf_self_fishing_boat_capacity(Building wharf)
-{
-    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Self);
-}
-
-static int wharf_shipyard_fishing_boat_capacity(Building wharf)
-{
-    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Shipyard);
-}
-
 static int wharf_has_shipyard_fishing_boat_room(Building wharf, int live_boats)
 {
-    const int shipyard_capacity = wharf_shipyard_fishing_boat_capacity(wharf);
+    const int shipyard_capacity = fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Shipyard);
     if (shipyard_capacity <= 0) {
         return 0;
     }
-    if (wharf_self_fishing_boat_capacity(wharf) > 0) {
+    if (fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Self) > 0) {
         const building *record = wharf.record();
         return record && !live_fishing_boat_id(record->data.industry.second_fishing_boat_id);
     }
@@ -394,7 +379,7 @@ Figure *map_water_wharf_live_fishing_boat(Building wharf)
 int map_water_wharf_has_self_fishing_boat_room(Building wharf)
 {
     building *record = const_cast<building *>(wharf.record());
-    return record && wharf_self_fishing_boat_capacity(wharf) > 0 &&
+    return record && fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Self) > 0 &&
         !live_fishing_boat_id(record->data.industry.fishing_boat_id);
 }
 
@@ -406,14 +391,17 @@ int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_poi
     }
     clear_stale_fishing_boat_slots(record);
     if (!wharf_has_boat_id(record, boat->id())) {
-        const int self_capacity = wharf_self_fishing_boat_capacity(wharf);
+        const int self_capacity = fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Self);
         const int self_boat = boat->building && boat->building->id == wharf.id;
         if (self_capacity > 0 && self_boat && !record->data.industry.fishing_boat_id) {
             record->data.industry.fishing_boat_id = boat->id();
         } else if (self_capacity > 0 && !self_boat &&
-            wharf_shipyard_fishing_boat_capacity(wharf) > 0 && !record->data.industry.second_fishing_boat_id) {
+            fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Shipyard) > 0 &&
+            !record->data.industry.second_fishing_boat_id) {
             record->data.industry.second_fishing_boat_id = boat->id();
-        } else if (self_capacity <= 0 && wharf_live_fishing_boat_count(record) < wharf_total_fishing_boat_capacity(wharf)) {
+        } else if (self_capacity <= 0 &&
+            wharf_live_fishing_boat_count(record) <
+                fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::None)) {
             if (!record->data.industry.fishing_boat_id) {
                 record->data.industry.fishing_boat_id = boat->id();
             } else if (!record->data.industry.second_fishing_boat_id) {
@@ -506,8 +494,8 @@ int map_water_spawn_fishing_boat_from_shipyard(Building shipyard)
         !map_water_can_spawn_fishing_boat(shipyard.x(), shipyard.y(), shipyard.size(), &boat_tile)) {
         return 0;
     }
-    Building source = shipyard;
-    Figure *boat = figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, source, "fish_fetch");
+    Figure *boat =
+        figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, shipyard, "fish_fetch");
     if (!boat) {
         return 0;
     }
@@ -525,8 +513,8 @@ int map_water_spawn_fishing_boat_from_wharf(Building wharf)
         return 0;
     }
 
-    Building source = wharf;
-    Figure *boat = figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, source, "fish_fetch");
+    Figure *boat =
+        figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, wharf, "fish_fetch");
     if (!boat || !map_water_assign_fishing_boat_to_wharf(boat, wharf, &wharf_point)) {
         if (boat) {
             boat->state = FIGURE_STATE_DEAD;

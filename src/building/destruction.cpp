@@ -53,6 +53,7 @@ static void destroy_without_rubble(building *b)
     city_culture_remove_building_module_capacity(b);
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     Building &building_object = runtime->building;
+    building_object.cleanup_figure_references_for_removal();
     building_local_workforce::remove_building(building_object);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
@@ -72,6 +73,7 @@ static void destroy_on_fire(building *b, int plagued)
     city_culture_remove_building_module_capacity(b);
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     Building &building_object = runtime->building;
+    building_object.cleanup_figure_references_for_removal();
     building_local_workforce::remove_building(building_object);
     b->fire_risk = 0;
     b->damage_risk = 0;
@@ -215,9 +217,11 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
                 destroy_on_fire(part, plagued);
                 break;
             case DESTROY_EARTHQUAKE:
+                part_building->cleanup_figure_references_for_removal();
                 part->state = BUILDING_STATE_DELETED_BY_GAME;
                 break;
             default:
+                part_building->cleanup_figure_references_for_removal();
                 map_building_tiles_set_rubble(part_building, part->x, part->y, part->size);
                 part->state = BUILDING_STATE_RUBBLE;
                 break;
@@ -242,6 +246,7 @@ void building_destroy_by_collapse(building *b)
     city_culture_remove_building_module_capacity(b);
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     Building &building_object = runtime->building;
+    building_object.cleanup_figure_references_for_removal();
     building_local_workforce::remove_building(building_object);
     b->state = BUILDING_STATE_RUBBLE;
     if (building_type_registry_impl::type_attr_is(b->type, "tower")) {
@@ -265,6 +270,7 @@ void building_destroy_by_earthquake(building *b)
     city_culture_remove_building_module_capacity(b);
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     Building &building_object = runtime->building;
+    building_object.cleanup_figure_references_for_removal();
     building_local_workforce::remove_building(building_object);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;

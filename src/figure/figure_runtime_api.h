@@ -14,7 +14,7 @@ Figure *figure_runtime_create_profiled(
     int x,
     int y,
     direction_type dir,
-    Building &building,
+    const Building &building,
     const char *profile_id);
 
 // Applies the bound/default XML movement profile to legacy action walkers.

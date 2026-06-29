@@ -36,6 +36,7 @@
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
 #include "figure/PathingMode.h"
+#include "figuretype/fishing_boat.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -1918,6 +1919,76 @@ void Building::retire_replaced_house()
     record_->state = BUILDING_STATE_DELETED_BY_GAME;
 }
 
+void Building::cleanup_figure_references_for_removal()
+{
+    if (!record_ || !record_->id) {
+        return;
+    }
+
+    const unsigned int building_id = record_->id;
+    std::vector<unsigned int> figure_ids;
+    const auto figure_references_building = [building_id](const Figure *figure) {
+        return figure &&
+            ((figure->building && figure->building->id == building_id) ||
+                (figure->destination_building && figure->destination_building->id == building_id) ||
+                (figure->immigrant_building && figure->immigrant_building->id == building_id));
+    };
+    const auto add_figure_id = [&figure_ids](unsigned int figure_id) {
+        if (!figure_id || std::find(figure_ids.begin(), figure_ids.end(), figure_id) != figure_ids.end()) {
+            return;
+        }
+        figure_ids.push_back(figure_id);
+    };
+    const auto add_slot_figure_id = [&add_figure_id, &figure_references_building](unsigned int figure_id) {
+        Figure *figure = Figure::get(figure_id);
+        if (figure && figure->id() == figure_id && figure->state && figure_references_building(figure)) {
+            add_figure_id(figure_id);
+        }
+    };
+
+    add_slot_figure_id(record_->figure_id);
+    add_slot_figure_id(record_->figure_id2);
+    add_slot_figure_id(record_->immigrant_figure_id);
+    add_slot_figure_id(record_->figure_id4);
+    for (unsigned int cartpusher_id : record_->data.distribution.cartpusher_ids) {
+        add_slot_figure_id(cartpusher_id);
+    }
+    add_slot_figure_id(record_->data.industry.fishing_boat_id);
+    add_slot_figure_id(record_->data.industry.second_fishing_boat_id);
+
+    for (unsigned int figure_id = 1; figure_id < Figure::count(); figure_id++) {
+        Figure *figure = Figure::get(figure_id);
+        if (!figure || figure->id() != figure_id || !figure->state) {
+            continue;
+        }
+        if (figure_references_building(figure)) {
+            add_figure_id(figure_id);
+        }
+    }
+
+    record_->figure_id = 0;
+    record_->figure_id2 = 0;
+    record_->immigrant_figure_id = 0;
+    record_->figure_id4 = 0;
+    for (unsigned int &cartpusher_id : record_->data.distribution.cartpusher_ids) {
+        cartpusher_id = 0;
+    }
+    record_->data.industry.fishing_boat_id = 0;
+    record_->data.industry.second_fishing_boat_id = 0;
+
+    for (unsigned int figure_id : figure_ids) {
+        Figure *figure = Figure::get(figure_id);
+        if (!figure || figure->id() != figure_id || !figure->state) {
+            continue;
+        }
+        if (figure->type == FIGURE_FISHING_BOAT) {
+            FishingBoat::from(*figure).sink();
+        } else {
+            figure->remove();
+        }
+    }
+}
+
 int Building::is_being_fumigated() const
 {
     return record_ && record_->sickness_doctor_cure == 99;
@@ -2613,6 +2684,11 @@ static void building_delete(building *b)
 
 void building_clear_related_data(building *b)
 {
+    if (b && !b->house_size) {
+        if (Building *building_object = runtime_building_for_record(b)) {
+            building_object->cleanup_figure_references_for_removal();
+        }
+    }
     if (b->storage_id) {
         building_storage_delete(b->storage_id);
         b->storage_id = 0;

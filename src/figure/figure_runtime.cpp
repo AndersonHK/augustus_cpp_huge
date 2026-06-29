@@ -1,5 +1,6 @@
 #include "building/building.h"
 #include "building/list.h"
+#include "building/building_runtime.h"
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "city/festival.h"
@@ -325,7 +326,7 @@ Figure *figure_runtime_create_profiled(
     int x,
     int y,
     direction_type dir,
-    Building &building,
+    const Building &building,
     const char *profile_id)
 {
     const figure_type_registry_impl::FigureTypeProfile *profile =
@@ -336,12 +337,11 @@ Figure *figure_runtime_create_profiled(
         return nullptr;
     }
 
-    Figure *f = Figure::create(type, x, y, dir);
-    if (!f) {
-        return nullptr;
-    }
+    Building &owner = building.runtime_instance()->building;
 
-    f->building = &building;
+    Figure *f = Figure::create(type, x, y, dir);
+
+    f->building = &owner;
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);

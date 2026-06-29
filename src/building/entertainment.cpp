@@ -133,13 +133,12 @@ Figure *BuildingEntertainment::create_charioteer(
     const char *profile_id,
     int fallback_action) const
 {
-    Building owner = venue_;
     Figure *figure = figure_runtime_create_profiled(
         FIGURE_CHARIOTEER,
         road.x,
         road.y,
         DIR_0_TOP,
-        owner,
+        venue_,
         profile_id);
     if (figure) {
         return figure;
