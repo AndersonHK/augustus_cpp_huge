@@ -7,6 +7,7 @@
 #include "building/construction.h"
 #include "building/image.h"
 #include "building/rotation.h"
+#include "building/water_access_type.h"
 #include "city/view.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -54,6 +55,7 @@ static constexpr std::string_view connectable_buildings[] = {
     "hedge_gate_dark",
     "hedge_gate_light",
     "palisade_gate",
+    "aqueduct",
 };
 
 // 0 = no match
@@ -156,6 +158,25 @@ static const  building_image_context building_images_palisades[18] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 20, 20, 20, 20 }, -1, { 0 }, 0, 0 },
 };
 
+static const building_image_context building_images_aqueduct[16] = {
+    { { 1, 2, 1, 2, 0, 2, 0, 2 }, {  4,  7,  6,  5 }, -1 },
+    { { 0, 2, 1, 2, 1, 2, 0, 2 }, {  5,  4,  7,  6 }, -1 },
+    { { 0, 2, 0, 2, 1, 2, 1, 2 }, {  6,  5,  4,  7 }, -1 },
+    { { 1, 2, 0, 2, 0, 2, 1, 2 }, {  7,  6,  5,  4 }, -1 },
+    { { 1, 2, 0, 2, 1, 2, 0, 2 }, {  2,  3,  2,  3 }, -1 },
+    { { 0, 2, 1, 2, 0, 2, 1, 2 }, {  3,  2,  3,  2 }, -1 },
+    { { 1, 2, 0, 2, 0, 2, 0, 2 }, {  2,  3,  2,  3 }, -1 },
+    { { 0, 2, 1, 2, 0, 2, 0, 2 }, {  3,  2,  3,  2 }, -1 },
+    { { 0, 2, 0, 2, 1, 2, 0, 2 }, {  2,  3,  2,  3 }, -1 },
+    { { 0, 2, 0, 2, 0, 2, 1, 2 }, {  3,  2,  3,  2 }, -1 },
+    { { 1, 2, 1, 2, 1, 2, 0, 2 }, { 10, 13, 12, 11 }, -1 },
+    { { 0, 2, 1, 2, 1, 2, 1, 2 }, { 11, 10, 13, 12 }, -1 },
+    { { 1, 2, 0, 2, 1, 2, 1, 2 }, { 12, 11, 10, 13 }, -1 },
+    { { 1, 2, 1, 2, 0, 2, 1, 2 }, { 13, 12, 11, 10 }, -1 },
+    { { 1, 2, 1, 2, 1, 2, 1, 2 }, { 14, 14, 14, 14 }, -1 },
+    { { 2, 2, 2, 2, 2, 2, 2, 2 }, {  2,  2,  2,  2 }, -1 },
+};
+
 static struct {
     const building_image_context *context;
     int size;
@@ -168,7 +189,27 @@ static struct {
     { building_images_hedges, 18 },
     { building_images_garden_gate, 14},
     { building_images_palisades, 18 },
+    { building_images_aqueduct, 16 },
 };
+
+static const int *aqueduct_preview_grid_offsets = nullptr;
+static int aqueduct_preview_grid_offset_count = 0;
+
+void building_connectable_set_aqueduct_preview(const int *grid_offsets, int count)
+{
+    aqueduct_preview_grid_offsets = grid_offsets;
+    aqueduct_preview_grid_offset_count = grid_offsets && count > 0 ? count : 0;
+}
+
+static int aqueduct_preview_contains(int grid_offset)
+{
+    for (int i = 0; i < aqueduct_preview_grid_offset_count; i++) {
+        if (aqueduct_preview_grid_offsets[i] == grid_offset) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int building_connectable_gate_type(building_type type)
 {
@@ -464,6 +505,60 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
     return get_image_offset(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
 }
 
+static int building_has_aqueduct_connection_node_at(const Building &building, int aqueduct_grid_offset)
+{
+    Building owner = building.main();
+    const ::building *record = owner.record();
+    if (!record || !owner.type) {
+        return 0;
+    }
+
+    const uint8_t aqueduct_mask = building_type_registry_impl::water_access_mask_from_text("aqueduct");
+    const int aqueduct_x = map_grid_offset_to_x(aqueduct_grid_offset);
+    const int aqueduct_y = map_grid_offset_to_y(aqueduct_grid_offset);
+    const auto &water = owner.type->water_access();
+    for (const building_type_registry_impl::WaterAccessProvideRule &rule : water.provide_rules()) {
+        if (rule.origin != building_type_registry_impl::WaterAccessOrigin::Nodes ||
+            !(rule.mask & aqueduct_mask)) {
+            continue;
+        }
+        for (const building_type_registry_impl::WaterAccessNode &node : water.provider_nodes()) {
+            if (record->x + node.x == aqueduct_x && record->y + node.y == aqueduct_y) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int aqueduct_connects_to_tile(int grid_offset, int offset)
+{
+    if (aqueduct_preview_contains(offset)) {
+        return 1;
+    }
+    if (map_terrain_is(offset, TERRAIN_AQUEDUCT)) {
+        return 1;
+    }
+    if (map_property_is_constructing(offset) &&
+        building_type_registry_impl::type_attr_is(building_construction_type(), "aqueduct")) {
+        return 1;
+    }
+    return map_building_exists_at(offset) &&
+        building_has_aqueduct_connection_node_at(map_building_at(offset), grid_offset);
+}
+
+int building_connectable_get_aqueduct_offset(int grid_offset)
+{
+    int tiles[MAX_TILES] = { 0 };
+    for (int i = 0; i < MAX_TILES; i += 2) {
+        const int offset = grid_offset + map_grid_direction_delta(i);
+        if (aqueduct_connects_to_tile(grid_offset, offset)) {
+            tiles[i] = 1;
+        }
+    }
+    return get_image_offset(CONTEXT_AQUEDUCT, tiles, 0, 0, grid_offset);
+}
+
 static int dense_gate_graphics_option(int legacy_offset)
 {
     return legacy_offset <= 0 ? 0 : 1;
@@ -517,6 +612,9 @@ int building_connectable_graphics_option(const Building &building_obj)
     if (building_type_registry_impl::type_attr_is(type, "palisade_gate")) {
         return dense_gate_graphics_option(building_connectable_get_palisade_gate_offset(grid_offset));
     }
+    if (building_type_registry_impl::type_attr_is(type, "aqueduct")) {
+        return building_connectable_get_aqueduct_offset(grid_offset);
+    }
     return 0;
 }
 
@@ -533,6 +631,9 @@ int building_is_connectable(building_type type)
 int building_connectable_num_variants(building_type type)
 {
     if (!building_is_connectable(type)) {
+        return 0;
+    }
+    if (building_type_registry_impl::type_attr_is(type, "aqueduct")) {
         return 0;
     }
     if (building_type_registry_impl::type_attr_is_any(type, {

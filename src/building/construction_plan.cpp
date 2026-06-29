@@ -320,6 +320,20 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
     switch (tile.requirement) {
         case FoundationCellRequirement::Any:
             return PlacementTileState::Allowed;
+        case FoundationCellRequirement::LandOrAqueduct:
+            if (terrain & TERRAIN_AQUEDUCT) {
+                return PlacementTileState::Allowed;
+            }
+            blocked_terrain = terrain & TERRAIN_NOT_CLEAR;
+            if (!blocked_terrain) {
+                return PlacementTileState::Allowed;
+            }
+            if (force_place_ && force_place_can_clear_terrain(blocked_terrain)) {
+                tile.force_cleared = 1;
+                add_force_clear_offset(tile.grid_offset);
+                return PlacementTileState::Allowed;
+            }
+            return PlacementTileState::Forbidden;
         case FoundationCellRequirement::Water:
             if (!(terrain & TERRAIN_WATER) || terrain_has_blocking_bits_for_water(terrain)) {
                 return PlacementTileState::Forbidden;

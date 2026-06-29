@@ -848,6 +848,9 @@ static FoundationCellRequirement parse_foundation_cell_requirement(const char *v
     if (compare_text(value, "land") == 0 || compare_text(value, "clear") == 0) {
         return FoundationCellRequirement::Land;
     }
+    if (compare_text(value, "land_or_aqueduct") == 0) {
+        return FoundationCellRequirement::LandOrAqueduct;
+    }
     if (compare_text(value, "water") == 0) {
         return FoundationCellRequirement::Water;
     }

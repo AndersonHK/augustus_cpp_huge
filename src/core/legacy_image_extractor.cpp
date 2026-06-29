@@ -155,7 +155,10 @@ static bool is_house_or_house_variant_group(int group_id)
 
 static bool is_climate_sensitive_group(int group_id)
 {
-    return group_id == GROUP_BUILDING_RESERVOIR || is_house_or_house_variant_group(group_id);
+    return group_id == GROUP_BUILDING_RESERVOIR ||
+        group_id == GROUP_BUILDING_AQUEDUCT ||
+        group_id == GROUP_BUILDING_AQUEDUCT_NO_WATER ||
+        is_house_or_house_variant_group(group_id);
 }
 
 static bool should_export_group_for_climate(int group_id, LegacyClimateFlavor flavor)

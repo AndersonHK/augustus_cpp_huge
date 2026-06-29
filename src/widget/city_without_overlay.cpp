@@ -231,12 +231,7 @@ static void draw_footprint(int x, int y, int grid_offset)
     }
 
     int image_id = map_image_at(grid_offset);
-    const int use_custom_ghost_preview =
-        map_property_is_constructing(grid_offset) &&
-        building_construction_uses_custom_ghost_preview() &&
-        !building_construction_draw_as_constructing();
-    if (map_property_is_constructing(grid_offset) && !use_custom_ghost_preview) { //&&
-        //  !building_is_connectable(building_construction_type())) {
+    if (map_property_is_constructing(grid_offset)) {
         image_id = Image::group(GROUP_TERRAIN_OVERLAY);
     }
     if (draw_context.advance_water_animation &&
@@ -248,8 +243,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         }
         map_image_set(grid_offset, image_id);
     }
-    const int tile_visual_first =
-        building && !use_custom_ghost_preview && building->is_surface_terrain_tile();
+    const int tile_visual_first = building && building->is_surface_terrain_tile();
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
     } else if (tile_visual_first &&
@@ -258,8 +252,7 @@ static void draw_footprint(int x, int y, int grid_offset)
     } else if (building_id &&
         building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
         // Runtime-managed buildings draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
-    } else if (!use_custom_ghost_preview &&
-        city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
+    } else if (city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
         // Runtime-managed terrain tiles draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
     } else {
         Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);

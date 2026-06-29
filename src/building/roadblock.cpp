@@ -21,9 +21,6 @@ void Roadblock::toggle_permission(roadblock_permission permission)
 
 int Roadblock::has_permission(roadblock_permission permission) const
 {
-    if (kind() == ROADBLOCK_STORAGE) {
-        return permission == PERMISSION_NONE || permission == PERMISSION_LABOR_SEEKER;
-    }
     if (!permission_is_roadblock_managed(permission)) {
         return 1;
     }

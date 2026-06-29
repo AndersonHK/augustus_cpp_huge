@@ -501,7 +501,7 @@ Building *Building::get(unsigned int id)
     return runtime && runtime->building.id ? &runtime->building : nullptr;
 }
 
-Building Building::create(building_type type, int x, int y)
+Building &Building::create(building_type type, int x, int y)
 {
     return building_runtime_impl::get_or_create_instance(building_create(type, x, y))->building;
 }
@@ -2626,11 +2626,10 @@ building *building_create(building_type type, int x, int y)
         // Bridges should allow all walkers by default.
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
-    if (building_obj->type && building_obj->type->is_granary() &&
-        !config_get(CONFIG_GP_CH_GRANARY_DEFAULT_TO_PASS_ALL_WALKERS)) {
-        b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
+    if (definition && definition->is_granary()) {
+        b->data.roadblock.exceptions = 1 << PERMISSION_LABOR_SEEKER;
     }
-    if (building_obj->type && building_obj->type->is_warehouse() &&
+    if (definition && definition->is_warehouse() &&
         !config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
@@ -2652,7 +2651,8 @@ building *building_create(building_type type, int x, int y)
     b->grid_offset = static_cast<short>(map_grid_offset(x, y));
     b->house_figure_generation_delay = map_random_get(b->grid_offset) & 0x7f;
     b->figure_roam_direction = b->house_figure_generation_delay & 6;
-    b->fire_proof = static_cast<unsigned char>(props->fire_proof);
+    b->fire_proof = static_cast<unsigned char>(
+        definition && definition->flags().has_fire_proof() ? definition->flags().fire_proof() : props->fire_proof);
     b->is_close_to_water = static_cast<unsigned char>(building_is_close_to_water(b));
 
     return b;
@@ -4007,7 +4007,8 @@ static building *append_legacy_tile_building_record(building_type type, int grid
     record->grid_offset = static_cast<short>(grid_offset);
     record->created_sequence = static_cast<unsigned short>(extra.created_sequence++);
     record->sentiment.house_happiness = static_cast<signed char>(100);
-    record->fire_proof = static_cast<unsigned char>(props ? props->fire_proof : 0);
+    record->fire_proof = static_cast<unsigned char>(
+        definition->flags().has_fire_proof() ? definition->flags().fire_proof() : (props ? props->fire_proof : 0));
     record->output_resource_id = static_cast<unsigned char>(building_output_resource(definition));
 
     if (type_attr_is(type, "burning_ruin")) {

@@ -460,7 +460,7 @@ static void place_building(const map_tile *tile)
     }
 
     if (editor_tool_can_place_building(tile, size * size, 0)) {
-        Building building = Building::create(type, tile->x, tile->y);
+        Building &building = Building::create(type, tile->x, tile->y);
         map_building_tiles_add(building, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {

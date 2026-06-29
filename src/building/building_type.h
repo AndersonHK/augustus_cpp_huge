@@ -308,6 +308,7 @@ enum class FoundationPolicy {
 
 enum class FoundationCellRequirement {
     Land,
+    LandOrAqueduct,
     Water,
     Road,
     RoadOrLand,

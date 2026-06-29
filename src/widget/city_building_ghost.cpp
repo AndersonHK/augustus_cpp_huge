@@ -18,7 +18,6 @@
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
-#include "map/image_context.h"
 #include "map/orientation.h"
 #include "map/road_aqueduct.h"
 #include "map/tiles.h"
@@ -79,10 +78,6 @@ enum {
     TILE_DISCOURAGED = -1
 };
 
-static const int RESERVOIR_GRID_OFFSETS[4] = {
-    GRID_OFFSET(-1, -1), GRID_OFFSET(1, -1), GRID_OFFSET(1, 1), GRID_OFFSET(-1, 1)
-};
-
 static struct {
     struct {
         int blocked;
@@ -112,31 +107,6 @@ static inline int view_offset_y(int index)
 static inline int tile_grid_offset(int orientation, int index)
 {
     return GRID_OFFSET(data.offsets[orientation][index].x, data.offsets[orientation][index].y);
-}
-
-static int is_reservoir_side_connection_tile(int tile_no)
-{
-    // The 3x3 ghost uses a diagonal/isometric index order, so these five
-    // indices correspond to the center row/column where aqueducts may pass.
-    return tile_no == 1 ||
-        tile_no == 2 ||
-        tile_no == 3 ||
-        tile_no == 6 ||
-        tile_no == 7;
-}
-
-static void draw_building_tiles(int x, int y, int num_tiles, int *blocked_tiles)
-{
-    for (int i = 0; i < num_tiles; i++) {
-        int x_offset = x + view_offset_x(i);
-        int y_offset = y + view_offset_y(i);
-        if (blocked_tiles[i] == TILE_FORBIDDEN || blocked_tiles[i] == TILE_DISCOURAGED) {
-            //FORBIDDEN means real problem, DISCOURAGED means suggested problem, like a road that will disappear.
-            Image::blend_footprint_color(x_offset, y_offset, COLOR_MASK_RED, data.scale);
-        } else {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(x_offset, y_offset, COLOR_MASK_FOOTPRINT_GHOST, data.scale);
-        }
-    }
 }
 
 static void draw_building(int image_id, int x, int y, color_t color)
@@ -576,7 +546,11 @@ static void draw_default(
     const map_tile *tile,
     int x_view,
     int y_view,
-    const building_type_registry_impl::BuildingType &root_definition)
+    const building_type_registry_impl::BuildingType &root_definition,
+    int exact_coordinates = 0,
+    int update_can_place = 1,
+    int force_blocked = 0,
+    int show_plan_blocked_tiles = 1)
 {
     const building_type_registry_impl::BuildingType &definition =
         effective_ghost_definition(root_definition, tile->grid_offset);
@@ -584,16 +558,18 @@ static void draw_default(
 
     const int force_place_active = building_construction_force_place_active();
     building_construction_assessment assessment =
-        building_construction_assess_placement(definition, tile->x, tile->y, 0, force_place_active);
+        building_construction_assess_placement(definition, tile->x, tile->y, exact_coordinates, force_place_active);
     const building_construction::ConstructionPlacementPlan &plan = assessment.placement;
     if (force_place_active && assessment.can_place) {
         building_construction_set_force_place_clear_cost(assessment.clear_cost);
     }
     const int plan_blocked = !plan.can_place();
     const int construction_blocked = !assessment.can_place;
-    const int blocked = city_finance_out_of_money() || construction_blocked || plan_blocked;
-    const int global_blocked = city_finance_out_of_money() || assessment.global_blocked;
-    building_construction_set_can_place(!blocked);
+    const int blocked = city_finance_out_of_money() || construction_blocked || plan_blocked || force_blocked;
+    const int global_blocked = city_finance_out_of_money() || assessment.global_blocked || force_blocked;
+    if (update_can_place) {
+        building_construction_set_can_place(!blocked);
+    }
 
     const color_t color = global_blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
     draw_water_access_context_overlays(tile, definition);
@@ -609,227 +585,225 @@ static void draw_default(
         if (!runtime) {
             continue;
         }
-        draw_plan_part(plan, parts[i], runtime->building, x_view, y_view, color, !global_blocked);
+        draw_plan_part(plan, parts[i], runtime->building, x_view, y_view, color,
+            !global_blocked && show_plan_blocked_tiles);
     }
 
     set_roamer_path(type, plan.placement_size(), tile, blocked);
 }
 
-static void draw_single_reservoir(int grid_offset, int x, int y, color_t color, int has_water, int draw_blocked)
+static building make_aqueduct_ghost_record(
+    const building_type_registry_impl::BuildingType &definition,
+    int grid_offset,
+    unsigned int id)
+{
+    building record = {};
+    record.id = id;
+    record.type = definition.type();
+    record.grid_offset = static_cast<short>(grid_offset);
+    record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
+    record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
+    record.state = BUILDING_STATE_IN_USE;
+    record.size = 1;
+    record.num_workers = static_cast<short>(definition.required_workers());
+    prepare_ghost_water_access_state(definition, record);
+    return record;
+}
+
+static void draw_aqueduct_preview_route(
+    const map_tile *cursor_tile,
+    int cursor_x_view,
+    int cursor_y_view,
+    const building_type_registry_impl::BuildingType &definition,
+    const grid_slice &route,
+    color_t color)
+{
+    if (route.size <= 0) {
+        return;
+    }
+
+    std::vector<building> records;
+    std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> bindings;
+    records.reserve(route.size);
+    bindings.reserve(route.size);
+
+    for (int i = 0; i < route.size; i++) {
+        records.push_back(make_aqueduct_ghost_record(
+            definition,
+            route.grid_offsets[i],
+            static_cast<unsigned int>(i + 1)));
+    }
+    for (size_t i = 0; i < records.size(); i++) {
+        building_runtime_impl::EphemeralBuildingRuntimeBinding binding;
+        binding.runtime_id = records[i].id;
+        binding.main_runtime_id = records[i].id;
+        binding.record = &records[i];
+        binding.definition = &definition;
+        bindings.push_back(binding);
+    }
+
+    building_connectable_set_aqueduct_preview(route.grid_offsets, route.size);
+    {
+        building_runtime_impl::ScopedEphemeralBuildingRuntime aqueduct_runtime(bindings);
+        for (building &record : records) {
+            building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&record);
+            if (!runtime) {
+                continue;
+            }
+            const int draw_x = cursor_x_view + X_VIEW_OFFSET(record.x - cursor_tile->x, record.y - cursor_tile->y);
+            const int draw_y = cursor_y_view + Y_VIEW_OFFSET(record.x - cursor_tile->x, record.y - cursor_tile->y);
+            runtime->building.draw_footprint({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
+            runtime->building.draw_top({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
+        }
+    }
+    building_connectable_set_aqueduct_preview(nullptr, 0);
+}
+
+static const building_type_registry_impl::BuildingType *reservoir_ghost_definition()
 {
     const building_type reservoir_type = building_type_registry_impl::type_from_attr("reservoir");
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(reservoir_type);
-    if (!definition) {
-        return;
-    }
+    return building_type_registry_impl::definition_for_type(reservoir_type);
+}
 
-    building record = {};
-    record.type = reservoir_type;
-    record.grid_offset = static_cast<short>(grid_offset);
-    record.state = BUILDING_STATE_IN_USE;
-    record.size = static_cast<unsigned char>(definition->declared_model_size());
-    record.num_workers = static_cast<short>(definition->required_workers());
-    record.has_water_access = static_cast<unsigned char>(has_water ? 1 : 0);
-    if (grid_offset) {
-        record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
-        record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
-    }
+static map_tile reservoir_origin_tile_from_center(const map_tile *center_tile)
+{
+    map_tile origin_tile = *center_tile;
+    origin_tile.x -= 1;
+    origin_tile.y -= 1;
+    origin_tile.grid_offset = map_grid_offset(origin_tile.x, origin_tile.y);
+    return origin_tile;
+}
 
-    BuildingGraphicsState graphics_state;
-    building_runtime_impl::EphemeralBuildingRuntimeBinding binding;
-    binding.runtime_id = 1;
-    binding.main_runtime_id = 1;
-    binding.record = &record;
-    binding.definition = definition;
-    binding.graphics_state = graphics_state;
-    std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> bindings;
-    bindings.push_back(binding);
-    building_runtime_impl::ScopedEphemeralBuildingRuntime reservoir_runtime(bindings);
-    building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&record);
-    if (!runtime) {
-        return;
-    }
-    Building &reservoir = runtime->building;
-    reservoir.draw_footprint({ x, y, grid_offset, color, data.scale, 1 });
-    reservoir.draw_top({ x, y, grid_offset, color, data.scale, 1 });
-    if (has_water) {
-        draw_runtime_ghost_animation(reservoir, grid_offset, x, y, color);
-    }
-    if (data.reservoir_range.blocked && draw_blocked) {
-        for (int i = 0; i < 9; i++) {
-            Image::blend_footprint_color(x + view_offset_x(i), y + view_offset_y(i), COLOR_MASK_RED, data.scale);
-        }
-    }
-    if (grid_offset) {
-        int num_tiles = 9;
-        int orientation_index = city_view_orientation() / 2;
+static void reservoir_origin_view_from_center(int center_x, int center_y, int *origin_x, int *origin_y)
+{
+    *origin_x = center_x + X_VIEW_OFFSET(-1, -1);
+    *origin_y = center_y + Y_VIEW_OFFSET(-1, -1);
+}
 
-        grid_offset += GRID_OFFSET(-1, -1);
-
-        for (int i = 0; i < num_tiles; i++) {
-            int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
-
-            if (map_has_figure_at(tile_offset)) {
-                figure_animal_try_nudge_at(grid_offset, tile_offset, 3);
-            }
-        }
+static int draggable_reservoir_ghost_blocked()
+{
+    if (city_finance_out_of_money()) {
+        return 1;
     }
+    return building_construction_in_progress() &&
+        (!building_construction_can_place() || !building_construction_cost());
 }
 
 static void draw_draggable_reservoir(const map_tile *tile, int x, int y, building_type type)
 {
-    int map_x = tile->x - 1;
-    int map_y = tile->y - 1;
-    int blocked = 0;
-    int blocked_tiles[9];
-    if (building_construction_in_progress()) {
-        if (!building_construction_cost()) {
-            blocked = 1;
-        }
-    } else {
-        if (map_building_is_reservoir(map_x, map_y)) {
-            blocked = 0;
-        } else if (!map_tiles_are_clear_with_terrain_exception(map_x, map_y, 3, TERRAIN_ALL, TERRAIN_AQUEDUCT, 1)) {
-            //reservoir allowed over aqueducts
-            blocked = 1;
-        }
+    (void) type;
+    const building_type_registry_impl::BuildingType *reservoir_definition = reservoir_ghost_definition();
+    if (!reservoir_definition) {
+        return;
     }
-    if (city_finance_out_of_money()) {
-        blocked = 1;
-    }
+
+    const int blocked = draggable_reservoir_ghost_blocked();
     data.reservoir_range.blocked = blocked;
-    color_t color = blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
+
+    map_tile end_origin_tile = reservoir_origin_tile_from_center(tile);
+    int end_origin_x = 0;
+    int end_origin_y = 0;
+    reservoir_origin_view_from_center(x, y, &end_origin_x, &end_origin_y);
+
     int draw_later = 0;
-    int x_start = 0;
-    int y_start = 0;
-    int offset = 0;
-    int has_water = map_terrain_exists_tile_in_area_with_type(map_x - 1, map_y - 1, 5, TERRAIN_WATER) ||
-        map_water_supply_has_aqueduct_access(map_grid_offset(map_x, map_y));
-    int orientation_index = city_view_orientation() / 2;
-    int preview_primary_grid_offset = tile->grid_offset + RESERVOIR_GRID_OFFSETS[orientation_index];
-    int preview_secondary_grid_offset = 0;
-    int drawing_two_reservoirs = building_construction_in_progress();
+    map_tile start_origin_tile = {};
+    int start_origin_x = 0;
+    int start_origin_y = 0;
+    const int drawing_two_reservoirs =
+        building_construction_in_progress() &&
+        building_construction_get_start_grid_offset() != tile->grid_offset;
+    grid_slice aqueduct_route = {};
+    building_type aqueduct_type = BUILDING_NONE;
+    const building_type_registry_impl::BuildingType *aqueduct_definition = nullptr;
+    if (drawing_two_reservoirs &&
+        building_construction_get_reservoir_aqueduct_preview_route(&aqueduct_route, &aqueduct_type)) {
+        aqueduct_definition = building_type_registry_impl::definition_for_type(aqueduct_type);
+    }
     if (drawing_two_reservoirs) {
-        building_construction_get_view_position(&x_start, &y_start);
-        y_start -= 30;
-        offset = building_construction_get_start_grid_offset();
-        if (offset == tile->grid_offset) {
-            drawing_two_reservoirs = 0;
-        } else {
-            int map_x_start = map_grid_offset_to_x(offset) - 1;
-            int map_y_start = map_grid_offset_to_y(offset) - 1;
-            if (!has_water) {
-                has_water = map_terrain_exists_tile_in_area_with_type(
-                    map_x_start - 1, map_y_start - 1, 5, TERRAIN_WATER);
-            }
-            switch (city_view_orientation()) {
-                case DIR_0_TOP:
-                    draw_later = map_x_start > map_x || map_y_start > map_y;
-                    break;
-                case DIR_2_RIGHT:
-                    draw_later = map_x_start < map_x || map_y_start > map_y;
-                    break;
-                case DIR_4_BOTTOM:
-                    draw_later = map_x_start < map_x || map_y_start < map_y;
-                    break;
-                case DIR_6_LEFT:
-                    draw_later = map_x_start > map_x || map_y_start < map_y;
-                    break;
-            }
-            preview_secondary_grid_offset = offset + RESERVOIR_GRID_OFFSETS[orientation_index];
-            if (!draw_later) {
-                draw_single_reservoir(0, x_start, y_start, color, has_water, 1);
-            }
+        const int start_center_grid_offset = building_construction_get_start_grid_offset();
+        map_tile start_center_tile = {};
+        start_center_tile.x = map_grid_offset_to_x(start_center_grid_offset);
+        start_center_tile.y = map_grid_offset_to_y(start_center_grid_offset);
+        start_center_tile.grid_offset = start_center_grid_offset;
+        start_origin_tile = reservoir_origin_tile_from_center(&start_center_tile);
+        building_construction_get_view_position(&start_origin_x, &start_origin_y);
+        reservoir_origin_view_from_center(start_origin_x, start_origin_y, &start_origin_x, &start_origin_y);
+
+        switch (city_view_orientation()) {
+            case DIR_0_TOP:
+                draw_later = start_origin_tile.x > end_origin_tile.x || start_origin_tile.y > end_origin_tile.y;
+                break;
+            case DIR_2_RIGHT:
+                draw_later = start_origin_tile.x < end_origin_tile.x || start_origin_tile.y > end_origin_tile.y;
+                break;
+            case DIR_4_BOTTOM:
+                draw_later = start_origin_tile.x < end_origin_tile.x || start_origin_tile.y < end_origin_tile.y;
+                break;
+            case DIR_6_LEFT:
+                draw_later = start_origin_tile.x > end_origin_tile.x || start_origin_tile.y < end_origin_tile.y;
+                break;
+        }
+        if (!draw_later) {
+            draw_default(&start_origin_tile, start_origin_x, start_origin_y, *reservoir_definition, 1, 0, blocked);
         }
     }
-    if (!drawing_two_reservoirs) {
-        int grid_offset = tile->grid_offset + RESERVOIR_GRID_OFFSETS[orientation_index];
-        for (int i = 0; i < 9; i++) {
-            int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
-            int terrain = map_terrain_get(tile_offset);
 
-            int forbidden_terrain = terrain & TERRAIN_NOT_CLEAR;
-            int discouraged_terrain = terrain & TERRAIN_NOT_CLEAR;
-
-            // Reservoir is allowed over aqueducts
-            if (forbidden_terrain & TERRAIN_AQUEDUCT) {
-                forbidden_terrain &= ~(TERRAIN_AQUEDUCT | TERRAIN_BUILDING);
-            }
-
-            // Only the side-middle aqueduct path through the reservoir should
-            // be treated as a valid connector instead of a discouraged overlap.
-            if (is_reservoir_side_connection_tile(i)) {
-                if (discouraged_terrain & TERRAIN_AQUEDUCT) {
-                    discouraged_terrain &= ~(TERRAIN_AQUEDUCT | TERRAIN_BUILDING);
-                }
-            }
-
-            if (forbidden_terrain) {
-                blocked_tiles[i] = TILE_FORBIDDEN;
-            } else if (map_has_figure_at(tile_offset)) {
-                blocked_tiles[i] = TILE_FORBIDDEN;
-                figure_animal_try_nudge_at(grid_offset, tile_offset, 3);
-            } else if (discouraged_terrain) {
-                blocked_tiles[i] = TILE_DISCOURAGED;
-            } else {
-                blocked_tiles[i] = TILE_ALLOWED;
-            }
-        }
-
+    if (aqueduct_definition) {
+        draw_aqueduct_preview_route(
+            tile,
+            x,
+            y,
+            *aqueduct_definition,
+            aqueduct_route,
+            blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST);
     }
-    // mouse pointer = center tile of reservoir instead of north, correct here:
-    y -= 30;
-    if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
-        city_water_ghost_draw_preview(
-            building_type_registry_impl::definition_for_type(type),
-            preview_primary_grid_offset,
-            preview_secondary_grid_offset);
-    }
-    draw_single_reservoir(tile->grid_offset, x, y, color, has_water, drawing_two_reservoirs);
-    if (!drawing_two_reservoirs) {
-        draw_building_tiles(x, y, 9, blocked_tiles);
-    }
+    draw_default(&end_origin_tile, end_origin_x, end_origin_y, *reservoir_definition, 1, !drawing_two_reservoirs, blocked);
     if (draw_later) {
-        draw_single_reservoir(0, x_start, y_start, color, has_water, 1);
+        draw_default(&start_origin_tile, start_origin_x, start_origin_y, *reservoir_definition, 1, 0, blocked);
     }
 }
 
-static void draw_aqueduct(const map_tile *tile, int x, int y, building_type type)
+static void draw_aqueduct(
+    const map_tile *tile,
+    int x,
+    int y,
+    const building_type_registry_impl::BuildingType &definition)
 {
-    int grid_offset = tile->grid_offset;
     int blocked = city_finance_out_of_money();
+    grid_slice route = {};
     if (!blocked) {
         if (building_construction_in_progress()) {
-            blocked = !building_construction_can_place() || !building_construction_cost();
-        } else {
-            blocked = !building_construction_can_place_aqueduct_endpoint(grid_offset);
-        }
-    }
-    int image_id = Image::group(GROUP_BUILDING_AQUEDUCT);
-    const terrain_image *img = map_image_context_get_aqueduct(grid_offset, 1);
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        int group_offset = img->group_offset;
-        if (!img->aqueduct_offset) {
-            if (map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_ROAD)) {
-                group_offset = 3;
+            const int start_grid_offset = building_construction_get_start_grid_offset();
+            int cost = 0;
+            if (!building_construction_preview_aqueduct_route(
+                    definition.type(),
+                    map_grid_offset_to_x(start_grid_offset),
+                    map_grid_offset_to_y(start_grid_offset),
+                    tile->x,
+                    tile->y,
+                    &route,
+                    &cost)) {
+                blocked = 1;
             } else {
-                group_offset = 2;
+                blocked = !building_construction_can_place() || !cost;
             }
-        }
-        if (map_tiles_is_paved_road(grid_offset)) {
-            image_id += group_offset + 13;
         } else {
-            image_id += group_offset + 21;
+            route.grid_offsets[route.size++] = tile->grid_offset;
+            blocked = !building_construction_can_place_aqueduct_endpoint(tile->grid_offset);
         }
-    } else {
-        image_id += img->group_offset + 15;
     }
-    if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
-        city_water_ghost_draw_preview(building_type_registry_impl::definition_for_type(type), grid_offset, 0);
+    if (route.size == 0) {
+        route.grid_offsets[route.size++] = tile->grid_offset;
     }
-    draw_building(image_id, x, y, blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST);
-    draw_building_tiles(x, y, 1, &blocked);
+
+    draw_water_access_context_overlays(tile, definition);
+    draw_aqueduct_preview_route(
+        tile,
+        x,
+        y,
+        definition,
+        route,
+        blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST);
 }
 
 static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
@@ -994,16 +968,28 @@ static void draw_partial_grid(
     int y,
     const building_type_registry_impl::BuildingType &definition)
 {
+    const int cursor_x = map_grid_offset_to_x(grid_offset);
+    const int cursor_y = map_grid_offset_to_y(grid_offset);
     if (definition.tool().is_draggable_reservoir()) {
-        int size = 3;
+        const building_type_registry_impl::BuildingType *reservoir_definition = reservoir_ghost_definition();
+        if (!reservoir_definition) {
+            return;
+        }
+        map_tile center_tile = { cursor_x, cursor_y, grid_offset };
+        const map_tile origin_tile = reservoir_origin_tile_from_center(&center_tile);
+        int origin_x = 0;
+        int origin_y = 0;
+        reservoir_origin_view_from_center(x, y, &origin_x, &origin_y);
+        building_construction::ConstructionPlacementPlan plan(*reservoir_definition, origin_tile.x, origin_tile.y, 1, 0);
         int orientation_index = city_view_orientation() / 2;
-        grid_offset += RESERVOIR_GRID_OFFSETS[orientation_index];
-        draw_grid_around_building(grid_offset, size, orientation_index, x, y);
+        for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
+            const int tile_x = origin_x + X_VIEW_OFFSET(part.x - plan.cursor_x(), part.y - plan.cursor_y());
+            const int tile_y = origin_y + Y_VIEW_OFFSET(part.x - plan.cursor_x(), part.y - plan.cursor_y());
+            draw_grid_around_building(part.grid_offset, part.size, orientation_index, tile_x, tile_y);
+        }
         return;
     }
 
-    const int cursor_x = map_grid_offset_to_x(grid_offset);
-    const int cursor_y = map_grid_offset_to_y(grid_offset);
     building_construction::ConstructionPlacementPlan plan(definition, cursor_x, cursor_y, 0, 0);
     const int orientation_index = city_view_orientation() / 2;
     for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
@@ -1072,30 +1058,17 @@ void city_building_ghost_draw(const map_tile *tile)
     if (config_get(CONFIG_UI_SHOW_DESIRABILITY_RANGE_ALL) ||
         (config_get(CONFIG_UI_SHOW_DESIRABILITY_RANGE) && definition->flags().draw_desirability_range())) {
         const int is_draggable_reservoir = definition->tool().is_draggable_reservoir();
-        int building_size = (is_draggable_reservoir || definition->is_warehouse()) ? 3 : props->size;
+        const building_type_registry_impl::BuildingType *range_definition =
+            is_draggable_reservoir ? reservoir_ghost_definition() : definition;
+        int building_size = range_definition && is_draggable_reservoir ? range_definition->declared_model_size() :
+            (definition->is_warehouse() ? 3 : props->size);
 
         if (is_draggable_reservoir) {
-            map_tile shifted_tile = *tile;
-            switch (city_view_orientation()) {
-                case DIR_0_TOP:
-                    shifted_tile.x -= 1;
-                    shifted_tile.y -= 1;
-                    break;
-                case DIR_2_RIGHT:
-                    shifted_tile.x += 1;
-                    shifted_tile.y -= 1;
-                    break;
-                case DIR_4_BOTTOM:
-                    shifted_tile.x += 1;
-                    shifted_tile.y += 1;
-                    break;
-                case DIR_6_LEFT:
-                    shifted_tile.x -= 1;
-                    shifted_tile.y += 1;
-                    break;
+            if (!range_definition) {
+                return;
             }
-            shifted_tile.grid_offset = map_grid_offset(shifted_tile.x, shifted_tile.y);
-            draw_desirability_range(&shifted_tile, *definition, building_size);
+            const map_tile origin_tile = reservoir_origin_tile_from_center(tile);
+            draw_desirability_range(&origin_tile, *range_definition, building_size);
         } else {
             building_construction::ConstructionPlacementPlan plan(*definition, tile->x, tile->y, 0, 0);
             for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
@@ -1120,7 +1093,7 @@ void city_building_ghost_draw(const map_tile *tile)
     if (definition->tool().is_draggable_reservoir()) {
         draw_draggable_reservoir(tile, x, y, type);
     } else if (definition->tool().is_aqueduct()) {
-        draw_aqueduct(tile, x, y, type);
+        draw_aqueduct(tile, x, y, *definition);
     } else if (definition->tool().is_road()) {
         draw_road(tile, x, y);
     } else {

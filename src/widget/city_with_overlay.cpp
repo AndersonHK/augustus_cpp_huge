@@ -409,30 +409,42 @@ static void draw_footprint(int x, int y, int grid_offset)
         int terrain = map_terrain_get(grid_offset);
         if (terrain & TERRAIN_HIGHWAY && !(terrain & TERRAIN_GATEHOUSE)) {
             city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
-        } else if (terrain & (TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
-            if (terrain & TERRAIN_ROAD) {
-                // Draw the equivalent road tile.
-                int image_id = Image::group(GROUP_TERRAIN_ROAD);
-                if (map_tiles_is_paved_road(grid_offset)) {
-                    const terrain_image *img = map_image_context_get_paved_road(grid_offset);
-                    image_id += img->group_offset + img->item_offset;
-                } else {
-                    const terrain_image *img = map_image_context_get_dirt_road(grid_offset);
-                    image_id += img->group_offset + img->item_offset + 49;
-                }
-                Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-            } else {
-                // display grass
-                int image_id = Image::group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
-                Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-            }
-        } else if (city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale)) {
-        } else if ((terrain & TERRAIN_ROAD) && !(terrain & TERRAIN_BUILDING)) {
-            Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-        } else if ((terrain & TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
-            city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
         } else {
-            Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+            const int runtime_tile_drawn = map_building_exists_at(grid_offset) &&
+                map_building_at(grid_offset).is_surface_terrain_tile() &&
+                city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale);
+            if (!runtime_tile_drawn) {
+                if (terrain & (TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
+                    if (terrain & TERRAIN_ROAD) {
+                        // Draw the equivalent road tile.
+                        int image_id = Image::group(GROUP_TERRAIN_ROAD);
+                        if (map_tiles_is_paved_road(grid_offset)) {
+                            const terrain_image *img = map_image_context_get_paved_road(grid_offset);
+                            image_id += img->group_offset + img->item_offset;
+                        } else {
+                            const terrain_image *img = map_image_context_get_dirt_road(grid_offset);
+                            image_id += img->group_offset + img->item_offset + 49;
+                        }
+                        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+                    } else {
+                        // display grass
+                        int image_id = Image::group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
+                        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+                    }
+                } else {
+                    const int runtime_tile_fallback_drawn =
+                        city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale);
+                    if (!runtime_tile_fallback_drawn) {
+                        if ((terrain & TERRAIN_ROAD) && !(terrain & TERRAIN_BUILDING)) {
+                            Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+                        } else if ((terrain & TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
+                            city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
+                        } else {
+                            Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+                        }
+                    }
+                }
+            }
         }
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
@@ -525,6 +537,15 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     }
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
+    }
+    if (building && building->is_surface_terrain_tile()) {
+        color_t color_mask = building_top_color_mask(*building);
+        if (building->draw_top({ x, y, grid_offset, color_mask, scale })) {
+            return;
+        }
+        if (city_draw_runtime_tile_top(grid_offset, x, y, color_mask, scale)) {
+            return;
+        }
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building) {
         city_with_overlay_draw_building_top_for_building(building, x, y, grid_offset);

@@ -254,6 +254,7 @@ void building_destroy_by_collapse(building *b)
     }
     set_rubble_grid_info_for_all_parts(b);
     map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
+    map_building_set_rubble_grid_building_id(b->grid_offset, b->id, b->size);
     figure_create_explosion_cloud(b->x, b->y, b->size, 0);
     destroy_linked_parts(b, DESTROY_COLLAPSE, 0);
 

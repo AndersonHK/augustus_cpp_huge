@@ -179,6 +179,16 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
             } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+                if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("aqueduct")) {
+                    Building &aqueduct = map_building_at(grid_offset);
+                    building *aqueduct_record = const_cast<::building *>(aqueduct.record());
+                    if (aqueduct_record) {
+                        game_undo_add_building(aqueduct_record);
+                        aqueduct_record->state = BUILDING_STATE_DELETED_BY_PLAYER;
+                        aqueduct_record->is_deleted = 1;
+                    }
+                    map_building_clear_at(grid_offset);
+                }
                 map_terrain_remove(grid_offset, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
                 items_placed++;
                 map_aqueduct_remove(grid_offset);

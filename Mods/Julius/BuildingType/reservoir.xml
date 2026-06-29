@@ -8,7 +8,17 @@
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="custom">
+        <cell x="0" y="0" terrain="land_or_aqueduct" />
+        <cell x="1" y="0" terrain="land_or_aqueduct" />
+        <cell x="2" y="0" terrain="land_or_aqueduct" />
+        <cell x="0" y="1" terrain="land_or_aqueduct" />
+        <cell x="1" y="1" terrain="land_or_aqueduct" />
+        <cell x="2" y="1" terrain="land_or_aqueduct" />
+        <cell x="0" y="2" terrain="land_or_aqueduct" />
+        <cell x="1" y="2" terrain="land_or_aqueduct" />
+        <cell x="2" y="2" terrain="land_or_aqueduct" />
+    </foundation>
     <sound id="reservoir" />
     <event_data attr="reservoir" />
     <flags fire_proof="1" />

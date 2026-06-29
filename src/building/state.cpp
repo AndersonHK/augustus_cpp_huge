@@ -938,6 +938,35 @@ static void repair_dock_accepted_goods_if_empty(building *b)
     }
 }
 
+static void apply_definition_record_properties_after_load(building *b)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
+    if (!definition) {
+        return;
+    }
+
+    const int declared_size = definition->declared_model_size();
+    if (declared_size > 0) {
+        b->size = static_cast<unsigned char>(declared_size);
+        if (definition->has_housing()) {
+            b->house_size = static_cast<unsigned char>(declared_size);
+        }
+    }
+
+    if (!definition->has_flags()) {
+        return;
+    }
+    const auto &flags = definition->flags();
+    if (flags.has_fire_proof()) {
+        b->fire_proof = static_cast<unsigned char>(flags.fire_proof() ? 1 : 0);
+        if (b->fire_proof) {
+            b->damage_risk = 0;
+            b->fire_risk = 0;
+            b->fire_duration = 0;
+        }
+    }
+}
+
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
 {
     size_t record_start = buf->index;
@@ -1228,6 +1257,8 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         quarantine_loaded_building_type_problem(b, saved_building_type, type_problem, for_preview);
         return 1;
     }
+
+    apply_definition_record_properties_after_load(b);
 
     if (!for_preview) {
         // Keep load as full records plus staged module state until building_runtime_initialize_city_graphics_cache().

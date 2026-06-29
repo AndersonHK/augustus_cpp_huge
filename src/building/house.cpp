@@ -468,10 +468,7 @@ static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
     }
 
     Building &source = *plan.source;
-    Building replacement = Building::create(plan.type, plan.x, plan.y);
-    if (!replacement.id) {
-        return 0;
-    }
+    Building &replacement = Building::create(plan.type, plan.x, plan.y);
     replacement.copy_house_data_from(source);
     if (!replacement.configure_house_replacement(plan.type, plan.x, plan.y, plan.size, plan.merged)) {
         replacement.retire_replaced_house();
@@ -560,10 +557,7 @@ static void create_splitted_house_tile(Building &source, building_type type,
     if (!source.id) {
         return;
     }
-    Building house = Building::create(type, x, y);
-    if (!house.id) {
-        return;
-    }
+    Building &house = Building::create(type, x, y);
     house.copy_house_data_from(source);
     house.set_house_population(population);
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {

@@ -118,7 +118,7 @@ public:
     static TypeRange of_type(building_type type);
     static Building *first_of_type(building_type type);
     static Building *get(unsigned int id);
-    static Building create(building_type type, int x, int y);
+    static Building &create(building_type type, int x, int y);
     // Iterates live runtime-owned Building objects; filters belong here so callers stop open-coding id scans.
     static void for_each(const std::function<void(Building *)> &visitor);
     static void for_each(const BuildingForEachArgs &args, const std::function<void(Building *)> &visitor);

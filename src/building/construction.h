@@ -64,10 +64,10 @@ int building_construction_can_place_on_terrain(int x, int y, warning_type *warni
 void building_construction_record_view_position(int view_x, int view_y, int grid_offset);
 void building_construction_get_view_position(int *view_x, int *view_y);
 int building_construction_get_start_grid_offset(void);
+int building_construction_get_reservoir_aqueduct_preview_route(grid_slice *route, building_type *aqueduct_type);
 
 void building_construction_reset_draw_as_constructing(void);
 int building_construction_draw_as_constructing(void);
-int building_construction_uses_custom_ghost_preview(void);
 
 int building_construction_is_land_work_type(building_type type);
 /** @brief to place a single wall tile at the given grid offset. since walls are being moved to building category,
