@@ -193,21 +193,23 @@ void map_natives_init(void)
                 map_building_tiles_remove(nullptr, x, y);
                 continue;
             }
-            set_native_tile_image(grid_offset, match);
-            building *b = building_create(type, x, y);
-            building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-            if (!runtime) {
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(type);
+            if (!definition) {
                 continue;
             }
-            map_building_set(grid_offset, runtime->building);
+            set_native_tile_image(grid_offset, match);
+            Building &building_obj = city_building_runtime().create(*definition, x, y);
+            building *b = const_cast<building *>(building_obj.record());
+            map_building_set(grid_offset, building_obj);
             b->state = BUILDING_STATE_IN_USE;
             if (building_type_registry_impl::type_attr_is(type, "native_crops")) {
                 b->data.industry.progress = static_cast<short>(random_bit);
             } else if (building_type_registry_impl::type_attr_is(type, "native_meeting")) {
                 b->sentiment.native_anger = 100;
-                map_building_set(grid_offset + map_grid_delta(1, 0), runtime->building);
-                map_building_set(grid_offset + map_grid_delta(0, 1), runtime->building);
-                map_building_set(grid_offset + map_grid_delta(1, 1), runtime->building);
+                map_building_set(grid_offset + map_grid_delta(1, 0), building_obj);
+                map_building_set(grid_offset + map_grid_delta(0, 1), building_obj);
+                map_building_set(grid_offset + map_grid_delta(1, 1), building_obj);
                 mark_native_land(b->x, b->y, 2, 6);
             } else {
                 static const char *const native_single_tile_land[] = {
@@ -221,8 +223,8 @@ void map_natives_init(void)
                     b->figure_spawn_delay = static_cast<unsigned char>(random_bit);
                     mark_native_land(b->x, b->y, 1, 3);
                 } else if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
-                    map_building_tiles_add(runtime->building, b->x, b->y, b->size,
-                        building_image_get(&runtime->building), TERRAIN_BUILDING);
+                    map_building_tiles_add(building_obj, b->x, b->y, b->size,
+                        building_image_get(&building_obj), TERRAIN_BUILDING);
                 }
             }
         }
@@ -252,22 +254,24 @@ void map_natives_init_editor(void)
                 map_building_tiles_remove(nullptr, x, y);
                 continue;
             }
-            set_native_tile_image(grid_offset, match);
-            building *b = building_create(type, x, y);
-            b->state = BUILDING_STATE_IN_USE;
-            building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-            if (!runtime) {
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(type);
+            if (!definition) {
                 continue;
             }
-            map_building_set(grid_offset, runtime->building);
+            set_native_tile_image(grid_offset, match);
+            Building &building_obj = city_building_runtime().create(*definition, x, y);
+            building *b = const_cast<building *>(building_obj.record());
+            b->state = BUILDING_STATE_IN_USE;
+            map_building_set(grid_offset, building_obj);
             if (building_type_registry_impl::type_attr_is(type, "native_meeting")) {
-                map_building_set(grid_offset + map_grid_delta(1, 0), runtime->building);
-                map_building_set(grid_offset + map_grid_delta(0, 1), runtime->building);
-                map_building_set(grid_offset + map_grid_delta(1, 1), runtime->building);
+                map_building_set(grid_offset + map_grid_delta(1, 0), building_obj);
+                map_building_set(grid_offset + map_grid_delta(0, 1), building_obj);
+                map_building_set(grid_offset + map_grid_delta(1, 1), building_obj);
             }
             if (building_type_registry_impl::type_attr_is(type, "native_monument")) {
-                map_building_tiles_add(runtime->building, b->x, b->y, b->size,
-                    building_image_get(&runtime->building), TERRAIN_BUILDING);
+                map_building_tiles_add(building_obj, b->x, b->y, b->size,
+                    building_image_get(&building_obj), TERRAIN_BUILDING);
             }
         }
     }

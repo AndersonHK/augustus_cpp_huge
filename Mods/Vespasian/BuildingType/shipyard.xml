@@ -36,6 +36,9 @@
             <method value="workforce" />
         </labor_seeker>
     </labor>
+    <storages>
+        <storage path="timber_input_shipyard" />
+    </storages>
     <production_methods>
         <production_method path="fishing_boat_shipyard_timber" />
     </production_methods>

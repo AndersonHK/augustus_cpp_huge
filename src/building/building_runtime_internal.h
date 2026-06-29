@@ -5,6 +5,8 @@
 #include <memory>
 #include <unordered_map>
 
+::building *building_create(building_type type, int x, int y);
+
 namespace building_runtime_impl {
 
 extern std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;

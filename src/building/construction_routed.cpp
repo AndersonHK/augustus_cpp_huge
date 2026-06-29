@@ -4,7 +4,9 @@
 #include "core/config.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
+#include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/image.h"
@@ -42,17 +44,15 @@ static int place_aqueduct_tile(building_type aqueduct_type, int x, int y)
         return already_aqueduct ? 0 : 1;
     }
 
-    building *record = building_create(aqueduct_type, x, y);
-    if (!record || record->id <= 0) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(aqueduct_type);
+    if (!definition) {
         return 0;
     }
+    Building &aqueduct = city_building_runtime().create(*definition, x, y);
+    ::building *record = const_cast<::building *>(aqueduct.record());
     game_undo_add_building(record);
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
-        runtime->building.add_map_tiles(building_image_get(&runtime->building));
-    } else {
-        map_terrain_add(grid_offset, TERRAIN_AQUEDUCT);
-        map_property_clear_constructing(grid_offset);
-    }
+    aqueduct.add_map_tiles(building_image_get(&aqueduct));
     return already_aqueduct ? 0 : 1;
 }
 

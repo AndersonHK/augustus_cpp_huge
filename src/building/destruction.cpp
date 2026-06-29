@@ -162,24 +162,26 @@ static void destroy_on_fire(building *b, int plagued)
         if (burning_ruin == BUILDING_NONE) {
             continue;
         }
-        building *ruin = building_create(burning_ruin, x, y);
-        if (building_runtime *ruin_tile_runtime = building_runtime_impl::get_or_create_instance(ruin)) {
-            map_building_tiles_add(ruin_tile_runtime->building, ruin->x, ruin->y, 1,
-                building_image_get(&ruin_tile_runtime->building), TERRAIN_BUILDING);
+        const building_type_registry_impl::BuildingType *burning_ruin_definition =
+            building_type_registry_impl::definition_for_type(burning_ruin);
+        if (!burning_ruin_definition) {
+            continue;
         }
+        Building &ruin_object = city_building_runtime().create(*burning_ruin_definition, x, y);
+        building *ruin = const_cast<building *>(ruin_object.record());
+        map_building_tiles_add(ruin_object, ruin->x, ruin->y, 1,
+            building_image_get(&ruin_object), TERRAIN_BUILDING);
         ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
         ruin->figure_id4 = 0;
         ruin->fire_proof = 1;
         ruin->has_plague = static_cast<unsigned char>(plagued);
-        if (building_runtime *ruin_runtime = building_runtime_impl::get_or_create_instance(ruin)) {
-            if (ruin_runtime->building.Rubble) {
-                RubbleState *rubble_state = ruin_runtime->building.Rubble->state();
-                if (rubble_state) {
-                    rubble_state->original_grid_offset = static_cast<unsigned short>(og_grid_offset);
-                    rubble_state->original_size = static_cast<unsigned char>(og_size);
-                    rubble_state->original_orientation = static_cast<unsigned char>(og_orientation);
-                    rubble_state->original_type = og_definition;
-                }
+        if (ruin_object.Rubble) {
+            RubbleState *rubble_state = ruin_object.Rubble->state();
+            if (rubble_state) {
+                rubble_state->original_grid_offset = static_cast<unsigned short>(og_grid_offset);
+                rubble_state->original_size = static_cast<unsigned char>(og_size);
+                rubble_state->original_orientation = static_cast<unsigned char>(og_orientation);
+                rubble_state->original_type = og_definition;
             }
         }
     }

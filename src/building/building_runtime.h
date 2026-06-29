@@ -33,6 +33,13 @@ void building_runtime_for_each(
     const BuildingForEachArgs &args,
     const std::function<void(Building *)> &visitor);
 
+class BuildingRuntime {
+public:
+    Building &create(const building_type_registry_impl::BuildingType &type, int x, int y);
+};
+
+BuildingRuntime &city_building_runtime();
+
 class building_runtime {
     friend class Building;
 

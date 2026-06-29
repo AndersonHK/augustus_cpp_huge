@@ -10,6 +10,7 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house_population.h"
@@ -226,13 +227,17 @@ static void create_vacant_lot(int x, int y)
     if (type == BUILDING_NONE || housing_level_for_type(type) < 0) {
         return;
     }
-    building *b = building_create(type, x, y);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
+    }
+    Building &building_obj = city_building_runtime().create(*definition, x, y);
+    building *b = const_cast<building *>(building_obj.record());
     b->house_population = 0;
     set_house_legacy_level_from_type(b, type);
     b->distance_from_entry = 0;
-    if (Building *building = runtime_building(b)) {
-        map_building_tiles_add(*building, b->x, b->y, 1, building_image_get(building), TERRAIN_BUILDING);
-    }
+    map_building_tiles_add(building_obj, b->x, b->y, 1, building_image_get(&building_obj), TERRAIN_BUILDING);
 }
 
 void building_house_change_to_vacant_lot(Building house_object)
@@ -468,7 +473,12 @@ static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
     }
 
     Building &source = *plan.source;
-    Building &replacement = Building::create(plan.type, plan.x, plan.y);
+    const building_type_registry_impl::BuildingType *replacement_type =
+        building_type_registry_impl::definition_for_type(plan.type);
+    if (!replacement_type) {
+        return 0;
+    }
+    Building &replacement = city_building_runtime().create(*replacement_type, plan.x, plan.y);
     replacement.copy_house_data_from(source);
     if (!replacement.configure_house_replacement(plan.type, plan.x, plan.y, plan.size, plan.merged)) {
         replacement.retire_replaced_house();
@@ -557,7 +567,12 @@ static void create_splitted_house_tile(Building &source, building_type type,
     if (!source.id) {
         return;
     }
-    Building &house = Building::create(type, x, y);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
+    }
+    Building &house = city_building_runtime().create(*definition, x, y);
     house.copy_house_data_from(source);
     house.set_house_population(population);
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {

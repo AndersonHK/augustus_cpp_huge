@@ -1,6 +1,7 @@
 #include "tool.h"
 
 #include "building/building.h"
+#include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
 #include "building/image.h"
 #include "building/construction_routed.h"
@@ -460,7 +461,12 @@ static void place_building(const map_tile *tile)
     }
 
     if (editor_tool_can_place_building(tile, size * size, 0)) {
-        Building &building = Building::create(type, tile->x, tile->y);
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition) {
+            return;
+        }
+        Building &building = city_building_runtime().create(*definition, tile->x, tile->y);
         map_building_tiles_add(building, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {

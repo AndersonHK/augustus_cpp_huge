@@ -593,16 +593,17 @@ void map_terrain_migrate_old_bridges(void)
 
                 int start_x = map_grid_offset_to_x(start);
                 int start_y = map_grid_offset_to_y(start);
-                building *b = building_create(bridge_type, start_x, start_y);
-                building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-                if (!runtime) {
+                const building_type_registry_impl::BuildingType *definition =
+                    building_type_registry_impl::definition_for_type(bridge_type);
+                if (!definition) {
                     continue;
                 }
+                Building &bridge_building = city_building_runtime().create(*definition, start_x, start_y);
 
                 int current = start;
                 while (old_save_bridge_tile(current)) {
                     map_terrain_add(current, TERRAIN_BUILDING);
-                    map_building_set(current, runtime->building);
+                    map_building_set(current, bridge_building);
                     current += delta;
                 }
             }
@@ -616,6 +617,11 @@ void map_terrain_migrate_old_walls(void)
     if (wall_type == BUILDING_NONE) {
         return;
     }
+    const building_type_registry_impl::BuildingType *wall_definition =
+        building_type_registry_impl::definition_for_type(wall_type);
+    if (!wall_definition) {
+        return;
+    }
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
             int grid_offset = map_grid_offset(x, y);
@@ -625,18 +631,14 @@ void map_terrain_migrate_old_walls(void)
             if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
                 if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
                     // Create wall building for each wall tile
-                    building *wall = building_create(wall_type, x, y);
-                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(wall)) {
-                        map_building_set(grid_offset, runtime->building);
-                    }
+                    Building &wall = city_building_runtime().create(*wall_definition, x, y);
+                    map_building_set(grid_offset, wall);
                     map_terrain_add(grid_offset, TERRAIN_BUILDING);
                 } else {
                     // Recreate the wall if pointing to a wrong building
                     if (!map_building_exists_at(grid_offset) || !map_building_at(grid_offset).matches("wall")) {
-                        building *wall = building_create(wall_type, x, y);
-                        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(wall)) {
-                            map_building_set(grid_offset, runtime->building);
-                        }
+                        Building &wall = city_building_runtime().create(*wall_definition, x, y);
+                        map_building_set(grid_offset, wall);
                     }
                 }
                 map_property_clear_multi_tile_xy(grid_offset);

@@ -257,16 +257,17 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
         return bridge.length;
     }
 
-    building *b = building_create(bridge_type, x, y);
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    if (!runtime) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(bridge_type);
+    if (!definition) {
         bridge.length = 0;
         return bridge.length;
     }
+    Building &bridge_building = city_building_runtime().create(*definition, x, y);
     for (int i = 0; i < bridge.length; i++) {
         map_terrain_add(grid_offset, TERRAIN_ROAD);
         map_terrain_add(grid_offset, TERRAIN_BUILDING);
-        map_building_set(grid_offset, runtime->building);
+        map_building_set(grid_offset, bridge_building);
         int value = map_bridge_get_sprite_id(i, bridge.length, bridge.direction, is_ship_bridge);
         map_sprite_bridge_set(grid_offset, value);
 

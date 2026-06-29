@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
 #include "building/construction_area_tile.h"
 #include "building/building_type_registry_internal.h"
@@ -563,10 +564,8 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                 items_placed++;
                 map_tiles_set_wall(x, y);
                 if (!measure_only) {
-                    building *wall = building_create(wall_type, x, y);
-                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(wall)) {
-                        map_building_set(grid_offset, runtime->building);
-                    }
+                    Building &wall = city_building_runtime().create(*definition, x, y);
+                    map_building_set(grid_offset, wall);
                     map_terrain_add(grid_offset, TERRAIN_BUILDING);
                     map_terrain_add(grid_offset, TERRAIN_WALL);
                     map_property_clear_multi_tile_xy(grid_offset);
@@ -632,44 +631,45 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
     int items_placed = 0;
     int gates_placed = 0;
     building_type gate_type = static_cast<building_type>(building_connectable_gate_type(type));
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::BuildingType *gate_definition =
+        gate_type == BUILDING_NONE ? nullptr : building_type_registry_impl::definition_for_type(gate_type);
+    if (!definition || (gate_type != BUILDING_NONE && !gate_definition)) {
+        return 0;
+    }
 
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
                 items_placed++;
-                building *b = building_create(type, x, y);
+                Building &building_obj = city_building_runtime().create(*definition, x, y);
+                building *b = const_cast<building *>(building_obj.record());
                 if (building_variant_has_variants(type)) {
-                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                        runtime->set_graphics_variant(
-                            building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
-                    }
+                    building_obj.runtime_instance()->set_graphics_variant(
+                        building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
                 } else {
                     b->subtype.orientation = static_cast<short>(rotation);
                 }
                 game_undo_add_building(b);
-                if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                    map_building_tiles_add(runtime->building, b->x, b->y, b->size,
-                        building_image_get(&runtime->building), TERRAIN_BUILDING);
-                }
+                map_building_tiles_add(building_obj, b->x, b->y, b->size,
+                    building_image_get(&building_obj), TERRAIN_BUILDING);
             } else if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR_EXCEPT_ROAD)) {
-                if (gate_type) {
+                if (gate_definition) {
                     items_placed++;
                     gates_placed++;
-                    building *b = building_create(gate_type, x, y);
+                    Building &building_obj = city_building_runtime().create(*gate_definition, x, y);
+                    building *b = const_cast<building *>(building_obj.record());
                     if (building_variant_has_variants(gate_type)) {
-                        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                            runtime->set_graphics_variant(
-                                building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
-                        }
+                        building_obj.runtime_instance()->set_graphics_variant(
+                            building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type)));
                     } else {
                         b->subtype.orientation = static_cast<short>(rotation);
                     }
                     game_undo_add_building(b);
-                    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                        map_building_tiles_add(runtime->building, b->x, b->y, b->size,
-                            building_image_get(&runtime->building), TERRAIN_BUILDING);
-                    }
+                    map_building_tiles_add(building_obj, b->x, b->y, b->size,
+                        building_image_get(&building_obj), TERRAIN_BUILDING);
                     map_terrain_add(grid_offset, TERRAIN_ROAD);
                 }
             }

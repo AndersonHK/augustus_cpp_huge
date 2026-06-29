@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdint>
+#include <exception>
 #include <string>
 
 static const RubbleDef *runtime_rubble_definition_for_record(
@@ -122,6 +123,34 @@ void building_runtime::restore_graphics_state(const BuildingGraphicsState &state
 {
     graphics_state_ = state;
     invalidate_graphics_cache();
+}
+
+[[noreturn]] static void report_building_runtime_create_failure(
+    const building_type_registry_impl::BuildingType &type,
+    const ::building *record)
+{
+    char detail[256];
+    snprintf(detail, sizeof(detail), "type=%s record_id=%u",
+        type.attr(),
+        record ? record->id : 0);
+    log_error("BuildingRuntime failed to create a runtime-owned building", detail, 0);
+    std::terminate();
+}
+
+BuildingRuntime &city_building_runtime()
+{
+    static BuildingRuntime runtime;
+    return runtime;
+}
+
+Building &BuildingRuntime::create(const building_type_registry_impl::BuildingType &type, int x, int y)
+{
+    ::building *record = building_create(type.type(), x, y);
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
+    if (!runtime || !runtime->building.id || runtime->definition() != &type) {
+        report_building_runtime_create_failure(type, record);
+    }
+    return runtime->building;
 }
 
 namespace building_runtime_impl {

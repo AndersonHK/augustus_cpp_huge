@@ -382,10 +382,11 @@ static void add_composed_building(
             continue;
         }
 
-        building *child = building_create(part.type, part.x, part.y);
-        if (!child || child->id <= 0) {
+        if (!part.definition) {
             continue;
         }
+        Building &child_object = city_building_runtime().create(*part.definition, part.x, part.y);
+        building *child = const_cast<building *>(child_object.record());
         game_undo_add_building(child);
         child->prev_part_building_id = static_cast<short>(previous_record->id);
         child->next_part_building_id = 0;
@@ -400,7 +401,7 @@ static void add_composed_building(
         child->houses_covered = main_record->houses_covered;
         child->percentage_houses_covered = main_record->percentage_houses_covered;
         child->labor_access_score = main_record->labor_access_score;
-        building_runtime *child_runtime = building_runtime_impl::get_or_create_instance(child);
+        building_runtime *child_runtime = child_object.runtime_instance();
         building_runtime *main_runtime = building_runtime_impl::get_or_create_instance(main_record);
         if (child_runtime && main_runtime) {
             child_runtime->set_graphics_variant(main_runtime->graphics_variant());
@@ -1015,18 +1016,16 @@ static int building_construction_place_building_internal(building_type type, int
 
 
     // phew, checks done!
-    building *b;
-    b = building_create(type, placement.origin_x(), placement.origin_y());
+    Building &building_obj = city_building_runtime().create(
+        definition,
+        placement.origin_x(),
+        placement.origin_y());
+    building *b = const_cast<building *>(building_obj.record());
 
     game_undo_add_building(b);
-    if (b->id <= 0) {
-        return 0;
-    }
     add_to_map(type, b, building_orientation, placement);
     instant_building_remove_required_resources(type);
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-        map_water_supply_refresh_building(&runtime->building);
-    }
+    map_water_supply_refresh_building(&building_obj);
     return 1;
 }
 

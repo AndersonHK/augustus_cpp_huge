@@ -501,11 +501,6 @@ Building *Building::get(unsigned int id)
     return runtime && runtime->building.id ? &runtime->building : nullptr;
 }
 
-Building &Building::create(building_type type, int x, int y)
-{
-    return building_runtime_impl::get_or_create_instance(building_create(type, x, y))->building;
-}
-
 void Building::for_each(const std::function<void(Building *)> &visitor)
 {
     building_runtime_for_each(visitor);
@@ -2385,7 +2380,9 @@ static building *repair_loaded_composed_child(building *main_record, building *p
     const building_type_registry_impl::ComposedPartDefinition &part, int expected_x, int expected_y)
 {
     const building_properties *props = part.type == BUILDING_NONE ? nullptr : building_properties_for_type(part.type);
-    if (!main_record || !previous || !props ||
+    const building_type_registry_impl::BuildingType *part_definition =
+        part.type == BUILDING_NONE ? nullptr : definition_for_type(part.type);
+    if (!main_record || !previous || !props || !part_definition ||
         !map_grid_is_inside(expected_x, expected_y, props->size)) {
         return previous;
     }
@@ -2393,7 +2390,8 @@ static building *repair_loaded_composed_child(building *main_record, building *p
     building *child = chain_child_after(previous);
     int was_created = 0;
     if (!child) {
-        child = building_create(part.type, expected_x, expected_y);
+        Building &child_object = city_building_runtime().create(*part_definition, expected_x, expected_y);
+        child = const_cast<building *>(child_object.record());
         was_created = 1;
     }
     if (!composed_record_is_live(child)) {
