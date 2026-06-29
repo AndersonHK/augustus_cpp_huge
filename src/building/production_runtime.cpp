@@ -21,7 +21,7 @@ Production *get_or_create(Building building, size_t method_index)
     }
 
     building_runtime *runtime = building.runtime_instance();
-    if (!runtime || !runtime->definition()) {
+    if (!runtime || runtime->is_ephemeral() || !runtime->definition()) {
         return nullptr;
     }
 
@@ -50,7 +50,7 @@ Production *get_or_create(Building building, size_t method_index)
 Production *get_or_create_primary(Building building)
 {
     building_runtime *runtime = building.runtime_instance();
-    if (!runtime || !runtime->definition()) {
+    if (!runtime || runtime->is_ephemeral() || !runtime->definition()) {
         return nullptr;
     }
 
@@ -74,7 +74,7 @@ size_t get_method_count(Building building)
     }
 
     building_runtime *runtime = building.runtime_instance();
-    if (!runtime || !runtime->definition()) {
+    if (!runtime || runtime->is_ephemeral() || !runtime->definition()) {
         return 0;
     }
     return runtime->definition()->production_methods().size();

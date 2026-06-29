@@ -557,14 +557,32 @@ const GraphicsTarget *BuildingGraphicsDef::resolve_target(const Building &buildi
 #ifndef STARTUP_PARSER_TEST
 namespace {
 
-building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &)
+building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &temporary_runtime)
 {
-    Building owner = building.type && building.type->has_graphic() ? building : building.main();
+    Building owner = building;
+    if (!owner.type || !owner.type->has_graphic()) {
+        if (!building.record() || !building.record()->id) {
+            return nullptr;
+        }
+        owner = building.main();
+    }
     if (!owner.type) {
         return nullptr;
     }
 
-    return owner.runtime_instance();
+    if (building_runtime *runtime = owner.runtime_instance()) {
+        return runtime;
+    }
+
+    ::building *record = const_cast<::building *>(owner.record());
+    BuildingGraphicsState *graphics_state = owner.Graphics().state();
+    if (!record || !graphics_state) {
+        return nullptr;
+    }
+
+    temporary_runtime = std::make_unique<building_runtime>(record, owner.type);
+    temporary_runtime->restore_graphics_state(*graphics_state);
+    return temporary_runtime.get();
 }
 
 int production_progress_options_in_target(const GraphicsTarget &target)

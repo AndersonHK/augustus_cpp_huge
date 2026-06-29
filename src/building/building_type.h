@@ -967,6 +967,7 @@ public:
     int is_armoury() const;
     int is_farm() const;
     int is_storage() const;
+    resource_type output_resource() const;
     const ProductionMethod *farm_production_method() const;
     const ProductionMethod *farm_panel_production_method() const;
     int has_farm_panel() const;

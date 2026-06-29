@@ -804,7 +804,7 @@ int figure_service_provide_coverage(Figure *f)
             tourist_visit(x, y, f, tourist_spend);
             break;
     }
-    if (owner_record) {
+    if (houses_serviced > 0 && owner_record) {
         owner_record->houses_covered = static_cast<short>(owner_record->houses_covered + houses_serviced);
         if (owner_record->houses_covered > 300) {
             owner_record->houses_covered = 300;

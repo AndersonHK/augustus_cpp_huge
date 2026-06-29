@@ -175,12 +175,7 @@ int building_storage_change_building(int storage_id, int building_id)
     if (!storage) {
         return 0;
     }
-    Building *building = nullptr;
-    Building::for_each([building_id, &building](Building *candidate) {
-        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
-            building = candidate;
-        }
-    });
+    Building *building = Building::get(static_cast<unsigned int>(building_id));
     if (!building) {
         return 0;
     }
@@ -223,12 +218,7 @@ void building_storage_toggle_empty_all(int storage_id)
 
 int building_storage_get_empty_all(int building_id)
 {
-    Building *building = nullptr;
-    Building::for_each([building_id, &building](Building *candidate) {
-        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
-            building = candidate;
-        }
-    });
+    Building *building = Building::get(static_cast<unsigned int>(building_id));
     if (!building) {
         return 0;
     }
@@ -241,12 +231,7 @@ int building_storage_get_empty_all(int building_id)
 
 int building_storage_count_stored_resource_types(int building_id)
 {
-    Building *building = nullptr;
-    Building::for_each([building_id, &building](Building *candidate) {
-        if (!building && candidate->id == static_cast<unsigned int>(building_id)) {
-            building = candidate;
-        }
-    });
+    Building *building = Building::get(static_cast<unsigned int>(building_id));
     if (!building || !building->storage_id) {
         return 0;
     }

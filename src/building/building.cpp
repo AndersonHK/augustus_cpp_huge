@@ -485,6 +485,21 @@ Building *Building::first_of_type(building_type type)
     return runtime ? &runtime->building : nullptr;
 }
 
+Building *Building::get(unsigned int id)
+{
+    if (!id) {
+        return nullptr;
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(id)) {
+        return &runtime->building;
+    }
+    if (static_cast<size_t>(id) >= building_runtime_impl::g_runtime_instances.size()) {
+        return nullptr;
+    }
+    building_runtime *runtime = building_runtime_impl::g_runtime_instances[id].get();
+    return runtime && runtime->building.id ? &runtime->building : nullptr;
+}
+
 Building Building::create(building_type type, int x, int y)
 {
     return building_runtime_impl::get_or_create_instance(building_create(type, x, y))->building;
@@ -512,7 +527,13 @@ const ::building *Building::record() const
 
 Building &Building::main() const
 {
-    if (!record_ || !record_->id) {
+    if (!record_) {
+        std::terminate();
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_ephemeral_main_instance(record_)) {
+        return runtime->building;
+    }
+    if (!record_->id) {
         std::terminate();
     }
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(building_main(record_));
@@ -529,6 +550,9 @@ Building &Building::composition_owner() const
 
 Building *Building::next() const
 {
+    if (building_runtime *runtime = building_runtime_impl::get_ephemeral_next_instance(record_)) {
+        return &runtime->building;
+    }
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(record_ ? building_next(record_) : nullptr);
     return runtime ? &runtime->building : nullptr;
 }
@@ -751,6 +775,9 @@ int Building::house_figure_generation_delay() const
 
 building_runtime *Building::runtime_instance() const
 {
+    if (building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(record_)) {
+        return runtime;
+    }
     return record_ && record_->id ? building_runtime_impl::get_or_create_instance(record_) : nullptr;
 }
 
@@ -3754,8 +3781,11 @@ static LegacyTilePromotionTypes legacy_tile_promotion_types()
     };
 }
 
-static int legacy_tile_has_loaded_record(int grid_offset)
+static int legacy_tile_has_blocking_loaded_record(int grid_offset)
 {
+    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        return 0;
+    }
     const unsigned int building_id = map_building_loaded_id_at(grid_offset);
     return building_id > 0 &&
         building_id < data.buildings.size() &&
@@ -3780,16 +3810,16 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
     const int bottom_left = map_grid_offset(x, y + 1);
     const int top_right = map_grid_offset(x + 1, y);
     const int bottom_right = map_grid_offset(x + 1, y + 1);
-    if (legacy_tile_has_loaded_record(grid_offset)) {
+    if (legacy_tile_has_blocking_loaded_record(grid_offset)) {
         return 0;
     }
-    if (legacy_tile_has_loaded_record(bottom_left)) {
+    if (legacy_tile_has_blocking_loaded_record(bottom_left)) {
         return 0;
     }
-    if (legacy_tile_has_loaded_record(top_right)) {
+    if (legacy_tile_has_blocking_loaded_record(top_right)) {
         return 0;
     }
-    if (legacy_tile_has_loaded_record(bottom_right)) {
+    if (legacy_tile_has_blocking_loaded_record(bottom_right)) {
         return 0;
     }
     if (map_terrain_is(bottom_left, TERRAIN_HIGHWAY_BOTTOM_LEFT) == 0) {
@@ -3803,7 +3833,7 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
 
 static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTilePromotionTypes &types)
 {
-    if (legacy_tile_has_loaded_record(grid_offset)) {
+    if (legacy_tile_has_blocking_loaded_record(grid_offset)) {
         return BUILDING_NONE;
     }
 
@@ -3868,7 +3898,7 @@ static int legacy_tile_promoted_state(building_type type, int grid_offset, const
             return BUILDING_STATE_RUBBLE;
         }
     }
-    return BUILDING_STATE_CREATED;
+    return BUILDING_STATE_IN_USE;
 }
 
 static building *append_legacy_tile_building_record(building_type type, int grid_offset, int state)

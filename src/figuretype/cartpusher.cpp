@@ -132,14 +132,7 @@ void figuretype::CartPusher::draw(building_info_context *c)
         c->x_offset + 90, c->y_offset + 160, BLOCK_SIZE * (c->width_blocks - 8),
         FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 
-    Building *last_destination = nullptr;
-    if (last_destination_id) {
-        Building::for_each([&](Building *candidate) {
-            if (candidate->id == static_cast<unsigned int>(last_destination_id)) {
-                last_destination = candidate;
-            }
-        });
-    }
+    Building *last_destination = Building::get(static_cast<unsigned int>(last_destination_id));
     int is_returning = 0;
     switch (action_state) {
         case FIGURE_ACTION_27_CARTPUSHER_RETURNING:
@@ -220,36 +213,15 @@ static int is_runtime_storage(const Building &site)
     return is_warehouse_storage(site) || site.matches("granary") || site.matches("armoury");
 }
 
-static int type_has_farm_production(const building_type_registry_impl::BuildingType *type)
-{
-    if (!type) {
-        return 0;
-    }
-    if (type->is_farm()) {
-        return 1;
-    }
-    if (!type->has_composition()) {
-        return 0;
-    }
-    for (const building_type_registry_impl::ComposedPartDefinition &part : type->composition().parts()) {
-        const building_type_registry_impl::BuildingType *part_type =
-            building_type_registry_impl::definition_for_type(part.type);
-        if (part_type && part_type->is_farm()) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static int is_close_delivery_food_source(const Building &site)
 {
-    return type_has_farm_production(site.type) ||
+    return (site.type && site.type->is_farm()) ||
         site.matches("wharf");
 }
 
 static int is_ceres_speed_food_source(const Building &site)
 {
-    return type_has_farm_production(site.type);
+    return site.type && site.type->is_farm();
 }
 
 static int cartpusher_carries_food(Figure *f)

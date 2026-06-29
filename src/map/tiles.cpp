@@ -32,6 +32,8 @@
 
 #include "map/tile_runtime_api.h"
 
+#include <vector>
+
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
 #define FORBIDDEN_TERRAIN_MEADOW (TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |\
@@ -311,6 +313,30 @@ static int multi_tile_draw_grid_offset(int x, int y, int size)
     return map_grid_offset(x + dx, y + dy);
 }
 
+static void add_surface_tile_visuals_preserving_buildings(int x, int y, int size, int image_id, int terrain)
+{
+    std::vector<Building *> surface_buildings(static_cast<size_t>(size * size), nullptr);
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            const int grid_offset = map_grid_offset(x + dx, y + dy);
+            const int index = dy * size + dx;
+            surface_buildings[index] = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+        }
+    }
+
+    map_terrain_tiles_add(x, y, size, image_id, terrain);
+
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            const int grid_offset = map_grid_offset(x + dx, y + dy);
+            const int index = dy * size + dx;
+            if (surface_buildings[index]) {
+                map_building_set(grid_offset, *surface_buildings[index]);
+            }
+        }
+    }
+}
+
 static void set_garden_image_with_boundary(
     int x,
     int y,
@@ -343,7 +369,7 @@ static void set_garden_image_with_boundary(
             }
 
             if (is_large) {
-                map_terrain_tiles_add(x, y, 2, image_id, TERRAIN_GARDEN);
+                add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, TERRAIN_GARDEN);
             } else {
                 map_image_set(grid_offset, image_id);
             }
@@ -410,7 +436,7 @@ static void set_plaza_image(int x, int y, int grid_offset)
             int option_count = tile_runtime_plaza_large_option_count();
             int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
             int image_id = tile_runtime_plaza_large_map_image_id(option_index);
-            map_terrain_tiles_add(x, y, 2, image_id, TERRAIN_ROAD);
+            add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, TERRAIN_ROAD);
             tile_runtime_set_plaza_image_id(
                 multi_tile_draw_grid_offset(x, y, 2),
                 tile_runtime_plaza_large_image_id(option_index));

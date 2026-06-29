@@ -126,12 +126,7 @@ HouseRouteSelection RouteAccessSelector::nearestAssignedSourceReleasingUnreachab
                 return;
             }
 
-            Building *house_object = nullptr;
-            Building::for_each([&](Building *candidate) {
-                if (!house_object && candidate->id == source.house_id) {
-                    house_object = candidate;
-                }
-            });
+            Building *house_object = Building::get(source.house_id);
             building *house = house_object ? const_cast<::building *>(house_object->record()) : nullptr;
             if (!houseRecordIsLiveLaborSource(house)) {
                 house_ids_to_release.push_back(source.house_id);

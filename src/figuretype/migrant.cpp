@@ -36,11 +36,25 @@ static int house_is_valid(const Building &house, const Figure &migrant)
         house.house_population_room() >= migrant.migrant_num_people;
 }
 
+static Building *migrant_house_target(Figure &migrant)
+{
+    Building *target = migrant.last_destination_id > 0 ?
+        Building::get(static_cast<unsigned int>(migrant.last_destination_id)) :
+        nullptr;
+    if (target) {
+        migrant.immigrant_building = target;
+        migrant.destination_building = target;
+        migrant.last_destination_id = static_cast<int>(target->id);
+    }
+    return target;
+}
+
 static void set_migrant_house(Figure &migrant, Building &house)
 {
     house.set_immigrant_figure_id(migrant.id());
     migrant.immigrant_building = &house;
     migrant.destination_building = &house;
+    migrant.last_destination_id = static_cast<int>(house.id);
 }
 
 static void send_homeless_to_house(Figure &homeless, Building &house, int road_x, int road_y)
@@ -153,7 +167,7 @@ static Building *closest_house_with_room(int x, int y)
 
 void figure_immigrant_action(Figure *f)
 {
-    Building *house = f->immigrant_building;
+    Building *house = migrant_house_target(*f);
 
     f->terrain_usage = TERRAIN_USAGE_ANY;
     f->clear_legacy_cart_overlay_image();
@@ -302,7 +316,7 @@ void figure_homeless_action(Figure *f)
         {
             f->is_ghost = 0;
             figure_movement_move_ticks(f, 1);
-            Building *house = f->immigrant_building;
+            Building *house = migrant_house_target(*f);
             if (!house || !house_is_valid(*house, *f)) {
                 Route::remove(f);
                 f->action_state = FIGURE_ACTION_7_HOMELESS_CREATED;
@@ -321,7 +335,7 @@ void figure_homeless_action(Figure *f)
         {
             f->use_cross_country = 1;
             f->is_ghost = 1;
-            Building *house = f->immigrant_building;
+            Building *house = migrant_house_target(*f);
             if (!house || !house_is_valid(*house, *f)) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (figure_movement_move_ticks_cross_country(f, 1) == 1) {

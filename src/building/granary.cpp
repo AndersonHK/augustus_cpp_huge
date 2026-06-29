@@ -514,23 +514,28 @@ Building *building_granary_for_storing(int x, int y, resource_type resource, int
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
+    map_point min_access = { 0, 0 };
     for (Building &b : Building::of_type(granary_type())) {
         if (b.road_network_id() != road_network_id ||
             !building_granary_accepts_storage(b, resource, understaffed)) {
             continue;
         }
+        map_point access = { 0, 0 };
+        if (!b.storage_destination_road_access_point(&access)) {
+            continue;
+        }
         // there is room
-        int dist = calc_maximum_distance(b.x() + 1, b.y() + 1, x, y);
+        int dist = calc_maximum_distance(access.x, access.y, x, y);
         if (dist < min_dist) {
             min_dist = dist;
             min_building = &b;
+            min_access = access;
         }
     }
     if (!min_building) {
         return nullptr;
     }
-    // deliver to center of granary
-    map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
+    map_point_store_result(min_access.x, min_access.y, dst);
     return min_building;
 }
 
@@ -548,11 +553,16 @@ Building *building_getting_granary_for_storing(int x, int y, resource_type resou
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
+    map_point min_access = { 0, 0 };
     for (Building &b : Building::of_type(granary_type())) {
         if (!b.is_in_use() || b.has_plague()) {
             continue;
         }
         if (!b.has_cached_road_access() || b.distance_from_entry() <= 0 || b.road_network_id() != road_network_id) {
+            continue;
+        }
+        map_point access = { 0, 0 };
+        if (!b.storage_destination_road_access_point(&access)) {
             continue;
         }
         int pct_workers = calc_percentage(b.worker_count(), b.type ? b.type->required_workers() : 0);
@@ -564,17 +574,18 @@ Building *building_getting_granary_for_storing(int x, int y, resource_type resou
             continue;
         } else {
             // there is room
-            int dist = calc_maximum_distance(b.x() + 1, b.y() + 1, x, y);
+            int dist = calc_maximum_distance(access.x, access.y, x, y);
             if (dist < min_dist) {
                 min_dist = dist;
                 min_building = &b;
+                min_access = access;
             }
         }
     }
     if (!min_building) {
         return nullptr;
     }
-    map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
+    map_point_store_result(min_access.x, min_access.y, dst);
     return min_building;
 }
 
@@ -615,6 +626,7 @@ Building *building_granary_for_getting(const Building &src, map_point *dst, int 
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
+    map_point min_access = { 0, 0 };
     for (Building &b : non_getting_granaries.buildings) {
         if (!config_get(CONFIG_GP_CH_GETTING_GRANARIES_GO_OFFROAD)) {
             if (b.road_network_id() != src.road_network_id()) {
@@ -624,18 +636,23 @@ Building *building_granary_for_getting(const Building &src, map_point *dst, int 
         if (b.id == src.id) {
             continue; // don't get from the same granary
         }
+        map_point access = { 0, 0 };
+        if (!b.storage_destination_road_access_point(&access)) {
+            continue;
+        }
         if (building_granary_amount_can_get_from(b, src, food_to_get) >= min_amount) {
-            int dist = calc_maximum_distance(b.x() + 1, b.y() + 1, src.x() + 1, src.y() + 1);
+            int dist = calc_maximum_distance(access.x, access.y, src.x(), src.y());
             if (dist < min_dist) {
                 min_dist = dist;
                 min_building = &b;
+                min_access = access;
             }
         }
     }
     if (!min_building) {
         return nullptr;
     }
-    map_point_store_result(min_building->x() + 1, min_building->y() + 1, dst);
+    map_point_store_result(min_access.x, min_access.y, dst);
     return min_building;
 }
 

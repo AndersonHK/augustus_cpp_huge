@@ -210,12 +210,7 @@ static int take_resource_from_warehouse(Figure *f, Building &warehouse, int max_
 static int change_market_supplier_destination(Figure *f, int dst_building_id)
 {
     Route::remove(f);
-    Building *destination = nullptr;
-    Building::for_each([dst_building_id, &destination](Building *building) {
-        if (building->id == static_cast<unsigned int>(dst_building_id)) {
-            destination = building;
-        }
-    });
+    Building *destination = Building::get(static_cast<unsigned int>(dst_building_id));
     if (!destination) {
         return 0;
     }

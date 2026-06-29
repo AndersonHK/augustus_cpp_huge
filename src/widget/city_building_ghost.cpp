@@ -32,6 +32,7 @@
 #include "building/BuildingGraphicsState.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/construction_plan.h"
 #include "building/construction_routed.h"
 #include "building/building_type_registry_internal.h"
@@ -56,6 +57,9 @@
 #include "map/property.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+
+#include <cstddef>
+#include <vector>
 
 // Note: If we ever end up creating larger buildings than 7 * 7, we should update this
 #define MAX_TILES (7 * 7)
@@ -437,6 +441,81 @@ static BuildingGraphicsState make_plan_ghost_graphics_state(
     return state;
 }
 
+static int plan_main_part_index(const building_construction::ConstructionPlacementPlan &plan)
+{
+    const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    for (size_t i = 0; i < parts.size(); i++) {
+        if (parts[i].type == plan.type()) {
+            return static_cast<int>(i);
+        }
+    }
+    return parts.empty() ? -1 : 0;
+}
+
+static void link_plan_ghost_records(std::vector<building> &records, int main_index)
+{
+    if (records.empty() || main_index < 0 || static_cast<size_t>(main_index) >= records.size()) {
+        return;
+    }
+
+    for (size_t i = 0; i < records.size(); i++) {
+        records[i].id = static_cast<unsigned int>(i + 1);
+        records[i].prev_part_building_id = 0;
+        records[i].next_part_building_id = 0;
+    }
+
+    std::vector<size_t> chain;
+    chain.reserve(records.size());
+    chain.push_back(static_cast<size_t>(main_index));
+    for (size_t i = 0; i < records.size(); i++) {
+        if (i != static_cast<size_t>(main_index)) {
+            chain.push_back(i);
+        }
+    }
+
+    for (size_t i = 0; i < chain.size(); i++) {
+        building &record = records[chain[i]];
+        record.prev_part_building_id =
+            i == 0 ? 0 : static_cast<short>(records[chain[i - 1]].id);
+        record.next_part_building_id =
+            i + 1 < chain.size() ? static_cast<short>(records[chain[i + 1]].id) : 0;
+    }
+}
+
+static void build_plan_ghost_runtime(
+    const building_construction::ConstructionPlacementPlan &plan,
+    const building_type_registry_impl::BuildingType &root_definition,
+    std::vector<building> &records,
+    std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> &bindings)
+{
+    const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    records.clear();
+    bindings.clear();
+    records.reserve(parts.size());
+    bindings.reserve(parts.size());
+
+    for (const building_construction::ConstructionPlacementPart &part : parts) {
+        records.push_back(make_plan_ghost_record(plan, part, root_definition));
+    }
+
+    const int main_index = plan_main_part_index(plan);
+    link_plan_ghost_records(records, main_index);
+    if (records.empty() || main_index < 0) {
+        return;
+    }
+
+    const unsigned int main_runtime_id = records[static_cast<size_t>(main_index)].id;
+    for (size_t i = 0; i < parts.size(); i++) {
+        building_runtime_impl::EphemeralBuildingRuntimeBinding binding;
+        binding.runtime_id = records[i].id;
+        binding.main_runtime_id = main_runtime_id;
+        binding.record = &records[i];
+        binding.definition = parts[i].definition;
+        binding.graphics_state = make_plan_ghost_graphics_state(parts[i], root_definition);
+        bindings.push_back(binding);
+    }
+}
+
 static void draw_plan_tiles(
     const building_construction::ConstructionPlacementPart &part,
     int x,
@@ -458,12 +537,17 @@ static void draw_plan_tiles(
 static void draw_plan_part(
     const building_construction::ConstructionPlacementPlan &plan,
     const building_construction::ConstructionPlacementPart &part,
+    Building &preview,
     int x_view,
     int y_view,
-    const building_type_registry_impl::BuildingType &root_definition,
     color_t color,
     int show_blocked_tiles)
 {
+    const building *record = preview.record();
+    if (!record) {
+        return;
+    }
+
     int x_size_offset = 0;
     int y_size_offset = 0;
     draw_tile_view_offset(part.size, &x_size_offset, &y_size_offset);
@@ -471,12 +555,9 @@ static void draw_plan_part(
     const int tile_y = y_view + Y_VIEW_OFFSET(part.x - plan.cursor_x(), part.y - plan.cursor_y());
     const int draw_x = tile_x + x_size_offset;
     const int draw_y = tile_y + y_size_offset;
-    building record = make_plan_ghost_record(plan, part, root_definition);
-    BuildingGraphicsState graphics_state = make_plan_ghost_graphics_state(part, root_definition);
-    Building building(record, part.definition, graphics_state);
-    building.draw_footprint({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
-    building.draw_top({ draw_x, draw_y, record.grid_offset, color, data.scale, 1 });
-    draw_runtime_ghost_animation(building, record.grid_offset, draw_x, draw_y, color);
+    preview.draw_footprint({ draw_x, draw_y, record->grid_offset, color, data.scale, 1 });
+    preview.draw_top({ draw_x, draw_y, record->grid_offset, color, data.scale, 1 });
+    draw_runtime_ghost_animation(preview, record->grid_offset, draw_x, draw_y, color);
     draw_plan_tiles(part, tile_x, tile_y, show_blocked_tiles);
 }
 
@@ -518,8 +599,17 @@ static void draw_default(
     draw_water_access_context_overlays(tile, definition);
     draw_grand_temple_neptune_context_overlay(tile, definition, plan.placement_size(), blocked);
     draw_distribution_context_overlays(tile, definition, plan.placement_size());
-    for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
-        draw_plan_part(plan, part, x_view, y_view, definition, color, !global_blocked);
+    std::vector<building> ghost_records;
+    std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> ghost_bindings;
+    build_plan_ghost_runtime(plan, definition, ghost_records, ghost_bindings);
+    building_runtime_impl::ScopedEphemeralBuildingRuntime ghost_runtime(ghost_bindings);
+    const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    for (size_t i = 0; i < parts.size() && i < ghost_records.size(); i++) {
+        building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[i]);
+        if (!runtime) {
+            continue;
+        }
+        draw_plan_part(plan, parts[i], runtime->building, x_view, y_view, color, !global_blocked);
     }
 
     set_roamer_path(type, plan.placement_size(), tile, blocked);
@@ -547,7 +637,20 @@ static void draw_single_reservoir(int grid_offset, int x, int y, color_t color, 
     }
 
     BuildingGraphicsState graphics_state;
-    Building reservoir(record, definition, graphics_state);
+    building_runtime_impl::EphemeralBuildingRuntimeBinding binding;
+    binding.runtime_id = 1;
+    binding.main_runtime_id = 1;
+    binding.record = &record;
+    binding.definition = definition;
+    binding.graphics_state = graphics_state;
+    std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> bindings;
+    bindings.push_back(binding);
+    building_runtime_impl::ScopedEphemeralBuildingRuntime reservoir_runtime(bindings);
+    building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&record);
+    if (!runtime) {
+        return;
+    }
+    Building &reservoir = runtime->building;
     reservoir.draw_footprint({ x, y, grid_offset, color, data.scale, 1 });
     reservoir.draw_top({ x, y, grid_offset, color, data.scale, 1 });
     if (has_water) {

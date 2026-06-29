@@ -365,6 +365,7 @@ static void initialize_saved_game(void)
     map_tiles_update_all_highways();
     map_tiles_update_all_plazas();
     map_tiles_update_all_aqueducts(0);
+    map_building_rebind_runtime_references();
     Route::updateAllTerrain();
     map_road_network_update();
     Route::updateLandTerrain();
@@ -372,6 +373,10 @@ static void initialize_saved_game(void)
     house_population_update_room();
     Figure::resolve_loaded_building_references();
     figure_runtime_initialize_city();
+    map_tiles_update_all_gardens();
+    map_tiles_update_all_plazas();
+    map_building_rebind_runtime_references();
+    city_view_restore_lookup();
 }
 
 static int start_scenario(const uint8_t *scenario_name, const char *scenario_file)

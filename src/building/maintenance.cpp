@@ -203,14 +203,8 @@ int building_maintenance_get_closest_burning_ruin(int x, int y, int *distance)
     int burning_size = building_list_burning_size();
     for (int i = 0; i < burning_size; i++) {
         int building_id = building_list_burning_item(i);
-        building *b = nullptr;
-        Building *burning_building = nullptr;
-        Building::for_each([&](Building *candidate) {
-            if (!b && candidate->id == static_cast<unsigned int>(building_id)) {
-                burning_building = candidate;
-                b = const_cast<::building *>(candidate->record());
-            }
-        });
+        Building *burning_building = Building::get(static_cast<unsigned int>(building_id));
+        building *b = burning_building ? const_cast<::building *>(burning_building->record()) : nullptr;
         if (!b) {
             continue;
         }

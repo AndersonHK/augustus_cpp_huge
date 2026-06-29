@@ -264,12 +264,7 @@ static int evolve_xml_housing(Building &house_object, building *house, house_dem
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
         unsigned int merged_id = building_house_merge(house_object);
         if (merged_id) {
-            Building *merged_house_object = nullptr;
-            Building::for_each([&](Building *candidate) {
-                if (!merged_house_object && candidate->id == merged_id) {
-                    merged_house_object = candidate;
-                }
-            });
+            Building *merged_house_object = Building::get(merged_id);
             if (merged_house_object) {
                 building *merged_house = const_cast<::building *>(merged_house_object->record());
                 if (game_time_day() == 0 || (game_time_day() == 7 && merged_house->house_size > 1)) {

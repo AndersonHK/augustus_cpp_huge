@@ -132,17 +132,7 @@ unsigned int save_id_for(const Building *building)
 
 Building *loaded_building_ref(unsigned int id)
 {
-    if (!id) {
-        return nullptr;
-    }
-
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building && building->id == id) {
-            found = building;
-        }
-    });
-    return found;
+    return Building::get(id);
 }
 
 void store_pending_building_refs(
@@ -279,6 +269,25 @@ void clear_dead_loaded_producer_cart_slots()
         if (b->figure_id && !loaded_figure_id_is_alive(b->figure_id)) {
             b->figure_id = 0;
         }
+    });
+}
+
+void resolve_loaded_migrant_house_refs()
+{
+    Building::for_each({ .hasHousing = true }, [](Building *house) {
+        const unsigned int migrant_id = house ? house->immigrant_figure_id() : 0;
+        if (!migrant_id || migrant_id >= Figure::count()) {
+            return;
+        }
+
+        Figure *figure = Figure::get(migrant_id);
+        if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE) {
+            return;
+        }
+
+        figure->immigrant_building = house;
+        figure->destination_building = house;
+        figure->last_destination_id = static_cast<int>(house->id);
     });
 }
 
@@ -1203,7 +1212,16 @@ void Figure::resolve_loaded_building_references()
         f->building = loaded_building_ref(refs.building_id);
         f->immigrant_building = loaded_building_ref(refs.immigrant_building_id);
         f->destination_building = loaded_building_ref(refs.destination_building_id);
+        if ((f->type == FIGURE_IMMIGRANT || f->type == FIGURE_HOMELESS) && f->last_destination_id <= 0) {
+            const unsigned int house_id = refs.destination_building_id ?
+                refs.destination_building_id :
+                refs.immigrant_building_id;
+            if (house_id) {
+                f->last_destination_id = static_cast<int>(house_id);
+            }
+        }
     }
+    resolve_loaded_migrant_house_refs();
     // Saved ids remain available until the final saved-game initialization pass,
     // because building runtime initialization can rebuild Building wrappers.
     clear_dead_loaded_producer_cart_slots();

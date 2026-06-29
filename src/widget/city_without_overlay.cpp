@@ -248,15 +248,17 @@ static void draw_footprint(int x, int y, int grid_offset)
         }
         map_image_set(grid_offset, image_id);
     }
+    const int tile_visual_first =
+        building && !use_custom_ghost_preview && building->is_surface_terrain_tile();
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
-    } else if (building && building->is_surface_terrain_tile() && !use_custom_ghost_preview &&
+    } else if (tile_visual_first &&
         city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
         // Surface buildings keep runtime identity; merged garden/plaza visuals are tile-composed.
     } else if (building_id &&
         building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
         // Runtime-managed buildings draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
-    } else if (!building_id && !use_custom_ghost_preview &&
+    } else if (!use_custom_ghost_preview &&
         city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
         // Runtime-managed terrain tiles draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
     } else {
@@ -450,11 +452,16 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     color_t color_mask = building ? building_draw_color_mask(*building, grid_offset, false) :
         terrain_draw_color_mask(grid_offset, false);
 
-    if ((!building || building->is_surface_terrain_tile()) &&
+    const int tile_visual_first = building && building->is_surface_terrain_tile();
+    if ((!building || tile_visual_first) &&
         city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
         return;
     }
     if (!building || !building->draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
+        if (building && !tile_visual_first &&
+            city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+            return;
+        }
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
     }
     if (building) {

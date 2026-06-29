@@ -2197,6 +2197,28 @@ const std::vector<ProductionMethod *> &BuildingType::production_methods() const
     return production_methods_;
 }
 
+resource_type BuildingType::output_resource() const
+{
+    for (const ProductionMethod *method : production_methods_) {
+        if (method && method->has_resource_output()) {
+            return method->output_resource();
+        }
+    }
+    if (!has_composition()) {
+        return RESOURCE_NONE;
+    }
+    for (const ComposedPartDefinition &part : composition().parts()) {
+        const BuildingType *part_type = building_type_registry_impl::definition_for_type(part.type);
+        if (part_type) {
+            resource_type resource = part_type->output_resource();
+            if (resource != RESOURCE_NONE) {
+                return resource;
+            }
+        }
+    }
+    return RESOURCE_NONE;
+}
+
 const Distribution *BuildingType::distribution() const
 {
     return distribution_;
@@ -2239,7 +2261,7 @@ int BuildingType::has_native_production() const
 
 int BuildingType::is_farm() const
 {
-    return farm_production_method() ? 1 : 0;
+    return farm_panel_production_method() ? 1 : 0;
 }
 
 const ProductionMethod *BuildingType::farm_production_method() const

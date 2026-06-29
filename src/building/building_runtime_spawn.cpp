@@ -51,7 +51,7 @@ namespace {
 
 int figure_belongs_to_building(const Figure *f, const Building &building)
 {
-    return f && f->building && f->building->id == building.id;
+    return f && f->building == &building;
 }
 
 void attach_figure_to_building(Figure *f, Building &building)
@@ -91,7 +91,7 @@ void send_supplier_to_storage_destination(Figure *supplier, Building *destinatio
 
 int building_runtime::worker_percentage() const
 {
-    const Building current = building;
+    const Building &current = building;
     const int required_workers = current.employment_required_workers();
     if (required_workers <= 0) {
         // Houses and other zero-labor spawn owners still need their XML
@@ -136,9 +136,10 @@ void building_runtime::generate_labor_seeker(int x, int y)
         return;
     }
     if (record().figure_id2) {
-        Building current = building;
+        Building &current = building;
         Figure *existing = Figure::get(record().figure_id2);
-        if (existing->is_dead() || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
+        if (!existing || existing->is_dead() || existing->type != FIGURE_LABOR_SEEKER ||
+            !figure_belongs_to_building(existing, current)) {
             record().figure_id2 = 0;
         }
         return;
@@ -230,7 +231,7 @@ int building_runtime::has_figure_of_type(figure_type type)
         return 0;
     }
     Figure *existing = Figure::get(record().figure_id);
-    Building current = building;
+    Building &current = building;
     if (existing && !existing->is_dead() && figure_belongs_to_building(existing, current) && existing->type == type) {
         return 1;
     }
@@ -248,7 +249,7 @@ int building_runtime::has_figure_of_any(const std::vector<figure_type> &types)
     // helper repeatedly here because it clears the slot when that one type does
     // not match, which breaks alternates that intentionally share the slot.
     Figure *existing = Figure::get(record().figure_id);
-    Building current = building;
+    Building &current = building;
     if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
         record().figure_id = 0;
         return 0;
@@ -287,59 +288,29 @@ unsigned int *building_runtime::figure_slot_storage(building_type_registry_impl:
     }
 }
 
-unsigned int building_runtime::find_live_owned_figure(figure_type primary_type, figure_type secondary_type) const
-{
-    // Compatibility scan for figures that predate XML-owned slots, or that
-    // lost their tracked slot through legacy cleanup. Spawns identify ownership
-    // by building relation, so a live owned walker can safely rehydrate the slot.
-    Building current = building;
-    for (unsigned int i = 1; i < Figure::count(); i++) {
-        Figure *existing = Figure::get(i);
-        if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
-            continue;
-        }
-        if (existing->type == primary_type || (secondary_type != FIGURE_NONE && existing->type == secondary_type)) {
-            return existing->id();
-        }
-    }
-    return 0;
-}
-
 int building_runtime::slot_has_live_figure(
     building_type_registry_impl::FigureSlot slot,
     figure_type primary_type,
     figure_type secondary_type)
 {
-    // XML spawn slots are backed by legacy figure_id fields. Before declaring
-    // the slot free, adopt any already-live owned figure so old saves and older
-    // hardcoded creation paths do not double-spawn the same walker role.
     unsigned int *slot_value = figure_slot_storage(slot);
     if (!slot_value) {
         return 0;
     }
     if (*slot_value <= 0) {
-        // Residential walkers created before BuildingType-owned slots did not
-        // populate the house slot. Adopt one live owned walker to avoid a
-        // duplicate during the save compatibility window.
-        *slot_value = find_live_owned_figure(primary_type, secondary_type);
-        return *slot_value > 0;
+        return 0;
     }
 
     Figure *existing = Figure::get(*slot_value);
-    Building current = building;
-    if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
-        *slot_value = 0;
-        *slot_value = find_live_owned_figure(primary_type, secondary_type);
-        return *slot_value > 0;
-    }
-    if (existing->type != primary_type && existing->type != secondary_type) {
-        *slot_value = find_live_owned_figure(primary_type, secondary_type);
-        if (*slot_value > 0) {
-            return 1;
-        }
+    if (!existing || existing->is_dead()) {
         *slot_value = 0;
         return 0;
     }
+    if (existing->type != primary_type && existing->type != secondary_type) {
+        *slot_value = 0;
+        return 0;
+    }
+    attach_figure_to_building(existing, building);
     return 1;
 }
 
@@ -973,6 +944,17 @@ resource_type building_runtime::figure_delivery_output_resource() const
 
 void building_runtime::spawn_figure_delivery_cart(const map_point &road)
 {
+    Building &output_owner = building.main();
+    if (output_owner.id != building.id) {
+        if (building_runtime *owner_runtime = output_owner.runtime_instance()) {
+            map_point owner_road;
+            if (owner_runtime->resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &owner_road)) {
+                owner_runtime->spawn_figure_delivery_cart(owner_road);
+            }
+        }
+        return;
+    }
+
     if (slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
         return;
     }

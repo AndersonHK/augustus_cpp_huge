@@ -38,6 +38,11 @@ class building_runtime {
 
 public:
     building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition);
+    building_runtime(
+        ::building *building_data,
+        const building_type_registry_impl::BuildingType *definition,
+        unsigned int runtime_id,
+        int ephemeral);
 
     void set_building_graphic();
     void assign_graphic_variant(int force_reseed);
@@ -78,6 +83,8 @@ public:
     int owns_graphic_animation();
     int owns_native_storage() const;
     int owns_native_production() const;
+    unsigned int runtime_id() const;
+    int is_ephemeral() const;
     int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0);
     int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
     void release_legacy_storage_reservation(unsigned int figure_id);
@@ -164,7 +171,6 @@ private:
     int has_figure_of_type(figure_type type);
     int has_figure_of_any(const std::vector<figure_type> &types);
     unsigned int *figure_slot_storage(building_type_registry_impl::FigureSlot slot);
-    unsigned int find_live_owned_figure(figure_type primary_type, figure_type secondary_type = FIGURE_NONE) const;
     int slot_has_live_figure(
         building_type_registry_impl::FigureSlot slot,
         figure_type primary_type,
@@ -227,6 +233,8 @@ private:
 
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
+    unsigned int runtime_id_ = 0;
+    int ephemeral_ = 0;
     BuildingGraphicsState graphics_state_;
     std::unique_ptr<RubbleState> rubble_state_;
     Building building_;

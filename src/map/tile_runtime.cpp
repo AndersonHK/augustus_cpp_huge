@@ -333,12 +333,13 @@ tile_runtime *get_or_create_direct_instance(
 
 static std::unordered_map<int, tile_runtime> g_runtime_tiles_backup;
 
-// Input: one runtime tile wrapper that already knows its authored payload image id.
-// Output: the native payload entry for that tile, or null when the authored runtime tile graphic cannot be resolved.
-const ImageGroupEntry *tile_runtime::resolve_graphic_entry() const
+const ImageGroupEntry *tile_runtime::cached_graphic_entry() const
 {
     if (graphics_path_.empty() || !image_id_[0]) {
         return nullptr;
+    }
+    if (cached_entry_) {
+        return cached_entry_;
     }
 
     char context[128];
@@ -383,7 +384,15 @@ const ImageGroupEntry *tile_runtime::resolve_graphic_entry() const
             detail);
         return nullptr;
     }
+    cached_entry_ = entry;
     return entry;
+}
+
+// Input: one runtime tile wrapper that already knows its authored payload image id.
+// Output: the native payload entry for that tile, or null when the authored runtime tile graphic cannot be resolved.
+const ImageGroupEntry *tile_runtime::resolve_graphic_entry() const
+{
+    return cached_graphic_entry();
 }
 
 // Input: one runtime tile wrapper that already knows its authored payload image id.

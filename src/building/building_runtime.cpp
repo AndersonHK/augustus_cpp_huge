@@ -67,8 +67,19 @@ static const RubbleDef *runtime_rubble_definition_for_record(
 }
 
 building_runtime::building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition)
+    : building_runtime(building_data, definition, building_data ? building_data->id : 0, 0)
+{
+}
+
+building_runtime::building_runtime(
+    ::building *building_data,
+    const building_type_registry_impl::BuildingType *definition,
+    unsigned int runtime_id,
+    int ephemeral)
     : record_(building_data)
     , definition_(definition)
+    , runtime_id_(runtime_id)
+    , ephemeral_(ephemeral)
     , graphics_state_()
     , rubble_state_(runtime_rubble_definition_for_record(building_data, definition) ? std::make_unique<RubbleState>() : nullptr)
     , building_(
@@ -80,6 +91,16 @@ building_runtime::building_runtime(::building *building_data, const building_typ
     , data(*building_data)
     , building(building_)
 {
+}
+
+unsigned int building_runtime::runtime_id() const
+{
+    return runtime_id_;
+}
+
+int building_runtime::is_ephemeral() const
+{
+    return ephemeral_;
 }
 
 BuildingGraphicsState &building_runtime::graphics_state()
@@ -106,6 +127,104 @@ void building_runtime::restore_graphics_state(const BuildingGraphicsState &state
 namespace building_runtime_impl {
 
 std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
+static ScopedEphemeralBuildingRuntime *g_ephemeral_runtime_context = nullptr;
+
+ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
+    const std::vector<EphemeralBuildingRuntimeBinding> &bindings)
+    : previous_(g_ephemeral_runtime_context)
+{
+    for (const EphemeralBuildingRuntimeBinding &binding : bindings) {
+        if (!binding.record || !binding.definition || !binding.runtime_id) {
+            continue;
+        }
+
+        binding.record->id = binding.runtime_id;
+        std::unique_ptr<building_runtime> runtime =
+            std::make_unique<building_runtime>(binding.record, binding.definition, binding.runtime_id, 1);
+        runtime->restore_graphics_state(binding.graphics_state);
+
+        building_runtime *runtime_ptr = runtime.get();
+        runtime_id_by_record_[binding.record] = binding.runtime_id;
+        runtime_by_id_[binding.runtime_id] = runtime_ptr;
+        main_id_by_runtime_id_[binding.runtime_id] =
+            binding.main_runtime_id ? binding.main_runtime_id : binding.runtime_id;
+        runtimes_.push_back(std::move(runtime));
+    }
+
+    g_ephemeral_runtime_context = this;
+}
+
+ScopedEphemeralBuildingRuntime::~ScopedEphemeralBuildingRuntime()
+{
+    g_ephemeral_runtime_context = previous_;
+}
+
+building_runtime *ScopedEphemeralBuildingRuntime::runtime_for_record(::building *record) const
+{
+    if (record) {
+        const auto id_it = runtime_id_by_record_.find(record);
+        if (id_it != runtime_id_by_record_.end()) {
+            return runtime_for_id(id_it->second);
+        }
+    }
+    return previous_ ? previous_->runtime_for_record(record) : nullptr;
+}
+
+building_runtime *ScopedEphemeralBuildingRuntime::runtime_for_id(unsigned int runtime_id) const
+{
+    if (runtime_id) {
+        const auto runtime_it = runtime_by_id_.find(runtime_id);
+        if (runtime_it != runtime_by_id_.end()) {
+            return runtime_it->second;
+        }
+    }
+    return previous_ ? previous_->runtime_for_id(runtime_id) : nullptr;
+}
+
+building_runtime *ScopedEphemeralBuildingRuntime::main_runtime_for_record(::building *record) const
+{
+    if (!record) {
+        return nullptr;
+    }
+
+    const auto id_it = runtime_id_by_record_.find(record);
+    if (id_it == runtime_id_by_record_.end()) {
+        return previous_ ? previous_->main_runtime_for_record(record) : nullptr;
+    }
+
+    building_runtime *runtime = runtime_for_id(id_it->second);
+    if (!runtime) {
+        return nullptr;
+    }
+
+    const auto main_it = main_id_by_runtime_id_.find(id_it->second);
+    if (main_it == main_id_by_runtime_id_.end()) {
+        return runtime;
+    }
+    building_runtime *main_runtime = runtime_for_id(main_it->second);
+    return main_runtime ? main_runtime : runtime;
+}
+
+building_runtime *ScopedEphemeralBuildingRuntime::next_runtime_for_record(::building *record) const
+{
+    if (!record) {
+        return nullptr;
+    }
+
+    const auto id_it = runtime_id_by_record_.find(record);
+    if (id_it == runtime_id_by_record_.end()) {
+        return previous_ ? previous_->next_runtime_for_record(record) : nullptr;
+    }
+
+    if (record->next_part_building_id <= 0) {
+        return nullptr;
+    }
+    building_runtime *runtime = runtime_for_id(static_cast<unsigned int>(record->next_part_building_id));
+    if (runtime) {
+        return runtime;
+    }
+    return previous_ ? previous_->next_runtime_for_record(record) : nullptr;
+}
 
 struct GraphicsStateBackup {
     int valid = 0;
@@ -157,8 +276,39 @@ building_runtime *get_city_building(::building *building_data)
     return get_or_create_instance(building_data);
 }
 
+building_runtime *get_ephemeral_instance(::building *building_data)
+{
+    return g_ephemeral_runtime_context ?
+        g_ephemeral_runtime_context->runtime_for_record(building_data) :
+        nullptr;
+}
+
+building_runtime *get_ephemeral_instance(unsigned int runtime_id)
+{
+    return g_ephemeral_runtime_context ?
+        g_ephemeral_runtime_context->runtime_for_id(runtime_id) :
+        nullptr;
+}
+
+building_runtime *get_ephemeral_main_instance(::building *building_data)
+{
+    return g_ephemeral_runtime_context ?
+        g_ephemeral_runtime_context->main_runtime_for_record(building_data) :
+        nullptr;
+}
+
+building_runtime *get_ephemeral_next_instance(::building *building_data)
+{
+    return g_ephemeral_runtime_context ?
+        g_ephemeral_runtime_context->next_runtime_for_record(building_data) :
+        nullptr;
+}
+
 building_runtime *get_or_create_instance(::building *building_data)
 {
+    if (building_runtime *runtime = get_ephemeral_instance(building_data)) {
+        return runtime;
+    }
     if (!building_data || !building_data->id) {
         return nullptr;
     }

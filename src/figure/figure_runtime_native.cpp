@@ -478,17 +478,7 @@ building *mutable_record(Building *building)
 
 Building *runtime_building_for_id(unsigned int building_id)
 {
-    if (!building_id) {
-        return nullptr;
-    }
-
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building && building->id == building_id) {
-            found = building;
-        }
-    });
-    return found;
+    return Building::get(building_id);
 }
 
 bool owner_road_access(const building &owner, map_point &road)

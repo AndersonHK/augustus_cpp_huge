@@ -86,12 +86,7 @@ int for_each_raw_material_consumer(resource_type raw_material, Visitor visitor)
 
 resource_type building_output_resource(const building_type_registry_impl::BuildingType *definition)
 {
-    const std::vector<building_type_registry_impl::ProductionMethod *> &methods = definition->production_methods();
-    if (!methods.empty() && methods.front()) {
-        const building_type_registry_impl::ProductionMethod *method = methods.front();
-        return method->output_resource();
-    }
-    return RESOURCE_NONE;
+    return definition->output_resource();
 }
 
 building_type building_producer_for_resource(resource_type resource)

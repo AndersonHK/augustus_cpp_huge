@@ -214,14 +214,14 @@ int selected_option_for_selection(
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::ProductionProgress) {
         const ::building *record = building.record();
-        Production *production = record ? production_runtime_impl::get_or_create_primary(building) : nullptr;
+        if (!record) {
+            return 0;
+        }
+        Production *production = production_runtime_impl::get_or_create_primary(building);
         const int max_value = production ? production->max_progress() :
             (building.type && !building.type->production_methods().empty() ?
                 building.type->production_methods().front()->max_progress_for(building.main()) :
                 0);
-        if (!record) {
-            return 0;
-        }
         if (max_value <= 0) {
             return calc_bound(record->data.industry.progress, 0, option_count - 1);
         }
@@ -394,11 +394,12 @@ std::uint64_t building_runtime::graphics_state_signature() const
         }
     }
     std::uint64_t signature = b.graphics_state_signature(selected_option);
-    ::building *owner_record = record_->id ? building_main(record_) : nullptr;
-    if (owner_record && owner_record->id && owner_record->id != record_->id) {
-        if (building_runtime *owner_runtime = building_runtime_impl::get_or_create_instance(owner_record)) {
-            signature ^= owner_runtime->building.graphics_state_signature(-1);
-        }
+    building_runtime *owner_runtime = building_runtime_impl::get_ephemeral_main_instance(record_);
+    if (!owner_runtime && record_->id) {
+        owner_runtime = building_runtime_impl::get_or_create_instance(building_main(record_));
+    }
+    if (owner_runtime && owner_runtime != this) {
+        signature ^= owner_runtime->building.graphics_state_signature(-1);
         signature *= 1099511628211ull;
     }
     return signature;

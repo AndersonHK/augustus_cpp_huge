@@ -19,7 +19,6 @@
 #include "building/building_record.h"
 #include "city/population.h"
 #include "core/config.h"
-#include "game/performance_tracker.h"
 #include "game/time.h"
 
 #include <algorithm>
@@ -158,20 +157,6 @@ int is_live_building(const building *b)
 int is_live_building(const Building &building)
 {
     return building.id && building.is_in_use();
-}
-
-Building *runtime_building_by_id(unsigned int id)
-{
-    if (!id) {
-        return nullptr;
-    }
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building->id == id) {
-            found = building;
-        }
-    });
-    return found;
 }
 
 const building_type_registry_impl::LaborSeekerPolicy *labor_policy_for(const Building &building)
@@ -319,10 +304,10 @@ void release_workplace_source(unsigned int workplace_id, unsigned int house_id)
 {
     g_runtime_state.releaseWorkplaceSource(workplace_id, house_id);
 
-    if (Building *house = runtime_building_by_id(house_id)) {
+    if (Building *house = Building::get(house_id)) {
         refresh_house_unemployed(const_cast<::building *>(house->record()));
     }
-    if (Building *workplace = runtime_building_by_id(workplace_id)) {
+    if (Building *workplace = Building::get(workplace_id)) {
         if (is_live_building(*workplace)) {
             refresh_access_score(*workplace);
         }
@@ -380,8 +365,8 @@ void trim_house_to_possible(building *house)
 void clamp_allocation_table()
 {
     g_runtime_state.removeAllocationsIf([](unsigned int workplace_id, unsigned int house_id, int workers) {
-        Building *workplace = runtime_building_by_id(workplace_id);
-        Building *house = runtime_building_by_id(house_id);
+        Building *workplace = Building::get(workplace_id);
+        Building *house = Building::get(house_id);
         const building *house_record = house ? house->record() : nullptr;
         if (!workplace || workers <= 0) {
             return 1;
@@ -430,60 +415,19 @@ int prepare_labor_seeker_target(Figure *f)
     if (!uses_active_workforce(workplace) || !workplace_record || workplace_record->figure_id2 != f->id()) {
         return 0;
     }
-    if (f->destination_building) {
-        Building &house = *f->destination_building;
-        if (is_live_building(house) && house.has_house_size()) {
-            const map_point source_road = { f->x, f->y };
-            const map_point target_road = { f->destination_x, f->destination_y };
-            RoutePolicy reachability_policy = RoutePolicy::fromKind(RoutePolicyKind::CitizenRoadGarden);
-            reachability_policy.permission = PERMISSION_LABOR_SEEKER;
-            Route::Request reachability = Route::Request::between(
-                source_road,
-                target_road,
-                reachability_policy,
-                PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
-            reachability.max_tiles = remaining_roam_length(f);
-            reachability.require_same_road_network = true;
-            const int target_is_reachable = Route::Planner::canReach(reachability);
-            if (!target_is_reachable) {
-                if (f->collecting_item_id == kLaborSeekerTripValidate) {
-                    release_workplace_source(workplace.id, house.id);
-                }
-                f->destination_building = nullptr;
-            } else {
-                if (f->collecting_item_id == kLaborSeekerTripValidate) {
-                    return 1;
-                }
-                refresh_house_unemployed(house);
-                const building *house_record = house.record();
-                if (house_record->local_workforce_unemployed > 0) {
-                    return 1;
-                }
-            }
-        } else if (f->collecting_item_id == kLaborSeekerTripValidate) {
-            release_workplace_source(workplace.id, f->destination_building->id);
+    if (!f->destination_building) {
+        return 0;
+    }
+
+    Building &house = *f->destination_building;
+    if (!is_live_building(house) || !house.has_house_size()) {
+        if (f->collecting_item_id == kLaborSeekerTripValidate) {
+            release_workplace_source(workplace.id, house.id);
         }
         f->destination_building = nullptr;
-    }
-
-    const int max_distance = remaining_roam_length(f);
-    if (max_distance <= 0) {
         return 0;
     }
 
-    const map_point source_road = { f->x, f->y };
-    building_local_workforce::LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
-    const building_local_workforce::RouteAccessSelector selector =
-        building_local_workforce::RouteAccessSelector::fromRoad(source_road, max_distance, context);
-    const building_local_workforce::HouseRouteSelection target = selector.nearestUnemployedHouse();
-    if (!target) {
-        return 0;
-    }
-
-    f->destination_building = target.house;
-    f->destination_x = static_cast<unsigned char>(target.road().x);
-    f->destination_y = static_cast<unsigned char>(target.road().y);
-    Route::remove(f);
     return 1;
 }
 
@@ -645,7 +589,7 @@ void remove_allocations_for_building(unsigned int building_id)
         });
     for (unsigned int house_id : house_ids_to_refresh) {
         g_runtime_state.releaseWorkplaceSource(building_id, house_id);
-        if (Building *house = runtime_building_by_id(house_id)) {
+        if (Building *house = Building::get(house_id)) {
             refresh_house_unemployed(const_cast<::building *>(house->record()));
         }
     }
@@ -1019,11 +963,13 @@ void replace_house(const Building &from, const Building &to)
 
 int spawn_acquisition(Building &workplace, const map_point *road)
 {
-    clamp_allocation_table();
     if (!uses_active_workforce(workplace) || !road) {
         return 0;
     }
     if (access_workers_for_workplace(workplace) >= required_workers(workplace)) {
+        return 0;
+    }
+    if (labor_seeker_slot_is_busy(workplace)) {
         return 0;
     }
 
@@ -1039,7 +985,6 @@ int spawn_acquisition(Building &workplace, const map_point *road)
 
 int spawn_validation(Building &workplace, const map_point *road)
 {
-    clamp_allocation_table();
     if (!uses_active_workforce(workplace) || !road) {
         return 0;
     }
