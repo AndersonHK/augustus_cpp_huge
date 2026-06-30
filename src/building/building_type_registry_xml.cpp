@@ -2415,6 +2415,7 @@ static int parse_graphics_default()
 
     g_parse_state.definition->mark_graphics_default_node();
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Default;
+    GraphicsTarget &target = g_parse_state.definition->default_graphics_target();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2422,7 +2423,17 @@ static int parse_graphics_default()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->default_graphics_target().set_animation_enabled(enabled);
+        target.set_animation_enabled(enabled);
+    }
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics default terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        target.set_terrain_foundation(enabled);
     }
     return 1;
 }
@@ -2674,7 +2685,20 @@ static int parse_graphics_option()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("image")) {
+    int draws = 1;
+    if (xml_parser_has_attribute("draw")) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("draw"), &draws)) {
+            log_error("Unsupported BuildingType graphics option draw flag", xml_parser_get_attribute_string("draw"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    if (!draws && g_parse_state.parsing_graphics_layer) {
+        log_error("BuildingType graphics layer option cannot use draw=0", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (draws && !xml_parser_has_attribute("image")) {
         log_error("BuildingType graphics option is missing required attribute 'image'", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -2734,6 +2758,20 @@ static int parse_graphics_option()
     }
 
     GraphicsTarget &option = target->add_option();
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics option terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.set_terrain_foundation(enabled);
+    }
+    if (!draws) {
+        option.set_no_draw(1);
+        return 1;
+    }
     if (xml_parser_has_attribute("path")) {
         std::string normalized_path = normalize_graphics_path(xml_parser_get_attribute_string("path"));
         if (normalized_path.empty()) {
@@ -2784,6 +2822,16 @@ static int parse_graphics_variant()
             return 0;
         }
         variant.target.set_animation_enabled(enabled);
+    }
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics variant terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        variant.target.set_terrain_foundation(enabled);
     }
     if (xml_parser_has_attribute("role")) {
         std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
@@ -4337,6 +4385,9 @@ static int validate_graphics_target_entry(
                 "%s.option[%u]",
                 target_scope ? target_scope : "graphics",
                 static_cast<unsigned int>(i));
+            if (resolved.no_draw()) {
+                continue;
+            }
             if (!resolved.has_image()) {
                 char detail[512];
                 snprintf(

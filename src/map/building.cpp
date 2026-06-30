@@ -127,6 +127,14 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
     }
 }
 
+static int rubble_origins_match(const RubbleState &a, const RubbleState &b)
+{
+    return a.original_grid_offset == b.original_grid_offset &&
+        a.original_size == b.original_size &&
+        a.original_orientation == b.original_orientation &&
+        a.original_type == b.original_type;
+}
+
 int map_building_ruins_left(const Building &building)
 {
     // doesnt work for hippodromes and forts - forts shouldnt turn to rubble, hippodromes are not repairable
@@ -144,13 +152,16 @@ int map_building_ruins_left(const Building &building)
     grid_slice *slice = map_grid_get_grid_slice_square(slice_offset, size);
     for (int i = 0; i < slice->size; i++) {
         int grid_offset = slice->grid_offsets[i];
-        if (map_building_rubble_building_id(grid_offset) == building_id) {
-            ruins_count++;
-        } else if (map_building_exists_at(grid_offset)) {
+        if (map_building_exists_at(grid_offset)) {
             const Building &tile_building = map_building_at(grid_offset);
-            if (tile_building.id == building_id && tile_building.Rubble) {
+            const RubbleState *tile_rubble_state = tile_building.Rubble ? tile_building.Rubble->state() : nullptr;
+            if (rubble_state && tile_rubble_state && rubble_origins_match(*rubble_state, *tile_rubble_state)) {
+                ruins_count++;
+            } else if (!rubble_state && tile_building.id == building_id && tile_building.Rubble) {
                 ruins_count++;
             }
+        } else if (!rubble_state && map_building_rubble_building_id(grid_offset) == building_id) {
+            ruins_count++;
         }
     }
     return ruins_count;

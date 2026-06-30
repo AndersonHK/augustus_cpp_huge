@@ -162,6 +162,7 @@
     <ClCompile Include="src\core\memory_block.cpp" />
     <ClCompile Include="src\core\png_read.cpp" />
     <ClCompile Include="src\core\random.cpp" />
+    <ClCompile Include="src\core\runtime_diagnostics.cpp" />
     <ClCompile Include="src\core\smacker.cpp" />
     <ClCompile Include="src\core\speed.cpp" />
     <ClCompile Include="src\core\string.cpp" />
@@ -420,7 +421,6 @@
     <ClCompile Include="src\translation\localization_support.cpp" />
     <ClCompile Include="src\translation\translation.cpp" />
     <ClCompile Include="src\widget\city.cpp" />
-    <ClCompile Include="src\widget\city_bridge.cpp" />
     <ClCompile Include="src\widget\city_building_ghost.cpp" />
     <ClCompile Include="src\widget\city_draw.cpp" />
     <ClCompile Include="src\widget\city_draw_highway.cpp" />
@@ -710,6 +710,7 @@
     <ClInclude Include="src\core\memory_block.h" />
     <ClInclude Include="src\core\png_read.h" />
     <ClInclude Include="src\core\random.h" />
+    <ClInclude Include="src\core\runtime_diagnostics.h" />
     <ClInclude Include="src\core\smacker.h" />
     <ClInclude Include="src\core\speed.h" />
     <ClInclude Include="src\core\string.h" />
@@ -974,7 +975,6 @@
     <ClInclude Include="src\translation\localization_internal.h" />
     <ClInclude Include="src\translation\translation.h" />
     <ClInclude Include="src\widget\city.h" />
-    <ClInclude Include="src\widget\city_bridge.h" />
     <ClInclude Include="src\widget\city_building_ghost.h" />
     <ClInclude Include="src\widget\city_draw.h" />
     <ClInclude Include="src\widget\city_draw_highway.h" />

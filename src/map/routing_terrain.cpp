@@ -15,7 +15,6 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/routing_data.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 
 static void update_land_terrain_noncitizen(void);
@@ -263,7 +262,7 @@ void Route::updateWaterTerrain(void)
             if (map_terrain_is(grid_offset, TERRAIN_WATER) && is_surrounded_by_water(grid_offset)) {
                 if (x > 0 && x < map_data.width - 1 &&
                     y > 0 && y < map_data.height - 1) {
-                    switch (map_sprite_bridge_at(grid_offset)) {
+                    switch (map_bridge_legacy_section_at(grid_offset)) {
                         case 5:
                         case 6: // low bridge middle section
                             terrain_water.items[grid_offset] = WATER_N3_LOW_BRIDGE;

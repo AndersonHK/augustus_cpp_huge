@@ -422,6 +422,143 @@ void building_runtime_for_each(
     }
 }
 
+static void write_debug_json_string(FILE *file, const char *text)
+{
+    fputc('"', file);
+    if (text) {
+        for (const char *cursor = text; *cursor; ++cursor) {
+            switch (*cursor) {
+                case '\\':
+                    fputs("\\\\", file);
+                    break;
+                case '"':
+                    fputs("\\\"", file);
+                    break;
+                case '\n':
+                    fputs("\\n", file);
+                    break;
+                case '\r':
+                    fputs("\\r", file);
+                    break;
+                case '\t':
+                    fputs("\\t", file);
+                    break;
+                default:
+                    fputc(*cursor, file);
+                    break;
+            }
+        }
+    }
+    fputc('"', file);
+}
+
+static void write_debug_pointer(FILE *file, const void *pointer)
+{
+    fputc('"', file);
+    fprintf(file, "%p", pointer);
+    fputc('"', file);
+}
+
+unsigned int building_runtime_debug_known_building_id(const Building *building)
+{
+    if (!building) {
+        return 0;
+    }
+
+    for (const std::unique_ptr<building_runtime> &instance : building_runtime_impl::g_runtime_instances) {
+        if (instance && &instance->building == building) {
+            return instance->building.id;
+        }
+    }
+    return 0;
+}
+
+void building_runtime_debug_dump(FILE *file)
+{
+    if (!file) {
+        return;
+    }
+
+    fprintf(file, "  \"buildings\": [\n");
+    int wrote = 0;
+    for (size_t slot = 0; slot < building_runtime_impl::g_runtime_instances.size(); ++slot) {
+        const std::unique_ptr<building_runtime> &instance = building_runtime_impl::g_runtime_instances[slot];
+        if (!instance) {
+            continue;
+        }
+
+        Building &building = instance->building;
+        const ::building *record = building.record();
+        const building_type_registry_impl::BuildingType *definition = instance->definition();
+        const RubbleState *rubble_state = building.Rubble ? building.Rubble->state() : nullptr;
+
+        if (wrote++) {
+            fprintf(file, ",\n");
+        }
+
+        fprintf(file, "    {\n");
+        fprintf(file, "      \"slot\": %zu,\n", slot);
+        fprintf(file, "      \"runtime_id\": %u,\n", instance->runtime_id());
+        fprintf(file, "      \"ephemeral\": %d,\n", instance->is_ephemeral());
+        fprintf(file, "      \"building_pointer\": ");
+        write_debug_pointer(file, &building);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"record_pointer\": ");
+        write_debug_pointer(file, record);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"building_id\": %u,\n", static_cast<unsigned int>(building.id));
+        fprintf(file, "      \"record_id\": %u,\n", record ? record->id : 0);
+        fprintf(file, "      \"type_id\": %d,\n", record ? static_cast<int>(record->type) : 0);
+        fprintf(file, "      \"type_attr\": ");
+        write_debug_json_string(file, definition ? definition->attr() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"state\": %d,\n", record ? record->state : 0);
+        fprintf(file, "      \"is_deleted\": %d,\n", record ? record->is_deleted : 0);
+        fprintf(file, "      \"x\": %d,\n", record ? record->x : 0);
+        fprintf(file, "      \"y\": %d,\n", record ? record->y : 0);
+        fprintf(file, "      \"grid_offset\": %d,\n", record ? record->grid_offset : 0);
+        fprintf(file, "      \"size\": %d,\n", record ? record->size : 0);
+        fprintf(file, "      \"prev_part_id\": %d,\n", record ? record->prev_part_building_id : 0);
+        fprintf(file, "      \"next_part_id\": %d,\n", record ? record->next_part_building_id : 0);
+        fprintf(file, "      \"road_network_id\": %d,\n", record ? record->road_network_id : 0);
+        fprintf(file, "      \"distance_from_entry\": %d,\n", record ? record->distance_from_entry : 0);
+        fprintf(file, "      \"has_road_access\": %d,\n", record ? record->has_road_access : 0);
+        fprintf(file, "      \"road_access_x\": %d,\n", record ? record->road_access_x : 0);
+        fprintf(file, "      \"road_access_y\": %d,\n", record ? record->road_access_y : 0);
+        fprintf(file, "      \"unknown_value\": %d,\n", record ? record->unknown_value : 0);
+        fprintf(file, "      \"graphics_variant\": %u,\n", instance->graphics_variant());
+        fprintf(file, "      \"formation_id\": %d,\n", record ? record->formation_id : 0);
+        fprintf(file, "      \"figure_id\": %u,\n", record ? record->figure_id : 0);
+        fprintf(file, "      \"figure_id2\": %u,\n", record ? record->figure_id2 : 0);
+        fprintf(file, "      \"immigrant_figure_id\": %u,\n", record ? record->immigrant_figure_id : 0);
+        fprintf(file, "      \"figure_id4\": %u,\n", record ? record->figure_id4 : 0);
+        fprintf(file, "      \"house\": {\n");
+        fprintf(file, "        \"house_size\": %d,\n", record ? record->house_size : 0);
+        fprintf(file, "        \"population\": %d,\n", record ? record->house_population : 0);
+        fprintf(file, "        \"population_room\": %d,\n", record ? record->house_population_room : 0);
+        fprintf(file, "        \"merged\": %d,\n", record ? record->house_is_merged : 0);
+        fprintf(file, "        \"unreachable_ticks\": %d,\n", record ? record->house_unreachable_ticks : 0);
+        fprintf(file, "        \"local_workforce_assigned\": %d,\n", record ? record->local_workforce_assigned : 0);
+        fprintf(file, "        \"local_workforce_unemployed\": %d\n", record ? record->local_workforce_unemployed : 0);
+        fprintf(file, "      },\n");
+        fprintf(file, "      \"rubble\": {\n");
+        fprintf(file, "        \"has_module\": %d,\n", building.Rubble ? 1 : 0);
+        fprintf(file, "        \"is_rubble\": %d,\n", building.Rubble ? building.Rubble->is_rubble() : 0);
+        fprintf(file, "        \"is_burning\": %d,\n", building.Rubble ? building.Rubble->is_burning() : 0);
+        fprintf(file, "        \"original_grid_offset\": %u,\n", rubble_state ? rubble_state->original_grid_offset : 0);
+        fprintf(file, "        \"original_size\": %u,\n", rubble_state ? rubble_state->original_size : 0);
+        fprintf(file, "        \"original_orientation\": %u,\n", rubble_state ? rubble_state->original_orientation : 0);
+        fprintf(file, "        \"original_type_attr\": ");
+        write_debug_json_string(
+            file,
+            rubble_state && rubble_state->original_type ? rubble_state->original_type->attr() : nullptr);
+        fprintf(file, "\n");
+        fprintf(file, "      }\n");
+        fprintf(file, "    }");
+    }
+    fprintf(file, "\n  ]");
+}
+
 void building_runtime::refresh_runtime_state()
 {
     if (!record_ || !definition()) {

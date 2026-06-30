@@ -1210,7 +1210,9 @@ static int clear_highway_from_top(int grid_offset, int measure_only)
             cleared = 1;
         }
     }
-    foreach_region_tile(x - 1, y - 1, x + 2, y + 2, set_highway_image);
+    if (!measure_only) {
+        foreach_region_tile(x - 1, y - 1, x + 2, y + 2, set_highway_image);
+    }
     return cleared;
 }
 

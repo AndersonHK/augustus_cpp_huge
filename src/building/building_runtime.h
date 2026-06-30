@@ -10,6 +10,7 @@
 #include "game/resource.h"
 
 #include <cstddef>
+#include <cstdio>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -32,6 +33,8 @@ void building_runtime_for_each(const std::function<void(Building *)> &visitor);
 void building_runtime_for_each(
     const BuildingForEachArgs &args,
     const std::function<void(Building *)> &visitor);
+unsigned int building_runtime_debug_known_building_id(const Building *building);
+void building_runtime_debug_dump(FILE *file);
 
 class BuildingRuntime {
 public:
@@ -69,6 +72,8 @@ public:
     const RuntimeDrawSlice *cached_graphic_footprint() const;
     const RuntimeDrawSlice *cached_graphic_top() const;
     const RuntimeDrawSlice *cached_graphic_animation(int animation_cursor);
+    int cached_graphics_no_draw() const;
+    int cached_graphics_uses_terrain_foundation() const;
     void advance_cached_graphic_animation(int animation_cursor);
     void draw_cached_graphic_layers(
         building_type_registry_impl::GraphicsLayerStage stage,
@@ -136,6 +141,8 @@ private:
         std::vector<Layer> layers;
         int owns_graphics = 0;
         int owns_graphic_animation = 0;
+        int no_draw = 0;
+        int terrain_foundation = 0;
         int dirty = 1;
         int resolved = 0;
         std::uint64_t signature = 0;

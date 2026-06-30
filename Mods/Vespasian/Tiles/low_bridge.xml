@@ -12,6 +12,19 @@
     <event_data attr="low_bridge" />
     <roadblock kind="bridge" bridge_type="low" />
     <flags fire_proof="1" />
+    <graphics>
+        <default use_terrain_as_foundation="1">
+            <path value="Mod_Authored\Bridge_Low" />
+            <options selection="stable_variant">
+                <option image="Image_0005" />
+                <option image="Image_0000" />
+                <option image="Image_0003" />
+                <option image="Image_0002" />
+                <option image="Image_0004" />
+                <option image="Image_0001" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdio>
+
 
 int city_population(void);
 int city_population_school_age(void);
@@ -59,6 +61,7 @@ int city_population_at_level(int level);
 void city_population_request_yearly_update(void);
 
 void city_population_yearly_update(void);
+void city_population_debug_dump(FILE *file);
 
 void city_population_check_consistency(void);
 

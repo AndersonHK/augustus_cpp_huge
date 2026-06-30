@@ -27,7 +27,7 @@
 #include "map/terrain.h"
 #include "sound/effect.h"
 
-#include <string.h>
+#include <algorithm>
 #include <vector>
 
 static building_type burning_ruin_type()
@@ -39,266 +39,285 @@ static building_type burning_ruin_type()
     return burning_ruin;
 }
 
-enum {
-    DESTROY_COLLAPSE = 0,
-    DESTROY_FIRE = 1,
-    DESTROY_NO_RUBBLE = 2,
-    DESTROY_EARTHQUAKE = 3, // earthquake collapses - non repairable, rubble where possible, remove from array at once
-};
-static void set_rubble_grid_info_for_all_parts(building *b);
-
-static void destroy_without_rubble(building *b)
+static building_type rubble_type()
 {
-    game_undo_disable();
-    city_culture_remove_building_module_capacity(b);
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    Building &building_object = runtime->building;
+    static building_type rubble = BUILDING_NONE;
+    if (rubble == BUILDING_NONE) {
+        rubble = building_type_registry_impl::type_from_attr("rubble");
+    }
+    return rubble;
+}
+
+struct RubbleOrigin {
+    const building_type_registry_impl::BuildingType *type = nullptr;
+    int grid_offset = 0;
+    int size = 1;
+    int orientation = 0;
+};
+
+struct RubbleTile {
+    int x = 0;
+    int y = 0;
+    int grid_offset = 0;
+};
+
+static RubbleOrigin rubble_origin_for(Building &building_object)
+{
+    Building &main_building = building_object.main();
+    const building *record = main_building.record();
+    RubbleOrigin origin;
+    origin.type = main_building.type;
+    origin.grid_offset = record ? record->grid_offset : 0;
+    origin.size = record && record->size > 0 ? record->size : 1;
+    origin.orientation = record ? record->subtype.orientation : 0;
+    if (origin.type && origin.type->is_warehouse()) {
+        origin.size = 3;
+    }
+    return origin;
+}
+
+static int rubble_tile_is_captured(const std::vector<RubbleTile> &tiles, int grid_offset)
+{
+    return std::any_of(tiles.begin(), tiles.end(), [grid_offset](const RubbleTile &tile) {
+        return tile.grid_offset == grid_offset;
+    });
+}
+
+static void capture_rubble_tiles(Building &building_object, std::vector<RubbleTile> &tiles)
+{
+    const building *record = building_object.record();
+    if (!record) {
+        return;
+    }
+    const int size = record->size > 0 ? record->size : 1;
+    if (!map_grid_is_inside(record->x, record->y, size)) {
+        return;
+    }
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            const int x = record->x + dx;
+            const int y = record->y + dy;
+            const int grid_offset = map_grid_offset(x, y);
+            if (map_terrain_is(grid_offset, TERRAIN_WATER) || rubble_tile_is_captured(tiles, grid_offset)) {
+                continue;
+            }
+            if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).id != building_object.id) {
+                continue;
+            }
+            tiles.push_back({x, y, grid_offset});
+        }
+    }
+}
+
+static std::vector<Building *> collect_destroyed_parts(Building &building)
+{
+    std::vector<Building *> parts;
+    Building &main_building = building.main();
+    for (Building *part = &main_building; part; part = part->next()) {
+        parts.push_back(part);
+        if (!part->next_part_id() || parts.size() >= 64) {
+            break;
+        }
+    }
+    return parts;
+}
+
+static void retire_destroyed_part(Building &building_object)
+{
+    building *record = const_cast<building *>(building_object.record());
+    if (!record) {
+        return;
+    }
+    city_culture_remove_building_module_capacity(record);
     building_object.cleanup_figure_references_for_removal();
     building_local_workforce::remove_building(building_object);
-    if (b->house_size && b->house_population) {
-        city_population_remove_home_removed(b->house_population);
+    if (record->house_size && record->house_population) {
+        city_population_remove_home_removed(record->house_population);
     }
     if (building_object.type && building_object.type->roadblock().is_bridge()) {
-        map_bridge_remove(b->grid_offset, 0);
+        map_bridge_remove(record->grid_offset, 0);
     }
-    building_clear_related_data(b);
-
-    map_building_tiles_remove(&building_object, b->x, b->y);
-    b->state = BUILDING_STATE_DELETED_BY_GAME;
+    building_clear_related_data(record);
+    map_building_tiles_remove(&building_object, record->x, record->y);
+    record->prev_part_building_id = 0;
+    record->next_part_building_id = 0;
+    record->state = BUILDING_STATE_DELETED_BY_GAME;
 }
 
-static void destroy_on_fire(building *b, int plagued)
+static void bind_rubble_origin(Building &rubble, const RubbleOrigin &origin)
+{
+    if (!rubble.Rubble) {
+        return;
+    }
+    RubbleState *state = rubble.Rubble->state();
+    if (!state) {
+        return;
+    }
+    state->original_grid_offset = static_cast<unsigned short>(origin.grid_offset);
+    state->original_size = static_cast<unsigned char>(origin.size);
+    state->original_orientation = static_cast<unsigned char>(origin.orientation);
+    state->original_type = origin.type;
+}
+
+static building *create_rubble_piece(
+    const building_type_registry_impl::BuildingType &definition,
+    const RubbleOrigin &origin,
+    const RubbleTile &tile,
+    int burning,
+    int plagued)
+{
+    Building &rubble = city_building_runtime().create(definition, tile.x, tile.y);
+    building *record = const_cast<building *>(rubble.record());
+    if (!record) {
+        return nullptr;
+    }
+    record->state = static_cast<unsigned char>(burning ? BUILDING_STATE_IN_USE : BUILDING_STATE_RUBBLE);
+    record->x = static_cast<unsigned char>(tile.x);
+    record->y = static_cast<unsigned char>(tile.y);
+    record->grid_offset = static_cast<short>(tile.grid_offset);
+    record->size = 1;
+    record->prev_part_building_id = 0;
+    record->next_part_building_id = 0;
+    record->figure_id4 = 0;
+    record->tax_income_or_storage = 0;
+    record->fire_duration = burning ? static_cast<short>((record->house_figure_generation_delay & 7) + 1) : 0;
+    record->fire_proof = 1;
+    record->has_plague = static_cast<unsigned char>(plagued);
+    bind_rubble_origin(rubble, origin);
+    map_building_tiles_add_rubble(rubble, record->x, record->y, building_image_get(&rubble));
+    return record;
+}
+
+static void create_rubble_pieces(
+    building_type rubble_building_type,
+    const RubbleOrigin &origin,
+    const std::vector<RubbleTile> &tiles,
+    int burning,
+    int plagued)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(rubble_building_type);
+    if (!definition) {
+        return;
+    }
+    building *previous = nullptr;
+    for (const RubbleTile &tile : tiles) {
+        building *record = create_rubble_piece(*definition, origin, tile, burning, plagued);
+        if (!record) {
+            continue;
+        }
+        if (previous) {
+            previous->next_part_building_id = static_cast<short>(record->id);
+            record->prev_part_building_id = static_cast<short>(previous->id);
+        }
+        previous = record;
+    }
+    if (origin.grid_offset) {
+        const int x = map_grid_offset_to_x(origin.grid_offset);
+        const int y = map_grid_offset_to_y(origin.grid_offset);
+        map_tiles_update_region_rubble(x, y, x + origin.size, y + origin.size);
+    }
+}
+
+static void destroy_with_rubble(building *b, building_type rubble_building_type, int burning, int plagued)
 {
     game_undo_disable();
-    city_culture_remove_building_module_capacity(b);
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    Building &building_object = runtime->building;
-    building_object.cleanup_figure_references_for_removal();
-    building_local_workforce::remove_building(building_object);
-    b->fire_risk = 0;
-    b->damage_risk = 0;
-    if (b->house_size && b->house_population) {
-        city_population_remove_home_removed(b->house_population);
-    }
-    // save original info for rubble data
-    building_type og_type = static_cast<building_type>(b->type);
-    const building_type_registry_impl::BuildingType *og_definition =
-        building_type_registry_impl::definition_for_type(og_type);
-    int og_size = b->size;
-    int og_orientation = b->subtype.orientation;
-    int og_grid_offset = b->grid_offset;
-
-    b->house_population = 0;
-    b->house_size = 0;
-    b->sickness_level = 0;
-    b->sickness_doctor_cure = 0;
-    b->fumigation_frame = 0;
-    b->fumigation_direction = 0;
-    b->sickness_duration = 0;
-    b->output_resource_id = 0;
-    b->distance_from_entry = 0;
-    if (!building_can_repair_type(b->type)) {
-        building_clear_related_data(b); //retain the building data in the rubble until rubble is cleared
-    }
-
-    const int waterside_building = building_object.type &&
-        building_object.type->has_foundation() &&
-        building_object.type->foundation().has_water_requirement();
-    int num_tiles;
-    if (b->size >= 2 && b->size <= 5) {
-        num_tiles = b->size * b->size;
-    } else {
-        num_tiles = 0;
-    }
-    const building_type burning_ruin = burning_ruin_type();
-    map_building_tiles_remove(&building_object, b->x, b->y);
-    if (map_terrain_is(b->grid_offset, TERRAIN_WATER)) {
-        b->state = BUILDING_STATE_RUBBLE;
-    } else if (burning_ruin != BUILDING_NONE) {
-        building_change_type(b, burning_ruin);
-    } else {
-        b->state = BUILDING_STATE_RUBBLE;
-    }
-    b->figure_id4 = 0;
-    b->tax_income_or_storage = 0;
-    b->fire_duration = (b->house_figure_generation_delay & 7) + 1;
-    b->fire_proof = 1;
-    b->size = 1;
-    b->has_plague = static_cast<unsigned char>(plagued);
-    if (!building_can_repair_type(static_cast<building_type>(og_type))) {
-        memset(&b->data, 0, sizeof(b->data)); // removes all data - don't do it for repairable buildings
-    }
-    map_building_set_rubble_grid_building_id(og_grid_offset, b->id, og_size);
-    if (building_runtime *rubble_runtime = building_runtime_impl::get_or_create_instance(b)) {
-        if (rubble_runtime->building.Rubble) {
-            RubbleState *rubble_state = rubble_runtime->building.Rubble->state();
-            if (rubble_state) {
-                rubble_state->original_grid_offset = static_cast<unsigned short>(og_grid_offset);
-                rubble_state->original_size = static_cast<unsigned char>(og_size);
-                rubble_state->original_orientation = static_cast<unsigned char>(og_orientation);
-                rubble_state->original_type = og_definition;
-            }
-        }
-    }
-    if (!waterside_building) {
-        if (building_runtime *tile_runtime = building_runtime_impl::get_or_create_instance(b)) {
-            map_building_tiles_add(tile_runtime->building, b->x, b->y, 1,
-                building_image_get(&tile_runtime->building), TERRAIN_BUILDING);
-        }
-    }
-
-    static const int x_tiles[] = {
-        0, 1, 1, 0, 2, 2, 2, 1, 0, 3, 3, 3, 3, 2, 1, 0, 4, 4, 4, 4, 4, 3, 2, 1, 0, 5, 5, 5, 5, 5, 5, 4, 3, 2, 1, 0
-    };
-    static const int y_tiles[] = {
-        0, 0, 1, 1, 0, 1, 2, 2, 2, 0, 1, 2, 3, 3, 3, 3, 0, 1, 2, 3, 4, 4, 4, 4, 4, 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 5
-    };
-    for (int tile = waterside_building ? 0 : 1; tile < num_tiles; tile++) {
-        int x = x_tiles[tile] + b->x;
-        int y = y_tiles[tile] + b->y;
-        if (map_terrain_is(map_grid_offset(x, y), TERRAIN_WATER)) {
-            continue;
-        }
-        if (burning_ruin == BUILDING_NONE) {
-            continue;
-        }
-        const building_type_registry_impl::BuildingType *burning_ruin_definition =
-            building_type_registry_impl::definition_for_type(burning_ruin);
-        if (!burning_ruin_definition) {
-            continue;
-        }
-        Building &ruin_object = city_building_runtime().create(*burning_ruin_definition, x, y);
-        building *ruin = const_cast<building *>(ruin_object.record());
-        map_building_tiles_add(ruin_object, ruin->x, ruin->y, 1,
-            building_image_get(&ruin_object), TERRAIN_BUILDING);
-        ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
-        ruin->figure_id4 = 0;
-        ruin->fire_proof = 1;
-        ruin->has_plague = static_cast<unsigned char>(plagued);
-        if (ruin_object.Rubble) {
-            RubbleState *rubble_state = ruin_object.Rubble->state();
-            if (rubble_state) {
-                rubble_state->original_grid_offset = static_cast<unsigned short>(og_grid_offset);
-                rubble_state->original_size = static_cast<unsigned char>(og_size);
-                rubble_state->original_orientation = static_cast<unsigned char>(og_orientation);
-                rubble_state->original_type = og_definition;
-            }
-        }
-    }
-    if (waterside_building) {
-        Route::updateWaterTerrain();
-    }
-}
-
-static void destroy_linked_parts(building *b, int destruction_method, int plagued)
-{
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     if (!runtime) {
         return;
     }
 
     Building &destroyed = runtime->building;
-    std::vector<Building *> parts;
-    for (Building *part = &destroyed.main(); part; part = part->next()) {
-        parts.push_back(part);
-        if (!part->next_part_id() || parts.size() >= 64) {
-            break;
+    const RubbleOrigin origin = rubble_origin_for(destroyed);
+    std::vector<Building *> parts = collect_destroyed_parts(destroyed);
+    std::vector<RubbleTile> tiles;
+    for (Building *part : parts) {
+        if (part) {
+            capture_rubble_tiles(*part, tiles);
         }
     }
 
-    for (Building *part_building : parts) {
-        if (!part_building || part_building->id == destroyed.id) {
+    const int updates_water_route = destroyed.type &&
+        destroyed.type->has_foundation() &&
+        destroyed.type->foundation().has_water_requirement();
+    for (Building *part : parts) {
+        if (!part) {
             continue;
         }
-        building *part = const_cast<building *>(part_building->record());
-        switch (destruction_method) {
-            case DESTROY_NO_RUBBLE:
-                destroy_without_rubble(part);
-                break;
-            case DESTROY_FIRE:
-                destroy_on_fire(part, plagued);
-                break;
-            case DESTROY_EARTHQUAKE:
-                part_building->cleanup_figure_references_for_removal();
-                part->state = BUILDING_STATE_DELETED_BY_GAME;
-                break;
-            default:
-                part_building->cleanup_figure_references_for_removal();
-                map_building_tiles_set_rubble(part_building, part->x, part->y, part->size);
-                part->state = BUILDING_STATE_RUBBLE;
-                break;
+        building *part_record = const_cast<building *>(part->record());
+        if (part_record && building_type_registry_impl::type_attr_is(part_record->type, "tower")) {
+            figure_kill_tower_sentries_in_building(part_record);
         }
+        retire_destroyed_part(*part);
     }
 
-    // Unlink the buildings to prevent corrupting the building table
-    if (destruction_method != DESTROY_COLLAPSE) { // collapse leaves rubble which needs the links for repair
-        // destroy fire would be on the same boat, but warehouses are fire-resistant so no need to include them here
-        // same applies to hippodromes, which are also further non-repairable
-        for (Building *part_building : parts) {
-            building *part = const_cast<building *>(part_building->record());
-            part->next_part_building_id = 0;
-            part->prev_part_building_id = 0;
+    create_rubble_pieces(rubble_building_type, origin, tiles, burning, plagued);
+    if (origin.grid_offset) {
+        figure_create_explosion_cloud(
+            map_grid_offset_to_x(origin.grid_offset),
+            map_grid_offset_to_y(origin.grid_offset),
+            origin.size,
+            0);
+    }
+    if (updates_water_route) {
+        Route::updateWaterTerrain();
+    }
+}
+
+static void destroy_group_without_rubble(building *b)
+{
+    game_undo_disable();
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
+    if (!runtime) {
+        return;
+    }
+    std::vector<Building *> parts = collect_destroyed_parts(runtime->building);
+    for (Building *part : parts) {
+        if (part) {
+            retire_destroyed_part(*part);
         }
     }
+}
 
+static void destroy_without_rubble(building *b)
+{
+    destroy_group_without_rubble(b);
+}
+
+static void destroy_on_fire(building *b, int plagued)
+{
+    const building_type burning_ruin = burning_ruin_type();
+    destroy_with_rubble(b, burning_ruin == BUILDING_NONE ? rubble_type() : burning_ruin, burning_ruin != BUILDING_NONE, plagued);
 }
 
 void building_destroy_by_collapse(building *b)
 {
-    city_culture_remove_building_module_capacity(b);
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    Building &building_object = runtime->building;
-    building_object.cleanup_figure_references_for_removal();
-    building_local_workforce::remove_building(building_object);
-    b->state = BUILDING_STATE_RUBBLE;
-    if (building_type_registry_impl::type_attr_is(b->type, "tower")) {
-        figure_kill_tower_sentries_in_building(b);
-    }
-    set_rubble_grid_info_for_all_parts(b);
-    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
-    map_building_set_rubble_grid_building_id(b->grid_offset, b->id, b->size);
-    figure_create_explosion_cloud(b->x, b->y, b->size, 0);
-    destroy_linked_parts(b, DESTROY_COLLAPSE, 0);
-
+    destroy_with_rubble(b, rubble_type(), 0, 0);
 }
 
 void building_destroy_by_fire(building *b)
 {
     destroy_on_fire(b, 0);
-    destroy_linked_parts(b, DESTROY_FIRE, 0);
 }
 
 void building_destroy_by_earthquake(building *b)
 {
-    city_culture_remove_building_module_capacity(b);
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    Building &building_object = runtime->building;
-    building_object.cleanup_figure_references_for_removal();
-    building_local_workforce::remove_building(building_object);
-    int grid_offset = b->grid_offset; // save before destroying building
-    int size = b->size;
-    b->state = BUILDING_STATE_DELETED_BY_GAME;
-    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
-    destroy_linked_parts(b, DESTROY_EARTHQUAKE, 0);
-    map_building_set_rubble_grid_building_id(grid_offset, 0, size);
+    destroy_with_rubble(b, rubble_type(), 0, 0);
 }
 
 void building_destroy_by_plague(building *b)
 {
     destroy_on_fire(b, 1);
-    destroy_linked_parts(b, DESTROY_FIRE, 1);
 }
 
 void building_destroy_without_rubble(building *b)
 {
-    destroy_linked_parts(b, DESTROY_NO_RUBBLE, 0);
     destroy_without_rubble(b);
 }
 
 void building_destroy_by_rioter(building *b)
 {
     destroy_on_fire(b, 0);
-    destroy_linked_parts(b, DESTROY_FIRE, 0);
 }
 
 int building_destroy_first_of_type(building_type type)
@@ -342,33 +361,6 @@ void building_destroy_increase_enemy_damage(int grid_offset, int max_damage)
     if (map_building_damage_increase(grid_offset) > max_damage) {
         building_destroy_by_enemy(map_grid_offset_to_x(grid_offset),
             map_grid_offset_to_y(grid_offset), grid_offset);
-    }
-}
-
-static void set_rubble_grid_info_for_all_parts(building *b)
-{
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    if (!runtime) {
-        return;
-    }
-    Building &main_building = runtime->building.main();
-    b = const_cast<building *>(main_building.record()); //get main warehouse building to copy data from
-    const building_type_registry_impl::BuildingType *main_type = main_building.type;
-    building *part = b; //initialize part iterator - start with main building
-    for (int i = 0; i < 9 && part->id > 0; i++) {
-        building *next_part = building_next(part);
-        if (building_runtime *part_runtime = building_runtime_impl::get_or_create_instance(part)) {
-            if (part_runtime->building.Rubble) {
-                if (RubbleState *rubble_state = part_runtime->building.Rubble->state()) {
-                    rubble_state->original_grid_offset = static_cast<unsigned short>(b->grid_offset);
-                    rubble_state->original_size =
-                        static_cast<unsigned char>(main_type && main_type->is_warehouse() ? 3 : b->size);
-                    rubble_state->original_orientation = static_cast<unsigned char>(b->subtype.orientation);
-                    rubble_state->original_type = main_type;
-                }
-            }
-        }
-        part = next_part;
     }
 }
 

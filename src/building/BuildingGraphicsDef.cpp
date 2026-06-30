@@ -370,6 +370,16 @@ void GraphicsTarget::set_animation_enabled(int enabled)
     animation_enabled_ = enabled ? 1 : 0;
 }
 
+void GraphicsTarget::set_no_draw(int value)
+{
+    no_draw_ = value ? 1 : 0;
+}
+
+void GraphicsTarget::set_terrain_foundation(int value)
+{
+    terrain_foundation_ = value ? 1 : 0;
+}
+
 GraphicsTarget &GraphicsTarget::add_option()
 {
     options_.emplace_back();
@@ -417,6 +427,16 @@ int GraphicsTarget::animation_enabled() const
     return animation_enabled_;
 }
 
+int GraphicsTarget::no_draw() const
+{
+    return no_draw_;
+}
+
+int GraphicsTarget::uses_terrain_foundation() const
+{
+    return terrain_foundation_;
+}
+
 int GraphicsTarget::has_options() const
 {
     return !options_.empty();
@@ -459,11 +479,18 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     // Options are authored as partial targets. Materialize one effective target so
     // the renderer and validator can keep using the normal path/image lookup path.
     GraphicsTarget resolved = options_[variant % options_.size()];
+    if (resolved.no_draw()) {
+        resolved.layers_.clear();
+        return resolved;
+    }
     if (!resolved.has_path()) {
         resolved.set_path(path_);
     }
     if (resolved.layers_.empty()) {
         resolved.layers_ = layers_;
+    }
+    if (!resolved.terrain_foundation_) {
+        resolved.terrain_foundation_ = terrain_foundation_;
     }
     inherit_layer_paths(resolved);
     if (!animation_enabled_) {
@@ -633,12 +660,22 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
     }
 
     if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
-        const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
-        if (!footprint) {
-            log_missing_runtime_stage_slice("footprint", building);
-            return 0;
+        if (runtime->cached_graphics_no_draw()) {
+            return 1;
         }
-        runtime_texture_draw(*footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+        if (!runtime->cached_graphics_uses_terrain_foundation()) {
+            const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
+            if (!footprint) {
+                log_missing_runtime_stage_slice("footprint", building);
+                return 0;
+            }
+            runtime_texture_draw(
+                *footprint,
+                ctx.x,
+                ctx.y,
+                ctx.color_mask,
+                ctx.scale);
+        }
     }
     runtime->draw_cached_graphic_layers(
         GraphicsLayerStage::Footprint, ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
@@ -664,8 +701,21 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
         return 1;
     }
 
-    if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
-        runtime_texture_draw(*top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    if (runtime->cached_graphics_no_draw()) {
+        return 1;
+    }
+
+    const RuntimeDrawSlice *top = runtime->cached_graphic_top();
+    if (!top && runtime->cached_graphics_uses_terrain_foundation()) {
+        top = runtime->cached_graphic_footprint();
+    }
+    if (top) {
+        runtime_texture_draw(
+            *top,
+            ctx.x,
+            ctx.y,
+            ctx.color_mask,
+            ctx.scale);
     }
     runtime->draw_cached_graphic_layers(
         GraphicsLayerStage::Top, ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);

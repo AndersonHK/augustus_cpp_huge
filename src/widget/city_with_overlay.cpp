@@ -14,7 +14,6 @@
 #include "map/image.h"
 #include "map/image_context.h"
 #include "map/tiles.h"
-#include "widget/city_bridge.h"
 #include "widget/city_building_ghost.h"
 #include "widget/city_draw_highway.h"
 #include "widget/city_figure.h"
@@ -437,7 +436,10 @@ static void draw_footprint(int x, int y, int grid_offset)
                     if (!runtime_tile_fallback_drawn) {
                         if ((terrain & TERRAIN_ROAD) && !(terrain & TERRAIN_BUILDING)) {
                             Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-                        } else if ((terrain & TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
+                        } else if (terrain & TERRAIN_BUILDING) {
+                            if (map_is_bridge(grid_offset)) {
+                                Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
+                            }
                             city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
                         } else {
                             Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
@@ -601,10 +603,6 @@ static int overlay_draws_building_animation(const Building &building)
 
 static void draw_animation_for_building(Building *building, int x, int y, int grid_offset)
 {
-    if (map_is_bridge(grid_offset)) {
-        city_draw_bridge(x, y, scale, grid_offset);
-        return;
-    }
     if (!building || !overlay_draws_building_animation(*building) || !map_property_is_draw_tile(grid_offset)) {
         return;
     }

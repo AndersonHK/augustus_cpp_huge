@@ -256,7 +256,94 @@ void record_service_history(road_service_effect effect, int grid_offset)
     }
 }
 
+static void write_debug_json_string(FILE *file, const char *text)
+{
+    fputc('"', file);
+    if (text) {
+        for (const char *cursor = text; *cursor; ++cursor) {
+            switch (*cursor) {
+                case '\\':
+                    fputs("\\\\", file);
+                    break;
+                case '"':
+                    fputs("\\\"", file);
+                    break;
+                case '\n':
+                    fputs("\\n", file);
+                    break;
+                case '\r':
+                    fputs("\\r", file);
+                    break;
+                case '\t':
+                    fputs("\\t", file);
+                    break;
+                default:
+                    fputc(*cursor, file);
+                    break;
+            }
+        }
+    }
+    fputc('"', file);
+}
+
+static void write_debug_pointer(FILE *file, const void *pointer)
+{
+    fputc('"', file);
+    fprintf(file, "%p", pointer);
+    fputc('"', file);
+}
+
+static unsigned int known_figure_id_for_pointer(const Figure *figure)
+{
+    if (!figure) {
+        return 0;
+    }
+    for (unsigned int id = 1; id < Figure::count(); ++id) {
+        if (Figure::get(id) == figure) {
+            return id;
+        }
+    }
+    return 0;
+}
+
 } // namespace
+
+void figure_runtime_debug_dump(FILE *file)
+{
+    if (!file) {
+        return;
+    }
+
+    fprintf(file, "  \"figure_runtime\": [\n");
+    int wrote = 0;
+    for (size_t slot = 0; slot < g_runtime_entries.size(); ++slot) {
+        const RuntimeEntry &entry = g_runtime_entries[slot];
+        if (!entry.data && !entry.definition && !entry.profile && !entry.controller) {
+            continue;
+        }
+
+        if (wrote++) {
+            fprintf(file, ",\n");
+        }
+
+        fprintf(file, "    {\n");
+        fprintf(file, "      \"slot\": %zu,\n", slot);
+        fprintf(file, "      \"figure_pointer\": ");
+        write_debug_pointer(file, entry.data);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"known_figure_id\": %u,\n", known_figure_id_for_pointer(entry.data));
+        fprintf(file, "      \"created_sequence\": %u,\n", entry.created_sequence);
+        fprintf(file, "      \"definition_attr\": ");
+        write_debug_json_string(file, entry.definition ? entry.definition->attr() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"profile_id\": ");
+        write_debug_json_string(file, entry.profile ? entry.profile->id() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"has_controller\": %d\n", entry.controller ? 1 : 0);
+        fprintf(file, "    }");
+    }
+    fprintf(file, "\n  ]");
+}
 
 void figure_runtime_reset()
 {

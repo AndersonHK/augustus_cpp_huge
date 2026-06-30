@@ -21,6 +21,10 @@ void map_building_tiles_remove(const Building *building, int x, int y);
 
 void map_building_tiles_set_rubble(const Building *building, int x, int y, int size);
 
+void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id);
+
+void map_building_tiles_add_bridge(Building &building, int x, int y);
+
 void map_building_tiles_mark_deleting(int grid_offset);
 
 int map_building_tiles_mark_construction(int x, int y, int size, int terrain, int absolute_xy);

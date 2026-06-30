@@ -15,6 +15,7 @@
 #include "city/culture.h"
 #include "city/warning.h"
 #include "game/undo.h"
+#include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
 #include "map/road_access.h"
@@ -1505,6 +1506,10 @@ void Building::add_map_tiles(int image_id)
             map_water_add_building(*this, record_->x, record_->y, record_->size, image_id);
             return;
         }
+        if (type && type->roadblock().is_bridge()) {
+            map_building_tiles_add_bridge(*this, record_->x, record_->y);
+            return;
+        }
         if (is_surface_terrain_tile()) {
             bind_surface_map_tiles();
             return;
@@ -2181,10 +2186,56 @@ building *building_main(const building *b)
     return first_building_slot();
 }
 
+static const RubbleState *rubble_state_for_record(const building *b)
+{
+    if (!b) {
+        return nullptr;
+    }
+    Building *building_object = runtime_building_for_record(const_cast<building *>(b));
+    return building_object && building_object->Rubble ? building_object->Rubble->state() : nullptr;
+}
+
+static int rubble_origins_match(const RubbleState &a, const RubbleState &b)
+{
+    return a.original_grid_offset == b.original_grid_offset &&
+        a.original_size == b.original_size &&
+        a.original_orientation == b.original_orientation &&
+        a.original_type == b.original_type;
+}
+
+static building *first_rubble_record_for_origin(building *b)
+{
+    const RubbleState *origin = rubble_state_for_record(b);
+    if (!origin || !origin->has_original_data()) {
+        return nullptr;
+    }
+
+    const int size = origin->original_size ? origin->original_size : 1;
+    grid_slice *slice = map_grid_get_grid_slice_square(origin->original_grid_offset, size);
+    for (int i = 0; i < slice->size; i++) {
+        int grid_offset = slice->grid_offsets[i];
+        if (!map_building_exists_at(grid_offset)) {
+            continue;
+        }
+        Building &candidate = map_building_at(grid_offset);
+        building *candidate_record = const_cast<building *>(candidate.record());
+        const RubbleState *candidate_origin =
+            candidate.Rubble && candidate_record ? candidate.Rubble->state() : nullptr;
+        if (candidate_origin && rubble_origins_match(*origin, *candidate_origin)) {
+            return building_main(candidate_record);
+        }
+    }
+    return nullptr;
+}
+
 building *building_repair_target(building *b)
 {
     if (!b || b->state != BUILDING_STATE_RUBBLE) {
         return b;
+    }
+
+    if (building *origin_target = first_rubble_record_for_origin(b)) {
+        return origin_target;
     }
 
     building *main_record = building_main(b);
@@ -2935,6 +2986,26 @@ static int is_warehouse_ruin(building *b)
 
 static void retire_repaired_rubble_chain(building *main_record)
 {
+    const RubbleState *origin = rubble_state_for_record(main_record);
+    if (origin && origin->has_original_data()) {
+        Building::for_each([&](Building *candidate) {
+            if (!candidate || !candidate->Rubble) {
+                return;
+            }
+            building *candidate_record = const_cast<building *>(candidate->record());
+            const RubbleState *candidate_origin = candidate->Rubble->state();
+            if (!candidate_record || !candidate_origin || !rubble_origins_match(*origin, *candidate_origin)) {
+                return;
+            }
+            candidate_record->prev_part_building_id = 0;
+            candidate_record->next_part_building_id = 0;
+            candidate_record->state = BUILDING_STATE_DELETED_BY_GAME;
+            map_building_set_rubble_grid_building_id(candidate_record->grid_offset, 0, 1);
+            map_building_tiles_remove(candidate, candidate_record->x, candidate_record->y);
+        });
+        return;
+    }
+
     for (building *part = main_record, *next = nullptr; part && part->id > 0; part = next) {
         next = part->next_part_building_id > 0 ? building_slot(part->next_part_building_id) : nullptr;
         part->prev_part_building_id = 0;
@@ -3866,6 +3937,11 @@ static int legacy_tile_has_blocking_loaded_record(int grid_offset)
         data.buildings[building_id].state != BUILDING_STATE_UNUSED;
 }
 
+static int legacy_tile_is_bridge_sprite(int grid_offset)
+{
+    return map_bridge_legacy_section_at(grid_offset) && map_terrain_is(grid_offset, TERRAIN_WATER);
+}
+
 static int legacy_highway_tile_is_complete_top_left(int grid_offset)
 {
     if (map_grid_is_valid_offset(grid_offset) == 0) {
@@ -3914,6 +3990,9 @@ static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTi
     const int x = map_grid_offset_to_x(grid_offset);
     const int y = map_grid_offset_to_y(grid_offset);
     if (map_grid_is_inside(x, y, 1) == 0) {
+        return BUILDING_NONE;
+    }
+    if (legacy_tile_is_bridge_sprite(grid_offset)) {
         return BUILDING_NONE;
     }
 

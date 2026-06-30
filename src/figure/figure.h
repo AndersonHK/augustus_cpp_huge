@@ -8,6 +8,8 @@
 #include "figure/type.h"
 #include "translation/translation.h"
 
+#include <cstdio>
+
 constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
 
 class Figure;
@@ -21,6 +23,7 @@ public:
     void retarget(Figure &figure);
     void clear();
     unsigned int save_id() const;
+    unsigned int debug_known_id() const;
 
 private:
     Figure *figure_ = nullptr;
@@ -212,3 +215,5 @@ public:
 private:
     unsigned int slot_ = 0;
 };
+
+void figure_debug_dump(FILE *file);

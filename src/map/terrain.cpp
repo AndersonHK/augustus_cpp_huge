@@ -5,6 +5,7 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "city/map.h"
+#include "core/direction.h"
 #include "core/image.h"
 #include "map/bridge.h"
 #include "map/building.h"
@@ -511,7 +512,48 @@ static void determine_original_trees(buffer *images, int legacy_buffer)
 
 static int old_save_bridge_tile(int grid_offset)
 {
-    return (map_sprite_bridge_at(grid_offset)) && map_terrain_is(grid_offset, TERRAIN_WATER);
+    return map_grid_is_valid_offset(grid_offset) &&
+        map_sprite_bridge_at(grid_offset) &&
+        map_terrain_is(grid_offset, TERRAIN_WATER);
+}
+
+static int old_save_bridge_tile_has_composed_record(int grid_offset)
+{
+    if (!old_save_bridge_tile(grid_offset) || !map_is_bridge(grid_offset) || !map_building_exists_at(grid_offset)) {
+        return 0;
+    }
+
+    Building &building = map_building_at(grid_offset);
+    const ::building *record = building.record();
+    return building.type && building.type->roadblock().is_bridge() && record &&
+        (record->prev_part_building_id || record->next_part_building_id);
+}
+
+static int legacy_bridge_direction_from_axis(int axis, int dir)
+{
+    if (axis == 0) {
+        return dir > 0 ? DIR_2_RIGHT : DIR_6_LEFT;
+    }
+    return dir > 0 ? DIR_4_BOTTOM : DIR_0_TOP;
+}
+
+static int materialize_legacy_bridge_span(
+    int start,
+    int delta,
+    int axis,
+    int dir,
+    int is_ship_bridge)
+{
+    int length = 0;
+    for (int current = start; old_save_bridge_tile(current); current += delta) {
+        length++;
+    }
+    return map_bridge_create_native_chain(
+        start,
+        length,
+        legacy_bridge_direction_from_axis(axis, dir),
+        is_ship_bridge,
+        1);
 }
 
 int map_bridge_find_start_and_direction_legacy(int grid_offset, int *axis, int *axis_direction)
@@ -571,7 +613,7 @@ void map_terrain_migrate_old_bridges(void)
             if (!map_grid_is_valid_offset(grid_offset)) {
                 continue;
             }
-            if (old_save_bridge_tile(grid_offset) && !map_is_bridge(grid_offset)) {
+            if (old_save_bridge_tile(grid_offset) && !old_save_bridge_tile_has_composed_record(grid_offset)) {
                 // Find true start of the old bridge
                 // Only process tiles that are part of a legacy bridge and haven't been upgraded yet 
                 int axis, dir;
@@ -584,28 +626,7 @@ void map_terrain_migrate_old_bridges(void)
                     : map_grid_delta(0, dir);
 
                 int is_ship_bridge = map_sprite_bridge_at(start) > 6 ? 1 : 0;
-                building_type bridge_type = building_type_registry_impl::type_from_roadblock_bridge(is_ship_bridge ?
-                    building_type_registry_impl::RoadblockBridgeType::Ship :
-                    building_type_registry_impl::RoadblockBridgeType::Low);
-                if (bridge_type == BUILDING_NONE) {
-                    continue;
-                }
-
-                int start_x = map_grid_offset_to_x(start);
-                int start_y = map_grid_offset_to_y(start);
-                const building_type_registry_impl::BuildingType *definition =
-                    building_type_registry_impl::definition_for_type(bridge_type);
-                if (!definition) {
-                    continue;
-                }
-                Building &bridge_building = city_building_runtime().create(*definition, start_x, start_y);
-
-                int current = start;
-                while (old_save_bridge_tile(current)) {
-                    map_terrain_add(current, TERRAIN_BUILDING);
-                    map_building_set(current, bridge_building);
-                    current += delta;
-                }
+                materialize_legacy_bridge_span(start, delta, axis, dir, is_ship_bridge);
             }
         }
     }

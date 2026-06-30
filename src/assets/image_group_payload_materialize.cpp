@@ -303,6 +303,10 @@ int finalize_surface_to_resolved_entry(
         out_entry.has_top = 1;
         out_entry.top.slice.draw_offset_y = -top_height + FOOTPRINT_HALF_HEIGHT;
     }
+    out_entry.footprint.slice.draw_offset_x += entry.draw_offset_x;
+    out_entry.footprint.slice.draw_offset_y += entry.draw_offset_y;
+    out_entry.top.slice.draw_offset_x += entry.draw_offset_x;
+    out_entry.top.slice.draw_offset_y += entry.draw_offset_y;
 
     out_entry.split_width = split_surface.width;
     out_entry.split_height = split_surface.height;

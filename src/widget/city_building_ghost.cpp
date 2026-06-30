@@ -23,7 +23,6 @@
 #include "map/tiles.h"
 #include "map/water_supply.h"
 #include "widget/city.h"
-#include "widget/city_bridge.h"
 #include "widget/city_water_ghost.h"
 
 #include "city_building_ghost.h"
@@ -864,15 +863,71 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    if (dir == DIR_0_TOP || dir == DIR_6_LEFT) {
-        for (int i = length - 1; i >= 0; i--) {
-            int sprite_id = map_bridge_get_sprite_id(i, length, dir, is_ship_bridge);
-            city_draw_bridge_tile(x + x_delta * i, y + y_delta * i, data.scale, sprite_id, color_mask);
+    if (definition && length > 0) {
+        std::vector<building> records;
+        std::vector<BuildingGraphicsState> graphics_states;
+        std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> bindings;
+        records.reserve(length);
+        graphics_states.reserve(length);
+        bindings.reserve(length);
+
+        int current = tile->grid_offset;
+        int delta = 0;
+        switch (direction) {
+            case DIR_0_TOP: delta = map_grid_delta(0, -1); break;
+            case DIR_2_RIGHT: delta = map_grid_delta(1, 0); break;
+            case DIR_4_BOTTOM: delta = map_grid_delta(0, 1); break;
+            case DIR_6_LEFT: delta = map_grid_delta(-1, 0); break;
         }
-    } else {
-        for (int i = 0; i < length; i++) {
-            int sprite_id = map_bridge_get_sprite_id(i, length, dir, is_ship_bridge);
-            city_draw_bridge_tile(x + x_delta * i, y + y_delta * i, data.scale, sprite_id, color_mask);
+
+        for (int i = 0; i < length && delta; i++, current += delta) {
+            building record = {};
+            record.id = static_cast<unsigned int>(i + 1);
+            record.type = type;
+            record.grid_offset = static_cast<short>(current);
+            record.x = static_cast<unsigned char>(map_grid_offset_to_x(current));
+            record.y = static_cast<unsigned char>(map_grid_offset_to_y(current));
+            record.state = BUILDING_STATE_IN_USE;
+            record.size = 1;
+            record.subtype.orientation = static_cast<short>(direction);
+            record.prev_part_building_id = i == 0 ? 0 : static_cast<short>(i);
+            record.next_part_building_id = i + 1 < length ? static_cast<short>(i + 2) : 0;
+            records.push_back(record);
+
+            BuildingGraphicsState state;
+            state.set_variant(map_bridge_graphics_variant_for_piece(i, length, dir, is_ship_bridge));
+            graphics_states.push_back(state);
+        }
+
+        for (size_t i = 0; i < records.size(); i++) {
+            building_runtime_impl::EphemeralBuildingRuntimeBinding binding;
+            binding.runtime_id = records[i].id;
+            binding.main_runtime_id = records.empty() ? 0 : records.front().id;
+            binding.record = &records[i];
+            binding.definition = definition;
+            binding.graphics_state = graphics_states[i];
+            bindings.push_back(binding);
+        }
+
+        building_runtime_impl::ScopedEphemeralBuildingRuntime bridge_runtime(bindings);
+        auto draw_piece = [&](int index) {
+            building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&records[index]);
+            if (!runtime) {
+                return;
+            }
+            runtime->building.draw_footprint(
+                { x + x_delta * index, y + y_delta * index, records[index].grid_offset, color_mask, data.scale, 1 });
+            runtime->building.draw_top(
+                { x + x_delta * index, y + y_delta * index, records[index].grid_offset, color_mask, data.scale, 1 });
+        };
+        if (dir == DIR_0_TOP || dir == DIR_6_LEFT) {
+            for (int i = static_cast<int>(records.size()) - 1; i >= 0; i--) {
+                draw_piece(i);
+            }
+        } else {
+            for (int i = 0; i < static_cast<int>(records.size()); i++) {
+                draw_piece(i);
+            }
         }
     }
     for (int i = 0; i < blocked_tiles.size; i++) {

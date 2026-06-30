@@ -132,6 +132,8 @@ struct GraphicsTarget {
     void set_option_selection(GraphicsOptionSelection selection);
     void set_resource_storage(int value);
     void set_animation_enabled(int enabled);
+    void set_no_draw(int value);
+    void set_terrain_foundation(int value);
     GraphicsTarget &add_option();
     GraphicsLayer &add_layer();
 
@@ -143,6 +145,8 @@ struct GraphicsTarget {
     GraphicsOptionSelection option_selection() const;
     int is_resource_storage() const;
     int animation_enabled() const;
+    int no_draw() const;
+    int uses_terrain_foundation() const;
     int has_options() const;
     int option_count() const;
     const GraphicsTarget *option(int index) const;
@@ -155,6 +159,8 @@ private:
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
     int resource_storage_ = 0;
     int animation_enabled_ = 1;
+    int no_draw_ = 0;
+    int terrain_foundation_ = 0;
     std::vector<GraphicsTarget> options_;
     std::vector<GraphicsLayer> layers_;
 };

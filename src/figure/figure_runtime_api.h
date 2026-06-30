@@ -3,6 +3,8 @@
 #include "figure/figure.h"
 #include "figure/PathingMode.h"
 
+#include <cstdio>
+
 void figure_runtime_reset();
 void figure_runtime_initialize_city();
 void figure_runtime_on_created(Figure *f);
@@ -41,3 +43,5 @@ int figure_runtime_choose_roaming_direction(
 
 // Records pathing-only road recency for smart service walkers.
 void figure_runtime_record_road_service_visit(Figure *f);
+
+void figure_runtime_debug_dump(FILE *file);

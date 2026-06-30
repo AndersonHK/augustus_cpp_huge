@@ -31,6 +31,7 @@
 namespace {
 
 constexpr char kStampPrefix[] = "augustus_extract_v2:";
+constexpr char kAuthoredGraphicsDirectory[] = "Mod_Authored";
 
 class ExtractionStats {
 public:
@@ -409,6 +410,34 @@ static bool augustus_extracted_output_is_present(const ResolvedExtractionPaths &
 {
     std::error_code error;
     return std::filesystem::is_directory(paths.output_graphics_path, error);
+}
+
+static bool clear_augustus_generated_graphics_output(const std::string &graphics_root)
+{
+    std::error_code error;
+    if (!std::filesystem::exists(graphics_root, error)) {
+        return true;
+    }
+    if (error) {
+        log_error("Unable to inspect Augustus graphics output directory", graphics_root.c_str(), 0);
+        return false;
+    }
+
+    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(graphics_root, error)) {
+        if (error) {
+            log_error("Unable to enumerate Augustus graphics output directory", graphics_root.c_str(), 0);
+            return false;
+        }
+        if (entry.path().filename() == kAuthoredGraphicsDirectory) {
+            continue;
+        }
+        std::filesystem::remove_all(entry.path(), error);
+        if (error) {
+            log_error("Unable to clear generated Augustus graphics output", entry.path().string().c_str(), 0);
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool resolve_extraction_paths(
@@ -1850,7 +1879,9 @@ bool AugustusExtractionRun::run()
         log_info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
     }
 
-    platform_file_manager_remove_directory(graphics_root.c_str());
+    if (!clear_augustus_generated_graphics_output(graphics_root)) {
+        return false;
+    }
 
     log_info("Extracting canonical Augustus graphics from packed source atlases", 0, 0);
     if (!extract_all_documents()) {

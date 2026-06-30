@@ -8,7 +8,9 @@ void map_bridge_reset_building_length(void);
 
 int map_bridge_calculate_length_direction(int x, int y, int *length, int *direction, grid_slice *blocking_tiles);
 
-int map_bridge_get_sprite_id(int index, int length, int direction, int is_ship_bridge);
+int map_bridge_graphics_variant_for_piece(int index, int length, int direction, int is_ship_bridge);
+int map_bridge_create_native_chain(int start_grid_offset, int length, int direction, int is_ship_bridge, int loaded_migration);
+int map_bridge_legacy_section_at(int grid_offset);
 /**
  * Adds a bridge to the terrain
  * @param x Map X
@@ -22,6 +24,8 @@ void map_bridge_remove(int grid_offset, int mark_deleted);
 
 int map_bridge_is_ramp_sprite(int sprite);
 
+int map_bridge_find_start_and_direction_legacy(int grid_offset, int *axis, int *axis_direction);
+
 int map_bridge_find_start_and_direction(int grid_offset, int *axis, int *axis_direction);
 
 void map_bridge_update_after_rotate(int counter_clockwise);
@@ -31,3 +35,5 @@ int map_bridge_has_figures(int grid_offset);
 int map_is_bridge(int grid_offset);
 
 int map_bridge_height(int grid_offset);
+
+void map_bridge_migrate_loaded_native_bridges(void);

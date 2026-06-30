@@ -296,6 +296,9 @@ int building_runtime_graphics_image_id(const Building &building_object, unsigned
     building_type_registry_impl::GraphicsTarget resolved_target =
         target->resolved_option(
             static_cast<unsigned char>(building_runtime_graphics_selected_option(building_object, *target, graphics_variant)));
+    if (resolved_target.no_draw()) {
+        return runtime_tile_sentinel_image_id();
+    }
     if (resolved_target.is_resource_storage()) {
         return runtime_tile_sentinel_image_id();
     }
@@ -579,6 +582,16 @@ const RuntimeDrawSlice *building_runtime::cached_graphic_animation(int animation
     return graphics_cache_.animation_slice.is_valid() ? &graphics_cache_.animation_slice : nullptr;
 }
 
+int building_runtime::cached_graphics_no_draw() const
+{
+    return graphics_cache_.no_draw;
+}
+
+int building_runtime::cached_graphics_uses_terrain_foundation() const
+{
+    return graphics_cache_.terrain_foundation;
+}
+
 void building_runtime::draw_cached_graphic_layers(
     building_type_registry_impl::GraphicsLayerStage stage,
     int animation_cursor,
@@ -780,6 +793,11 @@ void building_runtime::rebuild_cached_graphics_bindings()
     building_type_registry_impl::GraphicsTarget resolved_target =
         target->resolved_option(
             static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target, graphics_variant())));
+    if (resolved_target.no_draw()) {
+        graphics_cache_.owns_graphics = 1;
+        graphics_cache_.no_draw = 1;
+        return;
+    }
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
@@ -796,6 +814,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
 
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
+    graphics_cache_.terrain_foundation = resolved_target.uses_terrain_foundation();
     if (resolved_target.animation_enabled() && animation_owner_is_working && entry->has_animation()) {
         graphics_cache_.animation_payload = payload;
         graphics_cache_.animation_entry = entry;

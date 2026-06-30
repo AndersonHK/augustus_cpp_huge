@@ -1,6 +1,7 @@
 #include "figure/figure.h"
 
 #include "assets/assets.h"
+#include "building/building_runtime.h"
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
@@ -575,6 +576,19 @@ unsigned int FigureRelation::save_id() const
     return figure_ ? figure_->id() : 0;
 }
 
+unsigned int FigureRelation::debug_known_id() const
+{
+    if (!figure_) {
+        return 0;
+    }
+    for (size_t i = 0; i < data.figures.size(); ++i) {
+        if (data.figures[i].get() == figure_) {
+            return data.figures[i]->id();
+        }
+    }
+    return 0;
+}
+
 Figure::Figure(unsigned int slot)
 {
     reset(slot);
@@ -602,6 +616,129 @@ Figure *Figure::get(unsigned int id)
 unsigned int Figure::count()
 {
     return static_cast<unsigned int>(data.figures.size());
+}
+
+static void write_debug_json_string(FILE *file, const char *text)
+{
+    fputc('"', file);
+    if (text) {
+        for (const char *cursor = text; *cursor; ++cursor) {
+            switch (*cursor) {
+                case '\\':
+                    fputs("\\\\", file);
+                    break;
+                case '"':
+                    fputs("\\\"", file);
+                    break;
+                case '\n':
+                    fputs("\\n", file);
+                    break;
+                case '\r':
+                    fputs("\\r", file);
+                    break;
+                case '\t':
+                    fputs("\\t", file);
+                    break;
+                default:
+                    fputc(*cursor, file);
+                    break;
+            }
+        }
+    }
+    fputc('"', file);
+}
+
+static void write_debug_pointer(FILE *file, const void *pointer)
+{
+    fputc('"', file);
+    fprintf(file, "%p", pointer);
+    fputc('"', file);
+}
+
+static void write_building_reference(FILE *file, const char *name, const Building *building)
+{
+    fprintf(file, "      \"%s\": {\n", name);
+    fprintf(file, "        \"pointer\": ");
+    write_debug_pointer(file, building);
+    fprintf(file, ",\n");
+    fprintf(file, "        \"known_building_id\": %u\n", building_runtime_debug_known_building_id(building));
+    fprintf(file, "      }");
+}
+
+void figure_debug_dump(FILE *file)
+{
+    if (!file) {
+        return;
+    }
+
+    fprintf(file, "  \"figures\": [\n");
+    int wrote = 0;
+    for (size_t slot = 0; slot < data.figures.size(); ++slot) {
+        const std::unique_ptr<Figure> &figure_slot = data.figures[slot];
+        if (!figure_slot || !figure_slot->state) {
+            continue;
+        }
+
+        const Figure &figure = *figure_slot;
+        const figure_type_registry_impl::FigureTypeDefinition *definition =
+            figure_type_registry_impl::definition_for(static_cast<figure_type>(figure.type));
+
+        if (wrote++) {
+            fprintf(file, ",\n");
+        }
+
+        fprintf(file, "    {\n");
+        fprintf(file, "      \"slot\": %zu,\n", slot);
+        fprintf(file, "      \"pointer\": ");
+        write_debug_pointer(file, &figure);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"id\": %u,\n", figure.id());
+        fprintf(file, "      \"type_id\": %d,\n", figure.type);
+        fprintf(file, "      \"type_attr\": ");
+        write_debug_json_string(file, definition ? definition->attr() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"state\": %d,\n", figure.state);
+        fprintf(file, "      \"faction_id\": %d,\n", figure.faction_id);
+        fprintf(file, "      \"action_state\": %d,\n", figure.action_state);
+        fprintf(file, "      \"previous_action_state\": %d,\n", figure.action_state_before_attack);
+        fprintf(file, "      \"created_sequence\": %u,\n", figure.created_sequence);
+        fprintf(file, "      \"x\": %d,\n", figure.x);
+        fprintf(file, "      \"y\": %d,\n", figure.y);
+        fprintf(file, "      \"grid_offset\": %d,\n", figure.grid_offset);
+        fprintf(file, "      \"destination_x\": %d,\n", figure.destination_x);
+        fprintf(file, "      \"destination_y\": %d,\n", figure.destination_y);
+        fprintf(file, "      \"destination_grid_offset\": %d,\n", figure.destination_grid_offset);
+        fprintf(file, "      \"source_x\": %d,\n", figure.source_x);
+        fprintf(file, "      \"source_y\": %d,\n", figure.source_y);
+        fprintf(file, "      \"direction\": %d,\n", figure.direction);
+        fprintf(file, "      \"previous_tile_direction\": %d,\n", figure.previous_tile_direction);
+        fprintf(file, "      \"wait_ticks\": %d,\n", figure.wait_ticks);
+        fprintf(file, "      \"routing_path_id\": %u,\n", figure.routing_path_id);
+        fprintf(file, "      \"routing_path_current_tile\": %u,\n", figure.routing_path_current_tile);
+        fprintf(file, "      \"routing_path_length\": %u,\n", figure.routing_path_length);
+        fprintf(file, "      \"formation_id\": %u,\n", figure.formation_id);
+        fprintf(file, "      \"index_in_formation\": %d,\n", figure.index_in_formation);
+        fprintf(file, "      \"resource_id\": %d,\n", figure.resource_id);
+        fprintf(file, "      \"collecting_item_id\": %d,\n", figure.collecting_item_id);
+        fprintf(file, "      \"loads_sold_or_carrying\": %d,\n", figure.loads_sold_or_carrying);
+        fprintf(file, "      \"migrant_num_people\": %d,\n", figure.migrant_num_people);
+        fprintf(file, "      \"is_ghost\": %d,\n", figure.is_ghost);
+        fprintf(file, "      \"is_boat\": %d,\n", figure.is_boat);
+        fprintf(file, "      \"leading_figure_id\": %d,\n", figure.leading_figure_id);
+        fprintf(file, "      \"target_figure_id\": %u,\n", figure.target_figure.debug_known_id());
+        fprintf(file, "      \"targeted_by_figure_id\": %u,\n", figure.targeted_by_figure.debug_known_id());
+        fprintf(file, "      \"attacker1_id\": %u,\n", figure.attacker1.debug_known_id());
+        fprintf(file, "      \"attacker2_id\": %u,\n", figure.attacker2.debug_known_id());
+        fprintf(file, "      \"opponent_id\": %u,\n", figure.opponent.debug_known_id());
+        write_building_reference(file, "building", figure.building);
+        fprintf(file, ",\n");
+        write_building_reference(file, "immigrant_building", figure.immigrant_building);
+        fprintf(file, ",\n");
+        write_building_reference(file, "destination_building", figure.destination_building);
+        fprintf(file, "\n");
+        fprintf(file, "    }");
+    }
+    fprintf(file, "\n  ]");
 }
 
 Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir)

@@ -10,6 +10,7 @@
 #include "game/file.h"
 #include "game/mod_manager.h"
 #include "map/aqueduct.h"
+#include "map/bridge.h"
 #include "map/building.h"
 #include "map/image.h"
 #include "map/road_service_history.h"
@@ -256,6 +257,7 @@ typedef struct {
     buffer *production_rates;
     buffer *road_service_history;
     buffer *local_workforce_allocations;
+    buffer *minimap_preview;
 } savegame_state;
 
 typedef struct {
@@ -324,6 +326,7 @@ typedef struct {
         int keyed_resource_state;
         int road_service_history;
         int local_workforce_allocations;
+        int minimap_preview;
     } features;
 } savegame_version_data;
 
@@ -662,6 +665,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.keyed_resource_state = version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE;
     version_data->features.road_service_history = version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY;
     version_data->features.local_workforce_allocations = version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE;
+    version_data->features.minimap_preview = version > SAVE_GAME_LAST_NO_MINIMAP_PREVIEW_BITMAP;
 }
 
 static void init_savegame_data(savegame_version_t version)
@@ -863,6 +867,9 @@ static void init_savegame_data(savegame_version_t version)
     }
     if (version_data.features.local_workforce_allocations) {
         state->local_workforce_allocations = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.minimap_preview) {
+        state->minimap_preview = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
     }
 }
 
@@ -1073,6 +1080,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
     formation_refresh_runtime_definitions();
+    if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
+        map_terrain_migrate_old_bridges();
+    }
     map_building_remove_invalid_references();
     Figure::resolve_loaded_building_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
@@ -1162,9 +1172,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     } else {
         figure_visited_buildings_load_state(state->visited_buildings);
     }
-    if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
-        map_terrain_migrate_old_bridges();
-    }
+    map_bridge_migrate_loaded_native_bridges();
 
     map_terrain_migrate_old_walls();
 
@@ -1280,6 +1288,7 @@ static void savegame_save_to_state(savegame_state *state)
     production_rates_save(state->production_rates);
     map_road_service_history_save_state(state->road_service_history);
     building_local_workforce_save_state(state->local_workforce_allocations);
+    widget_minimap_save_preview(state->minimap_preview);
 }
 
 static scenario_version_t get_scenario_version(FILE *fp)
@@ -1917,55 +1926,6 @@ int game_file_io_read_saved_game(const char *filename, int offset)
     return 1;
 }
 
-static int savegame_terrain_at(int grid_offset)
-{
-    if (minimap_data.version <= SAVE_GAME_LAST_ORIGINAL_TERRAIN_DATA_SIZE_VERSION) {
-        return map_terrain_get_from_buffer_16(savegame_data.state.terrain_grid, grid_offset);
-    } else {
-        return map_terrain_get_from_buffer_32(savegame_data.state.terrain_grid, grid_offset);
-    }
-}
-
-static int savegame_tile_size_at(int grid_offset)
-{
-    if (minimap_data.version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        return map_property_multi_tile_size_from_buffer_8(savegame_data.state.bitfields_grid, grid_offset);
-    } else {
-        return map_property_multi_tile_size_from_buffer_16(savegame_data.state.bitfields_grid, grid_offset);
-    }
-}
-
-static int savegame_is_draw_tile_at(int grid_offset)
-{
-    return map_property_is_draw_tile_from_buffer(savegame_data.state.edge_grid, grid_offset);
-}
-
-static int savegame_random_at(int grid_offset)
-{
-    return map_random_get_from_buffer(savegame_data.state.random_grid, grid_offset);
-}
-
-static unsigned int savegame_get_building_id(int grid_offset)
-{
-    if (minimap_data.version <= SAVE_GAME_LAST_U16_GRIDS) {
-        return map_building_from_buffer_16(savegame_data.state.building_grid, grid_offset);
-    } else {
-        return map_building_from_buffer_32(savegame_data.state.building_grid, grid_offset);
-    }
-}
-
-static building *savegame_building(unsigned int id)
-{
-    static building b;
-    // Old savegame versions had a bug where the caravanserai's building save data size was one byte too small, so all
-    // buildings saved after the caravanserai need to have their offset pushed back by 1
-    int offset = minimap_data.version <= SAVE_GAME_LAST_CARAVANSERAI_WRONG_OFFSET && minimap_data.caravanserai_id &&
-        id > minimap_data.caravanserai_id ? -1 : 0;
-    building_get_from_buffer(savegame_data.state.buildings, id, &b,
-        minimap_data.version > SAVE_GAME_LAST_STATIC_VERSION, minimap_data.version, offset);
-    return &b;
-}
-
 static void get_saved_game_origin(saved_game_info *info, const savegame_state *state)
 {
     info->origin.mission = buffer_read_i32(state->scenario_campaign_mission);
@@ -2024,37 +1984,17 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
 
     get_saved_game_origin(info, state);
 
+    minimap_data.version = version;
     int grid_start;
     int grid_border_size;
-
-    // Minimap callbacks decode building records, so install this save's id bridges first.
-    building_type_id_bridge_save_table_load_state(
-        state->building_type_table,
-        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
-    water_access_type_id_bridge_save_table_load_state(
-        state->water_access_type_table,
-        version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
-
-    minimap_data.version = version;
     scenario_map_data_from_buffer(state->scenario, &minimap_data.city_width, &minimap_data.city_height,
         &grid_start, &grid_border_size, scenario_version);
     info->map_size = minimap_data.city_width;
     minimap_data.climate = static_cast<scenario_climate>(scenario_climate_from_buffer(state->scenario, scenario_version));
-    minimap_data.functions.building = savegame_building;
-    minimap_data.functions.climate = get_climate;
-    minimap_data.functions.map.width = map_width;
-    minimap_data.functions.map.height = map_height;
-    minimap_data.functions.viewport = set_viewport;
-    minimap_data.functions.offset.building_id = savegame_get_building_id;
-    minimap_data.functions.offset.figure = 0;
-    minimap_data.functions.offset.is_draw_tile = savegame_is_draw_tile_at;
-    minimap_data.functions.offset.random = savegame_random_at;
-    minimap_data.functions.offset.terrain = savegame_terrain_at;
-    minimap_data.functions.offset.tile_size = savegame_tile_size_at;
-
-    city_view_set_custom_lookup(grid_start, minimap_data.city_width, minimap_data.city_height, grid_border_size);
-    widget_minimap_update(&minimap_data.functions);
-    city_view_restore_lookup();
+    if (version <= SAVE_GAME_LAST_NO_MINIMAP_PREVIEW_BITMAP ||
+        !widget_minimap_load_saved_preview(state->minimap_preview)) {
+        widget_minimap_show_placeholder_preview();
+    }
 
     clear_savegame_context();
 

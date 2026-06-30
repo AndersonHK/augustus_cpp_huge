@@ -6,6 +6,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/house.h"
+#include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
 #include "city/buildings.h"
@@ -133,11 +134,12 @@ void building_maintenance_update_burning_ruins(void)
         b->fire_duration++;
         if (b->fire_duration > rubble_definition.burn_days) {
             game_undo_disable();
-            map_building_tiles_set_rubble(building_object, b->x, b->y, b->size);
             building_change_type(b, rubble_definition.decay_type->type());
             b->fire_duration = 0;
             b->state = BUILDING_STATE_RUBBLE;
-            building_runtime_impl::get_or_create_instance(b);
+            if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+                map_building_tiles_add_rubble(runtime->building, b->x, b->y, building_image_get(&runtime->building));
+            }
             recalculate_terrain = 1;
             return;
         }

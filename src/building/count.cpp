@@ -11,7 +11,6 @@
 #include "map/building.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 
 #include <algorithm>
@@ -435,17 +434,24 @@ int building_count_bridges(int ship)
 {
     const int min_x = map_grid_offset_to_x(map_data.start_offset);
     const int min_y = map_grid_offset_to_y(map_data.start_offset);
-    int bridge_tiles = 0;
+    std::vector<unsigned int> bridge_ids;
     for (int y = min_y; y < min_y + map_data.height; y++) {
         for (int x = min_x; x < min_x + map_data.width; x++) {
             const int grid_offset = map_grid_offset(x, y);
-            const int bridge_sprite = map_sprite_bridge_at(grid_offset);
-            if (bridge_sprite >= 1 + ship * 6 && bridge_sprite <= 4 + ship * 6) {
-                bridge_tiles++;
+            if (!map_building_exists_at(grid_offset) || !map_is_bridge(grid_offset)) {
+                continue;
+            }
+            Building &bridge = map_building_at(grid_offset).main();
+            if (!bridge.type || !bridge.type->roadblock().is_bridge() ||
+                bridge.type->roadblock().is_ship_bridge() != (ship != 0)) {
+                continue;
+            }
+            if (std::find(bridge_ids.begin(), bridge_ids.end(), bridge.id) == bridge_ids.end()) {
+                bridge_ids.push_back(bridge.id);
             }
         }
     }
-    return bridge_tiles / 2;
+    return static_cast<int>(bridge_ids.size());
 }
 
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship)

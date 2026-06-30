@@ -193,6 +193,49 @@ void map_building_tiles_set_rubble(const Building *building, int x, int y, int s
     }
 }
 
+void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id)
+{
+    if (!map_grid_is_inside(x, y, 1)) {
+        return;
+    }
+
+    int grid_offset = map_grid_offset(x, y);
+    if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        map_terrain_set(grid_offset, TERRAIN_WATER);
+        map_tiles_set_water(x, y);
+        return;
+    }
+
+    map_property_clear_constructing(grid_offset);
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+    map_property_mark_draw_tile(grid_offset);
+    map_aqueduct_remove(grid_offset);
+    map_building_damage_clear(grid_offset);
+    map_sprite_clear_tile(grid_offset);
+    map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+    map_terrain_add(grid_offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
+    map_building_set(grid_offset, building);
+    map_building_set_rubble_grid_building_id(grid_offset, building.id, 1);
+    map_image_set(grid_offset, image_id ? image_id : image_group(GROUP_TERRAIN_RUBBLE) + (map_random_get(grid_offset) & 7));
+}
+
+void map_building_tiles_add_bridge(Building &building, int x, int y)
+{
+    if (!map_grid_is_inside(x, y, 1)) {
+        return;
+    }
+
+    const int grid_offset = map_grid_offset(x, y);
+    map_property_clear_constructing(grid_offset);
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+    map_terrain_add(grid_offset, TERRAIN_WATER | TERRAIN_ROAD | TERRAIN_BUILDING);
+    map_building_set(grid_offset, building);
+    map_tiles_set_water(x, y);
+    map_sprite_clear_tile(grid_offset);
+}
+
 static void adjust_to_absolute_xy(int *x, int *y, int size)
 {
     switch (city_view_orientation()) {

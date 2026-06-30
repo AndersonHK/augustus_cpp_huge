@@ -50,6 +50,68 @@ static struct {
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
 
+static int rubble_origins_match(const RubbleState &a, const RubbleState &b)
+{
+    return a.original_grid_offset == b.original_grid_offset &&
+        a.original_size == b.original_size &&
+        a.original_orientation == b.original_orientation &&
+        a.original_type == b.original_type;
+}
+
+static void retire_rubble_origin(const RubbleState &origin)
+{
+    Building::for_each([&](Building *candidate) {
+        if (!candidate || !candidate->Rubble) {
+            return;
+        }
+        building *record = const_cast<building *>(candidate->record());
+        const RubbleState *candidate_origin = candidate->Rubble->state();
+        if (!record || !candidate_origin || !rubble_origins_match(origin, *candidate_origin)) {
+            return;
+        }
+        city_culture_remove_building_module_capacity(record);
+        record->prev_part_building_id = 0;
+        record->next_part_building_id = 0;
+        record->state = BUILDING_STATE_DELETED_BY_GAME;
+        map_building_set_rubble_grid_building_id(record->grid_offset, 0, 1);
+        if (map_building_exists_at(record->grid_offset) && map_building_at(record->grid_offset).id == candidate->id) {
+            map_building_clear_at(record->grid_offset);
+        }
+    });
+}
+
+static int clear_live_rubble_tile(int grid_offset)
+{
+    if (!map_building_exists_at(grid_offset)) {
+        return 0;
+    }
+
+    Building &rubble_tile = map_building_at(grid_offset);
+    if (!rubble_tile.Rubble) {
+        return 0;
+    }
+
+    Building &rubble_group = rubble_tile.main();
+    const RubbleState *origin = rubble_tile.Rubble->state();
+    if (origin) {
+        RubbleState origin_copy = *origin;
+        map_building_set_rubble_grid_building_id(grid_offset, 0, 1);
+        map_building_clear_at(grid_offset);
+        if (!map_building_ruins_left(rubble_group)) {
+            retire_rubble_origin(origin_copy);
+        }
+    } else {
+        building *record = const_cast<building *>(rubble_tile.record());
+        if (record) {
+            city_culture_remove_building_module_capacity(record);
+            record->state = BUILDING_STATE_DELETED_BY_GAME;
+        }
+        map_building_set_rubble_grid_building_id(grid_offset, 0, 1);
+        map_building_clear_at(grid_offset);
+    }
+    return 1;
+}
+
 static Building *get_deletable_building(int grid_offset)
 {
     if (!map_building_exists_at(grid_offset)) {
@@ -210,7 +272,10 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 if (map_terrain_is(grid_offset, TERRAIN_RUBBLE) && !measure_only) {
                     //rubble state handling:
 
-                    if (map_building_rubble_building_id(grid_offset)) {
+                    if (clear_live_rubble_tile(grid_offset)) {
+                        // Fresh rubble is a real composed building. Clearing one tile retires that child,
+                        // and the origin group retires once no matching rubble tiles remain.
+                    } else if (map_building_rubble_building_id(grid_offset)) {
 
                         int rubble_id = map_building_rubble_building_id(grid_offset);
                         if (rubble_id) {

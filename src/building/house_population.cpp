@@ -29,6 +29,10 @@ static int house_is_patrician(Building &house)
 
 int house_population_add_to_city(int num_people)
 {
+    if (num_people <= 0) {
+        return 0;
+    }
+
     int added = 0;
     int building_id = city_population_last_used_house_add();
     std::vector<Building *> houses;
@@ -50,7 +54,7 @@ int house_population_add_to_city(int num_people)
     for (size_t checked = 0; checked < houses.size() && added < num_people; checked++) {
         Building *house = houses[house_index];
         house_index = (house_index + 1) % houses.size();
-    ::building *b = const_cast<::building *>(house->record());
+        ::building *b = const_cast<::building *>(house->record());
         if (b->state == BUILDING_STATE_IN_USE && b->house_size
             && b->distance_from_entry > 0 && b->house_population > 0) {
             city_population_set_last_used_house_add(b->id);
@@ -67,6 +71,10 @@ int house_population_add_to_city(int num_people)
 
 int house_population_remove_from_city(int num_people)
 {
+    if (num_people <= 0) {
+        return 0;
+    }
+
     int removed = 0;
     int building_id = city_population_last_used_house_remove();
     std::vector<Building *> houses;
@@ -89,7 +97,7 @@ int house_population_remove_from_city(int num_people)
     while (removed < num_people && houses_without_removal < houses.size()) {
         Building *house = houses[house_index];
         house_index = (house_index + 1) % houses.size();
-    ::building *b = const_cast<::building *>(house->record());
+        ::building *b = const_cast<::building *>(house->record());
         if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population > 0) {
             city_population_set_last_used_house_remove(b->id);
             ++removed;

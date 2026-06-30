@@ -78,6 +78,8 @@ struct ImageEntryDef {
     int local_order = 0;
     int width = 0;
     int height = 0;
+    int draw_offset_x = 0;
+    int draw_offset_y = 0;
     int is_isometric = 0;
     int has_full_image_ref = 0;
     RawImageReference full_image_ref;

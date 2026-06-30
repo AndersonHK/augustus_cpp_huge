@@ -1,6 +1,7 @@
 #include "game/system.h"
 
 #include "core/crash_context.h"
+#include "core/runtime_diagnostics.h"
 #include "platform/platform.h"
 #include "platform/screen.h"
 #include "core/log.h"
@@ -87,6 +88,7 @@ static void crash_handler(int sig)
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Oops, crashed :(");
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Signal %d: %s", sig, fetch_signal_name(sig));
     crash_context_log_current();
+    runtime_diagnostics_write_crash_dump(fetch_signal_name(sig));
     backtrace_print();
     display_crash_message();
     exit_with_status(1);
@@ -268,6 +270,7 @@ static LONG CALLBACK exception_handler(LPEXCEPTION_POINTERS e)
     // Prologue.
     log_error("Oops, crashed :(", 0, 0);
     crash_context_log_current();
+    runtime_diagnostics_write_crash_dump(print_exception_name(e->ExceptionRecord->ExceptionCode));
 
     wchar_t path[MAX_PATH];
     GetModuleFileNameW(0, path, MAX_PATH);

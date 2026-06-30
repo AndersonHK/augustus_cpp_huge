@@ -18,7 +18,6 @@
 #include "graphics/weather.h"
 #include "map/building.h"
 #include "map/image.h"
-#include "widget/city_bridge.h"
 #include "widget/city_building_ghost.h"
 #include "widget/city_draw_highway.h"
 #include "widget/city_figure.h"
@@ -54,7 +53,6 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
@@ -244,6 +242,10 @@ static void draw_footprint(int x, int y, int grid_offset)
         map_image_set(grid_offset, image_id);
     }
     const int tile_visual_first = building && building->is_surface_terrain_tile();
+    const int bridge_visual = building && building->type && building->type->roadblock().is_bridge();
+    if (bridge_visual) {
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, draw_context.scale);
+    }
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
     } else if (tile_visual_first &&
@@ -646,8 +648,6 @@ static void draw_animation_for_building(Building *building, int x, int y, int gr
     }
     if (draw_tile && has_building && building->has_plague()) {
         draw_plague(*building, x, y, color_mask);
-    } else if (map_sprite_bridge_at(grid_offset)) {
-        city_draw_bridge(x, y, draw_context.scale, grid_offset);
     } else if (building && building_is_fort(building->type ? building->type->type() : BUILDING_NONE)) {
         if (!draw_tile) {
             return;

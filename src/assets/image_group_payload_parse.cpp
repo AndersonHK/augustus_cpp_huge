@@ -148,6 +148,8 @@ int xml_start_image(void)
     entry.local_order = static_cast<int>(g_parse_state.doc->ordered_ids.size());
     entry.width = xml_parser_get_attribute_int("width");
     entry.height = xml_parser_get_attribute_int("height");
+    entry.draw_offset_x = xml_parser_get_attribute_int("x");
+    entry.draw_offset_y = xml_parser_get_attribute_int("y");
     entry.is_isometric = xml_parser_get_attribute_bool("isometric");
 
     const char *path = xml_parser_get_attribute_string("src");
