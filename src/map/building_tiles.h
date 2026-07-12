@@ -15,11 +15,7 @@ void map_building_tiles_add(Building &building, int x, int y, int size, int imag
 
 void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain);
 
-int map_building_tiles_add_aqueduct(int x, int y);
-
 void map_building_tiles_remove(const Building *building, int x, int y);
-
-void map_building_tiles_set_rubble(const Building *building, int x, int y, int size);
 
 void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id);
 

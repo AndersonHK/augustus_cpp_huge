@@ -111,6 +111,11 @@ static int is_storage_road_access_type(building_type type)
     return building_type_registry_impl::type_attr_is_any(type, {"warehouse", "warehouse_space", "granary"});
 }
 
+static bool is_burning_ruin(const Building &building)
+{
+    return building.Rubble && building.Rubble->is_burning();
+}
+
 void building_maintenance_update_fire_direction(void)
 {
     data.fire_spread_direction = random_byte() & 7;
@@ -123,8 +128,7 @@ void building_maintenance_update_burning_ruins(void)
     building_list_burning_clear();
     Building::for_each([&](Building *building_object) {
         building *b = const_cast<::building *>(building_object->record());
-        if ((b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) ||
-            !building_object->Rubble || !building_object->Rubble->is_burning()) {
+        if (!is_burning_ruin(*building_object)) {
             return;
         }
         const RubbleDef &rubble_definition = *building_object->Rubble->definition();
@@ -206,22 +210,22 @@ int building_maintenance_get_closest_burning_ruin(int x, int y, int *distance)
     for (int i = 0; i < burning_size; i++) {
         int building_id = building_list_burning_item(i);
         Building *burning_building = Building::get(static_cast<unsigned int>(building_id));
-        building *b = burning_building ? const_cast<::building *>(burning_building->record()) : nullptr;
-        if (!b) {
+        if (!burning_building || !is_burning_ruin(*burning_building)) {
             continue;
         }
-        if ((b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) &&
-            burning_building->Rubble && burning_building->Rubble->is_burning() && !b->has_plague && b->distance_from_entry) {
-            int dist = calc_maximum_distance(x, y, b->x, b->y);
-            if (b->figure_id4) {
-                if (dist < min_occupied_dist) {
-                    min_occupied_dist = dist;
-                    min_occupied_building_id = building_id;
-                }
-            } else if (dist < *distance) {
-                *distance = dist;
-                min_free_building_id = building_id;
+        building *b = const_cast<::building *>(burning_building->record());
+        if (b->has_plague) {
+            continue;
+        }
+        int dist = calc_maximum_distance(x, y, b->x, b->y);
+        if (b->figure_id4) {
+            if (dist < min_occupied_dist) {
+                min_occupied_dist = dist;
+                min_occupied_building_id = building_id;
             }
+        } else if (dist < *distance) {
+            *distance = dist;
+            min_free_building_id = building_id;
         }
     }
     if (!min_free_building_id && min_occupied_dist <= 2) {

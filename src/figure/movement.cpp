@@ -17,28 +17,12 @@
 #include "building/destruction.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "game/defines.h"
 #include "game/time.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
+#include "map/routing.h"
 #include "map/terrain.h"
-
-namespace {
-
-int hit_points_for_building_at(int grid_offset)
-{
-    if (!map_building_exists_at(grid_offset)) {
-        return game_defines_default_building_hit_points();
-    }
-
-    Building &building = map_building_at(grid_offset);
-    return building.type && building.type->model().has_hit_points() ?
-        building.type->model().hit_points() :
-        game_defines_default_building_hit_points();
-}
-
-} // namespace
 
 static void advance_tick(Figure *f)
 {
@@ -184,33 +168,12 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
     } else if (f->terrain_usage == TERRAIN_USAGE_ENEMY) {
         if (!figure_type_registry_impl::PathingMode::noncitizenIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
-        } else if (building_destroyable_at(target_grid_offset)) {
-            int cause_damage = 1;
-            int max_damage = 0;
-            switch (building_destroyable_type_at(target_grid_offset)) {
-                case DESTROYABLE_BUILDING:
-                    max_damage = hit_points_for_building_at(target_grid_offset);
-                    break;
-                case DESTROYABLE_AQUEDUCT_GARDEN:
-                    if (map_terrain_is(target_grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE)) {
-                        cause_damage = 0;
-                    } else {
-                        max_damage = game_defines_default_building_hit_points();
-                    }
-                    break;
-                case DESTROYABLE_WALL:
-                    max_damage = hit_points_for_building_at(target_grid_offset);
-                    break;
-                case DESTROYABLE_GATEHOUSE:
-                    max_damage = hit_points_for_building_at(target_grid_offset);
-                    break;
-            }
-            if (cause_damage) {
-                f->attack_direction = f->direction;
-                f->direction = DIR_FIGURE_ATTACK;
-                if (!(game_time_tick() & 3)) {
-                    building_destroy_increase_enemy_damage(target_grid_offset, max_damage);
-                }
+        } else if (building_destroyable_at(target_grid_offset) &&
+            !map_terrain_is(target_grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE)) {
+            f->attack_direction = f->direction;
+            f->direction = DIR_FIGURE_ATTACK;
+            if (!(game_time_tick() & 3)) {
+                building_apply_enemy_damage(target_grid_offset);
             }
         }
     } else if (f->terrain_usage == TERRAIN_USAGE_WALLS) {

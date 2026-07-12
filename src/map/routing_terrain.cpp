@@ -3,7 +3,6 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
-#include "building/destruction.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -14,6 +13,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
+#include "map/routing.h"
 #include "map/routing_data.h"
 #include "map/terrain.h"
 
@@ -375,20 +375,4 @@ int building_destroyable_at(int grid_offset)
 {
     return terrain_land_noncitizen.items[grid_offset] > NONCITIZEN_0_PASSABLE &&
         terrain_land_noncitizen.items[grid_offset] != NONCITIZEN_5_FORT;
-}
-
-destroyable_tile_type building_destroyable_type_at(int grid_offset)
-{
-    switch (terrain_land_noncitizen.items[grid_offset]) {
-        case NONCITIZEN_1_BUILDING:
-            return DESTROYABLE_BUILDING;
-        case NONCITIZEN_2_CLEARABLE:
-            return DESTROYABLE_AQUEDUCT_GARDEN;
-        case NONCITIZEN_3_WALL:
-            return DESTROYABLE_WALL;
-        case NONCITIZEN_4_GATEHOUSE:
-            return DESTROYABLE_GATEHOUSE;
-        default:
-            return DESTROYABLE_NONE;
-    }
 }

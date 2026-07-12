@@ -2319,8 +2319,10 @@ private:
             f->wait_ticks_missile = 0;
             f->action_state = FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE;
             f->wait_ticks = 0;
-            f->destination_x = ruin->road_access_x;
-            f->destination_y = ruin->road_access_y;
+            // Rubble is citizen-passable terrain. Target the burning tile itself so a prefect can
+            // cross outer rubble and extinguish an interior tile with no adjacent road access.
+            f->destination_x = ruin->x;
+            f->destination_y = ruin->y;
             f->destination_building = ruin_building;
             Route::remove(f);
             ruin->figure_id4 = f->id();

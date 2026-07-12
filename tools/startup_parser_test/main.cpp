@@ -79,6 +79,20 @@ bool validate_rubble_repair_contract()
 
     const BuildingType *farm = definition_for_type(type_from_attr("fruit_farm"));
     const BuildingType *hippodrome = definition_for_type(type_from_attr("hippodrome"));
+    const BuildingType *aqueduct = definition_for_type(type_from_attr("aqueduct"));
+    const BuildingType *rubble = definition_for_type(type_from_attr("rubble"));
+    const BuildingType *burning_ruin = definition_for_type(type_from_attr("burning_ruin"));
+    if (!aqueduct || !aqueduct->tool().is_aqueduct() || aqueduct->has_rubble() ||
+        aqueduct->declared_model_size() != 1 ||
+        !rubble || !rubble->has_rubble() || !rubble->rubble().is_rubble() || rubble->tool().is_aqueduct() ||
+        rubble->declared_model_size() != 1 ||
+        !burning_ruin || !burning_ruin->has_rubble() || !burning_ruin->rubble().is_burning() ||
+        burning_ruin->declared_model_size() != 1 ||
+        burning_ruin->rubble().decay_type != rubble ||
+        aqueduct->type() == rubble->type() || aqueduct->type() == burning_ruin->type()) {
+        std::cerr << "Rubble repair contract failed: aqueduct/rubble BuildingType XML identities overlap or are incomplete.\n";
+        return false;
+    }
     if (!farm || !farm->has_composition() ||
         farm->composition().footprint_width() != 3 ||
         farm->composition().footprint_height() != 3 ||
@@ -115,7 +129,7 @@ bool validate_rubble_repair_contract()
         return false;
     }
 
-    std::cout << "Validated rubble repair contracts (type-derived dimensions and pointer-backed origin identity).\n";
+    std::cout << "Validated rubble repair contracts (distinct aqueduct/rubble XML types, type-derived dimensions, and pointer-backed origin identity).\n";
     return true;
 }
 
