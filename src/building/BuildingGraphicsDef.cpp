@@ -24,6 +24,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
+#include "map/terrain.h"
 #include "scenario/property.h"
 #endif
 #include "core/crash_context.h"
@@ -117,6 +118,9 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             matches = graphics_compare_int(amount, condition.comparison, condition.threshold);
             break;
         }
+        case GraphicsConditionType::Terrain:
+            matches = map_terrain_is(state.grid_offset(), condition.terrain_mask);
+            break;
         case GraphicsConditionType::Climate:
             matches = scenario_property_climate() == condition.climate;
             break;

@@ -2,6 +2,9 @@
 #include "building/granary.h"
 #include "building/industry.h"
 #include "map/building_tiles.h"
+#include "map/grid.h"
+#include "map/road_aqueduct_rules.h"
+#include "map/tiles.h"
 
 #include "building/building_record.h"
 #include "building/building.h"
@@ -242,6 +245,13 @@ int selected_option_for_selection(
         const bool vertical_view = city_view_orientation() == DIR_0_TOP || city_view_orientation() == DIR_4_BOTTOM;
         const int rotated = (gate_orientation == 1) != vertical_view;
         return rotated ? 1 % option_count : 0;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::RoadCrossing) {
+        const int grid_offset = building.grid_offset();
+        const int option = road_aqueduct_crossing_option(
+            map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_ROAD),
+            map_tiles_is_paved_road(grid_offset));
+        return option % option_count;
     }
     int option = building_variant_get_graphics_option(building, 0, graphics_variant);
     return option < 0 ? 0 : option;

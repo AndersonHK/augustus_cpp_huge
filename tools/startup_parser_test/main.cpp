@@ -3,6 +3,8 @@
 #include "assets/image_group_payload.h"
 #include "building/RubbleState.h"
 #include "building/building_type_registry_internal.h"
+#include "map/road_aqueduct_rules.h"
+#include "map/terrain.h"
 
 #include <filesystem>
 #include <iostream>
@@ -188,6 +190,61 @@ bool validate_animated_isometric_contracts()
     return true;
 }
 
+bool validate_road_aqueduct_crossing_rules()
+{
+    using enum road_aqueduct_axis;
+
+    if (road_aqueduct_axis_from_opposite_neighbors(2, 0) != x ||
+        road_aqueduct_axis_from_opposite_neighbors(0, 2) != y ||
+        road_aqueduct_axis_from_opposite_neighbors(2, 1) != none ||
+        road_aqueduct_axis_from_opposite_neighbors(1, 1) != none ||
+        road_aqueduct_axis_from_connectable_option(2, 0) != y ||
+        road_aqueduct_axis_from_connectable_option(3, 0) != x ||
+        road_aqueduct_axis_from_connectable_option(2, 1) != x ||
+        road_aqueduct_axis_from_connectable_option(3, 1) != y ||
+        road_aqueduct_axis_from_connectable_option(4, 0) != none ||
+        road_aqueduct_crossing_option(0, 1) != 0 ||
+        road_aqueduct_crossing_option(1, 1) != 1 ||
+        road_aqueduct_crossing_option(0, 0) != 2 ||
+        road_aqueduct_crossing_option(1, 0) != 3) {
+        std::cerr << "Road/aqueduct crossing contract failed: straight-axis rules are inconsistent.\n";
+        return false;
+    }
+
+    const building_type_registry_impl::BuildingType *aqueduct =
+        building_type_registry_impl::definition_for_type(
+            building_type_registry_impl::type_from_attr("aqueduct"));
+    int road_variants = 0;
+    if (aqueduct) {
+        for (const building_type_registry_impl::GraphicsVariant &variant : aqueduct->graphics().variants()) {
+            bool requires_road = false;
+            for (const building_type_registry_impl::GraphicsCondition &condition : variant.conditions) {
+                requires_road = requires_road ||
+                    (condition.type == building_type_registry_impl::GraphicsConditionType::Terrain &&
+                        condition.terrain_mask == TERRAIN_ROAD);
+            }
+            if (!requires_road) {
+                continue;
+            }
+            road_variants++;
+            if (variant.target.option_selection() !=
+                    building_type_registry_impl::GraphicsOptionSelection::RoadCrossing ||
+                variant.target.option_count() != 4) {
+                std::cerr << "Road/aqueduct crossing contract failed: road variant is not a four-option native crossing target.\n";
+                return false;
+            }
+        }
+    }
+    if (road_variants != 6) {
+        std::cerr << "Road/aqueduct crossing contract failed: expected six climate/water road variants, found "
+            << road_variants << ".\n";
+        return false;
+    }
+
+    std::cout << "Validated road/aqueduct topology and XML-owned native crossing graphics.\n";
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -296,6 +353,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_animated_isometric_contracts()) {
+        return 1;
+    }
+    if (!validate_road_aqueduct_crossing_rules()) {
         return 1;
     }
 

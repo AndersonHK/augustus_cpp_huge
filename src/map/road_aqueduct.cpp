@@ -4,6 +4,7 @@
 
 #include "building/building.h"
 #include "building/building_type.h"
+#include "building/connectable.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -12,87 +13,47 @@
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/image.h"
+#include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
+
+static road_aqueduct_axis straight_road_axis_for_aqueduct(int grid_offset);
+
+static int axis_has_construction_conflict(int grid_offset, road_aqueduct_axis axis, int include_existing_roads)
+{
+    const int dx = axis == road_aqueduct_axis::x ? 1 : 0;
+    const int dy = axis == road_aqueduct_axis::y ? 1 : 0;
+    if (!dx && !dy) {
+        return 1;
+    }
+
+    const int before = grid_offset + map_grid_delta(-dx, -dy);
+    const int after = grid_offset + map_grid_delta(dx, dy);
+    return (include_existing_roads &&
+            (map_terrain_is(before, TERRAIN_ROAD) || map_terrain_is(after, TERRAIN_ROAD))) ||
+        Route::constructionDistanceTo(before) > 0 ||
+        Route::constructionDistanceTo(after) > 0;
+}
 
 int map_can_place_road_under_aqueduct(int grid_offset)
 {
-    int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);
-    int check_y;
-    switch (image_id) {
-        case 0:
-        case 2:
-        case 8:
-        case 15:
-        case 17:
-        case 23:
-            check_y = 1;
-            break;
-        case 1:
-        case 3:
-        case 9: case 10: case 11: case 12: case 13: case 14:
-        case 16:
-        case 18:
-        case 24: case 25: case 26: case 27: case 28: case 29:
-            check_y = 0;
-            break;
-        default: // not a straight aqueduct
-            return 0;
-    }
-    if (city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT) {
-        check_y = !check_y;
-    }
-    if (check_y) {
-        int dy_up = map_grid_delta(0, -1);
-        int dy_down = map_grid_delta(0, 1);
-        if (map_terrain_is(grid_offset + dy_up, TERRAIN_ROAD) ||
-            Route::constructionDistanceTo(grid_offset + dy_up) > 0) {
-            return 0;
-        }
-        if (map_terrain_is(grid_offset + dy_down, TERRAIN_ROAD) ||
-            Route::constructionDistanceTo(grid_offset + dy_down) > 0) {
-            return 0;
-        }
-    } else {
-        int dx_left = map_grid_delta(-1, 0);
-        int dx_right = map_grid_delta(1, 0);
-        if (map_terrain_is(grid_offset + dx_left, TERRAIN_ROAD) ||
-            Route::constructionDistanceTo(grid_offset + dx_left) > 0) {
-            return 0;
-        }
-        if (map_terrain_is(grid_offset + dx_right, TERRAIN_ROAD) ||
-            Route::constructionDistanceTo(grid_offset + dx_right) > 0) {
-            return 0;
-        }
-    }
-    return 1;
+    const int view_swaps_axes =
+        city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT;
+    const road_aqueduct_axis aqueduct_axis = road_aqueduct_axis_from_connectable_option(
+        building_connectable_get_aqueduct_offset(grid_offset), view_swaps_axes);
+    return !axis_has_construction_conflict(grid_offset, aqueduct_axis, 1);
 }
 
 int map_can_place_aqueduct_on_road(int grid_offset)
 {
-    int image_id = map_image_at(grid_offset) - image_group(GROUP_TERRAIN_ROAD);
-    if (image_id != 0 && image_id != 1 && image_id != 49 && image_id != 50) {
+    const road_aqueduct_axis road_axis = straight_road_axis_for_aqueduct(grid_offset);
+    if (road_axis == road_aqueduct_axis::none) {
         return 0;
     }
     if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
         return 0;
     }
 
-    int check_y = image_id == 0 || image_id == 49;
-    if (city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT) {
-        check_y = !check_y;
-    }
-    if (check_y) {
-        if (Route::constructionDistanceTo(grid_offset + map_grid_delta(0, -1)) > 0 ||
-            Route::constructionDistanceTo(grid_offset + map_grid_delta(0, 1)) > 0) {
-            return 0;
-        }
-    } else {
-        if (Route::constructionDistanceTo(grid_offset + map_grid_delta(-1, 0)) > 0 ||
-            Route::constructionDistanceTo(grid_offset + map_grid_delta(1, 0)) > 0) {
-            return 0;
-        }
-    }
-    return 1;
+    return !axis_has_construction_conflict(grid_offset, road_axis, 0);
 }
 
 int map_can_place_aqueduct_on_aqueduct(int grid_offset)
@@ -156,6 +117,11 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
 
 int map_is_straight_road_for_aqueduct(int grid_offset)
 {
+    return straight_road_axis_for_aqueduct(grid_offset) != road_aqueduct_axis::none;
+}
+
+static road_aqueduct_axis straight_road_axis_for_aqueduct(int grid_offset)
+{
     int road_tiles_x =
         is_road_tile_for_aqueduct(grid_offset + map_grid_delta(1, 0), 2) +
         is_road_tile_for_aqueduct(grid_offset + map_grid_delta(-1, 0), 2);
@@ -163,13 +129,7 @@ int map_is_straight_road_for_aqueduct(int grid_offset)
         is_road_tile_for_aqueduct(grid_offset + map_grid_delta(0, -1), 1) +
         is_road_tile_for_aqueduct(grid_offset + map_grid_delta(0, 1), 1);
 
-    if (road_tiles_x == 2 && road_tiles_y == 0) {
-        return 1;
-    } else if (road_tiles_y == 2 && road_tiles_x == 0) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return road_aqueduct_axis_from_opposite_neighbors(road_tiles_x, road_tiles_y);
 }
 
 static int is_highway(int x, int y, int check_routing)

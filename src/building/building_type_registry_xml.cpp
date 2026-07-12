@@ -29,6 +29,7 @@
 #include "core/xml_parser.h"
 #include "game/resource.h"
 #include "figure/formation_type.h"
+#include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
@@ -2625,6 +2626,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::StoragePermission;
     } else if (compare_text(selection, "gatehouse_orientation") == 0) {
         option_selection = GraphicsOptionSelection::GatehouseOrientation;
+    } else if (compare_text(selection, "road_crossing") == 0) {
+        option_selection = GraphicsOptionSelection::RoadCrossing;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -3082,6 +3085,36 @@ static int parse_graphics_condition()
         }
         condition.type = GraphicsConditionType::ResourceAmount;
         condition.threshold = threshold;
+    } else if (type_text && compare_text(type_text, "terrain") == 0) {
+        if (!xml_parser_has_attribute("value")) {
+            log_error("BuildingType graphics terrain condition is missing required attribute 'value'", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        const char *terrain_text = xml_parser_get_attribute_string("value");
+        if (compare_text(terrain_text, "road") == 0) {
+            condition.terrain_mask = TERRAIN_ROAD;
+        } else if (compare_text(terrain_text, "aqueduct") == 0) {
+            condition.terrain_mask = TERRAIN_AQUEDUCT;
+        } else if (compare_text(terrain_text, "highway") == 0) {
+            condition.terrain_mask = TERRAIN_HIGHWAY;
+        } else if (compare_text(terrain_text, "water") == 0) {
+            condition.terrain_mask = TERRAIN_WATER;
+        } else if (compare_text(terrain_text, "building") == 0) {
+            condition.terrain_mask = TERRAIN_BUILDING;
+        } else if (compare_text(terrain_text, "garden") == 0) {
+            condition.terrain_mask = TERRAIN_GARDEN;
+        } else if (compare_text(terrain_text, "rubble") == 0) {
+            condition.terrain_mask = TERRAIN_RUBBLE;
+        } else if (compare_text(terrain_text, "wall") == 0) {
+            condition.terrain_mask = TERRAIN_WALL;
+        } else {
+            log_error("Unsupported BuildingType graphics terrain condition", terrain_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Terrain;
     } else if (type_text && compare_text(type_text, "climate") == 0) {
         if (!xml_parser_has_attribute("value")) {
             log_error("BuildingType graphics climate condition is missing required attribute 'value'", 0, 0);

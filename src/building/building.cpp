@@ -2076,6 +2076,7 @@ std::uint64_t Building::graphics_state_signature(int selected_graphics_option) c
     mix(static_cast<std::uint64_t>(record_->figure_id4));
     mix(static_cast<std::uint64_t>(record_->monument.phase));
     mix(static_cast<std::uint64_t>(record_->monument.upgrades));
+    mix(static_cast<std::uint64_t>(map_terrain_get(record_->grid_offset)));
     const BuildingGraphicsState *graphics_state = graphics_.state();
     if (graphics_state == nullptr) {
         report_missing_building_graphics_state(record_, type, construction_location_, std::source_location::current());

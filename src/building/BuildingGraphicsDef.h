@@ -32,6 +32,7 @@ enum class GraphicsConditionType {
     FigureSlotOccupied,
     ResourcePositive,
     ResourceAmount,
+    Terrain,
     Climate,
     MonumentUpgrade,
     FestivalGames,
@@ -50,7 +51,8 @@ enum class GraphicsOptionSelection {
     Orientation,
     ProductionProgress,
     StoragePermission,
-    GatehouseOrientation
+    GatehouseOrientation,
+    RoadCrossing
 };
 
 enum class GraphicsLayerStage {
@@ -66,6 +68,7 @@ struct GraphicsCondition {
     FigureSlot figure_slot = FigureSlot::None;
     int threshold = 0;
     resource_type resource = RESOURCE_NONE;
+    int terrain_mask = 0;
     int climate = 0;
     int monument_upgrade = 0;
     int festival_games = 0;
