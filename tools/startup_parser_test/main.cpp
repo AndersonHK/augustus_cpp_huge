@@ -334,6 +334,33 @@ bool validate_figure_owner_contracts()
     return true;
 }
 
+bool validate_native_soldier_corpse_graphics()
+{
+    static const char *const prefixes[] = { "auxinf", "auxarch" };
+    for (const char *prefix : prefixes) {
+        for (int frame = 1; frame <= 8; frame++) {
+            char group[64];
+            char image[32];
+            std::snprintf(image, sizeof(image), "%s_death_%02d", prefix, frame);
+            std::snprintf(group, sizeof(group), "Warriors\\%s", image);
+            if (!image_group_payload_load(group)) {
+                std::cerr << "Soldier corpse graphics contract failed: could not load " << group << ".\n";
+                return false;
+            }
+            const ImageGroupPayload *payload = image_group_payload_get(group);
+            const ImageGroupEntry *entry = payload ? payload->entry_for(image) : nullptr;
+            const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
+            if (!slice || !slice->is_valid() || slice->width > 64 || slice->height > 64) {
+                std::cerr << "Soldier corpse graphics contract failed: " << group
+                    << " did not materialize a valid figure-sized footprint.\n";
+                return false;
+            }
+        }
+    }
+    std::cout << "Validated every native auxiliary soldier corpse frame.\n";
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -451,6 +478,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_figure_owner_contracts()) {
+        return 1;
+    }
+    if (!validate_native_soldier_corpse_graphics()) {
         return 1;
     }
 

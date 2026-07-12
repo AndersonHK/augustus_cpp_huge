@@ -15,6 +15,7 @@
 #include "city/culture.h"
 #include "city/warning.h"
 #include "game/undo.h"
+#include "map/aqueduct.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -74,6 +75,7 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/road_network.h"
+#include "map/sprite.h"
 #include "figure/route.h"
 #include "map/terrain.h"
 
@@ -1474,6 +1476,40 @@ void Building::bind_surface_map_tiles()
     }
 }
 
+void Building::unbind_aqueduct_map_tiles()
+{
+    if (!record_ || !map_grid_is_inside(record_->x, record_->y, record_->size)) {
+        return;
+    }
+
+    for (int dy = 0; dy < record_->size; dy++) {
+        for (int dx = 0; dx < record_->size; dx++) {
+            const int grid_offset = map_grid_offset(record_->x + dx, record_->y + dy);
+            if (!map_building_exists_at(grid_offset) || map_building_at(grid_offset).id != id) {
+                continue;
+            }
+            map_property_clear_constructing(grid_offset);
+            map_property_set_multi_tile_size(grid_offset, 1);
+            map_property_clear_multi_tile_xy(grid_offset);
+            map_property_mark_draw_tile(grid_offset);
+            map_aqueduct_remove(grid_offset);
+            map_building_clear_at(grid_offset);
+            map_building_damage_clear(grid_offset);
+            map_sprite_clear_tile(grid_offset);
+            map_terrain_remove(grid_offset, TERRAIN_AQUEDUCT);
+            map_image_set(grid_offset, 0);
+        }
+    }
+
+    const int x_end = record_->x + record_->size - 1;
+    const int y_end = record_->y + record_->size - 1;
+    map_tiles_update_region_empty_land(record_->x, record_->y, x_end, y_end);
+    map_tiles_update_region_meadow(record_->x, record_->y, x_end, y_end);
+    map_tiles_update_region_rubble(record_->x, record_->y, x_end, y_end);
+    map_tiles_update_area_roads(record_->x, record_->y, record_->size + 2);
+    map_tiles_update_region_aqueducts(record_->x - 3, record_->y - 3, x_end + 3, y_end + 3);
+}
+
 void Building::normalize_surface_map_tile(int grid_offset, int dx, int dy)
 {
     if (!type) {
@@ -1577,6 +1613,18 @@ void Building::add_map_tiles(int image_id)
         }
         map_building_tiles_add(*this, record_->x, record_->y, record_->size, image_id, terrain_for_map_tiles());
     }
+}
+
+void Building::remove_map_tiles()
+{
+    if (!record_) {
+        return;
+    }
+    if (type && type->tool().is_aqueduct()) {
+        unbind_aqueduct_map_tiles();
+        return;
+    }
+    map_building_tiles_remove(this, record_->x, record_->y);
 }
 
 void Building::set_storage_id(int new_storage_id)
@@ -3007,7 +3055,7 @@ void building_update_state(void)
                 }
             }
             if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                map_building_tiles_remove(&runtime->building, b->x, b->y);
+                runtime->building.remove_map_tiles();
             }
             if (definition &&
                 definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
@@ -3662,6 +3710,36 @@ static LegacyTilePromotionTypes legacy_tile_promotion_types()
     };
 }
 
+static bool definition_is_surface_terrain_tile(
+    const building_type_registry_impl::BuildingType *definition)
+{
+    if (!definition) {
+        return false;
+    }
+    const building_type_registry_impl::TileKind tile_kind = definition->tile().kind();
+    return tile_kind == building_type_registry_impl::TileKind::Garden ||
+        tile_kind == building_type_registry_impl::TileKind::Plaza ||
+        definition->tool().is_road() ||
+        definition->tool().is_highway() ||
+        definition->tool().is_aqueduct();
+}
+
+static bool loaded_record_owns_surface_tile(int grid_offset, building_type expected_type)
+{
+    const unsigned int id = map_building_loaded_id_at(grid_offset);
+    if (!id || id >= data.buildings.size()) {
+        return false;
+    }
+    const building &record = data.buildings[id];
+    if (record.state == BUILDING_STATE_UNUSED || record.type != expected_type) {
+        return false;
+    }
+    const int size = record.size > 0 ? record.size : 1;
+    const int x = map_grid_offset_to_x(grid_offset);
+    const int y = map_grid_offset_to_y(grid_offset);
+    return x >= record.x && x < record.x + size && y >= record.y && y < record.y + size;
+}
+
 static int legacy_tile_has_blocking_loaded_record(int grid_offset)
 {
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
@@ -3923,6 +4001,41 @@ static void discard_loaded_record(building &record)
     record.id = id;
 }
 
+static void normalize_loaded_surface_records()
+{
+    int discarded = 0;
+    for (building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED ||
+            !definition_is_surface_terrain_tile(definition_for_record(&record))) {
+            continue;
+        }
+
+        bool has_map_presence = false;
+        const int size = record.size > 0 ? record.size : 1;
+        for (int dy = 0; dy < size && !has_map_presence; dy++) {
+            for (int dx = 0; dx < size; dx++) {
+                const int x = record.x + dx;
+                const int y = record.y + dy;
+                if (map_grid_is_inside(x, y, 1) &&
+                    map_building_loaded_id_at(map_grid_offset(x, y)) == record.id) {
+                    has_map_presence = true;
+                    break;
+                }
+            }
+        }
+        if (!has_map_presence) {
+            discard_loaded_record(record);
+            discarded++;
+        }
+    }
+
+    if (discarded) {
+        trim_buildings();
+        rebuild_loaded_record_type_links();
+        log_info("Discarded unbound duplicate surface building records", 0, discarded);
+    }
+}
+
 static void normalize_loaded_rubble_records()
 {
     const building_type rubble_type = type_from_attr("rubble");
@@ -3976,6 +4089,9 @@ static int building_promote_legacy_tile_buildings_after_load()
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         const building_type type = legacy_tile_type_for_offset(grid_offset, types);
         if (type == BUILDING_NONE) {
+            continue;
+        }
+        if (loaded_record_owns_surface_tile(grid_offset, type)) {
             continue;
         }
 
@@ -4075,6 +4191,7 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
+    normalize_loaded_surface_records();
     building_promote_legacy_tile_buildings_after_load();
     normalize_loaded_rubble_records();
     city_culture_rebuild_module_capacity_cache();

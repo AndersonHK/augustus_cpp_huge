@@ -174,7 +174,7 @@ static void retire_destroyed_part(Building &building_object)
         map_bridge_remove(record->grid_offset, 0);
     }
     building_clear_related_data(record);
-    map_building_tiles_remove(&building_object, record->x, record->y);
+    building_object.remove_map_tiles();
     record->prev_part_building_id = 0;
     record->next_part_building_id = 0;
     record->state = BUILDING_STATE_DELETED_BY_GAME;

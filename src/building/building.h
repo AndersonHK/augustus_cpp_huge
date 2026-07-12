@@ -225,6 +225,7 @@ public:
     void set_orientation(int orientation);
     int image_id() const;
     void add_map_tiles(int image_id);
+    void remove_map_tiles();
     int is_surface_terrain_tile() const;
     void set_storage_id(int new_storage_id);
     int blocked_storage_permission_mask() const;
@@ -295,6 +296,7 @@ private:
     void bind_graphics(BuildingGraphicsState *graphics_state);
     void bind_rubble(const RubbleDef *rubble_definition, RubbleState *rubble_state);
     void bind_surface_map_tiles();
+    void unbind_aqueduct_map_tiles();
     void normalize_surface_map_tile(int grid_offset, int dx, int dy);
     int highway_terrain_for_surface_tile(int dx, int dy) const;
     int terrain_for_map_tiles() const;

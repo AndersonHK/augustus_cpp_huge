@@ -146,9 +146,9 @@ static void enemy_initial(Figure *f, formation *m)
                 }
                 figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, missile_type);
                 formation_record_missile_fired(m);
-            }
-            if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
-                sound_effect_play(SOUND_EFFECT_ARROW);
+                if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
+                    sound_effect_play(SOUND_EFFECT_ARROW);
+                }
             }
             f->attack_image_offset++;
             if (f->attack_image_offset > 100) {

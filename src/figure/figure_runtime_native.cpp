@@ -740,7 +740,7 @@ static int enemy_graphic_draw_request_for_figure(
     FigureGraphicDrawRequest *request)
 {
     reset_draw_request(request);
-    if (!f || !request || !f->is_enemy_image || f->cart_image_id) {
+    if (!f || !request || !f->is_enemy_image || f->cart_image_id || !f->image_id) {
         return 0;
     }
 
@@ -2970,6 +2970,27 @@ struct FigureGraphicsDebugCounters {
 
 FigureGraphicsDebugCounters g_figure_graphics_debug_counters;
 std::unordered_set<int> g_logged_image_from_id_fallback_types;
+std::unordered_set<unsigned long long> g_logged_failed_enemy_graphics;
+
+void log_failed_enemy_graphics_once(const Figure &figure)
+{
+    const unsigned long long key =
+        (static_cast<unsigned long long>(static_cast<unsigned int>(figure.type)) << 32) |
+        static_cast<unsigned int>(figure.image_id);
+    if (!g_logged_failed_enemy_graphics.insert(key).second) {
+        return;
+    }
+
+    char detail[192];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "figure_type=%d image_id=%d action_state=%d",
+        figure.type,
+        figure.image_id,
+        figure.action_state);
+    error_context_report_error("Enemy graphics lookup produced no drawable enemy-atlas image.", detail);
+}
 
 void log_image_from_id_fallback_once(const Figure &figure)
 {
@@ -3025,6 +3046,14 @@ bool resolve_figure_graphic_draw_request(const Figure &figure, FigureGraphicDraw
         return true;
     }
     if (figure_runtime_native_impl::enemy_graphic_draw_request_for_figure(f, &request)) {
+        return true;
+    }
+    if (f->is_enemy_image) {
+        // Enemy image ids address the separately loaded enemy atlas. If one frame is
+        // unavailable, an empty request is safer than interpreting that id in the main
+        // atlas, where the same number may identify terrain such as a road tile.
+        log_failed_enemy_graphics_once(*f);
+        figure_runtime_native_impl::reset_draw_request(&request);
         return true;
     }
     figure_runtime_native_impl::reset_draw_request(&request);

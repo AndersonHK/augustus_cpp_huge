@@ -660,7 +660,13 @@ void building_connectable_update_connections_for_type(building_type type)
         if (!b) {
             continue;
         }
-        if (b->state == BUILDING_STATE_RUBBLE) {
+        if (b->state != BUILDING_STATE_CREATED &&
+            b->state != BUILDING_STATE_IN_USE &&
+            b->state != BUILDING_STATE_MOTHBALLED) {
+            continue;
+        }
+        if (!map_building_exists_at(b->grid_offset) ||
+            map_building_at(b->grid_offset).id != runtime_building->id) {
             continue;
         }
         if (runtime_building->refresh_graphic_if_native()) {
