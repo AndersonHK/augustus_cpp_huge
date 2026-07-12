@@ -35,22 +35,36 @@
 
 static int show_figure_none(const Figure *f)
 {
+    (void)f;
+
     return 0;
 }
 
 static int get_column_height_none(const building *b)
 {
+    (void)b;
+
     return NO_COLUMN;
+}
+
+static Building *runtime_building_for_overlay_record(const building *b)
+{
+    return b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
 }
 
 static int show_house_level(const building *b, int level)
 {
-    return building_house_legacy_level(Building(building_get(b->id))) == level;
+    Building *house = runtime_building_for_overlay_record(b);
+    return house && building_house_legacy_level(*house) == level;
 }
 
 static int show_house_level_range(const building *b, int min_level, int max_level)
 {
-    int level = building_house_legacy_level(Building(building_get(b->id)));
+    Building *house = runtime_building_for_overlay_record(b);
+    if (!house) {
+        return 0;
+    }
+    int level = building_house_legacy_level(*house);
     return level >= min_level && level <= max_level;
 }
 

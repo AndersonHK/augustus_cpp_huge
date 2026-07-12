@@ -253,6 +253,8 @@ void menu_file_new_map(int centered)
 
 static void menu_file_load_map(int param)
 {
+    (void)param;
+
     clear_state();
     window_editor_map_show();
     window_file_dialog_show(FILE_TYPE_SCENARIO, FILE_DIALOG_LOAD);
@@ -260,6 +262,8 @@ static void menu_file_load_map(int param)
 
 static void menu_file_save_map(int param)
 {
+    (void)param;
+
     clear_state();
     window_editor_map_show();
     window_file_dialog_show(FILE_TYPE_SCENARIO, FILE_DIALOG_SAVE);
@@ -267,6 +271,8 @@ static void menu_file_save_map(int param)
 
 static void menu_file_confirm_exit_to_menu(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         game_exit_editor();
     } else {
@@ -276,6 +282,8 @@ static void menu_file_confirm_exit_to_menu(int accepted, int checked)
 
 static void menu_file_exit_to_menu(int param)
 {
+    (void)param;
+
     clear_state();
     window_editor_map_show();
     if (scenario_editor_is_saved()) {
@@ -287,6 +295,8 @@ static void menu_file_exit_to_menu(int param)
 
 static void menu_file_confirm_exit_game(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         system_exit();
     } else {
@@ -296,12 +306,16 @@ static void menu_file_confirm_exit_game(int accepted, int checked)
 
 static void menu_file_exit_game(int param)
 {
+    (void)param;
+
     clear_state();
     window_popup_dialog_show(POPUP_DIALOG_QUIT, menu_file_confirm_exit_game, 1);
 }
 
 static void menu_options_general(int param)
 {
+    (void)param;
+
     clear_state();
     window_editor_map_show();
     window_config_show(CONFIG_PAGE_GENERAL, 0, 0);
@@ -309,6 +323,8 @@ static void menu_options_general(int param)
 
 static void menu_options_user_interface(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_config_show(CONFIG_PAGE_UI_CHANGES, CATEGORY_UI_GENERAL, 0);
@@ -316,6 +332,8 @@ static void menu_options_user_interface(int param)
 
 static void menu_options_hotkeys(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_hotkey_config_show(0);
@@ -323,6 +341,8 @@ static void menu_options_hotkeys(int param)
 
 static void menu_help_help(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_message_dialog_show(MESSAGE_DIALOG_EDITOR_HELP, window_editor_map_draw_all);
@@ -330,6 +350,8 @@ static void menu_help_help(int param)
 
 static void menu_help_about(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_message_dialog_show(MESSAGE_DIALOG_EDITOR_ABOUT, window_editor_map_draw_all);
@@ -337,6 +359,8 @@ static void menu_help_about(int param)
 
 static void menu_resets_herds(int param)
 {
+    (void)param;
+
     scenario_editor_clear_herd_points();
     clear_state();
     window_go_back();
@@ -344,6 +368,8 @@ static void menu_resets_herds(int param)
 
 static void menu_resets_fish(int param)
 {
+    (void)param;
+
     scenario_editor_clear_fishing_points();
     clear_state();
     window_go_back();
@@ -351,6 +377,8 @@ static void menu_resets_fish(int param)
 
 static void menu_resets_invasions(int param)
 {
+    (void)param;
+
     scenario_editor_clear_invasion_points();
     clear_state();
     window_go_back();
@@ -358,6 +386,8 @@ static void menu_resets_invasions(int param)
 
 static void menu_empire_choose(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     scenario_editor_unset_custom_empire();
@@ -369,6 +399,8 @@ static void menu_empire_choose(int param)
 
 static void menu_empire_custom(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     resource_set_mapping(resource_id_bridge_current_version());
@@ -377,6 +409,8 @@ static void menu_empire_custom(int param)
 
 static void menu_empire_view(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
@@ -390,6 +424,8 @@ static void menu_empire_view(int param)
 
 static void menu_empire_create(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/buffer.h"
 #include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "input/mouse.h"
@@ -30,6 +31,11 @@ void widget_minimap_restore_default_functions(void);
 void widget_minimap_update(const minimap_functions *functions);
 
 void widget_minimap_draw(int x_offset, int y_offset, int width, int height);
+
+void widget_minimap_save_preview(buffer *buf);
+int widget_minimap_load_saved_preview(buffer *buf);
+void widget_minimap_show_placeholder_preview(void);
+void widget_minimap_draw_preview(int x_offset, int y_offset, int width, int height);
 
 void widget_minimap_draw_decorated(int x_offset, int y_offset, int width, int height);
 

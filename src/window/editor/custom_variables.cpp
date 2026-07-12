@@ -148,10 +148,10 @@ static void init_color_dropdown(void)
 
     for (int dd_anchors = 0; dd_anchors < MAX_VISIBLE_GRID_ITEMS; dd_anchors++) {
         color_dropdown_options[dd_anchors][0].is_hidden = 0;
-        color_dropdown_options[dd_anchors][0].x = 568;
-        color_dropdown_options[dd_anchors][0].y = GRID_BOX_ITEM_HEIGHT * dd_anchors + 79;
-        color_dropdown_options[dd_anchors][0].height = CHECKBOX_ROW_WIDTH;
-        color_dropdown_options[dd_anchors][0].width = COLOR_DROPDOWN_WIDTH + 20;
+        color_dropdown_options[dd_anchors][0].x = static_cast<short>(568);
+        color_dropdown_options[dd_anchors][0].y = static_cast<short>(GRID_BOX_ITEM_HEIGHT * dd_anchors + 79);
+        color_dropdown_options[dd_anchors][0].height = static_cast<short>(CHECKBOX_ROW_WIDTH);
+        color_dropdown_options[dd_anchors][0].width = static_cast<short>(COLOR_DROPDOWN_WIDTH + 20);
         for (int j = 0; j < COLOR_BUTTONS_COUNT; j++) { // dropdown option buttons - COLOR_BUTTONS_COUNT per dropdown
             color_dropdown_options[dd_anchors][j].sequence = &color_fragments[j];
             color_dropdown_options[dd_anchors][j].sequence_size = 1;
@@ -220,41 +220,41 @@ static void init(void (*callback)(unsigned int id))
 static void update_item_buttons_positions(void)
 {
     if (data.callback) {
-        item_buttons[1].x = ID_ROW_WIDTH;
+        item_buttons[1].x = static_cast<short>(ID_ROW_WIDTH);
         // Reset to base width and adjust for scrollbar
-        item_buttons[1].width = NAME_ROW_WIDTH_CALLBACK;
+        item_buttons[1].width = static_cast<short>(NAME_ROW_WIDTH_CALLBACK);
         if (grid_box_has_scrollbar(&variable_buttons)) {
-            item_buttons[1].width = NAME_ROW_WIDTH_CALLBACK - 2 * BLOCK_SIZE;
+            item_buttons[1].width = static_cast<short>(NAME_ROW_WIDTH_CALLBACK - 2 * BLOCK_SIZE);
         }
         return;
     } else {
-        item_buttons[1].x = CHECKBOX_ROW_WIDTH + ID_ROW_WIDTH;
-        item_buttons[1].width = NAME_ROW_WIDTH;
+        item_buttons[1].x = static_cast<short>(CHECKBOX_ROW_WIDTH + ID_ROW_WIDTH);
+        item_buttons[1].width = static_cast<short>(NAME_ROW_WIDTH);
     }
 
     // Position name button (fixed width)
-    item_buttons[1].x = CHECKBOX_ROW_WIDTH + ID_ROW_WIDTH;
-    item_buttons[1].width = NAME_ROW_WIDTH;
+    item_buttons[1].x = static_cast<short>(CHECKBOX_ROW_WIDTH + ID_ROW_WIDTH);
+    item_buttons[1].width = static_cast<short>(NAME_ROW_WIDTH);
 
     // Position value button (fixed width)
-    item_buttons[2].x = item_buttons[1].x + item_buttons[1].width + BUTTONS_PADDING;
+    item_buttons[2].x = static_cast<short>(item_buttons[1].x + item_buttons[1].width + BUTTONS_PADDING);
 
     // Position visible checkbox (fixed width)
-    item_buttons[4].x = variable_buttons.width - variable_buttons.item_margin.horizontal
-        - CHECKBOX_ROW_WIDTH - COLOR_DROPDOWN_WIDTH;
+    item_buttons[4].x = static_cast<short>(variable_buttons.width - variable_buttons.item_margin.horizontal
+        - CHECKBOX_ROW_WIDTH - COLOR_DROPDOWN_WIDTH);
     if (grid_box_has_scrollbar(&variable_buttons)) {
-        item_buttons[4].x -= 2 * BLOCK_SIZE;
+        item_buttons[4].x = static_cast<short>(item_buttons[4].x - 2 * BLOCK_SIZE);
         for (int i = 0; i < MAX_VISIBLE_GRID_ITEMS; i++) {
-            color_dropdown_options[i][0].x = 568 - 2 * BLOCK_SIZE;
+            color_dropdown_options[i][0].x = static_cast<short>(568 - 2 * BLOCK_SIZE);
         }
     } else {
         for (int i = 0; i < MAX_VISIBLE_GRID_ITEMS; i++) {
-            color_dropdown_options[i][0].x = 568;
+            color_dropdown_options[i][0].x = static_cast<short>(568);
         }
     }
 
-    item_buttons[3].x = item_buttons[2].x + item_buttons[2].width + BUTTONS_PADDING;
-    item_buttons[3].width = item_buttons[4].x - item_buttons[3].x - BUTTONS_PADDING;
+    item_buttons[3].x = static_cast<short>(item_buttons[2].x + item_buttons[2].width + BUTTONS_PADDING);
+    item_buttons[3].width = static_cast<short>(item_buttons[4].x - item_buttons[3].x - BUTTONS_PADDING);
 }
 
 static void draw_background(void)
@@ -413,7 +413,7 @@ static void draw_foreground(void)
         button_border_draw(constant_buttons[i].x, constant_buttons[i].y, constant_buttons[i].width,
             constant_buttons[i].height, focus);
     }
-    data.expanded_dropdown = (unsigned int) -1; //reset expanded tracker before drawing dropdowns
+    data.expanded_dropdown = NO_SELECTION; //reset expanded tracker before drawing dropdowns
     for (unsigned int i = 0; i < MAX_VISIBLE_GRID_ITEMS && i < data.custom_variables_in_use; i++) {
         dropdown_button *dd = &color_dropdowns[i];
         dd->buttons[0].is_hidden = 0;
@@ -435,6 +435,7 @@ static void draw_foreground(void)
 
 static void button_select_all_none(const generic_button *button)
 {
+    (void) button;
     if (!data.custom_variables_in_use || data.callback) {
         return;
     }
@@ -463,10 +464,11 @@ static void update_selection_type(void)
 
 static void button_variable_checkbox(const generic_button *button)
 {
+    (void) button;
     if (!data.selected || data.callback) {
         return;
     }
-    data.selected[data.target_index] ^= 1;
+    data.selected[data.target_index] = static_cast<uint8_t>(data.selected[data.target_index] ^ 1);
     update_selection_type();
     window_request_refresh();
 }
@@ -542,6 +544,7 @@ static void show_name_edit_popup(void)
 
 static void button_edit_variable_name(const generic_button *button)
 {
+    (void) button;
     if (data.callback) {
         return;
     }
@@ -580,6 +583,7 @@ static void set_display_text(const uint8_t *text)
 
 static void button_edit_display_text(const generic_button *button)
 {
+    (void) button;
     if (data.callback) {
         return;
     }
@@ -592,6 +596,7 @@ static void button_edit_display_text(const generic_button *button)
 
 static void button_variable_visible_checkbox(const generic_button *button)
 {
+    (void) button;
     if (data.callback) {
         return;
     }
@@ -669,6 +674,7 @@ static void delete_selected(int is_ok, int checked)
 
 static void button_delete_selected(const generic_button *button)
 {
+    (void) button;
     if (data.callback || !data.selected || data.selection_type == CHECKBOX_NO_SELECTION) {
         return;
     }
@@ -721,6 +727,7 @@ static void button_delete_selected(const generic_button *button)
 
 static void button_new_variable(const generic_button *button)
 {
+    (void) button;
     if (data.callback) {
         return;
     }
@@ -730,6 +737,7 @@ static void button_new_variable(const generic_button *button)
 
 static void button_ok(const generic_button *button)
 {
+    (void) button;
     if (data.callback) {
         return;
     }
@@ -739,7 +747,7 @@ static void button_ok(const generic_button *button)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (data.expanded_dropdown != -1 && data.custom_variables_in_use) { // handle dropdowns, starting with expanded
+    if (data.expanded_dropdown != NO_SELECTION && data.custom_variables_in_use) { // handle dropdowns, starting with expanded
         if (dropdown_button_handle_mouse(m_dialog, &color_dropdowns[data.expanded_dropdown])) {
             window_invalidate();
             return;

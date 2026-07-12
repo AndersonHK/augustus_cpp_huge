@@ -167,7 +167,7 @@ static void get_already_handled_goods(handled_goods &handled, int ship_id)
     for (Building dock : Building::of_type(dock_type())) {
         // check and see if the ship has visited this dock
         if (!dock.is_in_use() || !dock.is_working() ||
-            !figure_visited_building_in_list(ship->last_visited_index, dock.id())) {
+            !figure_visited_building_in_list(ship->last_visited_index, dock.id)) {
             continue;
         }
 
@@ -226,18 +226,18 @@ static int all_dock_goods_already_handled(const handled_goods &handled, const Bu
     return 0;
 }
 
-static Building get_free_destination(Figure &ship, const Building *exclude_dock, map_point *tile, const handled_goods &handled)
+static Building *get_free_destination(Figure &ship, const Building *exclude_dock, map_point *tile, const handled_goods &handled)
 {
-    Building importing_dock(nullptr);
-    Building exporting_dock(nullptr);
+    Building *importing_dock = nullptr;
+    Building *exporting_dock = nullptr;
 
-    for (Building dock : Building::of_type(dock_type())) {
+    for (Building &dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }
 
-        if ((exclude_dock && dock.id() == exclude_dock->id()) ||
-            figure_visited_building_in_list(ship.last_visited_index, dock.id()) ||
+        if ((exclude_dock && dock.id == exclude_dock->id) ||
+            figure_visited_building_in_list(ship.last_visited_index, dock.id) ||
             !building_dock_accepts_ship(ship, dock)) {
             continue;
         }
@@ -251,34 +251,34 @@ static Building get_free_destination(Figure &ship, const Building *exclude_dock,
         }
 
         if (building_dock_can_import_from_ship(dock, ship.id())) {
-            importing_dock = dock;
+            importing_dock = &dock;
             // prioritize imports
             break;
         } else if (building_dock_can_export_to_ship(dock, ship.id())) {
-            exporting_dock = dock;
+            exporting_dock = &dock;
         }
     }
-    Building dock = importing_dock.id() ? importing_dock : exporting_dock;
-    if (!dock.id()) {
-        return Building(nullptr);
+    Building *dock = importing_dock ? importing_dock : exporting_dock;
+    if (!dock) {
+        return nullptr;
     }
-    building_dock_get_ship_request_tile(dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, tile);
+    building_dock_get_ship_request_tile(*dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, tile);
     return dock;
 }
 
 
-static Building get_queue_destination(Figure &ship, const Building *exclude_dock, ship_dock_request_type request_type, map_point *tile,
+static Building *get_queue_destination(Figure &ship, const Building *exclude_dock, ship_dock_request_type request_type, map_point *tile,
     const handled_goods &handled)
 {
-    Building importing_dock(nullptr);
-    Building exporting_dock(nullptr);
+    Building *importing_dock = nullptr;
+    Building *exporting_dock = nullptr;
 
-    for (Building dock : Building::of_type(dock_type())) {
+    for (Building &dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }
-        if ((exclude_dock && dock.id() == exclude_dock->id()) ||
-            figure_visited_building_in_list(ship.last_visited_index, dock.id()) ||
+        if ((exclude_dock && dock.id == exclude_dock->id) ||
+            figure_visited_building_in_list(ship.last_visited_index, dock.id) ||
             !building_dock_accepts_ship(ship, dock)) {
             continue;
         }
@@ -298,39 +298,42 @@ static Building get_queue_destination(Figure &ship, const Building *exclude_dock
         }
 
         if (figure_trader_ship_can_queue_for_import(&ship) && building_dock_can_import_from_ship(dock, ship.id())) {
-            importing_dock = dock;
+            importing_dock = &dock;
             map_point_store_result(requested_tile.x, requested_tile.y, tile);
             break;  // prioritize imports
         } else if (figure_trader_ship_can_queue_for_export(&ship) && building_dock_can_export_to_ship(dock, ship.id())) {
             map_point_store_result(requested_tile.x, requested_tile.y, tile);
-            exporting_dock = dock;
+            exporting_dock = &dock;
         }
     }
 
-    return importing_dock.id() ? importing_dock : exporting_dock;
+    return importing_dock ? importing_dock : exporting_dock;
 }
 
 static int destination_dock_ready_for_ship(Figure &ship)
 {
-    const Building &destination_dock = ship.destination_building;
-    if (destination_dock.dock_trade_ship_id() &&
-        destination_dock.dock_trade_ship_id() != (int) ship.id()) {
+    const Building *destination_dock = ship.destination_building;
+    if (!destination_dock) {
+        return 0;
+    }
+    if (destination_dock->dock_trade_ship_id() &&
+        destination_dock->dock_trade_ship_id() != (int) ship.id()) {
         return 0;
     }
 
-    if (!building_dock_is_working(destination_dock) ||
-        !building_dock_accepts_ship(ship, destination_dock)) {
+    if (!building_dock_is_working(*destination_dock) ||
+        !building_dock_accepts_ship(ship, *destination_dock)) {
         return 0;
     }
 
-    if (!building_dock_can_import_from_ship(destination_dock, ship.id()) &&
-        !building_dock_can_export_to_ship(destination_dock, ship.id())) {
+    if (!building_dock_can_import_from_ship(*destination_dock, ship.id()) &&
+        !building_dock_can_export_to_ship(*destination_dock, ship.id())) {
         return 0;
     }
     return 1;
 }
 
-Building building_dock_get_destination(Figure &ship, const Building *exclude_dock, map_point *tile)
+Building *building_dock_get_destination(Figure &ship, const Building *exclude_dock, map_point *tile)
 {
     int total_docks = 0;
     for (Building dock : Building::of_type(dock_type())) {
@@ -339,44 +342,45 @@ Building building_dock_get_destination(Figure &ship, const Building *exclude_doc
         }
     }
     if (!total_docks) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     handled_goods handled;
     handled.networks.resize(total_docks);
     get_already_handled_goods(handled, ship.id());
 
-    Building dock = get_free_destination(ship, exclude_dock, tile, handled);
-    if (!dock.id()) {
+    Building *dock = get_free_destination(ship, exclude_dock, tile, handled);
+    if (!dock) {
         dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, tile, handled);
-        if (!dock.id()) {
+        if (!dock) {
             dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_4_SECOND_QUEUE, tile, handled);
         }
     }
     return dock;
 }
 
-Building building_dock_get_closer_free_destination(Figure &ship, ship_dock_request_type request_type, map_point *tile)
+Building *building_dock_get_closer_free_destination(Figure &ship, ship_dock_request_type request_type, map_point *tile)
 {
-    int distance_to_destination = figure_trader_ship_get_distance_to_dock(&ship, ship.destination_building.id());
+    const unsigned int destination_id = ship.destination_building ? ship.destination_building->id : 0;
+    int distance_to_destination = figure_trader_ship_get_distance_to_dock(&ship, destination_id);
     int min_distance_import = -1, min_distance_export = -1;
-    Building nearest_import_dock(nullptr);
-    Building nearest_export_dock(nullptr);
-    for (Building dock : Building::of_type(dock_type())) {
+    Building *nearest_import_dock = nullptr;
+    Building *nearest_export_dock = nullptr;
+    for (Building &dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }
 
         if (dock.dock_trade_ship_id() ||
-            dock.id() == ship.destination_building.id() ||
-            figure_visited_building_in_list(ship.last_visited_index, dock.id()) ||
+            dock.id == destination_id ||
+            figure_visited_building_in_list(ship.last_visited_index, dock.id) ||
             !building_dock_accepts_ship(ship, dock)) {
             continue;
         }
 
-        int distance_to_dock = figure_trader_ship_get_distance_to_dock(&ship, dock.id());
+        int distance_to_dock = figure_trader_ship_get_distance_to_dock(&ship, dock.id);
         if (distance_to_dock > MAX_DISTANCE_FOR_REROUTING ||
-            (figure_trader_ship_other_ship_closer_to_dock(dock.id(), distance_to_dock))) {
+            (figure_trader_ship_other_ship_closer_to_dock(dock.id, distance_to_dock))) {
             continue;
         }
 
@@ -388,32 +392,32 @@ Building building_dock_get_closer_free_destination(Figure &ship, ship_dock_reque
 
         if (building_dock_can_import_from_ship(dock, ship.id())) {
             if (min_distance_import == -1 || distance_to_dock < min_distance_import) {
-                nearest_import_dock = dock;
+                nearest_import_dock = &dock;
                 min_distance_import = distance_to_dock;
             }
         }
 
         if (building_dock_can_export_to_ship(dock, ship.id())) {
             if (min_distance_export == -1 || distance_to_dock < min_distance_export) {
-                nearest_export_dock = dock;
+                nearest_export_dock = &dock;
                 min_distance_export = distance_to_dock;
             }
         }
     }
 
-    Building dock(nullptr);
-    if (nearest_import_dock.id()) {
-        if (nearest_export_dock.id() && min_distance_export < min_distance_import + MAX_DISTANCE_FOR_REROUTING) {
+    Building *dock = nullptr;
+    if (nearest_import_dock) {
+        if (nearest_export_dock && min_distance_export < min_distance_import + MAX_DISTANCE_FOR_REROUTING) {
             dock = nearest_export_dock;
         } else {
             dock = nearest_import_dock;
         }
-    } else if (nearest_export_dock.id()) {
+    } else if (nearest_export_dock) {
         dock = nearest_export_dock;
     }
 
-    if (dock.id()) {
-        building_dock_get_ship_request_tile(dock, request_type, tile);
+    if (dock) {
+        building_dock_get_ship_request_tile(*dock, request_type, tile);
     }
 
     return dock;
@@ -424,7 +428,7 @@ int building_dock_can_trade_with_route(int route_id, const Building &dock)
     if (route_id < 0 || route_id >= 31) {
         return 0;
     }
-    if (!dock.dock_has_accepted_route_ids()) {
+    if (!dock.dock_has_accepted_route_ids) {
         return 1;
     }
     return dock.dock_accepted_route_ids() & (1 << route_id);
@@ -435,7 +439,7 @@ void building_dock_set_can_trade_with_route(int route_id, Building &dock, int ca
     if (route_id < 0 || route_id >= 31) {
         return;
     }
-    int has_route_ids = dock.dock_has_accepted_route_ids();
+    int has_route_ids = dock.dock_has_accepted_route_ids;
     int accepted_route_ids = has_route_ids ? dock.dock_accepted_route_ids() : 0xffffffff;
     has_route_ids = 1;
     int mask = 1 << route_id;
@@ -535,13 +539,16 @@ int building_dock_is_working(const Building &b)
         b.worker_count() > 0 && !b.has_plague();
 }
 
-Building building_dock_reposition_anchored_ship(Figure &ship, map_point *tile)
+Building *building_dock_reposition_anchored_ship(Figure &ship, map_point *tile)
 {
-    const Building &dock = ship.destination_building;
+    Building *dock = ship.destination_building;
+    if (!dock) {
+        return nullptr;
+    }
     map_point tile_first_queue;
     map_point tile_second_queue;
-    building_dock_get_ship_request_tile(dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile_first_queue);
-    building_dock_get_ship_request_tile(dock, SHIP_DOCK_REQUEST_4_SECOND_QUEUE, &tile_second_queue);
+    building_dock_get_ship_request_tile(*dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile_first_queue);
+    building_dock_get_ship_request_tile(*dock, SHIP_DOCK_REQUEST_4_SECOND_QUEUE, &tile_second_queue);
     if (map_figure_at(ship.grid_offset) != (int) ship.id()) {
         if (ship.grid_offset == map_grid_offset(tile_first_queue.x, tile_first_queue.y) && !map_has_figure_at(map_grid_offset(tile_second_queue.x, tile_second_queue.y))) {
             map_point_store_result(tile_second_queue.x, tile_second_queue.y, tile);
@@ -550,8 +557,8 @@ Building building_dock_reposition_anchored_ship(Figure &ship, map_point *tile)
             map_point_store_result(tile_first_queue.x, tile_first_queue.y, tile);
             return ship.destination_building;
         } else {    // prefer emptier dock queue, free or not, as this one has more than two waiting
-            return building_dock_get_destination(ship, &ship.destination_building, tile);
+            return building_dock_get_destination(ship, ship.destination_building, tile);
         }
     }
-    return Building(nullptr);
+    return nullptr;
 }

@@ -778,21 +778,25 @@ static void update_native_images(int old_climate, int new_climate)
     if (old_climate == new_climate) {
         return;
     }
+    const building_type native_hut_alt = building_type_registry_impl::type_from_attr("native_hut_alt");
+    for (Building building : Building::of_type(native_hut_alt)) {
+        map_image_set(building.grid_offset(), building.image_id());
+    }
+
     static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (!b || b->state == BUILDING_STATE_UNUSED) {
+    for (int i = 0; native_buildings[i]; i++) {
+        const building_type type = building_type_registry_impl::type_from_attr(native_buildings[i]);
+        if (type == BUILDING_NONE) {
             continue;
         }
-        if (building_type_registry_impl::type_attr_is(b->type, "native_hut_alt")) {
-            map_image_set(b->grid_offset, building_image_get(b));
-            continue;
-        }
-        for (int i = 0; native_buildings[i]; i++) {
-            if (building_type_registry_impl::type_attr_is(b->type, native_buildings[i])) {
-                map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get_for_type(b->type), TERRAIN_BUILDING);
-                break;
-            }
+        for (Building building : Building::of_type(type)) {
+            map_building_tiles_add(
+                building,
+                building.x(),
+                building.y(),
+                building.size(),
+                building.image_id(),
+                TERRAIN_BUILDING);
         }
     }
 #endif

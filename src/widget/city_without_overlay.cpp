@@ -1,3 +1,4 @@
+#include "building/building.h"
 #include "building/building_type.h"
 #include "building/connectable.h"
 #include "building/construction.h"
@@ -17,7 +18,6 @@
 #include "graphics/weather.h"
 #include "map/building.h"
 #include "map/image.h"
-#include "widget/city_bridge.h"
 #include "widget/city_building_ghost.h"
 #include "widget/city_draw_highway.h"
 #include "widget/city_figure.h"
@@ -25,8 +25,10 @@
 #include "city_without_overlay.h"
 
 #include "building/BuildingGraphics.h"
+#include "building/BuildingGraphicsState.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/dock.h"
 #include "widget/city_draw.h"
@@ -51,7 +53,6 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
@@ -74,6 +75,11 @@ static struct {
     float scale;
 } draw_context;
 
+static Building *runtime_building_for_draw_at(int grid_offset)
+{
+    return map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+}
+
 static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_coord, int highlighted_formation)
 {
     draw_context.advance_water_animation = 0;
@@ -95,9 +101,8 @@ static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_c
     draw_context.hovered_building_id = 0;
     if (config_get(CONFIG_UI_CV_CURSOR_SHADOW) && draw_context.cursor_tile && draw_context.cursor_tile->grid_offset &&
         !scroll_in_progress()) {
-        int building_id = map_building_at(draw_context.cursor_tile->grid_offset);
-        if (building_id) {
-            draw_context.hovered_building_id = Building(building_get(building_id)).main().id();
+        if (map_building_exists_at(draw_context.cursor_tile->grid_offset)) {
+            draw_context.hovered_building_id = map_building_at(draw_context.cursor_tile->grid_offset).main().id;
 
         }
     }
@@ -144,8 +149,8 @@ static int is_building_selected(const Building &building)
     if (!config_get(CONFIG_UI_HIGHLIGHT_SELECTED_BUILDING)) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id();
-    return building.id() == draw_context.selected_building_id || main_part_id == draw_context.selected_building_id;
+    unsigned int main_part_id = building.main().id;
+    return building.id == draw_context.selected_building_id || main_part_id == draw_context.selected_building_id;
 }
 
 static int is_building_hovered(const Building &building)
@@ -153,8 +158,8 @@ static int is_building_hovered(const Building &building)
     if (!draw_context.hovered_building_id) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id();
-    return building.id() == draw_context.hovered_building_id || main_part_id == draw_context.hovered_building_id;
+    unsigned int main_part_id = building.main().id;
+    return building.id == draw_context.hovered_building_id || main_part_id == draw_context.hovered_building_id;
 }
 
 static color_t building_draw_color_mask(const Building &building)
@@ -185,18 +190,17 @@ static void draw_footprint(int x, int y, int grid_offset)
         return;
     }
     // Valid grid_offset and leftmost tile -> draw
-    int building_id = map_building_at(grid_offset);
-    Building building(nullptr);
+    Building *building = runtime_building_for_draw_at(grid_offset);
+    int building_id = building ? building->id : 0;
     color_t color_mask = 0;
     int is_cursor_tile = (draw_context.cursor_tile && grid_offset == draw_context.cursor_tile->grid_offset);
 
     if (building_id) {
-        building = Building(building_get(building_id));
-        color_mask = building_draw_color_mask(building);
+        color_mask = building_draw_color_mask(*building);
         int view_x, view_y, view_width, view_height;
         city_view_get_viewport(&view_x, &view_y, &view_width, &view_height);
 
-        if (building.is_in_use()) {
+        if (building->is_in_use()) {
             int direction;
             if (x < view_x + 100) {
                 direction = SOUND_DIRECTION_LEFT;
@@ -205,11 +209,11 @@ static void draw_footprint(int x, int y, int grid_offset)
             } else {
                 direction = SOUND_DIRECTION_CENTER;
             }
-            if (building.is_unfinished_monument()) {
+            if (building->is_unfinished_monument()) {
                 sound_city_mark_construction_site_view(direction);
             } else {
-                sound_city_mark_building_view(building.type ? building.type->type() : BUILDING_NONE,
-                    building.worker_count(), direction, building.has_water_access());
+                sound_city_mark_building_view(building->type ? building->type->type() : BUILDING_NONE,
+                    building->worker_count(), direction, building->has_water_access());
             }
         }
     }
@@ -225,12 +229,7 @@ static void draw_footprint(int x, int y, int grid_offset)
     }
 
     int image_id = map_image_at(grid_offset);
-    const int use_custom_ghost_preview =
-        map_property_is_constructing(grid_offset) &&
-        building_construction_uses_custom_ghost_preview() &&
-        !building_construction_draw_as_constructing();
-    if (map_property_is_constructing(grid_offset) && !use_custom_ghost_preview) { //&&
-        //  !building_is_connectable(building_construction_type())) {
+    if (map_property_is_constructing(grid_offset)) {
         image_id = Image::group(GROUP_TERRAIN_OVERLAY);
     }
     if (draw_context.advance_water_animation &&
@@ -242,13 +241,20 @@ static void draw_footprint(int x, int y, int grid_offset)
         }
         map_image_set(grid_offset, image_id);
     }
+    const int tile_visual_first = building && building->is_surface_terrain_tile();
+    const int bridge_visual = building && building->type && building->type->roadblock().is_bridge();
+    if (bridge_visual) {
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, draw_context.scale);
+    }
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
-    } else if (building_id &&
-        building.draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
-        // Runtime-managed buildings draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
-    } else if (!building_id && !use_custom_ghost_preview &&
+    } else if (tile_visual_first &&
         city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
+        // Surface buildings keep runtime identity; merged garden/plaza visuals are tile-composed.
+    } else if (building_id &&
+        building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
+        // Runtime-managed buildings draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
+    } else if (city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
         // Runtime-managed terrain tiles draw from ImageGroupPayload here; legacy tile image ids remain as compatibility state.
     } else {
         Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
@@ -368,52 +374,30 @@ static void draw_workshop_raw_material_storage(const Building &building, int x, 
     }
 }
 
-static void get_mothball_icon_position(const Building &building, int *x, int *y)
-{
-    const Image &building_image = Image::from_id(building.image_id());
-    const ImageGroupEntryRef icon = ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite");
-
-    if (building.type && building.type->is_warehouse()) {
-        *x += 21;
-        *y -= 60;
-    } else if (building.type && building.type->is_granary()) {
-        *x += 83;
-        *y -= 120;
-    } else if (building.matches("fountain")) {
-        *x += 20;
-        *y -= 15;
-    } else if (building.type && building.type->is_farm()) {
-        *x += 50;
-        *y -= 50;
-    } else {
-        *x = (building_image.width() - icon.width()) / 2;
-        *y = (-icon.height() / 2) + 10;
-    }
-    if (const Image *top = building_image.top()) {
-        *y -= top->original_height();
-    }
-}
-
 static void draw_mothball_icon(const Building &building, int x, int y, int grid_offset)
 {
     const bool mothballed = building.is_mothballed();
     if (!building.industry_is_stockpiling() && !mothballed) {
         return;
     }
-    if (!building.is_main_part() ||
-        (building.type && building.type->is_farm() && map_property_multi_tile_size(grid_offset) == 1)) {
-        return;
-    }
-
+    const ImageGroupEntryRef icon = ImageGroupEntryRef::from_group(
+        mothballed ? "UI\\Mothball_Sprite" : "UI\\Stockpile_Sprite",
+        mothballed ? "Mothball_Sprite" : "Stockpile_Sprite");
+    const ImageGroupEntryRef placement_icon = ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite");
     int mothball_x = 0;
     int mothball_y = 0;
-    get_mothball_icon_position(building, &mothball_x, &mothball_y);
+    if (!building.mothball_status_icon_offset(
+            grid_offset,
+            placement_icon.width(),
+            placement_icon.height(),
+            &mothball_x,
+            &mothball_y)) {
+        return;
+    }
     x += mothball_x;
     y += mothball_y;
 
-    ImageGroupEntryRef::from_group(
-        mothballed ? "UI\\Mothball_Sprite" : "UI\\Stockpile_Sprite",
-        mothballed ? "Mothball_Sprite" : "Stockpile_Sprite").draw(x, y, COLOR_MASK_NONE, draw_context.scale);
+    icon.draw(x, y, COLOR_MASK_NONE, draw_context.scale);
 }
 
 static void draw_senate_rating_flags(const Building &building, int x, int y, color_t color_mask)
@@ -446,25 +430,40 @@ static void draw_senate_rating_flags(const Building &building, int x, int y, col
     }
 }
 
-static void draw_top_for_building(Building building, int x, int y, int grid_offset)
+static color_t terrain_draw_color_mask(int grid_offset, bool tint_multi_tile_deleted)
+{
+    if (map_property_is_deleted(grid_offset) &&
+        (tint_multi_tile_deleted || !city_draw_is_multi_tile_terrain(grid_offset))) {
+        return building_construction_clear_color();
+    }
+    return 0;
+}
+
+static void draw_top_for_building(Building *building, int x, int y, int grid_offset)
 {
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
     }
-    color_t color_mask = building_draw_color_mask(building, grid_offset, false);
+    color_t color_mask = building ? building_draw_color_mask(*building, grid_offset, false) :
+        terrain_draw_color_mask(grid_offset, false);
 
-    if (!building.id() && city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+    const int tile_visual_first = building && building->is_surface_terrain_tile();
+    if ((!building || tile_visual_first) &&
+        city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
         return;
     }
-    if (!building.draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
+    if (!building || !building->draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
+        if (building && !tile_visual_first &&
+            city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+            return;
+        }
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
     }
-    // specific buildings
-    if (building.id() > 0) { //dont draw or calculate for non-buildings
-        draw_senate_rating_flags(building, x, y, color_mask);
-        draw_mothball_icon(building, x, y, grid_offset);
-        draw_entertainment_spectators(building, x, y, color_mask);
-        draw_workshop_raw_material_storage(building, x, y, color_mask);
+    if (building) {
+        draw_senate_rating_flags(*building, x, y, color_mask);
+        draw_mothball_icon(*building, x, y, grid_offset);
+        draw_entertainment_spectators(*building, x, y, color_mask);
+        draw_workshop_raw_material_storage(*building, x, y, color_mask);
     }
 
 }
@@ -585,15 +584,16 @@ static void draw_dock_workers(const Building &building, int x, int y, color_t co
     }
 }
 
-static void draw_animation_for_building(Building building, int x, int y, int grid_offset)
+static void draw_animation_for_building(Building *building, int x, int y, int grid_offset)
 {
-    const int has_building = building.id() > 0;
+    const int has_building = building != nullptr;
     const bool draw_tile = map_property_is_draw_tile(grid_offset);
-    color_t color_mask = building_draw_color_mask(building, grid_offset, true);
+    color_t color_mask = building ? building_draw_color_mask(*building, grid_offset, true) :
+        terrain_draw_color_mask(grid_offset, true);
     if (has_building && draw_tile &&
-        building.draw_animation({ x, y, grid_offset, color_mask, draw_context.scale })) {
-        if (building.has_plague()) {
-            draw_plague(building, x, y, color_mask);
+        building->draw_animation({ x, y, grid_offset, color_mask, draw_context.scale })) {
+        if (building->has_plague()) {
+            draw_plague(*building, x, y, color_mask);
         }
         return;
     }
@@ -605,36 +605,31 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
             if (!draw_tile) {
                 return;
             }
-            if (building.matches("dock")) {
-                draw_dock_workers(building, x, y, color_mask);
-            } else if (building.type && building.type->is_warehouse()) {
-                city_draw_warehouse_ornaments(x, y, color_mask, draw_context.scale);
-                city_draw_storage_permission_flag(building, x + 19, y - 56, color_mask, draw_context.scale);
-            } else if (building.type && building.type->is_granary()) {
-                city_draw_granary_stores(*img, building, x, y, color_mask, draw_context.scale);
-            } else if (building.matches("burning_ruin") && building.has_plague()) {
+            if (building->matches("dock")) {
+                draw_dock_workers(*building, x, y, color_mask);
+            } else if (building->matches("burning_ruin") && building->has_plague()) {
                 Image::from_id(Image::group(GROUP_PLAGUE_SKULL)).draw(x + 18, y - 32, color_mask, draw_context.scale);
             }
-            int frame_offset = building.animate().offset_for(Image::from_id(image_id), grid_offset);
-            if (!building.matches("hippodrome") && frame_offset > 0) {
+            int frame_offset = building->animate().offset_for(Image::from_id(image_id), grid_offset);
+            if (!building->matches("hippodrome") && frame_offset > 0) {
                 int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
                 if (frame_offset > img->animation->num_sprites) {
                     frame_offset = img->animation->num_sprites;
                 }
-                if (building.matches("grand_temple_ceres") && building.monument_upgrade_level() == 1) {
+                if (building->matches("grand_temple_ceres") && building->monument_upgrade_level() == 1) {
                     Image::from_id(assets_get_image_id("Monuments\\Ceres_Module_1_Crop", "Ceres Module 1 Crop") +
-                        building.monument_secondary_frame()).draw(x + 190, y + 95 - y_offset, color_mask, draw_context.scale);
+                        building->monument_secondary_frame()).draw(x + 190, y + 95 - y_offset, color_mask, draw_context.scale);
                 }
-                if (building.matches("grand_temple_neptune") && building.monument_upgrade_level() == 2) {
+                if (building->matches("grand_temple_neptune") && building->monument_upgrade_level() == 2) {
                     Image::from_id(assets_get_image_id("Monuments\\Neptune_Module_2_Fountain", "Neptune Module 2 Fountain") +
                         (frame_offset - 1) % 5).draw(x + 98, y + 87 - y_offset, color_mask, draw_context.scale);
                 }
-                if (building.type && building.type->is_granary()) {
+                if (building->type && building->type->is_granary()) {
                     Image::from_id(image_id + img->animation->start_offset + frame_offset + 5).draw(x + 77, y - 49, color_mask, draw_context.scale);
                 } else {
                     Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, color_mask, draw_context.scale);
                 }
-                if (building.matches("colosseum")) {
+                if (building->matches("colosseum")) {
                     int festival_id = calc_bound(city_festival_games_active(), 0, 4);
                     int extra_x = festival_id ? 57 : 127;
                     int extra_y = festival_id ? 12 : 93;
@@ -642,26 +637,24 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
                     Image::from_id(overlay_id).draw(x + extra_x, y + extra_y - y_offset, color_mask, draw_context.scale);
                 }
             }
-            if (building.has_plague()) {
-                draw_plague(building, x, y, color_mask);
+            if (building->has_plague()) {
+                draw_plague(*building, x, y, color_mask);
             }
-            if (building.matches("cart_depot")) {
-                city_draw_depot_resource(building, x, y, draw_context.scale);
+            if (building->matches("cart_depot")) {
+                city_draw_depot_resource(*building, x, y, draw_context.scale);
             }
             return;
         }
     }
-    if (draw_tile && has_building && building.has_plague()) {
-        draw_plague(building, x, y, color_mask);
-    } else if (map_sprite_bridge_at(grid_offset)) {
-        city_draw_bridge(x, y, draw_context.scale, grid_offset);
-    } else if (building_is_fort(building.type ? building.type->type() : BUILDING_NONE)) {
+    if (draw_tile && has_building && building->has_plague()) {
+        draw_plague(*building, x, y, color_mask);
+    } else if (building && building_is_fort(building->type ? building->type->type() : BUILDING_NONE)) {
         if (!draw_tile) {
             return;
         }
         const char *flag_path = "Military\\Fort_Jav_Flag_Central";
         const char *flag_image = "Fort_Jav_Flag_Central";
-        switch (building.fort_figure_type()) {
+        switch (building->fort_figure_type()) {
             case FIGURE_FORT_LEGIONARY:
                 flag_path = "Military\\Fort_Leg_Flag_Central";
                 flag_image = "Fort_Leg_Flag_Central";
@@ -673,41 +666,36 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
             case FIGURE_FORT_JAVELIN:
                 break;
         }
-        if (building.fort_figure_type() == FIGURE_FORT_INFANTRY) {
+        if (building->fort_figure_type() == FIGURE_FORT_INFANTRY) {
             flag_path = "Military\\fort_aux_inf_flag_central";
             flag_image = "fort_aux_inf_flag_central";
         }
-        if (building.fort_figure_type() == FIGURE_FORT_ARCHER) {
+        if (building->fort_figure_type() == FIGURE_FORT_ARCHER) {
             flag_path = "Military\\fort_aux_arch_flag_central";
             flag_image = "fort_aux_arch_flag_central";
         }
         ImageGroupEntryRef::from_group(flag_path, flag_image).draw(
             x + 81,
             y + 5,
-            city_draw_building_as_deleted(building) ? building_construction_clear_color() : COLOR_MASK_NONE,
+            city_draw_building_as_deleted(*building) ? building_construction_clear_color() : COLOR_MASK_NONE,
             draw_context.scale);
-    } else if (building.matches("gatehouse")) {
-        int xy = map_property_multi_tile_xy(grid_offset);
-        int orientation = city_view_orientation();
-        const int gatehouse_draw_tile_by_orientation[] = { EDGE_X1Y1, EDGE_X0Y1, EDGE_X0Y0, EDGE_X1Y0 };
-        const int gate_orientation = building.orientation();
-        if (xy != gatehouse_draw_tile_by_orientation[orientation / 2] ||
-            (gate_orientation != 1 && gate_orientation != 2)) {
-            return;
-        }
-        const bool vertical_view = orientation == DIR_0_TOP || orientation == DIR_4_BOTTOM;
-        const bool rotated = (gate_orientation == 1) != vertical_view;
-        Image::from_id(Image::group(GROUP_BUILDING_GATEHOUSE) + (rotated ? 1 : 0)).draw(
-            x + (rotated ? -18 : -22),
-            y + (rotated ? -81 : -80),
-            city_draw_building_as_deleted(building) ? building_construction_clear_color() : 0,
-            draw_context.scale);
+    } else if (building && building->draw_gatehouse_overlay(
+        {
+            x,
+            y,
+            grid_offset,
+            city_draw_building_as_deleted(*building) ? building_construction_clear_color() : 0,
+            draw_context.scale
+        },
+        city_view_orientation())) {
     }
 }
 
 static void draw_animation_render_tile(const CityViewRenderTile &tile)
 {
-    draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (tile.building) {
+        draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    }
 }
 
 static void draw_elevated_figures(int x, int y, int grid_offset)
@@ -721,7 +709,7 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
         if ((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
             city_draw_figure(f, x, y, draw_context.scale, highlight);
-        } else if (f->building.id() == draw_context.selected_building_id) { //figure originates from selected building
+        } else if (f->building && f->building->id == draw_context.selected_building_id) { //figure originates from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
                 if (f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY) {
@@ -740,9 +728,9 @@ static void draw_elevated_figures_render_tile(const CityViewRenderTile &tile)
     draw_elevated_figures(tile.x, tile.y, tile.grid_offset);
 }
 
-static void draw_hippodrome_ornaments_for_building(Building building, int x, int y, int grid_offset)
+static void draw_hippodrome_ornaments_for_building(Building *building, int x, int y, int grid_offset)
 {
-    if (!map_property_is_draw_tile(grid_offset) || !building.composition_owner().matches("hippodrome")) {
+    if (!building || !map_property_is_draw_tile(grid_offset) || !building->composition_owner().matches("hippodrome")) {
         return;
     }
 
@@ -753,27 +741,29 @@ static void draw_hippodrome_ornaments_for_building(Building building, int x, int
         Image::from_id(image_id + 1).draw(
             x + img->animation->sprite_offset_x,
             y + img->animation->sprite_offset_y - top_height + FOOTPRINT_HALF_HEIGHT,
-            city_draw_building_as_deleted(building) ? building_construction_clear_color() : COLOR_MASK_NONE,
+            city_draw_building_as_deleted(*building) ? building_construction_clear_color() : COLOR_MASK_NONE,
             draw_context.scale);
     }
 }
 
 static void draw_hippodrome_ornaments_render_tile(const CityViewRenderTile &tile)
 {
-    draw_hippodrome_ornaments_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (tile.building) {
+        draw_hippodrome_ornaments_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    }
 }
 
 static void deletion_draw_terrain_top(int x, int y, int grid_offset)
 {
     if (map_property_is_draw_tile(grid_offset) && city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+        draw_top_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
     }
 }
 
 static void deletion_draw_figures_animations(int x, int y, int grid_offset)
 {
-    Building building(building_get(map_building_at(grid_offset)));
-    if (map_property_is_deleted(grid_offset) || city_draw_building_as_deleted(building)) {
+    Building *building = runtime_building_for_draw_at(grid_offset);
+    if (map_property_is_deleted(grid_offset) || (building && city_draw_building_as_deleted(*building))) {
         color_t color = building_construction_clear_color();
         if (color == COLOR_MASK_RED || color == COLOR_MASK_GREEN) {
             Image::blend_footprint_color(x, y, color, draw_context.scale);
@@ -794,7 +784,7 @@ static void deletion_draw_figures_animations(int x, int y, int grid_offset)
 static void deletion_draw_remaining(int x, int y, int grid_offset)
 {
     draw_elevated_figures(x, y, grid_offset);
-    draw_hippodrome_ornaments_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+    draw_hippodrome_ornaments_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
 }
 
 static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
@@ -802,16 +792,30 @@ static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
     if (!map_property_is_constructing(grid_offset)) {
         return;
     }
-    static building b;
-    b.type = static_cast<building_type>(building_construction_type());
-    if (building_connectable_gate_type(b.type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        b.type = static_cast<building_type>(building_connectable_gate_type(b.type));
+    building_type type = static_cast<building_type>(building_construction_type());
+    if (building_connectable_gate_type(type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        type = static_cast<building_type>(building_connectable_gate_type(type));
     }
-    b.grid_offset = grid_offset;
-    if (building_properties_for_type(b.type)->rotation_offset) {
-        b.subtype.orientation = building_rotation_get_rotation();
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
     }
-    int image_id = building_image_get(&b);
+
+    building record = {};
+    record.type = type;
+    record.state = BUILDING_STATE_IN_USE;
+    record.grid_offset = static_cast<short>(grid_offset);
+    record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
+    record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
+    record.size = static_cast<unsigned char>(definition->declared_model_size() > 0 ? definition->declared_model_size() : 1);
+    if (building_rotation_type_has_rotations(type)) {
+        record.subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+    }
+
+    BuildingGraphicsState graphics_state;
+    Building building(record, definition, graphics_state);
+    int image_id = building_image_get(&building);
     Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
     Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Mod_Authored\Bridge_Ship">
+    <image id="Image_0011" group="Admin_Logistics\Bridge" image="Image_0011" x="-3" y="-50"/>
+    <image id="Image_0006" group="Admin_Logistics\Bridge" image="Image_0006" x="-1" y="-12"/>
+    <image id="Image_0009" group="Admin_Logistics\Bridge" image="Image_0009" x="-30" y="-12"/>
+    <image id="Image_0008" group="Admin_Logistics\Bridge" image="Image_0008" x="-23" y="-53"/>
+    <image id="Image_0010" group="Admin_Logistics\Bridge" image="Image_0010" y="-37"/>
+    <image id="Image_0007" group="Admin_Logistics\Bridge" image="Image_0007" x="7" y="-38"/>
+    <image id="Image_0013" group="Admin_Logistics\Bridge" image="Image_0013" y="-38"/>
+    <image id="Image_0012" group="Admin_Logistics\Bridge" image="Image_0012" x="7" y="-38"/>
+</assetlist>

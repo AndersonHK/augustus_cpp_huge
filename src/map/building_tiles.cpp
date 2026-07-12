@@ -17,7 +17,14 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int size, int image_id, int terrain_to_add, int terrain_to_remove)
+static void map_tiles_add_remove(
+    Building *building,
+    int x,
+    int y,
+    int size,
+    int image_id,
+    int terrain_to_add,
+    int terrain_to_remove)
 {
     if (!map_grid_is_inside(x, y, size)) {
         return;
@@ -46,7 +53,11 @@ void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int s
             int grid_offset = map_grid_offset(x + dx, y + dy);
             map_terrain_remove(grid_offset, terrain_to_remove);
             map_terrain_add(grid_offset, terrain_to_add);
-            map_building_set(grid_offset, building_id);
+            if (building) {
+                map_building_set(grid_offset, *building);
+            } else {
+                map_building_clear_at(grid_offset);
+            }
             map_property_clear_constructing(grid_offset);
             map_property_set_multi_tile_size(grid_offset, size);
             map_image_set(grid_offset, image_id);
@@ -56,17 +67,26 @@ void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int s
     }
 }
 
-void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
+void map_building_tiles_add_remove(
+    Building &building,
+    int x,
+    int y,
+    int size,
+    int image_id,
+    int terrain_to_add,
+    int terrain_to_remove)
 {
-    map_building_tiles_add_remove(building_id, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
+    map_tiles_add_remove(&building, x, y, size, image_id, terrain_to_add, terrain_to_remove);
 }
 
-int map_building_tiles_add_aqueduct(int x, int y)
+void map_building_tiles_add(Building &building, int x, int y, int size, int image_id, int terrain)
 {
-    int grid_offset = map_grid_offset(x, y);
-    map_terrain_add(grid_offset, TERRAIN_AQUEDUCT);
-    map_property_clear_constructing(grid_offset);
-    return 1;
+    map_building_tiles_add_remove(building, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
+}
+
+void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain)
+{
+    map_tiles_add_remove(nullptr, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
 }
 
 static int north_tile_grid_offset(int x, int y, int *size)
@@ -82,7 +102,7 @@ static int north_tile_grid_offset(int x, int y, int *size)
     return grid_offset;
 }
 
-void map_building_tiles_remove(unsigned int building_id, int x, int y)
+void map_building_tiles_remove(const Building *building, int x, int y)
 {
     if (!map_grid_is_inside(x, y, 1)) {
         return;
@@ -97,7 +117,7 @@ void map_building_tiles_remove(unsigned int building_id, int x, int y)
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
-            if (building_id && map_building_at(grid_offset) != building_id) {
+            if (building && (!map_building_exists_at(grid_offset) || map_building_at(grid_offset).id != building->id)) {
                 continue;
             }
             map_property_clear_constructing(grid_offset);
@@ -105,7 +125,7 @@ void map_building_tiles_remove(unsigned int building_id, int x, int y)
             map_property_clear_multi_tile_xy(grid_offset);
             map_property_mark_draw_tile(grid_offset);
             map_aqueduct_remove(grid_offset);
-            map_building_set(grid_offset, 0);
+            map_building_clear_at(grid_offset);
             map_building_damage_clear(grid_offset);
             map_sprite_clear_tile(grid_offset);
             if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
@@ -125,41 +145,47 @@ void map_building_tiles_remove(unsigned int building_id, int x, int y)
 }
 
 
-void map_building_tiles_set_rubble(const Building *building, int x, int y, int size)
+void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id)
 {
-    if (!map_grid_is_inside(x, y, size)) {
+    if (!map_grid_is_inside(x, y, 1)) {
         return;
     }
-    // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
-    const unsigned int building_id = building ? building->id() : 0;
-    const bool is_burning_ruin = building && building->matches("burning_ruin");
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            int grid_offset = map_grid_offset(x + dx, y + dy);
-            if (map_building_at(grid_offset) != building_id) {
-                continue;
-            }
-            if (building_id && !is_burning_ruin) {
-                map_building_set_rubble_grid_building_id(grid_offset, building_id, 1);
-                // set rubble building id for the original. Collapsing into burning ruin sets this in destruction.cpp
-            }
-            map_property_clear_constructing(grid_offset);
-            map_property_set_multi_tile_size(grid_offset, 1);
-            map_aqueduct_remove(grid_offset);
-            map_building_set(grid_offset, 0);
-            map_building_damage_clear(grid_offset);
-            map_sprite_clear_tile(grid_offset);
-            map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
-            if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
-                map_terrain_set(grid_offset, TERRAIN_WATER); // clear other flags
-                map_tiles_set_water(x + dx, y + dy);
-            } else {
-                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
-                map_terrain_add(grid_offset, TERRAIN_RUBBLE);
-                map_image_set(grid_offset, image_group(GROUP_TERRAIN_RUBBLE) + (map_random_get(grid_offset) & 7));
-            }
-        }
+
+    int grid_offset = map_grid_offset(x, y);
+    if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        map_terrain_set(grid_offset, TERRAIN_WATER);
+        map_tiles_set_water(x, y);
+        return;
     }
+
+    map_property_clear_constructing(grid_offset);
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+    map_property_mark_draw_tile(grid_offset);
+    map_aqueduct_remove(grid_offset);
+    map_building_damage_clear(grid_offset);
+    map_sprite_clear_tile(grid_offset);
+    map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+    map_terrain_add(grid_offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
+    map_building_set(grid_offset, building);
+    map_building_set_rubble_grid_building_id(grid_offset, building.id, 1);
+    map_image_set(grid_offset, image_id ? image_id : image_group(GROUP_TERRAIN_RUBBLE) + (map_random_get(grid_offset) & 7));
+}
+
+void map_building_tiles_add_bridge(Building &building, int x, int y)
+{
+    if (!map_grid_is_inside(x, y, 1)) {
+        return;
+    }
+
+    const int grid_offset = map_grid_offset(x, y);
+    map_property_clear_constructing(grid_offset);
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+    map_terrain_add(grid_offset, TERRAIN_WATER | TERRAIN_ROAD | TERRAIN_BUILDING);
+    map_building_set(grid_offset, building);
+    map_tiles_set_water(x, y);
+    map_sprite_clear_tile(grid_offset);
 }
 
 static void adjust_to_absolute_xy(int *x, int *y, int size)
@@ -205,12 +231,11 @@ int map_building_tiles_mark_construction(int x, int y, int size, int terrain, in
 
 void map_building_tiles_mark_deleting(int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
     if (map_is_bridge(grid_offset)) {
         // previous version triggered map_bridge_remove with an early exit condition for regular terrain.
         map_bridge_remove(grid_offset, 1);
-    } else if (building_id) {
-        grid_offset = building_main(building_get(building_id))->grid_offset;
+    } else if (map_building_exists_at(grid_offset)) {
+        grid_offset = map_building_at(grid_offset).main().grid_offset();
     }
     map_property_mark_deleted(grid_offset);
 }

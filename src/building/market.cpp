@@ -36,7 +36,7 @@ int Market::needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) co
     }
     for (const building_type_registry_impl::DistributionResourceRule &rule : distribution->resources()) {
         const resource_type resource = rule.resource;
-        info[resource].needed = handles_distribution(resource) && (accepts_good(resource) > 0 || wants_good(resource));
+        info[resource].needed = handles_distribution(resource) && (accepts_good(resource) || wants_good(resource));
         if (!needed && info[resource].needed) {
             needed = 1;
         }
@@ -77,18 +77,30 @@ resource_type Market::fetch_inventory(resource_storage_info info[RESOURCE_SLOT_C
     return RESOURCE_NONE;
 }
 
-int Market::storage_destination()
+Building *Market::storage_destination()
 {
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
     const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!needed_inventory(info) ||
         !distribution ||
         !distribution->find_sources_for_building(info, *this, supply_search_distance())) {
-        return 0;
+        return nullptr;
     }
     resource_type resource = fetch_inventory(info);
-    set_fetch_inventory_id(resource);
-    return info[resource].building_id;
+    if (resource == RESOURCE_NONE) {
+        return nullptr;
+    }
+    Building *destination = nullptr;
+    const unsigned int destination_id = info[resource].building_id;
+    Building::for_each([&](Building *building) {
+        if (!destination && building->id == destination_id) {
+            destination = building;
+        }
+    });
+    if (destination) {
+        set_fetch_inventory_id(resource);
+    }
+    return destination;
 }
 
 int Market::handles_distribution(resource_type resource) const
@@ -104,5 +116,5 @@ int Market::supply_search_distance() const
 
 int Market::wants_good(resource_type resource) const
 {
-    return accepts_good(resource) > 1;
+    return distribution_demand(resource) > 0;
 }

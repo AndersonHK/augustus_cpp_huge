@@ -318,43 +318,43 @@ void empire_object_save(buffer *buf)
 
     for (const full_empire_object &full : objects) {
         const empire_object *obj = &full.obj;
-        buffer_write_u8(buf, obj->type);
-        buffer_write_u8(buf, full.in_use);
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->type));
+        buffer_write_u8(buf, static_cast<uint8_t>(full.in_use));
         if (!full.in_use) {
             continue;
         }
 
-        buffer_write_u8(buf, obj->animation_index);
-        buffer_write_i16(buf, obj->x);
-        buffer_write_i16(buf, obj->y);
-        buffer_write_i16(buf, obj->width);
-        buffer_write_i16(buf, obj->height);
-        buffer_write_i16(buf, obj->image_id);
-        buffer_write_i16(buf, obj->expanded.image_id);
-        buffer_write_u8(buf, obj->distant_battle_travel_months);
-        buffer_write_i16(buf, obj->expanded.x);
-        buffer_write_i16(buf, obj->expanded.y);
-        buffer_write_u8(buf, full.city_type);
-        buffer_write_u8(buf, full.city_name_id);
-        buffer_write_u8(buf, obj->trade_route_id);
-        buffer_write_u8(buf, full.trade_route_open);
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->animation_index));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->x));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->y));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->width));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->height));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->image_id));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->expanded.image_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->distant_battle_travel_months));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->expanded.x));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->expanded.y));
+        buffer_write_u8(buf, static_cast<uint8_t>(full.city_type));
+        buffer_write_u8(buf, static_cast<uint8_t>(full.city_name_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->trade_route_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(full.trade_route_open));
         buffer_write_u32(buf, full.trade_route_cost);
         if (obj->type == EMPIRE_OBJECT_CITY) {
             for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-                buffer_write_i16(buf, full.city_sells_resource[r]);
+                buffer_write_i16(buf, static_cast<int16_t>(full.city_sells_resource[r]));
             }
             for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-                buffer_write_i16(buf, full.city_buys_resource[r]);
+                buffer_write_i16(buf, static_cast<int16_t>(full.city_buys_resource[r]));
             }
         }
-        buffer_write_u8(buf, obj->invasion_path_id);
-        buffer_write_u8(buf, obj->invasion_years);
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->invasion_path_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->invasion_years));
         buffer_write_raw(buf, full.city_custom_name, sizeof(full.city_custom_name));
-        buffer_write_u8(buf, obj->empire_city_icon);
-        buffer_write_u8(buf, full.empire_city_icon);
-        buffer_write_u8(buf, obj->future_trade_after_icon);
-        buffer_write_i16(buf, obj->order_index);
-        buffer_write_i16(buf, obj->parent_object_id);
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->empire_city_icon));
+        buffer_write_u8(buf, static_cast<uint8_t>(full.empire_city_icon));
+        buffer_write_u8(buf, static_cast<uint8_t>(obj->future_trade_after_icon));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->order_index));
+        buffer_write_i16(buf, static_cast<int16_t>(obj->parent_object_id));
     }
 }
 
@@ -847,7 +847,7 @@ int empire_object_get_nearest_of_type_with_condition(int x, int y, empire_object
     return 0;
 }
 
-static int object_no_condition(const empire_object *obj)
+static int object_no_condition(const empire_object *)
 {
     return 1;
 }

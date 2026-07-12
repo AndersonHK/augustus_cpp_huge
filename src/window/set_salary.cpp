@@ -103,6 +103,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_cancel(const generic_button *button)
 {
+    (void)button;
+
     window_advisors_show();
 }
 

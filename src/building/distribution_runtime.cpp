@@ -19,7 +19,7 @@ void update_food_source(resource_storage_info *info, resource_type resource, con
 {
     if (distance < info[resource].min_distance && source.resource_amount(resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id();
+        info[resource].building_id = source.id;
     }
 }
 
@@ -29,7 +29,7 @@ void update_warehouse_source(resource_storage_info *info, resource_type resource
         !city_resource_is_stockpiled(resource) &&
         building_warehouse_get_available_amount(source, resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id();
+        info[resource].building_id = source.id;
     }
 }
 
@@ -81,15 +81,15 @@ int find_distribution_sources(
             if (!definition || !definition->is_granary()) {
                 continue;
             }
-            for (Building source = Building::first_of_type(definition->type()); source.id(); source = source.next_of_type()) {
-                if (type && invalid_distribution_source(source, permission, road_network)) {
+            for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
+                if (type && invalid_distribution_source(*source, permission, road_network)) {
                     continue;
                 }
-                int distance = distance_to_building_box(x, y, width, height, source);
+                int distance = distance_to_building_box(x, y, width, height, *source);
                 for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                     resource = static_cast<resource_type>(resource + 1)) {
                     if (info[resource].needed && resource_is_food(resource)) {
-                        update_food_source(info, resource, source, distance);
+                        update_food_source(info, resource, *source, distance);
                     }
                 }
             }
@@ -100,15 +100,15 @@ int find_distribution_sources(
         if (!definition || !definition->is_warehouse()) {
             continue;
         }
-        for (Building source = Building::first_of_type(definition->type()); source.id(); source = source.next_of_type()) {
-            if (type && invalid_distribution_source(source, permission, road_network)) {
+        for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
+            if (type && invalid_distribution_source(*source, permission, road_network)) {
                 continue;
             }
-            int distance = distance_to_building_box(x, y, width, height, source);
+            int distance = distance_to_building_box(x, y, width, height, *source);
             for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                 resource = static_cast<resource_type>(resource + 1)) {
                 if (info[resource].needed && resource_is_storable(resource)) {
-                    update_warehouse_source(info, resource, source, distance);
+                    update_warehouse_source(info, resource, *source, distance);
                 }
             }
         }
@@ -129,7 +129,7 @@ int Distribution::needed_resources_for(const Building &building, resource_storag
 {
     int needed = 0;
     for (const DistributionResourceRule &rule : resources()) {
-        info[rule.resource].needed = building.accepts_good(rule.resource) > 0;
+        info[rule.resource].needed = building.accepts_good(rule.resource);
         if (info[rule.resource].needed) {
             needed = 1;
         }
@@ -137,10 +137,10 @@ int Distribution::needed_resources_for(const Building &building, resource_storag
     return needed;
 }
 
-void Distribution::set_acceptance(Building &building, int value) const
+void Distribution::set_acceptance(Building &building, bool accepted) const
 {
     for (const DistributionResourceRule &rule : resources()) {
-        building.set_accepted_good(rule.resource, value);
+        building.set_accepted_good(rule.resource, accepted);
     }
 }
 
@@ -157,9 +157,9 @@ int Distribution::accepts_nothing(const Building &building) const
 void Distribution::update_demands(Building &building) const
 {
     for (const DistributionResourceRule &rule : resources()) {
-        int accepted = building.accepts_good(rule.resource);
-        if (resource_is_inventory(rule.resource) && accepted > 1) {
-            building.set_accepted_good(rule.resource, accepted - 1);
+        const unsigned char demand = building.distribution_demand(rule.resource);
+        if (demand) {
+            building.set_distribution_demand(rule.resource, demand - 1);
         }
     }
 }

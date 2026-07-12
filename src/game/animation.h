@@ -48,7 +48,7 @@ class BuildingType;
 // object what frame should draw; the object owns legacy cursor quirks.
 class BuildingAnimation {
 public:
-    explicit BuildingAnimation(Building building);
+    explicit BuildingAnimation(Building &building);
 
     int frame_offset(const ::Animation &animation, int should_advance, int animation_cursor);
     int offset_for(const Image &image, int animation_cursor);
@@ -65,8 +65,10 @@ private:
     int advance_reversible_offset(int animation_cursor, int max_frame) const;
     int advance_looping_offset(int animation_cursor, int max_frame);
 
+    Building *building_;
     ::building *record_;
     const BuildingType *definition_;
+    Building *state_building_;
     ::building *state_record_;
     const BuildingType *state_definition_;
 };

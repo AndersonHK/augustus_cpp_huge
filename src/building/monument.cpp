@@ -6,6 +6,7 @@
 
 #include "building/building_record.h"
 #include "building/building.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 #include "city/culture.h"
@@ -122,7 +123,27 @@ static int type_is_grand_temple(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    return definition && definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand);
+    return definition ? definition->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand) : 0;
+}
+
+static Building *runtime_building_for_record(building *record)
+{
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
+    return runtime ? &runtime->building : nullptr;
+}
+
+static Building *runtime_building_by_id(unsigned int id)
+{
+    if (!id) {
+        return nullptr;
+    }
+    Building *found = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!found && building->id == id) {
+            found = building;
+        }
+    });
+    return found;
 }
 
 static const monument_type *legacy_monument_type(building_type type)
@@ -306,16 +327,16 @@ int building_monument_deliver_resource(building *b, int resource)
         return 0;
     }
 
-    while (b->prev_part_building_id) {
-        b = building_get(b->prev_part_building_id);
+    Building *monument = runtime_building_for_record(b);
+    if (!monument) {
+        return 0;
     }
 
-    b->resources[resource]--;
-
-    while (b->next_part_building_id) {
-        b = building_get(b->next_part_building_id);
-        b->resources[resource]--;
-    }
+    monument->main().for_each_part([resource](Building part) {
+        if (building *record = const_cast<building *>(part.record())) {
+            record->resources[resource]--;
+        }
+    });
     return 1;
 }
 
@@ -388,17 +409,20 @@ int building_monument_add_module(building *b, int module)
     b->monument.upgrades = module;
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(b->type);
-    if (definition && definition->has_phased_construction()) {
-        Building(b).refresh_graphic();
-    } else {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        if (definition && definition->has_phased_construction()) {
+            runtime->building.refresh_graphic();
+        } else {
+            map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                building_image_get(&runtime->building), TERRAIN_BUILDING);
+        }
     }
     return 1;
 }
 
 int building_monument_is_limited(building_type type)
 {
-    return type_is_grand_temple(type) || building_type_registry_impl::type_attr_is_any(type, {
+    return type_is_grand_temple(type) ? 1 : building_type_registry_impl::type_attr_is_any(type, {
         "pantheon",
         "lighthouse",
         "caravanserai",
@@ -408,47 +432,45 @@ int building_monument_is_limited(building_type type)
     });
 }
 
-int building_monument_get_monument(int x, int y, int resource, int road_network_id, map_point *dst)
+Building *building_monument_get_monument(int x, int y, int resource, int road_network_id, map_point *dst)
 {
     if (city_resource_is_stockpiled(static_cast<resource_type>(resource))) {
-        return 0;
+        return nullptr;
     }
     int min_dist = INFINITE;
-    building *min_building = 0;
-    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
-        building_type type = static_cast<building_type>(type_id);
-        if (!type_is_monument(type)) {
-            continue;
+    Building *min_building = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!building->type || !type_is_monument(building->type->type())) {
+            return;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->monument.phase == MONUMENT_FINISHED ||
-                b->monument.phase < MONUMENT_START ||
-                building_monument_is_construction_halted(b) ||
-                (!resource && building_monument_needs_resources(b))) {
-                continue;
-            }
-            short needed = b->resources[resource];
-            if ((needed - building_monument_resource_in_delivery(b, resource)) <= 0) {
-                continue;
-            }
-            if (!map_has_road_access(b->x, b->y, b->size, 0) ||
-                b->distance_from_entry <= 0 || b->road_network_id != road_network_id) {
-                continue;
-            }
-            int dist = calc_maximum_distance(b->x, b->y, x, y);
-            if (dist < min_dist) {
-                min_dist = dist;
-                min_building = b;
-            }
+        ::building *record = const_cast<::building *>(building->record());
+        if (record->monument.phase == MONUMENT_FINISHED ||
+            record->monument.phase < MONUMENT_START ||
+            building_monument_is_construction_halted(record) ||
+            (!resource && building_monument_needs_resources(record))) {
+            return;
         }
-    }
+        short needed = record->resources[resource];
+        if ((needed - building_monument_resource_in_delivery(record, resource)) <= 0) {
+            return;
+        }
+        if (!map_has_road_access(building->x(), building->y(), building->size(), 0) ||
+            building->distance_from_entry() <= 0 || building->road_network_id() != road_network_id) {
+            return;
+        }
+        int dist = calc_maximum_distance(building->x(), building->y(), x, y);
+        if (dist < min_dist) {
+            min_dist = dist;
+            min_building = building;
+        }
+    });
     if (min_building && min_dist < INFINITE) {
         if (dst) {
-            map_point_store_result(min_building->road_access_x, min_building->road_access_y, dst);
+            map_point_store_result(min_building->road_access_x(), min_building->road_access_y(), dst);
         }
-        return min_building->id;
+        return min_building;
     }
-    return 0;
+    return nullptr;
 }
 
 int building_monument_has_unfinished_monuments(void)
@@ -486,18 +508,22 @@ void building_monument_set_phase(building *b, int phase)
         return;
     }
     city_culture_remove_building_module_capacity(b);
-    b->monument.phase = phase;
+    b->monument.phase = static_cast<short>(phase);
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(b->type);
-    if (definition && definition->has_phased_construction()) {
-        Building(b).refresh_graphic();
-    } else {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        if (definition && definition->has_phased_construction()) {
+            runtime->building.refresh_graphic();
+        } else {
+            map_building_tiles_add(runtime->building, b->x, b->y, b->size,
+                building_image_get(&runtime->building), TERRAIN_BUILDING);
+        }
     }
     if (b->monument.phase != MONUMENT_FINISHED) {
         for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
             b->resources[resource] =
-              building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase);
+                static_cast<short>(
+                    building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase));
         }
     }
     city_culture_add_building_module_capacity(b);
@@ -547,7 +573,16 @@ void building_monuments_set_construction_phase(int phase)
     }
 }
 
-static int grand_temple_id_for_god(god_type god, int require_working)
+static int grand_temple_is_working(Building &monument)
+{
+    const building *record = monument.record();
+    if (monument.monument_phase() != MONUMENT_FINISHED || !monument.is_in_use()) {
+        return 0;
+    }
+    return !building_monument_has_labour_problems(const_cast<building *>(record));
+}
+
+Building *grand_temple_for_god(god_type god, bool require_working)
 {
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         const building_type_registry_impl::BuildingType *definition =
@@ -555,34 +590,13 @@ static int grand_temple_id_for_god(god_type god, int require_working)
         if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
             continue;
         }
-        if (require_working) {
-            int monument_id = building_monument_working(type);
-            if (monument_id) {
-                return monument_id;
+        for (Building *monument = Building::first_of_type(type); monument; monument = monument->next_of_type()) {
+            if (!require_working || grand_temple_is_working(*monument)) {
+                return monument;
             }
-            continue;
-        }
-        building *monument = building_first_of_type(type);
-        if (monument) {
-            return monument->id;
         }
     }
-    return 0;
-}
-
-int building_monument_get_grand_temple_for_god(god_type god)
-{
-    return grand_temple_id_for_god(god, 0);
-}
-
-int building_monument_get_venus_gt(void)
-{
-    return building_monument_get_grand_temple_for_god(GOD_VENUS);
-}
-
-int building_monument_get_neptune_gt(void)
-{
-    return building_monument_get_grand_temple_for_god(GOD_NEPTUNE);
+    return nullptr;
 }
 
 int building_monument_phases(building_type type)
@@ -631,28 +645,32 @@ int building_monument_progress(building *b)
     if (b->monument.phase == MONUMENT_FINISHED) {
         return 0;
     }
-    while (b->prev_part_building_id) {
-        b = building_get(b->prev_part_building_id);
+    Building *monument = runtime_building_for_record(b);
+    if (!monument) {
+        return 0;
     }
-    building_monument_set_phase(b, b->monument.phase + 1);
 
-    while (b->next_part_building_id) {
-        b = building_get(b->next_part_building_id);
-        building_monument_set_phase(b, b->monument.phase + 1);
-    }
-    if (b->monument.phase == MONUMENT_FINISHED) {
-        if (building_monument_is_grand_temple(b->type)) {
-            city_message_post(1, MESSAGE_GRAND_TEMPLE_COMPLETE, 0, b->grid_offset);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "pantheon")) {
-            city_message_post(1, MESSAGE_PANTHEON_COMPLETE, 0, b->grid_offset);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "lighthouse")) {
-            city_message_post(1, MESSAGE_LIGHTHOUSE_COMPLETE, 0, b->grid_offset);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum")) {
-            city_message_post(1, MESSAGE_COLOSSEUM_COMPLETE, 0, b->grid_offset);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
-            city_message_post(1, MESSAGE_HIPPODROME_COMPLETE, 0, b->grid_offset);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "caravanserai")) {
-            city_message_post(1, MESSAGE_CARAVANSERAI_COMPLETE, 0, b->grid_offset);
+    Building &main = monument->main();
+    main.for_each_part([](Building part) {
+        if (building *record = const_cast<building *>(part.record())) {
+            building_monument_set_phase(record, record->monument.phase + 1);
+        }
+    });
+
+    building *main_record = const_cast<building *>(main.record());
+    if (main_record && main_record->monument.phase == MONUMENT_FINISHED) {
+        if (building_monument_is_grand_temple(main_record->type)) {
+            city_message_post(1, MESSAGE_GRAND_TEMPLE_COMPLETE, 0, main_record->grid_offset);
+        } else if (building_type_registry_impl::type_attr_is(main_record->type, "pantheon")) {
+            city_message_post(1, MESSAGE_PANTHEON_COMPLETE, 0, main_record->grid_offset);
+        } else if (building_type_registry_impl::type_attr_is(main_record->type, "lighthouse")) {
+            city_message_post(1, MESSAGE_LIGHTHOUSE_COMPLETE, 0, main_record->grid_offset);
+        } else if (building_type_registry_impl::type_attr_is(main_record->type, "colosseum")) {
+            city_message_post(1, MESSAGE_COLOSSEUM_COMPLETE, 0, main_record->grid_offset);
+        } else if (building_type_registry_impl::type_attr_is(main_record->type, "hippodrome")) {
+            city_message_post(1, MESSAGE_HIPPODROME_COMPLETE, 0, main_record->grid_offset);
+        } else if (building_type_registry_impl::type_attr_is(main_record->type, "caravanserai")) {
+            city_message_post(1, MESSAGE_CARAVANSERAI_COMPLETE, 0, main_record->grid_offset);
         }
     }
     return 1;
@@ -714,19 +732,23 @@ static int resource_in_delivery_multipart(building *b, int resource_id)
 {
     int resources = 0;
 
-    while (b->prev_part_building_id) {
-        b = building_get(b->prev_part_building_id);
+    Building *monument = runtime_building_for_record(b);
+    if (!monument) {
+        return 0;
     }
 
-    while (b->id) {
+    monument->main().for_each_part([resource_id, &resources](Building part) {
+        const building *record = part.record();
+        if (!record || !record->id) {
+            return;
+        }
         for (const monument_delivery &delivery : monument_deliveries) {
-            if (delivery.destination_id == b->id &&
+            if (delivery.destination_id == record->id &&
                 delivery.resource == resource_id) {
                 resources += delivery.cartloads;
             }
         }
-        b = building_get(b->next_part_building_id);
-    }
+    });
 
     return resources;
 }
@@ -777,8 +799,12 @@ int building_monument_has_labour_problems(building *b)
 int building_monument_working(building_type type)
 {
     unsigned int monument_id = building_monument_get_id(type);
-    building *b = building_get(monument_id);
     if (!monument_id) {
+        return 0;
+    }
+    Building *monument = runtime_building_by_id(monument_id);
+    building *b = monument ? const_cast<building *>(monument->record()) : nullptr;
+    if (!b) {
         return 0;
     }
     if (b->monument.phase != MONUMENT_FINISHED || b->state != BUILDING_STATE_IN_USE) {
@@ -790,11 +816,6 @@ int building_monument_working(building_type type)
     }
 
     return monument_id;
-}
-
-int building_monument_working_grand_temple_for_god(god_type god)
-{
-    return grand_temple_id_for_god(god, 1);
 }
 
 int building_monument_requires_resource(building_type type, int resource)
@@ -826,8 +847,12 @@ int building_monument_has_required_resources_to_build(building_type type)
 int building_monument_upgraded(building_type type)
 {
     unsigned int monument_id = building_monument_working(type);
-    building *b = building_get(monument_id);
     if (!monument_id) {
+        return 0;
+    }
+    Building *monument = runtime_building_by_id(monument_id);
+    building *b = monument ? const_cast<building *>(monument->record()) : nullptr;
+    if (!b) {
         return 0;
     }
     if (!b->monument.upgrades) {
@@ -844,7 +869,11 @@ int building_monument_module_type(building_type type)
         return 0;
     }
 
-    building *b = building_get(monument_id);
+    Building *monument = runtime_building_by_id(monument_id);
+    building *b = monument ? const_cast<building *>(monument->record()) : nullptr;
+    if (!b) {
+        return 0;
+    }
     return b->monument.upgrades;
 }
 
@@ -856,7 +885,7 @@ static building_type grand_temple_type_for_module_index(int module_index)
 
     for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
         building_type_registry_impl::g_building_types) {
-        if (!definition || !definition->is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+        if (!definition || !definition->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
             continue;
         }
 

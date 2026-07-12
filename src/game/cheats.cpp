@@ -146,9 +146,9 @@ static int parse_integer(uint8_t *string, int *value)
 void game_cheat_activate(void)
 {
     if (window_is(WINDOW_BUILDING_INFO)) {
-        Building building = window_building_info_current_building();
-        data.is_cheating = building.id() && building.type &&
-            (building.type->is_well() || building.type->is_fountain()) ? 1 : 0;
+        Building *building = window_building_info_current_building();
+        data.is_cheating = building && building->id && building->type &&
+            (building->type->is_well() || building->type->is_fountain()) ? 1 : 0;
     } else if (data.is_cheating && window_is(WINDOW_MESSAGE_DIALOG)) {
         data.is_cheating = 2;
         scenario_invasion_start_from_cheat();
@@ -224,6 +224,7 @@ static void game_cheat_start_invasion(uint8_t *args)
 
 static void game_cheat_advance_year(uint8_t *args)
 {
+    (void) args;
     game_tick_cheat_year();
     show_warning("TR_CHEAT_YEAR_ADVANCED");
 }
@@ -250,6 +251,7 @@ static void game_cheat_cast_curse(uint8_t *args)
 
 static void game_cheat_make_buildings_invincible(uint8_t *args)
 {
+    (void) args;
     building_make_immune_cheat();
     show_warning("TR_CHEAT_BUILDINGS_INVINCIBLE");
 }
@@ -272,12 +274,14 @@ static void game_cheat_show_tooltip(uint8_t *args)
 
 static void game_cheat_kill_all(uint8_t *args)
 {
+    (void) args;
     Figure::kill_all();
     show_warning("TR_CHEAT_KILLED_ALL_WALKERS");
 }
 
 static void game_cheat_finish_monuments(uint8_t *args)
 {
+    (void) args;
     building_monument_finish_monuments();
     show_warning("TR_CHEAT_FINISHED_MONUMENTS");
 }
@@ -293,6 +297,7 @@ static void game_cheat_set_monument_phase(uint8_t *args)
 
 static void game_cheat_unlock_all_buildings(uint8_t *args)
 {
+    (void) args;
     building_menu_enable_all();
     empire_unlock_all_resources();
     scenario_unlock_all_buildings();
@@ -301,18 +306,21 @@ static void game_cheat_unlock_all_buildings(uint8_t *args)
 
 static void game_cheat_unlock_legions(uint8_t *args)
 {
+    (void) args;
     data.extra_legions_unlocked = 1;
     show_warning("TR_CHEAT_UNLOCK_LEGIONS");
 }
 
 static void game_cheat_disable_legions_consumption(uint8_t *args)
 {
+    (void) args;
     data.disabled_legions_consumption = 1;
     show_warning("TR_CHEAT_DISABLE_LEGIONS_CONSUMPTION");
 }
 
 static void game_cheat_disable_invasions(uint8_t *args)
 {
+    (void) args;
     data.disabled_invasions = 1;
     scenario_invasion_clear();
     show_warning("TR_CHEAT_DISABLE_INVASIONS");
@@ -320,6 +328,7 @@ static void game_cheat_disable_invasions(uint8_t *args)
 
 static void game_cheat_incite_riot(uint8_t *args)
 {
+    (void) args;
     city_data.sentiment.value = 0;
     city_sentiment_change_happiness(-100);
     figure_generate_criminals();
@@ -330,6 +339,7 @@ static void game_cheat_incite_riot(uint8_t *args)
 
 void game_cheat_show_custom_events(uint8_t *args)
 {
+    (void) args;
     if (data.is_cheating) {
         window_editor_scenario_events_show();
     }
@@ -337,6 +347,7 @@ void game_cheat_show_custom_events(uint8_t *args)
 
 void game_cheat_show_editor(uint8_t *args)
 {
+    (void) args;
     if (data.is_cheating) {
         window_editor_attributes_show();
         if (!map_editor_warning_shown) {
@@ -367,18 +378,27 @@ static void game_cheat_destroy_building(uint8_t *args)
     int building_id = 0;
     int index = parse_integer(args, &building_id);
     index += parse_integer(args + index, &destroy_type);
+    building *target_record = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!target_record && building && static_cast<int>(building->id) == building_id) {
+            target_record = const_cast<::building *>(building->record());
+        }
+    });
+    if (!target_record) {
+        return;
+    }
     switch (destroy_type) {
         case 0:
-            building_destroy_by_collapse(building_get(building_id));
+            building_destroy_by_collapse(target_record);
             break;
         case 1:
-            building_destroy_by_fire(building_get(building_id));
+            building_destroy_by_fire(target_record);
             break;
         case 2:
-            building_destroy_without_rubble(building_get(building_id));
+            building_destroy_without_rubble(target_record);
             break;
         case 3:
-            building_destroy_by_earthquake(building_get(building_id));
+            building_destroy_by_earthquake(target_record);
             break;
         default:
             break;

@@ -7,6 +7,25 @@
 #include "city/health.h"
 #include "figure/figure.h"
 #include "game/state.h"
+#include "map/building.h"
+
+#include <exception>
+
+static Building &runtime_building_for_overlay_record(const building *record)
+{
+    if (!record || !map_building_exists_at(record->grid_offset)) {
+        std::terminate();
+    }
+    Building &tile_building = map_building_at(record->grid_offset);
+    if (tile_building.id == record->id) {
+        return tile_building;
+    }
+    Building &main_building = tile_building.main();
+    if (main_building.id == record->id) {
+        return main_building;
+    }
+    std::terminate();
+}
 
 static int show_building_health(const building *b)
 {
@@ -82,9 +101,9 @@ static int show_figure_sickness(const Figure *f)
     } else if (f->type == FIGURE_DOCKER || f->type == FIGURE_CART_PUSHER ||
                f->type == FIGURE_WAREHOUSEMAN || f->type == FIGURE_DEPOT_CART_PUSHER ||
                f->type == FIGURE_LIGHTHOUSE_SUPPLIER || f->type == FIGURE_NATIVE_TRADER) {
-        building *b = building_get(f->building.id());
-        building *dest_b = building_get(f->destination_building.id());
-        if (b->sickness_level > 0 || dest_b->sickness_level > 0) {
+        building *b = f->building ? const_cast<building *>(f->building->record()) : nullptr;
+        building *dest_b = f->destination_building ? const_cast<building *>(f->destination_building->record()) : nullptr;
+        if ((b && b->sickness_level > 0) || (dest_b && dest_b->sickness_level > 0)) {
             return 1;
         }
     }
@@ -93,7 +112,8 @@ static int show_figure_sickness(const Figure *f)
 
 static int get_column_height_health(const building *b)
 {
-    int house_health = city_health_get_house_health_level(Building(const_cast<building *>(b)), 0);
+    Building &house = runtime_building_for_overlay_record(b);
+    int house_health = city_health_get_house_health_level(house, 0);
 
     if (b->house_population > 0 && house_health < 1) {
         house_health += 1;
@@ -129,8 +149,9 @@ static int get_column_height_sickness(const building *b)
 
 static int get_tooltip_health(tooltip_context *c, const building *b)
 {
-    if (building_is_house(b->type)) {
-        int house_health = city_health_get_house_health_level(Building(const_cast<building *>(b)), 0);
+    const Building &current_building = runtime_building_for_overlay_record(b);
+    if (current_building.type && current_building.type->has_housing()) {
+        int house_health = city_health_get_house_health_level(current_building, 0);
 
         if (house_health < 40) {
             if (b->house_population < 1 && house_health < 1) {
@@ -171,6 +192,8 @@ static int get_tooltip_health(tooltip_context *c, const building *b)
 
 static int get_tooltip_barber(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.barber <= 0) {
         return 31;
     } else if (b->data.house.barber >= 80) {
@@ -184,6 +207,8 @@ static int get_tooltip_barber(tooltip_context *c, const building *b)
 
 static int get_tooltip_bathhouse(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.bathhouse <= 0) {
         return 8;
     } else if (b->data.house.bathhouse >= 80) {
@@ -197,6 +222,8 @@ static int get_tooltip_bathhouse(tooltip_context *c, const building *b)
 
 static int get_tooltip_clinic(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.clinic <= 0) {
         return 35;
     } else if (b->data.house.clinic >= 80) {
@@ -210,6 +237,8 @@ static int get_tooltip_clinic(tooltip_context *c, const building *b)
 
 static int get_tooltip_hospital(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.hospital <= 0) {
         return 39;
     } else if (b->data.house.hospital >= 80) {
@@ -223,8 +252,8 @@ static int get_tooltip_hospital(tooltip_context *c, const building *b)
 
 static int get_tooltip_sickness(tooltip_context *c, const building *b)
 {
-    const Building current_building(const_cast<building *>(b));
-    if (building_is_house(b->type) ||
+    const Building &current_building = runtime_building_for_overlay_record(b);
+    if ((current_building.type && current_building.type->has_housing()) ||
         (current_building.type && current_building.type->attr_is("dock")) ||
         (current_building.type && current_building.type->is_warehouse()) ||
         (current_building.type && current_building.type->is_granary())) {

@@ -11,6 +11,8 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
+#include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
 
@@ -29,6 +31,7 @@
 #include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "map/tile_runtime_api.h"
 
 #include <string.h>
 
@@ -122,6 +125,20 @@ static void clear_buildings(void)
     data.type_changes.num = 0;
 }
 
+static building *undo_building_by_id(unsigned int building_id)
+{
+    if (!building_id) {
+        return nullptr;
+    }
+    building *record = nullptr;
+    Building::for_each([&](Building *building_object) {
+        if (!record && building_object && building_object->id == building_id) {
+            record = const_cast<building *>(building_object->record());
+        }
+    });
+    return record;
+}
+
 void game_undo_record_building_type(building *b)
 {
     if (!b || b->id <= 0 || data.type_changes.num >= MAX_UNDO_TYPE_CHANGES) {
@@ -141,7 +158,7 @@ void game_undo_record_building_type(building *b)
 void game_undo_restore_building_types(void)
 {
     for (int i = 0; i < data.type_changes.num; i++) {
-        building *b = building_get(data.type_changes.items[i].building_id);
+        building *b = undo_building_by_id(data.type_changes.items[i].building_id);
         if (b && b->id > 0) {
             building_change_type(b, data.type_changes.items[i].original_type);
         }
@@ -157,15 +174,21 @@ int game_undo_start_build(building_type type)
     data.building_cost = 0;
     data.type = type;
     clear_buildings();
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *building_object) {
+        building *b = building_object ? const_cast<building *>(building_object->record()) : nullptr;
+        if (!b) {
+            return;
+        }
         if (b->state == BUILDING_STATE_UNDO) {
             data.available = 0;
-            return 0;
+            return;
         }
         if (b->state == BUILDING_STATE_DELETED_BY_PLAYER) {
             data.available = 0;
         }
+    });
+    if (!data.available) {
+        return 0;
     }
 
     map_image_backup();
@@ -174,6 +197,8 @@ int game_undo_start_build(building_type type)
     map_property_backup();
     map_sprite_backup();
     map_building_backup();
+    building_runtime_backup_graphics_state();
+    tile_runtime_backup();
 
     return 1;
 }
@@ -187,7 +212,10 @@ void game_undo_restore_building_state(void)
 {
     for (int i = 0; i < data.num_buildings; i++) {
         if (data.buildings[i].id) {
-            building *b = building_get(data.buildings[i].id);
+            building *b = undo_building_by_id(data.buildings[i].id);
+            if (!b) {
+                continue;
+            }
             if (b->state == BUILDING_STATE_DELETED_BY_PLAYER) {
                 b->state = BUILDING_STATE_IN_USE;
             }
@@ -204,7 +232,9 @@ static void restore_map_images(void)
     for (int y = 0; y < map_height; y++) {
         for (int x = 0; x < map_width; x++) {
             int grid_offset = map_grid_offset(x, y);
-            if (!map_building_at(grid_offset) || map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            if (!map_building_exists_at(grid_offset) ||
+                map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) ||
+                map_building_at(grid_offset).is_surface_terrain_tile()) {
                 map_image_restore_at(grid_offset);
             }
         }
@@ -220,6 +250,8 @@ void game_undo_restore_map(int include_properties)
         map_property_restore();
     }
     restore_map_images();
+    building_runtime_restore_graphics_state();
+    tile_runtime_restore();
 }
 
 void game_undo_finish_build(int cost)
@@ -230,23 +262,28 @@ void game_undo_finish_build(int cost)
     window_invalidate();
 }
 
-static void add_building_to_terrain(building *b)
+static Building *add_building_to_terrain(building *b)
 {
-    if (b->id <= 0) {
-        return;
+    if (!b || b->id <= 0) {
+        return nullptr;
     }
     b->state = BUILDING_STATE_IN_USE;
-    if (!Building(b).refresh_graphic_if_native()) {
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
+    if (!runtime) {
+        return nullptr;
+    }
+    if (!runtime->building.refresh_graphic_if_native()) {
         int size = building_properties_for_type(b->type)->size;
-        if (building_is_house(b->type) && b->house_is_merged) {
+        if (runtime->building.type && runtime->building.type->has_housing() && b->house_is_merged) {
             size = 2;
         }
-        map_building_tiles_add(b->id, b->x, b->y, size, 0, 0);
+        map_building_tiles_add(runtime->building, b->x, b->y, size, 0, 0);
     }
     if (building_type_registry_impl::type_attr_is(b->type, "wharf")) {
         b->data.industry.fishing_boat_id = 0;
         b->data.industry.second_fishing_boat_id = 0;
     }
+    return &runtime->building;
 }
 
 void game_undo_perform(void)
@@ -260,8 +297,11 @@ void game_undo_perform(void)
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id) {
                 building *b = building_restore_from_undo(&data.buildings[i]);
-                Building restored(b);
-                if (restored.type && (restored.type->is_warehouse() || restored.type->is_granary())) {
+                Building *restored = add_building_to_terrain(b);
+                if (!restored) {
+                    continue;
+                }
+                if (restored->type && (restored->type->is_warehouse() || restored->type->is_granary())) {
                     if (!building_storage_restore(b->storage_id)) {
                         building_storage_reset_building_ids();
                     }
@@ -269,14 +309,14 @@ void game_undo_perform(void)
                     const building_type arch = b->type;
                     city_buildings_build_triumphal_arch();
                     building_menu_update();
-                    if (building_construction_type() == arch && !building_menu_is_enabled(arch)) {
+                    if (building_construction_type() == arch &&
+                        !building_menu_is_enabled(building_type_registry_impl::definition_for_type(arch))) {
                         building_construction_clear_type();
                     }
                 }
-                if (building_is_house(b->type)) {
-                    building_house_restore_population_after_undo(Building(b));
+                if (restored->type && restored->type->has_housing()) {
+                    building_house_restore_population_after_undo(*restored);
                 }
-                add_building_to_terrain(b);
             }
         }
         map_terrain_restore();
@@ -310,11 +350,15 @@ void game_undo_perform(void)
         }
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id) {
-                building_get(data.buildings[i].id)->state = BUILDING_STATE_UNDO;
+                if (building *b = undo_building_by_id(data.buildings[i].id)) {
+                    b->state = BUILDING_STATE_UNDO;
+                }
             }
         }
         building_update_state();
     }
+    building_runtime_restore_graphics_state();
+    tile_runtime_restore();
     Route::updateLandTerrain();
     Route::updateWallTerrain();
     figure_roamer_preview_reset(building_construction_type());
@@ -355,7 +399,8 @@ void game_undo_reduce_time_available(void)
     }
     if (data.type == building_type_registry_impl::vacant_lot_fill_type()) {
         for (int i = 0; i < data.num_buildings; i++) {
-            if (data.buildings[i].id && building_get(data.buildings[i].id)->house_population) {
+            building *b = undo_building_by_id(data.buildings[i].id);
+            if (b && b->house_population) {
                 // no undo on a new house where people moved in
                 data.available = 0;
                 window_invalidate();
@@ -365,7 +410,12 @@ void game_undo_reduce_time_available(void)
     }
     for (int i = 0; i < data.num_buildings; i++) {
         if (data.buildings[i].id) {
-            building *b = building_get(data.buildings[i].id);
+            building *b = undo_building_by_id(data.buildings[i].id);
+            if (!b) {
+                data.available = 0;
+                window_invalidate();
+                return;
+            }
             if (b->state == BUILDING_STATE_UNDO ||
                 b->state == BUILDING_STATE_RUBBLE ||
                 b->state == BUILDING_STATE_DELETED_BY_GAME) {

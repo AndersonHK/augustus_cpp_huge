@@ -28,6 +28,7 @@ struct RuntimeTextureDrawRequest {
     color_t color = COLOR_MASK_NONE;
     render_domain domain = RENDER_DOMAIN_PIXEL;
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
+    render_destination_geometry_policy destination_geometry_policy = RENDER_DESTINATION_GEOMETRY_DEFAULT;
 
     explicit operator bool() const
     {
@@ -40,7 +41,8 @@ void runtime_texture_draw(
     int x,
     int y,
     color_t color = COLOR_MASK_NONE,
-    float scale = 1.0f);
+    float scale = 1.0f,
+    render_destination_geometry_policy destination_geometry_policy = RENDER_DESTINATION_GEOMETRY_DEFAULT);
 void runtime_texture_draw_request(
     const RuntimeDrawSlice &slice,
     float x,
@@ -49,5 +51,6 @@ void runtime_texture_draw_request(
     float logical_height,
     color_t color,
     render_domain domain,
-    render_scaling_policy scaling_policy);
+    render_scaling_policy scaling_policy,
+    render_destination_geometry_policy destination_geometry_policy = RENDER_DESTINATION_GEOMETRY_DEFAULT);
 void runtime_texture_draw_request(const RuntimeTextureDrawRequest &request);

@@ -4,6 +4,8 @@
 #include "building/construction_plan.h"
 #include "map/grid.h"
 
+class Building;
+struct RubbleState;
 
 typedef enum {
     CLEAR_MODE_FORCE = 0, //removes everything, even if not removable by player
@@ -35,6 +37,15 @@ struct building_construction_assessment {
  * @param exact_coordinates If 1, x and y are used as exact coordinates without any offset adjustments
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
+// Assesses and places a repair through the same exact XML-composed footprint.
+building_construction_assessment building_construction_assess_repair(
+    const building_type_registry_impl::BuildingType &definition,
+    const RubbleState &origin);
+const building_type_registry_impl::BuildingType *building_construction_repair_replacement_type(
+    const building_type_registry_impl::BuildingType &original_type);
+Building *building_construction_place_repaired_building(
+    const building_construction_assessment &assessment,
+    const RubbleState &origin);
 building_construction_assessment building_construction_assess_placement(
     const building_type_registry_impl::BuildingType &definition,
     int x,

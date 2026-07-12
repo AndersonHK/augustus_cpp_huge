@@ -1,30 +1,68 @@
 #pragma once
 
+#include "building/BuildingGraphicsState.h"
+#include "building/BuildingForEachArgs.h"
+#include "building/RubbleState.h"
 #include "assets/image_group_entry.h"
-#include "building/building_fwd.h"
+#include "building/building.h"
 #include "building/building_type.h"
 #include "figure/figure.h"
 #include "game/resource.h"
 
 #include <cstddef>
+#include <cstdio>
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
 #include <vector>
 
 class ImageGroupPayload;
 
 void building_runtime_reset(void);
+void building_runtime_begin_load_bridge(int building_count);
+void building_runtime_stage_loaded_graphics_state(
+    unsigned int building_id,
+    const BuildingGraphicsState &state);
+void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const RubbleState &state);
+int building_runtime_loaded_rubble_state(unsigned int building_id, RubbleState *state);
+int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state);
+void building_runtime_backup_graphics_state(void);
+void building_runtime_restore_graphics_state(void);
 void building_runtime_initialize_city_graphics_cache(void);
+void building_runtime_for_each(const std::function<void(Building *)> &visitor);
+void building_runtime_for_each(
+    const BuildingForEachArgs &args,
+    const std::function<void(Building *)> &visitor);
+unsigned int building_runtime_debug_known_building_id(const Building *building);
+void building_runtime_debug_dump(FILE *file);
+
+class BuildingRuntime {
+public:
+    Building &create(const building_type_registry_impl::BuildingType &type, int x, int y);
+};
+
+BuildingRuntime &city_building_runtime();
 
 class building_runtime {
-public:
-    building_runtime(::building *building, const building_type_registry_impl::BuildingType *definition);
-    explicit building_runtime(const Building &building);
+    friend class Building;
 
-    // Transitional public access to the legacy saved struct while behavior is still migrating into methods.
-    ::building &data;
+public:
+    building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition);
+    building_runtime(
+        ::building *building_data,
+        const building_type_registry_impl::BuildingType *definition,
+        unsigned int runtime_id,
+        int ephemeral);
 
     void set_building_graphic();
     void assign_graphic_variant(int force_reseed);
+    unsigned char graphics_variant() const;
+    void set_graphics_variant(int variant);
+    BuildingGraphicsState &graphics_state();
+    const BuildingGraphicsState &graphics_state() const;
+    BuildingGraphicsState graphics_state_snapshot() const;
+    void restore_graphics_state(const BuildingGraphicsState &state);
     void spawn_figure();
     int uses_new_graphics() const;
     const RuntimeDrawSlice *graphic_footprint();
@@ -35,9 +73,19 @@ public:
     const RuntimeDrawSlice *cached_graphic_footprint() const;
     const RuntimeDrawSlice *cached_graphic_top() const;
     const RuntimeDrawSlice *cached_graphic_animation(int animation_cursor);
+    int cached_graphics_no_draw() const;
+    int cached_graphics_uses_terrain_foundation() const;
     void advance_cached_graphic_animation(int animation_cursor);
     void draw_cached_graphic_layers(
         building_type_registry_impl::GraphicsLayerStage stage,
+        int animation_cursor,
+        int x,
+        int y,
+        color_t color,
+        float scale);
+    int draw_cached_graphic_layer_role(
+        const char *role,
+        int animation_cursor,
         int x,
         int y,
         color_t color,
@@ -48,11 +96,23 @@ public:
     int owns_graphic_animation();
     int owns_native_storage() const;
     int owns_native_production() const;
+    unsigned int runtime_id() const;
+    int is_ephemeral() const;
     int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0);
     int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
     void release_legacy_storage_reservation(unsigned int figure_id);
 
-    Building building() const;
+    void check_labor_problem();
+    void run_labor_phase_if_defined(const map_point &road);
+    int spawn_temple_distribution_supplier(const map_point &road);
+    int spawn_market_supplier(const map_point &road);
+    int spawn_tavern_supplier(const map_point &road);
+    int spawn_primary_mess_hall_supplier(const map_point &road);
+    int spawn_secondary_mess_hall_supplier(const map_point &road);
+    int spawn_temple_destination_priest(const map_point &road);
+    int spawn_temple_mars_mess_hall_priest(const map_point &road);
+    int spawn_temple_neptune_chariot(const map_point &road);
+    int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
 
     const building_type_registry_impl::BuildingType *definition() const
     {
@@ -75,12 +135,15 @@ private:
             building_type_registry_impl::GraphicsLayerStage stage = building_type_registry_impl::GraphicsLayerStage::Auto;
             int x_offset = 0;
             int y_offset = 0;
+            std::string role;
             int owns_animation = 0;
             RuntimeDrawSlice animation_slice;
         };
         std::vector<Layer> layers;
         int owns_graphics = 0;
         int owns_graphic_animation = 0;
+        int no_draw = 0;
+        int terrain_foundation = 0;
         int dirty = 1;
         int resolved = 0;
         std::uint64_t signature = 0;
@@ -108,7 +171,6 @@ private:
     const Animation *cached_animation() const;
     int worker_percentage() const;
     int default_spawn_delay() const;
-    void check_labor_problem();
     void apply_global_labor_house_coverage(int amount);
     void generate_labor_seeker(int x, int y);
     void run_house_spawn_labor_phase(
@@ -121,11 +183,9 @@ private:
         const building_type_registry_impl::LaborSeekerPolicy &policy,
         const map_point &road);
     void run_labor_phase(const building_type_registry_impl::LaborDefinition &labor, const map_point &road);
-    void run_labor_phase_if_defined(const map_point &road);
     int has_figure_of_type(figure_type type);
     int has_figure_of_any(const std::vector<figure_type> &types);
     unsigned int *figure_slot_storage(building_type_registry_impl::FigureSlot slot);
-    unsigned int find_live_owned_figure(figure_type primary_type, figure_type secondary_type = FIGURE_NONE) const;
     int slot_has_live_figure(
         building_type_registry_impl::FigureSlot slot,
         figure_type primary_type,
@@ -133,9 +193,16 @@ private:
     int spawn_caravanserai_supplier(const map_point &road);
     int spawn_lighthouse_supplier(const map_point &road);
     int spawn_temple_supplier(const map_point &road);
-    int spawn_temple_destination_priest(const map_point &road);
-    int spawn_temple_mars_mess_hall_priest(const map_point &road);
-    int spawn_temple_neptune_chariot(const map_point &road);
+    int supplier_slot_waits_this_tick(
+        building_type_registry_impl::FigureSlot slot,
+        figure_type supplier_type,
+        figure_type secondary_type = FIGURE_NONE);
+    int spawn_supplier_to_destination(
+        building_type_registry_impl::FigureSlot slot,
+        figure_type supplier_type,
+        const map_point &road,
+        Building *destination,
+        unsigned char collecting_item_id);
     int spawn_grand_temple_mars_recruit(const map_point &road);
     void spawn_architect_guild();
     void spawn_caravanserai();
@@ -146,7 +213,6 @@ private:
     resource_type figure_delivery_output_resource() const;
     void spawn_figure_delivery_cart(const map_point &road);
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
-    int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
     int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy);
     LegacyStorageReservation *legacy_storage_reservation_for(unsigned int figure_id);
@@ -182,7 +248,17 @@ private:
 
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
+    unsigned int runtime_id_ = 0;
+    int ephemeral_ = 0;
+    BuildingGraphicsState graphics_state_;
+    std::unique_ptr<RubbleState> rubble_state_;
+    Building building_;
     std::vector<unsigned char> spawn_delay_counters_;
     std::vector<LegacyStorageReservation> legacy_storage_reservations_;
     CachedGraphicsBindings graphics_cache_;
+
+public:
+    // Transitional public access to the legacy saved struct while behavior is still migrating into methods.
+    ::building &data;
+    Building &building;
 };

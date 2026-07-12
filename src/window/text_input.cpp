@@ -140,11 +140,17 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_cancel(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     close();
 }
 
 static void button_accept(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     close();
     data.callback(data.text);
 }

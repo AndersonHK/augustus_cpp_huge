@@ -16,7 +16,7 @@ Add an opt-in, low-overhead performance tracker controlled by `debug_performance
 - Keep off cost to a cheap enabled check at coarse call sites; no file open, no counter reads, and no per-frame formatting when disabled.
 
 ## Tracking Contract
-- Output file: `vespasian-performance.log` in the same logging directory as `augustus-log.txt`.
+- Output file: `vespasian-performance.log` in the same logging directory as `vespasian-log.txt`.
 - Format: one line per sample, readable and parseable key/value fields, for example:
   `perf sample=12 elapsed_ms=1003 speed=1000 target_ticks=1003 actual_ticks=997 frames=61 zero_tick_frames=0 speed_wait_ms=0.0 run_ms=410.2 tick_ms=320.5 draw_ms=180.4 present_ms=470.1 buckets=figure:120.3,advance:90.1,building_state:18.4,map_desirability:22.7,city_draw:150.8`
 - Tick goal is computed from the existing speed-timer math, not guessed from the UI label.
@@ -31,7 +31,7 @@ Add an opt-in, low-overhead performance tracker controlled by `debug_performance
 
 ## Test Plan
 - Build `Release|x64` with the root `Vespasian.sln`.
-- With `debug_performance_tracker=0`, confirm no performance log is created and no tracker lines appear in `augustus-log.txt`.
+- With `debug_performance_tracker=0`, confirm no performance log is created and no tracker lines appear in `vespasian-log.txt`.
 - With `debug_performance_tracker=1`, launch a city and confirm one line per second appears in `vespasian-performance.log`.
 - Run at 1000 speed on a large city and confirm `target_ticks`, `actual_ticks`, `speed_wait_ms`, `tick_ms`, `draw_ms`, `present_ms`, and bucket totals are plausible.
 - Confirm shutdown closes the log cleanly and normal config save preserves the new ini key.

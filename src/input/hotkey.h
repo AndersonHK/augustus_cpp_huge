@@ -3,6 +3,9 @@
 #include "core/hotkey_config.h"
 #include "input/keys.h"
 
+namespace building_type_registry_impl {
+class BuildingType;
+}
 
 typedef struct {
     // fixed keys with multiple functions
@@ -33,7 +36,7 @@ typedef struct {
     int save_file;
     int rotate_building;
     int rotate_building_back;
-    int building;
+    const building_type_registry_impl::BuildingType* building;
     int clone_building;
     int copy_building_settings;
     int paste_building_settings;

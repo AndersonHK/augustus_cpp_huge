@@ -83,8 +83,8 @@ static int init(void)
         return 0;
     }
     data.in_progress_bet = city_data.games.chosen_horse ? 1 : 0;
-    data.chosen_horse = city_data.games.chosen_horse ? city_data.games.chosen_horse : NO_BET;
-    data.bet_amount = city_data.games.bet_amount ? city_data.games.bet_amount: 0;
+    data.chosen_horse = static_cast<unsigned int>(city_data.games.chosen_horse ? city_data.games.chosen_horse : NO_BET);
+    data.bet_amount = static_cast<unsigned int>(city_data.games.bet_amount ? city_data.games.bet_amount: 0);
     data.width_blocks = 30;
     data.height_blocks = 25;
 
@@ -108,7 +108,7 @@ static void draw_background(void)
 
     inner_panel_draw(18, 300, 28, 2);
     text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_AMOUNT"), 18, 310, 80, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    int width = text_draw_number(data.bet_amount, '@', " ", 165, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    int width = text_draw_number(static_cast<int>(data.bet_amount), '@', " ", 165, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     width += lang_text_draw("main_strings.50.15", 165 + width, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_with_money(translation_for_key("TR_PERSONAL_SAVINGS"), city_emperor_personal_savings(), " ", "", 284, 310, 175,  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
@@ -189,10 +189,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void arrow_button_bet(int is_down, int param2)
 {
+    (void)param2;
+
     if (!data.in_progress_bet) {
-        int amount = data.bet_amount;
+        int amount = static_cast<int>(data.bet_amount);
         amount += is_down ? -10 : 10;
-        data.bet_amount = calc_bound(amount, 0, city_data.emperor.personal_savings);
+        data.bet_amount = static_cast<unsigned int>(calc_bound(amount, 0, city_data.emperor.personal_savings));
 
         window_request_refresh();
     }
@@ -202,17 +204,19 @@ static void button_horse_selection(const generic_button *button)
 {
     int option = button->parameter1;
     if (!data.in_progress_bet) {
-        data.chosen_horse = option;
+        data.chosen_horse = static_cast<unsigned int>(option);
         window_request_refresh();
     }
 }
 
 static void button_confirm(const generic_button *button)
 {
+    (void)button;
+
     // save bet and go back
     if (!city_data.games.chosen_horse && data.chosen_horse && data.bet_amount) {
-        city_data.games.chosen_horse = data.chosen_horse;
-        city_data.games.bet_amount = data.bet_amount;
+        city_data.games.chosen_horse = static_cast<uint8_t>(data.chosen_horse);
+        city_data.games.bet_amount = static_cast<int32_t>(data.bet_amount);
         window_go_back();
     }
 }
@@ -231,6 +235,9 @@ static void handle_tooltip(tooltip_context *c)
 
 static void button_close(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_go_back();
 }
 

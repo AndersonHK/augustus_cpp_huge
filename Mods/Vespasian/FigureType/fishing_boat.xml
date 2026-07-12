@@ -3,7 +3,7 @@
     <profiles default="fish_fetch">
         <profile id="fish_fetch">
             <native class="fishing_boat" />
-            <owner slot="none" building="any" state="any" />
+            <owner slot="none" building="any" state="in_use" />
             <movement roam_ticks="1" max_roam_length="1200" return_mode="none" />
             <pathing mode="water_route" terrain="any" />
         </profile>

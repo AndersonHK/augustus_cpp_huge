@@ -235,7 +235,7 @@ static void init(void)
     set_text_for_yearly_autosave();
     set_text_for_tooltips();
     set_text_for_warnings();
-    data.savings_on_right = config_get(CONFIG_UI_MOVE_SAVINGS_TO_RIGHT);
+    data.savings_on_right = static_cast<unsigned char>(config_get(CONFIG_UI_MOVE_SAVINGS_TO_RIGHT));
 }
 
 static void draw_background(void)
@@ -303,8 +303,8 @@ static int get_black_panel_total_width_for_text_id(int group, int id, int number
 
 static int detect_layout_change(void)
 {
-    unsigned char new_savings_on_right = config_get(CONFIG_UI_MOVE_SAVINGS_TO_RIGHT);
-    signed char screen_width_unchanged = (drawn.s_width == screen_width());
+    unsigned char new_savings_on_right = static_cast<unsigned char>(config_get(CONFIG_UI_MOVE_SAVINGS_TO_RIGHT));
+    signed char screen_width_unchanged = static_cast<signed char>(drawn.s_width == screen_width());
 
     if (data.savings_on_right == new_savings_on_right && screen_width_unchanged) {
         return 0; // no layout change
@@ -391,13 +391,13 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
     // GROUP 2: date and  45% / 80% checks + OOB guard
     int date_start_x;
     if (layout == WIDGET_LAYOUT_FULL) {
-        unsigned char g1_too_big = (group1_span >= 0.45f * avail_w);
-        unsigned char g1g3_too_big = (group1_span + group3_min_w >= 0.80f * avail_w);
+        unsigned char g1_too_big = static_cast<unsigned char>(group1_span >= 0.45f * avail_w);
+        unsigned char g1g3_too_big = static_cast<unsigned char>(group1_span + group3_min_w >= 0.80f * avail_w);
 
         int center_pos_x = data.menu_end + (available_width - w_date) / 2;
-        unsigned char center_breaks_g3 =
-            (center_pos_x + w_date + data.basic_margin + group3_min_w) > bar_right_edge;
-        unsigned char center_overlap = center_pos_x < group1_end_x;
+        unsigned char center_breaks_g3 = static_cast<unsigned char>(
+            (center_pos_x + w_date + data.basic_margin + group3_min_w) > bar_right_edge);
+        unsigned char center_overlap = static_cast<unsigned char>(center_pos_x < group1_end_x);
         if (g1_too_big || g1g3_too_big || center_breaks_g3 || center_overlap) {
             date_start_x = group1_end_x;
         } else {
@@ -413,12 +413,13 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
     // GROUP 3
     if (layout == WIDGET_LAYOUT_FULL) {
         int group3_start_x;
-        unsigned char force_sequence = (group1_span + group3_min_w + w_date >= 0.90f * avail_w);
+        unsigned char force_sequence = static_cast<unsigned char>(
+            group1_span + group3_min_w + w_date >= 0.90f * avail_w);
         // if >80%, force sequentional drawing
-        unsigned char too_big_overall =
+        unsigned char too_big_overall = static_cast<unsigned char>(
             (group3_min_w > 0.45f * avail_w)
             || (group3_min_w > 0.90f * (available_width - group1_span - w_date))
-            || (group3_min_w > (0.5f * avail_w - w_date));
+            || (group3_min_w > (0.5f * avail_w - w_date)));
 
         if (force_sequence || too_big_overall) {
             group3_start_x = data.date.end + PANEL_MARGIN; // force Panel margin here for visual consistency
@@ -539,9 +540,9 @@ static color_t get_savings_color_mask(void)
     return COLOR_FONT_RED;
 }
 
-static char get_cosmetic_day_of_month(void)
+static signed char get_cosmetic_day_of_month(void)
 {
-    return static_cast<char>(game_time_day() + 1);
+    return static_cast<signed char>(game_time_day() + 1);
 }
 
 void widget_top_menu_draw(int force)
@@ -862,6 +863,8 @@ int widget_top_menu_get_tooltip_text(tooltip_context *c)
 
 static void replay_map_confirmed(int confirmed, int checked)
 {
+    (void)checked;
+
     if (!confirmed) {
         window_city_show();
         return;
@@ -885,6 +888,8 @@ static void replay_map_confirmed(int confirmed, int checked)
 
 static void menu_file_replay_map(int param)
 {
+    (void)param;
+
     clear_state();
     building_construction_clear_type();
     window_popup_dialog_show_confirmation(lang_get_string("main_strings.1.2"), 0, 0, replay_map_confirmed);
@@ -892,6 +897,8 @@ static void menu_file_replay_map(int param)
 
 static void menu_file_load_game(int param)
 {
+    (void)param;
+
     clear_state();
     building_construction_clear_type();
     window_go_back();
@@ -900,6 +907,8 @@ static void menu_file_load_game(int param)
 
 static void menu_file_save_game(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_file_dialog_show(FILE_TYPE_SAVED_GAME, FILE_DIALOG_SAVE);
@@ -907,6 +916,8 @@ static void menu_file_save_game(int param)
 
 static void menu_file_delete_game(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_file_dialog_show(FILE_TYPE_SAVED_GAME, FILE_DIALOG_DELETE);
@@ -914,6 +925,8 @@ static void menu_file_delete_game(int param)
 
 static void menu_file_confirm_exit(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         system_exit();
     } else {
@@ -923,6 +936,8 @@ static void menu_file_confirm_exit(int accepted, int checked)
 
 static void main_menu_confirmed(int confirmed, int checked)
 {
+    (void)checked;
+
     if (!confirmed) {
         window_city_show();
         return;
@@ -935,6 +950,8 @@ static void main_menu_confirmed(int confirmed, int checked)
 
 static void menu_file_exit_to_main_menu(int param)
 {
+    (void)param;
+
     clear_state();
     window_popup_dialog_show_confirmation(translation_for_key("TR_BUTTON_BACK_TO_MAIN_MENU"), 0, 0,
         main_menu_confirmed);
@@ -942,12 +959,16 @@ static void menu_file_exit_to_main_menu(int param)
 
 static void menu_file_exit_game(int param)
 {
+    (void)param;
+
     clear_state();
     window_popup_dialog_show(POPUP_DIALOG_QUIT, menu_file_confirm_exit, 1);
 }
 
 static void menu_options_general(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_config_show(CONFIG_PAGE_GENERAL, 0, 0);
@@ -955,6 +976,8 @@ static void menu_options_general(int param)
 
 static void menu_options_user_interface(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_config_show(CONFIG_PAGE_UI_CHANGES, CATEGORY_UI_GENERAL, 0);
@@ -962,6 +985,8 @@ static void menu_options_user_interface(int param)
 
 static void menu_options_gameplay(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_config_show(CONFIG_PAGE_GAMEPLAY_CHANGES, 0, 0);
@@ -969,6 +994,8 @@ static void menu_options_gameplay(int param)
 
 static void menu_options_city_management(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_config_show(CONFIG_PAGE_CITY_MANAGEMENT_CHANGES, CATEGORY_CITY_MANAGEMENT_STORAGE, 0);
@@ -976,6 +1003,8 @@ static void menu_options_city_management(int param)
 
 static void menu_options_hotkeys(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_hotkey_config_show(0);
@@ -983,12 +1012,16 @@ static void menu_options_hotkeys(int param)
 
 static void menu_options_monthly_autosave(int param)
 {
+    (void)param;
+
     setting_toggle_monthly_autosave();
     set_text_for_monthly_autosave();
 }
 
 static void menu_options_yearly_autosave(int param)
 {
+    (void)param;
+
     int yearly_autosave_enabled = config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE);
     config_set(CONFIG_GP_CH_YEARLY_AUTOSAVE, yearly_autosave_enabled ? 0 : 1);
     config_save();
@@ -997,6 +1030,8 @@ static void menu_options_yearly_autosave(int param)
 
 static void menu_help_help(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_message_dialog_show(MESSAGE_DIALOG_HELP, window_city_draw_all);
@@ -1004,18 +1039,24 @@ static void menu_help_help(int param)
 
 static void menu_help_mouse_help(int param)
 {
+    (void)param;
+
     setting_cycle_tooltips();
     set_text_for_tooltips();
 }
 
 static void menu_help_warnings(int param)
 {
+    (void)param;
+
     setting_toggle_warnings();
     set_text_for_warnings();
 }
 
 static void menu_help_about(int param)
 {
+    (void)param;
+
     clear_state();
     window_go_back();
     window_message_dialog_show(MESSAGE_DIALOG_ABOUT, window_city_draw_all);

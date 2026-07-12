@@ -11,6 +11,11 @@
 
 #define INFINITE 10000
 
+static building_type caravanserai_type()
+{
+    return building_type_registry_impl::type_from_attr("caravanserai");
+}
+
 int building_caravanserai_enough_foods(Building caravanserai)
 {
     int food_required_monthly = building_caravanserai_food_required_monthly();
@@ -32,47 +37,66 @@ int building_caravanserai_food_required_monthly(void)
 
 }
 
-Building building_caravanserai_get_storage_destination(Building caravanserai)
+Building building_caravanserai_first(void)
+{
+    return *Building::first_of_type(caravanserai_type());
+}
+
+Building *building_caravanserai_get_storage_destination(Building &caravanserai)
 {
     const building_type_registry_impl::Distribution *distribution =
         caravanserai.type ? caravanserai.type->distribution() : nullptr;
     if (!distribution) {
-        return Building(nullptr);
+        return nullptr;
     }
 
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
 
     if (!distribution->needed_resources_for(caravanserai, info) ||
         !distribution->find_sources_for_building(info, caravanserai, INFINITE)) {
-        return Building(nullptr);
+        return nullptr;
     }
+    auto destination_for_resource = [&](resource_type resource) -> Building * {
+        const unsigned int destination_id = info[resource].building_id;
+        if (!destination_id) {
+            return nullptr;
+        }
+        Building *destination = nullptr;
+        Building::for_each([&](Building *building) {
+            if (!destination && building->id == destination_id) {
+                destination = building;
+            }
+        });
+        if (destination) {
+            caravanserai.set_fetch_inventory_id(resource);
+        }
+        return destination;
+    };
     // Prefer whichever food we don't have
     resource_type fetch_inventory = distribution->fetch_resource(caravanserai, info, 0, 0, 1);
     if (fetch_inventory != RESOURCE_NONE) {
-        caravanserai.set_fetch_inventory_id(fetch_inventory);
-        return Building(building_get(info[fetch_inventory].building_id));
+        return destination_for_resource(fetch_inventory);
     }
     // Then prefer smallest stock below baseline stock
     fetch_inventory = distribution->fetch_resource(caravanserai, info, BASELINE_STOCK, 0, 0);
     if (fetch_inventory != RESOURCE_NONE) {
-        caravanserai.set_fetch_inventory_id(fetch_inventory);
-        return Building(building_get(info[fetch_inventory].building_id));
+        return destination_for_resource(fetch_inventory);
     }
     // All items well stocked: use the XML stock target.
     fetch_inventory = distribution->fetch_resource(caravanserai, info, 0, 0, 0);
     if (fetch_inventory != RESOURCE_NONE) {
-        caravanserai.set_fetch_inventory_id(fetch_inventory);
-        return Building(building_get(info[fetch_inventory].building_id));
+        return destination_for_resource(fetch_inventory);
     }
-    return Building(nullptr);
+    return nullptr;
 }
 
 int building_caravanserai_is_fully_functional(void)
 {
-    building_type caravanserai_type = building_type_registry_impl::type_from_attr("caravanserai");
-    if (!building_monument_working(caravanserai_type)) {
+    building_type type = caravanserai_type();
+    if (!building_monument_working(type)) {
         return 0;
     }
 
-    return building_caravanserai_enough_foods(Building::first_of_type(caravanserai_type));
+    Building *caravanserai = Building::first_of_type(type);
+    return caravanserai && building_caravanserai_enough_foods(*caravanserai);
 }

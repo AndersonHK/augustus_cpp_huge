@@ -58,21 +58,36 @@ void map_image_init_edges(void)
     images.items[map_grid_offset(width, height)] = 5;
 }
 
+static int building_is_drawn_by_terrain_tiles(const Building &building)
+{
+    if (!building.type || building.type->has_graphic()) {
+        return 0;
+    }
+    const building_type_registry_impl::ConstructionToolDefinition &tool = building.type->tool();
+    return tool.is_road() || tool.is_highway() || tool.is_aqueduct() || building.type->has_tile();
+}
+
 void map_image_update_all(void)
 {
     map_tiles_update_all();
-    for (int i = 1; i < Building::count(); i++) {
-        building *record = building_get(i);
-        Building b(record);
+    Building::for_each([](Building *building) {
+        if (!building) {
+            return;
+        }
+
+        Building &b = *building;
         if (b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED &&
             b.state_id() != BUILDING_STATE_CREATED) {
-            continue;
+            return;
         }
         if ((b.type && b.type->roadblock().is_bridge()) || b.matches("wall")) {
-            continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
+            return; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
+        }
+        if (building_is_drawn_by_terrain_tiles(b)) {
+            return;
         }
         if (b.refresh_graphic_if_native()) {
-            continue;
+            return;
         }
         int image_id = b.image_id();
 
@@ -81,7 +96,7 @@ void map_image_update_all(void)
                 map_image_set(map_grid_offset(b.x() + dx, b.y() + dy), image_id);
             }
         }
-    }
+    });
 }
 
 void map_image_save_state_legacy(buffer *buf)

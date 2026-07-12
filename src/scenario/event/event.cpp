@@ -182,7 +182,7 @@ void scenario_event_save_state(buffer *buf, scenario_event_t *event)
     }
 
     buffer_write_i32(buf, event->id);
-    buffer_write_i16(buf, event->state);
+    buffer_write_i16(buf, static_cast<int16_t>(event->state));
     buffer_write_i32(buf, event->repeat_days_min);
     buffer_write_i32(buf, event->repeat_days_max);
     buffer_write_u8(buf, event->repeat_interval);

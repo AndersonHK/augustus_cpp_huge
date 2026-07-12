@@ -67,6 +67,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_era(const generic_button *button)
 {
+    (void) button;
     scenario_editor_set_start_year(-scenario_property_start_year());
 }
 

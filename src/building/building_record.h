@@ -5,7 +5,10 @@
 #include "core/time.h"
 #include "game/resource.h"
 
-// Legacy saved building record. Keep this out of building.h while Building becomes the public object API.
+// Transitional runtime building record. Do not add peeled module state here:
+// save/load bridges must read and write legacy payload fields through the owning runtime modules.
+using workforce_count = short;
+
 typedef struct building {
     unsigned int id;
 
@@ -38,8 +41,8 @@ typedef struct building {
     float labor_access_score;
     short percentage_houses_covered;
     short house_population;
-    short local_workforce_assigned;
-    short local_workforce_unemployed;
+    workforce_count local_workforce_assigned;
+    workforce_count local_workforce_unemployed;
     short house_population_room;
     short distance_from_entry;
     short house_highest_population;
@@ -88,6 +91,10 @@ typedef struct building {
         struct {
             unsigned char fetch_inventory_id;
             unsigned char is_mess_hall;
+            unsigned char pottery_demand;
+            unsigned char furniture_demand;
+            unsigned char oil_demand;
+            unsigned char wine_demand;
         } market;
         struct {
             short progress;
@@ -138,12 +145,6 @@ typedef struct building {
             unsigned char evolve_text_id;
         } house;
         struct {
-            unsigned short og_type;
-            unsigned short og_grid_offset;
-            unsigned char og_size;
-            unsigned char og_orientation;
-        } rubble;
-        struct {
             unsigned short exceptions;
         } roadblock;
         struct {
@@ -179,7 +180,6 @@ typedef struct building {
     unsigned char tourism_disabled;
     unsigned char tourism_income;
     unsigned char tourism_income_this_year;
-    unsigned char variant;
     unsigned char upgrade_level;
     unsigned char strike_duration_days;
     unsigned char sickness_level;
@@ -189,5 +189,5 @@ typedef struct building {
     unsigned char fumigation_direction;
     unsigned char has_latrines_access;
     short resources[RESOURCE_SLOT_COUNT];
-    unsigned char accepted_goods[RESOURCE_SLOT_COUNT];
+    bool accepted_goods[RESOURCE_SLOT_COUNT];
 } building;

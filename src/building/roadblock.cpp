@@ -21,9 +21,6 @@ void Roadblock::toggle_permission(roadblock_permission permission)
 
 int Roadblock::has_permission(roadblock_permission permission) const
 {
-    if (kind() == ROADBLOCK_STORAGE) {
-        return permission == PERMISSION_NONE || permission == PERMISSION_LABOR_SEEKER;
-    }
     if (!permission_is_roadblock_managed(permission)) {
         return 1;
     }
@@ -98,14 +95,14 @@ roadblock_type Roadblock::kind() const
 
 int Roadblock::exceptions() const
 {
-    building *record = id() ? building_get(id()) : nullptr;
+    const building *record = this->record();
     return record ? record->data.roadblock.exceptions : 0;
 }
 
 void Roadblock::set_exceptions(int exceptions)
 {
-    if (building *record = id() ? building_get(id()) : nullptr) {
-        record->data.roadblock.exceptions = exceptions;
+    if (building *record = const_cast<building *>(this->record())) {
+        record->data.roadblock.exceptions = static_cast<unsigned short>(exceptions);
     }
 }
 

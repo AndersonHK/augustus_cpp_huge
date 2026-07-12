@@ -1,10 +1,7 @@
 #include "building/building.h"
-#include "building/building_type.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
-#include "building/monument.h"
 #include "city/buildings.h"
-#include "city/resource.h"
 #include "city/trade_policy.h"
 #include "core/calc.h"
 #include "game/resource_id_bridge.h"
@@ -19,25 +16,9 @@ struct trade_price {
 
 static struct trade_price prices[RESOURCE_SLOT_COUNT];
 
-static Building first_building(const char *text_id)
-{
-    for (int id = 1; id < Building::count(); id++) {
-        Building building(building_get(id));
-        if (building.type && building.type->attr_is(text_id)) {
-            return building;
-        }
-    }
-    return Building(nullptr);
-}
-
-static int has_building(const char *text_id)
-{
-    return first_building(text_id).id() != 0;
-}
-
 static int trade_percentage_from_laborers(int percent, Building building)
 {
-    if (!building.id()) {
+    if (!building.id) {
         return 0;
     }
     int percent_laborers = 0;
@@ -55,7 +36,7 @@ static int trade_get_caravanserai_factor(int percent)
 {
     int caravanserai_percent = 0;
     if (building_caravanserai_is_fully_functional()) {
-        caravanserai_percent = trade_percentage_from_laborers(percent, first_building("caravanserai"));
+        caravanserai_percent = trade_percentage_from_laborers(percent, building_caravanserai_first());
     }
     return caravanserai_percent;
 }
@@ -65,7 +46,7 @@ static int trade_get_lighthouse_factor(int percent)
     int lighthouse_percent = 0;
 
     if (building_lighthouse_is_fully_functional()) {
-        lighthouse_percent = trade_percentage_from_laborers(percent, first_building("lighthouse"));
+        lighthouse_percent = trade_percentage_from_laborers(percent, building_lighthouse_first());
     }
     return lighthouse_percent;
 }
@@ -73,7 +54,7 @@ static int trade_get_lighthouse_factor(int percent)
 static int trade_factor_sell(int land_trader)
 {
     int percent = 0;
-    if (land_trader && has_building("caravanserai")) {
+    if (land_trader && city_buildings_has_caravanserai()) {
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
 
         if (policy == TRADE_POLICY_1) {
@@ -81,7 +62,7 @@ static int trade_factor_sell(int land_trader)
         } else if (policy == TRADE_POLICY_2) {
             percent -= trade_get_caravanserai_factor(POLICY_2_MALUS_PERCENT); // trader buy 0% less
         }
-    } else if (!land_trader && has_building("lighthouse")) {
+    } else if (!land_trader && city_buildings_has_lighthouse()) {
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
 
         if (policy == TRADE_POLICY_1) {
@@ -104,7 +85,7 @@ static int trade_factor_buy(int land_trader)
         } else if (policy == TRADE_POLICY_2) {
             percent -= trade_get_caravanserai_factor(POLICY_2_BONUS_PERCENT); // player buy 20% less
         }
-    } else if (!land_trader && has_building("lighthouse")) {
+    } else if (!land_trader && city_buildings_has_lighthouse()) {
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
 
         if (policy == TRADE_POLICY_1) {

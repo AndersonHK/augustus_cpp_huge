@@ -21,7 +21,16 @@
 #include "map/terrain.h"
 
 
+#include <string.h>
 #include <stdlib.h>
+#include <vector>
+
+enum {
+    SAVE_MINIMAP_PREVIEW_MAGIC = 0x56504d4d,
+    SAVE_MINIMAP_PREVIEW_VERSION = 1,
+    SAVE_MINIMAP_PLACEHOLDER_WIDTH = 160,
+    SAVE_MINIMAP_PLACEHOLDER_HEIGHT = 160
+};
 
 enum {
     FIGURE_COLOR_NONE = 0,
@@ -54,21 +63,27 @@ typedef struct {
     tile_color center;
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
+static unsigned int runtime_building_id_at(int grid_offset);
 
 static minimap_functions default_functions = {
     scenario_property_climate,
-    building_get,
+    nullptr,
     {map_grid_width, map_grid_height},
     {
         map_figure_foreach_until,
         map_terrain_get,
-        map_building_at,
+        runtime_building_id_at,
         map_property_is_draw_tile,
         map_property_multi_tile_size,
         map_random_get
     },
     get_viewport
 };
+
+static unsigned int runtime_building_id_at(int grid_offset)
+{
+    return map_building_exists_at(grid_offset) ? map_building_at(grid_offset).id : 0;
+}
 
 static const tile_color_climate_variants CLIMATE_VARIANTS[3] = {
     // central
@@ -118,11 +133,9 @@ static const tile_color_climate_variants CLIMATE_VARIANTS[3] = {
 static struct {
     color_t soldier;
     color_t selected_soldier;
-    color_t enemy;
     color_t wolf;
     color_t trade_caravan;
     color_t trade_ship;
-    const tile_color_climate_variants *climate;
     tile_color wall;
     tile_color aqueduct;
     building_tile_color water_structure;
@@ -189,6 +202,56 @@ static struct {
     } viewport;
 } data;
 
+typedef struct {
+    const minimap_functions *functions;
+    int x;
+    int y;
+    int width;
+    int height;
+    int stride;
+    color_t *buffer;
+    const tile_color_climate_variants *climate;
+} minimap_render_context;
+
+static struct {
+    int width;
+    int height;
+    int has_image;
+} preview;
+
+static minimap_render_context *active_render_context;
+
+struct ActiveMinimapRenderContext {
+    explicit ActiveMinimapRenderContext(minimap_render_context *context)
+        : previous(active_render_context)
+    {
+        active_render_context = context;
+    }
+
+    ~ActiveMinimapRenderContext()
+    {
+        active_render_context = previous;
+    }
+
+    minimap_render_context *previous;
+};
+
+static minimap_render_context make_live_render_context(void)
+{
+    const minimap_functions *functions = data.functions ? data.functions : &default_functions;
+    minimap_render_context context = {
+        functions,
+        data.minimap.x,
+        data.minimap.y,
+        data.minimap.width,
+        data.minimap.height,
+        data.cache.stride,
+        data.cache.buffer,
+        &CLIMATE_VARIANTS[functions->climate()]
+    };
+    return context;
+}
+
 static void get_viewport(int *x, int *y, int *width, int *height)
 {
     city_view_get_camera(x, y);
@@ -208,8 +271,11 @@ void widget_minimap_restore_default_functions(void)
 
 static void foreach_map_tile(map_callback *callback)
 {
-    city_view_foreach_minimap_tile(0, 0, data.minimap.x, data.minimap.y,
-        data.minimap.width, data.minimap.height, callback);
+    if (!active_render_context) {
+        return;
+    }
+    city_view_foreach_minimap_tile(0, 0, active_render_context->x, active_render_context->y,
+        active_render_context->width, active_render_context->height, callback);
 }
 
 static void setup_minimap(int x_offset, int y_offset, int width, int height)
@@ -310,7 +376,10 @@ static int has_figure_color(Figure *f)
 
 static inline void draw_pixel(int x, int y, color_t color)
 {
-    data.cache.buffer[y * data.cache.stride + x] = color;
+    if (x < 0 || y < 0 || x >= active_render_context->width * 2 || y >= active_render_context->height) {
+        return;
+    }
+    active_render_context->buffer[y * active_render_context->stride + x] = color;
 }
 
 static inline void draw_tile(int x_offset, int y_offset, const tile_color *colors)
@@ -321,10 +390,11 @@ static inline void draw_tile(int x_offset, int y_offset, const tile_color *color
 
 static int draw_figure(int x_view, int y_view, int grid_offset)
 {
-    if (!data.functions->offset.figure) {
+    const minimap_functions *functions = active_render_context->functions;
+    if (!functions->offset.figure) {
         return 0;
     }
-    int color_type = data.functions->offset.figure(grid_offset, has_figure_color);
+    int color_type = functions->offset.figure(grid_offset, has_figure_color);
     if (color_type == FIGURE_COLOR_NONE) {
         return 0;
     }
@@ -334,7 +404,7 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
     } else if (color_type == FIGURE_COLOR_SELECTED_SOLDIER) {
         color = minimap_colors.selected_soldier;
     } else if (color_type == FIGURE_COLOR_ENEMY) {
-        color = minimap_colors.climate->enemy;
+        color = active_render_context->climate->enemy;
     } else if (color_type == FIGURE_COLOR_TRADE_CARAVAN) {
         color = minimap_colors.trade_caravan;
     } else if (color_type == FIGURE_COLOR_TRADE_SHIP) {
@@ -346,10 +416,10 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
     return 1;
 }
 
-static int building_is_industry(building_type type)
+static int building_is_industry(const building_type_registry_impl::BuildingType *type)
 {
     return building_is_raw_resource_producer(type) || building_is_workshop(type) ||
-        building_type_registry_impl::type_attr_is(type, "wharf");
+        type->attr_is("wharf");
 }
 
 static int building_is_military(building_type type)
@@ -376,16 +446,26 @@ static int building_is_water_structure(const building_type_registry_impl::Buildi
 
 static void draw_building(int x_offset, int y_offset, int grid_offset)
 {
-    if (!data.functions->offset.is_draw_tile(grid_offset)) {
+    const minimap_functions *functions = active_render_context->functions;
+    if (!functions->offset.is_draw_tile(grid_offset)) {
         return;
     }
 
     const building_tile_color *colors = &minimap_colors.building;
-    int size = data.functions->offset.tile_size(grid_offset);
+    int size = functions->offset.tile_size(grid_offset);
 
-    if (data.functions->building) {
-        const int building_id = data.functions->offset.building_id(grid_offset);
-        building *b = building_id ? data.functions->building(building_id) : nullptr;
+    if (functions->offset.building_id) {
+        Building *runtime_building = nullptr;
+        const int building_id = functions->offset.building_id(grid_offset);
+        building *b = nullptr;
+        if (functions->building) {
+            b = building_id ? functions->building(building_id) : nullptr;
+        } else {
+            runtime_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+            if (runtime_building) {
+                b = const_cast<building *>(runtime_building->record());
+            }
+        }
 
         // Palisades are drawn like walls
         if (b && building_type_registry_impl::type_attr_is(b->type, "palisade")) {
@@ -394,9 +474,10 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         }
 
         const building_type_registry_impl::BuildingType *type_definition = nullptr;
-        if (b) {
-            const Building building(b);
-            type_definition = building.type;
+        if (runtime_building) {
+            type_definition = runtime_building->type;
+        } else if (b) {
+            type_definition = building_type_registry_impl::definition_for_type(b->type);
         }
         if (b && b->house_size) {
             colors = &minimap_colors.house;
@@ -404,9 +485,9 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
             colors = &minimap_colors.water_structure;
         } else if (b && building_monument_is_monument(b)) {
             colors = &minimap_colors.monument;
-        } else if (b && building_is_farm(b->type)) {
+        } else if (b && type_definition && type_definition->is_farm()) {
             colors = &minimap_colors.farm;
-        } else if (b && building_is_industry(b->type)) {
+        } else if (b && type_definition && building_is_industry(type_definition)) {
             colors = &minimap_colors.industry;
         } else if (b && building_is_military(b->type)) {
             colors = &minimap_colors.military;
@@ -438,9 +519,9 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         if (x_start + x_offset < 0) {
             x_start = -x_offset - 1;
         }
-        color_t *value = &data.cache.buffer[(y_offset + y) * data.cache.stride + x_start + x_offset + 1];
         for (int x = x_start; x < x_end - 1; x++) {
-            *value++ = ((size + x + y) & 1) ? colors->center.left : colors->center.right;
+            draw_pixel(x + x_offset + 1, y + y_offset, ((size + x + y) & 1) ?
+                colors->center.left : colors->center.right);
         }
     }
     y_offset += height / 2 + 1;
@@ -455,9 +536,9 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         if (x_start + x_offset < 0) {
             x_start = -x_offset - 1;
         }
-        color_t *value = &data.cache.buffer[(y_offset + y) * data.cache.stride + x_start + x_offset + 1];
         for (int x = x_start; x < x_end - 1; x++) {
-            *value++ = ((x + y) & 1) ? colors->center.left : colors->center.right;
+            draw_pixel(x + x_offset + 1, y + y_offset, ((x + y) & 1) ?
+                colors->center.left : colors->center.right);
         }
     }
 }
@@ -471,34 +552,36 @@ static void draw_minimap_tile(int x_view, int y_view, int grid_offset)
     if (draw_figure(x_view, y_view, grid_offset)) {
         return;
     }
-    int terrain = data.functions->offset.terrain(grid_offset);
+    const minimap_functions *functions = active_render_context->functions;
+    const tile_color_climate_variants *climate = active_render_context->climate;
+    int terrain = functions->offset.terrain(grid_offset);
 
     if (terrain & TERRAIN_BUILDING && !(terrain & (TERRAIN_AQUEDUCT | TERRAIN_WALL))) {
         draw_building(x_view, y_view, grid_offset);
         return;
     }
-    int rand = data.functions->offset.random(grid_offset);
+    int rand = functions->offset.random(grid_offset);
     const tile_color *colors;
     if (terrain & TERRAIN_AQUEDUCT) {
         colors = &minimap_colors.aqueduct;
     } else if (terrain & TERRAIN_ROAD) {
-        colors = &minimap_colors.climate->road;
+        colors = &climate->road;
     } else if (terrain & TERRAIN_HIGHWAY) {
-        colors = &minimap_colors.climate->highway;
+        colors = &climate->highway;
     } else if (terrain & TERRAIN_WATER) {
-        colors = &minimap_colors.climate->water[rand & 3];
+        colors = &climate->water[rand & 3];
     } else if (terrain & (TERRAIN_SHRUB | TERRAIN_TREE)) {
-        colors = &minimap_colors.climate->tree[rand & 3];
+        colors = &climate->tree[rand & 3];
     } else if (terrain & (TERRAIN_ROCK | TERRAIN_ELEVATION)) {
-        colors = &minimap_colors.climate->rock[rand & 3];
+        colors = &climate->rock[rand & 3];
     } else if (terrain & TERRAIN_WALL) {
         colors = &minimap_colors.wall;
     } else if (terrain & TERRAIN_MEADOW) {
-        colors = &minimap_colors.climate->meadow[rand & 3];
+        colors = &climate->meadow[rand & 3];
     } else if (terrain & TERRAIN_GARDEN) {
         colors = &minimap_colors.aesthetics.edges;
     } else {
-        colors = &minimap_colors.climate->grass[rand & 7];
+        colors = &climate->grass[rand & 7];
     }
     draw_tile(x_view, y_view, colors);
 }
@@ -535,9 +618,20 @@ static void prepare_minimap_cache(void)
     data.cache.buffer = graphics_renderer()->get_custom_image_buffer(CUSTOM_IMAGE_MINIMAP, &data.cache.stride);
 }
 
-static void clear_minimap(void)
+static void clear_minimap(minimap_render_context &context)
 {
-    memset(data.cache.buffer, 0, sizeof(color_t) * data.minimap.height * data.cache.stride);
+    memset(context.buffer, 0, sizeof(color_t) * context.height * context.stride);
+}
+
+static void render_minimap_to_context(minimap_render_context &context)
+{
+    if (!context.buffer || !context.functions) {
+        return;
+    }
+
+    ActiveMinimapRenderContext active(&context);
+    clear_minimap(context);
+    foreach_map_tile(draw_minimap_tile);
 }
 
 void widget_minimap_update(const minimap_functions *functions)
@@ -547,10 +641,160 @@ void widget_minimap_update(const minimap_functions *functions)
     if (!data.cache.buffer) {
         return;
     }
-    clear_minimap();
-    minimap_colors.climate = &CLIMATE_VARIANTS[data.functions->climate()];
-    foreach_map_tile(draw_minimap_tile);
+    minimap_render_context context = make_live_render_context();
+    render_minimap_to_context(context);
     graphics_renderer()->update_custom_image(CUSTOM_IMAGE_MINIMAP);
+}
+
+void widget_minimap_save_preview(buffer *buf)
+{
+    if (!buf) {
+        return;
+    }
+
+    const int minimap_width = default_functions.map.width();
+    const int minimap_height = default_functions.map.height() * 2;
+    const int width = minimap_width * 2;
+    const int height = minimap_height;
+    if (width <= 0 || height <= 0) {
+        buffer_init_dynamic(buf, 0);
+        return;
+    }
+
+    std::vector<color_t> pixels(static_cast<size_t>(width) * height);
+    minimap_render_context context = {
+        &default_functions,
+        (VIEW_X_MAX - minimap_width) / 2,
+        (VIEW_Y_MAX - minimap_height) / 2,
+        minimap_width,
+        minimap_height,
+        width,
+        pixels.data(),
+        &CLIMATE_VARIANTS[default_functions.climate()]
+    };
+    render_minimap_to_context(context);
+
+    const size_t row_size = sizeof(color_t) * width;
+    const size_t payload_size = 4 * sizeof(uint32_t) + row_size * height;
+    buffer_init_dynamic(buf, payload_size);
+    buffer_write_u32(buf, SAVE_MINIMAP_PREVIEW_MAGIC);
+    buffer_write_u32(buf, SAVE_MINIMAP_PREVIEW_VERSION);
+    buffer_write_u32(buf, static_cast<uint32_t>(width));
+    buffer_write_u32(buf, static_cast<uint32_t>(height));
+    for (int y = 0; y < height; y++) {
+        buffer_write_raw(buf, &pixels[static_cast<size_t>(y) * width], row_size);
+    }
+}
+
+int widget_minimap_load_saved_preview(buffer *buf)
+{
+    if (!buf || buf->size < sizeof(uint32_t)) {
+        return 0;
+    }
+
+    buffer payload = *buf;
+    const size_t payload_size = buffer_load_dynamic(&payload);
+    if (payload_size < 4 * sizeof(uint32_t)) {
+        return 0;
+    }
+    if (buffer_read_u32(&payload) != SAVE_MINIMAP_PREVIEW_MAGIC) {
+        return 0;
+    }
+    if (buffer_read_u32(&payload) != SAVE_MINIMAP_PREVIEW_VERSION) {
+        return 0;
+    }
+
+    const int width = static_cast<int>(buffer_read_u32(&payload));
+    const int height = static_cast<int>(buffer_read_u32(&payload));
+    if (width <= 0 || height <= 0 || width > GRID_SIZE * 2 || height > GRID_SIZE * 2) {
+        return 0;
+    }
+    const size_t row_size = sizeof(color_t) * width;
+    if (payload_size != 4 * sizeof(uint32_t) + row_size * height) {
+        return 0;
+    }
+
+    graphics_renderer()->create_custom_image(CUSTOM_IMAGE_MINIMAP_PREVIEW, width, height, 0);
+    int stride = 0;
+    color_t *preview_buffer = graphics_renderer()->get_custom_image_buffer(CUSTOM_IMAGE_MINIMAP_PREVIEW, &stride);
+    if (!preview_buffer) {
+        return 0;
+    }
+
+    for (int y = 0; y < height; y++) {
+        buffer_read_raw(&payload, &preview_buffer[y * stride], row_size);
+    }
+    if (payload.overflow) {
+        preview.has_image = 0;
+        return 0;
+    }
+    preview.width = width;
+    preview.height = height;
+    preview.has_image = 1;
+    graphics_renderer()->update_custom_image(CUSTOM_IMAGE_MINIMAP_PREVIEW);
+    return 1;
+}
+
+void widget_minimap_show_placeholder_preview(void)
+{
+    graphics_renderer()->create_custom_image(
+        CUSTOM_IMAGE_MINIMAP_PREVIEW,
+        SAVE_MINIMAP_PLACEHOLDER_WIDTH,
+        SAVE_MINIMAP_PLACEHOLDER_HEIGHT,
+        0);
+    int stride = 0;
+    color_t *preview_buffer = graphics_renderer()->get_custom_image_buffer(CUSTOM_IMAGE_MINIMAP_PREVIEW, &stride);
+    if (!preview_buffer) {
+        return;
+    }
+
+    for (int y = 0; y < SAVE_MINIMAP_PLACEHOLDER_HEIGHT; y++) {
+        for (int x = 0; x < SAVE_MINIMAP_PLACEHOLDER_WIDTH; x++) {
+            const int border = x < 2 || y < 2 ||
+                x >= SAVE_MINIMAP_PLACEHOLDER_WIDTH - 2 ||
+                y >= SAVE_MINIMAP_PLACEHOLDER_HEIGHT - 2;
+            const int stripe = ((x + y) / 16) & 1;
+            preview_buffer[y * stride + x] = border ? COLOR_MINIMAP_LIGHT :
+                (stripe ? COLOR_MINIMAP_DARK : COLOR_BLACK);
+        }
+    }
+    preview.width = SAVE_MINIMAP_PLACEHOLDER_WIDTH;
+    preview.height = SAVE_MINIMAP_PLACEHOLDER_HEIGHT;
+    preview.has_image = 1;
+    graphics_renderer()->update_custom_image(CUSTOM_IMAGE_MINIMAP_PREVIEW);
+}
+
+void widget_minimap_draw_preview(int x_offset, int y_offset, int width, int height)
+{
+    if (!preview.has_image || !graphics_renderer()->has_custom_image(CUSTOM_IMAGE_MINIMAP_PREVIEW)) {
+        return;
+    }
+
+    const int preview_width = preview.width;
+    const int preview_height = preview.height;
+    if (preview_width <= 0 || preview_height <= 0) {
+        return;
+    }
+
+    graphics_set_clip_rectangle(x_offset, y_offset, width, height);
+    graphics_fill_rect(x_offset, y_offset, width, height, COLOR_BLACK);
+    const float scale_x = preview_width / static_cast<float>(width);
+    const float scale_y = preview_height / static_cast<float>(height);
+    float scale = scale_x > scale_y ? scale_x : scale_y;
+    if (scale < SCALE_NONE) {
+        scale = SCALE_NONE;
+    }
+    const int drawn_width = static_cast<int>(preview_width / scale);
+    const int drawn_height = static_cast<int>(preview_height / scale);
+    const int draw_x = x_offset + (width - drawn_width) / 2;
+    const int draw_y = y_offset + (height - drawn_height) / 2;
+    graphics_renderer()->draw_custom_image(
+        CUSTOM_IMAGE_MINIMAP_PREVIEW,
+        static_cast<int>(draw_x * scale),
+        static_cast<int>(draw_y * scale),
+        scale,
+        1);
+    graphics_reset_clip_rectangle();
 }
 
 void widget_minimap_draw(int x_offset, int y_offset, int width, int height)
@@ -594,6 +838,8 @@ static int get_mouse_grid_offset(const mouse *m)
     data.mouse.x = (int) ((m->x - data.screen.x) * data.minimap.scale + data.minimap.offset_x);
     data.mouse.y = (int) ((m->y - data.screen.y) * data.minimap.scale + data.minimap.offset_y);
     data.mouse.grid_offset = 0;
+    minimap_render_context context = make_live_render_context();
+    ActiveMinimapRenderContext active(&context);
     foreach_map_tile(update_mouse_grid_offset);
     return data.mouse.grid_offset;
 }

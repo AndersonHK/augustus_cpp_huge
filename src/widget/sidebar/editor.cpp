@@ -174,6 +174,8 @@ int widget_sidebar_editor_handle_mouse_attributes(const mouse *m)
 
 static void button_attributes(int show, int param2)
 {
+    (void)param2;
+
     window_editor_build_menu_hide();
     if (show) {
         if (!window_is(WINDOW_EDITOR_ATTRIBUTES)) {
@@ -188,6 +190,8 @@ static void button_attributes(int show, int param2)
 
 static void button_build_tool(int tool, int param2)
 {
+    (void)param2;
+
     window_editor_build_menu_hide();
     widget_map_editor_clear_current_tile();
     editor_tool_set_type(static_cast<tool_type>(tool));
@@ -200,5 +204,7 @@ static void button_build_tool(int tool, int param2)
 
 static void button_build_menu(int submenu, int param2)
 {
+    (void)param2;
+
     window_editor_build_menu_show(submenu);
 }

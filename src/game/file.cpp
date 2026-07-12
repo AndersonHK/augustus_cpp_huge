@@ -6,6 +6,7 @@
 #include "building/building_runtime.h"
 #include "building/construction.h"
 #include "building/granary.h"
+#include "building/house_population.h"
 #include "building/maintenance.h"
 #include "building/menu.h"
 #include "building/monument.h"
@@ -28,6 +29,7 @@
 #include "empire/empire.h"
 #include "empire/trade_prices.h"
 #include "figure/enemy_army.h"
+#include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/formation.h"
 #include "figure/name.h"
@@ -163,6 +165,11 @@ static void clear_scenario_data(void)
     building_runtime_reset();
 }
 
+void game_file_clear_scenario_data_for_save_load(void)
+{
+    clear_scenario_data();
+}
+
 static void initialize_scenario_data(const uint8_t *scenario_name)
 {
     scenario_set_name(scenario_name);
@@ -272,13 +279,21 @@ static void check_hippodrome_compatibility(Building b)
 {
     // if we got the middle part of the hippodrome
     if (b.next_part_id() && b.previous_part_id()) {
-        Building next(building_get(b.next_part_id()));
-        Building prev(building_get(b.previous_part_id()));
+        Building *next = b.next();
+        Building *prev = nullptr;
+        Building::for_each([&](Building *building) {
+            if (!prev && building && building->id == static_cast<unsigned int>(b.previous_part_id())) {
+                prev = building;
+            }
+        });
+        if (!next || !prev) {
+            return;
+        }
         // if orientation is different, it means that rotation was not available yet in augustus, so it should be set to 0
-        if (b.orientation() != next.orientation() || b.orientation() != prev.orientation()) {
-            prev.set_orientation(0);
+        if (b.orientation() != next->orientation() || b.orientation() != prev->orientation()) {
+            prev->set_orientation(0);
             b.set_orientation(0);
-            next.set_orientation(0);
+            next->set_orientation(0);
         }
     }
 }
@@ -289,8 +304,8 @@ static void check_backward_compatibility(void)
     if (hippodrome == BUILDING_NONE) {
         return;
     }
-    for (Building b = Building::first_of_type(hippodrome); b.id(); b = b.next_of_type()) {
-        check_hippodrome_compatibility(b);
+    for (Building *building = Building::first_of_type(hippodrome); building; building = building->next_of_type()) {
+        check_hippodrome_compatibility(*building);
     }
 }
 
@@ -317,7 +332,6 @@ static void initialize_saved_game(void)
     Route::clean();
     map_road_network_update();
     Route::updateLandTerrain();
-    building_maintenance_check_rome_access();
     building_granaries_calculate_stocks();
     building_menu_update();
     city_message_init_problem_areas();
@@ -346,7 +360,23 @@ static void initialize_saved_game(void)
     weather_reset();
     // This is where restored saved buildings rebuild renderer/runtime state again after the world has finished loading.
     building_runtime_initialize_city_graphics_cache();
+    map_tiles_update_all_gardens();
+    map_tiles_update_all_roads();
+    map_tiles_update_all_highways();
+    map_tiles_update_all_plazas();
+    map_tiles_update_all_aqueducts(0);
+    map_building_rebind_runtime_references();
+    Route::updateAllTerrain();
+    map_road_network_update();
+    Route::updateLandTerrain();
+    building_maintenance_check_rome_access();
+    house_population_update_room();
+    Figure::resolve_loaded_building_references();
     figure_runtime_initialize_city();
+    map_tiles_update_all_gardens();
+    map_tiles_update_all_plazas();
+    map_building_rebind_runtime_references();
+    city_view_restore_lookup();
 }
 
 static int start_scenario(const uint8_t *scenario_name, const char *scenario_file)

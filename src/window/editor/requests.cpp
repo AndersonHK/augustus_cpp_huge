@@ -238,6 +238,7 @@ static void button_edit_request(const grid_box_item *item)
 
 static void button_new_request(const generic_button *button)
 {
+    (void) button;
     if (data.on_select) {
         return;
     }

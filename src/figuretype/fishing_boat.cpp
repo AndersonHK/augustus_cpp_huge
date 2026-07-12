@@ -1,5 +1,6 @@
 #include "figuretype/fishing_boat.h"
 
+#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
@@ -17,14 +18,17 @@ namespace {
 
 int lighthouse_monument_working()
 {
-    for (int i = 1; i < building_count(); i++) {
-        ::building *record = building_get(i);
-        const building_type_registry_impl::BuildingType *definition = record ? Building(record).type : nullptr;
-        if (definition && definition->is_lighthouse()) {
-            return building_monument_working(record->type);
+    int working = 0;
+    Building::for_each([&working](Building *building) {
+        if (working || !building->type || !building->type->is_lighthouse()) {
+            return;
         }
-    }
-    return 0;
+        const ::building *record = building->record();
+        if (record) {
+            working = building_monument_working(record->type);
+        }
+    });
+    return working;
 }
 
 int fishing_boat_speed_bonus()
@@ -32,11 +36,10 @@ int fishing_boat_speed_bonus()
     return lighthouse_monument_working() ? 10 : 0;
 }
 
-int wharf_worker_percentage(const ::building *wharf)
+int wharf_worker_percentage(const Building &wharf)
 {
-    Building building(wharf ? const_cast<::building *>(wharf) : nullptr);
-    const int required_workers = building.type ? building.type->required_workers() : 0;
-    return required_workers > 0 ? calc_percentage(wharf->num_workers, required_workers) : 100;
+    const int required_workers = wharf.type ? wharf.type->required_workers() : 0;
+    return required_workers > 0 ? calc_percentage(wharf.worker_count(), required_workers) : 100;
 }
 
 int image_base_for(const figure_type_registry_impl::FigureTypeDefinition *definition)
@@ -58,51 +61,49 @@ FishingBoat &FishingBoat::from(Figure &figure)
 void FishingBoat::go_to_wharf(const map_point &tile)
 {
     action_state = FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF;
-    destination_x = tile.x;
-    destination_y = tile.y;
-    source_x = tile.x;
-    source_y = tile.y;
+    destination_x = static_cast<unsigned char>(tile.x);
+    destination_y = static_cast<unsigned char>(tile.y);
+    source_x = static_cast<unsigned char>(tile.x);
+    source_y = static_cast<unsigned char>(tile.y);
     Route::remove(this);
 }
 
 int FishingBoat::ensure_wharf_assignment()
 {
     map_point tile;
-    ::building *owner = building_get(this->building.id());
     if (action_state == FIGURE_ACTION_190_FISHING_BOAT_CREATED) {
-        if (map_water_assign_fishing_boat_to_wharf(this, Building(owner), &tile)) {
+        if (building && map_water_assign_fishing_boat_to_wharf(this, *building, &tile)) {
             go_to_wharf(tile);
         }
         return 1;
     }
 
-    if (map_water_assign_fishing_boat_to_wharf(this, Building(owner), &tile)) {
-        source_x = tile.x;
-        source_y = tile.y;
+    if (building && map_water_assign_fishing_boat_to_wharf(this, *building, &tile)) {
+        source_x = static_cast<unsigned char>(tile.x);
+        source_y = static_cast<unsigned char>(tile.y);
         if (action_state == FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF) {
-            destination_x = tile.x;
-            destination_y = tile.y;
+            destination_x = static_cast<unsigned char>(tile.x);
+            destination_y = static_cast<unsigned char>(tile.y);
         }
         return 1;
     }
 
-    const int wharf_id = map_water_assign_wharf_for_new_fishing_boat(this, &tile);
-    if (!wharf_id) {
+    Building *wharf = map_water_assign_wharf_for_new_fishing_boat(this, &tile);
+    if (!wharf) {
         state = FIGURE_STATE_DEAD;
         return 0;
     }
-    if (owner && owner->figure_id == id()) {
-        owner->figure_id = 0;
+    if (building) {
+        building->clear_figure_slot_if_matches(id());
     }
-    this->building = Building(building_get(wharf_id));
+    this->building = wharf;
     go_to_wharf(tile);
     return 1;
 }
 
 int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *definition)
 {
-    ::building *owner = building_get(this->building.id());
-    if (!owner || owner->state != BUILDING_STATE_IN_USE) {
+    if (!building || !building->is_in_use()) {
         state = FIGURE_STATE_DEAD;
         return 1;
     }
@@ -110,7 +111,6 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
         return 1;
     }
 
-    owner = building_get(this->building.id());
     is_ghost = 0;
     is_boat = 1;
     clear_legacy_cart_overlay_image();
@@ -122,12 +122,10 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
             if (wait_ticks >= game_time_scale_legacy_day_ticks(50)) {
                 wait_ticks = 0;
                 map_point tile;
-                const int wharf_id = map_water_assign_wharf_for_new_fishing_boat(this, &tile);
-                if (wharf_id) {
-                    if (owner && owner->figure_id == id()) {
-                        owner->figure_id = 0;
-                    }
-                    this->building = Building(building_get(wharf_id));
+                Building *wharf = map_water_assign_wharf_for_new_fishing_boat(this, &tile);
+                if (wharf) {
+                    building->clear_figure_slot_if_matches(id());
+                    this->building = wharf;
                     go_to_wharf(tile);
                 }
             }
@@ -140,8 +138,8 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 map_point tile;
                 if (map_water_find_alternative_fishing_boat_tile(this, &tile)) {
                     Route::remove(this);
-                    destination_x = tile.x;
-                    destination_y = tile.y;
+                    destination_x = static_cast<unsigned char>(tile.x);
+                    destination_y = static_cast<unsigned char>(tile.y);
                     direction = previous_tile_direction;
                 } else {
                     action_state = FIGURE_ACTION_192_FISHING_BOAT_FISHING;
@@ -180,8 +178,8 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
             break;
 
         case FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF: {
-            int pct_workers = wharf_worker_percentage(owner);
-            if (owner->data.industry.has_fish > 0) {
+            int pct_workers = wharf_worker_percentage(*building);
+            if (building->industry_has_fish() > 0) {
                 pct_workers = 0;
             }
             if (pct_workers > 0) {
@@ -191,8 +189,8 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                     map_point tile;
                     if (scenario_map_closest_fishing_point(x, y, &tile)) {
                         action_state = FIGURE_ACTION_191_FISHING_BOAT_GOING_TO_FISH;
-                        destination_x = tile.x;
-                        destination_y = tile.y;
+                        destination_x = static_cast<unsigned char>(tile.x);
+                        destination_y = static_cast<unsigned char>(tile.y);
                         Route::remove(this);
                     }
                 }
@@ -206,9 +204,9 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
             if (direction == DIR_FIGURE_AT_DESTINATION) {
                 action_state = FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF;
                 wait_ticks = 0;
-                owner->figure_spawn_delay = 1;
-                owner->data.industry.has_fish++;
-                owner->data.industry.production_current_month += 100;
+                building->set_figure_spawn_delay(1);
+                building->add_industry_fish(1);
+                building->add_industry_production_current_month(100);
             } else if (direction == DIR_FIGURE_REROUTE) {
                 Route::remove(this);
             } else if (direction == DIR_FIGURE_LOST) {
@@ -223,14 +221,11 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
 
 void FishingBoat::sink()
 {
-    if (this->building.id()) {
-        ::building *owner = building_get(this->building.id());
-        if (owner && owner->figure_id == id()) {
-            owner->figure_id = 0;
-        }
-        map_water_clear_fishing_boat_from_wharf(this->building, id());
+    if (building) {
+        building->clear_figure_slot_if_matches(id());
+        map_water_clear_fishing_boat_from_wharf(*building, id());
     }
-    this->building = Building(nullptr);
+    this->building = nullptr;
     type = FIGURE_SHIPWRECK;
     wait_ticks = 0;
 }

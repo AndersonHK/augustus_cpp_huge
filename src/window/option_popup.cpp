@@ -62,12 +62,12 @@ static int init(translation_key title, translation_key subtitle, option_menu_ite
         // don't show popup over popup
         return 0;
     }
-    data.num_options = num_options <= MAX_OPTIONS ? num_options : MAX_OPTIONS;
+    data.num_options = static_cast<unsigned int>(num_options <= MAX_OPTIONS ? num_options : MAX_OPTIONS);
     data.close_func = close_func;
     data.title = title;
     data.subtitle = subtitle;
     data.width_blocks = 30;
-    data.original_option = original_option;
+    data.original_option = static_cast<unsigned int>(original_option);
     data.selected_option = data.original_option;
     data.price = price;
     data.options = options;
@@ -75,8 +75,8 @@ static int init(translation_key title, translation_key subtitle, option_menu_ite
     data.row_size = row_size;
 
     for (int i = 0; i < MAX_OPTIONS; i++) {
-        buttons[i + 2].y = 40 + START_Y_OFFSET + i * Y_OFFSET_PER_OPTION[data.row_size];
-        buttons[i + 2].height = Y_OFFSET_PER_OPTION[data.row_size] - 16;
+        buttons[i + 2].y = static_cast<short>(40 + START_Y_OFFSET + i * Y_OFFSET_PER_OPTION[data.row_size]);
+        buttons[i + 2].height = static_cast<short>(Y_OFFSET_PER_OPTION[data.row_size] - 16);
     }
 
     return 1;
@@ -107,20 +107,20 @@ static void calculate_visible_options(void)
         return;
     }
     data.height = screen_height();
-    data.visible_options = (data.height - 160) / Y_OFFSET_PER_OPTION[data.row_size];
+    data.visible_options = static_cast<unsigned int>((data.height - 160) / Y_OFFSET_PER_OPTION[data.row_size]);
     if (data.visible_options > data.num_options) {
         data.visible_options = data.num_options;
     }
-    data.height_blocks = 10 + data.visible_options * (data.row_size == OPTION_MENU_SMALL_ROW ? 7 : 9);
-    buttons[0].y = buttons[1].y = START_Y_OFFSET + 42 + Y_OFFSET_PER_OPTION[data.row_size] * data.visible_options;
+    data.height_blocks = 10 + static_cast<int>(data.visible_options) * (data.row_size == OPTION_MENU_SMALL_ROW ? 7 : 9);
+    buttons[0].y = buttons[1].y = static_cast<short>(START_Y_OFFSET + 42 + Y_OFFSET_PER_OPTION[data.row_size] * data.visible_options);
 
-    buttons[2].width = buttons[3].width = buttons[4].width = data.num_options == data.visible_options ? 430 : 400;
+    buttons[2].width = buttons[3].width = buttons[4].width = static_cast<short>(data.num_options == data.visible_options ? 430 : 400);
 
     scrollbar.height = Y_OFFSET_PER_OPTION[data.row_size] * data.visible_options;
     scrollbar.elements_in_view =  data.visible_options;
     scrollbar_init(&scrollbar, 0, data.num_options);
     if (data.selected_option > data.visible_options) {
-        scrollbar.scroll_position = data.selected_option - data.visible_options;
+        scrollbar.scroll_position = static_cast<unsigned int>(data.selected_option - data.visible_options);
     }
 }
 
@@ -237,7 +237,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         data.focus_button_id = 0;
         return;
     }
-    GenericButtonList(buttons, data.visible_options + 2).handle_mouse(
+    GenericButtonList(buttons, static_cast<unsigned int>(data.visible_options + 2)).handle_mouse(
         *m_dialog,
         0,
         0,
@@ -261,12 +261,12 @@ static void button_select_option(const generic_button *button)
             break;
         case CONFIRM_BUTTON:
             if (data.selected_option != data.original_option) {
-                data.close_func(data.selected_option);
+                data.close_func(static_cast<int>(data.selected_option));
                 window_go_back();
             }
             break;
         default:
-            data.selected_option = option + scrollbar.scroll_position - CONFIRM_BUTTON;
+            data.selected_option = static_cast<unsigned int>(option + scrollbar.scroll_position - CONFIRM_BUTTON);
             window_request_refresh();
             break;
     }

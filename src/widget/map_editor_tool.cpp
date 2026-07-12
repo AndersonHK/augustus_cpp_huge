@@ -94,9 +94,9 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
             };
         } else if (building_type_registry_impl::type_attr_is_any(
             type, {"native_decor", "native_monument", "native_watchtower"})) {
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
         } else if (props->image_group <= 0) {
-            image_id = building_image_get_for_type(type);
+            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
         } else {
             image_id = Image::group(props->image_group) + props->image_offset;
         }
@@ -188,6 +188,8 @@ static void draw_brush_tile(const void *data, int dx, int dy)
 
 static void draw_brush(const map_tile *tile, int x, int y)
 {
+    (void)tile;
+
     brush_draw_data bd = { x, y, editor_tool_type(), editor_tool_brush_size() };
     editor_tool_foreach_brush_tile(draw_brush_tile, &bd);
 }

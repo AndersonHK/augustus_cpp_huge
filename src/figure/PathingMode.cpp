@@ -1,28 +1,11 @@
 #include "figure/PathingMode.h"
 
-#include "figure/figure_runtime_api.h"
 #include "map/grid.h"
 #include "map/road_network.h"
 #include "map/routing_data.h"
 #include "map/terrain.h"
 
 namespace figure_type_registry_impl {
-
-PathingMode::RoutePolicySelection PathingMode::routePolicyForFigure(
-    Figure &figure,
-    RouteNeighborhood neighborhood)
-{
-    RoutePolicySelection selection;
-    const PathingPolicy *pathing = figure_runtime_pathing_policy(&figure);
-    selection.terrain = pathing ?
-        pathing->terrain :
-        terrainFromLegacyUsage(figure.terrain_usage);
-    selection.policy = routePolicyForTerrain(
-        selection.terrain,
-        figure_runtime_roadblock_permission(&figure),
-        neighborhood);
-    return selection;
-}
 
 int PathingMode::citizenIsPassable(int grid_offset)
 {
@@ -100,6 +83,21 @@ roadblock_permission PathingMode::roadblockPermissionFor(const Figure &figure) c
         return PERMISSION_NONE;
     }
     return Roadblock::permission_for(figure);
+}
+
+roadblock_permission PathingPolicy::roadblockPermissionFor(const Figure &figure) const
+{
+    return mode ? mode->roadblockPermissionFor(figure) : Roadblock::permission_for(figure);
+}
+
+PathingMode::RoutePolicySelection PathingPolicy::routePolicySelection(
+    roadblock_permission permission,
+    RouteNeighborhood neighborhood) const
+{
+    PathingMode::RoutePolicySelection selection;
+    selection.terrain = terrain;
+    selection.policy = PathingMode::routePolicyForTerrain(terrain, permission, neighborhood);
+    return selection;
 }
 
 } // namespace figure_type_registry_impl

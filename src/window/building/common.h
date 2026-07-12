@@ -47,7 +47,7 @@ struct building_info_context {
     int height_blocks;
     int help_id;
     int can_play_sound;
-    Building building = Building(nullptr);
+    Building *building = nullptr;
     int has_road_access;
     int worker_percentage;
     int has_reservoir_pipes;

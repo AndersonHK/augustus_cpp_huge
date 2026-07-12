@@ -71,7 +71,9 @@ enum {
 
 
 
-#include "building/BuildingGraphics.h"
+#include "building/BuildingGraphicsDef.h"
+#include "building/RubbleDef.h"
+#include "building/religion.h"
 #include "building/water_access_type.h"
 #include "graphics/image.h"
 
@@ -84,6 +86,7 @@ enum {
 #include <string>
 #include <cstdint>
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -98,7 +101,6 @@ class StorageType;
 class Distribution;
 class Religion;
 enum class CultureModuleCountMode;
-enum class ReligionTier;
 
 enum class WaterAccessNodeKind {
     None,
@@ -306,6 +308,7 @@ enum class FoundationPolicy {
 
 enum class FoundationCellRequirement {
     Land,
+    LandOrAqueduct,
     Water,
     Road,
     RoadOrLand,
@@ -838,6 +841,10 @@ public:
     void set_roadblock_kind(RoadblockKind kind);
     void set_roadblock_bridge_type(RoadblockBridgeType type);
     void set_roadblock_passage_type(RoadblockPassageType type);
+    void set_rubble(RubbleType type);
+    void set_rubble_burn_days(int days);
+    void set_rubble_decay_reference(std::string attr);
+    void set_rubble_decay_type(const BuildingType *type);
     void set_tile_kind(TileKind kind);
     void set_tile_kind_key(std::string key);
     void set_tile_refresh_behavior(TileRefreshBehavior behavior);
@@ -922,6 +929,7 @@ public:
     const BuildButtonDefinition &button() const;
     const std::vector<BuildButtonDefinition> &buttons() const;
     const RoadblockDefinition &roadblock() const;
+    const RubbleDef &rubble() const;
     LaborCategory labor_category() const;
     const TileDefinition &tile() const;
     const ConstructionToolDefinition &tool() const;
@@ -933,28 +941,20 @@ public:
     const BuildingFlagsDefinition &flags() const;
     const MilitaryDefinition &military() const;
     const WaterAccessDefinition &water_access() const;
-    const BuildingGraphics &graphics() const;
+    const BuildingGraphicsDef &graphics() const;
     const ConstructionDefinition &construction() const;
     const ComposedBuildingDefinition &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
     int declared_model_size() const;
+    int placement_width(int orientation) const;
+    int placement_height(int orientation) const;
     figure_type preview_figure_type() const;
     int required_workers() const;
     int has_data_only_graphics() const;
-    int is_temple() const;
-    int is_temple(god_type god, ReligionTier tier) const;
-    int is_temple_for_god(god_type god) const;
-    int is_temple_tier(ReligionTier tier) const;
-    int is_ceres_temple() const;
-    int is_venus_temple() const;
-    int is_mars_temple() const;
-    int is_mercury_temple() const;
-    int is_neptune_temple() const;
-    int is_pantheon() const;
-    int is_oracle() const;
-    int is_grand_temple_mars() const;
-    int is_grand_temple_venus() const;
+    int is_temple(
+        std::optional<god_type> god = std::nullopt,
+        ReligionTier tier = ReligionTier::None) const;
     int is_theater() const;
     int is_hippodrome() const;
     int is_well() const;
@@ -970,6 +970,7 @@ public:
     int is_armoury() const;
     int is_farm() const;
     int is_storage() const;
+    resource_type output_resource() const;
     const ProductionMethod *farm_production_method() const;
     const ProductionMethod *farm_panel_production_method() const;
     int has_farm_panel() const;
@@ -981,6 +982,7 @@ public:
     int foundation_required_terrain() const;
     int has_button() const;
     int has_roadblock() const;
+    int has_rubble() const;
     int has_tile() const;
     int has_cycle() const;
     int has_temple() const;
@@ -1029,6 +1031,7 @@ private:
     FoundationDefinition foundation_;
     std::vector<BuildButtonDefinition> buttons_;
     RoadblockDefinition roadblock_;
+    RubbleDef rubble_;
     LaborCategory labor_category_ = LaborCategory::None;
     TileDefinition tile_;
     ConstructionToolDefinition tool_;
@@ -1041,7 +1044,7 @@ private:
     BuildingFlagsDefinition flags_;
     MilitaryDefinition military_;
     WaterAccessDefinition water_access_;
-    BuildingGraphics graphics_;
+    BuildingGraphicsDef graphics_;
     ConstructionDefinition construction_;
     bool has_construction_ = false;
     ComposedBuildingDefinition composition_;

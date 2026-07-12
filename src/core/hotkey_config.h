@@ -2,6 +2,8 @@
 
 #include "input/keys.h"
 
+#define HOTKEY_BUILDING_TEXT_ID_MAX 64
+
 typedef enum {
     HOTKEY_HEADER = -1,
     HOTKEY_VERSION = 0,
@@ -137,7 +139,10 @@ typedef struct {
     key_type key;
     key_modifier_type modifiers;
     hotkey_action action;
+    char building_text_id[HOTKEY_BUILDING_TEXT_ID_MAX];
 } hotkey_mapping;
+
+const char *hotkey_building_text_id_for_action(hotkey_action action);
 
 /**
  * Get mapping for action at the specified index

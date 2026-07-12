@@ -62,12 +62,18 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_back(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     input_box_stop(&command_input);
     window_go_back();
 }
 
 static void send_command(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     uint8_t command_copy[MAX_COMMAND_SIZE];
     string_copy(command_input.text, command_copy, MAX_COMMAND_SIZE);
     button_back(0, 0);

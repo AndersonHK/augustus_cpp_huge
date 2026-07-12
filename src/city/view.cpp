@@ -1,5 +1,6 @@
 #include "building/construction.h"
 #include "building/building_record.h"
+#include "building/building_runtime_internal.h"
 #include "graphics/menu.h"
 #include "map/image.h"
 #include "widget/minimap.h"
@@ -76,14 +77,12 @@ typedef struct {
     int grid_offset;
 } visible_view_tile;
 
-static Building building_for_render_tile(int grid_offset)
+static Building *building_for_render_tile(int grid_offset)
 {
-    const unsigned int building_id = map_building_at(grid_offset);
-    if (!building_id) {
-        return Building(nullptr);
+    if (!map_building_exists_at(grid_offset)) {
+        return nullptr;
     }
-    building *record = building_get(building_id);
-    return record && record->state != BUILDING_STATE_UNUSED ? Building(record) : Building(nullptr);
+    return &map_building_at(grid_offset);
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>
@@ -253,7 +252,7 @@ static void calculate_lookup(void)
     }
 }
 
-void city_view_set_custom_lookup(int start_offset, int width, int height, int border_size)
+void city_view_set_custom_lookup(int start_offset, int, int height, int border_size)
 {
     reset_lookup();
 

@@ -42,7 +42,7 @@ static generic_button mint_conversion_buttons[] = {
 };
 
 static struct {
-    Building city_mint = Building(nullptr);
+    Building *city_mint = nullptr;
     unsigned int focus_button_id;
 } data;
 
@@ -66,12 +66,6 @@ static int industry_text_draw(const industry_text &text, int offset, int x, int 
 {
     return text.keys ? lang_text_draw(text.keys[offset], x, y, font, pixel_size) :
         lang_text_draw(current_string_key(text.legacy_group, text.legacy_offset + offset), x, y, font, pixel_size);
-}
-
-static int industry_text_get_width(const industry_text &text, int offset, font_t font, int pixel_size)
-{
-    return text.keys ? lang_text_get_width(text.keys[offset], font, pixel_size) :
-        lang_text_get_width(current_string_key(text.legacy_group, text.legacy_offset + offset), font, pixel_size);
 }
 
 static int industry_text_draw_progress_line(
@@ -119,16 +113,9 @@ static int industry_text_draw_description_at(
         window_building_draw_description_at(c, y_offset, text.legacy_group, text.legacy_offset + offset);
 }
 
-static int building_type_requires_water_access(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->water_access().has_requirements();
-}
-
 static int building_has_farm_production(Building building)
 {
-    return building.type && building.type->is_farm();
+    return building.type->is_farm();
 }
 
 static int farm_progress_percentage(Building farm)
@@ -136,22 +123,19 @@ static int farm_progress_percentage(Building farm)
     int total_percentage = 0;
     int part_count = 0;
     farm.for_each_part([&](Building part) {
-        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+        if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }
-        building *record = building_get(part.id());
-        if (!record) {
-            return;
-        }
-        total_percentage += calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record));
+        const building *record = part.record();
+        total_percentage += calc_percentage(record->data.industry.progress, part.native_production_max_progress());
         part_count++;
     });
     if (part_count > 0) {
         return total_percentage / part_count;
     }
 
-    building *record = building_get(farm.id());
-    return record ? calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record)) : 0;
+    const building *record = farm.record();
+    return calc_percentage(record->data.industry.progress, farm.native_production_max_progress());
 }
 
 static int farm_efficiency(Building farm)
@@ -159,14 +143,10 @@ static int farm_efficiency(Building farm)
     int total_efficiency = 0;
     int part_count = 0;
     farm.for_each_part([&](Building part) {
-        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+        if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }
-        building *record = building_get(part.id());
-        if (!record) {
-            return;
-        }
-        const int efficiency = building_get_efficiency(record);
+        const int efficiency = part.native_production_efficiency();
         if (efficiency >= 0) {
             total_efficiency += efficiency;
             part_count++;
@@ -176,8 +156,7 @@ static int farm_efficiency(Building farm)
         return total_efficiency / part_count;
     }
 
-    building *record = building_get(farm.id());
-    return record ? building_get_efficiency(record) : -1;
+    return farm.native_production_efficiency();
 }
 
 static void draw_farm(building_info_context *c, int help_id, const char *sound_file, int group_id,
@@ -190,11 +169,8 @@ static void draw_farm(building_info_context *c, int help_id, const char *sound_f
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered(current_string_key(group_id, 0), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    Building &current_building = c->building;
-    building *b = building_get(current_building.id());
-    if (!b) {
-        return;
-    }
+    Building &current_building = *c->building;
+    const building *b = current_building.record();
     int pct_grown = farm_progress_percentage(current_building);
     industry_draw_output_with_progress_line(c, legacy_industry_text(group_id, 0), pct_grown, 44);
     const int production_rows_height = window_building_draw_production_rows(
@@ -273,14 +249,14 @@ static void draw_raw_material(
     industry_text_draw_centered(text, 0, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    Building &current_building = c->building;
-    building *b = building_get(current_building.id());
-    int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
+    Building &current_building = *c->building;
+    const building *b = current_building.record();
+    int pct_done = calc_percentage(b->data.industry.progress, current_building.native_production_max_progress());
     industry_draw_output_with_progress_line(c, text, pct_done, 44);
     const int production_rows_height = window_building_draw_production_rows(
         c, 56, WINDOW_BUILDING_PRODUCTION_INPUTS);
 
-    int efficiency = building_get_efficiency(b);
+    int efficiency = current_building.native_production_efficiency();
     if (efficiency < 0) {
         efficiency = 0;
     }
@@ -410,16 +386,16 @@ static void draw_workshop(
     industry_text_draw_centered(text, 0, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    Building &current_building = c->building;
-    building *b = building_get(current_building.id());
-    int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
+    Building &current_building = *c->building;
+    const building *b = current_building.record();
+    int pct_done = calc_percentage(b->data.industry.progress, current_building.native_production_max_progress());
     industry_draw_output_with_progress_line(c, text, pct_done, 40);
 
     int resources_y_offset = b->strike_duration_days ? 0 :
         window_building_draw_production_rows(c, 56,
             WINDOW_BUILDING_PRODUCTION_INPUTS);
 
-    int efficiency = building_get_efficiency(b);
+    int efficiency = current_building.native_production_efficiency();
     if (efficiency < 0) {
         efficiency = 0;
     }
@@ -439,9 +415,9 @@ static void draw_workshop(
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 13);
     } else if (current_building.worker_count() <= 0) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 5);
-    } else if (building_type_requires_water_access(b->type) && !b->has_water_access) {
+    } else if (current_building.type->water_access().has_requirements() && !b->has_water_access) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 11);
-    } else if (!building_industry_has_raw_materials_for_production(b)) {
+    } else if (!current_building.native_production_has_raw_materials()) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 11);
     } else if (c->worker_percentage < 25) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 10);
@@ -452,7 +428,7 @@ static void draw_workshop(
     } else if (c->worker_percentage < 100) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 7);
     } else if (current_building.type && current_building.type->attr_is("concrete_maker") && b->has_water_access &&
-        !water_access_runtime_building_area_has_access(b, "reservoir")) {
+        !water_access_runtime_building_area_has_access(&current_building, "reservoir")) {
         window_building_draw_description_at(c, 102 + resources_y_offset, "TR_BUILDING_CONCRETE_MAKER_IMPROVE_WATER_ACCESS");
     } else if (efficiency < 70) {
         window_building_draw_description_at(c, 102 + resources_y_offset, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_WORKSHOPS");
@@ -537,23 +513,29 @@ void window_building_draw_concrete_maker(building_info_context *c)
 
 static int governor_palace_is_allowed(void)
 {
-    return scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_house")) ||
-        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_villa")) ||
-        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_palace"));
+    return scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_house"))) ||
+        scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_villa"))) ||
+        scenario_allowed_building(
+            building_type_registry_impl::definition_for_type(
+                building_type_registry_impl::type_from_attr("governors_palace")));
 }
 
 void window_building_draw_city_mint(building_info_context *c)
 {
     c->help_id = 0;
     window_building_play_sound(c, "wavs/coin.wav");
-    Building city_mint = c->building;
-    building *b = building_get(city_mint.id());
-    data.city_mint = Building(nullptr);
+    Building &city_mint = *c->building;
+    const building *b = city_mint.record();
+    data.city_mint = nullptr;
     if (city_mint.monument_phase() == MONUMENT_FINISHED) {
         c->advisor_button = ADVISOR_FINANCIAL;
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
-        int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
+        int pct_done = calc_percentage(b->data.industry.progress, city_mint.native_production_max_progress());
         static const translation_key mint_progress_text[] = {
             nullptr,
             nullptr,
@@ -562,11 +544,10 @@ void window_building_draw_city_mint(building_info_context *c)
         };
         industry_draw_output_with_progress_line(c, named_industry_text(mint_progress_text), pct_done, 40);
 
-        int stored_gold = city_mint.resource_amount(resource_gold());
         const int production_rows_height = window_building_draw_production_rows(c, 64,
             WINDOW_BUILDING_PRODUCTION_INPUTS);
 
-        int efficiency = building_get_efficiency(b);
+        int efficiency = city_mint.native_production_efficiency();
         if (efficiency < 0) {
             efficiency = 0;
         }
@@ -616,7 +597,7 @@ void window_building_draw_city_mint(building_info_context *c)
                 city_buildings_has_governor_house() ?
                     "TR_BUILDING_CITY_MINT_DESC_PALACE" : "TR_BUILDING_CITY_MINT_DESC_NO_PALACE");
         }
-        data.city_mint = city_mint;
+        data.city_mint = &city_mint;
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
         window_building_draw_monument_construction_process(c, "TR_BUILDING_CITY_MINT_PHASE_1",
@@ -628,15 +609,15 @@ void window_building_draw_city_mint(building_info_context *c)
 
 void window_building_draw_city_mint_foreground(building_info_context *c)
 {
-    if (!data.city_mint.id()) {
+    if (!data.city_mint) {
         return;
     }
     int x = c->x_offset + 32;
     int y = c->y_offset + BLOCK_SIZE * c->height_blocks - 171;
     button_border_draw(x, y, 20, 20, data.focus_button_id == 1);
     button_border_draw(x, y + 24, 20, 20, data.focus_button_id == 2);
-    building *city_mint = building_get(data.city_mint.id());
-    int selected_offset = city_mint && city_mint->output_resource_id == resource_denarii() ? 0 : 24;
+    const building *city_mint = data.city_mint->record();
+    int selected_offset = city_mint->output_resource_id == resource_denarii() ? 0 : 24;
     ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 4, y + 4 + selected_offset);
 }
 
@@ -652,12 +633,13 @@ void window_building_draw_shipyard(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.100.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building.id());
+    const Building &current_building = *c->building;
+    const ::building *b = current_building.record();
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else {
-        const int max_progress = building_industry_get_max_progress(b);
+        const int max_progress = current_building.native_production_max_progress();
         int pct_done = max_progress > 0 ? calc_percentage(b->data.industry.progress, max_progress) : 0;
         industry_text_draw_progress_line(legacy_industry_text(100, 0), pct_done, c->x_offset + 32,
             c->y_offset + 56, FONT_NORMAL_BLACK,
@@ -667,7 +649,7 @@ void window_building_draw_shipyard(building_info_context *c)
             window_building_draw_production_rows(c, 80, WINDOW_BUILDING_PRODUCTION_INPUTS) : 0;
         const int text_y = 80 + inputs_height;
         if (boats_needed) {
-            if (!building_industry_has_raw_materials_for_production(b)) {
+            if (!current_building.native_production_has_raw_materials()) {
                 window_building_draw_description_at(c, text_y, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
             } else {
                 lang_text_draw_multiline("main_strings.100.5", c->x_offset + 32, c->y_offset + text_y, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -691,9 +673,9 @@ void window_building_draw_wharf(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.102.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building.id());
+    const building *b = c->building->record();
 
-    Figure *boat = map_water_wharf_live_fishing_boat(c->building);
+    Figure *boat = map_water_wharf_live_fishing_boat(*c->building);
     bool has_live_boat = boat != nullptr;
 
     if (!c->has_road_access) {
@@ -737,17 +719,18 @@ void window_building_draw_wharf(building_info_context *c)
 
 static void city_mint_conversion_changed(int accepted, int checked)
 {
+    (void) checked;
     if (!accepted) {
         return;
     }
-    building *city_mint = building_get(data.city_mint.id());
-    if (!city_mint) {
+    if (!data.city_mint) {
         return;
     }
+    building *city_mint = const_cast<building *>(data.city_mint->record());
     if (city_mint->output_resource_id == resource_denarii()) {
-        city_mint->output_resource_id = resource_gold();
+        city_mint->output_resource_id = static_cast<unsigned char>(resource_gold());
     } else {
-        city_mint->output_resource_id = resource_denarii();
+        city_mint->output_resource_id = static_cast<unsigned char>(resource_denarii());
     }
     city_mint->data.industry.progress = 0;
     city_mint->data.industry.age_months = 0;
@@ -758,7 +741,7 @@ static void city_mint_conversion_changed(int accepted, int checked)
 static void set_city_mint_conversion(const generic_button *button)
 {
     resource_type resource = static_cast<resource_type>(button->parameter1);
-    building *city_mint = building_get(data.city_mint.id());
+    const building *city_mint = data.city_mint ? data.city_mint->record() : nullptr;
     if (city_mint && city_mint->output_resource_id != resource) {
         window_popup_dialog_show_confirmation(translation_for_key("TR_BUILDING_CITY_MINT_CHANGE_PRODUCTION"),
             translation_for_key("TR_BUILDING_CITY_MINT_PROGRESS_WILL_BE_LOST"), 0, city_mint_conversion_changed);
@@ -767,7 +750,7 @@ static void set_city_mint_conversion(const generic_button *button)
 
 int window_building_handle_mouse_city_mint(const mouse *m, building_info_context *c)
 {
-    if (!data.city_mint.id()) {
+    if (!data.city_mint) {
         return 0;
     }
     if (GenericButtonList(mint_conversion_buttons, 2).handle_mouse(
@@ -784,10 +767,10 @@ int window_building_handle_mouse_city_mint(const mouse *m, building_info_context
 
 void window_building_industry_get_tooltip(building_info_context *c, translation_key *translation)
 {
-    building_type type = c->building.type ? c->building.type->type() : BUILDING_NONE;
+    const building_type_registry_impl::BuildingType *type = c->building->type;
     int needed_resources = building_get_raw_materials_for_workshop(0, type);
     int y_correction;
-    if (c->building.type && c->building.type->attr_is("city_mint")) {
+    if (type->attr_is("city_mint")) {
         y_correction = 8;
     } else if (needed_resources > 0) {
         y_correction = 8 + needed_resources * 20;

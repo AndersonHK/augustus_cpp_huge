@@ -157,14 +157,15 @@ void city_festival_schedule(void)
     if (city_data.festival.selected.size == FESTIVAL_GRAND) {
         int wine_needed = city_data.festival.grand_wine;
         if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-            Building venus_gt(building_get(building_monument_get_venus_gt()));
-            int temple_wine = venus_gt.resource_amount(resource_wine());
-            if (wine_needed <= temple_wine) {
-                venus_gt.add_resource(resource_wine(), -wine_needed);
-                wine_needed = 0;
-            } else {
-                wine_needed -= temple_wine;
-                venus_gt.set_resource_amount(resource_wine(), 0);
+            if (Building *venus_gt = grand_temple_for_god(GOD_VENUS, false)) {
+                int temple_wine = venus_gt->resource_amount(resource_wine());
+                if (wine_needed <= temple_wine) {
+                    venus_gt->add_resource(resource_wine(), -wine_needed);
+                    wine_needed = 0;
+                } else {
+                    wine_needed -= temple_wine;
+                    venus_gt->set_resource_amount(resource_wine(), 0);
+                }
             }
         }
         building_warehouses_remove_resource(resource_wine(), wine_needed);
@@ -227,7 +228,9 @@ void city_festival_update(void)
     }
 
     if (building_monument_working(building_type_registry_impl::first_type_where(
-        [](const building_type_registry_impl::BuildingType &type) { return type.is_pantheon(); }))) {
+        [](const building_type_registry_impl::BuildingType &type) {
+            return type.is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand);
+        }))) {
         for (int god = 0; god <= 4; ++god) {
             if (game_time_total_years() % 5 == god && game_time_month() == autofestivals[god].month) {
                 throw_auto_festival(god);
@@ -240,8 +243,9 @@ void city_festival_calculate_costs(void)
 {
     int wine_available = city_data.resource.stored_in_warehouses[resource_wine()];
     if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-        Building venus_gt(building_get(building_monument_get_venus_gt()));
-        wine_available += venus_gt.resource_amount(resource_wine());
+        if (Building *venus_gt = grand_temple_for_god(GOD_VENUS, false)) {
+            wine_available += venus_gt->resource_amount(resource_wine());
+        }
     }
 
     city_data.festival.small_cost = city_data.population.population / 20 + 10;

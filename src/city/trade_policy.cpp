@@ -17,10 +17,10 @@ void city_trade_policy_set(trade_policy_type type, trade_policy policy)
 {
     switch (type) {
         case LAND_TRADE_POLICY:
-            city_data.trade.land_policy = policy;
+            city_data.trade.land_policy = static_cast<uint8_t>(policy);
             break;
         case SEA_TRADE_POLICY:
-            city_data.trade.sea_policy = policy;
+            city_data.trade.sea_policy = static_cast<uint8_t>(policy);
             break;
     }
 }

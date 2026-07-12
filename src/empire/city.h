@@ -44,8 +44,6 @@ int empire_can_export_resource_potentially(int resource);
 
 int empire_can_export_resource(int resource);
 
-int empire_can_produce_resource_locally(int resource);
-
 int empire_can_produce_resource(int resource);
 
 int empire_can_produce_resource_naturally(int resource);
@@ -112,4 +110,3 @@ int empire_city_get_array_size(void);
 int empire_city_get_icon_image_id(empire_city_icon_type type);
 
 int empire_city_get_at(int x, int y, const uint8_t *name);
-

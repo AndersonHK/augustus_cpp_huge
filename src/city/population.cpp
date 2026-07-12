@@ -10,7 +10,10 @@
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
+#include "core/crash_context.h"
 #include "core/random.h"
+
+#include <cstdio>
 
 int city_population(void)
 {
@@ -283,6 +286,7 @@ int city_population_at_level(int level)
 
 static void yearly_advance_ages_and_calculate_deaths(void)
 {
+    CrashContextScope yearly_scope("yearly population age/death update");
     int aged100 = city_data.population.at_age[99];
     for (int age = 99; age > 0; age--) {
         city_data.population.at_age[age] = city_data.population.at_age[age - 1];
@@ -294,6 +298,18 @@ static void yearly_advance_ages_and_calculate_deaths(void)
         int death_percentage = game_defines_mortality_percentage(city_data.health.value / 10, decennium);
         int deaths = calc_adjust_with_percentage(people, death_percentage);
         int requested_removal = deaths + aged100;
+        char context[160];
+        snprintf(
+            context,
+            sizeof(context),
+            "decennium=%d people=%d death_percentage=%d deaths=%d aged100=%d requested_removal=%d",
+            decennium,
+            people,
+            death_percentage,
+            deaths,
+            aged100,
+            requested_removal);
+        yearly_scope.set_context(context);
         int removed = house_population_remove_from_city(requested_removal);
         // The age census is citywide, so only remove cohort deaths that were also removed from houses.
         int missed_removal = requested_removal - removed;
@@ -341,7 +357,7 @@ static void yearly_calculate_births(void)
         int birth_percentage = game_defines_birth_percentage(decennium);
         int births = calc_adjust_with_percentage(people, birth_percentage);
         int added = house_population_add_to_city(births);
-        city_data.population.at_age[0] += added;
+        city_data.population.at_age[0] = static_cast<int16_t>(city_data.population.at_age[0] + added);
         city_data.population.yearly_births += added;
     }
 }
@@ -365,15 +381,15 @@ static int calculate_people_per_house_type(void)
     city_data.population.people_in_tents = 0;
     city_data.population.people_in_large_insula_and_above = 0;
     int total = 0;
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        building *b = const_cast<building *>(house->record());
         if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
             b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
             !b->house_size) {
-            continue;
+            return;
         }
         int pop = b->house_population;
-        int legacy_level = building_house_legacy_level(Building(b));
+        int legacy_level = building_house_legacy_level(*house);
         total += pop;
         if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
             city_data.population.people_in_tents += pop;
@@ -384,10 +400,10 @@ static int calculate_people_per_house_type(void)
         if (legacy_level >= HOUSE_LARGE_INSULA) {
             city_data.population.people_in_large_insula_and_above += pop;
         }
-        if (building_house_has_patrician_residents(Building(b))) {
+        if (building_house_has_patrician_residents(*house)) {
             city_data.population.people_in_villas_palaces += pop;
         }
-    }
+    });
     return total;
 }
 
@@ -404,6 +420,33 @@ void city_population_yearly_update(void)
         yearly_calculate_births();
         yearly_recalculate_population();
     }
+}
+
+void city_population_debug_dump(FILE *file)
+{
+    if (!file) {
+        return;
+    }
+
+    fprintf(file, "  \"city_population\": {\n");
+    fprintf(file, "    \"population\": %d,\n", city_data.population.population);
+    fprintf(file, "    \"school_age\": %d,\n", city_data.population.school_age);
+    fprintf(file, "    \"academy_age\": %d,\n", city_data.population.academy_age);
+    fprintf(file, "    \"total_capacity\": %d,\n", city_data.population.total_capacity);
+    fprintf(file, "    \"room_in_houses\": %d,\n", city_data.population.room_in_houses);
+    fprintf(file, "    \"yearly_update_requested\": %d,\n", city_data.population.yearly_update_requested);
+    fprintf(file, "    \"yearly_deaths\": %d,\n", city_data.population.yearly_deaths);
+    fprintf(file, "    \"last_used_house_add\": %d,\n", city_data.population.last_used_house_add);
+    fprintf(file, "    \"last_used_house_remove\": %d,\n", city_data.population.last_used_house_remove);
+    fprintf(file, "    \"at_age\": [");
+    for (int age = 0; age < 100; ++age) {
+        if (age) {
+            fprintf(file, ", ");
+        }
+        fprintf(file, "%d", city_data.population.at_age[age]);
+    }
+    fprintf(file, "]\n");
+    fprintf(file, "  }");
 }
 
 void city_population_check_consistency(void)

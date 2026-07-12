@@ -1,6 +1,5 @@
 #include "building/building_type.h"
 #include "translation/translation.h"
-#include "building/clone.h"
 #include "building/construction.h"
 #include "building/data_transfer.h"
 #include "../building/industry.h"
@@ -64,6 +63,16 @@
 
 #define TOPLEFT_MESSAGES_X 5
 #define TOPLEFT_MESSAGES_Y_SPACING 24
+
+static void set_construction_building_type(const building_type_registry_impl::BuildingType *type, int rotation)
+{
+    if (scenario_allowed_building(type) && building_menu_is_enabled(type)) {
+        building_construction_cancel();
+        building_construction_set_type(type, rotation);
+        window_request_refresh();
+    }
+}
+
 
 static int time_left_label_shown;
 
@@ -475,7 +484,7 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     } else if (building_type_registry_impl::type_attr_is_any(type.type(), {"forum", "senate"})) {
         overlay = OVERLAY_TAX_INCOME;
     } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
-        resource_is_food(building_output_resource(type.type())) ||
+        resource_is_food(building_output_resource(&type)) ||
         building_type_registry_impl::type_attr_is_any(type.type(), {
             "market", "oil_workshop", "wine_workshop", "wharf"
         })) {
@@ -502,12 +511,6 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     return overlay;
 }
 
-static Building building_main_at_grid_offset(int grid_offset)
-{
-    const int building_id = map_building_at(grid_offset);
-    return building_id ? Building(building_get(building_id)).main() : Building(nullptr);
-}
-
 static int get_overlay_for_terrain(int terrain)
 {
     if (terrain & TERRAIN_RUBBLE) {
@@ -532,8 +535,8 @@ static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
     const int terrain = map_terrain_get(grid_offset);
-    const Building building = building_main_at_grid_offset(grid_offset);
-    if (building.id() && building.type) {
+    const Building building = map_building_at(grid_offset).main();
+    if (building.id && building.type) {
         overlay = get_overlay_for_building_type(*building.type);
     } else {
         overlay = get_overlay_for_terrain(terrain);
@@ -560,39 +563,24 @@ static int has_storage_orders(const building_type_registry_impl::BuildingType &t
             building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE));
 }
 
-static void toggle_mothball_building(Building &building)
+static void toggle_mothball_building(Building *building)
 {
-    if (!building.id() || !building.type) {
-        return;
-    }
-
-    const model_building *model = model_get_building(building.type->type());
-    if (!model || !model->laborers) {
-        return;
-    }
-
-    building_mothball_toggle(building_get(building.id()));
-    if (building.is_in_use()) {
+    building->building_mothball_toggle();
+    if (building->is_in_use()) {
         city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
-    } else if (building.is_mothballed()) {
+    } else if (building->is_mothballed()) {
         city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_ON"));
     }
 }
 
 static void copy_building_settings(Building &building)
 {
-    if (!building.id()) {
-        return;
-    }
-    building_data_transfer_copy(building_get(building.id()), 0);
+    building_data_transfer_copy(&building, 0);
 }
 
 static void paste_building_settings(Building &building)
 {
-    if (!building.id()) {
-        return;
-    }
-    building_data_transfer_paste(building_get(building.id()), 0);
+    building_data_transfer_paste(&building, 0);
 }
 
 static int tooltip_has_widget_payload(const tooltip_context *c)
@@ -634,15 +622,6 @@ static void toggle_pause(void)
 {
     game_state_toggle_paused();
     city_warning_clear_all();
-}
-
-static void set_construction_building_type(building_type type, int rotation)
-{
-    if (scenario_allowed_building(type) && building_menu_is_enabled(type)) {
-        building_construction_cancel();
-        building_construction_set_type(type, rotation);
-        window_request_refresh();
-    }
 }
 
 static void handle_hotkeys(const hotkeys *h)
@@ -717,20 +696,23 @@ static void handle_hotkeys(const hotkeys *h)
         building_rotation_rotate_backward();
     }
     if (h->building) {
-        set_construction_building_type(static_cast<building_type>(h->building), 0);
+        set_construction_building_type(h->building, 0);
     }
     if (h->undo) {
         game_undo_perform();
         window_invalidate();
     }
     if (h->mothball_toggle) {
-        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
-        toggle_mothball_building(building);
+        int grid_offset = widget_city_current_grid_offset();
+        if (map_building_exists_at(grid_offset)) {
+            Building &building = map_building_at(grid_offset).main();
+            toggle_mothball_building(&building);
+        }
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
-        const Building building = building_main_at_grid_offset(grid_offset);
-        if (building.id() && building.type) {
+        const Building building = map_building_at(grid_offset).main();
+        if (building.id && building.type) {
             if (has_storage_orders(*building.type)) {
                 window_building_info_show(grid_offset);
                 window_building_info_show_storage_orders();
@@ -738,19 +720,17 @@ static void handle_hotkeys(const hotkeys *h)
         }
     }
     if (h->clone_building) {
-        building_type type = building_clone_type_from_grid_offset(widget_city_current_grid_offset());
-        int rotation = building_clone_rotation_from_grid_offset(widget_city_current_grid_offset());
-        if (type) {
-            set_construction_building_type(type, rotation);
-        }
-
+        Building building = map_building_at(widget_city_current_grid_offset()).main();
+        const building_type_registry_impl::BuildingType *type =
+            building.Rubble && building.Rubble->original_type() ? building.Rubble->original_type() : building.type;
+        set_construction_building_type(type, building.Graphics().rotation());
     }
     if (h->copy_building_settings) {
-        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        Building building = map_building_at(widget_city_current_grid_offset()).main();
         copy_building_settings(building);
     }
     if (h->paste_building_settings) {
-        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        Building building = map_building_at(widget_city_current_grid_offset()).main();
         paste_building_settings(building);
     }
     if (h->show_empire_map) {

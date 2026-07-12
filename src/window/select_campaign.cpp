@@ -106,7 +106,7 @@ static void init(void)
     calculate_input_box_width();
     input_box_start(&player_name_input);
     rich_text_set_fonts(FONT_NORMAL_BLACK, FONT_NORMAL_BLACK, FONT_NORMAL_BLACK, 5);
-    list_box_init(&list_box, data.campaign_list->num_files + 1);
+    list_box_init(&list_box, static_cast<unsigned int>(data.campaign_list->num_files + 1));
     list_box_select_index(&list_box, ORIGINAL_CAMPAIGN_ID);
 }
 
@@ -234,6 +234,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_back(const generic_button *button)
 {
+    (void)button;
+
     input_box_stop(&player_name_input);
     game_campaign_clear();
     window_main_menu_show(0);
@@ -260,6 +262,8 @@ static void select_campaign(unsigned int index, int is_double_click)
 
 static void button_start_mission(const generic_button *button)
 {
+    (void)button;
+
     const campaign_info *info = game_campaign_get_info();
     if (!info) {
         window_plain_message_dialog_show("TR_WINDOW_INVALID_CAMPAIGN_TITLE",
@@ -279,6 +283,8 @@ static void button_start_mission(const generic_button *button)
 
 static void button_mission_list(const generic_button *button)
 {
+    (void)button;
+
     const campaign_info *info = game_campaign_get_info();
     if (!info || !info->current_mission) {
         return;

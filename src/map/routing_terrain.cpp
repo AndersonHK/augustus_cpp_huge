@@ -3,7 +3,6 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
-#include "building/destruction.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -14,8 +13,8 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
+#include "map/routing.h"
 #include "map/routing_data.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 
 static void update_land_terrain_noncitizen(void);
@@ -97,10 +96,13 @@ void Route::updateLandTerrain(void)
 
 static int get_land_type_citizen_building(int grid_offset)
 {
-    building *b = building_get(map_building_at(grid_offset));
+    if (!map_building_exists_at(grid_offset)) {
+        return CITIZEN_4_CLEAR_TERRAIN;
+    }
+    Building current = map_building_at(grid_offset);
+    building *b = const_cast<::building *>(current.record());
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    Building current(b);
     if (current.type && current.type->is_warehouse()) {
         type = CITIZEN_0_ROAD;
     } else if (current.type && current.type->roadblock().is_wall_gate()) {
@@ -164,7 +166,7 @@ void Route::updateCitizenLandTerrain(void)
             } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
-                if (!map_building_at(grid_offset)) {
+                if (!map_building_exists_at(grid_offset)) {
                     // shouldn't happen
                     terrain_land_noncitizen.items[grid_offset] = CITIZEN_4_CLEAR_TERRAIN; // BUG: should be citizen?
                     map_terrain_remove(grid_offset, TERRAIN_BUILDING);
@@ -173,9 +175,9 @@ void Route::updateCitizenLandTerrain(void)
                     map_property_set_multi_tile_size(grid_offset, 1);
                     continue;
                 }
-                terrain_land_citizen.items[grid_offset] = get_land_type_citizen_building(grid_offset);
+                terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_building(grid_offset));
             } else if (terrain & TERRAIN_AQUEDUCT) {
-                terrain_land_citizen.items[grid_offset] = get_land_type_citizen_aqueduct(grid_offset);
+                terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_aqueduct(grid_offset));
             } else if (terrain & TERRAIN_NOT_CLEAR) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_N1_BLOCKED;
             } else {
@@ -187,9 +189,12 @@ void Route::updateCitizenLandTerrain(void)
 
 static int get_land_type_noncitizen(int grid_offset)
 {
+    if (!map_building_exists_at(grid_offset)) {
+        return NONCITIZEN_2_CLEARABLE;
+    }
     int type = NONCITIZEN_1_BUILDING;
-    building *b = building_get(map_building_at(grid_offset));
-    Building current(b);
+    Building current = map_building_at(grid_offset);
+    building *b = const_cast<::building *>(current.record());
     if ((current.type && current.type->is_warehouse()) ||
         building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = NONCITIZEN_0_PASSABLE;
@@ -222,7 +227,7 @@ static void update_land_terrain_noncitizen(void)
             if (terrain & TERRAIN_GATEHOUSE) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_4_GATEHOUSE;
             } else if (terrain & TERRAIN_BUILDING) {
-                terrain_land_noncitizen.items[grid_offset] = get_land_type_noncitizen(grid_offset);
+                terrain_land_noncitizen.items[grid_offset] = static_cast<int8_t>(get_land_type_noncitizen(grid_offset));
             } else if (is_road_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
             } else if (terrain & TERRAIN_HIGHWAY) {
@@ -257,7 +262,7 @@ void Route::updateWaterTerrain(void)
             if (map_terrain_is(grid_offset, TERRAIN_WATER) && is_surrounded_by_water(grid_offset)) {
                 if (x > 0 && x < map_data.width - 1 &&
                     y > 0 && y < map_data.height - 1) {
-                    switch (map_sprite_bridge_at(grid_offset)) {
+                    switch (map_bridge_legacy_section_at(grid_offset)) {
                         case 5:
                         case 6: // low bridge middle section
                             terrain_water.items[grid_offset] = WATER_N3_LOW_BRIDGE;
@@ -370,20 +375,4 @@ int building_destroyable_at(int grid_offset)
 {
     return terrain_land_noncitizen.items[grid_offset] > NONCITIZEN_0_PASSABLE &&
         terrain_land_noncitizen.items[grid_offset] != NONCITIZEN_5_FORT;
-}
-
-destroyable_tile_type building_destroyable_type_at(int grid_offset)
-{
-    switch (terrain_land_noncitizen.items[grid_offset]) {
-        case NONCITIZEN_1_BUILDING:
-            return DESTROYABLE_BUILDING;
-        case NONCITIZEN_2_CLEARABLE:
-            return DESTROYABLE_AQUEDUCT_GARDEN;
-        case NONCITIZEN_3_WALL:
-            return DESTROYABLE_WALL;
-        case NONCITIZEN_4_GATEHOUSE:
-            return DESTROYABLE_GATEHOUSE;
-        default:
-            return DESTROYABLE_NONE;
-    }
 }

@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Deploy the current Vespasian release build into the installed Caesar 3 folder."""
+"""Deploy Vespasian while preserving installed graphics-extraction output."""
 
 from __future__ import annotations
 
 import argparse
-import traceback
 import ctypes
 from ctypes import wintypes
+from dataclasses import dataclass
+import hashlib
 import os
 import stat
 import shutil
 import sys
 import time
+import traceback
 from pathlib import Path
 
 
@@ -22,6 +24,8 @@ GAME_ROOT_REQUIRED_FILES = ("c3.exe",)
 GAME_ROOT_LOCALE_FILES = ("c3.eng", "c3_mm.eng")
 LEGACY_DEPLOY_WORKSPACES = ("Mods.deploy-staging", "Mods.deploy-backup")
 DEPLOY_BACKUP_PREFIX = "Mods.deploy-backup"
+GRAPHICS_FOLDER = "Graphics"
+GRAPHICS_BACKUP_FOLDER = ".graphics-overwrites"
 PROCESS_SNAPSHOT_FLAG = 0x00000002
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -39,6 +43,16 @@ class PROCESSENTRY32W(ctypes.Structure):
         ("dwFlags", ctypes.c_ulong),
         ("szExeFile", ctypes.c_wchar * 260),
     ]
+
+
+@dataclass
+class ModOverlayBackup:
+    source: Path
+    target: Path
+    backup: Path
+    target_existed: bool
+    graphics_created_directories: list[Path]
+    preserved_files: dict[Path, str]
 
 
 def windows_process_entries() -> list[tuple[int, int, str]]:
@@ -348,6 +362,8 @@ def make_writable_and_retry_remove(func: object, path: str, exc_info: object) ->
 def remove_tree(path: Path, label: str) -> None:
     if not path.exists():
         return
+    if path.is_symlink() or is_reparse_point(path):
+        raise RuntimeError(f"Refusing to recursively remove a reparse point for {label}: {path}")
     last_error: OSError | None = None
     for attempt in range(3):
         try:
@@ -363,7 +379,9 @@ def remove_tree(path: Path, label: str) -> None:
 def remove_path(path: Path, label: str) -> None:
     if not path.exists():
         return
-    if path.is_dir() and not path.is_symlink():
+    if path.is_symlink() or is_reparse_point(path):
+        raise RuntimeError(f"Refusing to remove a reparse point for {label}: {path}")
+    if path.is_dir():
         remove_tree(path, label)
         return
     try:
@@ -405,6 +423,19 @@ def cleanup_legacy_deploy_workspaces(game_root: Path, dry_run: bool) -> None:
             remove_deploy_workspace(workspace, game_root, "stale deploy workspace", required=False)
 
 
+def require_no_interrupted_deploy_workspaces(game_root: Path) -> None:
+    interrupted = list(game_root.glob(f"{DEPLOY_BACKUP_PREFIX}.*"))
+    if not interrupted:
+        return
+    for workspace in interrupted:
+        require_safe_deploy_workspace_path(workspace, game_root, "interrupted deploy backup")
+    listed = ", ".join(str(path) for path in interrupted)
+    raise RuntimeError(
+        "Refusing to start while an interrupted deploy backup exists. Inspect and restore or remove it first: "
+        + listed
+    )
+
+
 def unique_deploy_backup_path(game_root: Path) -> Path:
     timestamp_ms = int(time.time() * 1000)
     for attempt in range(100):
@@ -421,11 +452,59 @@ def require_real_directory(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} must not be a symlink, junction, or reparse point: {path}")
 
 
-def move_path(source: Path, destination: Path, label: str) -> None:
+def require_tree_without_reparse_points(root: Path, label: str) -> None:
+    require_real_directory(root, label)
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        for entry in os.scandir(directory):
+            path = Path(entry.path)
+            if entry.is_symlink() or is_reparse_point(path):
+                raise RuntimeError(f"{label} contains a symlink, junction, or reparse point: {path}")
+            if entry.is_dir(follow_symlinks=False):
+                pending.append(path)
+
+
+def is_extraction_metadata(name: str) -> bool:
+    folded = name.casefold()
+    return (
+        folded.startswith("graphics.")
+        and "extract" in folded
+        and (folded.endswith(".stamp") or folded.endswith(".manifest"))
+    )
+
+
+def top_entry_is_preserved(entry: Path, source_mod: Path) -> bool:
+    if entry.name == GRAPHICS_FOLDER:
+        return True
+    return is_extraction_metadata(entry.name) and not (source_mod / entry.name).exists()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def copy_path(source: Path, destination: Path, label: str) -> None:
+    if source.is_symlink() or is_reparse_point(source):
+        raise RuntimeError(f"{label} source must not be a symlink, junction, or reparse point: {source}")
+    if source.is_dir():
+        copy_tree(source, destination, label)
+        return
+    if not source.is_file():
+        raise RuntimeError(f"{label} source is not a regular file or directory: {source}")
+    if destination.exists():
+        raise RuntimeError(f"{label} destination already exists before copy: {destination}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        source.replace(destination)
+        shutil.copy2(source, destination)
     except OSError as exc:
-        raise RuntimeError(f"Unable to move {label}: {source} -> {destination}. {describe_os_error(exc)}") from exc
+        raise RuntimeError(
+            f"Unable to copy {label}: {source} -> {destination}. {describe_os_error(exc)}"
+        ) from exc
 
 
 def copy_tree(source: Path, destination: Path, label: str) -> None:
@@ -445,20 +524,185 @@ def copy_tree(source: Path, destination: Path, label: str) -> None:
         ) from exc
 
 
-def restore_mod_folders(target_mods: Path, backup_mods: Path, original_existing: set[str]) -> list[str]:
-    restore_errors: list[str] = []
-    for folder in sorted(EXPECTED_MOD_FOLDERS):
-        target_folder = target_mods / folder
-        backup_folder = backup_mods / folder
+def source_graphics_paths(source_graphics: Path) -> tuple[list[Path], list[Path]]:
+    if not source_graphics.exists():
+        return [], []
+    require_tree_without_reparse_points(source_graphics, "source Graphics folder")
+    directories: list[Path] = []
+    files: list[Path] = []
+    for path in source_graphics.rglob("*"):
+        relative = path.relative_to(source_graphics)
+        if path.is_dir():
+            directories.append(relative)
+        elif path.is_file():
+            files.append(relative)
+        else:
+            raise RuntimeError(f"Source Graphics contains an unsupported entry: {path}")
+    return directories, files
+
+
+def preserved_extraction_files(source_mod: Path, target_mod: Path) -> list[Path]:
+    preserved: list[Path] = []
+    if not target_mod.exists():
+        return preserved
+
+    source_graphics = source_mod / GRAPHICS_FOLDER
+    _, source_files = source_graphics_paths(source_graphics)
+    source_file_set = set(source_files)
+    target_graphics = target_mod / GRAPHICS_FOLDER
+    if target_graphics.exists():
+        require_tree_without_reparse_points(target_graphics, "target extracted Graphics folder")
+        for path in target_graphics.rglob("*"):
+            if path.is_file():
+                relative_graphics = path.relative_to(target_graphics)
+                if relative_graphics not in source_file_set:
+                    preserved.append(path)
+
+    for entry in target_mod.iterdir():
+        if top_entry_is_preserved(entry, source_mod) and entry.name != GRAPHICS_FOLDER:
+            if not entry.is_file() or entry.is_symlink() or is_reparse_point(entry):
+                raise RuntimeError(f"Extraction metadata must be a regular file: {entry}")
+            preserved.append(entry)
+    return preserved
+
+
+def preserved_extraction_manifest(source_mod: Path, target_mod: Path) -> dict[Path, str]:
+    return {
+        path.relative_to(target_mod): sha256_file(path)
+        for path in preserved_extraction_files(source_mod, target_mod)
+    }
+
+
+def prepare_mod_overlay_backup(source_mod: Path, target_mod: Path, backup_mod: Path) -> ModOverlayBackup:
+    require_tree_without_reparse_points(source_mod, "source mod folder")
+    target_existed = target_mod.exists()
+    if target_existed:
+        require_tree_without_reparse_points(target_mod, "target mod folder")
+
+    backup_mod.mkdir(parents=True)
+    if target_existed:
+        for entry in target_mod.iterdir():
+            if not top_entry_is_preserved(entry, source_mod):
+                copy_path(entry, backup_mod / entry.name, "target managed-content backup")
+
+    source_graphics = source_mod / GRAPHICS_FOLDER
+    source_directories, source_files = source_graphics_paths(source_graphics)
+    target_graphics = target_mod / GRAPHICS_FOLDER
+    graphics_existed = target_graphics.is_dir()
+    if target_graphics.exists() and not graphics_existed:
+        raise RuntimeError(f"Target Graphics path is not a directory: {target_graphics}")
+
+    created_directories: list[Path] = []
+    if source_graphics.exists():
+        if not target_graphics.exists():
+            created_directories.append(Path(GRAPHICS_FOLDER))
+        for relative in source_directories:
+            destination = target_graphics / relative
+            if destination.exists() and not destination.is_dir():
+                raise RuntimeError(f"Source Graphics directory conflicts with a target file: {destination}")
+            if not destination.exists():
+                created_directories.append(Path(GRAPHICS_FOLDER) / relative)
+
+    overwrite_root = backup_mod / GRAPHICS_BACKUP_FOLDER
+    for relative in source_files:
+        destination = target_graphics / relative
+        if destination.exists():
+            if not destination.is_file() or destination.is_symlink() or is_reparse_point(destination):
+                raise RuntimeError(f"Source Graphics file conflicts with a non-regular target entry: {destination}")
+            copy_path(destination, overwrite_root / relative, "target Graphics overwrite backup")
+
+    return ModOverlayBackup(
+        source=source_mod,
+        target=target_mod,
+        backup=backup_mod,
+        target_existed=target_existed,
+        graphics_created_directories=created_directories,
+        preserved_files=preserved_extraction_manifest(source_mod, target_mod),
+    )
+
+
+def remove_managed_top_entries(source_mod: Path, target_mod: Path, label: str) -> None:
+    if not target_mod.exists():
+        return
+    for entry in list(target_mod.iterdir()):
+        if not top_entry_is_preserved(entry, source_mod):
+            remove_path(entry, label)
+
+
+def overlay_source_graphics(source_graphics: Path, target_graphics: Path) -> None:
+    if not source_graphics.exists():
+        return
+    target_graphics.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copytree(source_graphics, target_graphics, dirs_exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Unable to overlay source Graphics: {source_graphics} -> {target_graphics}. {describe_os_error(exc)}"
+        ) from exc
+
+
+def apply_mod_overlay(overlay: ModOverlayBackup) -> None:
+    overlay.target.mkdir(parents=True, exist_ok=True)
+    remove_managed_top_entries(overlay.source, overlay.target, "old target managed content")
+    for entry in overlay.source.iterdir():
+        if entry.name != GRAPHICS_FOLDER:
+            copy_path(entry, overlay.target / entry.name, "source managed content")
+    overlay_source_graphics(
+        overlay.source / GRAPHICS_FOLDER,
+        overlay.target / GRAPHICS_FOLDER,
+    )
+
+
+def verify_mod_overlay(overlay: ModOverlayBackup) -> None:
+    for source_file in overlay.source.rglob("*"):
+        if not source_file.is_file():
+            continue
+        relative = source_file.relative_to(overlay.source)
+        target_file = overlay.target / relative
+        if not target_file.is_file() or sha256_file(target_file) != sha256_file(source_file):
+            raise RuntimeError(f"Deployed source file does not match: {target_file}")
+    for relative, expected_hash in overlay.preserved_files.items():
+        target_file = overlay.target / relative
+        if not target_file.is_file() or sha256_file(target_file) != expected_hash:
+            raise RuntimeError(f"Preserved extracted file changed during deploy: {target_file}")
+
+
+def restore_mod_overlay(overlay: ModOverlayBackup) -> None:
+    remove_managed_top_entries(overlay.source, overlay.target, "partially deployed managed content")
+    for entry in overlay.backup.iterdir():
+        if entry.name != GRAPHICS_BACKUP_FOLDER:
+            copy_path(entry, overlay.target / entry.name, "managed-content restore")
+
+    overwrite_root = overlay.backup / GRAPHICS_BACKUP_FOLDER
+    source_graphics = overlay.source / GRAPHICS_FOLDER
+    _, source_files = source_graphics_paths(source_graphics)
+    for relative in source_files:
+        target_file = overlay.target / GRAPHICS_FOLDER / relative
+        backup_file = overwrite_root / relative
+        if backup_file.exists():
+            target_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(backup_file, target_file)
+        else:
+            remove_path(target_file, "new Graphics file after failed deploy")
+
+    for relative in sorted(overlay.graphics_created_directories, key=lambda path: len(path.parts), reverse=True):
+        directory = overlay.target / relative
+        if directory.is_dir():
+            try:
+                directory.rmdir()
+            except OSError:
+                pass
+
+    for relative, expected_hash in overlay.preserved_files.items():
+        restored = overlay.target / relative
+        if not restored.is_file() or sha256_file(restored) != expected_hash:
+            raise RuntimeError(f"Rollback did not preserve extracted file: {restored}")
+
+    if not overlay.target_existed:
         try:
-            if backup_folder.exists():
-                remove_path(target_folder, "partially deployed mod folder")
-                move_path(backup_folder, target_folder, "target mod folder restore")
-            elif folder not in original_existing:
-                remove_path(target_folder, "new target mod folder after failed deploy")
-        except RuntimeError as restore_exc:
-            restore_errors.append(str(restore_exc))
-    return restore_errors
+            overlay.target.rmdir()
+        except OSError as exc:
+            raise RuntimeError(f"Unable to remove new target mod folder during rollback: {overlay.target}") from exc
 
 
 def describe_os_error(exc: OSError) -> str:
@@ -476,70 +720,101 @@ def describe_os_error(exc: OSError) -> str:
     return "; ".join(parts) if parts else str(exc)
 
 
-def remove_unexpected_target_mod_entries(target_mods: Path, dry_run: bool) -> None:
-    for entry in list(target_mods.iterdir()):
-        if entry.name in EXPECTED_MOD_FOLDERS and entry.is_dir():
-            continue
-        print(f"{'Would remove' if dry_run else 'Removing'} unexpected target Mods entry: {entry}")
-        if not dry_run:
-            remove_path(entry, "unexpected target Mods entry")
+def require_no_unexpected_target_mod_entries(target_mods: Path) -> None:
+    unexpected = [
+        entry
+        for entry in target_mods.iterdir()
+        if entry.name not in EXPECTED_MOD_FOLDERS or not entry.is_dir()
+    ]
+    if unexpected:
+        listed = ", ".join(str(entry) for entry in unexpected)
+        raise RuntimeError(
+            "Refusing to deploy because the target Mods folder contains entries the script does not own: " + listed
+        )
 
 
 def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, dry_run: bool) -> None:
+    source_mods = require_exact_mod_folder(source_mods, "Source")
+    target_mods = require_safe_target_mods(target_mods, game_root)
     backup_mods = unique_deploy_backup_path(game_root)
     if dry_run:
         print(f"Would ensure target Mods folder exists: {target_mods}")
         cleanup_legacy_deploy_workspaces(game_root, True)
+        require_no_interrupted_deploy_workspaces(game_root)
         if target_mods.exists():
-            remove_unexpected_target_mod_entries(target_mods, True)
-        print(f"Would prepare per-run backup folder: {backup_mods}")
+            require_no_unexpected_target_mod_entries(target_mods)
+        print(f"Would prepare managed-content backup folder: {backup_mods}")
         for folder in sorted(EXPECTED_MOD_FOLDERS):
-            print(f"Would move existing mod folder to backup if present: {target_mods / folder}")
-            print(f"Would copy source mod folder directly: {source_mods / folder} -> {target_mods / folder}")
-        print(f"Would remove per-run backup after successful deploy: {backup_mods}")
+            source_mod = source_mods / folder
+            target_mod = target_mods / folder
+            preserved_count = len(preserved_extraction_files(source_mod, target_mod))
+            print(f"Would back up only source-managed content: {target_mod}")
+            print(
+                f"Would preserve {preserved_count} extracted Graphics/metadata files in place and overlay source: "
+                f"{source_mod} -> {target_mod}"
+            )
+        print(f"Would remove the small managed-content backup after successful deploy: {backup_mods}")
         return
 
     target_mods.mkdir(parents=False, exist_ok=True)
     cleanup_legacy_deploy_workspaces(game_root, False)
-    remove_unexpected_target_mod_entries(target_mods, False)
+    require_no_interrupted_deploy_workspaces(game_root)
+    require_no_unexpected_target_mod_entries(target_mods)
 
     require_safe_deploy_workspace_path(backup_mods, game_root, "per-run deploy backup")
-    print(f"Preparing per-run backup folder: {backup_mods}")
+    print(f"Preparing managed-content backup folder: {backup_mods}")
     try:
         backup_mods.mkdir()
     except OSError as exc:
         raise RuntimeError(f"Unable to create per-run deploy backup folder: {backup_mods}. {describe_os_error(exc)}") from exc
-    original_existing = {folder for folder in EXPECTED_MOD_FOLDERS if (target_mods / folder).exists()}
 
+    overlays: list[ModOverlayBackup] = []
+    applied: list[ModOverlayBackup] = []
     try:
         for folder in sorted(EXPECTED_MOD_FOLDERS):
-            source_folder = source_mods / folder
-            target_folder = target_mods / folder
-            backup_folder = backup_mods / folder
-            if target_folder.exists():
-                require_real_directory(target_folder, "target mod folder")
-                print(f"Moving target mod folder to backup: {target_folder} -> {backup_folder}")
-                move_path(target_folder, backup_folder, "target mod folder backup")
+            overlays.append(
+                prepare_mod_overlay_backup(
+                    source_mods / folder,
+                    target_mods / folder,
+                    backup_mods / folder,
+                )
+            )
 
-            print(f"Copying source mod folder: {source_folder} -> {target_folder}")
-            copy_tree(source_folder, target_folder, "source mod folder")
-
+        for overlay in overlays:
+            print(
+                f"Deploying managed content while preserving {len(overlay.preserved_files)} extracted files: "
+                f"{overlay.source} -> {overlay.target}"
+            )
+            applied.append(overlay)
+            apply_mod_overlay(overlay)
+            verify_mod_overlay(overlay)
         require_exact_mod_contents(target_mods, "Target")
     except RuntimeError as exc:
-        restore_errors = restore_mod_folders(target_mods, backup_mods, original_existing)
-        remove_deploy_workspace(backup_mods, game_root, "backup Mods folder after failed deploy", required=False)
+        restore_errors: list[str] = []
+        for overlay in reversed(applied):
+            try:
+                restore_mod_overlay(overlay)
+            except RuntimeError as restore_exc:
+                restore_errors.append(str(restore_exc))
         if restore_errors:
             raise RuntimeError(
-                "Unable to replace target mod folders, and restore from the per-run backup had errors: "
+                f"Unable to deploy managed mod content, and rollback had errors. "
+                f"Recovery backup preserved at {backup_mods}: "
                 + " | ".join(restore_errors)
             ) from exc
+        remove_deploy_workspace(backup_mods, game_root, "managed-content backup after failed deploy", required=False)
         raise
 
     if backup_mods.exists():
-        remove_deploy_workspace(backup_mods, game_root, "per-run backup Mods folder after successful deploy", required=False)
+        remove_deploy_workspace(
+            backup_mods,
+            game_root,
+            "managed-content backup after successful deploy",
+            required=False,
+        )
 
 
-def deploy_release(dry_run: bool) -> None:
+def deploy_release(dry_run: bool, runtime_only: bool) -> None:
     registry_result = game_root_from_registry()
     if not registry_result:
         raise RuntimeError("Unable to find a valid Caesar 3 game folder in the registry.")
@@ -550,23 +825,30 @@ def deploy_release(dry_run: bool) -> None:
     print(f"Game folder: {game_root}")
     require_no_running_game_processes(game_root, dry_run)
 
-    target_mods = require_safe_target_mods(game_root / "Mods", game_root)
-
     repo_root = Path(__file__).resolve().parents[1]
-    source_mods = require_exact_mod_folder(repo_root / "Mods", "Source", repo_root)
-
     release_dir = repo_root / "x64" / "Release"
     exe_path = release_dir / "Vespasian.exe"
     pdb_path = release_dir / "Vespasian.pdb"
     if not exe_path.is_file():
         raise RuntimeError(f"Release executable does not exist: {exe_path}")
 
-    print(f"Source Mods folder: {source_mods}")
     print(f"Release executable: {exe_path}")
     if pdb_path.is_file():
         print(f"Release debug symbols: {pdb_path}")
     else:
         print("Release debug symbols: not found; skipping Vespasian.pdb")
+
+    if runtime_only:
+        print("Runtime-only deploy: skipping Mods validation and replacement.")
+        copy_file(exe_path, game_root / exe_path.name, dry_run)
+        if pdb_path.is_file():
+            copy_file(pdb_path, game_root / pdb_path.name, dry_run)
+        print("Runtime-only deploy dry run completed." if dry_run else "Runtime-only deploy completed.")
+        return
+
+    target_mods = require_safe_target_mods(game_root / "Mods", game_root)
+    source_mods = require_exact_mod_folder(repo_root / "Mods", "Source", repo_root)
+    print(f"Source Mods folder: {source_mods}")
 
     require_no_running_game_processes(game_root, dry_run)
     replace_mods_folder(source_mods, target_mods, game_root, dry_run)
@@ -580,12 +862,20 @@ def deploy_release(dry_run: bool) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Deploy x64/Release/Vespasian.exe and the repo Mods folder into the registry-discovered Caesar 3 folder."
+        description=(
+            "Deploy x64/Release/Vespasian.exe and optionally the repo Mods folder into the "
+            "registry-discovered Caesar 3 folder."
+        )
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the registry result, validation checks, and planned file operations without deleting or copying.",
+    )
+    parser.add_argument(
+        "--runtime-only",
+        action="store_true",
+        help="Copy only x64/Release/Vespasian.exe and Vespasian.pdb into the game folder; skip Mods validation and replacement.",
     )
     pause_group = parser.add_mutually_exclusive_group()
     pause_group.add_argument(
@@ -627,7 +917,7 @@ def main() -> int:
     args = parse_args()
     exit_code = 0
     try:
-        deploy_release(args.dry_run)
+        deploy_release(args.dry_run, args.runtime_only)
     except Exception as exc:
         log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
         with log_path.open("w", encoding="utf-8") as log:

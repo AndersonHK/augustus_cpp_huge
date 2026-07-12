@@ -144,7 +144,7 @@ static void hit_opponent(Figure *f)
     if (net_attack < 0) {
         net_attack = 0;
     }
-    opponent->damage += net_attack;
+    opponent->damage = static_cast<unsigned char>(opponent->damage + net_attack);
     if (opponent->damage <= max_damage) {
         figure_play_hit_sound(type_of(*f));
     } else {
@@ -494,11 +494,11 @@ void figure_combat_attack_figure_at(Figure *f, int grid_offset)
             f->num_attackers = 1;
             f->attack_image_offset = 12;
             if (opponent->x != opponent->destination_x || opponent->y != opponent->destination_y) {
-                f->attack_direction = calc_general_direction(f->previous_tile_x, f->previous_tile_y,
-                    opponent->previous_tile_x, opponent->previous_tile_y);
+                f->attack_direction = static_cast<signed char>(calc_general_direction(f->previous_tile_x, f->previous_tile_y,
+                    opponent->previous_tile_x, opponent->previous_tile_y));
             } else {
-                f->attack_direction = calc_general_direction(f->previous_tile_x, f->previous_tile_y,
-                    opponent->x, opponent->y);
+                f->attack_direction = static_cast<signed char>(calc_general_direction(f->previous_tile_x, f->previous_tile_y,
+                    opponent->x, opponent->y));
             }
             if (f->attack_direction >= 8) {
                 f->attack_direction = 0;

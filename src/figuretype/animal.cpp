@@ -15,6 +15,8 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/point.h"
@@ -22,6 +24,7 @@
 #include "map/terrain.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
+#include "window/building/common.h"
 
 void map_figure_add(Figure *f);
 void map_figure_delete(Figure *f);
@@ -52,6 +55,13 @@ static const int ZEBRA_IMAGE_OFFSETS[] = {
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  4,  4,  4,  4, -13, -13, -13, -13, -13, -13, -13, -13
 };
+
+void figuretype::Animal::draw(building_info_context *c)
+{
+    draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
 
 enum {
     HORSE_CREATED = 0,
@@ -151,8 +161,8 @@ static void herd_get_destination(int index, const formation *m, uint8_t *x, uint
     int destination_x = m->destination_x + position.x;
     int destination_y = m->destination_y + position.y;
     map_grid_bound(&destination_x, &destination_y);
-    *x = destination_x;
-    *y = destination_y;
+    *x = static_cast<uint8_t>(destination_x);
+    *y = static_cast<uint8_t>(destination_y);
 }
 
 void figure_sheep_action(Figure *f)
@@ -306,8 +316,8 @@ void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal
                 continue;
             }
             f->action_state = FIGURE_ACTION_197_HERD_ANIMAL_MOVING;
-            f->destination_x = map_grid_offset_to_x(target_grid_offset);
-            f->destination_y = map_grid_offset_to_y(target_grid_offset);
+            f->destination_x = static_cast<unsigned char>(map_grid_offset_to_x(target_grid_offset));
+            f->destination_y = static_cast<unsigned char>(map_grid_offset_to_y(target_grid_offset));
             f->roam_length = 0;
             break;
         }
@@ -369,26 +379,29 @@ void figure_zebra_action(Figure *f)
 
 static void set_horse_destination(Figure *f, int state)
 {
-    building *b = building_get(f->building.id());
+    building *b = f && f->building ? const_cast<building *>(f->building->record()) : nullptr;
+    if (!b) {
+        return;
+    }
     int orientation = city_view_orientation();
     int rotation =  b->subtype.orientation;
     if (state == HORSE_CREATED) {
         map_figure_delete(f);
         if(rotation == 0){
             if (orientation == DIR_0_TOP || orientation == DIR_6_LEFT) {
-                f->destination_x = b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].x;
-                f->destination_y = b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].y;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].x);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].y);
             } else {
-                f->destination_x = b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].x;
-                f->destination_y = b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].y;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].x);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].y);
             }
         } else {
             if (orientation == DIR_0_TOP || orientation == DIR_2_RIGHT) {
-                f->destination_x = b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].y;
-                f->destination_y = b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].x;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].y);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].x);
             } else {
-                f->destination_x = b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].y;
-                f->destination_y = b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].x;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].y);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].x);
             }
         }
         if (f->resource_id == 1) {
@@ -396,26 +409,26 @@ static void set_horse_destination(Figure *f, int state)
         }
         f->x = f->destination_x;
         f->y = f->destination_y;
-        f->cross_country_x = figure_movement_tile_to_cross_country(f->x);
-        f->cross_country_y = figure_movement_tile_to_cross_country(f->y);
-        f->grid_offset = map_grid_offset(f->x, f->y);
+        f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(f->x));
+        f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(f->y));
+        f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
         map_figure_add(f);
     } else if (state == HORSE_RACING) {
         if(rotation == 0){
             if (orientation == DIR_0_TOP || orientation == DIR_6_LEFT) {
-                f->destination_x = b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].x;
-                f->destination_y = b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].y;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].x);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].y);
             } else {
-                f->destination_x = b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].x;
-                f->destination_y = b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].y;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].x);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].y);
             }
         } else {
             if (orientation == DIR_0_TOP || orientation == DIR_2_RIGHT) {
-                f->destination_x = b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].y;
-                f->destination_y = b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].x;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_1[f->wait_ticks_missile].y);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_1[f->wait_ticks_missile].x);
             } else {
-                f->destination_x = b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].y;
-                f->destination_y = b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].x;
+                f->destination_x = static_cast<unsigned char>(b->x + HORSE_DESTINATION_2[f->wait_ticks_missile].y);
+                f->destination_y = static_cast<unsigned char>(b->y + HORSE_DESTINATION_2[f->wait_ticks_missile].x);
             }
         }
     } else if (state == HORSE_FINISHED) {
@@ -465,7 +478,8 @@ void figure_hippodrome_horse_action(Figure *f)
     f->use_cross_country = 1;
     f->is_ghost = 0;
     figure_image_increase_offset(f, 8);
-    if(!(building_get(f->building.id())->state)){
+    building *owner = f->building ? const_cast<building *>(f->building->record()) : nullptr;
+    if (!owner || !owner->state) {
         f->state = FIGURE_STATE_DEAD;
         return;
     }
@@ -486,7 +500,8 @@ void figure_hippodrome_horse_action(Figure *f)
             }
             break;
         case FIGURE_ACTION_201_HIPPODROME_HORSE_RACING:
-            f->direction = calc_general_direction(f->x, f->y, f->destination_x, f->destination_y);
+            f->direction = static_cast<signed char>(
+                calc_general_direction(f->x, f->y, f->destination_x, f->destination_y));
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->wait_ticks_missile++;
                 if (f->wait_ticks_missile >= 24) {
@@ -509,7 +524,8 @@ void figure_hippodrome_horse_action(Figure *f)
                     }
                 }
                 set_horse_destination(f, HORSE_RACING);
-                f->direction = calc_general_direction(f->x, f->y, f->destination_x, f->destination_y);
+                f->direction = static_cast<signed char>(
+                    calc_general_direction(f->x, f->y, f->destination_x, f->destination_y));
         figure_movement_set_cross_country_direction(f,
             f->cross_country_x, f->cross_country_y,
             figure_movement_tile_to_cross_country(f->destination_x),
@@ -524,7 +540,8 @@ void figure_hippodrome_horse_action(Figure *f)
             if (!f->wait_ticks) {
                 set_horse_destination(f, HORSE_FINISHED);
                 race_result_process();
-                f->direction = calc_general_direction(f->x, f->y, f->destination_x, f->destination_y);
+                f->direction = static_cast<signed char>(
+                    calc_general_direction(f->x, f->y, f->destination_x, f->destination_y));
         figure_movement_set_cross_country_direction(f,
             f->cross_country_x, f->cross_country_y,
             figure_movement_tile_to_cross_country(f->destination_x),

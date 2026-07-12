@@ -143,12 +143,12 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
 static int should_have_workers(const Building &building, int category, int check_access)
 {
     const building_type_registry_impl::BuildingType *type = building.type;
-    if (!building.id() || !building.is_main_part() || !type ||
+    if (!building.id || !building.is_main_part() || !type ||
         !building.employment_required_workers() || category == LABOR_CATEGORY_NONE) {
         return 0;
     }
     if (category == LABOR_CATEGORY_ENTERTAINMENT) {
-        const ::building *record = building_get(building.id());
+        const ::building *record = building.record();
         if (type->is_hippodrome() && record && record->prev_part_building_id) {
             return 0;
         }
@@ -171,7 +171,7 @@ static int should_have_workers(const Building &building, int category, int check
 static void set_building_workers(building *b, int workers)
 {
     city_culture_remove_building_module_capacity(b);
-    b->num_workers = workers;
+    b->num_workers = static_cast<short>(workers);
     city_culture_add_building_module_capacity(b);
 }
 
@@ -188,24 +188,23 @@ static void calculate_workers_needed_per_category(void)
         city_data.labor.categories[cat].workers_allocated = 0;
         city_data.labor.categories[cat].workers_needed = 0;
     }
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
+    Building::for_each([&](Building *bldg) {
+        building *b = const_cast<building *>(bldg->record());
         if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
-        Building bldg(b);
-        int category = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
-        b->labor_category = category - 1;
-        if (!should_have_workers(bldg, category, 1)) {
-            continue;
+        int category = bldg->type ? static_cast<int>(bldg->type->labor_category()) : LABOR_CATEGORY_NONE;
+        b->labor_category = static_cast<unsigned char>(category - 1);
+        if (!should_have_workers(*bldg, category, 1)) {
+            return;
         }
 
-        city_data.labor.categories[category - 1].workers_needed += bldg.employment_required_workers();
+        city_data.labor.categories[category - 1].workers_needed += bldg->employment_required_workers();
 
         city_data.labor.categories[category - 1].total_houses_covered +=
             static_cast<int>(b->labor_access_score);
         city_data.labor.categories[category - 1].buildings++;
-    }
+    });
 }
 
 static void allocate_workers_to_categories(void)
@@ -312,29 +311,28 @@ static void check_employment(void)
 static void set_building_worker_weight(void)
 {
     int water_per_10k_per_building = calc_percentage(100, city_data.labor.categories[LABOR_CATEGORY_WATER - 1].buildings);
-    for (int building_id = 1; building_id < building_count(); building_id++) {
-        building *b = building_get(building_id);
+    Building::for_each([&](Building *bldg) {
+        building *b = const_cast<building *>(bldg->record());
         if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
-        Building bldg(b);
-        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
+        int cat = bldg->type ? static_cast<int>(bldg->type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_NONE) {
-            continue;
+            return;
         }
-        if (cat == LABOR_CATEGORY_WATER && !building_local_workforce::is_workforce_building(bldg)) {
-            b->percentage_houses_covered = water_per_10k_per_building;
+        if (cat == LABOR_CATEGORY_WATER && !building_local_workforce::is_workforce_building(*bldg)) {
+            b->percentage_houses_covered = static_cast<short>(water_per_10k_per_building);
         } else {
             b->percentage_houses_covered = 0;
 
             const int labor_access = static_cast<int>(b->labor_access_score);
             if (labor_access) {
-                b->percentage_houses_covered =
+                b->percentage_houses_covered = static_cast<short>(
                     calc_percentage(100 * labor_access,
-                    city_data.labor.categories[cat - 1].total_houses_covered);
+                    city_data.labor.categories[cat - 1].total_houses_covered));
             }
         }
-    }
+    });
 }
 
 static void allocate_workers_to_water(void)
@@ -352,19 +350,15 @@ static void allocate_workers_to_water(void)
     } else {
         workers_per_building = water_cat->workers_allocated / (water_cat->buildings - buildings_to_skip);
     }
-    int building_id = start_building_id;
+    const int first_water_id = start_building_id;
     start_building_id = 0;
-    for (int guard = 1; guard < building_count(); guard++, building_id++) {
-        if (building_id >= building_count()) {
-            building_id = 1;
-        }
-        building *b = building_get(building_id);
+    auto allocate_to_water_building = [&](Building *bldg) {
+        building *b = const_cast<building *>(bldg->record());
         if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
-        Building bldg(b);
-        if (!bldg.type || static_cast<int>(bldg.type->labor_category()) != LABOR_CATEGORY_WATER) {
-            continue;
+        if (!bldg->type || static_cast<int>(bldg->type->labor_category()) != LABOR_CATEGORY_WATER) {
+            return;
         }
         set_building_workers(b, 0);
         if (b->percentage_houses_covered > 0) {
@@ -374,14 +368,24 @@ static void allocate_workers_to_water(void)
                 } else if (start_building_id) {
                     set_building_workers(b, workers_per_building);
                 } else {
-                    start_building_id = building_id;
+                    start_building_id = bldg->id;
                     set_building_workers(b, workers_per_building);
                 }
             } else {
-                set_building_workers(b, bldg.employment_required_workers());
+                set_building_workers(b, bldg->employment_required_workers());
             }
         }
-    }
+    };
+    Building::for_each([&](Building *bldg) {
+        if (static_cast<int>(bldg->id) >= first_water_id) {
+            allocate_to_water_building(bldg);
+        }
+    });
+    Building::for_each([&](Building *bldg) {
+        if (static_cast<int>(bldg->id) < first_water_id) {
+            allocate_to_water_building(bldg);
+        }
+    });
     if (!start_building_id) {
         // no buildings assigned or full employment
         start_building_id = 1;
@@ -398,24 +402,23 @@ static void allocate_workers_to_non_water_buildings(void)
             city_data.labor.categories[i].workers_allocated < city_data.labor.categories[i].workers_needed
             ? 1 : 0;
     }
-    for (int building_id = 1; building_id < building_count(); building_id++) {
-        building *b = building_get(building_id);
+    Building::for_each([&](Building *bldg) {
+        building *b = const_cast<building *>(bldg->record());
         if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
-        Building bldg(b);
-        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
+        int cat = bldg->type ? static_cast<int>(bldg->type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_NONE) {
             // water is handled by allocate_workers_to_water(void)
-            continue;
+            return;
         }
         set_building_workers(b, 0);
-        if (!bldg.type->is_latrines() &&
-            (!should_have_workers(bldg, cat, 0) || b->percentage_houses_covered <= 0)) {
-            continue;
+        if (!bldg->type->is_latrines() &&
+            (!should_have_workers(*bldg, cat, 0) || b->percentage_houses_covered <= 0)) {
+            return;
         }
 
-        int required_workers = bldg.employment_required_workers();
+        int required_workers = bldg->employment_required_workers();
         if (category_workers_needed[cat - 1]) {
             int num_workers = calc_adjust_with_percentage(
                 city_data.labor.categories[cat - 1].workers_allocated,
@@ -428,7 +431,7 @@ static void allocate_workers_to_non_water_buildings(void)
         } else {
             set_building_workers(b, required_workers);
         }
-    }
+    });
     for (int i = 0; i < LABOR_CATEGORY_MAX; i++) {
         if (category_workers_needed[i]) {
             // watch out: category_workers_needed is now reset to 'unallocated workers available'
@@ -441,21 +444,20 @@ static void allocate_workers_to_non_water_buildings(void)
             }
         }
     }
-    for (int building_id = 1; building_id < building_count(); building_id++) {
-        building *b = building_get(building_id);
+    Building::for_each([&](Building *bldg) {
+        building *b = const_cast<building *>(bldg->record());
         if (!b || b->state != BUILDING_STATE_IN_USE) {
-            continue;
+            return;
         }
-        Building bldg(b);
-        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
+        int cat = bldg->type ? static_cast<int>(bldg->type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_NONE || cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_MILITARY) {
-            continue;
+            return;
         }
-        if (!should_have_workers(bldg, cat, 0)) {
-            continue;
+        if (!should_have_workers(*bldg, cat, 0)) {
+            return;
         }
         if (b->percentage_houses_covered > 0 && category_workers_needed[cat - 1]) {
-            int required_workers = bldg.employment_required_workers();
+            int required_workers = bldg->employment_required_workers();
             if (b->num_workers < required_workers) {
                 int needed = required_workers - b->num_workers;
                 if (needed > category_workers_needed[cat - 1]) {
@@ -467,7 +469,7 @@ static void allocate_workers_to_non_water_buildings(void)
                 }
             }
         }
-    }
+    });
 }
 
 static void allocate_workers_to_buildings(void)

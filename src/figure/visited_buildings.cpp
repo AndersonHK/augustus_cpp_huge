@@ -154,7 +154,7 @@ void figure_visited_buildings_migrate(void)
                 visited_building *visited = new_visited_building_after_index(1);
                 visited->building_id = dock_id;
                 visited->prev_index = f->last_visited_index;
-                f->last_visited_index = visited->index;
+                f->last_visited_index = static_cast<short>(visited->index);
             }
         }
         f->legacy_visited_dock_mask = 0;

@@ -13,7 +13,7 @@ public:
     int needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) const;
     int resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], Figure *supplier) const;
     resource_type fetch_inventory(resource_storage_info data[RESOURCE_SLOT_COUNT]) const;
-    int storage_destination();
+    Building *storage_destination();
 
 private:
     int handles_distribution(resource_type resource) const;

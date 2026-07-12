@@ -23,11 +23,14 @@ static struct {
     int stored_building_types;
 } data;
 
-static figure_type building_type_to_figure_type(building_type type)
+static figure_type preview_figure_type_for(building_type type)
 {
+    if (type == BUILDING_NONE) {
+        return FIGURE_NONE;
+    }
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    return definition ? definition->preview_figure_type() : FIGURE_NONE;
+    return definition->preview_figure_type();
 }
 
 static int roam_length_for_figure_type(figure_type type)
@@ -67,8 +70,8 @@ static void init_roaming(Figure *f, int roam_dir, int x, int y)
     map_grid_bound(&x, &y);
     int x_road, y_road;
     if (map_closest_road_within_radius(x, y, 1, 6, &x_road, &y_road)) {
-        f->destination_x = x_road;
-        f->destination_y = y_road;
+        f->destination_x = static_cast<unsigned char>(x_road);
+        f->destination_y = static_cast<unsigned char>(y_road);
     } else {
         f->roam_choose_destination = 1;
     }
@@ -97,8 +100,11 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
         figure_roamer_preview_reset_building_types();
         return;
     }
+    if (b_type == BUILDING_NONE) {
+        return;
+    }
 
-    figure_type fig_type = building_type_to_figure_type(b_type);
+    const figure_type fig_type = preview_figure_type_for(b_type);
     if (fig_type == FIGURE_NONE) {
         return;
     }
@@ -115,7 +121,9 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
 
     data.travelled_tiles.items[grid_offset] = SHOWN_BUILDING_OFFSET;
 
-    int b_size = building_is_farm(b_type) ? 3 : building_properties_for_type(b_type)->size;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b_type);
+    int b_size = definition->is_farm() ? 3 : building_properties_for_type(b_type)->size;
 
     map_point road;
     if (!determine_road_access(x, y, b_size, b_type, &road)) {
@@ -138,22 +146,22 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
     for (int i = 0; i < TOTAL_ROAMERS; i++) {
         Figure roamer{};
 
-        roamer.source_x = roamer.destination_x = roamer.previous_tile_x = road.x;
-        roamer.source_y = roamer.destination_y = roamer.previous_tile_y = road.y;
-        roamer.terrain_usage = TERRAIN_USAGE_ROADS;
-        roamer.direction = DIR_0_TOP;
+        roamer.source_x = roamer.destination_x = roamer.previous_tile_x = static_cast<unsigned char>(road.x);
+        roamer.source_y = roamer.destination_y = roamer.previous_tile_y = static_cast<unsigned char>(road.y);
+        roamer.terrain_usage = static_cast<unsigned char>(TERRAIN_USAGE_ROADS);
+        roamer.direction = static_cast<signed char>(DIR_0_TOP);
         roamer.faction_id = FIGURE_FACTION_ROAMER_PREVIEW;
-        roamer.type = fig_type;
-        roamer.max_roam_length = roam_length;
+        roamer.type = static_cast<unsigned char>(fig_type);
+        roamer.max_roam_length = static_cast<short>(roam_length);
 
         if (figure_walks_into_building) {
-            roamer.x = x_road;
-            roamer.y = y_road;
+            roamer.x = static_cast<unsigned char>(x_road);
+            roamer.y = static_cast<unsigned char>(y_road);
         } else {
-            roamer.x = road.x;
-            roamer.y = road.y;
+            roamer.x = static_cast<unsigned char>(road.x);
+            roamer.y = static_cast<unsigned char>(road.y);
         }
-        roamer.grid_offset = map_grid_offset(roamer.x, roamer.y);
+        roamer.grid_offset = static_cast<short>(map_grid_offset(roamer.x, roamer.y));
         if (map_grid_is_valid_offset(roamer.grid_offset)) {
             data.travelled_tiles.items[roamer.grid_offset] = FIGURE_ROAMER_PREVIEW_EXIT_TILE;
         }
@@ -170,8 +178,8 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
             Route::remove(&roamer);
             continue;
         }
-        roamer.destination_x = x_road;
-        roamer.destination_y = y_road;
+        roamer.destination_x = static_cast<unsigned char>(x_road);
+        roamer.destination_y = static_cast<unsigned char>(y_road);
         while (roamer.direction != DIR_FIGURE_AT_DESTINATION &&
             roamer.direction != DIR_FIGURE_REROUTE && roamer.direction != DIR_FIGURE_LOST) {
             if (data.travelled_tiles.items[roamer.grid_offset] < FIGURE_ROAMER_PREVIEW_MAX_PASSAGES) {
@@ -206,8 +214,8 @@ void figure_roamer_preview_create_all_for_building_type(building_type type)
     if (data.stored_building_types == MAX_STORED_BUILDING_TYPES) {
         return;
     }
-    for (Building b = Building::first_of_type(type); b.id(); b = b.next_of_type()) {
-        figure_roamer_preview_create(type, b.x(), b.y());
+    for (Building *building = Building::first_of_type(type); building; building = building->next_of_type()) {
+        figure_roamer_preview_create(type, building->x(), building->y());
     }
     data.types[data.stored_building_types] = type;
     data.stored_building_types++;
@@ -217,7 +225,7 @@ void figure_roamer_preview_reset(building_type type)
 {
     map_grid_clear_u8(data.travelled_tiles.items);
     int show_other_roamers = 0;
-    figure_type fig_type = building_type_to_figure_type(type);
+    figure_type fig_type = preview_figure_type_for(type);
     if (fig_type == FIGURE_LABOR_SEEKER && config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
         fig_type = FIGURE_NONE;
     }
@@ -225,7 +233,9 @@ void figure_roamer_preview_reset(building_type type)
         show_other_roamers = 1;
     } else {
         for (int i = 0; i < data.stored_building_types; i++) {
-            if (building_type_to_figure_type(data.types[i]) == fig_type) {
+            const building_type_registry_impl::BuildingType *stored_definition =
+                building_type_registry_impl::definition_for_type(data.types[i]);
+            if (stored_definition->preview_figure_type() == fig_type) {
                 show_other_roamers = 1;
                 break;
             }
@@ -233,8 +243,8 @@ void figure_roamer_preview_reset(building_type type)
     }
     if (show_other_roamers) {
         for (int i = 0; i < data.stored_building_types; i++) {
-            for (Building b = Building::first_of_type(data.types[i]); b.id(); b = b.next_of_type()) {
-                figure_roamer_preview_create(data.types[i], b.x(), b.y());
+            for (Building *building = Building::first_of_type(data.types[i]); building; building = building->next_of_type()) {
+                figure_roamer_preview_create(data.types[i], building->x(), building->y());
             }
         }
     }

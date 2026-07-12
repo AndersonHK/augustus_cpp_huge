@@ -8,6 +8,27 @@ Labels:
 - `Bundled Augustus`: this repo's `Mods/Augustus` behavior differs from upstream Augustus.
 - `Vespasian-only`: `Mods/Vespasian` differs from upstream Augustus or from the bundled Augustus compatibility profile.
 
+## Rubble And Repair
+
+### Independent Rubble Tiles And Composed Reconstruction
+
+Label: `Project-wide`
+
+Every rubble tile is now an independent size-1 building and can be cleared without deleting sibling rubble from the same destroyed structure. Repair still recognizes the shared origin through `RubbleState`, but it replaces only rubble from that origin and validates the complete XML-defined footprint before rebuilding.
+
+Composed buildings derive their dimensions and parts directly from the referenced `BuildingType`. Farms therefore validate and rebuild their house plus field pieces, while hippodromes validate and rebuild their rotated 15-by-5 three-piece footprint (the main piece plus two declared child parts) rather than a square approximation. Buildings with a housing module use the same original-footprint validation but repair into one vacant lot per footprint tile instead of restoring an evolved house directly. Clearance, nearby-enemy, out-of-money, and pricing checks apply once to the complete placement; the quote charges the replacement price, the 5% repair fee, and clearing only for remaining rubble tiles.
+
+Aqueduct destruction explicitly clears both aqueduct terrain and aqueduct runtime-grid state before rubble is installed, then refreshes water routing. This prevents the surface-tile binding path from recreating a destroyed aqueduct over its rubble.
+
+Primary references:
+
+- `src/building/RubbleState.h`
+- `src/building/destruction.cpp`
+- `src/building/construction_plan.cpp`
+- `src/building/construction_clear.cpp`
+- `src/building/building.cpp`
+- `docs/save_load_runtime_bridges.md`
+
 ## Residential Walkers
 
 ### Beggar Spawning

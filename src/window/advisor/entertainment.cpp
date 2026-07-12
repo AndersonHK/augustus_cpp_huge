@@ -229,6 +229,7 @@ static int handle_mouse(const mouse *m)
 
 static void button_hold_games(const generic_button *button)
 {
+    (void) button;
     window_hold_games_show(0);
 }
 

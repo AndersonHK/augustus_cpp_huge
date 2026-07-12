@@ -3,6 +3,7 @@
 #include "figure/figure.h"
 #include "map/point.h"
 
+class Building;
 
 #define MAP_WATER_WATERSIDE_ROWS_NEEDED 3
 
@@ -22,7 +23,7 @@ typedef struct {
     int inner_length;
 } waterside_tile_loop;
 
-void map_water_add_building(int building_id, int x, int y, int size, int image_id = 0);
+void map_water_add_building(Building &building, int x, int y, int size, int image_id = 0);
 
 int map_water_determine_orientation(int x, int y, int size, int adjust_xy,
     int *orientation_absolute, int *orientation_relative, int check_water_in_front, int *blocked);
@@ -33,7 +34,7 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
 
 int map_water_is_connected_to_open_water(int x, int y, int size);
 
-int map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile);
+Building *map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile);
 int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_point *tile);
 void map_water_clear_fishing_boat_from_wharf(Building wharf, unsigned int boat_id);
 int map_water_wharf_live_fishing_boats(Building wharf);

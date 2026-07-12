@@ -213,6 +213,7 @@ static void clear_custom_message_media(void)
 
 static void fadeout_music(sound_type unused)
 {
+    (void) unused;
     sound_device_fadeout_music(5000);
     sound_device_on_audio_finished(0);
 }
@@ -288,9 +289,9 @@ static int setup_request_button(const lang_message *msg)
     if (scenario_request_can_comply(player_message.param1)) { // param1 should already be set to request id here
         complex_button_dispatch_request.is_hidden = 0;
         complex_button_dispatch_request.parameters[0] = player_message.param1;
-        complex_button_dispatch_request.x = data.x + (BLOCK_SIZE * msg->width_blocks) / 2 -
-            complex_button_dispatch_request.width / 2;
-        complex_button_dispatch_request.y = data.y + BLOCK_SIZE * msg->height_blocks - 40;
+        complex_button_dispatch_request.x = static_cast<short>(data.x + (BLOCK_SIZE * msg->width_blocks) / 2 -
+            complex_button_dispatch_request.width / 2);
+        complex_button_dispatch_request.y = static_cast<short>(data.y + BLOCK_SIZE * msg->height_blocks - 40);
         if (data.show_video) { // video message positioning is different
             complex_button_dispatch_request.x -= 32;
             complex_button_dispatch_request.y += 128;
@@ -884,6 +885,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_back(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (data.num_history > 0) {
         data.num_history--;
         data.text_id = data.history[data.num_history].text_id;
@@ -910,6 +913,8 @@ static void cleanup(void)
 
 static void button_close(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (data.message_type == MESSAGE_CUSTOM_MESSAGE && data.show_video) {
         custom_message_stop_video_and_show_message();
         return;
@@ -921,12 +926,15 @@ static void button_close(int param1, int param2)
 
 static void button_help(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     button_close(0, 0);
     window_message_dialog_show(MESSAGE_DIALOG_HELP, data.background_callback);
 }
 
 static void button_advisor(int advisor, int param2)
 {
+    (void) param2;
     cleanup();
     if (!window_advisors_show_advisor(static_cast<advisor_type>(advisor))) {
         window_city_show();
@@ -935,6 +943,8 @@ static void button_advisor(int advisor, int param2)
 
 static void button_go_to_problem(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     cleanup();
     const lang_message *msg = active_lang_message();
     int grid_offset = player_message.param2;

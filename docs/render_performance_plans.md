@@ -15,6 +15,19 @@ Current implemented seams:
 - Renderer requests now carry an optional fixed logical-size bridge. Existing float/source-size behavior remains the fallback while callers and XML are migrated.
 - `Render2DPipeline` owns render-domain classification and scale-filter config interpretation; SDL renderer setup asks the pipeline for texture filter hints instead of duplicating `scale_filter` policy.
 
+## Progress Checkpoint
+
+- [x] Add render metrics for request counts, texture sources, texture switches/misses, grid overlays, visible rows, and visible tiles.
+- [x] Centralize `scale_filter` and render-domain policy in `Render2DPipeline`.
+- [x] Add fixed logical-size fields to renderer requests as a bridge.
+- [~] Collapse normal city draw rows through `CityViewRenderPhase`; deletion/editor phase-major paths remain separate.
+- [~] Carry `Building` objects through some draw phases; broad row command/prepass ownership remains open.
+- [ ] Add renderer seam pixel checks for terrain/water/filter modes before logical-size XML work.
+- [ ] Introduce city render command lists and instance-data abstraction.
+- [ ] Move terrain/water/figure/building assets away from atlas fallback into native GPU-friendly resources.
+- [ ] Add Vulkan backend and orthographic z-buffered city renderer.
+- [ ] Add HDR scene target and shader-side lighting/material policies only as an explicit visual milestone with manual review.
+
 Scope:
 - Reduce repeated visible-tile traversal in the city draw path while preserving layer order.
 - Cache stable visible tile rows for a camera/viewport/orientation where practical.
@@ -129,6 +142,7 @@ HDR and lighting stretch goals:
 - Move tint, overlay ramps, weather, fire, torchlight, lightning, dusk/dawn, and daytime shading into shader-side material/light policies.
 - Keep authored colors and XML colors as sRGB inputs converted at the renderer boundary; do not reintroduce CPU-packed presentation colors as the data contract.
 - Model simple light sources first as compact GPU payloads: position, radius, intensity, color, flicker seed, and occlusion/material flags. Complex shadows can wait until depth and sprite instancing are stable.
+- Treat HDR and lighting as a user-involved visual parity milestone, not a silent renderer cleanup. Legacy RGB assets can look wrong under HDR if exposure, tone mapping, material response, light policy, and day-cycle assumptions are not tuned together, so the first implementation should boot into neutral SDR-equivalent output and only enable HDR/light effects behind explicit config and screenshot/manual review gates.
 
 Implementation sequence:
 1. Finish the command-list/instance-data abstraction from Plan B so city/world/UI draw calls can be recorded without immediate SDL submission.

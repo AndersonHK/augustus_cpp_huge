@@ -38,6 +38,9 @@ public:
 
     void set_image_id(const char *image_id)
     {
+        if (image_id_ != (image_id ? image_id : "")) {
+            cached_entry_ = nullptr;
+        }
         image_id_ = image_id ? image_id : "";
     }
 
@@ -46,6 +49,7 @@ public:
         return image_id_.c_str();
     }
 
+    const ImageGroupEntry *cached_graphic_entry() const;
     const ImageGroupEntry *resolve_graphic_entry() const;
     const RuntimeDrawSlice *resolve_graphic_slice() const;
     const RuntimeDrawSlice *resolve_graphic_top_slice() const;
@@ -55,6 +59,7 @@ private:
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
     std::string graphics_path_;
     std::string image_id_;
+    mutable const ImageGroupEntry *cached_entry_ = nullptr;
 };
 
 namespace tile_runtime_impl {

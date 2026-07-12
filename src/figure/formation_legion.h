@@ -6,7 +6,7 @@
 class Building;
 
 
-int formation_legion_create_for_fort(const Building &fort);
+int formation_legion_create_for_fort(Building &fort);
 
 void formation_legion_delete_for_fort(const Building &fort);
 

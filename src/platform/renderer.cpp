@@ -43,6 +43,11 @@
 
 #define MAX_PACKED_IMAGE_SIZE 64000
 
+static Uint8 color_channel_to_u8(color_t color, color_t mask, int shift)
+{
+    return static_cast<Uint8>((color & mask) >> shift);
+}
+
 #if (defined(__ANDROID__) || defined(__EMSCRIPTEN__)) && !SDL_VERSION_ATLEAST(2, 24, 0)
 // On the arm versions of android, on SDL < 2.24.0, atlas textures that are too large will make the renderer fetch
 // some images from the atlas with an off-by-one pixel, making things look terrible. Defining a smaller atlas texture
@@ -162,7 +167,7 @@ static struct {
     int supports_yuv_textures;
     float city_scale;
     render_domain active_render_domain;
-    int should_correct_texture_offset;
+    int should_crop_texture_source_edge;
     int auto_force_nearest_filter;
     SDL_Texture *last_submitted_texture;
 } data = {};
@@ -241,10 +246,10 @@ static void draw_line(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_RenderDrawLine(data.renderer, x_start, y_start, x_end, y_end);
 }
 
@@ -254,10 +259,10 @@ static void draw_rect(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_Rect rect = { x_start, y_start, x_end, y_end };
     SDL_RenderDrawRect(data.renderer, &rect);
 }
@@ -268,10 +273,10 @@ static void fill_rect(int x_start, int x_end, int y_start, int y_end, color_t co
         return;
     }
     SDL_SetRenderDrawColor(data.renderer,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE,
-        (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE),
+        color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
     SDL_Rect rect = { x_start, y_start, x_end, y_end };
     SDL_RenderFillRect(data.renderer, &rect);
 }
@@ -536,6 +541,7 @@ static void draw_managed_image_request(const managed_image_request *request)
     bridged_request.fixed_logical_size = request->fixed_logical_size;
     bridged_request.domain = request->domain;
     bridged_request.scaling_policy = request->scaling_policy;
+    bridged_request.destination_geometry_policy = request->destination_geometry_policy;
     bridged_request.angle = request->angle;
     bridged_request.disable_coord_scaling = request->disable_coord_scaling;
     draw_image_request(&bridged_request);
@@ -806,10 +812,10 @@ static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, im
     }
 
     SDL_SetTextureColorMod(texture,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE);
-    SDL_SetTextureAlphaMod(texture, (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE));
+    SDL_SetTextureAlphaMod(texture, color_channel_to_u8(color, COLOR_CHANNEL_ALPHA, COLOR_BITSHIFT_ALPHA));
 
 #ifdef USE_TEXTURE_SCALE_MODE
     if (!HAS_TEXTURE_SCALE_MODE) {
@@ -843,48 +849,39 @@ static void draw_texture_request(const render_2d_request *request, const resolve
 
     float source_scale_x = g_render_2d_pipeline.source_scale_x(*request, *img);
     float source_scale_y = g_render_2d_pipeline.source_scale_y(*request, *img);
-    float logical_width = g_render_2d_pipeline.logical_width(*request, *img);
-    float logical_height = g_render_2d_pipeline.logical_height(*request, *img);
+    const render_destination_rect destination = g_render_2d_pipeline.destination_rect(*request, *img);
     image_filter filter = g_render_2d_pipeline.scale_filter(
         *request, *img, data.city_scale, data.auto_force_nearest_filter);
     set_texture_color_and_filter(resolved.texture, request->color, filter);
     const int uses_managed_texture = resolved.kind == RENDER_TEXTURE_MANAGED;
     record_resolved_render_texture(resolved);
 
-    float x = request->x + (img->x_offset / source_scale_x);
-    float y = request->y + (img->y_offset / source_scale_y);
     int is_city_scale = fabsf(source_scale_x - data.city_scale) < 0.001f && fabsf(source_scale_y - data.city_scale) < 0.001f;
-    int src_correction = uses_managed_texture ? 0 : is_city_scale && data.should_correct_texture_offset ? 1 : 0;
+    int source_edge_crop = uses_managed_texture ? 0 : is_city_scale && data.should_crop_texture_source_edge ? 1 : 0;
 
     SDL_Rect src_coords = {
-        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + src_correction,
-        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + src_correction,
-        img->width - src_correction, img->height - src_correction
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + source_edge_crop,
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + source_edge_crop,
+        img->width - source_edge_crop, img->height - source_edge_crop
     };
-
-    int dst_correction = -src_correction;
-    float dst_correction_x = dst_correction / source_scale_x;
-    float dst_correction_y = dst_correction / source_scale_y;
-    float dst_width = logical_width - dst_correction_x;
-    float dst_height = logical_height - dst_correction_y;
 
 #ifdef USE_RENDERCOPYF
     if (HAS_RENDERCOPYF) {
         SDL_FRect dst_coords = {
-            x + dst_correction_x,
-            y + dst_correction_y,
-            dst_width,
-            dst_height
+            destination.x,
+            destination.y,
+            destination.width,
+            destination.height
         };
         SDL_RenderCopyExF(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     } else
 #endif
     {
         SDL_Rect dst_coords = {
-            (int) round(x + dst_correction_x),
-            (int) round(y + dst_correction_y),
-            (int) round(dst_width),
-            (int) round(dst_height)
+            (int) round(destination.x),
+            (int) round(destination.y),
+            (int) round(destination.width),
+            (int) round(destination.height)
         };
         SDL_RenderCopyEx(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     }
@@ -1337,9 +1334,9 @@ static void create_blend_texture(custom_image_type type)
     SDL_SetTextureBlendMode(flat_tile, SDL_BLENDMODE_BLEND);
 
     SDL_SetTextureColorMod(flat_tile,
-        (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED,
-        (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN,
-        (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE);
+        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
+        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
+        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE));
     SDL_SetTextureAlphaMod(flat_tile, 0xff);
     SDL_Rect src_coords = { img && img->resource_handle ? 0 : img->atlas.x_offset,
         img && img->resource_handle ? 0 : img->atlas.y_offset, img->width, img->height };
@@ -1610,9 +1607,8 @@ static int should_pack_image(int width, int height)
 
 static void update_scale(int city_scale)
 {
-    // The renderer draws the textures off-by-one when "scale * 100" is a multiple of 8, or when zooming out enough,
-    // this fixes that rendering bug by properly offseting the textures
-    data.should_correct_texture_offset = (city_scale > 250 && (city_scale % 100) != 0) || (city_scale % 8) == 0;
+    // Keep the legacy atlas source crop, but leave destination geometry owned by the draw request.
+    data.should_crop_texture_source_edge = (city_scale > 250 && (city_scale % 100) != 0) || (city_scale % 8) == 0;
     data.city_scale = city_scale / 100.0f;
 }
 
@@ -1842,7 +1838,7 @@ static void draw_tooltip(void)
     dst.y = data.tooltip.y;
     dst.w = data.tooltip.width;
     dst.h = data.tooltip.height;
-    SDL_SetTextureAlphaMod(data.tooltip.texture, data.tooltip.opacity);
+    SDL_SetTextureAlphaMod(data.tooltip.texture, static_cast<Uint8>(data.tooltip.opacity));
     SDL_RenderCopy(data.renderer, data.tooltip.texture, &src, &dst);
 }
 

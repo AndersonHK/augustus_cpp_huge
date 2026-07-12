@@ -37,6 +37,8 @@
     <ClCompile Include="src\building\building_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
     <ClCompile Include="src\building\building_type_startup_bridge.cpp" />
+    <ClCompile Include="src\building\RubbleDef.cpp" />
+    <ClCompile Include="src\building\RubbleModule.cpp" />
     <ClCompile Include="src\building\water_access_type.cpp" />
     <ClCompile Include="src\building\water_access_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
@@ -46,11 +48,13 @@
     <ClCompile Include="src\building\housing_type.cpp" />
     <ClCompile Include="src\building\housing_type_registry.cpp" />
     <ClCompile Include="src\building\local_workforce.cpp" />
+    <ClCompile Include="src\building\local_workforce_route_access.cpp" />
+    <ClCompile Include="src\building\local_workforce_runtime_lists.cpp" />
     <ClCompile Include="src\building\water_access_runtime.cpp" />
     <ClCompile Include="src\building\caravanserai.cpp" />
-    <ClCompile Include="src\building\clone.cpp" />
     <ClCompile Include="src\building\connectable.cpp" />
     <ClCompile Include="src\building\construction.cpp" />
+    <ClCompile Include="src\building\construction_area_tile.cpp" />
     <ClCompile Include="src\building\construction_session.cpp" />
     <ClCompile Include="src\building\construction_building.cpp" />
     <ClCompile Include="src\building\construction_plan.cpp" />
@@ -69,6 +73,8 @@
     <ClCompile Include="src\building\god_id_bridge.cpp" />
     <ClCompile Include="src\building\god_registry.cpp" />
     <ClCompile Include="src\building\BuildingGraphics.cpp" />
+    <ClCompile Include="src\building\BuildingGraphicsDef.cpp" />
+    <ClCompile Include="src\building\BuildingGraphicsState.cpp" />
     <ClCompile Include="src\building\government.cpp" />
     <ClCompile Include="src\building\granary.cpp" />
     <ClCompile Include="src\building\house.cpp" />
@@ -155,6 +161,7 @@
     <ClCompile Include="src\core\memory_block.cpp" />
     <ClCompile Include="src\core\png_read.cpp" />
     <ClCompile Include="src\core\random.cpp" />
+    <ClCompile Include="src\core\runtime_diagnostics.cpp" />
     <ClCompile Include="src\core\smacker.cpp" />
     <ClCompile Include="src\core\speed.cpp" />
     <ClCompile Include="src\core\string.cpp" />
@@ -214,6 +221,7 @@
     <ClCompile Include="src\figure\figure_runtime.cpp" />
     <ClCompile Include="src\figure\figure_runtime_native.cpp" />
     <ClCompile Include="src\figure\FigureGraphics.cpp" />
+    <ClCompile Include="src\figure\FigureGraphicsRuntime.cpp" />
     <ClCompile Include="src\figure\service.cpp" />
     <ClCompile Include="src\figure\sound.cpp" />
     <ClCompile Include="src\figure\trader.cpp" />
@@ -412,7 +420,6 @@
     <ClCompile Include="src\translation\localization_support.cpp" />
     <ClCompile Include="src\translation\translation.cpp" />
     <ClCompile Include="src\widget\city.cpp" />
-    <ClCompile Include="src\widget\city_bridge.cpp" />
     <ClCompile Include="src\widget\city_building_ghost.cpp" />
     <ClCompile Include="src\widget\city_draw.cpp" />
     <ClCompile Include="src\widget\city_draw_highway.cpp" />
@@ -560,7 +567,10 @@
     <ClInclude Include="src\assets\layer.h" />
     <ClInclude Include="src\assets\xml.h" />
     <ClInclude Include="src\assets\xml_path_resolution.h" />
+    <ClInclude Include="src\building\BuildingForEachArgs.h" />
     <ClInclude Include="src\building\BuildingGraphics.h" />
+    <ClInclude Include="src\building\BuildingGraphicsDef.h" />
+    <ClInclude Include="src\building\BuildingGraphicsState.h" />
     <ClInclude Include="src\building\armoury.h" />
     <ClInclude Include="src\building\barracks.h" />
     <ClInclude Include="src\building\building.h" />
@@ -573,6 +583,9 @@
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_startup_bridge.h" />
+    <ClInclude Include="src\building\RubbleDef.h" />
+    <ClInclude Include="src\building\RubbleModule.h" />
+    <ClInclude Include="src\building\RubbleState.h" />
     <ClInclude Include="src\building\water_access_type.h" />
     <ClInclude Include="src\building\water_access_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
@@ -580,11 +593,13 @@
     <ClInclude Include="src\building\housing_type.h" />
     <ClInclude Include="src\building\housing_type_registry.h" />
     <ClInclude Include="src\building\local_workforce.h" />
+    <ClInclude Include="src\building\local_workforce_route_access.h" />
+    <ClInclude Include="src\building\local_workforce_runtime_lists.h" />
     <ClInclude Include="src\building\caravanserai.h" />
-    <ClInclude Include="src\building\clone.h" />
     <ClInclude Include="src\building\connectable.h" />
     <ClInclude Include="src\building\construction.h" />
     <ClInclude Include="src\building\construction_session.h" />
+    <ClInclude Include="src\building\construction_area_tile.h" />
     <ClInclude Include="src\building\construction_building.h" />
     <ClInclude Include="src\building\construction_plan.h" />
     <ClInclude Include="src\building\construction_clear.h" />
@@ -694,6 +709,7 @@
     <ClInclude Include="src\core\memory_block.h" />
     <ClInclude Include="src\core\png_read.h" />
     <ClInclude Include="src\core\random.h" />
+    <ClInclude Include="src\core\runtime_diagnostics.h" />
     <ClInclude Include="src\core\smacker.h" />
     <ClInclude Include="src\core\speed.h" />
     <ClInclude Include="src\core\string.h" />
@@ -958,7 +974,6 @@
     <ClInclude Include="src\translation\localization_internal.h" />
     <ClInclude Include="src\translation\translation.h" />
     <ClInclude Include="src\widget\city.h" />
-    <ClInclude Include="src\widget\city_bridge.h" />
     <ClInclude Include="src\widget\city_building_ghost.h" />
     <ClInclude Include="src\widget\city_draw.h" />
     <ClInclude Include="src\widget\city_draw_highway.h" />
@@ -1152,7 +1167,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <Optimization>MaxSpeed</Optimization>
@@ -1165,6 +1180,10 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ForceSynchronousPDBWrites>true</ForceSynchronousPDBWrites>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <EnableVectorLength>VectorLength256</EnableVectorLength>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

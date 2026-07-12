@@ -30,6 +30,7 @@
 #include "map/terrain.h"
 
 #include <string.h>
+#include <vector>
 
 static struct {
     int x_start;
@@ -39,9 +40,6 @@ static struct {
     int bridge_confirmed;
     int fort_confirmed;
     int monument_confirmed;
-    int repair_confirmed;
-    int repair_cost;
-    int repairable_buildings[1000];
 } confirm;
 
 #define TREE_CLEAR_TERRAIN_MASK (TERRAIN_TREE | TERRAIN_SHRUB)
@@ -49,13 +47,13 @@ static struct {
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
 
-static building *get_deletable_building(int grid_offset)
+static Building *get_deletable_building(int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
-    if (!building_id) {
+    if (!map_building_exists_at(grid_offset)) {
         return 0;
     }
-    building *b = building_main(building_get(building_id));
+    Building &target = map_building_at(grid_offset).main();
+    building *b = const_cast<::building *>(target.record());
     static const char *const protected_types[] = {
         "burning_ruin",
         "native_crops",
@@ -73,7 +71,13 @@ static building *get_deletable_building(int grid_offset)
     if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
         return 0;
     }
-    return b;
+    return &target;
+}
+
+static void remove_legacy_aqueduct_tile(int grid_offset)
+{
+    map_terrain_remove(grid_offset, TERRAIN_AQUEDUCT);
+    map_aqueduct_remove(grid_offset);
 }
 
 static int clear_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end)
@@ -92,7 +96,8 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (measure_only && visual_feedback_on_delete) {
-                building *b = get_deletable_building(grid_offset);
+                Building *building_obj = get_deletable_building(grid_offset);
+                building *b = building_obj ? const_cast<::building *>(building_obj->record()) : nullptr;
                 if (map_property_is_deleted(grid_offset) || (b && map_property_is_deleted(b->grid_offset))) {
                     continue;
                 }
@@ -119,10 +124,17 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
             if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
                 continue;
             }
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
-                building *b = get_deletable_building(grid_offset);
-                if (!b) {
+            Building *building_obj = get_deletable_building(grid_offset);
+            const bool is_native_aqueduct = building_obj && building_obj->matches("aqueduct");
+            if ((map_terrain_is(grid_offset, TERRAIN_BUILDING) || is_native_aqueduct) && !map_is_bridge(grid_offset)) {
+                if (!building_obj) {
                     continue;
+                }
+                building *b = const_cast<::building *>(building_obj->record());
+                if (building_obj->Rubble && !measure_only) {
+                    // Live rubble follows the ordinary building deletion lifecycle, but its tile-local
+                    // reconstruction marker must be released before the record is retired.
+                    map_building_set_rubble_grid_building_id(grid_offset, 0, 1);
                 }
                 if (building_type_registry_impl::type_attr_is(b->type, "fort_ground") || building_is_fort(b->type)) {
                     if (!measure_only && confirm.fort_confirmed != 1) {
@@ -140,9 +152,8 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         game_undo_disable();
                     }
                 }
-                Building building_obj(b);
                 if (b->house_size && b->house_population && !measure_only) {
-                    Figure *homeless = migrant_create_homeless(building_obj, b->house_population);
+                    Figure *homeless = migrant_create_homeless(*building_obj, b->house_population);
                     b->house_population = 0;
                     b->figure_id = homeless->id();
                 }
@@ -154,38 +165,31 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     items_placed++;
                     game_undo_add_building(b);
                 }
-                building_local_workforce::remove_building(building_obj);
+                building_local_workforce::remove_building(*building_obj);
+                if (!b->house_size) {
+                    building_obj->cleanup_figure_references_for_removal();
+                }
                 city_culture_remove_building_module_capacity(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
-                building *space = b;
+                Building *space_obj = building_obj;
                 for (int i = 0; i < 9; i++) {
-                    if (space->prev_part_building_id <= 0) {
+                    space_obj = space_obj->next();
+                    if (!space_obj) {
                         break;
                     }
-                    space = building_get(space->prev_part_building_id);
+                    building *space = const_cast<::building *>(space_obj->record());
                     game_undo_add_building(space);
-                    Building space_obj(space);
-                    building_local_workforce::remove_building(space_obj);
-                    city_culture_remove_building_module_capacity(space);
-                    space->state = BUILDING_STATE_DELETED_BY_PLAYER;
-                }
-                space = b;
-                for (int i = 0; i < 9; i++) {
-                    space = building_next(space);
-                    if (space->id <= 0) {
-                        break;
+                    building_local_workforce::remove_building(*space_obj);
+                    if (!space->house_size) {
+                        space_obj->cleanup_figure_references_for_removal();
                     }
-                    game_undo_add_building(space);
-                    Building space_obj(space);
-                    building_local_workforce::remove_building(space_obj);
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
             } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
+                remove_legacy_aqueduct_tile(grid_offset);
                 items_placed++;
-                map_aqueduct_remove(grid_offset);
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
                 if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
                     city_warning_show_translated(WARNING_PEOPLE_ON_BRIDGE);
@@ -202,32 +206,15 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
                 }
                 if (map_terrain_is(grid_offset, TERRAIN_RUBBLE) && !measure_only) {
-                    //rubble state handling:
-
-                    if (map_building_rubble_building_id(grid_offset)) {
-
-                        int rubble_id = map_building_rubble_building_id(grid_offset);
-                        if (rubble_id) {
-                            
-                            building *rubble_building = building_get(rubble_id);
-                            map_building_set_rubble_grid_building_id(grid_offset, 0, 1); // remove rubble marker
-
-                            if (rubble_building->state == BUILDING_STATE_RUBBLE ||
-                                    building_type_registry_impl::type_attr_is(rubble_building->type, "burning_ruin")) {
-                                int ruins_left = map_building_ruins_left(rubble_id);
-                                if (!ruins_left) { //dont remove buildings until their last rubble is gone
-                                    city_culture_remove_building_module_capacity(rubble_building);
-                                    rubble_building->state = BUILDING_STATE_DELETED_BY_GAME;
-                                }
-                            } else if (rubble_building->state == BUILDING_STATE_UNUSED) {
-                                // intentional fallthrough - unused buildings are corrupt if they exist on the grid. 
-                                // dont change state, just remove reference on the grid - addressed after if {} block 
-                            } else {
-                                city_culture_remove_building_module_capacity(rubble_building);
-                                rubble_building->state = BUILDING_STATE_DELETED_BY_GAME;
-                            }
+                    if (map_building_exists_at(grid_offset)) {
+                        Building &rubble = map_building_at(grid_offset);
+                        building *record = const_cast<::building *>(rubble.record());
+                        if (rubble.Rubble && record) {
+                            record->state = BUILDING_STATE_DELETED_BY_GAME;
+                            map_building_clear_at(grid_offset);
                         }
                     }
+                    map_building_set_rubble_grid_building_id(grid_offset, 0, 1);
                 }
                 map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
                 items_placed++;
@@ -271,7 +258,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
     return items_placed;
 }
 
-static void confirm_delete_fort(int accepted, int checked)
+static void confirm_delete_fort(int accepted, int)
 {
     if (accepted == 1) {
         confirm.fort_confirmed = 1;
@@ -281,7 +268,7 @@ static void confirm_delete_fort(int accepted, int checked)
     clear_land_confirmed(0, confirm.x_start, confirm.y_start, confirm.x_end, confirm.y_end);
 }
 
-static void confirm_delete_bridge(int accepted, int checked)
+static void confirm_delete_bridge(int accepted, int)
 {
     if (accepted == 1) {
         confirm.bridge_confirmed = 1;
@@ -291,7 +278,7 @@ static void confirm_delete_bridge(int accepted, int checked)
     clear_land_confirmed(0, confirm.x_start, confirm.y_start, confirm.x_end, confirm.y_end);
 }
 
-static void confirm_delete_monument(int accepted, int checked)
+static void confirm_delete_monument(int accepted, int)
 {
     if (accepted == 1) {
         confirm.monument_confirmed = 1;
@@ -301,13 +288,8 @@ static void confirm_delete_monument(int accepted, int checked)
     clear_land_confirmed(0, confirm.x_start, confirm.y_start, confirm.x_end, confirm.y_end);
 }
 
-static void confirm_repair_buildings(int accepted, int checked)
+static void confirm_repair_buildings(int accepted, int)
 {
-    if (accepted == 1) {
-        confirm.repair_confirmed = 1;
-    } else {
-        confirm.repair_confirmed = -1;
-    }
     if (accepted == 1) {
         repair_land_confirmed(0, confirm.x_start, confirm.y_start, confirm.x_end, confirm.y_end, 0);
     }
@@ -318,7 +300,6 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
     confirm.fort_confirmed = 0;
     confirm.bridge_confirmed = 0;
     confirm.monument_confirmed = 0;
-    confirm.repair_confirmed = 0;
     if (measure_only) {
         return clear_land_confirmed(measure_only, x_start, y_start, x_end, y_end);
     }
@@ -332,9 +313,8 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
-            int building_id = map_building_at(grid_offset);
-            if (building_id) {
-                building *b = building_get(building_id);
+            if (map_building_exists_at(grid_offset)) {
+                building *b = const_cast<::building *>(map_building_at(grid_offset).record());
                 if (building_is_fort(b->type) || building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
                     ask_confirm_fort = 1;
                 }
@@ -427,10 +407,11 @@ int building_construction_clear_trees(int measure_only, int x_start, int y_start
     return clear_trees_confirmed(measure_only, x_start, y_start, x_end, y_end);
 }
 
-static int was_building_counted(int building_id, int count_of_processed)
+static int was_repair_origin_counted(const Building &candidate, const std::vector<RubbleState> &processed)
 {
-    for (int i = 0; i < count_of_processed; i++) {
-        if (confirm.repairable_buildings[i] == building_id) {
+    const RubbleState *candidate_origin = candidate.Rubble ? candidate.Rubble->state() : nullptr;
+    for (const RubbleState &counted : processed) {
+        if (candidate_origin && candidate_origin->same_origin(counted)) {
             return 1;
         }
     }
@@ -440,48 +421,37 @@ static int was_building_counted(int building_id, int count_of_processed)
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count)
 {
     grid_slice *slice = map_grid_get_grid_slice_from_corners(x_start, y_start, x_end, y_end);
-    int repairable_buildings = 0;
+    std::vector<RubbleState> processed;
     int repair_cost = 0;
-    // Measure phase - count buildings and calculate cost
     for (int i = 0; i < slice->size; i++) {
         int grid_offset = slice->grid_offsets[i];
         if (measure_only) {
             map_property_mark_deleted(grid_offset);
         }
-        int building_id = map_building_rubble_building_id(grid_offset);
-        if (building_id) {
-            building *b = building_repair_target(building_get(building_id));
-            if (building_can_repair(b)) {
-                if (!was_building_counted(b->id, repairable_buildings)) {
-                    if (measure_only) {
-                        repair_cost += building_repair_cost(b);
-                    } else {
-                        repair_cost += building_repair(b);// Actually perform the repair
-                    }
-                    confirm.repairable_buildings[repairable_buildings] = b->id;
-                    repairable_buildings++;
-                }
-            } else {
-                if (building_monument_is_limited(b->type)) {
-                    city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
-                } else if (building_type_registry_impl::type_attr_is(b->type, "aqueduct")) {
-                    city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
-                } else {
-                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
-                }
-            }
+        if (!map_building_exists_at(grid_offset)) {
+            continue;
+        }
+        Building &candidate = map_building_at(grid_offset);
+        const RubbleState *origin = candidate.Rubble ? candidate.Rubble->state() : nullptr;
+        if (!origin || was_repair_origin_counted(candidate, processed)) {
+            continue;
+        }
+
+        const RubbleState identity = *origin;
+        const int cost = measure_only ? candidate.repair_cost() : candidate.repair();
+        if (cost > 0) {
+            processed.push_back(identity);
+            repair_cost += cost;
         }
     }
     if (buildings_count) {
-        *buildings_count = repairable_buildings;
+        *buildings_count = static_cast<int>(processed.size());
     }
     return repair_cost;
 }
 
 int building_construction_repair_land(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count)
 {
-    confirm.repair_confirmed = 0;
-    memset(confirm.repairable_buildings, 0, sizeof(confirm.repairable_buildings)); // reset the array
     if (measure_only) {
         return repair_land_confirmed(measure_only, x_start, y_start, x_end, y_end, buildings_count);
     }
@@ -494,8 +464,6 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
         confirm.y_start = y_start;
         confirm.x_end = x_end;
         confirm.y_end = y_end;
-        confirm.repair_cost = repair_cost;
-
         static uint8_t big_buffer[120];
         memset(big_buffer, 0, sizeof(big_buffer)); // Clear buffer
         const uint8_t *custom_text = translation_for_key("TR_CONFIRM_REPAIR_BUILDINGS_TITLE");

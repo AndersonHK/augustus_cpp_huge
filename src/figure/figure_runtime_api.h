@@ -3,10 +3,16 @@
 #include "figure/figure.h"
 #include "figure/PathingMode.h"
 
+#include <cstdio>
+
 void figure_runtime_reset();
 void figure_runtime_initialize_city();
 void figure_runtime_on_created(Figure *f);
 void figure_runtime_on_deleted(Figure *f);
+
+// Resolves a saved owner id only after checking the figure profile's ownership contract.
+// False means that a required owner could not be reconstructed and the figure must be removed.
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, Building **resolved_owner);
 
 // Creates a native FigureType walker using an explicit profile-owned start contract.
 Figure *figure_runtime_create_profiled(
@@ -14,7 +20,7 @@ Figure *figure_runtime_create_profiled(
     int x,
     int y,
     direction_type dir,
-    Building &building,
+    const Building &building,
     const char *profile_id);
 
 // Applies the bound/default XML movement profile to legacy action walkers.
@@ -22,6 +28,9 @@ int figure_runtime_apply_profile_movement(Figure *f);
 
 const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Figure *f);
 roadblock_permission figure_runtime_roadblock_permission(Figure *f);
+figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_route_policy_selection(
+    Figure *f,
+    RouteNeighborhood neighborhood);
 
 // Executes a native FigureType controller; returns zero when legacy action should handle it.
 int figure_runtime_execute(Figure *f);
@@ -38,3 +47,5 @@ int figure_runtime_choose_roaming_direction(
 
 // Records pathing-only road recency for smart service walkers.
 void figure_runtime_record_road_service_visit(Figure *f);
+
+void figure_runtime_debug_dump(FILE *file);

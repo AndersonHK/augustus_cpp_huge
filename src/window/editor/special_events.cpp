@@ -201,6 +201,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_earthquake_severity(const generic_button *button)
 {
+    (void) button;
     scenario_editor_earthquake_cycle_severity();
     window_request_refresh();
 }
@@ -212,6 +213,7 @@ static void button_earthquake_year(const generic_button *button)
 
 static void button_gladiator_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_gladiator_revolt_toggle_enabled();
     window_request_refresh();
 }
@@ -223,6 +225,7 @@ static void button_gladiator_year(const generic_button *button)
 
 static void button_emperor_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_emperor_change_toggle_enabled();
     window_request_refresh();
 }
@@ -234,18 +237,21 @@ static void button_emperor_year(const generic_button *button)
 
 static void button_sea_trade_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_sea_trade_problem_toggle_enabled();
     window_request_refresh();
 }
 
 static void button_land_trade_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_land_trade_problem_toggle_enabled();
     window_request_refresh();
 }
 
 static void button_raise_wages_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_raise_wages_toggle_enabled();
     window_request_refresh();
 }
@@ -257,11 +263,13 @@ static void set_max_wages(int amount)
 
 static void button_max_wages(const generic_button *button)
 {
+    (void) button;
     window_numeric_input_show(0, 0, button, 2, 99, set_max_wages);
 }
 
 static void button_lower_wages_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_lower_wages_toggle_enabled();
     window_request_refresh();
 }
@@ -273,23 +281,27 @@ static void set_min_wages(int amount)
 
 static void button_min_wages(const generic_button *button)
 {
+    (void) button;
     window_numeric_input_show(0, 0, button, 2, 99, set_min_wages);
 }
 
 static void button_contamination_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_contaminated_water_toggle_enabled();
     window_request_refresh();
 }
 
 static void button_iron_mine_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_iron_mine_collapse_toggle_enabled();
     window_request_refresh();
 }
 
 static void button_clay_pit_toggle(const generic_button *button)
 {
+    (void) button;
     scenario_editor_clay_pit_flooded_toggle_enabled();
     window_request_refresh();
 }

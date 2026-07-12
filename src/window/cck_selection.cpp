@@ -278,6 +278,8 @@ static void handle_tooltip(tooltip_context *c)
 
 static void button_back(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     window_go_back();
 }
 
@@ -299,6 +301,8 @@ static void select_scenario(unsigned int index, int is_double_click)
 
 static void button_start_scenario(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     file_remove_extension(data.selected_scenario_filename);
     encoding_from_utf8(data.selected_scenario_filename, data.selected_scenario_display, FILE_NAME_MAX);
     scenario_set_name(data.selected_scenario_display);
@@ -309,6 +313,7 @@ static void button_start_scenario(int param1, int param2)
 
 static void button_toggle_minimap(const generic_button *button)
 {
+    (void) button;
     data.show_minimap = !data.show_minimap;
     window_invalidate();
 }

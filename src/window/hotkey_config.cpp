@@ -20,6 +20,8 @@
 #include "window/plain_message_dialog.h"
 #include "graphics/image.h"
 
+#include <cstdio>
+
 #define GROUP_BUILDINGS 28
 
 #define NUM_VISIBLE_OPTIONS 14
@@ -100,8 +102,8 @@ static hotkey_widget hotkey_widgets[] = {
     {HOTKEY_BUILD_AQUEDUCT, {}, 0, 0, "aqueduct"},
     {HOTKEY_BUILD_FOUNTAIN, {}, 0, 0, "fountain"},
     {HOTKEY_BUILD_ROADBLOCK, {}, 0, 0, "roadblock"},
-    {HOTKEY_BUILD_WHEAT_FARM, "TR_HOTKEY_BUILD_WHEAT_FARM"},
-    {HOTKEY_BUILD_HIGHWAY, "TR_HOTKEY_BUILD_HIGHWAY"},
+    {HOTKEY_BUILD_WHEAT_FARM, {}, 0, 0, "wheat_farm"},
+    {HOTKEY_BUILD_HIGHWAY, {}, 0, 0, "highway"},
     {HOTKEY_UNDO, {}, GROUP_BUILDINGS, 1},
     {HOTKEY_HEADER, "TR_HOTKEY_HEADER_ADVISORS"},
     {HOTKEY_SHOW_ADVISOR_LABOR, "TR_HOTKEY_SHOW_ADVISOR_LABOR"},
@@ -235,9 +237,9 @@ static struct {
 
 int get_position_for_widget(translation_key key)
 {
-    for (int i = 0; i < NUM_WIDGETS; i++) {
+    for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_WIDGETS); i++) {
         if (hotkey_widgets[i].name_translation == key) {
-            return calc_bound(i, 0, NUM_WIDGETS);
+            return calc_bound(static_cast<int>(i), 0, static_cast<int>(NUM_WIDGETS));
         }
     }
     return 0;
@@ -245,11 +247,17 @@ int get_position_for_widget(translation_key key)
 
 static void init(int position)
 {
-    scrollbar_init(&scrollbar, position, sizeof(hotkey_widgets) / sizeof(hotkey_widget));
+    scrollbar_init(&scrollbar, static_cast<unsigned int>(position), static_cast<unsigned int>(NUM_WIDGETS));
 
     for (int i = 0; i < HOTKEY_MAX_ITEMS; i++) {
         hotkey_action action = static_cast<hotkey_action>(i);
-        hotkey_mapping empty = { KEY_TYPE_NONE, KEY_MOD_NONE, action };
+        hotkey_mapping empty = {};
+        empty.key = KEY_TYPE_NONE;
+        empty.modifiers = KEY_MOD_NONE;
+        empty.action = action;
+        if (const char *building_text_id = hotkey_building_text_id_for_action(action)) {
+            snprintf(empty.building_text_id, sizeof(empty.building_text_id), "%s", building_text_id);
+        }
 
         const hotkey_mapping *mapping = hotkey_for_action(action, 0);
         data.mappings[i][0] = mapping ? *mapping : empty;
@@ -289,7 +297,10 @@ static void draw_background(void)
                 text_draw(translation_for(widget->name_translation),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else if (widget->building_text_id) {
-                building_type type = building_type_registry_impl::type_from_attr(widget->building_text_id);
+                const char *building_text_id = data.mappings[widget->action][0].building_text_id[0] ?
+                    data.mappings[widget->action][0].building_text_id :
+                    widget->building_text_id;
+                building_type type = building_type_registry_impl::type_from_attr(building_text_id);
                 text_draw(lang_get_building_type_string(type),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
@@ -384,6 +395,12 @@ static const uint8_t *hotkey_action_name_for(hotkey_action action)
         if (widget->action == action) {
             if (widget->name_translation) {
                 name = translation_for(widget->name_translation);
+            } else if (widget->building_text_id) {
+                const char *building_text_id = data.mappings[widget->action][0].building_text_id[0] ?
+                    data.mappings[widget->action][0].building_text_id :
+                    widget->building_text_id;
+                building_type type = building_type_registry_impl::type_from_attr(building_text_id);
+                name = lang_get_building_type_string(type);
             } else {
                 name = lang_get_string(current_string_key(widget->name_text_group, widget->name_text_id));
             }
@@ -438,6 +455,8 @@ static void button_hotkey(const generic_button *button)
 
 static void button_reset_defaults(const generic_button *button)
 {
+    (void)button;
+
     for (int action = 0; action < HOTKEY_MAX_ITEMS; action++) {
         for (int index = 0; index < 2; index++) {
             data.mappings[action][index] = *hotkey_default_for_action(static_cast<hotkey_action>(action), index);

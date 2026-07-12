@@ -236,12 +236,14 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_delete(const generic_button *button)
 {
+    (void) button;
     scenario_action_type_delete(data.action);
     close_window();
 }
 
 static void button_change_type(const generic_button *button)
 {
+    (void) button;
     window_editor_select_scenario_action_type_show(data.action);
 }
 

@@ -11,6 +11,7 @@ public:
     float logical_height(const render_2d_request &request, const image &img) const;
     float source_scale_x(const render_2d_request &request, const image &img) const;
     float source_scale_y(const render_2d_request &request, const image &img) const;
+    render_destination_rect destination_rect(const render_2d_request &request, const image &img) const;
     render_domain tooltip_domain_for(render_domain domain) const;
     render_domain snapshot_domain_for(render_domain domain) const;
     image_filter configured_scale_filter(int platform_scale_percentage) const;
@@ -20,4 +21,9 @@ public:
         const image &img,
         float city_scale,
         int auto_force_nearest_filter) const;
+
+private:
+    render_destination_rect default_destination_rect(const render_2d_request &request, const image &img) const;
+    render_destination_rect shared_city_tile_destination_rect(const render_2d_request &request, const image &img) const;
+    render_destination_rect round_shared_edges(const render_destination_rect &rect) const;
 };

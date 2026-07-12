@@ -46,10 +46,10 @@ static int init(translation_key title, translation_key message, int should_draw_
     data.height = 13;
     if (num_texts) {
         if (num_texts > 2) {
-            data.height += ((num_texts - 2) * 30 + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            data.height += static_cast<int>(((num_texts - 2) * 30 + BLOCK_SIZE - 1) / BLOCK_SIZE);
         }
     }
-    buttons[0].y_offset = data.height * (BLOCK_SIZE - 1) - buttons[0].height;
+    buttons[0].y_offset = static_cast<short>(data.height * (BLOCK_SIZE - 1) - buttons[0].height);
     return 1;
 }
 
@@ -101,6 +101,9 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_ok(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     close();
 }
 

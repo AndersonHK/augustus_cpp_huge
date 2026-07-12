@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JuliusGraphicsExtractor", "
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StartupParserTest", "StartupParserTest.vcxproj", "{E7AB650E-2D63-49A0-B9E1-53060F57C919}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererSeamTest", "RendererSeamTest.vcxproj", "{14823A5A-714B-4F2E-9390-4D09A67B6EFB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +35,10 @@ Global
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Debug|x64.Build.0 = Debug|x64
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Release|x64.ActiveCfg = Release|x64
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Release|x64.Build.0 = Release|x64
+		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Debug|x64.ActiveCfg = Debug|x64
+		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Debug|x64.Build.0 = Debug|x64
+		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Release|x64.ActiveCfg = Release|x64
+		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

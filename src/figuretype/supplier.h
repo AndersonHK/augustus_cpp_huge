@@ -2,6 +2,15 @@
 
 #include "figure/figure.h"
 
+namespace figuretype {
+
+class Supplier : public Figure {
+public:
+    void draw(building_info_context *c);
+};
+
+} // namespace figuretype
+
 #define MAX_FOOD_STOCKED_MARKET 800
 #define MAX_FOOD_STOCKED_MESS_HALL 1600 
 #define MAX_FOOD_STOCKED_CARAVANSERAI 1600

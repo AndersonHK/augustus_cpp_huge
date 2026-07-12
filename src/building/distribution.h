@@ -35,7 +35,7 @@ public:
     int priority_for(resource_type resource) const;
     int stock_target_for(resource_type resource, int fallback_stock) const;
     int needed_resources_for(const Building &building, resource_storage_info info[RESOURCE_SLOT_COUNT]) const;
-    void set_acceptance(Building &building, int value) const;
+    void set_acceptance(Building &building, bool accepted) const;
     int accepts_nothing(const Building &building) const;
     void update_demands(Building &building) const;
     int find_sources_for_building(

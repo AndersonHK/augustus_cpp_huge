@@ -62,7 +62,7 @@ public:
         const auto safe_len = std::min<std::size_t>(static_cast<std::size_t>(player_name_end - player_name.begin()), kMaxPlayerNameLength);
         player_name[safe_len] = 0;
         if (safe_len + 1 < player_name.size()) {
-            std::fill(player_name.begin() + safe_len + 1, player_name.end(), 0);
+            std::fill(player_name.begin() + safe_len + 1, player_name.end(), std::uint8_t{0});
         }
     }
 };
@@ -174,7 +174,9 @@ void settings_save(void)
     buffer_skip(buf, 4);
     buffer_write_i32(buf, data.fullscreen);
     buffer_skip(buf, 3);
-    for_sound_types(kEarlySoundTypes, [buf](const int type) { buffer_write_u8(buf, data.sound_settings[type].enabled); });
+    for_sound_types(kEarlySoundTypes, [buf](const int type) {
+        buffer_write_u8(buf, static_cast<uint8_t>(data.sound_settings[type].enabled));
+    });
     buffer_skip(buf, 6);
     buffer_write_i32(buf, data.game_speed);
     buffer_write_i32(buf, data.scroll_speed);
@@ -187,9 +189,9 @@ void settings_save(void)
     buffer_skip(buf, 4); //int personal_savings_last_mission;
     buffer_skip(buf, 4); //int current_mission_id;
     buffer_skip(buf, 4); //int is_custom_scenario;
-    buffer_write_u8(buf, data.sound_settings[SOUND_TYPE_CITY].enabled);
-    buffer_write_u8(buf, data.warnings);
-    buffer_write_u8(buf, data.monthly_autosave);
+    buffer_write_u8(buf, static_cast<uint8_t>(data.sound_settings[SOUND_TYPE_CITY].enabled));
+    buffer_write_u8(buf, static_cast<uint8_t>(data.warnings));
+    buffer_write_u8(buf, static_cast<uint8_t>(data.monthly_autosave));
     buffer_skip(buf, 1); //unsigned char autoclear_enabled;
     for_sound_types(kAllSoundTypes, [buf](const int type) { buffer_write_i32(buf, data.sound_settings[type].volume); });
     buffer_skip(buf, 8); // ram

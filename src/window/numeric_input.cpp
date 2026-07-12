@@ -93,7 +93,7 @@ static void init(int x, int y, const generic_button *button, int max_digits,
 
     determine_offsets(x, y, button);
 
-    data.max_digits = max_digits;
+    data.max_digits = static_cast<unsigned int>(max_digits);
     if (!min_value && !max_value) {
         data.min_value = INT_MIN;
         data.max_value = INT_MAX;
@@ -121,7 +121,7 @@ static void draw_number_button(int x, int y, int number, int is_selected)
     color_t color = is_selected ? COLOR_FONT_BLUE : COLOR_BLACK;
     graphics_draw_rect(x, y - 1, 26, 26, color);
     uint8_t number_string[2];
-    number_string[0] = '0' + number;
+    number_string[0] = static_cast<uint8_t>('0' + number);
     number_string[1] = 0;
     text_draw_centered(number_string, x, y, 27, FONT_LARGE_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_PLAIN)->line_height), color);
 }
@@ -213,6 +213,8 @@ static void button_number(const generic_button *button)
 
 static void button_accept(const generic_button *button)
 {
+    (void)button;
+
     input_accept();
 }
 
@@ -228,16 +230,22 @@ static void input_negative(void)
 
 static void button_negative(const generic_button *button)
 {
+    (void)button;
+
     input_negative();
 }
 
 static void button_delete(const generic_button *button)
 {
+    (void)button;
+
     input_delete();
 }
 
 static void button_cancel(const generic_button *button)
 {
+    (void)button;
+
     close();
 }
 

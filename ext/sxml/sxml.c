@@ -208,7 +208,6 @@ static sxmlerr_t state_setpos (sxml_t* state, const sxml_args_t* args, const cha
 #define SXML_ERROR_XMLSTRICT	SXML_ERROR_XMLINVALID
 
 #define ENTITY_MAXLEN 8	/* &#x03A3; */
-#define MIN(a,b)	((a) < (b) ? (a) : (b))
 
 static sxmlerr_t parse_characters (sxml_t* state, sxml_args_t* args, const char* end)
 {
@@ -223,7 +222,7 @@ static sxmlerr_t parse_characters (sxml_t* state, sxml_args_t* args, const char*
 		return state_setpos (state, args, ampr);
 
 	/* limit entity to search to ENTITY_MAXLEN */
-	limit= MIN (ampr + ENTITY_MAXLEN, end);
+	limit= (ampr + ENTITY_MAXLEN < end) ? ampr + ENTITY_MAXLEN : end;
 	colon= str_findchr (ampr, limit, ';');
 	if (colon == limit)
 		return (limit == end) ? SXML_ERROR_BUFFERDRY : SXML_ERROR_XMLINVALID;

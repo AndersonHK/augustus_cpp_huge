@@ -82,7 +82,7 @@ void map_road_network_update(void)
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             if (figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset) && !network.items[grid_offset]) {
-                int size = mark_road_network(grid_offset, network_id);
+                int size = mark_road_network(grid_offset, static_cast<uint8_t>(network_id));
                 city_map_add_to_largest_road_networks(network_id, size);
                 network_id++;
             }

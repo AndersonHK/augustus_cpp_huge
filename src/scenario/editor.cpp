@@ -218,7 +218,7 @@ void scenario_editor_set_caesar_salary(int salary)
     } else if (salary > 60000) {
         salary = 60000;
     }
-    scenario.caesar_salary = salary;
+    scenario.caesar_salary = static_cast<uint16_t>(salary);
     scenario_editor_set_as_unsaved();
 }
 

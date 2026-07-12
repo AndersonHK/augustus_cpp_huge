@@ -115,9 +115,9 @@ void map_figure_add(Figure *f)
             f->figures_on_same_tile_index++;
         }
         cap_figures_on_same_tile_index(f);
-        next->next_figure_id_on_same_tile = f->id();
+        next->next_figure_id_on_same_tile = static_cast<short>(f->id());
     } else {
-        figures.items[f->grid_offset] = f->id();
+        figures.items[f->grid_offset] = static_cast<uint16_t>(f->id());
     }
 }
 

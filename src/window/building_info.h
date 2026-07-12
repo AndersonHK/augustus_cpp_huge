@@ -7,7 +7,7 @@ int window_building_info_get_building_type(void);
 
 
 class Building;
-Building window_building_info_current_building();
+Building *window_building_info_current_building();
 void window_building_info_show_storage_special_orders_on_top(Building building);
 
 

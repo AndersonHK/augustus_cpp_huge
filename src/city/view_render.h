@@ -7,7 +7,7 @@ struct CityViewRenderTile {
     int x = 0;
     int y = 0;
     int grid_offset = -1;
-    Building building = Building(nullptr);
+    Building *building = nullptr;
 };
 
 typedef void(city_view_render_tile_callback)(const CityViewRenderTile &tile);

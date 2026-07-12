@@ -41,6 +41,7 @@ static struct {
 
 static void start_touch(const touch *first, const touch *last, int scale)
 {
+    (void) last;
     data.restore = 0;
     data.touch.active = 1;
     data.input_offset.x = first->current_point.x;

@@ -93,7 +93,7 @@ void scenario_custom_variable_delete_all(void)
 void scenario_custom_variable_set_color_group(unsigned int id, int color_group)
 {
     custom_variable_t *var = get_variable(id);
-    var->color_group = color_group;
+    var->color_group = static_cast<unsigned char>(color_group);
 }
 
 int scenario_custom_variable_get_color_group(unsigned int id)
@@ -243,12 +243,12 @@ void scenario_custom_variable_save_state(buffer *buf)
     const custom_variable_t *variable;
     for (const custom_variable_t &current : custom_variables) {
         variable = &current;
-        buffer_write_u8(buf, variable->in_use);
+        buffer_write_u8(buf, static_cast<uint8_t>(variable->in_use));
         buffer_write_i32(buf, variable->value);
         buffer_write_raw(buf, variable->name, CUSTOM_VARIABLE_NAME_LENGTH);
         buffer_write_raw(buf, variable->text_display, CUSTOM_VARIABLE_TEXT_DISPLAY_LENGTH);
-        buffer_write_u8(buf, variable->allow_display);
-        buffer_write_u8(buf, variable->color_group);
+        buffer_write_u8(buf, static_cast<uint8_t>(variable->allow_display));
+        buffer_write_u8(buf, static_cast<uint8_t>(variable->color_group));
     }
 }
 

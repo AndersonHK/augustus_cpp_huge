@@ -1,5 +1,6 @@
 #include "enemy.h"
 
+#include "building/building.h"
 #include "building/building_record.h"
 #include "city/figures.h"
 #include "city/sound.h"
@@ -14,10 +15,71 @@
 #include "figure/properties.h"
 #include "figure/route.h"
 #include "figuretype/missile.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
+#include "map/building.h"
 #include "map/figure.h"
+#include "map/grid.h"
+#include "scenario/property.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 #include "sound/speech.h"
+#include "window/building/common.h"
+
+void figuretype::Enemy::draw(building_info_context *c)
+{
+    int big_people_image_id = Figure::big_people_image_id(static_cast<figure_type>(type));
+    int enemy_type = formation_get(formation_id)->enemy_type;
+    switch (type) {
+        case FIGURE_ENEMY43_SPEAR:
+            switch (enemy_type) {
+                case ENEMY_5_PERGAMUM: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 44 - 1; break;
+                case ENEMY_6_SELEUCID: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 46 - 1; break;
+                case ENEMY_7_ETRUSCAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 32 - 1; break;
+                case ENEMY_8_GREEK: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 36 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY44_SWORD:
+            switch (enemy_type) {
+                case ENEMY_5_PERGAMUM: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 45 - 1; break;
+                case ENEMY_6_SELEUCID: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 47 - 1; break;
+                case ENEMY_9_EGYPTIAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 29 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY45_SWORD:
+            switch (enemy_type) {
+                case ENEMY_7_ETRUSCAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 31 - 1; break;
+                case ENEMY_8_GREEK: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 37 - 1; break;
+                case ENEMY_10_CARTHAGINIAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 22 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY49_FAST_SWORD:
+            switch (enemy_type) {
+                case ENEMY_0_BARBARIAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 21 - 1; break;
+                case ENEMY_1_NUMIDIAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 20 - 1; break;
+                case ENEMY_4_GOTH: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 35 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY50_SWORD:
+            switch (enemy_type) {
+                case ENEMY_2_GAUL: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 40 - 1; break;
+                case ENEMY_3_CELT: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 24 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY51_SPEAR:
+            switch (enemy_type) {
+                case ENEMY_1_NUMIDIAN: big_people_image_id = Image::group(GROUP_BIG_PEOPLE) + 20 - 1; break;
+            }
+            break;
+    }
+    Image::from_id(big_people_image_id).draw(c->x_offset + 28, c->y_offset + 112);
+
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    lang_text_draw(current_string_key(37, scenario_property_enemy() + 20), c->x_offset + 92, c->y_offset + 149,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
 
 static void enemy_initial(Figure *f, formation *m)
 {
@@ -26,7 +88,7 @@ static void enemy_initial(Figure *f, formation *m)
     Route::remove(f);
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
-        if (f->is_ghost && f->index_in_formation == 0 && (unsigned int) m->figures[0] == f->id()) {
+        if (f->is_ghost && f->index_in_formation == 0 && static_cast<unsigned int>(m->roster_figure_id(0)) == f->id()) {
             if (m->layout == FORMATION_ENEMY_MOB) {
                 sound_speech_play_file("wavs/drums.wav");
             } else if (m->layout == FORMATION_ENEMY12) {
@@ -39,8 +101,8 @@ static void enemy_initial(Figure *f, formation *m)
         if (m->recent_fight) {
             f->action_state = FIGURE_ACTION_154_ENEMY_FIGHTING;
         } else {
-            f->destination_x = m->destination_x + f->formation_position_x.enemy;
-            f->destination_y = m->destination_y + f->formation_position_y.enemy;
+            f->destination_x = static_cast<unsigned char>(m->destination_x + f->formation_position_x.enemy);
+            f->destination_y = static_cast<unsigned char>(m->destination_y + f->formation_position_y.enemy);
             if (calc_general_direction(f->x, f->y, f->destination_x, f->destination_y) < 8) {
                 f->action_state = FIGURE_ACTION_153_ENEMY_MARCHING;
             }
@@ -56,7 +118,8 @@ static void enemy_initial(Figure *f, formation *m)
             f->wait_ticks_missile = 0;
             if (figure_combat_get_missile_target_for_enemy(f, 10, city_figures_soldiers() < 4, &tile)) {
                 f->attack_image_offset = 1;
-                f->direction = calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y);
+                f->direction =
+                    static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
             } else {
                 f->attack_image_offset = 0;
             }
@@ -83,9 +146,9 @@ static void enemy_initial(Figure *f, formation *m)
                 }
                 figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, missile_type);
                 formation_record_missile_fired(m);
-            }
-            if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
-                sound_effect_play(SOUND_EFFECT_ARROW);
+                if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
+                    sound_effect_play(SOUND_EFFECT_ARROW);
+                }
             }
             f->attack_image_offset++;
             if (f->attack_image_offset > 100) {
@@ -100,13 +163,19 @@ static void enemy_marching(Figure *f, const formation *m)
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         f->wait_ticks = 50;
-        f->destination_x = m->destination_x + f->formation_position_x.enemy;
-        f->destination_y = m->destination_y + f->formation_position_y.enemy;
+        f->destination_x = static_cast<unsigned char>(m->destination_x + f->formation_position_x.enemy);
+        f->destination_y = static_cast<unsigned char>(m->destination_y + f->formation_position_y.enemy);
         if (calc_general_direction(f->x, f->y, f->destination_x, f->destination_y) == DIR_FIGURE_AT_DESTINATION) {
             f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
             return;
         }
-        f->destination_building = Building(building_get(m->destination_building_id));
+        Building *destination = nullptr;
+        Building::for_each([&](Building *building) {
+            if (!destination && building && building->id == static_cast<unsigned int>(m->destination_building_id)) {
+                destination = building;
+            }
+        });
+        f->destination_building = destination;
         Route::remove(f);
     }
     figure_movement_move_ticks(f, f->speed_multiplier);
@@ -173,8 +242,8 @@ static void enemy_action(Figure *f, formation *m)
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
     const FormationLayoutPosition position =
         formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
-    f->formation_position_x.enemy = position.x;
-    f->formation_position_y.enemy = position.y;
+    f->formation_position_x.enemy = static_cast<signed char>(position.x);
+    f->formation_position_y.enemy = static_cast<signed char>(position.y);
 
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
@@ -575,9 +644,10 @@ void figure_enemy_gladiator_action(Figure *f)
                 int x_tile, y_tile;
                 int building_id = formation_rioter_get_target_building(&x_tile, &y_tile);
                 if (building_id) {
-                    f->destination_x = x_tile;
-                    f->destination_y = y_tile;
-                    f->destination_building = Building(building_get(building_id));
+                    f->destination_x = static_cast<unsigned char>(x_tile);
+                    f->destination_y = static_cast<unsigned char>(y_tile);
+                    const int grid_offset = map_grid_offset(x_tile, y_tile);
+                    f->destination_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset).main() : nullptr;
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -673,5 +743,5 @@ void figure_enemy_catapult_action(Figure *f)
     figure_image_increase_offset(f, 12);
     f->clear_legacy_cart_overlay_image();
     enemy_action(f, m);
-    f->image_id = 0;
+    f->clear_legacy_image();
 }

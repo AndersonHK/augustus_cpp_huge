@@ -120,6 +120,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void confirm_exit(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         system_exit();
     }

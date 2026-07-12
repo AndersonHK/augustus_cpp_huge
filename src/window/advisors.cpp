@@ -290,6 +290,8 @@ static void button_change_advisor(const generic_button *button)
 
 static void button_help(int param1, int param2)
 {
+    (void) param1;
+    (void) param2;
     if (current_advisor > 0) {
         window_message_dialog_show(message_text_for_advisor(current_advisor), 0);
     }

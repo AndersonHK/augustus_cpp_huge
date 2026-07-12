@@ -70,6 +70,22 @@ not infer routing behavior from broad `figure` and `advance` buckets.
   need route attempts, cost-map generations, cache hits, pruned route checks,
   async queue depth, and per-policy route counters.
 
+## Progress Checkpoint
+
+- [x] Consolidate figure route-policy selection behind `PathingMode::routePolicyForFigure()`.
+- [x] Keep roadblock/highway/garden permission selection in the same policy family used by route planning and movement validation.
+- [x] Start naming road-access candidate query boundaries through `RoadAccessQuery`.
+- [x] Move several candidate/distance selectors behind `Route::DistanceQuery` instead of free local pathing helpers.
+- [x] Route wall classification and route-intent performance purpose through constructed route policy data.
+- [~] Replace duplicate local route/distance helpers with route-owned selectors; a few construction/water/debug distance-grid readers remain.
+- [~] Give buildings road-access cache boundaries through `Building` methods; invalidation and typed dirty ownership remain open.
+- [~] Wrap legacy global distance-grid reads in route-owned handles; true local cost-map objects are not implemented yet.
+- [ ] Add route-specific performance counters by purpose.
+- [ ] Add reusable route objects on figures with destination/policy/epoch stamps and route failure backoff.
+- [ ] Replace the global mutable routing distance grid with local/cacheable cost-map objects.
+- [ ] Add dirty `RouteWorld` passability/epoch ownership.
+- [ ] Add async routing only after route data is reentrant and snapshot-safe.
+
 ## Target Shape
 
 ### Route Policy

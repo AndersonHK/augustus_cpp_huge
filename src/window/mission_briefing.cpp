@@ -365,8 +365,8 @@ private:
             return;
         }
         if (definition->image_collection) {
-            button.image_collection = definition->image_collection;
-            button.image_offset = definition->image_offset;
+            button.image_collection = static_cast<short>(definition->image_collection);
+            button.image_offset = static_cast<short>(definition->image_offset);
         }
         shared_ui_runtime().draw_image_button(
             definition->resolved_x(dialog_width(), this->definition().base_width()),
@@ -381,8 +381,8 @@ private:
             return 0;
         }
         if (definition->image_collection) {
-            button.image_collection = definition->image_collection;
-            button.image_offset = definition->image_offset;
+            button.image_collection = static_cast<short>(definition->image_collection);
+            button.image_offset = static_cast<short>(definition->image_offset);
         }
         return image_buttons_handle_mouse(
             m_dialog,
@@ -462,6 +462,7 @@ static int play_video(void)
 
 static void fadeout_music(sound_type unused)
 {
+    (void) unused;
     sound_device_fadeout_music(5000);
     sound_device_on_audio_finished(0);
 }
@@ -651,6 +652,8 @@ static void draw_foreground(void)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
+    (void)h;
+
     const MissionBriefingWindow *window = mission_window();
     if (!window) {
         return;
@@ -662,6 +665,9 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_back(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     if (data.back_action == BUTTON_GO_BACK_NONE) {
         return;
     }
@@ -677,6 +683,9 @@ static void button_back(int param1, int param2)
 
 static void button_start_mission(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     if (data.back_action != BUTTON_GO_BACK_NONE || data.audio_played) {
         sound_music_stop();
         sound_speech_stop();

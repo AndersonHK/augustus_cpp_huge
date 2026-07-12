@@ -72,12 +72,12 @@ int city_trade_has_sea_trade_route(void)
 
 void city_trade_start_land_trade_problems(int duration)
 {
-    city_data.trade.land_trade_problem_duration = duration;
+    city_data.trade.land_trade_problem_duration = static_cast<int16_t>(duration);
 }
 
 void city_trade_start_sea_trade_problems(int duration)
 {
-    city_data.trade.sea_trade_problem_duration = duration;
+    city_data.trade.sea_trade_problem_duration = static_cast<int16_t>(duration);
 }
 
 int city_trade_has_land_trade_problems(void)

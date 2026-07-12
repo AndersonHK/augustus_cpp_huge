@@ -11,11 +11,13 @@ The long-term goal is to stop writing code where every tick scans every building
 The preferred shape is:
 
 - Objects create valid runtime state when they are created.
+- Save/load creates objects from records once. One saved building record should either hydrate one valid `Building` object and its module state or be discarded with a logged error.
 - Objects register themselves with the runtime lists they belong to.
 - Objects deregister themselves when they are destroyed, replaced, retargeted, or disabled.
 - Objects keep their own data private where practical and expose behavior through narrow methods.
 - Callers receive object references or pointers that already represent the intended relationship.
 - Save/load bridges translate ids into object relationships once, then normal runtime code uses those relationships directly.
+- Save-record structs are compatibility input/output at the bridge. They should not remain the runtime object model once a module has been peeled into object state.
 
 ## What To Replace
 
@@ -81,6 +83,26 @@ for (Warehouse *warehouse : city_runtime.warehouses_accepting(resource)) {
 
 The registry owns the list. The object owns registration into that list. Callers should not recreate membership with ad hoc scans.
 
+## Indexed Building Registry
+
+The existing `Building::first_of_type()` lists are the starting point, but the target registry should grow into a set of live object indexes for categories the simulation asks about constantly. A caller looking for a house, warehouse, granary, dock, storage source, service destination, or output producer should iterate the narrow owner-maintained list for that category, not every building in the city.
+
+Useful indexes include:
+
+- exact runtime type lists, already represented by `first_of_type`;
+- storage buildings by role and resource, especially granaries and warehouses;
+- houses and local workforce providers/demanders;
+- buildings with active production output;
+- buildings with active input demand;
+- road-access endpoints and path-blocker providers;
+- military, formation, and venue-provider buildings.
+
+These indexes should be maintained by lifecycle events. Creation registers a building into the indexes implied by its type/modules. Destruction, deletion, type replacement, mothball state changes, storage policy changes, or resource acceptance changes remove or move it. Ordered id maps or dense id-keyed containers are acceptable when stable iteration by building id matters.
+
+This depends on stricter lifecycle boundaries: buildings should be added only through the runtime instantiation path and removed only through the removal path that updates indexes, relationships, reservations, route destinations, and graphics state. Direct record mutation becomes increasingly dangerous once indexes are authoritative.
+
+The practical rule for new cleanup is: if a file needs "the first warehouse", "all granaries", or "all caravanserais", expose that from the owning module or registry. Do not reimplement a local full-building scan.
+
 ## Ownership And Cleanup
 
 Cleanup belongs at the lifecycle event that invalidates the relationship.
@@ -92,6 +114,7 @@ Examples:
 - A building changing type deregisters from old type lists and registers with new type lists.
 - A building being destroyed releases storage reservations, figure ownership, labor demand, production membership, and graphics/connectable memberships.
 - A save/load bridge hydrates runtime pointers and runtime lists once after records are loaded.
+- A save/load bridge rejects bad saved records at the boundary, instead of letting incomplete records survive as runtime objects.
 
 Do not make every consumer rediscover and repair these cases independently.
 
@@ -115,7 +138,110 @@ figure_record->destination_building_id
 static_cleanup_for_possible_bad_record_state(...)
 ```
 
-Public fields may remain temporarily during migration, but the direction is toward private data with explicit methods that preserve invariants.
+Public fields are acceptable when the operation is plain state access or assignment. Do not create or keep accessors whose whole behavior is equivalent to:
+
+```cpp
+return value;
+```
+
+or:
+
+```cpp
+value = other_value;
+```
+
+That kind of accessor is just a compatibility wrapper and should be deleted as callers move to the owning object. Keep data private only when reads or writes must enforce an invariant, synchronize related state, register/deregister from runtime indexes, release ownership, clamp/normalize values, convert save ids into object references, update dirty flags, or perform any behavior beyond simple assignment. In those cases the method should own that behavior directly and be named for the behavior, not for the field plumbing.
+
+This rule also applies during record-to-object migration. Moving fields under `private` is useful as a temporary compiler aid, but the final split should be deliberate: simple state becomes public object data, invariant-bearing state remains private behind behavior methods.
+
+## Bound Runtime Modules
+
+The long-term module target is not loose policy calls such as:
+
+```cpp
+entertainment_definition->tick(building);
+```
+
+That shape is too easy to call from arbitrary code with the wrong owner, stale state, or the wrong definition. It recreates the same opacity as legacy helper functions, only with newer names.
+
+Prefer owner-bound runtime modules:
+
+```cpp
+building.entertainment().tick();
+```
+
+Conceptually:
+
+```cpp
+class BuildingEntertainment {
+public:
+    void tick();
+
+private:
+    Building &owner_;
+    const EntertainmentDef *definition_;
+    EntertainmentState &state_;
+};
+```
+
+`Building` remains the central routing object. `BuildingType` remains immutable startup-loaded definition data. A runtime module binds exactly one owner object, one current type/module definition pointer, and one mutable state/data object. The module is born with the owning building, dies with the owning building, and is refreshed or rebound through the building lifecycle if the building changes type.
+
+This keeps responsibilities separated while keeping the data that belongs together packaged together:
+
+- `*Def` / type module: immutable XML-loaded rules, policies, costs, graphics, capacities, requirements, and tags.
+- `*State` / data module: mutable per-building state that must save/load and tick.
+- `Building*` runtime module: behavior facade bound to one `Building`, its current `*Def`, and its current `*State`.
+- `Building`: owns module construction, lifecycle, rebinding when type changes, and the public route to module behavior.
+
+The same direction applies to figures:
+
+```cpp
+figure.trade().draw_info_panel(context);
+figure.cargo().reserve_destination();
+figure.route().advance();
+```
+
+Internally a module may call private helpers across several files, but callers should enter through the owning object or its bound module. That makes wrong usage look wrong: a random subsystem should not be able to casually tick an entertainment definition against any building record.
+
+Type pointers inside bound modules should remain pointers rather than references where the owning object can change type. The definition object itself is immutable; the binding may change to a different immutable definition during upgrade, evolution, conversion, or compatibility migration.
+
+### Graphics Modules
+
+Graphics should be one of the first runtime-module extractions to follow this pattern.
+
+The long-term renderer should not read legacy image groups, legacy group enums, or legacy atlas arithmetic. Those are compatibility bridges only. Authored graphics should be XML-defined by path plus graphics-module policy, and runtime drawing should enter through owner-bound modules:
+
+```cpp
+building.graphics().draw();
+figure.graphics().draw();
+```
+
+Conceptually:
+
+```cpp
+class BuildingGraphics {
+public:
+    void tick();
+    void draw();
+
+private:
+    Building &owner_;
+    const BuildingGraphicsDef *definition_;
+    BuildingGraphicsState &state_;
+};
+```
+
+The existing definition classes already provide most of the immutable side of this split. `GraphicsDefinition` and its current children (`BuildingGraphics`, `FigureGraphics`, and `ResourceGraphics`) should be treated as definition classes awaiting convention-aligned names, not as the final runtime module names. The intended naming direction is:
+
+- `GraphicsDefinition` -> shared graphics definition base.
+- current `BuildingGraphics` -> `BuildingGraphicsDef`.
+- current `FigureGraphics` -> `FigureGraphicsDef`.
+- current `ResourceGraphics` -> `ResourceGraphicsDef`.
+- future owner-bound `BuildingGraphics`, `FigureGraphics`, terrain graphics, and tile graphics classes bind owner, `*GraphicsDef`, and mutable `*GraphicsState`.
+
+Every major class in this split should live in a same-named header/source pair. For example, `BuildingGraphics` belongs in `BuildingGraphics.h/.cpp`; `BuildingGraphicsDef` belongs in `BuildingGraphicsDef.h/.cpp`; and the same convention should hold for composed graphics data modules, state modules, and terrain/tile graphics owners.
+
+The composed graphics data module should be instantiated from graphics XML nodes across buildings, figures, terrain, and tiles, so shared graphics node parsing and policy resolution can replace legacy group-specific draw branches instead of wrapping them.
 
 ## Single Object Surfaces
 
@@ -159,6 +285,8 @@ Allowed:
 - Load reads stable ids.
 - Load resolves ids into pointers/references and typed runtime lists.
 - Debug logs print ids.
+
+During the record-to-object migration, public field syntax is acceptable only when it is truly object-owned or safely record-backed. `Building.id`, `Building.storage_id`, and similar transitional fields should not be detached mirrors that can drift away from the save-backed record. Until save/load serializes live object state directly, assignment-capable migration fields must either write through to the record/module state immediately or remain private behind a behavior method.
 
 Disallowed for normal runtime:
 

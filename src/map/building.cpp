@@ -2,14 +2,22 @@
 #include "building.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
+#include "building/building_runtime.h"
+#include "building/building_runtime_internal.h"
 #include "core/config.h"
+#include "core/crash_context.h"
 #include "core/log.h"
 #include "game/save_version.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "platform/screen.h"
+
+#include <cstdio>
+#include <cstring>
+#include <exception>
+#include <vector>
 
 static grid_u32 buildings_grid;
 static grid_u8 damage_grid;
@@ -19,15 +27,35 @@ static grid_u32 buildings_grid_backup;
 static grid_u8 damage_grid_backup;
 static grid_u32 rubble_info_grid_backup;
 
-unsigned int map_building_at(int grid_offset)
+static Building *building_objects_grid[GRID_SIZE * GRID_SIZE];
+static Building *building_objects_grid_backup[GRID_SIZE * GRID_SIZE];
+
+[[noreturn]] static void report_missing_runtime_building(int grid_offset)
 {
-    return map_grid_is_valid_offset(grid_offset) ? buildings_grid.items[grid_offset] : 0;
+    log_error("map_building_at called without a runtime building", 0, grid_offset);
+    std::terminate();
+}
+
+int map_building_exists_at(int grid_offset)
+{
+    return map_grid_is_valid_offset(grid_offset) && building_objects_grid[grid_offset];
+}
+
+Building &map_building_at(int grid_offset)
+{
+    if (map_building_exists_at(grid_offset)) {
+        return *building_objects_grid[grid_offset];
+    }
+    report_missing_runtime_building(grid_offset);
 }
 
 building_type map_building_type_at(int grid_offset)
 {
-    unsigned int building_id = map_building_at(grid_offset);
-    return building_id ? building_get(building_id)->type : BUILDING_NONE;
+    if (!map_building_exists_at(grid_offset)) {
+        return BUILDING_NONE;
+    }
+    const Building &building = map_building_at(grid_offset);
+    return building.type ? building.type->type() : BUILDING_NONE;
 }
 
 unsigned int map_building_from_buffer_16(buffer *buildings, int grid_offset)
@@ -42,9 +70,26 @@ unsigned int map_building_from_buffer_32(buffer *buildings, int grid_offset)
     return buffer_read_u32(buildings);
 }
 
-void map_building_set(int grid_offset, unsigned int building_id)
+void map_building_set(int grid_offset, Building &building)
 {
-    buildings_grid.items[grid_offset] = building_id;
+    if (!map_grid_is_valid_offset(grid_offset)) {
+        return;
+    }
+    building_runtime *runtime = building.runtime_instance();
+    if (!runtime) {
+        report_missing_runtime_building(grid_offset);
+    }
+    building_objects_grid[grid_offset] = &runtime->building;
+    buildings_grid.items[grid_offset] = runtime->building.id;
+}
+
+void map_building_clear_at(int grid_offset)
+{
+    if (!map_grid_is_valid_offset(grid_offset)) {
+        return;
+    }
+    building_objects_grid[grid_offset] = nullptr;
+    buildings_grid.items[grid_offset] = 0;
 }
 
 void map_building_damage_clear(int grid_offset)
@@ -82,34 +127,12 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
     }
 }
 
-int map_building_ruins_left(unsigned int building_id)
-{
-    // doesnt work for hippodromes and forts - forts shouldnt turn to rubble, hippodromes are not repairable
-    building *b = building_get(building_id);
-    int ruins_count = 0;
-    if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") || building_is_fort(b->type)) {
-        return 0;
-    }
-    int size = b->data.rubble.og_size ? b->data.rubble.og_size : b->size;
-    int slice_offset = b->data.rubble.og_grid_offset ? b->data.rubble.og_grid_offset : b->grid_offset;
-    grid_slice *slice = map_grid_get_grid_slice_square(slice_offset, size);
-    for (int i = 0; i < slice->size; i++) {
-        int grid_offset = slice->grid_offsets[i];
-        if (map_building_rubble_building_id(grid_offset) == building_id) {
-            ruins_count++;
-        } else if (map_building_at(grid_offset) == building_id &&
-                building_type_registry_impl::type_attr_is(building_get(building_id)->type, "burning_ruin")) {
-            ruins_count++;
-        }
-    }
-    return ruins_count;
-}
-
 void map_building_backup(void)
 {
     map_grid_copy_u32(buildings_grid.items, buildings_grid_backup.items);
     map_grid_copy_u8(damage_grid.items, damage_grid_backup.items);
     map_grid_copy_u32(rubble_info_grid.items, rubble_info_grid_backup.items);
+    std::memcpy(building_objects_grid_backup, building_objects_grid, sizeof(building_objects_grid));
 }
 
 void map_building_restore(void)
@@ -117,6 +140,7 @@ void map_building_restore(void)
     map_grid_copy_u32(buildings_grid_backup.items, buildings_grid.items);
     map_grid_copy_u8(damage_grid_backup.items, damage_grid.items);
     map_grid_copy_u32(rubble_info_grid_backup.items, rubble_info_grid.items);
+    std::memcpy(building_objects_grid, building_objects_grid_backup, sizeof(building_objects_grid));
 }
 
 void map_building_clear_backup(void)
@@ -124,6 +148,7 @@ void map_building_clear_backup(void)
     map_grid_clear_u32(buildings_grid_backup.items);
     map_grid_clear_u8(damage_grid_backup.items);
     map_grid_clear_u32(rubble_info_grid_backup.items);
+    std::memset(building_objects_grid_backup, 0, sizeof(building_objects_grid_backup));
 }
 
 void map_building_clear(void)
@@ -131,6 +156,7 @@ void map_building_clear(void)
     map_grid_clear_u32(buildings_grid.items);
     map_grid_clear_u8(damage_grid.items);
     map_grid_clear_u32(rubble_info_grid.items);
+    std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
 
 void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble)
@@ -150,22 +176,61 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
         map_grid_load_state_u8(damage_grid.items, damage);
         map_grid_load_state_u32(rubble_info_grid.items, rubble);
     }
+    std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
 
-static int map_building_reference_is_live(unsigned int building_id)
+unsigned int map_building_loaded_id_at(int grid_offset)
 {
-    const unsigned int total_buildings = static_cast<unsigned int>(building_count());
-    if (!building_id || building_id >= total_buildings) {
+    return map_grid_is_valid_offset(grid_offset) ? buildings_grid.items[grid_offset] : 0;
+}
+
+void map_building_set_loaded_id(int grid_offset, unsigned int building_id)
+{
+    if (map_grid_is_valid_offset(grid_offset)) {
+        buildings_grid.items[grid_offset] = building_id;
+    }
+}
+
+static int map_building_reference_is_live(Building *building)
+{
+    if (!building) {
         return 0;
     }
-    building *b = building_get(building_id);
-    return b && b->state != BUILDING_STATE_UNUSED && b->type != BUILDING_NONE &&
-        building_type_registry_impl::definition_for_type(b->type);
+    const ::building *record = building->record();
+    return record && record->state != BUILDING_STATE_UNUSED && building->type;
+}
+
+void map_building_rebind_runtime_references(void)
+{
+    std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
+
+    std::vector<building *> records_by_id(static_cast<size_t>(building_count()), nullptr);
+    building_for_each_loaded_record([&](building *record) {
+        if (record && record->id < records_by_id.size()) {
+            records_by_id[record->id] = record;
+        }
+    });
+
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
+        const unsigned int building_id = buildings_grid.items[grid_offset];
+        if (!building_id || building_id >= records_by_id.size()) {
+            continue;
+        }
+
+        building *record = records_by_id[building_id];
+        if (!record) {
+            continue;
+        }
+
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
+            building_objects_grid[grid_offset] = &runtime->building;
+        }
+    }
 }
 
 static void clear_single_invalid_building_reference(int grid_offset)
 {
-    map_building_set(grid_offset, 0);
+    map_building_clear_at(grid_offset);
     map_building_damage_clear(grid_offset);
     map_sprite_clear_tile(grid_offset);
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
@@ -173,31 +238,75 @@ static void clear_single_invalid_building_reference(int grid_offset)
     }
 }
 
+static void report_malformed_terrain_building_tiles_after_load(int count, int first_grid_offset)
+{
+    if (count <= 0) {
+        return;
+    }
+
+    char detail[256];
+    snprintf(detail, sizeof(detail),
+        "tiles=%d first_grid_offset=%d first_x=%d first_y=%d action=removed TERRAIN_BUILDING",
+        count,
+        first_grid_offset,
+        map_grid_offset_to_x(first_grid_offset),
+        map_grid_offset_to_y(first_grid_offset));
+
+    ErrorContextScope scope("Save load building map normalization", detail);
+    error_context_report_error(
+        "Save load found TERRAIN_BUILDING tiles without live building records.",
+        detail);
+
+    char message[512];
+    snprintf(message, sizeof(message),
+        "This save contained %d tile%s marked as a building without a valid building record.\n\n"
+        "Vespasian repaired the map by removing the invalid building terrain flag and continued loading.\n\n"
+        "%s\n\nMore details were written to vespasian-log.txt.",
+        count,
+        count == 1 ? "" : "s",
+        detail);
+    platform_screen_show_error_message_box("Vespasian Save Load Error", message);
+}
+
 void map_building_remove_invalid_references(void)
 {
+    map_building_rebind_runtime_references();
+
     int removed = 0;
-    const unsigned int total_buildings = static_cast<unsigned int>(building_count());
+    int malformed_terrain_building_tiles = 0;
+    int first_malformed_terrain_building_offset = 0;
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
-        unsigned int building_id = buildings_grid.items[grid_offset];
-        if (map_building_reference_is_live(building_id)) {
+        Building *building = building_objects_grid[grid_offset];
+        if (map_building_reference_is_live(building)) {
             continue;
         }
-        if (!building_id) {
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        const int has_terrain_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
+        if (!building) {
+            if (has_terrain_building) {
+                if (!malformed_terrain_building_tiles) {
+                    first_malformed_terrain_building_offset = grid_offset;
+                }
+                malformed_terrain_building_tiles++;
+                clear_single_invalid_building_reference(grid_offset);
+                removed++;
+            } else if (buildings_grid.items[grid_offset]) {
                 clear_single_invalid_building_reference(grid_offset);
                 removed++;
             }
             continue;
         }
-        if (building_id < total_buildings) {
-            int x = map_grid_offset_to_x(grid_offset);
-            int y = map_grid_offset_to_y(grid_offset);
-            map_building_tiles_remove(building_id, x, y);
-        } else {
-            clear_single_invalid_building_reference(grid_offset);
+        if (has_terrain_building) {
+            if (!malformed_terrain_building_tiles) {
+                first_malformed_terrain_building_offset = grid_offset;
+            }
+            malformed_terrain_building_tiles++;
         }
+        clear_single_invalid_building_reference(grid_offset);
         removed++;
     }
+    report_malformed_terrain_building_tiles_after_load(
+        malformed_terrain_building_tiles,
+        first_malformed_terrain_building_offset);
     if (removed) {
         log_warning("Removed invalid building references from map grid after save load", 0, removed);
     }
@@ -209,13 +318,18 @@ int map_building_is_reservoir(int x, int y)
         return 0;
     }
     int grid_offset = map_grid_offset(x, y);
-    unsigned int building_id = map_building_at(grid_offset);
-    if (!building_id || !building_type_registry_impl::type_attr_is(building_get(building_id)->type, "reservoir")) {
+    if (!map_building_exists_at(grid_offset)) {
+        return 0;
+    }
+    const Building &reservoir = map_building_at(grid_offset);
+    const unsigned int building_id = reservoir.id;
+    if (!reservoir.matches("reservoir")) {
         return 0;
     }
     for (int dy = 0; dy < 3; dy++) {
         for (int dx = 0; dx < 3; dx++) {
-            if (building_id != map_building_at(grid_offset + map_grid_delta(dx, dy))) {
+            const int offset = grid_offset + map_grid_delta(dx, dy);
+            if (!map_building_exists_at(offset) || map_building_at(offset).id != building_id) {
                 return 0;
             }
         }

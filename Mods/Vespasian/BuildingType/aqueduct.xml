@@ -13,6 +13,202 @@
     <button group="water" order="20" text_key="main_strings.28.8" />
     <event_data attr="aqueduct" />
     <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Aqueduct_No_Water" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </default>
+        <variant>
+            <condition type="climate" value="desert" />
+            <condition type="water_access" />
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct_Desert" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct_No_Water_Desert" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <condition type="water_access" />
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct_Northern" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct_No_Water_Northern" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="water_access" />
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="terrain" value="road" />
+            <path value="Admin_Logistics\Aqueduct_No_Water" />
+            <options selection="road_crossing">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <condition type="water_access" />
+            <path value="Admin_Logistics\Aqueduct_Desert" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Admin_Logistics\Aqueduct_No_Water_Desert" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <condition type="water_access" />
+            <path value="Admin_Logistics\Aqueduct_Northern" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Admin_Logistics\Aqueduct_No_Water_Northern" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="water_access" />
+            <path value="Admin_Logistics\Aqueduct" />
+            <options selection="connectable">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+    </graphics>
     <water_access>
         <provides type="aqueduct" range="0" origin="nodes" />
         <requires mode="any" where="nodes">

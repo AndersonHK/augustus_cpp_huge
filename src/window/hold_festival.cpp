@@ -187,16 +187,25 @@ static void button_size(const generic_button *button)
 
 static void button_help(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_message_dialog_show(MESSAGE_DIALOG_ADVISOR_RELIGION, 0);
 }
 
 static void button_close(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_advisors_show();
 }
 
 static void button_hold_festival(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     if (city_finance_out_of_money()) {
         return;
     }

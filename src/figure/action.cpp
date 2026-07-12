@@ -81,7 +81,7 @@ static FigureAction figure_action_callbacks[] = {
     figure_retired_native_action,
     figure_editor_flag_action,
     figure_flotsam_action,
-    figure_docker_action,
+    figure_nobody_action,
     figure_supplier_action,
     figure_retired_native_action, //40
     figure_indigenous_native_action,
@@ -159,7 +159,11 @@ void figure_action_handle(void)
             }
         }
         if (!figure_runtime_execute(f)) {
-            figure_action_callbacks[f->type](f);
+            if (f->type == FIGURE_DOCKER) {
+                reinterpret_cast<figuretype::Docker *>(f)->docker_action();
+            } else {
+                figure_action_callbacks[f->type](f);
+            }
         }
         if (f->state == FIGURE_STATE_DEAD) {
             f->remove();

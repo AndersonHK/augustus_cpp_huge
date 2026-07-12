@@ -209,14 +209,17 @@ int normalized_animation_frame(int animation_cursor, const Animation &animation)
 
 } // namespace
 
-BuildingAnimation::BuildingAnimation(Building building)
-    : record_(building.record_)
+BuildingAnimation::BuildingAnimation(Building &building)
+    : building_(&building)
+    , record_(building.record_)
     , definition_(building.type)
+    , state_building_(&building)
     , state_record_(building.record_)
     , state_definition_(building.type)
 {
-    Building owner = building.composition_owner();
-    if (owner.id()) {
+    Building &owner = building.composition_owner();
+    if (owner.id) {
+        state_building_ = &owner;
         state_record_ = owner.record_;
         state_definition_ = owner.type ? owner.type : definition_;
     }
@@ -241,6 +244,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
 {
     const building &building = state_record();
     const BuildingType *definition = state_definition_;
+    Building &runtime_building = *state_building_;
 
     *offset = 0;
     // These gates deliberately mirror the old animation decisions: XML-authored
@@ -249,9 +253,9 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     if (definition && definition->water_access().has_requirements() && !building.has_water_access) {
         return 1;
     }
-    if (building_is_workshop(building.type)) {
+    if (building_is_workshop(definition)) {
         if (building.num_workers <= 0 || building.strike_duration_days > 0 ||
-            !building_industry_has_raw_materials_for_production(&building)) {
+            !runtime_building.native_production_has_raw_materials()) {
             return 1;
         }
     }
@@ -276,7 +280,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         *offset = 1;
         return 1;
     }
-    if (building_is_raw_resource_producer(building.type) &&
+    if (building_is_raw_resource_producer(definition) &&
         (building.num_workers <= 0 || building.strike_duration_days > 0)) {
         return 1;
     }
@@ -295,13 +299,14 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         return 1;
     }
     if (building_monument_is_monument(&building) &&
-        (!(definition && definition->is_oracle()) && !(definition && definition->attr_is("nymphaeum")) &&
+        (!(definition && definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Oracle)) &&
+            !(definition && definition->attr_is("nymphaeum")) &&
             (building.num_workers <= 0 || building.monument.phase != MONUMENT_FINISHED))) {
         return 1;
     }
     if (definition && definition->attr_is("city_mint") &&
         ((building.output_resource_id == resource_denarii() &&
-            !Building(const_cast<::building *>(&building)).native_production_has_raw_materials()) ||
+            !runtime_building.native_production_has_raw_materials()) ||
             building.num_workers <= 0 ||
             (building_count_active(type_from_attr("senate")) == 0))) {
         return 1;
@@ -334,8 +339,9 @@ int BuildingAnimation::advance_wine_workshop_offset(
     int animation_cursor, int max_frame, int clamp_to_available) const
 {
     const building &building = record();
+    Building &runtime_building = *building_;
     const int pct_done = calc_percentage(
-        building.data.industry.progress, building_industry_get_max_progress(&building));
+        building.data.industry.progress, runtime_building.native_production_max_progress());
     const int current_sprite = map_sprite_animation_at(animation_cursor);
     int new_sprite = 0;
     if (pct_done <= 0) {
@@ -441,7 +447,7 @@ int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
     if (definition_ && definition_->attr_is("colosseum")) {
         // The colosseum uses the terrain image as part of the animated facade, so
         // the legacy cursor is also the map grid offset that must be rewritten.
-        map_image_set(animation_cursor, building_image_get(&record()));
+        map_image_set(animation_cursor, building_image_get(building_));
     }
 
     if (!img.animation) {

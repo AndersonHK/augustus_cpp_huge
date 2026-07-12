@@ -57,3 +57,4 @@ void game_file_write_mission_saved_game(void);
 
 void game_file_show_loaded_save_mod_mismatch_warning(void);
 
+void game_file_clear_scenario_data_for_save_load(void);

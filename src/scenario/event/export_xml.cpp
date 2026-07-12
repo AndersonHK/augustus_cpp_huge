@@ -358,6 +358,7 @@ static int export_event(scenario_event_t *event)
 
 static void export_scenario_variables(buffer *buf)
 {
+    (void) buf;
     xml_exporter_new_element("variables");
 
     unsigned int total_variables = scenario_custom_variable_count();

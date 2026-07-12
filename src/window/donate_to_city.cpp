@@ -72,8 +72,8 @@ static void draw_background(void)
     if (button_start < 240) {
         button_start = 240;
     }
-    arrow_buttons[0].x_offset = button_start;
-    arrow_buttons[1].x_offset = arrow_buttons[0].x_offset + arrow_buttons[0].size;
+    arrow_buttons[0].x_offset = static_cast<short>(button_start);
+    arrow_buttons[1].x_offset = static_cast<short>(arrow_buttons[0].x_offset + arrow_buttons[0].size);
 
     text_draw_number(city_emperor_donate_amount(), '@', " ", button_start + 76, 248, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
@@ -140,17 +140,23 @@ static void button_increase_amount(const generic_button *button)
 
 static void button_donate(const generic_button *button)
 {
+    (void)button;
+
     city_emperor_donate_savings_to_city();
     window_advisors_show();
 }
 
 static void button_cancel(const generic_button *button)
 {
+    (void)button;
+
     window_advisors_show();
 }
 
 static void arrow_button_amount(int is_down, int param2)
 {
+    (void)param2;
+
     city_emperor_change_donation_amount(is_down ? -10 : 10);
     window_invalidate();
 }

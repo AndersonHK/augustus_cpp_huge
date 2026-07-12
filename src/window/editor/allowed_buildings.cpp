@@ -6,6 +6,7 @@
 #include "building/menu.h"
 #include "building/properties.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/color.h"
@@ -47,7 +48,7 @@ static grid_box_type allowed_building_list = {
 };
 
 static struct {
-    menu_item items[BUILD_MENU_MAX + BUILDING_TYPE_MAX];
+    menu_item items[static_cast<int>(BUILD_MENU_MAX) + static_cast<int>(BUILDING_TYPE_MAX)];
     unsigned int total_items;
     void (*select_callback)(int);
     building_type selected_building;
@@ -152,7 +153,7 @@ static void draw_background(void)
 static void draw_button(const uint8_t *name, building_type type, int x, int y, int width, int height, int is_focused)
 {
     button_border_draw(x, y, width, height, is_focused);
-    int allowed = scenario_allowed_building(type);
+    int allowed = scenario_allowed_building(building_type_registry_impl::definition_for_type(type));
     font_t font = allowed || data.select_callback ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN;
     color_t color = allowed || data.select_callback ? 0 : COLOR_FONT_RED;
     text_draw(name, x + 8, y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
@@ -232,7 +233,8 @@ void toggle_building(const grid_box_item *item)
         window_go_back();
         return;
     }
-    int allowed = scenario_allowed_building(current_menu->building);
+    int allowed = scenario_allowed_building(
+        building_type_registry_impl::definition_for_type(current_menu->building));
     scenario_allowed_building_set(current_menu->building, allowed ^ 1);
     scenario_editor_set_as_unsaved();
     window_request_refresh();

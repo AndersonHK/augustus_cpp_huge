@@ -83,6 +83,8 @@ static void draw_foreground(void)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
+    (void)h;
+
     const mouse *m_dialog = mouse_in_dialog(m);
 
     int handled = 0;

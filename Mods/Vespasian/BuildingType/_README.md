@@ -548,7 +548,7 @@ Current engine behavior:
 - Today a multi-spawn policy only writes one legacy tracked figure slot; extra spawned figures still exist, but they are not separately tracked by XML-defined slots yet.
 - Use `<image value="..."/>` when a graphics group contains several named members and the building must lock to one of them.
 - Use `<options selection="stable_variant">` when several image entries are equivalent visual variants. Runtime selection is stable per building and uses `building.variant % option_count`.
-- New buildings seed native graphics options from `map_random_get(grid_offset)`. Loaded saves from `0xb6` or earlier also reseed because older `building.variant` values did not mean native graphics options; newer saves preserve and clamp the saved value.
+- New buildings may seed native graphics options from runtime placement policy. Loaded saves preserve the saved `building.variant` byte by hydrating it into `BuildingGraphicsState`; save/load does not alter it or require a save-version gate.
 - Graphics-only vertical-slice definitions are valid; runtime-owned production and storage references can be layered onto those same BuildingType files as they migrate.
 - BuildingType native storage and production references are resolved at load time; unresolved paths are hard load failures.
 - Put shared derived state such as water access under the root `<water_access>` block so graphics and spawn behavior read the same runtime facts.

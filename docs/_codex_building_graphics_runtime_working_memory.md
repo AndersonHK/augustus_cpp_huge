@@ -60,16 +60,15 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - XML-owned buildings with validated `<graphics>` data render through cached `ImageGroupPayload` `RuntimeDrawSlice` entries. `map_image` is kept as neutral tile bookkeeping for native-owned graphics, not as the authoritative image id.
 - `building_image_get()` remains a legacy compatibility path for definitions without native graphics and for still-retained special cases such as the Hippodrome legacy fallback handler and generic watchtower rotation/variant policy.
 - Graphics XML discovery follows the active mod list in top-to-bottom precedence via `mod_manager_get_graphics_path_at()`, then root `assets/Graphics`; named Augustus/Julius graphics helpers remain for extractors and explicit source resolution.
-- Vespasian, Augustus, and Julius native housing XML currently covers the full legacy house chain. Housing graphics variants are normal BuildingType graphics options selected by saved `building.variant`.
+- Vespasian, Augustus, and Julius native housing XML currently covers the full legacy house chain. Housing graphics variants are normal BuildingType graphics options selected by the saved legacy graphics variant byte now held in `BuildingGraphicsState`.
 
 ## 2026-05-04 native graphics options
 - `BuildingType.graphics` targets can now contain `<options selection="stable_variant">` with one or more `<option image="...">` nodes.
 - Each option inherits the enclosing target `<path>` unless it declares a per-option `path`, which supports mixed-source variant sets without adding house-specific render code.
-- Runtime selection uses saved `building.variant % option_count`, and `building.variant` is included in the native graphics cache signature.
-- New, evolved, converted, and old-save-loaded native graphics buildings clamp or seed `building.variant` through `building_runtime_assign_graphic_variant()`.
-- Save version increased to `0xb7`; saves through `0xb6` predate native graphics variant meaning and reseed options from `map_random_get(grid_offset)` during load.
+- Runtime selection uses `Building::graphics().variant() % option_count`, and the graphics-state variant is included in the native graphics cache signature.
+- New, evolved, and converted native graphics buildings can still seed or update `BuildingGraphicsState` through runtime graphics policy. Save/load does not alter this field: it copies the saved record byte into `BuildingGraphicsState` and writes that state byte back to the save record.
 - Vespasian, Augustus, and Julius native house BuildingTypes now use normal BuildingType graphics options for their legacy house variant tables. Julius keeps the vanilla `house_small_tent` desirability threshold from upstream `c3_model.txt` data.
-- Conditions and stable graphics options are separate layers: conditions choose the target by live building state, then the selected target applies `building.variant` to choose among equivalent art.
+- Conditions and stable graphics options are separate layers: conditions choose the target by live building state, then the selected target applies `Building::graphics().variant()` to choose among equivalent art.
 - A target may omit parent `<path>` only when every option supplies its own `path`. Load-time validation materializes each resolved option and checks the effective path/image pair.
 
 ## 2026-05-04 payload rendering correction
@@ -165,7 +164,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
 ## Current Runtime Shape
 - Live city building rendering routes through `building_runtime` plus `ImageGroupPayload` when a `BuildingType` owns validated graphics.
-- `building_runtime_graphics.cpp` resolves conditional targets, applies stable options with `building.variant`, and caches footprint/top/animation `RuntimeDrawSlice` entries.
+- `building_runtime_graphics.cpp` resolves conditional targets, applies stable options with `Building::graphics().variant()`, and caches footprint/top/animation `RuntimeDrawSlice` entries.
 - `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)` are the live-city draw seams for native building footprints, tops, and animation overlays. `city_draw.cpp` now only keeps the native tile footprint bridge.
 - Legacy `building_image_get()` and legacy `map_image` ids remain compatibility paths for buildings without native graphics and special cases that the XML condition set cannot yet express.
 - Placement ghosts and editor previews are mixed: several XML-owned ghosts now try the runtime path first, but the whole placement/editor surface is not yet fully native.
@@ -240,7 +239,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
 ## Current runtime resolver scope
 - Supported BuildingType graphics are no longer a small first-pass family allowlist. Any loaded BuildingType with a validated root graphics target can render through the native payload path unless code explicitly keeps that building on a legacy special path.
-- Conditional graphics select a target from live building state; options then select among equivalent images using `building.variant`.
+- Conditional graphics select a target from live building state; options then select among equivalent images using `Building::graphics().variant()`.
 - The main known legacy exceptions are retained code gaps such as the Hippodrome legacy fallback handler and generic watchtower city-view rotation/variant handling.
 
 ## Content caveats

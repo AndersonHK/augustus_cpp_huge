@@ -476,15 +476,15 @@ static int draw_request_buttons(int y_offset)
         if (data.visible_requests + 1 == data.active_requests &&
             data.height + EXTRA_INFO_HEIGHT_REQUESTS_PANEL > data.available_height) {
 
-            buttons_emperor_requests[i].y = base_button_y_offset + 9;
-            buttons_emperor_requests[i].height = 30;
+            buttons_emperor_requests[i].y = static_cast<short>(base_button_y_offset + 9);
+            buttons_emperor_requests[i].height = static_cast<short>(30);
 
             text_draw_centered(translation_for_key("TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL"),
                 data.x_offset, y_offset + 11, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             break;
         }
-        buttons_emperor_requests[i].y = base_button_y_offset + 28;
-        buttons_emperor_requests[i].height = 20;
+        buttons_emperor_requests[i].y = static_cast<short>(base_button_y_offset + 28);
+        buttons_emperor_requests[i].height = static_cast<short>(20);
         int width = data.x_offset + 10;
         if (r->resource == resource_troops()) {
             const ImageGroupEntryRef &request_icon = resource_graphics(resource_weapons()).panel_icon();
@@ -681,7 +681,8 @@ static void draw_extra_info_buttons(void)
         for (int i = 0; i < data.visible_requests; i++) {
             int button_y_offset = data.request_buttons_y_offset + buttons_emperor_requests[i].y;
             button_border_draw(data.x_offset + 2, button_y_offset, data.width - 4,
-                buttons_emperor_requests[i].height, i == data.focused_request_button_id - 1);
+                buttons_emperor_requests[i].height,
+                static_cast<unsigned int>(i) == data.focused_request_button_id - 1);
             if (buttons_emperor_requests[i].height == 30) {
                 text_draw_centered(translation_for_key("TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL"),
                     data.x_offset, button_y_offset + 10, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
@@ -769,6 +770,8 @@ int sidebar_extra_get_tooltip(tooltip_context *c)
 
 static void button_game_speed(int is_down, int param2)
 {
+    (void)param2;
+
     if (is_down) {
         setting_decrease_game_speed();
     } else {
@@ -778,15 +781,23 @@ static void button_game_speed(int is_down, int param2)
 
 static void button_toggle_play_paused(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     game_state_toggle_paused();
 }
 
 
 static void confirm_nothing(int accepted, int checked)
-{}
+{
+    (void)accepted;
+    (void)checked;
+}
 
 static void confirm_send_troops(int accepted, int checked)
 {
+    (void)checked;
+
     if (accepted) {
         formation_legions_dispatch_to_distant_battle();
         window_empire_show();

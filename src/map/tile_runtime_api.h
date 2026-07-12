@@ -2,6 +2,8 @@
 
 
 void tile_runtime_reset(void);
+void tile_runtime_backup(void);
+void tile_runtime_restore(void);
 void tile_runtime_clear(int grid_offset);
 void tile_runtime_clear_gardens(void);
 void tile_runtime_clear_plazas(void);

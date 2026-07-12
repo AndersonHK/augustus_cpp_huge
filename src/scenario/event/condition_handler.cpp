@@ -102,7 +102,7 @@ void scenario_condition_type_delete(scenario_condition_t *condition)
 static void save_conditions_in_group(buffer *buf, const scenario_condition_group_t *group)
 {
     for (const scenario_condition_t &condition : group->conditions) {
-        buffer_write_i16(buf, condition.type);
+        buffer_write_i16(buf, static_cast<int16_t>(condition.type));
         buffer_write_i32(buf, condition.parameter1);
         buffer_write_i32(buf, condition.parameter2);
         buffer_write_i32(buf, condition.parameter3);
@@ -114,15 +114,16 @@ static void save_conditions_in_group(buffer *buf, const scenario_condition_group
 void scenario_condition_group_save_state(buffer *buf, const scenario_condition_group_t *group, int link_type,
     int32_t link_id)
 {
-    buffer_write_i16(buf, link_type);
+    buffer_write_i16(buf, static_cast<int16_t>(link_type));
     buffer_write_u32(buf, link_id);
-    buffer_write_u8(buf, group->type);
+    buffer_write_u8(buf, static_cast<uint8_t>(group->type));
     buffer_write_u32(buf, static_cast<uint32_t>(group->conditions.size()));
     save_conditions_in_group(buf, group);
 }
 
 void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *group, scenario_condition_t *condition)
 {
+    (void) group;
     condition->type = static_cast<condition_types>(buffer_read_i16(buf));
     condition->parameter1 = buffer_read_i32(buf);
     condition->parameter2 = buffer_read_i32(buf);

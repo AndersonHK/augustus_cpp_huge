@@ -26,6 +26,7 @@ struct ParseState {
     int saw_foundation = 0;
     int saw_button = 0;
     int saw_roadblock = 0;
+    int saw_rubble = 0;
     int saw_tile = 0;
     int saw_tool = 0;
     int saw_cycle = 0;

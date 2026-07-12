@@ -103,9 +103,9 @@ int map_property_is_multi_tile_xy(int grid_offset, int x, int y)
 void map_property_set_multi_tile_xy(int grid_offset, int x, int y, int is_draw_tile)
 {
     if (is_draw_tile) {
-        edge_grid.items[grid_offset] = edge_for(x, y) | EDGE_LEFTMOST_TILE;
+        edge_grid.items[grid_offset] = static_cast<uint8_t>(edge_for(x, y) | EDGE_LEFTMOST_TILE);
     } else {
-        edge_grid.items[grid_offset] = edge_for(x, y);
+        edge_grid.items[grid_offset] = static_cast<uint8_t>(edge_for(x, y));
     }
 }
 

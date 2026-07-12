@@ -28,6 +28,7 @@
 
 static int count_no_condition(int grid_offset)
 {
+    (void) grid_offset;
     return 1;
 }
 
@@ -99,7 +100,7 @@ int scenario_condition_type_building_count_active_met(const scenario_condition_t
 {
     int comparison = condition->parameter1;
     int value = scenario_formula_evaluate_formula(condition->parameter2);
-    int type = condition->parameter3;
+    building_type type = static_cast<building_type>(condition->parameter3);
 
     int handled = 0;
     int total_count = special_building_count(type, 1, 0, 0, 0, 0, 0, &handled);
@@ -114,7 +115,7 @@ int scenario_condition_type_building_count_any_met(const scenario_condition_t *c
 {
     int comparison = condition->parameter1;
     int value = scenario_formula_evaluate_formula(condition->parameter2);
-    int type = condition->parameter3;
+    building_type type = static_cast<building_type>(condition->parameter3);
 
     int handled = 0;
     int total_count = special_building_count(type, 0, 0, 0, 0, 0, 0, &handled);
@@ -159,7 +160,7 @@ int scenario_condition_type_building_count_area_met(const scenario_condition_t *
 {
     int grid_offset1 = condition->parameter1;
     int grid_offset2 = condition->parameter2;
-    int type = condition->parameter3;
+    building_type type = static_cast<building_type>(condition->parameter3);
     int comparison = condition->parameter4;
     int value = scenario_formula_evaluate_formula(condition->parameter5);
 

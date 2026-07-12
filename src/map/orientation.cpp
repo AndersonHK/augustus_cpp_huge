@@ -269,27 +269,26 @@ int map_orientation_for_triumphal_arch(int x, int y)
 
 void map_orientation_update_buildings(void)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_DELETED_BY_GAME ||
+    Building::for_each([](Building *current) {
+        const building *b = current->record();
+        if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_DELETED_BY_GAME ||
             b->state == BUILDING_STATE_RUBBLE) {
-            continue;
+            return;
         }
-        if (Building(b).refresh_graphic_if_native()) {
-            continue;
+        if (current->refresh_graphic_if_native()) {
+            return;
         }
         building_type type = b->type;
-        Building current(b);
-        const auto *definition = current.type;
+        const auto *definition = current->type;
         if (definition && definition->roadblock().is_wall_gate()) {
-            map_building_tiles_add_remove(i, b->x, b->y, b->size, building_image_get(b),
+            map_building_tiles_add_remove(*current, b->x, b->y, b->size, building_image_get(current),
                 TERRAIN_GATEHOUSE | TERRAIN_BUILDING, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
             map_terrain_add_gatehouse_roads(b->x, b->y, 0);
         } else if (definition && definition->roadblock().has_center_road_passage()) {
-            map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+            map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
             map_terrain_add_triumphal_arch_roads(b->x, b->y, b->subtype.orientation);
         } else if (building_type_registry_impl::type_attr_is(type, "hippodrome")) {
-            map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+            map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
         } else {
             static const char *const water_buildings[] = {
                 "shipyard",
@@ -311,18 +310,18 @@ void map_orientation_update_buildings(void)
             if ((definition && definition->attr_is("dock")) ||
                 building_type_registry_impl::type_attr_is_any(type,
                     water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
-                map_water_add_building(i, b->x, b->y, b->size);
+                map_water_add_building(*current, b->x, b->y, b->size);
             } else if (building_type_registry_impl::type_attr_is_any(type, decorative_buildings,
                     sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||
-                (current.type && current.type->is_watchtower())) {
-                map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                (current->type && current->type->is_watchtower())) {
+                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
             } else if (definition && definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
                     definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
-                map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
                 map_terrain_add_roadblock_road(b->x, b->y);
             } else if (is_vacant_lot_starting_house(b)) {
-                map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
             }
         }
-    }
+    });
 }

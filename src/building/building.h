@@ -1,6 +1,9 @@
 #pragma once
 
 #include "building/building_fwd.h"
+#include "building/BuildingForEachArgs.h"
+#include "building/BuildingGraphics.h"
+#include "building/RubbleModule.h"
 #include "building/building_order.h"
 #include "building/storage_type.h"
 #include "building/building_type.h"
@@ -10,23 +13,53 @@
 #include "graphics/color.h"
 #include "map/point.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <source_location>
 
 class building_runtime;
+class BuildingGraphicsState;
 
 class Building {
     friend class building_runtime;
     friend class building_type_registry_impl::BuildingAnimation;
 
 public:
+    template <typename Stored, typename Public = Stored>
+    class RecordField {
+    public:
+        RecordField() = default;
+        explicit RecordField(Stored *value)
+            : value_(value),
+              fallback_(value ? static_cast<Public>(*value) : Public{})
+        {}
+
+        operator Public() const
+        {
+            return value_ ? static_cast<Public>(*value_) : fallback_;
+        }
+
+        RecordField &operator=(Public value)
+        {
+            fallback_ = value;
+            if (value_) {
+                *value_ = static_cast<Stored>(value);
+            }
+            return *this;
+        }
+
+    private:
+        Stored *value_ = nullptr;
+        Public fallback_ = {};
+    };
+
     class TypeRange {
     public:
         class iterator {
         public:
             explicit iterator(::building *record);
-            Building operator*() const;
+            Building &operator*() const;
             iterator &operator++();
             bool operator!=(const iterator &other) const;
 
@@ -44,26 +77,60 @@ public:
         building_type type_ = BUILDING_NONE;
     };
 
-    explicit Building(::building *record, const std::source_location &location = std::source_location::current());
-    explicit Building(::building &record, const std::source_location &location = std::source_location::current());
-    Building(::building *record, const building_type_registry_impl::BuildingType *type_definition,
+    Building(
+        ::building *record,
+        BuildingGraphicsState *graphics_state,
         const std::source_location &location = std::source_location::current());
-    Building(::building &record, const building_type_registry_impl::BuildingType *type_definition,
+    Building(std::nullptr_t) = delete;
+    Building(
+        std::nullptr_t,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current()) = delete;
+    Building(
+        ::building &record,
+        BuildingGraphicsState &graphics_state,
         const std::source_location &location = std::source_location::current());
+    Building(
+        ::building *record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current());
+    Building(
+        ::building *record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const RubbleDef *rubble_definition,
+        RubbleState *rubble_state,
+        const std::source_location &location = std::source_location::current());
+    Building(
+        std::nullptr_t,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState *graphics_state,
+        const std::source_location &location = std::source_location::current()) = delete;
+    Building(
+        ::building &record,
+        const building_type_registry_impl::BuildingType *type_definition,
+        BuildingGraphicsState &graphics_state,
+        const std::source_location &location = std::source_location::current());
+    Building(const Building &other);
+    Building &operator=(const Building &other);
 
     static TypeRange of_type(building_type type);
-    static Building first_of_type(building_type type);
-    static Building create(building_type type, int x, int y);
+    static Building *first_of_type(building_type type);
+    static Building *get(unsigned int id);
+    // Iterates live runtime-owned Building objects; filters belong here so callers stop open-coding id scans.
+    static void for_each(const std::function<void(Building *)> &visitor);
+    static void for_each(const BuildingForEachArgs &args, const std::function<void(Building *)> &visitor);
     static int count();
 
-    unsigned int id() const;
     const ::building *record() const;
-    Building main() const;
-    Building composition_owner() const;
-    Building next() const;
+    Building &main() const;
+    Building &composition_owner() const;
+    Building *next() const;
     void for_each_part(const std::function<void(Building)> &visitor) const;
-    Building next_of_type() const;
+    Building *next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
+    RubbleModule *Rubble = nullptr;
     int matches(const char *text_id) const;
     int grid_offset() const;
     int x() const;
@@ -83,9 +150,13 @@ public:
     int is_deleted() const;
     int is_in_use() const;
     int is_mothballed() const;
+    int rubble_is_still_burning() const;
+    int repair_cost() const;
+    int repair();
     int has_plague() const;
     int has_cached_road_access() const;
     int cached_road_access_point(map_point *road) const;
+    int access_area_touches_same_road_network(const map_point &source_road, int radius) const;
     int has_house_size() const;
     int house_population() const;
     void set_house_population(int value);
@@ -95,13 +166,15 @@ public:
     void set_immigrant_figure_id(unsigned int id);
     int house_figure_generation_delay() const;
     building_runtime *runtime_instance() const;
+    BuildingGraphics &Graphics(const std::source_location &location = std::source_location::current()) const;
     building_type_registry_impl::BuildingAnimation animate();
     int draw_footprint(const BuildingDrawContext &ctx);
     int draw_top(const BuildingDrawContext &ctx);
     int draw_animation(const BuildingDrawContext &ctx);
+    int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation);
+    int mothball_status_icon_offset(int grid_offset, int icon_width, int icon_height, int *x, int *y) const;
     void refresh_graphic();
     int refresh_graphic_if_native();
-    void assign_graphic_variant(int force_reseed);
     void spawn_figure();
     int worker_count() const;
     int employment_worker_count() const;
@@ -117,7 +190,10 @@ public:
     int has_primary_figure() const;
     int has_secondary_figure() const;
     int has_quaternary_figure() const;
+    int clear_figure_slot_if_matches(unsigned int figure_id);
+    int clear_distribution_cartpusher_slot_if_matches(unsigned int figure_id);
     unsigned int distribution_cartpusher_id(int index) const;
+    void set_figure_spawn_delay(int ticks);
     int resource_amount(resource_type resource) const;
     void add_resource(resource_type resource, int amount);
     void set_resource_amount(resource_type resource, int amount);
@@ -134,9 +210,11 @@ public:
     int house_happiness() const;
     void set_house_happiness(int value);
     void set_fetch_inventory_id(resource_type resource);
-    int accepts_good(resource_type resource) const;
-    void set_accepted_good(resource_type resource, int value);
+    bool accepts_good(resource_type resource) const;
+    void set_accepted_good(resource_type resource, bool accepted);
     void toggle_accepted_good(resource_type resource);
+    unsigned char distribution_demand(resource_type resource) const;
+    void set_distribution_demand(resource_type resource, unsigned char demand);
     void copy_accepted_goods(unsigned char *dst, int count) const;
     void set_accepted_goods(const unsigned char *src, int count);
     void set_primary_figure_id(unsigned int id);
@@ -145,21 +223,25 @@ public:
     int max_distance_to(const Building &other) const;
     int orientation() const;
     void set_orientation(int orientation);
-    int variant() const;
-    void set_variant(int variant);
     int image_id() const;
-    void add_map_tiles(int image_id) const;
-    int storage_id() const;
-    void set_storage_id(int storage_id);
+    void add_map_tiles(int image_id);
+    void remove_map_tiles();
+    int is_surface_terrain_tile() const;
+    void set_storage_id(int new_storage_id);
     int blocked_storage_permission_mask() const;
     int warehouse_flag_frame() const;
     resource_type warehouse_resource_id() const;
     void set_warehouse_resource_id(resource_type resource);
     int loads_stored() const;
     int industry_has_raw_materials() const;
-    int dock_has_accepted_route_ids() const;
     int dock_accepted_route_ids() const;
     int dock_trade_ship_id() const;
+    void set_dock_trade_ship_id(int figure_id);
+    int dock_num_ships() const;
+    void set_dock_num_ships(int ticks);
+    void decrement_dock_num_ships();
+    int dock_queued_docker_id() const;
+    void set_dock_queued_docker_id(int figure_id);
     int dock_orientation() const;
     int dock_idle_worker_count() const;
     void set_has_water_access(int value);
@@ -175,6 +257,9 @@ public:
     int update_native_production(int new_day, int *out_is_striking);
     int native_production_has_completed_effect() const;
     int output_cart_capacity(resource_type resource) const;
+    int industry_has_fish() const;
+    void add_industry_fish(int amount);
+    void add_industry_production_current_month(int amount);
     int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();
@@ -187,6 +272,7 @@ public:
     int configure_house_replacement(building_type type, int x, int y, int size, int merged);
     void copy_house_data_from(const Building &source);
     void retire_replaced_house();
+    void cleanup_figure_references_for_removal();
     int is_being_fumigated() const;
     int fumigation_frame() const;
     void set_fumigation_direction(int direction);
@@ -199,16 +285,31 @@ public:
     int entertainment_days2() const;
     int desirability() const;
     std::uint64_t graphics_state_signature(int selected_graphics_option) const;
+    int building_mothball_toggle();
+
+    RecordField<unsigned int> id;
+    RecordField<unsigned char, unsigned int> storage_id;
+    RecordField<unsigned char, int> dock_has_accepted_route_ids;
 
 private:
+    void bind_record_fields();
+    void bind_graphics(BuildingGraphicsState *graphics_state);
+    void bind_rubble(const RubbleDef *rubble_definition, RubbleState *rubble_state);
+    void bind_surface_map_tiles();
+    void unbind_aqueduct_map_tiles();
+    void normalize_surface_map_tile(int grid_offset, int dx, int dy);
+    int highway_terrain_for_surface_tile(int dx, int dy) const;
+    int terrain_for_map_tiles() const;
+
     ::building *record_ = nullptr;
+    std::source_location construction_location_;
+    mutable BuildingGraphics graphics_;
+    mutable RubbleModule rubble_;
 };
 
 
 #include "core/buffer.h"
 #include "translation/translation.h"
-
-building *building_get(unsigned int id);
 
 int building_dist(int x, int y, int w, int h, building *b);
 
@@ -217,41 +318,26 @@ void building_get_from_buffer(buffer *buf, int id, building *b, int includes_bui
 
 int building_count(void);
 
+// Load/startup bridge: walk full save records before runtime Building instances are materialized.
+void building_for_each_loaded_record(const std::function<void(building *)> &visitor);
+
 int building_find(building_type type);
 
 int building_find_with_mothballed(building_type type);
 
-int building_can_repair_type(building_type type);
-
 building *building_first_of_type(building_type type);
 
 void building_change_type(building *b, building_type type);
+unsigned char building_distribution_demand(const building *b, resource_type resource);
+void building_set_distribution_demand(building *b, resource_type resource, unsigned char demand);
+unsigned char building_accepted_good_save_value(const building *b, resource_type resource);
+void building_load_accepted_good(building *b, resource_type resource, unsigned char value);
 
 building *building_main(const building *b);
 
-building *building_repair_target(building *b);
-
 building *building_next(building *b);
 
-building *building_create(building_type type, int x, int y);
-
 int building_was_tent(const building *b);
-
-int building_is_storage(building_type b_type);
-/**
- * @brief Repairs a building using it's entry in the buildings array. In cases of warehouses and burning ruins,
- * some information is removed or reset, so data from b->data.rubble is used to help restore the building.
- * in the future, we should implement a more general system for saving and restoring building state.
- * Keeping a building in the array is helpful because it holds the building's ID, and allows keeping the storage structure.
- */
-
-int building_repair(building *b);
-
-int building_is_still_burning(building *b);
-
-int building_can_repair(building *b);
-
-int building_repair_cost(building *b);
 
 void building_clear_related_data(building *b);
 
@@ -263,31 +349,9 @@ void building_update_state(void);
 
 void building_update_desirability(void);
 
-int building_is_house(building_type type);
-
-int building_get_house_group(building_type type);
-
-int building_is_ceres_temple(building_type type);
-
-int building_is_neptune_temple(building_type type);
-
-int building_is_mercury_temple(building_type type);
-
-int building_is_mars_temple(building_type type);
-
-int building_is_venus_temple(building_type type);
-
-int building_has_supplier_inventory(building_type type);
-
-int building_is_house_group(house_groups group, building_type type);
-
-int building_is_statue_garden_temple(building_type type);
-
 int building_is_fort(building_type type);
 
 int building_is_active(const building *b);
-
-int building_is_primary_product_producer(building_type type);
 
 int building_mothball_toggle(building *b);
 

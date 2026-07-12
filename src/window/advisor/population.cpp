@@ -1,4 +1,3 @@
-#include "building/count.h"
 #include "translation/translation.h"
 #include "city/migration.h"
 #include "graphics/generic_button.h"
@@ -267,11 +266,11 @@ static void draw_society_graph(int full_size, int x, int y)
 static int calculate_total_housing_buildings(void)
 {
     int total_houses = 0;
-    for (int i = 1; i < building_count(); i++) {
-        if (building_house_is_active(Building(building_get(i)))) {
+    Building::for_each({ .hasHousing = true }, [&total_houses](Building *building) {
+        if (building_house_is_active(*building)) {
             total_houses++;
         }
-    }
+    });
     return total_houses;
 }
 

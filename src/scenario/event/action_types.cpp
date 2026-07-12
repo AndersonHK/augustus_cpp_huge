@@ -268,6 +268,7 @@ int scenario_action_type_favor_add_execute(scenario_action_t *action)
 
 int scenario_action_type_gladiator_revolt_execute(scenario_action_t *action)
 {
+    (void) action;
     scenario_gladiator_revolt_start_new();
 
     return 1;
@@ -400,11 +401,10 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
             }
             map_terrain_remove(current_grid_offset, terrain);
         }
-        int building_id = map_building_at(current_grid_offset);
-        if (!building_id) {
+        if (!map_building_exists_at(current_grid_offset)) {
             continue;
         }
-        Building b = Building(building_get(building_id)).main();
+        Building b = map_building_at(current_grid_offset).main();
         if (b.matches("burning_ruin")) {
             continue;
         }
@@ -414,7 +414,9 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         const building_type building_type_id = b.type ? b.type->type() : BUILDING_NONE;
         if (destroy_all || building_type_id == type ||
             (type == SCENARIO_BUILDING_MENU_FORT && building_is_fort(building_type_id))) {
-            building_destroy_by_collapse(building_get(b.id()));
+            if (building *record = const_cast<::building *>(b.record())) {
+                building_destroy_by_collapse(record);
+            }
         }
     }
 
@@ -753,10 +755,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
         if (add) {
             if (terrain & TERRAIN_NOT_CLEAR) {
                 // Destroy buildings if the new terrains doesn't allow for buildings
-                int building_id = map_building_at(current_grid_offset);
-                if (building_id) {
-                    Building b = Building(building_get(building_id)).main();
-                    building_destroy_without_rubble(building_get(b.id()));
+                if (map_building_exists_at(current_grid_offset)) {
+                    Building b = map_building_at(current_grid_offset).main();
+                    if (building *record = const_cast<::building *>(b.record())) {
+                        building_destroy_without_rubble(record);
+                    }
                 }
                 // Since the engine only supports one blocking terrain per tile, 
                 // remove all others before adding a new one
@@ -766,10 +769,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
         } else {
             if (terrain == TERRAIN_WATER && map_terrain_get(current_grid_offset) & TERRAIN_WATER) {
                 // Destroy water buildings when removing water
-                int building_id = map_building_at(current_grid_offset);
-                if (building_id) {
-                    Building b = Building(building_get(building_id)).main();
-                    building_destroy_without_rubble(building_get(b.id()));
+                if (map_building_exists_at(current_grid_offset)) {
+                    Building b = map_building_at(current_grid_offset).main();
+                    if (building *record = const_cast<::building *>(b.record())) {
+                        building_destroy_without_rubble(record);
+                    }
                 }
 
             }
@@ -847,6 +851,7 @@ int scenario_action_type_change_pop_sentiment_execute(scenario_action_t *action)
 
 int scenario_action_type_win_execute(scenario_action_t *action)
 {
+    (void) action;
     city_victory_force_win();
     city_victory_check();
     return 1;
@@ -854,6 +859,7 @@ int scenario_action_type_win_execute(scenario_action_t *action)
 
 int scenario_action_type_lose_execute(scenario_action_t *action)
 {
+    (void) action;
     city_victory_force_lose();
     city_victory_check();
     return 1;

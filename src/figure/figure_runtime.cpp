@@ -1,5 +1,6 @@
 #include "building/building.h"
 #include "building/list.h"
+#include "building/building_runtime.h"
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "city/festival.h"
@@ -12,6 +13,7 @@
 
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
+#include "core/log.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
@@ -83,32 +85,32 @@ int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 
 const char *profile_id_for_priest_owner(const Figure *f)
 {
-    if (!f || !f->building.id()) {
+    if (!f || !f->building) {
         return nullptr;
     }
 
     // Legacy saves do not persist XML profile bindings. Priest recovery keeps
     // the old temple-to-god mapping, then the recovered profile owns the effect.
-    const building_type_registry_impl::BuildingType *type = f->building.type;
+    const building_type_registry_impl::BuildingType *type = f->building->type;
     if (!type) {
         return nullptr;
     }
-    if (type->is_pantheon()) {
+    if (type->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand)) {
         return "pantheon_service";
     }
-    if (type->is_ceres_temple()) {
+    if (type->is_temple(GOD_CERES)) {
         return "ceres_service";
     }
-    if (type->is_neptune_temple()) {
+    if (type->is_temple(GOD_NEPTUNE)) {
         return "neptune_service";
     }
-    if (type->is_mercury_temple()) {
+    if (type->is_temple(GOD_MERCURY)) {
         return "mercury_service";
     }
-    if (type->is_mars_temple()) {
+    if (type->is_temple(GOD_MARS)) {
         return "mars_service";
     }
-    if (type->is_venus_temple()) {
+    if (type->is_temple(GOD_VENUS)) {
         return "venus_service";
     }
     return nullptr;
@@ -152,10 +154,10 @@ const char *infer_profile_id(const Figure *f)
                     return "venue_seeker";
                 case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
                 case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
-                    if (!f->building.id()) {
+                    if (!f->building) {
                         return nullptr;
                     }
-                    const building_type_registry_impl::BuildingType *building_type = f->building.type;
+                    const building_type_registry_impl::BuildingType *building_type = f->building->type;
                     if (f->type == FIGURE_ACTOR) {
                         return building_type && building_type->attr_is("amphitheater") ?
                             "amphitheater_service" :
@@ -255,11 +257,172 @@ void record_service_history(road_service_effect effect, int grid_offset)
     }
 }
 
+const figure_type_registry_impl::FigureTypeProfile *profile_for_figure(const Figure *f)
+{
+    if (!f) {
+        return nullptr;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    if (!definition) {
+        return nullptr;
+    }
+    const figure_type_registry_impl::FigureTypeProfile *profile = definition->profile(infer_profile_id(f));
+    return profile ? profile : definition->default_profile();
+}
+
+void log_loaded_owner_repair(
+    const char *message,
+    const Figure &figure,
+    const figure_type_registry_impl::FigureTypeProfile *profile,
+    unsigned int saved_owner_id)
+{
+    char detail[256];
+    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u",
+        figure.id(),
+        static_cast<unsigned int>(figure.type),
+        profile ? profile->id() : "<none>",
+        saved_owner_id);
+    log_warning(message, detail, 0);
+}
+
+static void write_debug_json_string(FILE *file, const char *text)
+{
+    fputc('"', file);
+    if (text) {
+        for (const char *cursor = text; *cursor; ++cursor) {
+            switch (*cursor) {
+                case '\\':
+                    fputs("\\\\", file);
+                    break;
+                case '"':
+                    fputs("\\\"", file);
+                    break;
+                case '\n':
+                    fputs("\\n", file);
+                    break;
+                case '\r':
+                    fputs("\\r", file);
+                    break;
+                case '\t':
+                    fputs("\\t", file);
+                    break;
+                default:
+                    fputc(*cursor, file);
+                    break;
+            }
+        }
+    }
+    fputc('"', file);
+}
+
+static void write_debug_pointer(FILE *file, const void *pointer)
+{
+    fputc('"', file);
+    fprintf(file, "%p", pointer);
+    fputc('"', file);
+}
+
+static unsigned int known_figure_id_for_pointer(const Figure *figure)
+{
+    if (!figure) {
+        return 0;
+    }
+    for (unsigned int id = 1; id < Figure::count(); ++id) {
+        if (Figure::get(id) == figure) {
+            return id;
+        }
+    }
+    return 0;
+}
+
 } // namespace
+
+void figure_runtime_debug_dump(FILE *file)
+{
+    if (!file) {
+        return;
+    }
+
+    fprintf(file, "  \"figure_runtime\": [\n");
+    int wrote = 0;
+    for (size_t slot = 0; slot < g_runtime_entries.size(); ++slot) {
+        const RuntimeEntry &entry = g_runtime_entries[slot];
+        if (!entry.data && !entry.definition && !entry.profile && !entry.controller) {
+            continue;
+        }
+
+        if (wrote++) {
+            fprintf(file, ",\n");
+        }
+
+        fprintf(file, "    {\n");
+        fprintf(file, "      \"slot\": %zu,\n", slot);
+        fprintf(file, "      \"figure_pointer\": ");
+        write_debug_pointer(file, entry.data);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"known_figure_id\": %u,\n", known_figure_id_for_pointer(entry.data));
+        fprintf(file, "      \"created_sequence\": %u,\n", entry.created_sequence);
+        fprintf(file, "      \"definition_attr\": ");
+        write_debug_json_string(file, entry.definition ? entry.definition->attr() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"profile_id\": ");
+        write_debug_json_string(file, entry.profile ? entry.profile->id() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"has_controller\": %d\n", entry.controller ? 1 : 0);
+        fprintf(file, "    }");
+    }
+    fprintf(file, "\n  ]");
+}
 
 void figure_runtime_reset()
 {
     g_runtime_entries.clear();
+}
+
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, Building **resolved_owner)
+{
+    if (resolved_owner) {
+        *resolved_owner = nullptr;
+    }
+    if (!f) {
+        return false;
+    }
+
+    const figure_type_registry_impl::FigureTypeProfile *profile = profile_for_figure(f);
+    if (profile && !profile->requires_owner()) {
+        if (saved_owner_id) {
+            log_loaded_owner_repair(
+                "Discarding saved owner reference for ownerless figure",
+                *f,
+                profile,
+                saved_owner_id);
+        }
+        return true;
+    }
+
+    Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
+    if (!profile) {
+        if (saved_owner_id && !owner) {
+            log_loaded_owner_repair("Discarding invalid saved figure owner reference", *f, nullptr, saved_owner_id);
+        }
+        if (resolved_owner) {
+            *resolved_owner = owner;
+        }
+        return true;
+    }
+
+    const building *owner_record = owner ? owner->record() : nullptr;
+    if (!owner_record ||
+        !figure_runtime_native_impl::owner_binding_matches(f, owner_record, profile->owner_binding())) {
+        log_loaded_owner_repair("Removing loaded figure with invalid required owner", *f, profile, saved_owner_id);
+        return false;
+    }
+
+    if (resolved_owner) {
+        *resolved_owner = owner;
+    }
+    return true;
 }
 
 void figure_runtime_initialize_city()
@@ -325,7 +488,7 @@ Figure *figure_runtime_create_profiled(
     int x,
     int y,
     direction_type dir,
-    Building &building,
+    const Building &building,
     const char *profile_id)
 {
     const figure_type_registry_impl::FigureTypeProfile *profile =
@@ -336,12 +499,11 @@ Figure *figure_runtime_create_profiled(
         return nullptr;
     }
 
-    Figure *f = Figure::create(type, x, y, dir);
-    if (!f) {
-        return nullptr;
-    }
+    Building &owner = building.runtime_instance()->building;
 
-    f->building = building;
+    Figure *f = Figure::create(type, x, y, dir);
+
+    f->building = profile->requires_owner() ? &owner : nullptr;
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);
@@ -402,10 +564,26 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
 roadblock_permission figure_runtime_roadblock_permission(Figure *f)
 {
     const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
-    if (!f || !pathing || !pathing->mode) {
+    if (!f || !pathing) {
         return f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
     }
-    return pathing->mode->roadblockPermissionFor(*f);
+    return pathing->roadblockPermissionFor(*f);
+}
+
+figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_route_policy_selection(
+    Figure *f,
+    RouteNeighborhood neighborhood)
+{
+    using figure_type_registry_impl::PathingMode;
+    PathingMode::RoutePolicySelection selection;
+    const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
+    if (pathing && f) {
+        return pathing->routePolicySelection(pathing->roadblockPermissionFor(*f), neighborhood);
+    }
+    const roadblock_permission permission = f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
+    selection.terrain = PathingMode::terrainFromLegacyUsage(f ? f->terrain_usage : TERRAIN_USAGE_ANY);
+    selection.policy = PathingMode::routePolicyForTerrain(selection.terrain, permission, neighborhood);
+    return selection;
 }
 
 int figure_runtime_update_graphics(Figure *f)

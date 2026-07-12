@@ -423,9 +423,11 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
         if (map_terrain_is(offset, TERRAIN_GATEHOUSE)) {
-            building *b = building_get(map_building_at(offset));
+            building *b = map_building_exists_at(offset) ?
+                const_cast<::building *>(map_building_at(offset).record()) :
+                nullptr;
             if (b) {
-                Building current(b);
+                Building current = map_building_at(offset);
                 if (current.type && current.type->roadblock().is_wall_gate() &&
                     b->subtype.orientation == 1 + ((i / 2) & 1)) { // 1,2,1,2
                     tiles[i] = 1;
@@ -437,8 +439,11 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
             // The below part is responsible for connecting buildings to roads, without making them passable or roads
             // Any buildings that should visually connect to the road due to passability or other interactions should 
             // receive relevant treatment in the section below
-            building *b = building_get(map_building_at(offset));
-            Building current(b);
+            if (!map_building_exists_at(offset)) {
+                continue;
+            }
+            Building current = map_building_at(offset);
+            building *b = const_cast<::building *>(current.record());
             if (current.type && current.type->is_granary()) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(1, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(0, 1)) ? 1 : 0;
@@ -446,14 +451,14 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(1, 2)) ? 1 : 0;
             }
             if (current.type && current.type->is_warehouse()) {
-                building *b_main = building_main(b);
+                Building main = current.main();
+                building *b_main = const_cast<::building *>(main.record());
                 if (!b_main) continue; //fallback
                 int base = b_main->grid_offset;
                 tiles[i] = (offset == base) ? 1 : 0;
             }
             if (current.type &&
-                (current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Grand) ||
-                    current.type->is_pantheon())) {
+                current.type->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Grand)) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(3, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(0, 3)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(6, 3)) ? 1 : 0;
@@ -461,7 +466,7 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
             }
             if ((current.type &&
                     (current.type->is_lighthouse() ||
-                        current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Large))) ||
+                        current.type->is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Large))) ||
                 current.matches("large_mausoleum") ||
                 current.matches("nymphaeum") ||
                 current.matches("city_mint")) {
@@ -517,8 +522,9 @@ static void set_terrain_reservoir(
 {
     int offset = grid_offset + map_grid_direction_delta(direction);
     if (map_terrain_is(offset, TERRAIN_BUILDING)) {
-        building *b = building_get(map_building_at(offset));
-        if (b && Building(b).matches("reservoir") && map_property_multi_tile_xy(offset) == multi_tile_mask) {
+        if (map_building_exists_at(offset) &&
+            map_building_at(offset).matches("reservoir") &&
+            map_property_multi_tile_xy(offset) == multi_tile_mask) {
             tiles[direction] = 1;
             return;
         }

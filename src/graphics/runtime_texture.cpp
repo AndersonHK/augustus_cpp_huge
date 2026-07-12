@@ -20,6 +20,7 @@ managed_image_request make_managed_request(const RuntimeTextureDrawRequest &draw
     request.color = draw_request.color;
     request.domain = draw_request.domain;
     request.scaling_policy = draw_request.scaling_policy;
+    request.destination_geometry_policy = draw_request.destination_geometry_policy;
     return request;
 }
 
@@ -27,7 +28,13 @@ managed_image_request make_managed_request(const RuntimeTextureDrawRequest &draw
 
 // Input: one runtime-native slice and integer screen-space placement.
 // Output: no return value; the managed texture is drawn through the native renderer path only.
-void runtime_texture_draw(const RuntimeDrawSlice &slice, int x, int y, color_t color, float scale)
+void runtime_texture_draw(
+    const RuntimeDrawSlice &slice,
+    int x,
+    int y,
+    color_t color,
+    float scale,
+    render_destination_geometry_policy destination_geometry_policy)
 {
     if (!slice.is_valid()) {
         return;
@@ -46,6 +53,7 @@ void runtime_texture_draw(const RuntimeDrawSlice &slice, int x, int y, color_t c
     request.color = color;
     request.domain = domain;
     request.scaling_policy = is_pixel_domain ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    request.destination_geometry_policy = destination_geometry_policy;
     runtime_texture_draw_request(request);
 }
 
@@ -59,7 +67,8 @@ void runtime_texture_draw_request(
     float logical_height,
     color_t color,
     render_domain domain,
-    render_scaling_policy scaling_policy)
+    render_scaling_policy scaling_policy,
+    render_destination_geometry_policy destination_geometry_policy)
 {
     RuntimeTextureDrawRequest request = {};
     request.slice = slice;
@@ -70,6 +79,7 @@ void runtime_texture_draw_request(
     request.color = color;
     request.domain = domain;
     request.scaling_policy = scaling_policy;
+    request.destination_geometry_policy = destination_geometry_policy;
     runtime_texture_draw_request(request);
 }
 

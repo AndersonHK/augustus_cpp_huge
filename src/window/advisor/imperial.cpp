@@ -223,24 +223,31 @@ static int handle_mouse(const mouse *m)
 
 static void button_donate_to_city(const generic_button *button)
 {
+    (void) button;
     window_donate_to_city_show();
 }
 
 static void button_set_salary(const generic_button *button)
 {
+    (void) button;
     window_set_salary_show();
 }
 
 static void button_gift_to_emperor(const generic_button *button)
 {
+    (void) button;
     window_gift_to_emperor_show();
 }
 
 static void confirm_nothing(int accepted, int checked)
-{}
+{
+    (void) accepted;
+    (void) checked;
+}
 
 static void confirm_send_troops(int accepted, int checked)
 {
+    (void) checked;
     if (accepted) {
         formation_legions_dispatch_to_distant_battle();
         city_military_clear_empire_service_legions();

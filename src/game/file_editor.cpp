@@ -2,6 +2,7 @@
 
 #include "building/building.h"
 #include "building/building_type_id_bridge.h"
+#include "building/building_type_registry_internal.h"
 #include "building/construction.h"
 #include "building/image.h"
 #include "building/menu.h"
@@ -58,7 +59,7 @@
 static int building_image_for_text_id(const char *text_id)
 {
     const building_type type = building_type_id_bridge_runtime_from_text(text_id);
-    return type == BUILDING_NONE ? 0 : building_image_get_for_type(type);
+    return building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
 }
 
 void game_file_editor_clear_data(void)

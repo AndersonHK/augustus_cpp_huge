@@ -670,9 +670,8 @@ static void handle_mouse(const mouse *m)
             build_end();
         } else {
             int grid_offset = tile->grid_offset;
-            int building_id = map_building_at(grid_offset);
-            if (building_id) {
-                Building b = Building(building_get(building_id)).main();
+            if (map_building_exists_at(grid_offset)) {
+                Building b = map_building_at(grid_offset).main();
                 grid_offset = b.grid_offset();
             }
             if (data.routing_grid_offset != grid_offset) {
@@ -694,7 +693,9 @@ static void handle_mouse(const mouse *m)
             return;
         }
         if (handle_right_click_allow_building_info(tile)) {
-            int building_id = Building(building_get(map_building_at(tile->grid_offset))).main().id();
+            int building_id = map_building_exists_at(tile->grid_offset) ?
+                map_building_at(tile->grid_offset).main().id :
+                0;
             data.selected_building_id = building_id ? building_id : NO_POSITION; //no position if selected 0
             window_building_info_show(tile->grid_offset);
             return;
@@ -810,24 +811,16 @@ void widget_city_get_tooltip(tooltip_context *c)
     if (data.current_tile.grid_offset == 0) {
         return;
     }
-    int grid_offset = data.current_tile.grid_offset;
-    int building_id = map_building_at(grid_offset);
-    int overlay = game_state_overlay();
+    const int grid_offset = data.current_tile.grid_offset;
+    const int overlay = game_state_overlay();
+
     // cheat tooltips
     if (overlay == static_cast<int>(OVERLAY_NONE) && game_cheat_tooltip_enabled()) {
         c->type = static_cast<tooltip_type>(TOOLTIP_TILES);
         c->high_priority = 1;
         return;
     }
-    // regular tooltips
-    if (overlay == static_cast<int>(OVERLAY_NONE) && building_id) {
-        Building building(building_get(building_id));
-        if (building.type && building.type->attr_is("senate")) {
-            c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
-            c->high_priority = 1;
-            return;
-        }
-    }
+
     // overlay tooltips
     if (overlay != static_cast<int>(OVERLAY_NONE)) {
         c->text_group = 66;
@@ -836,6 +829,18 @@ void widget_city_get_tooltip(tooltip_context *c)
             c->type = static_cast<tooltip_type>(TOOLTIP_OVERLAY);
             c->high_priority = 1;
         }
+        return;
+    }
+
+    // regular tooltips
+    if (!map_building_exists_at(grid_offset)) {
+        return;
+    }
+
+    const Building &building = map_building_at(grid_offset);
+    if (building.type && building.type->attr_is("senate")) {
+        c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
+        c->high_priority = 1;
     }
 }
 
@@ -863,11 +868,13 @@ void widget_city_setup_routing_preview(void)
         return;
     }
 
-    int building_id = map_building_at(data.routing_grid_offset);
+    int building_id = map_building_exists_at(data.routing_grid_offset) ?
+        map_building_at(data.routing_grid_offset).id :
+        0;
 
     if (building_id) {
         data.selected_building_id = building_id;
-        Building b = Building(building_get(building_id)).main();
+        Building b = map_building_at(data.routing_grid_offset).main();
         const building_type type = b.type ? b.type->type() : BUILDING_NONE;
         figure_roamer_preview_reset(type);
         figure_roamer_preview_create(type, b.x(), b.y());

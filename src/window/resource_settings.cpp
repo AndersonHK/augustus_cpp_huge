@@ -235,16 +235,16 @@ static void handle_input(const mouse *m, const hotkeys *h)
         return;
     }
     if (city_resource_trade_status(data.resource) & TRADE_STATUS_IMPORT) {
-        unsigned int button = 0;
-        arrow_buttons_handle_mouse(m_dialog, 0, 0, import_amount_arrow_buttons, 2, &button);
-        if (button) {
+        unsigned int arrow_button_id = 0;
+        arrow_buttons_handle_mouse(m_dialog, 0, 0, import_amount_arrow_buttons, 2, &arrow_button_id);
+        if (arrow_button_id) {
             return;
         }
     }
     if (city_resource_trade_status(data.resource) & TRADE_STATUS_EXPORT) {
-        unsigned int button = 0;
-        arrow_buttons_handle_mouse(m_dialog, 0, 0, export_amount_arrow_buttons, 2, &button);
-        if (button) {
+        unsigned int arrow_button_id = 0;
+        arrow_buttons_handle_mouse(m_dialog, 0, 0, export_amount_arrow_buttons, 2, &arrow_button_id);
+        if (arrow_button_id) {
             return;
         }
     }
@@ -263,11 +263,17 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_help(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_message_dialog_show(MESSAGE_DIALOG_INDUSTRY, 0);
 }
 
 static void button_ok(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_go_back();
 }
 
@@ -282,6 +288,8 @@ static void button_trade_up_down(int trade_type, int is_down)
 
 static void button_toggle_industry(const generic_button *button)
 {
+    (void)button;
+
     if (building_count_total(building_producer_for_resource(data.resource)) > 0) {
         city_resource_toggle_mothballed(data.resource);
     }
@@ -303,6 +311,8 @@ static void button_toggle_trade(const generic_button *button)
 
 static void button_toggle_stockpile(const generic_button *button)
 {
+    (void)button;
+
     if (resource_is_storable(data.resource)) {
         city_resource_toggle_stockpiled(data.resource);
     }

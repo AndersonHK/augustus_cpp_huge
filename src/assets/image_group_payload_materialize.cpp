@@ -263,6 +263,15 @@ int prepare_full_image_reference_surface(
     return 1;
 }
 
+// Input: one parsed image entry.
+// Output: true when its XML explicitly assigns a layer to the isometric top.
+int entry_declares_top_layer(const ImageEntryDef &entry)
+{
+    return std::any_of(entry.layers.begin(), entry.layers.end(), [](const RawLayerDef &layer) {
+        return layer.part == PART_TOP;
+    });
+}
+
 // Input: one composed entry surface that is ready to become a runtime payload.
 // Output: a resolved entry populated with split-source pixels and render-facing managed texture keys.
 int finalize_surface_to_resolved_entry(
@@ -275,7 +284,7 @@ int finalize_surface_to_resolved_entry(
 
     RasterSurface split_surface;
     int top_height = 0;
-    if (entry.is_isometric && has_top_part(composed_surface)) {
+    if (entry.is_isometric && (entry_declares_top_layer(entry) || has_top_part(composed_surface))) {
         const int tiles = (composed_surface.width + 2) / (FOOTPRINT_WIDTH + 2);
         const int footprint_height = tiles * FOOTPRINT_HEIGHT;
         if (footprint_height > 0 && composed_surface.height > footprint_height / 2) {
@@ -303,6 +312,10 @@ int finalize_surface_to_resolved_entry(
         out_entry.has_top = 1;
         out_entry.top.slice.draw_offset_y = -top_height + FOOTPRINT_HALF_HEIGHT;
     }
+    out_entry.footprint.slice.draw_offset_x += entry.draw_offset_x;
+    out_entry.footprint.slice.draw_offset_y += entry.draw_offset_y;
+    out_entry.top.slice.draw_offset_x += entry.draw_offset_x;
+    out_entry.top.slice.draw_offset_y += entry.draw_offset_y;
 
     out_entry.split_width = split_surface.width;
     out_entry.split_height = split_surface.height;

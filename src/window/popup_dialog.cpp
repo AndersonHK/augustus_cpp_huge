@@ -129,17 +129,25 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_ok(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     confirm();
 }
 
 static void button_cancel(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_go_back();
     data.close_func(0, 0);
 }
 
 static void button_checkbox(const generic_button *button)
 {
+    (void)button;
+
     data.checked ^= 1;
     window_request_refresh();
 }

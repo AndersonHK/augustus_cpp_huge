@@ -254,7 +254,7 @@ static void export_distant_battles(void)
     xml_exporter_close_element();
 }
 
-static void export_empire(buffer *buf)
+static void export_empire()
 {
     xml_exporter_new_element("empire");
     xml_exporter_add_attribute_int("version", 2);
@@ -278,7 +278,7 @@ int empire_export_xml(const char *filename)
     }
     buffer_init(&buf, buf_data, buf_size);
     xml_exporter_init(&buf, "empire");
-    export_empire(&buf);
+    export_empire();
     io_write_buffer_to_file(filename, buf.data, buf.index);
     free(buf_data);
     return 1;

@@ -12,12 +12,12 @@
 int Armoury::is_needed() const
 {
     if (!building_count_active(building_type_registry_impl::type_from_attr("barracks")) &&
-        !building_monument_get_grand_temple_for_god(GOD_MARS)) {
+        !grand_temple_for_god(GOD_MARS, false)) {
         return 0;
     }
 
     if (city_resource_is_stockpiled(resource_weapons()) ||
-        !Barracks::for_weapon(x(), y(), resource_weapons(), road_network_id(), nullptr).id()) {
+        !Barracks::for_weapon(x(), y(), resource_weapons(), road_network_id(), nullptr)) {
         return 0;
     }
 

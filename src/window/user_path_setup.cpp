@@ -65,6 +65,8 @@ static void cancel(void)
 
 static void show_window(int accepted, int checked)
 {
+    (void)checked;
+
     if (!accepted) {
         cancel();
         return;
@@ -248,6 +250,8 @@ static void copy_user_files(int accepted, int overwrite)
 
 static void button_ok_cancel(int is_ok, int param2)
 {
+    (void)param2;
+
     if (!is_ok) {
         cancel();
         return;

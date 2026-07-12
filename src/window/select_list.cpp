@@ -101,10 +101,10 @@ static void determine_offsets(int x, int y, const generic_button *button)
     int height;
     if (data.num_items > MAX_ITEMS_PER_LIST) {
         width = 26 * BLOCK_SIZE;
-        height = 20 * items_in_first_list() + 24;
+        height = static_cast<int>(20 * items_in_first_list() + 24);
     } else {
         width = data.width + BLOCK_SIZE - 1;
-        height = 20 * data.num_items + 24;
+        height = static_cast<int>(20 * data.num_items + 24);
     }
 
     if (data.x + width > screen_width()) {
@@ -126,10 +126,10 @@ static void init_group(int x, int y, const generic_button *button, int group, in
     data.mode = MODE_GROUP;
     data.group = group;
     data.width = BASE_LIST_WIDTH;
-    data.num_items = num_items;
+    data.num_items = static_cast<unsigned int>(num_items);
     data.callback = callback;
     for (int i = 0; i < MAX_ITEMS_PER_LIST; i++) {
-        buttons_list1[i].width = data.width - 10;
+        buttons_list1[i].width = static_cast<short>(data.width - 10);
     }
     determine_offsets(x, y, button);
 }
@@ -139,7 +139,7 @@ static void init_text(int x, int y, const generic_button *button, const uint8_t 
 {
     data.mode = MODE_TEXT;
     data.items = items;
-    data.num_items = num_items;
+    data.num_items = static_cast<unsigned int>(num_items);
     data.callback = callback;
     data.width = BASE_LIST_WIDTH;
     if (data.num_items <= MAX_ITEMS_PER_LIST) {
@@ -154,11 +154,11 @@ static void init_text(int x, int y, const generic_button *button, const uint8_t 
             }
         }
         for (int i = 0; i < num_items; i++) {
-            buttons_list1[i].width = data.width;
+            buttons_list1[i].width = static_cast<short>(data.width);
         }
     } else {
         for (int i = 0; i < MAX_ITEMS_PER_LIST; i++) {
-            buttons_list1[i].width = data.width - 10;
+            buttons_list1[i].width = static_cast<short>(data.width - 10);
         }
     }
     determine_offsets(x, y, button);
@@ -183,18 +183,18 @@ static void draw_foreground(void)
 {
     if (data.num_items > MAX_ITEMS_PER_LIST) {
         unsigned int max_first = items_in_first_list();
-        outer_panel_draw(data.x, data.y, 26, (20 * max_first + 24) / BLOCK_SIZE);
+        outer_panel_draw(data.x, data.y, 26, static_cast<int>((20 * max_first + 24) / BLOCK_SIZE));
         for (unsigned int i = 0; i < max_first; i++) {
-            draw_item(i, 5, 11 + 20 * i, i + 1 == data.focus_button_id);
+            draw_item(static_cast<int>(i), 5, static_cast<int>(11 + 20 * i), i + 1 == data.focus_button_id);
         }
         for (unsigned int i = 0; i < data.num_items - max_first; i++) {
-            draw_item(i + max_first, 205, 11 + 20 * i, MAX_ITEMS_PER_LIST + i + 1 == data.focus_button_id);
+            draw_item(static_cast<int>(i + max_first), 205, static_cast<int>(11 + 20 * i), MAX_ITEMS_PER_LIST + i + 1 == data.focus_button_id);
         }
     } else {
         int width_blocks = (data.width + BLOCK_SIZE - 1) / BLOCK_SIZE;
-        outer_panel_draw(data.x, data.y, width_blocks, (20 * data.num_items + 24) / BLOCK_SIZE);
+        outer_panel_draw(data.x, data.y, width_blocks, static_cast<int>((20 * data.num_items + 24) / BLOCK_SIZE));
         for (unsigned int i = 0; i < data.num_items; i++) {
-            draw_item(i, 5, 11 + 20 * i, i + 1 == data.focus_button_id);
+            draw_item(static_cast<int>(i), 5, static_cast<int>(11 + 20 * i), i + 1 == data.focus_button_id);
         }
     }
 }
@@ -205,10 +205,10 @@ static int click_outside_window(const mouse *m)
     int height;
     if (data.num_items > MAX_ITEMS_PER_LIST) {
         width = 26 * BLOCK_SIZE;
-        height = 20 * items_in_first_list() + 24;
+        height = static_cast<int>(20 * items_in_first_list() + 24);
     } else {
         width = data.width + BLOCK_SIZE - 1;
-        height = 20 * data.num_items + 24;
+        height = static_cast<int>(20 * data.num_items + 24);
     }
     return m->left.went_up && (m->x < data.x || m->x >= data.x + width || m->y < data.y || m->y >= data.y + height);
 }
@@ -259,7 +259,7 @@ void button_select_item(const generic_button *button)
     if (list_id == 0) {
         data.callback(id);
     } else {
-        data.callback(id + items_in_first_list());
+        data.callback(static_cast<int>(id + items_in_first_list()));
     }
 }
 

@@ -29,6 +29,7 @@
 #include "core/xml_parser.h"
 #include "game/resource.h"
 #include "figure/formation_type.h"
+#include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
@@ -848,6 +849,9 @@ static FoundationCellRequirement parse_foundation_cell_requirement(const char *v
     if (compare_text(value, "land") == 0 || compare_text(value, "clear") == 0) {
         return FoundationCellRequirement::Land;
     }
+    if (compare_text(value, "land_or_aqueduct") == 0) {
+        return FoundationCellRequirement::LandOrAqueduct;
+    }
     if (compare_text(value, "water") == 0) {
         return FoundationCellRequirement::Water;
     }
@@ -1142,6 +1146,78 @@ static RoadblockPassageType parse_roadblock_passage_type(const char *text)
         return RoadblockPassageType::CenterRoad;
     }
     return RoadblockPassageType::None;
+}
+
+static RubbleType parse_rubble_type(const char *text)
+{
+    if (compare_text(text, "rubble") == 0) {
+        return RubbleType::Rubble;
+    }
+    if (compare_text(text, "burning_ruin") == 0) {
+        return RubbleType::BurningRubble;
+    }
+    return RubbleType::None;
+}
+
+static int parse_rubble()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered rubble definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_rubble) {
+        log_error("BuildingType xml contains duplicate rubble nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("kind")) {
+        log_error("BuildingType rubble is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *kind_text = xml_parser_get_attribute_string("kind");
+    RubbleType type = parse_rubble_type(kind_text);
+    if (type == RubbleType::None) {
+        log_error("Unsupported BuildingType rubble kind", kind_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_rubble(type);
+    int burn_days = 0;
+    int has_burn_days = 0;
+    if (!parse_optional_int_attribute("BuildingType rubble burn_days must be an integer", "burn_days", &burn_days, &has_burn_days)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_burn_days) {
+        if (burn_days <= 0) {
+            log_error("BuildingType rubble burn_days must be positive", g_parse_state.definition->attr(), burn_days);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_rubble_burn_days(burn_days);
+    }
+
+    if (xml_parser_has_attribute("decays_to")) {
+        std::string decay_attr = xml_value::trim_copy(xml_parser_get_attribute_string("decays_to"));
+        if (decay_attr.empty()) {
+            log_error("BuildingType rubble decays_to cannot be empty", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_rubble_decay_reference(std::move(decay_attr));
+    }
+
+    if (type == RubbleType::BurningRubble && (!has_burn_days || g_parse_state.definition->rubble().decays_to.empty())) {
+        log_error("Burning rubble requires burn_days and decays_to", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_rubble = 1;
+    return 1;
 }
 
 static int parse_roadblock()
@@ -2340,6 +2416,7 @@ static int parse_graphics_default()
 
     g_parse_state.definition->mark_graphics_default_node();
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Default;
+    GraphicsTarget &target = g_parse_state.definition->default_graphics_target();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2347,7 +2424,17 @@ static int parse_graphics_default()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->default_graphics_target().set_animation_enabled(enabled);
+        target.set_animation_enabled(enabled);
+    }
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics default terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        target.set_terrain_foundation(enabled);
     }
     return 1;
 }
@@ -2449,6 +2536,15 @@ static int parse_graphics_layer()
         }
         layer.set_image(std::move(image_id));
     }
+    if (xml_parser_has_attribute("role")) {
+        std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+        if (role.empty()) {
+            log_error("Unsupported BuildingType graphics layer role", xml_parser_get_attribute_string("role"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_role(std::move(role));
+    }
     if (xml_parser_has_attribute("stage")) {
         int valid = 0;
         GraphicsLayerStage stage = parse_graphics_layer_stage(xml_parser_get_attribute_string("stage"), &valid);
@@ -2526,6 +2622,12 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::Orientation;
     } else if (compare_text(selection, "production_progress") == 0) {
         option_selection = GraphicsOptionSelection::ProductionProgress;
+    } else if (compare_text(selection, "storage_permission") == 0) {
+        option_selection = GraphicsOptionSelection::StoragePermission;
+    } else if (compare_text(selection, "gatehouse_orientation") == 0) {
+        option_selection = GraphicsOptionSelection::GatehouseOrientation;
+    } else if (compare_text(selection, "road_crossing") == 0) {
+        option_selection = GraphicsOptionSelection::RoadCrossing;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -2586,7 +2688,20 @@ static int parse_graphics_option()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("image")) {
+    int draws = 1;
+    if (xml_parser_has_attribute("draw")) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("draw"), &draws)) {
+            log_error("Unsupported BuildingType graphics option draw flag", xml_parser_get_attribute_string("draw"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    if (!draws && g_parse_state.parsing_graphics_layer) {
+        log_error("BuildingType graphics layer option cannot use draw=0", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (draws && !xml_parser_has_attribute("image")) {
         log_error("BuildingType graphics option is missing required attribute 'image'", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -2616,6 +2731,25 @@ static int parse_graphics_option()
             g_parse_state.error = 1;
             return 0;
         }
+        int has_offset = 0;
+        if (!parse_optional_int_attribute(
+                "Unsupported BuildingType graphics layer option offset",
+                "x",
+                &option.x_offset,
+                &has_offset)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.has_x_offset = has_offset;
+        if (!parse_optional_int_attribute(
+                "Unsupported BuildingType graphics layer option offset",
+                "y",
+                &option.y_offset,
+                &has_offset)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.has_y_offset = has_offset;
         return 1;
     }
 
@@ -2627,6 +2761,20 @@ static int parse_graphics_option()
     }
 
     GraphicsTarget &option = target->add_option();
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics option terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.set_terrain_foundation(enabled);
+    }
+    if (!draws) {
+        option.set_no_draw(1);
+        return 1;
+    }
     if (xml_parser_has_attribute("path")) {
         std::string normalized_path = normalize_graphics_path(xml_parser_get_attribute_string("path"));
         if (normalized_path.empty()) {
@@ -2677,6 +2825,16 @@ static int parse_graphics_variant()
             return 0;
         }
         variant.target.set_animation_enabled(enabled);
+    }
+    if (xml_parser_has_attribute("use_terrain_as_foundation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("use_terrain_as_foundation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics variant terrain foundation flag",
+                xml_parser_get_attribute_string("use_terrain_as_foundation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        variant.target.set_terrain_foundation(enabled);
     }
     if (xml_parser_has_attribute("role")) {
         std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
@@ -2927,6 +3085,36 @@ static int parse_graphics_condition()
         }
         condition.type = GraphicsConditionType::ResourceAmount;
         condition.threshold = threshold;
+    } else if (type_text && compare_text(type_text, "terrain") == 0) {
+        if (!xml_parser_has_attribute("value")) {
+            log_error("BuildingType graphics terrain condition is missing required attribute 'value'", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        const char *terrain_text = xml_parser_get_attribute_string("value");
+        if (compare_text(terrain_text, "road") == 0) {
+            condition.terrain_mask = TERRAIN_ROAD;
+        } else if (compare_text(terrain_text, "aqueduct") == 0) {
+            condition.terrain_mask = TERRAIN_AQUEDUCT;
+        } else if (compare_text(terrain_text, "highway") == 0) {
+            condition.terrain_mask = TERRAIN_HIGHWAY;
+        } else if (compare_text(terrain_text, "water") == 0) {
+            condition.terrain_mask = TERRAIN_WATER;
+        } else if (compare_text(terrain_text, "building") == 0) {
+            condition.terrain_mask = TERRAIN_BUILDING;
+        } else if (compare_text(terrain_text, "garden") == 0) {
+            condition.terrain_mask = TERRAIN_GARDEN;
+        } else if (compare_text(terrain_text, "rubble") == 0) {
+            condition.terrain_mask = TERRAIN_RUBBLE;
+        } else if (compare_text(terrain_text, "wall") == 0) {
+            condition.terrain_mask = TERRAIN_WALL;
+        } else {
+            log_error("Unsupported BuildingType graphics terrain condition", terrain_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Terrain;
     } else if (type_text && compare_text(type_text, "climate") == 0) {
         if (!xml_parser_has_attribute("value")) {
             log_error("BuildingType graphics climate condition is missing required attribute 'value'", 0, 0);
@@ -3815,8 +4003,7 @@ static int parse_spawn()
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
     SpawnPolicy policy;
-    if (mode_text && (compare_text(mode_text, "profiled_figure") == 0 ||
-        compare_text(mode_text, "service_roamer") == 0)) {
+    if (mode_text && compare_text(mode_text, "profiled_figure") == 0) {
         policy.mode = SpawnMode::FigureSpawn;
     } else if (mode_text && compare_text(mode_text, "temple_supplier") == 0) {
         policy.mode = SpawnMode::TempleSupplier;
@@ -4080,6 +4267,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "menu", parse_button, nullptr, "building", nullptr },
     { "cycle", parse_cycle, nullptr, "building", nullptr },
     { "roadblock", parse_roadblock, nullptr, "building", nullptr },
+    { "rubble", parse_rubble, nullptr, "building", nullptr },
     { "tile", parse_tile, finish_tile, "building", nullptr },
     { "tool", parse_tool, nullptr, "building", nullptr },
     { "temple", parse_temple, nullptr, "building", nullptr },
@@ -4230,6 +4418,9 @@ static int validate_graphics_target_entry(
                 "%s.option[%u]",
                 target_scope ? target_scope : "graphics",
                 static_cast<unsigned int>(i));
+            if (resolved.no_draw()) {
+                continue;
+            }
             if (!resolved.has_image()) {
                 char detail[512];
                 snprintf(
@@ -4590,7 +4781,7 @@ static int parse_definition_buffer(const char *filename, const std::vector<char>
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
         g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_roadblock ||
-        g_parse_state.saw_tile || g_parse_state.saw_tool ||
+        g_parse_state.saw_rubble || g_parse_state.saw_tile || g_parse_state.saw_tool ||
         g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_military ||
         g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
@@ -4685,6 +4876,30 @@ static building_type resolve_building_type_reference(const std::string &text_id)
         }
     }
     return target;
+}
+
+static int resolve_rubble_decay_references()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_rubble_decay_references");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_rubble() || definition->rubble().decays_to.empty()) {
+            continue;
+        }
+
+        const building_type target_type = resolve_building_type_reference(definition->rubble().decays_to);
+        const BuildingType *target_definition = definition_for_type(target_type);
+        if (target_type == BUILDING_NONE || !target_definition || !target_definition->has_rubble()) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s decays_to=%s",
+                definition->attr(), definition->rubble().decays_to.c_str());
+            error_context_report_error("BuildingType rubble decay target does not exist or is not rubble.", detail);
+            log_error("Unable to resolve BuildingType rubble decay target", detail, 0);
+            return 0;
+        }
+        definition->set_rubble_decay_type(target_definition);
+    }
+    return 1;
 }
 
 static int resolve_construction_references()
@@ -5066,6 +5281,10 @@ int building_type_registry_load(void)
 
     if (!resolve_housing_transitions()) {
         log_error("Unable to resolve BuildingType housing transitions", 0, 0);
+        return 0;
+    }
+    if (!resolve_rubble_decay_references()) {
+        log_error("Unable to resolve BuildingType rubble decay references", 0, 0);
         return 0;
     }
     if (!resolve_construction_references()) {

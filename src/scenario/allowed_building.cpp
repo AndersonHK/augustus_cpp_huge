@@ -92,12 +92,16 @@ static void refresh_dynamic_original_allowed_slots(void)
     conversion_from_original_initialized = 1;
 }
 
-int scenario_allowed_building(building_type type)
+int scenario_allowed_building(const building_type_registry_impl::BuildingType *type)
 {
-    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+    if (!type) {
         return 0;
     }
-    return allowed_buildings[type];
+    const building_type type_id = type->type();
+    if (type_id <= BUILDING_NONE || type_id >= BUILDING_TYPE_MAX) {
+        return 0;
+    }
+    return allowed_buildings[type_id];
 }
 
 static int enable_submenu_buildings(building_type type, int allowed)
@@ -113,7 +117,7 @@ static int enable_submenu_buildings(building_type type, int allowed)
         if (item == type) {
             continue;
         }
-        allowed_buildings[item] = allowed;
+        allowed_buildings[item] = static_cast<uint8_t>(allowed);
     }
     return 1;
 }
@@ -121,7 +125,7 @@ static int enable_submenu_buildings(building_type type, int allowed)
 void scenario_allowed_building_set(building_type type, int allowed)
 {
     if (!enable_submenu_buildings(type, allowed)) {
-        allowed_buildings[type] = allowed;
+        allowed_buildings[type] = static_cast<uint8_t>(allowed);
     }
 }
 
@@ -160,7 +164,7 @@ void scenario_allowed_building_load_state(buffer *buf)
         int allowed = buffer_read_i8(buf);
         building_type type = building_type_id_bridge_runtime_from_save_id((uint16_t) i);
         if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
-            allowed_buildings[type] = allowed;
+            allowed_buildings[type] = static_cast<uint8_t>(allowed);
         }
     }
 }
@@ -210,7 +214,7 @@ void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state
         int allowed = buffer_read_i8(&state);
         building_type type = building_type_id_bridge_runtime_from_text(text_id);
         if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
-            allowed_buildings[type] = allowed;
+            allowed_buildings[type] = static_cast<uint8_t>(allowed);
         }
     }
 }

@@ -58,11 +58,16 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_advisor(int advisor, int param2)
 {
+    (void)param2;
+
     window_advisors_show_advisor(static_cast<advisor_type>(advisor));
 }
 
 static void button_close(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_go_back();
 }
 

@@ -5,10 +5,29 @@
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "game/state.h"
+#include "map/building.h"
+
+#include <exception>
+
+static Building &runtime_building_for_overlay_record(const building *record)
+{
+    if (!record || !map_building_exists_at(record->grid_offset)) {
+        std::terminate();
+    }
+    Building &tile_building = map_building_at(record->grid_offset);
+    if (tile_building.id == record->id) {
+        return tile_building;
+    }
+    Building &main_building = tile_building.main();
+    if (main_building.id == record->id) {
+        return main_building;
+    }
+    std::terminate();
+}
 
 static int show_building_entertainment(const building *b)
 {
-    const Building building(const_cast<struct building *>(b));
+    const Building &building = runtime_building_for_overlay_record(b);
     const building_type_registry_impl::BuildingType *type = building.type;
     return type && (
         type->attr_is("actor_colony") || type->is_theater() ||
@@ -20,7 +39,7 @@ static int show_building_entertainment(const building *b)
 
 static int show_building_theater(const building *b)
 {
-    const Building building(const_cast<struct building *>(b));
+    const Building &building = runtime_building_for_overlay_record(b);
     const building_type_registry_impl::BuildingType *type = building.type;
     return type && (type->attr_is("actor_colony") || type->is_theater());
 }
@@ -51,7 +70,7 @@ static int show_building_tavern(const building *b)
     return building_type_registry_impl::type_attr_is(b->type, "tavern");
 }
 
-static Building get_entertainment_building(const Figure &f)
+static const Building *get_entertainment_building(const Figure &f)
 {
     return f.action_state == FIGURE_ACTION_94_ENTERTAINER_ROAMING ||
         f.action_state == FIGURE_ACTION_95_ENTERTAINER_RETURNING ?
@@ -77,8 +96,8 @@ static int show_figure_entertainment(const Figure *f)
 static int show_figure_theater(const Figure *f)
 {
     if (f->type == FIGURE_ACTOR) {
-        const Building building = get_entertainment_building(*f);
-        return building.type && building.type->is_theater();
+        const Building *building = get_entertainment_building(*f);
+        return building && building->type && building->type->is_theater();
     }
     return 0;
 }
@@ -86,8 +105,8 @@ static int show_figure_theater(const Figure *f)
 static int show_figure_amphitheater(const Figure *f)
 {
     if (f->type == FIGURE_ACTOR || f->type == FIGURE_GLADIATOR) {
-        const Building building = get_entertainment_building(*f);
-        return building.type && building.type->attr_is("amphitheater");
+        const Building *building = get_entertainment_building(*f);
+        return building && building->type && building->type->attr_is("amphitheater");
     }
     return 0;
 }
@@ -95,8 +114,8 @@ static int show_figure_amphitheater(const Figure *f)
 static int show_figure_arena(const Figure *f)
 {
     if (f->type == FIGURE_GLADIATOR || f->type == FIGURE_LION_TAMER) {
-        const Building building = get_entertainment_building(*f);
-        return building.type && building.type->attr_is("arena");
+        const Building *building = get_entertainment_building(*f);
+        return building && building->type && building->type->attr_is("arena");
     } 
     return 0;
 }
@@ -104,8 +123,8 @@ static int show_figure_arena(const Figure *f)
 static int show_figure_colosseum(const Figure *f)
 {
     if (f->type == FIGURE_GLADIATOR || f->type == FIGURE_LION_TAMER) {
-        const Building building = get_entertainment_building(*f);
-        return building.type && building.type->attr_is("colosseum");
+        const Building *building = get_entertainment_building(*f);
+        return building && building->type && building->type->attr_is("colosseum");
     }
     return 0;
 }
@@ -160,6 +179,8 @@ static int get_column_height_tavern(const building *b)
 
 static int get_tooltip_entertainment(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.entertainment <= 0) {
         return 64;
     } else if (b->data.house.entertainment < 10) {
@@ -187,6 +208,8 @@ static int get_tooltip_entertainment(tooltip_context *c, const building *b)
 
 static int get_tooltip_theater(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.theater <= 0) {
         return 75;
     } else if (b->data.house.theater >= 80) {
@@ -200,6 +223,8 @@ static int get_tooltip_theater(tooltip_context *c, const building *b)
 
 static int get_tooltip_amphitheater(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.amphitheater_actor <= 0) {
         return 79;
     } else if (b->data.house.amphitheater_actor >= 80) {
@@ -229,6 +254,8 @@ static int get_tooltip_colosseum(tooltip_context *c, const building *b)
 
 static int get_tooltip_hippodrome(tooltip_context *c, const building *b)
 {
+    (void)c;
+
     if (b->data.house.hippodrome <= 0) {
         return 87;
     } else if (b->data.house.hippodrome >= 80) {

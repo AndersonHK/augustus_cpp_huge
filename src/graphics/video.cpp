@@ -13,8 +13,15 @@
 #include "sound/music.h"
 #include "sound/speech.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4100 4244)
+#endif
 #include "easyav1.h"
 #include "pl_mpeg/pl_mpeg.h"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #include <filesystem>
 #include <memory>
@@ -110,6 +117,8 @@ static void close_decoder(void)
 
 static void update_mpg_video(plm_t *plm, plm_frame_t *frame, void *user)
 {
+    (void) plm;
+    (void) user;
     data.video.draw_frame = 1;
     data.video.current_frame++;
     data.video.mpg_frame = frame;
@@ -117,6 +126,8 @@ static void update_mpg_video(plm_t *plm, plm_frame_t *frame, void *user)
 
 static void update_mpg_audio(plm_t *mpeg, plm_samples_t *samples, void *user)
 {
+    (void) mpeg;
+    (void) user;
     sound_device_write_custom_music_data(samples->interleaved, sizeof(float) * samples->count * 2);
 }
 

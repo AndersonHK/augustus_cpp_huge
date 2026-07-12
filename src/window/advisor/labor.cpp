@@ -114,6 +114,7 @@ static int handle_mouse(const mouse *m)
 
 static void arrow_button_wages(int is_down, int param2)
 {
+    (void) param2;
     city_labor_change_wages(is_down ? -1 : 1);
     city_finance_estimate_wages();
     city_finance_calculate_totals();

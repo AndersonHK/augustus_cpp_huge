@@ -42,6 +42,21 @@ their logical game size.
   height, but city figure drawing normally calls `runtime_texture_draw(...)`,
   which derives logical size from source pixel size.
 
+## Progress Checkpoint
+
+- [x] Establish `GraphicsDefinition`, `BuildingGraphics`, `FigureGraphics`, and `ResourceGraphics` as the intended graphics class split.
+- [x] Retire the separate `figure_graphics.h` direction and keep FigureType graphics data on `FigureGraphics`.
+- [x] Materialize cached default/action/corpse FigureType graphics bindings through `FigureGraphics`.
+- [x] Add structured FigureType graphics child-node parsing for default/action/corpse/cart targets.
+- [x] Move many legacy direction/frame/corpse formulas behind `FigureGraphics` helpers instead of local controller arithmetic.
+- [x] Move figure info-window draw bodies onto `Figure`/figuretype child `draw(c)` methods, reducing one legacy central switch surface.
+- [~] Move cart/resource/flag/enemy overlay assembly behind `FigureGraphics`; raw `image_id`, `cart_image_id`, and flag bridges remain.
+- [~] Start using fixed logical-size draw requests for figures; final XML logical-size ownership is still blocked by the renderer seam plan.
+- [ ] Make converted FigureType graphics use real payload-managed file path references as the authored norm, such as nested `Walkers/<file>` paths.
+- [ ] Make city figure drawing ask the figure object for a complete draw request, with `city_figure.cpp` only handling placement/submission.
+- [ ] Delete controller-owned image mutation and direct `f->image_id` authority for converted figures.
+- [ ] Add Vespasian half-size FigureType XML only after payload ownership and every renderer seam prerequisite are complete.
+
 ## Target Shape
 
 ### Shared Graphics Class Boundary
@@ -387,9 +402,28 @@ resolve legacy `image_group` graphics into draw requests without relying on
   buckets, missile launchers, and fishing-boat/dock-related overlays should each
   become named graphics policies or layers.
 
-### Slice 6: Vespasian Half-Size Figure XML
+### Slice 6: Native File-Path Payload Ownership
 
-- Add Vespasian FigureType XML overrides for every resized figure.
+- Move all converted figure graphics to the image group payload manager as the
+  authoritative source of draw slices.
+- FigureType graphics XML must use real relative file paths with nested
+  `<graphics><default><path value="Walkers\\<file>" /></default></graphics>`
+  style nodes instead of legacy group/image-id references as the authored
+  contract.
+- Keep legacy group/image-id bridges only for unconverted fallbacks and old save
+  hydration. Converted figures should draw from resolved payload entries.
+- This is one required gate before Vespasian half-size FigureType XML overrides,
+  because logical-size metadata has to attach to resolved payload-backed figure
+  graphics rather than legacy atlas ids.
+- The full Renderer Scaling Seams plan is also a hard prerequisite. Half-size
+  figure XML must wait until every seam checklist item is complete, especially
+  the split between source pixel dimensions and fixed-point logical image
+  dimensions at the renderer boundary.
+
+### Slice 7: Vespasian Half-Size Figure XML
+
+- Add Vespasian FigureType XML overrides for every resized figure only after
+  the figure payload gate and every Renderer Scaling Seams item are complete.
 - Point each override at the same extracted pixel art initially.
 - Define logical width/height in the final fixed-point logical-size unit, using
   half the source-pixel dimensions as the first Vespasian validation target.
@@ -398,7 +432,7 @@ resolve legacy `image_group` graphics into draw requests without relying on
 - Do not resize the source PNGs for this slice. The point is to prove source
   pixels and logical size are decoupled.
 
-### Slice 7: Delete Legacy Branches
+### Slice 8: Delete Legacy Branches
 
 - Remove figure-specific image-id arithmetic from `city_figure.cpp`.
 - Collapse `figure_runtime_has_native_graphics`, `figure_runtime_graphic_slice`,

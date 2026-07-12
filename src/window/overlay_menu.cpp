@@ -313,6 +313,8 @@ static int click_outside_menu(const mouse *m, const int x_offset)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
+    (void)h;
+
     const int x_offset = get_sidebar_x_offset();
     int handled = 0;
 

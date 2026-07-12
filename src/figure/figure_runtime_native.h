@@ -6,6 +6,7 @@
 #include <memory>
 
 class Figure;
+struct building;
 
 struct FigureGraphicDrawLayer {
     RuntimeDrawSlice slice = {};
@@ -15,6 +16,20 @@ struct FigureGraphicDrawLayer {
     int use_figure_color_mask = 1;
     render_logical_size fixed_logical_size = {};
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
+};
+
+class FigureMapFlagNumberOverlay {
+public:
+    void set_from_resource_id(int resource_id);
+    void draw(int x, int y, float scale) const;
+
+private:
+    static constexpr int kXOffset = 6;
+    static constexpr int kYOffset = 7;
+
+    static int number_from_resource_id(int resource_id);
+
+    int number_ = 0;
 };
 
 struct FigureGraphicDrawRequest {
@@ -27,9 +42,30 @@ struct FigureGraphicDrawRequest {
     int sprite_offset_y = 0;
     render_logical_size fixed_logical_size = {};
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
+    FigureMapFlagNumberOverlay map_flag_number_overlay = {};
+
+    bool add_layer(const FigureGraphicDrawLayer &layer);
+    bool add_layer(const figure_type_registry_impl::FigureGraphicsLayer &layer);
+    void draw(int x, int y, color_t color_mask, float scale) const;
+
+private:
+    void draw_layers(int x, int y, color_t color_mask, float scale, int draw_before_base) const;
+    static void draw_runtime_slice(
+        const RuntimeDrawSlice &slice,
+        int x,
+        int y,
+        color_t color,
+        float scale,
+        render_logical_size fixed_logical_size,
+        render_scaling_policy scaling_policy);
 };
 
 namespace figure_runtime_native_impl {
+
+bool owner_binding_matches(
+    const Figure *figure,
+    const building *owner,
+    const figure_type_registry_impl::OwnerBinding &owner_binding);
 
 class NativeFigure {
 public:

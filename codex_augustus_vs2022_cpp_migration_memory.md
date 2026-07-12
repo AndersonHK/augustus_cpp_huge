@@ -1,6 +1,6 @@
 # Codex Augustus VS2022 / MSBuild migration working memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-27
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## What is true in this checkout now
@@ -25,6 +25,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Prefer introducing one C++ runtime object plus one narrow C facade rather than converting an entire subsystem in one jump.
 - Put concept-owned attributes on the concept object. For example, `PathingMode` objects own pathing requirements like `requires_road`, which keeps XML validation and runtime checks from re-encoding the same facts in ad hoc helper predicates.
 - Move concept-owned behavior onto the concept object as code migrates. Current examples are `BuildingAnimation` for frame selection/gating and `WaterAccessType` plus `water_access_runtime` for access-type identity and propagation.
+- Prefer owner-bound runtime module calls over loose definition calls. A caller should reach behavior through the owner, such as `building.production().tick()`, not through a free policy call shaped like `definition->tick(building)`.
+- During record-to-object migration, distinguish runtime state from save shape. `id` fields are stable bridge identity; ordinary peeled fields should move toward runtime structs/modules, with the save bridge reconstructing save records and reporting missing module data only after flushing the best partial save it can.
 - Constructors for durable runtime concepts should be self-documenting at the call site. Prefer named enums, clearly named factory/config fields, or focused comments over positional boolean arguments such as `true, false, false`.
 - Add short contract comments around new C/C++ facade functions and converted control points, especially where save compatibility or legacy callback ownership is involved.
 - Update the relevant markdown in the same run when the migration changes runtime ownership, XML contracts, save/load pieces, or newly introduced classes.
@@ -93,6 +95,10 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
     - owns animation advancement/gating while old C draw paths call a narrow facade
   - `WaterAccessType` / `water_access_runtime`
     - own typed mask access propagation while old fields remain compatibility mirrors
+  - `GraphicsDefinition` / `BuildingGraphics` / `FigureGraphics` / `ResourceGraphics`
+    - split shared graphics vocabulary from building, figure, and resource-specific policies
+  - `UnitType` / `FormationType` / `formation`
+    - move formation capacity, roster iteration, and XML-declared formation shape away from legacy fixed 16-slot assumptions
 
 ## Headers/linkage lessons worth preserving
 - When a C file is converted or begins calling C++ code, check header linkage immediately.
@@ -119,7 +125,9 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Native FigureType XML and `figure_runtime` are active for the currently ported service walkers.
 - Native BuildingType XML and HousingType XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
 - Native WaterAccessType XML is active. BuildingType water rules now describe providers, requirements, nodes, and natural-source terms; runtime propagates typed masks through a fixed-point pass.
+- `WaterAccessType` is not a complete building module definition; it is the vocabulary. Building-specific water provider/requirement policy still lives in BuildingType until a future module-definition folder peels it away.
 - Building animation policy has been extracted from runtime drawing. `building_runtime_graphics.cpp` should resolve/copy draw slices, while `animations.cpp` decides what frame can advance or render.
+- Figure graphics are mid-migration to object-owned native graphics. Use `docs/figure_owned_native_graphics_plan.md` before changing figure draw policy or XML graphics nodes.
 - Road service history is a save-backed, pathing-only telemetry grid used by smart service walkers.
 - `window.cpp` is the full-window/pass orchestrator.
 - `ui_runtime.cpp` is the shared widget facade/orchestration chokepoint.

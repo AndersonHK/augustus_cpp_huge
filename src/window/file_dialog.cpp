@@ -369,6 +369,17 @@ static void draw_sort_button(void)
     , screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
+static void draw_preview_minimap(int x, int y, int width, int height)
+{
+    widget_minimap_draw(x, y, width, height);
+    widget_minimap_restore_default_functions();
+}
+
+static void draw_save_preview_minimap(int x, int y, int width, int height)
+{
+    widget_minimap_draw_preview(x, y, width, height);
+}
+
 static void draw_background(void)
 {
     window_draw_underlying_window();
@@ -466,9 +477,9 @@ static void draw_foreground(void)
                     text_draw(translation_for_key("TR_SAVE_DIALOG_POPULATION"), 362, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     text_draw_number(data.info.population, '\0', "",
                         500, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
-                    widget_minimap_draw(352, 80, 266, 272);
+                    draw_save_preview_minimap(352, 80, 266, 272);
                 } else {
-                    widget_minimap_draw(352, 80, 266, 352);
+                    draw_preview_minimap(352, 80, 266, 352);
                 }
             } else {
                 if (data.dialog_type == FILE_DIALOG_SAVE) {
@@ -662,6 +673,7 @@ static void confirm_save_file(int accepted, int checked)
 
 static void confirm_small_image(int accepted, int checked)
 {
+    (void) checked;
     if (!accepted) {
         return;
     }
@@ -678,6 +690,7 @@ static void confirm_small_image(int accepted, int checked)
 
 static void button_ok_cancel(int is_ok, int param2)
 {
+    (void) param2;
     if (!is_ok) {
         input_box_stop(&main_input);
         window_go_back();
@@ -805,6 +818,7 @@ static void button_ok_cancel(int is_ok, int param2)
 
 static void button_toggle_sort_type(const generic_button *button)
 {
+    (void) button;
     if (data.sort_type == FILE_DIALOG_SORT_BY_NAME) {
         data.sort_type = FILE_DIALOG_SORT_BY_DATE;
     } else {

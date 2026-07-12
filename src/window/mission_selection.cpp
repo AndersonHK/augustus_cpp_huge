@@ -61,8 +61,8 @@ MissionSelectionData data;
 
 class MissionChoiceButtonWidget {
 public:
-    MissionChoiceButtonWidget(const campaign_scenario *scenario, int index)
-        : scenario_(scenario)
+    MissionChoiceButtonWidget(const campaign_scenario *campaign_scenario, int index)
+        : scenario_(campaign_scenario)
         , index_(index)
     {
     }
@@ -109,12 +109,14 @@ public:
 
     void draw(int has_choice) const
     {
-        image_buttons_draw(kActionButtonsX, kActionButtonsY, buttons_, visible_count(has_choice));
+        image_buttons_draw(kActionButtonsX, kActionButtonsY, buttons_,
+            static_cast<unsigned int>(visible_count(has_choice)));
     }
 
     int handle_mouse(const mouse *m, int has_choice) const
     {
-        return image_buttons_handle_mouse(m, kActionButtonsX, kActionButtonsY, buttons_, visible_count(has_choice), 0);
+        return image_buttons_handle_mouse(m, kActionButtonsX, kActionButtonsY, buttons_,
+            static_cast<unsigned int>(visible_count(has_choice)), 0);
     }
 
 private:
@@ -277,12 +279,18 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 void button_start(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     clear_loaded_mission();
     window_mission_briefing_show();
 }
 
 void button_back(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     clear_loaded_mission();
     window_mission_list_show();
     sound_music_play_intro();

@@ -250,17 +250,20 @@ static void set_change_amount(int value)
 
 static void button_amount(const generic_button *button)
 {
+    (void) button;
     window_numeric_input_show(0, 0, button, 3, 999, set_change_amount);
 }
 
 static void button_buying(const generic_button *button)
 {
+    (void) button;
     data.demand_change.buys = 1 - data.demand_change.buys;
     window_request_refresh();
 }
 
 static void button_delete(const generic_button *button)
 {
+    (void) button;
     if (data.is_new_demand_change) {
         return;
     }
@@ -271,6 +274,7 @@ static void button_delete(const generic_button *button)
 
 static void button_cancel(const generic_button *button)
 {
+    (void) button;
     window_go_back();
 }
 
@@ -313,6 +317,7 @@ static unsigned int validate(void)
 
 static void button_save(const generic_button *button)
 {
+    (void) button;
     unsigned int num_errors = validate();
     if(num_errors) {
         window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",

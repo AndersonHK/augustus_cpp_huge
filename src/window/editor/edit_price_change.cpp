@@ -155,6 +155,7 @@ static void button_resource(const generic_button *button)
 
 static void button_toggle_rise(const generic_button *button)
 {
+    (void) button;
     data.price_change.is_rise = !data.price_change.is_rise;
     window_request_refresh();
 }
@@ -171,6 +172,7 @@ static void button_amount(const generic_button *button)
 
 static void button_delete(const generic_button *button)
 {
+    (void) button;
     if (data.is_new_price_change) {
         return;
     }
@@ -181,6 +183,7 @@ static void button_delete(const generic_button *button)
 
 static void button_cancel(const generic_button *button)
 {
+    (void) button;
     window_go_back();
 }
 
@@ -207,6 +210,7 @@ static unsigned int validate(void)
 
 static void button_save(const generic_button *button)
 {
+    (void) button;
     unsigned int num_errors = validate();
     if (num_errors) {
         window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",

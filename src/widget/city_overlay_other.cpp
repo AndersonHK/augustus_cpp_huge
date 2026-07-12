@@ -37,6 +37,7 @@
 #include "map/terrain.h"
 #include "scenario/property.h"
 
+#include <exception>
 #include <stdio.h>
 
 #define TOOLTIP_WITH_PREFIX_MAX_LENGTH 128
@@ -44,9 +45,42 @@
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset);
 
-static Building building_from_record(const building *b)
+static building *building_record_at(int grid_offset)
 {
-    return Building(const_cast<building *>(b));
+    return map_building_exists_at(grid_offset) ?
+        const_cast<building *>(map_building_at(grid_offset).record()) :
+        nullptr;
+}
+
+static building *building_record_for_id(unsigned int building_id)
+{
+    if (!building_id) {
+        return nullptr;
+    }
+
+    Building *found = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!found && building && building->id == building_id) {
+            found = building;
+        }
+    });
+    return found ? const_cast<building *>(found->record()) : nullptr;
+}
+
+static Building &building_from_record(const building *b)
+{
+    if (!b || !map_building_exists_at(b->grid_offset)) {
+        std::terminate();
+    }
+    Building &tile_building = map_building_at(b->grid_offset);
+    if (tile_building.id == b->id) {
+        return tile_building;
+    }
+    Building &main_building = tile_building.main();
+    if (main_building.id == b->id) {
+        return main_building;
+    }
+    std::terminate();
 }
 
 static int animation_offset(Building &building, int image_id, int grid_offset)
@@ -143,7 +177,7 @@ static int show_building_sentiment(const building *b)
 
 static int show_building_roads(const building *b)
 {
-    return Roadblock(const_cast<building *>(b)).kind() != ROADBLOCK_NONE;
+    return Roadblock(building_from_record(b)).kind() != ROADBLOCK_NONE;
 }
 
 static int draw_top_roads(int x, int y, float scale, int grid_offset)
@@ -154,7 +188,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    Building building(building_get(map_building_at(grid_offset)));
+    Building &building = map_building_at(grid_offset);
     if (!building.type || !building.type->attr_is("triumphal_arch")) {
         return 0;
     }
@@ -202,6 +236,7 @@ static int show_building_storages(const building *b)
 
 static int show_building_none(const building *b)
 {
+    (void) b;
     return 0;
 }
 
@@ -235,7 +270,7 @@ static int show_figure_food_stocks(const Figure *f)
 
         case FIGURE_WAREHOUSEMAN:
         {
-            return f->building.id() && f->building.type && f->building.type->is_granary();
+            return f->building && f->building->type && f->building->type->is_granary();
         }
         default:
             return 0;
@@ -273,6 +308,7 @@ static int show_figure_employment(const Figure *f)
 
 static int show_figure_none(const Figure *f)
 {
+    (void) f;
     return 0;
 }
 
@@ -283,7 +319,8 @@ static int get_column_height_religion(const building *b)
 
 static int get_column_height_efficiency(const building *b)
 {
-    int percentage = building_get_efficiency(b);
+    const Building building = building_from_record(b);
+    int percentage = building.native_production_efficiency();
     if (percentage == -1) {
         return NO_COLUMN;
     }
@@ -292,7 +329,7 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
+    const model_house *house_model = building_house_get_model(building_from_record(b));
     if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
@@ -348,6 +385,7 @@ static int get_column_height_employment(const building *b)
 
 static int get_column_height_none(const building *b)
 {
+    (void) b;
     return NO_COLUMN;
 }
 
@@ -402,7 +440,8 @@ static int get_tooltip_religion(tooltip_context *c, const building *b)
 
 static int get_tooltip_efficiency(tooltip_context *c, const building *b)
 {
-    int efficiency = building_get_efficiency(b);
+    const Building building = building_from_record(b);
+    int efficiency = building.native_production_efficiency();
     if (efficiency == -1) {
         return 0;
     }
@@ -412,10 +451,11 @@ static int get_tooltip_efficiency(tooltip_context *c, const building *b)
 
 static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
 {
+    (void) c;
     if (b->house_population <= 0) {
         return 0;
     }
-    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
+    const model_house *house_model = building_house_get_model(building_from_record(b));
     if (!house_model || !house_model->food_types) {
         return 104;
     } else {
@@ -487,6 +527,7 @@ static int get_tooltip_employment(tooltip_context *c, const building *b)
 
 static int get_tooltip_water(tooltip_context *c, int grid_offset)
 {
+    (void) c;
     int has_reservoir_access = water_access_runtime_tile_has_access(grid_offset, "reservoir");
     int has_fountain_access = water_access_runtime_tile_has_access(grid_offset, "fountain");
     int has_well_access = water_access_runtime_tile_has_access(grid_offset, "well");
@@ -507,8 +548,10 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
 {
     int desirability;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        int building_id = map_building_at(grid_offset);
-        building *b = building_get(building_id);
+        building *b = building_record_at(grid_offset);
+        if (!b) {
+            return 0;
+        }
         desirability = b->desirability;
     } else {
         desirability = map_desirability_get(grid_offset);
@@ -527,13 +570,17 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
 
 static int get_tooltip_none(tooltip_context *c, int grid_offset)
 {
+    (void) c;
+    (void) grid_offset;
     return 0;
 }
 
 static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
-    building *b = building_get(building_id);
+    building *b = building_record_at(grid_offset);
+    if (!b) {
+        return 0;
+    }
     if (building_type_registry_impl::type_attr_is(b->type, "cart_depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
@@ -551,8 +598,11 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
         if (condition_type > 1) {
             snprintf(threshold_str, sizeof(threshold_str), " %d", depot_order.condition.threshold);
         }
-        building *b_src = building_get(depot_order.src_storage_id);
-        building *b_dst = building_get(depot_order.dst_storage_id);
+        building *b_src = building_record_for_id(depot_order.src_storage_id);
+        building *b_dst = building_record_for_id(depot_order.dst_storage_id);
+        if (!b_src || !b_dst) {
+            return 0;
+        }
 
         const uint8_t *src_type = lang_get_building_type_string(b_src->type);
         const uint8_t *dst_type = lang_get_building_type_string(b_dst->type);
@@ -593,7 +643,7 @@ static int get_tooltip_levy(tooltip_context *c, const building *b)
 static int get_offset_tooltip_levy(tooltip_context *c, int grid_offset)
 {
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        return get_tooltip_levy(c, building_get(map_building_at(grid_offset)));
+        return get_tooltip_levy(c, building_record_at(grid_offset));
     }
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         c->has_numeric_prefix = 1;
@@ -609,8 +659,7 @@ static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    int building_id = map_building_at(grid_offset);
-    building *b = building_get(building_id);
+    building *b = building_record_at(grid_offset);
     if (!b || !b->house_population) {
         return 0;
     }
@@ -736,7 +785,7 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
         Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
-                                    && !map_building_at(grid_offset)) {
+                                    && !map_building_exists_at(grid_offset)) {
         city_draw_grid_overlay(x, y, scale);
     }
     return 1;
@@ -786,7 +835,7 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
             }
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
-    } else if (map_building_at(grid_offset)) {
+    } else if (map_building_exists_at(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
     }
     return 1;
@@ -844,8 +893,7 @@ static int draw_sentiment_footprint(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    int building_id = map_building_at(grid_offset);
-    building *b = building_get(building_id);
+    building *b = building_record_at(grid_offset);
     if (!b || !b->house_population || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
         return 0;
     }
@@ -861,8 +909,7 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    int building_id = map_building_at(grid_offset);
-    building *b = building_get(building_id);
+    building *b = building_record_at(grid_offset);
     if (!b || !b->house_population || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
         return 0;
     }
@@ -922,8 +969,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset))) {
         return;
     }
-    int building_id = map_building_at(grid_offset);
-    building *building_record = building_id ? building_get(building_id) : nullptr;
+    building *building_record = building_record_at(grid_offset);
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building_record &&
         building_record->house_population > 0 && !building_record->is_deleted &&
         !map_property_is_deleted(building_record->grid_offset)) {
@@ -1030,8 +1076,7 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return;
     }
-    int building_id = map_building_at(grid_offset);
-    building *b = building_get(building_id);
+    building *b = building_record_at(grid_offset);
     if (!b || b->is_deleted || map_property_is_deleted(b->grid_offset) || !b->storage_id ||
         !map_property_is_draw_tile(grid_offset)) {
         return;

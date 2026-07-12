@@ -93,7 +93,7 @@ static int count_keyed_i32_resource_values(const int *values, int food_only)
 static void write_keyed_i16_resource_value(buffer *buf, resource_type resource, int value)
 {
     resource_save_write_ref(buf, resource);
-    buffer_write_i16(buf, value);
+    buffer_write_i16(buf, static_cast<int16_t>(value));
 }
 
 static void write_keyed_i32_resource_value(buffer *buf, resource_type resource, int value)
@@ -255,12 +255,12 @@ static void save_main_data(buffer *main, int keyed_resources)
             buffer_write_i16(main, city_data.resource.import_over[i]);
         }
     }
-    buffer_write_u8(main, city_data.map.entry_point.x);
-    buffer_write_u8(main, city_data.map.entry_point.y);
-    buffer_write_i16(main, city_data.map.entry_point.grid_offset);
-    buffer_write_u8(main, city_data.map.exit_point.x);
-    buffer_write_u8(main, city_data.map.exit_point.y);
-    buffer_write_i16(main, city_data.map.exit_point.grid_offset);
+    buffer_write_u8(main, static_cast<uint8_t>(city_data.map.entry_point.x));
+    buffer_write_u8(main, static_cast<uint8_t>(city_data.map.entry_point.y));
+    buffer_write_i16(main, static_cast<int16_t>(city_data.map.entry_point.grid_offset));
+    buffer_write_u8(main, static_cast<uint8_t>(city_data.map.exit_point.x));
+    buffer_write_u8(main, static_cast<uint8_t>(city_data.map.exit_point.y));
+    buffer_write_i16(main, static_cast<int16_t>(city_data.map.exit_point.grid_offset));
     for (int i = 0; i < 8; i++) {
         buffer_write_u8(main, 0);
     }

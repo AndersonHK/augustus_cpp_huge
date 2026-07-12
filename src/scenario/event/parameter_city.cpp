@@ -174,6 +174,7 @@ static int population_by_age(scenario_action_t *action)
 
 static int count_no_condition(int grid_offset)
 {
+    (void) grid_offset;
     return 1;
 }
 

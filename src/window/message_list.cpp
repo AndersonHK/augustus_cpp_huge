@@ -164,7 +164,7 @@ static void select_messages(void)
         data.message_count++;
 
     }
-    scrollbar_update_total_elements(&scrollbar, data.message_count);
+    scrollbar_update_total_elements(&scrollbar, static_cast<unsigned int>(data.message_count));
 
 }
 
@@ -172,7 +172,7 @@ static void init(void)
 {
     city_message_sort_and_compact();
     select_messages();
-    scrollbar_init(&scrollbar, city_message_scroll_position(), data.message_count);
+    scrollbar_init(&scrollbar, city_message_scroll_position(), static_cast<unsigned int>(data.message_count));
 }
 
 static void draw_background(void)
@@ -207,9 +207,10 @@ static void draw_background(void)
 
 static void draw_messages(unsigned int total_messages)
 {
-    unsigned int max = total_messages < MAX_MESSAGES ? total_messages : MAX_MESSAGES;
+    unsigned int max = total_messages < static_cast<unsigned int>(MAX_MESSAGES) ? total_messages : static_cast<unsigned int>(MAX_MESSAGES);
     unsigned int index = scrollbar.scroll_position;
     for (unsigned int i = 0; i < max; i++, index++) {
+        int row_y = data.y_text + 20 * static_cast<int>(i);
         const city_message *msg = city_message_get(data.filtered_message_list[index]);
         int image_offset = 0;
         const lang_message *lang_msg = city_message_get_lang_message(msg);
@@ -217,25 +218,25 @@ static void draw_messages(unsigned int total_messages)
             image_offset = 2;
         }
         if (msg->is_read) {
-            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, row_y + 6);
         } else {
-            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 14 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 14 + image_offset).draw(data.x_text + 12, row_y + 6);
         }
         font_t font = FONT_NORMAL_WHITE;
         if (data.focus_button_id == i + 1) {
             font = FONT_NORMAL_RED;
         }
-        int width = lang_text_draw(current_string_key(25, msg->month), data.x_text + 42, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(25, msg->month), data.x_text + 42, row_y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         lang_text_draw_year(msg->year,
-            data.x_text + 42 + width, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+            data.x_text + 42 + width, row_y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         if (lang_msg && lang_msg->title.text) {
             text_draw_ellipsized(
                 lang_msg->title.text,
-                data.x_text + 180, data.y_text + 8 + 20 * i,
+                data.x_text + 180, row_y + 8,
                 data.text_width_blocks * BLOCK_SIZE - 180, font,
                 screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         } else {
-            text_draw(translation_for_key("TR_ACTION_TYPE_A_MESSAGE"), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+            text_draw(translation_for_key("TR_ACTION_TYPE_A_MESSAGE"), data.x_text + 180, row_y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         }
     }
     scrollbar_draw(&scrollbar);
@@ -257,7 +258,7 @@ static void draw_foreground(void)
         data.focus_button_id == 16);
     draw_message_type_button(generic_button_messages_type->x, generic_button_messages_type->y, data.focus_button_id == 17);
 
-    int total_messages = data.message_count;
+    unsigned int total_messages = static_cast<unsigned int>(data.message_count);
     if (total_messages > 0) {
         draw_messages(total_messages);
     }
@@ -348,11 +349,17 @@ static void on_scroll(void)
 
 static void button_help(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_message_dialog_show(MESSAGE_DIALOG_MESSAGES, window_city_draw_all);
 }
 
 static void button_close(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     if (data.filtered_message_list) {
         clear_filtered_message_list();
     }
@@ -362,7 +369,7 @@ static void button_close(int param1, int param2)
 static void button_message(const generic_button *button)
 {
     int index = button->parameter1;
-    int id = data.filtered_message_list[city_message_set_current(scrollbar.scroll_position + index)];
+    int id = data.filtered_message_list[city_message_set_current(static_cast<int>(scrollbar.scroll_position + index))];
     if (id < city_message_count()) {
         const city_message *msg = city_message_get(id);
         city_message_mark_read(id);
@@ -378,7 +385,7 @@ static void button_message(const generic_button *button)
 static void button_delete(const generic_button *button)
 {
     int id_to_delete = button->parameter1;
-    int id = city_message_set_current(scrollbar.scroll_position + id_to_delete);
+    int id = city_message_set_current(static_cast<int>(scrollbar.scroll_position + id_to_delete));
     if (id < data.message_count) {
         city_message_delete(data.filtered_message_list[id]);
         select_messages();
@@ -388,6 +395,8 @@ static void button_delete(const generic_button *button)
 
 static void button_delete_all_common(const generic_button *button)
 {
+    (void)button;
+
     for (int id = 0; id < city_message_count();) {
         const city_message *msg = city_message_get(id);
         if (msg->message_type != MESSAGE_CUSTOM_MESSAGE) {
@@ -402,6 +411,8 @@ static void button_delete_all_common(const generic_button *button)
 
 static void button_delete_all_read(const generic_button *button)
 {
+    (void)button;
+
     for (int id = 0; id < city_message_count();) {
         const city_message *msg = city_message_get(id);
         if (msg->is_read) {
@@ -416,6 +427,9 @@ static void button_delete_all_read(const generic_button *button)
 
 static void button_mission_briefing(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     if (game_campaign_is_original() || scenario_intro_message()) {
         window_mission_briefing_show_review();
     }
@@ -442,6 +456,8 @@ static void get_tooltip(tooltip_context *c)
 
 static void button_cycle_message_type(const generic_button *button)
 {
+    (void)button;
+
     data.type_displayed = static_cast<message_filter>(data.type_displayed + 1);
     if (data.type_displayed > CUSTOM_MESSAGES_ONLY) {
         data.type_displayed = ALL_MESSAGES_SHOWN;

@@ -18,6 +18,7 @@ enum {
     CONTEXT_GARDEN_WALLS,
     CONTEXT_GARDEN_GATE,
     CONTEXT_PALISADES,
+    CONTEXT_AQUEDUCT,
     CONTEXT_MAX_ITEMS
 };
 
@@ -31,6 +32,8 @@ int building_connectable_get_garden_path_offset(int grid_offset, int context);
 int building_connectable_get_garden_gate_offset(int grid_offset);
 int building_connectable_get_palisade_offset(int grid_offset);
 int building_connectable_get_palisade_gate_offset(int grid_offset);
+int building_connectable_get_aqueduct_offset(int grid_offset);
+void building_connectable_set_aqueduct_preview(const int *grid_offsets, int count);
 
 
 int building_is_connectable(building_type type);

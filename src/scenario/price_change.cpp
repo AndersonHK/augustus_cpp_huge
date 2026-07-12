@@ -163,11 +163,11 @@ void scenario_price_change_save_state(buffer *buf)
     buffer_init_dynamic_array(buf, price_changes.size(), PRICE_CHANGES_STRUCT_SIZE_CURRENT);
 
     for (const price_change_t &price_change : price_changes) {
-        buffer_write_i16(buf, price_change.year);
-        buffer_write_u8(buf, price_change.month);
-        buffer_write_u8(buf, price_change.resource);
-        buffer_write_u8(buf, price_change.amount);
-        buffer_write_u8(buf, price_change.is_rise);
+        buffer_write_i16(buf, static_cast<int16_t>(price_change.year));
+        buffer_write_u8(buf, static_cast<uint8_t>(price_change.month));
+        buffer_write_u8(buf, static_cast<uint8_t>(price_change.resource));
+        buffer_write_u8(buf, static_cast<uint8_t>(price_change.amount));
+        buffer_write_u8(buf, static_cast<uint8_t>(price_change.is_rise));
     }
 }
 

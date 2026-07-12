@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/building_fwd.h"
+#include "building/building.h"
 #include "building/production_method.h"
 
 #include <cstddef>
@@ -13,8 +13,7 @@ class Production {
 public:
     Production(const Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
 
-    Building building() const;
-    unsigned int building_id() const;
+    const Building &building() const;
 
     const building_type_registry_impl::ProductionMethod *method() const
     {
@@ -38,14 +37,14 @@ public:
     void bless_industry();
 
 private:
-    Building context_building() const;
-    ::building *context_record() const;
     int decrement_strike_if_needed(int new_day, int *out_is_striking);
     int pending_production_for_stats() const;
-    void refresh_images() const;
+    void refresh_images();
 
+    Building building_;
+    Building context_building_;
     ::building *record_ = nullptr;
-    const building_type_registry_impl::BuildingType *definition_ = nullptr;
+    ::building *context_record_ = nullptr;
     const building_type_registry_impl::ProductionMethod *method_ = nullptr;
     size_t method_index_ = 0;
 };

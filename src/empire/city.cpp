@@ -157,31 +157,6 @@ static int can_produce_resource_naturally(resource_type resource)
     return 0;
 }
 
-int empire_can_produce_resource_locally(int resource)
-{
-    if (can_produce_resource_naturally(resource)) {
-        return 1;
-    }
-
-    // Wine can also be produced via Venus Grand Temple
-    if (resource == resource_wine()) {
-        building_type venus_type = building_type_registry_impl::type_from_attr("grand_temple_venus");
-        return venus_type > BUILDING_NONE &&
-            !building_monument_requires_resource(venus_type, resource_wine()) &&
-            scenario_allowed_building(venus_type) &&
-            building_monument_has_required_resources_to_build(venus_type);
-    }
-    // Gold can also be produced via City Mint
-    if (resource == resource_gold()) {
-        building_type city_mint_type = building_type_registry_impl::type_from_attr("city_mint");
-        return city_mint_type > BUILDING_NONE &&
-            !building_monument_requires_resource(city_mint_type, resource_gold()) &&
-            scenario_allowed_building(city_mint_type) &&
-            building_monument_has_required_resources_to_build(city_mint_type);
-    }
-    return 0;
-}
-
 int empire_can_produce_resource(int resource)
 {
     resource_supply_chain chain[RESOURCE_SUPPLY_CHAIN_MAX_SIZE];
@@ -191,7 +166,7 @@ int empire_can_produce_resource(int resource)
         for (int i = 0; i < num_raw_materials; i++) {
             if (resource_is_raw_material(chain[i].raw_material)) {
                 if (!empire_can_import_resource(chain[i].raw_material) &&
-                    !empire_can_produce_resource_locally(chain[i].raw_material)) {
+                    !can_produce_resource_naturally(chain[i].raw_material)) {
                     return 0;
                 }
             } else if (!empire_can_produce_resource(chain[i].raw_material)) {
@@ -201,7 +176,7 @@ int empire_can_produce_resource(int resource)
         return 1;
     }
     // check if we can produce the raw materials
-    return empire_can_produce_resource_locally(resource);
+    return can_produce_resource_naturally(resource);
 }
 
 int empire_can_produce_resource_naturally(int resource)
@@ -235,7 +210,7 @@ int empire_can_produce_resource_potentially(int resource)
         for (int i = 0; i < num_raw_materials; i++) {
             if (resource_is_raw_material(chain[i].raw_material)) {
                 if (!empire_can_import_resource_potentially(chain[i].raw_material) &&
-                    !empire_can_produce_resource_locally(chain[i].raw_material)) {
+                    !can_produce_resource_naturally(chain[i].raw_material)) {
                     return 0;
                 }
             } else if (!empire_can_produce_resource_potentially(chain[i].raw_material)) {
@@ -245,7 +220,7 @@ int empire_can_produce_resource_potentially(int resource)
         return 1;
     }
     // check if we can produce the raw materials
-    return empire_can_produce_resource_locally(resource);
+    return can_produce_resource_naturally(resource);
 }
 
 int empire_city_get_for_object(int empire_object_id)
@@ -600,23 +575,23 @@ void empire_city_save_state(buffer *buf)
     buffer_write_i32(buf, EMPIRE_CITY_CURRENT_BUF_SIZE);
 
     for (const empire_city &city : cities) {
-        buffer_write_u8(buf, city.in_use);
-        buffer_write_u8(buf, city.type);
-        buffer_write_u8(buf, city.name_id);
-        buffer_write_u8(buf, city.route_id);
-        buffer_write_u8(buf, city.is_open);
+        buffer_write_u8(buf, static_cast<uint8_t>(city.in_use));
+        buffer_write_u8(buf, static_cast<uint8_t>(city.type));
+        buffer_write_u8(buf, static_cast<uint8_t>(city.name_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(city.route_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(city.is_open));
         for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
-            buffer_write_u8(buf, city.buys_resource[r]);
+            buffer_write_u8(buf, static_cast<uint8_t>(city.buys_resource[r]));
         }
         for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
-            buffer_write_u8(buf, city.sells_resource[r]);
+            buffer_write_u8(buf, static_cast<uint8_t>(city.sells_resource[r]));
         }
         buffer_write_u32(buf, city.cost_to_open);
-        buffer_write_i16(buf, city.trader_entry_delay);
-        buffer_write_i16(buf, city.empire_object_id);
-        buffer_write_u8(buf, city.is_sea_trade);
+        buffer_write_i16(buf, static_cast<int16_t>(city.trader_entry_delay));
+        buffer_write_i16(buf, static_cast<int16_t>(city.empire_object_id));
+        buffer_write_u8(buf, static_cast<uint8_t>(city.is_sea_trade));
         for (int f = 0; f < EMPIRE_CITY_MAX_TRADERS; f++) {
-            buffer_write_i16(buf, city.trader_figure_ids[f]);
+            buffer_write_i16(buf, static_cast<int16_t>(city.trader_figure_ids[f]));
         }
     }
 }
@@ -696,9 +671,7 @@ void empire_city_update_our_fish_and_meat_production(void)
         if (city.sells_resource[resource_fish()]) {
             empire_city_change_selling_of_resource(&city, resource_meat(), !NOT_SELLING);
         } else {
-            building_type wharf_type = building_type_registry_impl::type_from_attr("wharf");
-            if (wharf_type > BUILDING_NONE && scenario_allowed_building(wharf_type) &&
-                scenario_map_has_fishing_points()) {
+            if (city.sells_resource[resource_meat()]) {
                 empire_city_change_selling_of_resource(&city, resource_fish(), !NOT_SELLING);
             }
         }

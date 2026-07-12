@@ -172,8 +172,8 @@ static void draw_number_of_messages(int x_offset)
     } else if (scenario_intro_message() != 0) {
         show_messages = 1;
     }
-    buttons_build_expanded[13].enabled = show_messages;
-    buttons_build_expanded[14].enabled = city_message_problem_area_count();
+    buttons_build_expanded[13].enabled = static_cast<char>(show_messages);
+    buttons_build_expanded[14].enabled = static_cast<char>(city_message_problem_area_count());
     if (show_messages) {
         int width = text_get_number_width(messages, '@', "", FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         text_draw_number(messages, '@', "", (x_offset + 100) - width, 452, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK); //top
@@ -198,7 +198,7 @@ static void draw_buttons_expanded(int x_offset)
     int asclepius = config_get(CONFIG_UI_DRAW_ASCLEPIUS);
     buttons_build_expanded[4].assetlist_name = asclepius ? "UI\\Asclepius_Button" : 0;
     buttons_build_expanded[4].image_name = asclepius ? "Asclepius Button" : 0;
-    buttons_build_expanded[12].enabled = game_can_undo();
+    buttons_build_expanded[12].enabled = static_cast<char>(game_can_undo());
     image_buttons_draw(x_offset, 24, buttons_overlays_collapse_sidebar, 2);
     image_buttons_draw(x_offset, 24, buttons_build_expanded, 15);
     image_buttons_draw(x_offset, 24, buttons_top_expanded, 6);
@@ -224,7 +224,7 @@ static int direct_tool_button_enabled(int submenu)
     if (type == BUILDING_NONE) {
         return -1;
     }
-    return scenario_allowed_building(type);
+    return scenario_allowed_building(building_type_registry_impl::definition_for_type(type));
 }
 
 static int build_button_enabled(int submenu)
@@ -269,8 +269,8 @@ void widget_sidebar_city_draw_background(void)
 static void enable_building_buttons(void)
 {
     for (int i = 0; i < 12; i++) {
-        buttons_build_expanded[i].enabled = build_button_enabled(buttons_build_expanded[i].parameter1);
-        buttons_build_collapsed[i].enabled = build_button_enabled(buttons_build_collapsed[i].parameter1);
+        buttons_build_expanded[i].enabled = static_cast<char>(build_button_enabled(buttons_build_expanded[i].parameter1));
+        buttons_build_collapsed[i].enabled = static_cast<char>(build_button_enabled(buttons_build_collapsed[i].parameter1));
     }
 }
 
@@ -389,11 +389,17 @@ static void slide_finished(void)
 
 static void button_overlay(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_overlay_menu_show();
 }
 
 static void button_collapse_expand(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     city_view_start_sidebar_toggle();
     if (city_view_is_sidebar_collapsed()) {
         sidebar_slide(SLIDE_DIRECTION_IN, draw_collapsed_background, draw_expanded_background, slide_finished);
@@ -404,12 +410,14 @@ static void button_collapse_expand(int param1, int param2)
 
 static void button_build(int submenu, int param2)
 {
+    (void)param2;
+
     building_type direct_tool_type = direct_tool_type_for_submenu(submenu);
     if (direct_tool_type != BUILDING_NONE) {
         window_build_menu_hide();
         widget_city_clear_current_tile();
         building_construction_cancel();
-        building_construction_set_type(direct_tool_type, 0);
+        building_construction_set_type(building_type_registry_impl::definition_for_type(direct_tool_type), 0);
         window_request_refresh();
         return;
     }
@@ -418,6 +426,9 @@ static void button_build(int submenu, int param2)
 
 static void button_undo(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_build_menu_hide();
     game_undo_perform();
     window_invalidate();
@@ -425,18 +436,26 @@ static void button_undo(int param1, int param2)
 
 static void button_messages(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_build_menu_hide();
     window_message_list_show();
 }
 
 static void button_help(int param1, int param2)
 {
+    (void)param1;
+
     window_build_menu_hide();
     window_message_dialog_show(param2, window_city_draw_all);
 }
 
 static void button_go_to_problem(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_build_menu_hide();
     int grid_offset = city_message_next_problem_area_grid_offset();
     if (grid_offset) {
@@ -449,27 +468,41 @@ static void button_go_to_problem(int param1, int param2)
 
 static void button_advisors(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_advisors_show_checked();
 }
 
 static void button_empire(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     window_empire_show_checked();
 }
 
 static void button_toggle_grid(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     config_set(CONFIG_UI_SHOW_GRID, config_get(CONFIG_UI_SHOW_GRID) ^ 1);
 }
 
 static void button_rotate_north(int param1, int param2)
 {
+    (void)param1;
+    (void)param2;
+
     game_orientation_apply(GameOrientationRequest::face(DIR_0_TOP));
     window_invalidate();
 }
 
 static void button_rotate(int clockwise, int param2)
 {
+    (void)param2;
+
     game_orientation_apply(GameOrientationRequest::turn_quarter_steps(clockwise ? -1 : 1));
     window_invalidate();
 }

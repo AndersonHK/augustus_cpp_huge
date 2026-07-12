@@ -1,8 +1,10 @@
 # Save/Load Runtime Bridges
 
-This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
+This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, runtime structs, module state, and compatibility records. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
 Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+
+Long-term migration direction: hardcoded legacy-id bridges should eventually move into mod-owned XML declarations, described in `docs/mod_owned_compatibility_bridge_plan.md`. That future bridge belongs to startup/save-load boundaries; normal runtime should continue to consume resolved objects and string-owned definitions.
 
 ## Load Timeline
 
@@ -16,7 +18,19 @@ The live-save entry points are in `src/game/file_io.cpp`.
 6. `savegame_load_from_state(&savegame_data.state, save_version)` loads `resource_id_bridge_save_table_load_state()` after scenario core data and before scenario requests, figures, city data, buildings, or other resource-bearing payloads are decoded.
 7. `clear_savegame_pieces()` frees the temporary file-piece buffers after the data has been consumed.
 
-`savegame_load_from_state()` does not finish all runtime rebinding by itself. The larger game-load path in `src/game/file.c` calls `building_runtime_initialize_city_graphics_cache()` and `figure_runtime_initialize_city()` after the world has finished loading. That second phase rebuilds lazy C++ `Building`/`building_runtime` objects, native graphics bindings, native storage/production objects, and native figure controllers over the save-record arrays restored by `savegame_load_from_state()`.
+`savegame_load_from_state()` does not finish all runtime rebinding by itself. The larger game-load path in `src/game/file.c` calls `building_runtime_initialize_city_graphics_cache()` and `figure_runtime_initialize_city()` after the world has finished loading. That second phase currently rebuilds lazy C++ `Building`/`building_runtime` objects, native graphics bindings, native storage/production objects, and native figure controllers over the compatibility arrays restored by `savegame_load_from_state()`.
+
+This is transitional. The target save bridge is not "runtime mutates the save record forever." The target is:
+
+1. Load reads exactly one save record shape for the save version.
+2. That one record is converted into exactly one current `Building` object plus its owned runtime/module state.
+3. If the record cannot produce a valid object, the bridge discards that building, logs the saved id/type/position/module context, and prevents the bad record from entering runtime.
+4. Once object hydration finishes, the read save records are temporary compatibility input and should be discarded; normal runtime should hold only valid building objects and their modules.
+5. Runtime functions may assume any building fetched from runtime is a complete, valid object in a known state.
+6. Save reconstructs the current save record shape from the runtime object plus every required module state.
+7. If a savable runtime object lacks required module state, the save bridge should still finish the save with the safest partial/default payload it can, then report an error with object id/type/module context after the save has been flushed.
+
+`Building.id` is special identity data and remains the stable bridge key. Ordinary peeled fields should move out of the runtime record when their module owns them; they should then be appended back into the save record only by the save bridge.
 
 The important live-save order is:
 
@@ -35,7 +49,7 @@ The important live-save order is:
 13. Road service history and local workforce allocations.
 14. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
 
-This order matters. Resource-bearing scenario requests, figures, city arrays, building records, trade routes, prices, and empire objects use save-local resource ids, so the Resource bridge must load before those payloads are decoded. Building records store save-local building type ids, so the BuildingType bridge must load before `building_state_load_from_buffer()` reads any building. Runtime wrappers load later because they need the restored legacy arrays, linked lists, and registry definitions to be stable.
+This order matters. Resource-bearing scenario requests, figures, city arrays, building records, trade routes, prices, and empire objects use save-local resource ids, so the Resource bridge must load before those payloads are decoded. Building records store save-local building type ids, so the BuildingType bridge must load before `building_state_load_from_buffer()` reads any building. The current bridge stages per-building runtime state in an id-keyed load packet while compatibility arrays are read; the target is to consume that packet while creating the building object, then drop the save-record input instead of keeping it as runtime truth.
 
 ## Version Gates
 
@@ -52,7 +66,6 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_type_data()` doubles legacy half-day counters on load. |
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
 | `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5` | Appended market service effect | Market goods history remains zero for older saves. |
-| `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6` | Saved `building.variant` as native graphics option selector | Native graphics buildings reseed stable variants from `map_random_get(grid_offset)` during load, then clamp by the active option count. |
 | `SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7` | Water access type save table | Bridge synthesizes the shared legacy water access text ids and resolves them through the active mod's XML numeric ids. |
 | `SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8` | Resource save table | Bridge synthesizes the legacy raw resource-id maps and resolves them through active `Resources` XML text ids. |
 | `SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE = 0xb8` | Keyed city/building resource state | Current saves use table-backed resource save ids in dynamic city/building resource payloads; old flat arrays remain load-only compatibility. |
@@ -166,7 +179,7 @@ The current building record still persists compatibility mirror bytes such as `h
 
 ## Building Records
 
-`building_load_state()` in `src/building/building.cpp` owns the legacy `array(building)` allocation.
+`building_load_state()` in `src/building/building.cpp` still owns the compatibility `array(building)` allocation. This is the current migration surface, not the desired runtime ownership model.
 
 1. It reads the per-building buffer size for saves after `SAVE_GAME_LAST_STATIC_VERSION`.
 2. It computes the number of building records from the buffer size.
@@ -178,12 +191,12 @@ The current building record still persists compatibility mirror bytes such as `h
 8. Current saves then load `building_resource_state`, which replaces compatibility flat resource mirrors with table-backed resource values.
 9. The array is trimmed to the highest id still in use.
 
-`building_state_load_from_buffer()` in `src/building/state.cpp` is where save-local type identity becomes legacy runtime state:
+`building_state_load_from_buffer()` in `src/building/state.cpp` is where save-local type identity becomes compatibility runtime input:
 
 - The saved type field is read as `uint16_t saved_building_type`.
 - `building_type_id_bridge_save_id_is_missing(saved_building_type)` checks whether the save id refers to a missing XML-owned type.
 - `building_type_id_bridge_runtime_from_save_id(saved_building_type)` writes the current runtime `building_type` into `b->type`.
-- Native BuildingType graphics normalize saved `building.variant` after the record is read; old saves through `0xb6` seed it from map randomness, while newer saves preserve it modulo the current option count.
+- Native BuildingType graphics stage the saved legacy graphics variant byte into the per-building load packet as `BuildingGraphicsState`. This is a field peel, not a save-format change: load copies `Record.variant` into `BuildingGraphicsState::variant`, and save copies the state value back into the record byte.
 - If a live record resolves to no runtime type, the loader reports the save/load mismatch with the saved id, runtime id, text ids, position, state, and link fields, then removes that record as unsupported content. This is required for cross-mod compatibility, such as loading an Augustus save in Julius where Augustus-only building ids have no active definition.
 - After load, the runtime invariant is still strict: any live `Building` object asked for `Building::type()` must already have a valid BuildingType definition. The bridge quarantine exists so unsupported saved content never reaches that runtime path as a glitched live record.
 
@@ -197,20 +210,27 @@ After identity is resolved, the loader fills legacy struct fields exactly in sav
 
 `read_type_data()` is a compatibility choke point. It always consumes the old type-data byte count for the save version: 42 bytes at or before `SAVE_GAME_LAST_STATIC_RESOURCES`, 26 bytes after that, except for the old caravanserai offset bug. It decodes house service fields, warehouse/granary/depot/dock supplier fields, entertainment show counters, monument compatibility fields, and rubble/original-type fields. Rubble and warehouse-space original building types also go through `building_type_id_bridge_runtime_from_save_id()`.
 
-The building record is still the persistent truth for per-instance state. Runtime objects do not replace it; they wrap it.
+### Rubble Origin And Repair Bridge
+
+Each live rubble tile is an independent size-1 `Building`; rubble tiles from one destroyed building are deliberately not connected through `prev_part_building_id` / `next_part_building_id`. Their shared reconstruction identity is only the logical construction grid offset, original orientation, and a resolved pointer to the original immutable `BuildingType`. Footprint dimensions and composed parts are always derived from that type rather than copied into rubble state.
+
+The pointer is runtime-only. `write_rubble_type_data()` persists it as a save-local BuildingType id, and `read_rubble_type_data()` resolves that id back to the active `BuildingType*` before staging `RubbleState` for runtime hydration. Current saves write the type id, logical grid offset, and orientation. Saves through `0xbd` stored a main-tile grid offset plus a redundant square size, while version `0xbe` stored a logical `x/y` rectangle; the load bridge consumes both shapes and discards their copied dimensions. The minimal format is versioned at `SAVE_GAME_CURRENT_VERSION = 0xbf`.
+
+Repair is owned by the selected rubble `Building`. It uses the resolved type and origin to construct one repair-aware `ConstructionPlacementPlan`, expands every XML-composed part at the saved rotation, permits replacement only of rubble with the same identity, and produces the exact remaining-rubble clear cost. Successful repair creates a fresh building from its current definition and retires every matching rubble record; ordinary clear-land remains tile-local. Legacy shared rubble records are converted to the same independent-tile model during load so gameplay code has no second repair path.
+
+The building record is still the current serialized compatibility shape, but it should not be treated as the final runtime ownership model. As modules are peeled out, the runtime-side object should lose those fields and the save-side building record should be reconstructed only at the save/load bridge. The bridge must know which modules are required for each savable building type. If a building cannot supply the state its type declares, the bridge should write conservative/default values for the missing module slice, finish the save, and then report the error so the player gets a partial save instead of losing the whole save attempt.
 
 ### Native Graphics Variants
 
-`building.variant` is still the legacy per-building variant byte, so older systems such as rotated pavilions and decorative variants can keep using it. Native BuildingType graphics now also use the same byte when the resolved graphics target has `<options selection="stable_variant">`.
+The save record still contains the legacy per-building variant byte for compatibility, but runtime code now reaches it through `BuildingGraphicsState` and `Building::graphics().variant()` instead of a field on `struct building`. Older systems such as rotated pavilions and decorative variants keep using the same graphics-owned path. Native BuildingType graphics also use the same state byte when the resolved graphics target has `<options selection="stable_variant">`.
 
 The runtime rule is:
 
 1. Conditional `<variant>` targets are resolved from live building state.
-2. If the winning target has options, `building.variant % option_count` chooses the option.
-3. If the save is at or before `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS`, the value is reseeded from `map_random_get(grid_offset)` because old saves did not author it for native graphics.
-4. If the save is newer, the saved value is preserved and clamped with modulo so changing option counts does not break load.
+2. If the winning target has options, `Building::graphics().variant() % option_count` chooses the option.
+3. The saved byte is preserved as module state. Any modulo behavior belongs to graphics option selection, not to the save/load bridge.
 
-The normalization call lives at the end of `building_state_load_from_buffer()`, after the whole record has been read. That order matters because future conditional graphics targets may depend on fields such as water access, desirability, resources, or figure slots.
+The saved byte is staged after the whole record has been read, then consumed by `building_runtime_initialize_city_graphics_cache()` while the `building_runtime` and its `BuildingGraphicsState` are materialized. That order matters because future conditional graphics targets may depend on fields such as water access, desirability, resources, or figure slots. The save/load bridge still writes and reads the legacy byte in the flat building payload, but combines it with runtime module state instead of keeping it in the runtime record.
 
 ## BuildingType Runtime Fan-Out
 

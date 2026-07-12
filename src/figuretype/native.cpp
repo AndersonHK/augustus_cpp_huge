@@ -20,7 +20,11 @@ void figure_indigenous_native_action(Figure *f)
 {
     time_millis now = time_get_millis();
 
-    building *b = building_get(f->building.id());
+    building *b = f && f->building ? const_cast<building *>(f->building->record()) : nullptr;
+    if (!b) {
+        f->state = FIGURE_STATE_DEAD;
+        return;
+    }
     f->terrain_usage = TERRAIN_USAGE_ANY;
     f->use_cross_country = 0;
     f->max_roam_length = 800;
@@ -61,18 +65,38 @@ void figure_indigenous_native_action(Figure *f)
                 const formation *m = formation_get(NATIVE_FORMATION);
                 if (!city_military_is_native_attack_active() || m->months_low_morale > 0) {
                     int x_tile, y_tile;
-                    building *meeting = building_get(b->subtype.native_meeting_center_id);
+                    Building *meeting_building = nullptr;
+                    Building::for_each([&](Building *building) {
+                        if (!meeting_building && building &&
+                            building->id == static_cast<unsigned int>(b->subtype.native_meeting_center_id)) {
+                            meeting_building = building;
+                        }
+                    });
+                    building *meeting = meeting_building ?
+                        const_cast<building *>(meeting_building->record()) :
+                        nullptr;
+                    if (!meeting) {
+                        f->state = FIGURE_STATE_DEAD;
+                        break;
+                    }
                     if (map_terrain_get_adjacent_road_or_clear_land(
                         meeting->x, meeting->y, meeting->size, &x_tile, &y_tile)) {
                         f->action_state = FIGURE_ACTION_156_NATIVE_GOING_TO_MEETING_CENTER;
-                        f->destination_x = x_tile;
-                        f->destination_y = y_tile;
+                        f->destination_x = static_cast<unsigned char>(x_tile);
+                        f->destination_y = static_cast<unsigned char>(y_tile);
                     }
                 } else {
                     f->action_state = FIGURE_ACTION_159_NATIVE_ATTACKING;
-                    f->destination_x = m->destination_x;
-                    f->destination_y = m->destination_y;
-                    f->destination_building = Building(building_get(m->destination_building_id));
+                    f->destination_x = static_cast<unsigned char>(m->destination_x);
+                    f->destination_y = static_cast<unsigned char>(m->destination_y);
+                    Building *destination = nullptr;
+                    Building::for_each([&](Building *building) {
+                        if (!destination && building &&
+                            building->id == static_cast<unsigned int>(m->destination_building_id)) {
+                            destination = building;
+                        }
+                    });
+                    f->destination_building = destination;
                     if (native_attack_last_played == 0 || (now - native_attack_last_played) > NATIVE_ATTACK_SOUND_DELAY) {
                         sound_speech_play_file("wavs/barbarian_war_cry.wav");
                         native_attack_last_played = now;

@@ -22,15 +22,15 @@
 
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};
 
-static int first_plague_building_matching(const char *attr)
+static Building *first_plague_building_matching(const char *attr)
 {
-    for (int i = 1; i < building_count(); i++) {
-        building *b = building_get(i);
-        if (Building(b).matches(attr) && b->has_plague) {
-            return b->id;
+    Building *match = nullptr;
+    Building::for_each([&](Building *building) {
+        if (!match && building->matches(attr) && building->has_plague()) {
+            match = building;
         }
-    }
-    return 0;
+    });
+    return match;
 }
 
 static void roamer_action(Figure *f, int num_ticks)
@@ -47,11 +47,11 @@ static void roamer_action(Figure *f, int num_ticks)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x, y;
-                building *b = building_get(f->building.id());
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x, &y)) {
+                Building &owner = *f->building;
+                if (map_closest_road_within_radius(owner.x(), owner.y(), owner.size(), 2, &x, &y)) {
                     f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
-                    f->destination_x = x;
-                    f->destination_y = y;
+                    f->destination_x = static_cast<unsigned char>(x);
+                    f->destination_y = static_cast<unsigned char>(y);
                     Route::remove(f);
                     f->roam_length = 0;
                 } else {
@@ -73,8 +73,9 @@ static void roamer_action(Figure *f, int num_ticks)
 static void culture_action(Figure *f)
 {
     figure_runtime_apply_profile_movement(f);
-    building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
+    Building &owner = *f->building;
+    ::building *record = const_cast<::building *>(owner.record());
+    if (!owner.is_in_use() || record->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -84,12 +85,13 @@ static void culture_action(Figure *f)
 
 void figure_destination_priest_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
-    building *destination = building_get(f->destination_building.id());
+    Building &owner = *f->building;
+    Building &destination = *f->destination_building;
+    ::building *owner_record = const_cast<::building *>(owner.record());
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    if (b->state != BUILDING_STATE_IN_USE ||
-        (b->figure_id4 != f->id() && b->figure_id2 != f->id()) ||
-        destination->state != BUILDING_STATE_IN_USE) {
+    if (!owner.is_in_use() ||
+        (owner_record->figure_id4 != f->id() && owner_record->figure_id2 != f->id()) ||
+        !destination.is_in_use()) {
         f->state = FIGURE_STATE_DEAD;
     }
 
@@ -101,16 +103,16 @@ void figure_destination_priest_action(Figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_212_DESTINATION_PRIEST_CREATED:
-            f->destination_x = destination->road_access_x;
-            f->destination_y = destination->road_access_y;
+            f->destination_x = static_cast<unsigned char>(destination.road_access_x());
+            f->destination_y = static_cast<unsigned char>(destination.road_access_y());
             f->action_state = FIGURE_ACTION_213_PRIEST_GOING_TO_PANTHEON;
 
             break;
         case FIGURE_ACTION_214_DESTINATION_MARS_PRIEST_CREATED:
         {
-            f->destination_x = destination->road_access_x;
-            f->destination_y = destination->road_access_y;
-            int market_units = b->resources[f->collecting_item_id];
+            f->destination_x = static_cast<unsigned char>(destination.road_access_x());
+            f->destination_y = static_cast<unsigned char>(destination.road_access_y());
+            int market_units = owner.resource_amount(static_cast<resource_type>(f->collecting_item_id));
             int num_loads;
             int max_units = MAX_FOOD_STOCKED_MESS_HALL - market_units;
 
@@ -140,7 +142,8 @@ void figure_destination_priest_action(Figure *f)
                 return;
             }
 
-            b->resources[f->collecting_item_id] -= (100 * num_loads);
+            owner.set_resource_amount(
+                static_cast<resource_type>(f->collecting_item_id), market_units - (100 * num_loads));
 
             // create delivery boys
             int priest_id = f->id();
@@ -184,7 +187,7 @@ void figure_destination_priest_action(Figure *f)
 
 void figure_priest_action(Figure *f)
 {
-    if (f->destination_building.id()) {
+    if (f->destination_building) {
         figure_destination_priest_action(f);
     } else {
         culture_action(f);
@@ -197,8 +200,8 @@ void figure_school_child_action(Figure *f)
     f->use_cross_country = 0;
     f->max_roam_length = 192;
 
-    building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || !Building(b).matches("school")) {
+    Building &owner = *f->building;
+    if (!owner.is_in_use() || !owner.matches("school")) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -246,8 +249,9 @@ void figure_tavern_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
+    Building &owner = *f->building;
+    ::building *record = const_cast<::building *>(owner.record());
+    if (!owner.is_in_use() || record->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -257,40 +261,36 @@ void figure_tavern_action(Figure *f)
 
 static int fight_plague(Figure *f, int force)
 {
-    int building_with_plague_id = 0;
+    Building *building_with_plague = nullptr;
 
     // Find in houses
-    for (int i = 1; i < building_count(); i++) {
-        building *house = building_get(i);
-        if (building_house_is_active(Building(house)) && house->has_plague) {
-            building_with_plague_id = house->id;
-            break;
+    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        if (!building_with_plague && building_house_is_active(*house) && house->has_plague()) {
+            building_with_plague = house;
         }
-    }
+    });
 
     // If no houses, find in docks
-    if (!building_with_plague_id) {
-        for (int i = 1; i < building_count(); i++) {
-            building *b = building_get(i);
-            if (Building(b).matches("dock") && b->has_plague) {
-                building_with_plague_id = b->id;
-                break;
+    if (!building_with_plague) {
+        Building::for_each([&](Building *building) {
+            if (!building_with_plague && building->matches("dock") && building->has_plague()) {
+                building_with_plague = building;
             }
-        }
+        });
     }
 
     // If no docks, find in warehouses
-    if (!building_with_plague_id) {
-        building_with_plague_id = first_plague_building_matching("warehouse");
+    if (!building_with_plague) {
+        building_with_plague = first_plague_building_matching("warehouse");
 
         // If no warehouse, find in granaries
-        if (!building_with_plague_id) {
-            building_with_plague_id = first_plague_building_matching("granary");
+        if (!building_with_plague) {
+            building_with_plague = first_plague_building_matching("granary");
         }
     }
 
     // No plague in buildings
-    if (!building_with_plague_id) {
+    if (!building_with_plague) {
         return 0;
     }
 
@@ -300,7 +300,7 @@ static int fight_plague(Figure *f, int force)
             if (!force) {
                 return 0;
             }
-            if (building_get(f->destination_building.id())->has_plague) {
+            if (f->destination_building && f->destination_building->has_plague()) {
                 return 1;
             }
     }
@@ -310,17 +310,25 @@ static int fight_plague(Figure *f, int force)
         return 0;
     }
     int distance;
-    building_with_plague_id = city_buildings_get_closest_plague(f->x, f->y, &distance);
-    if (building_with_plague_id > 0 && distance <= 25) {
-        building *building_with_plague = building_get(building_with_plague_id);
+    int building_with_plague_id = city_buildings_get_closest_plague(f->x, f->y, &distance);
+    building_with_plague = nullptr;
+    if (building_with_plague_id > 0) {
+        Building::for_each([&](Building *building) {
+            if (!building_with_plague && building->id == static_cast<unsigned int>(building_with_plague_id)) {
+                building_with_plague = building;
+            }
+        });
+    }
+    if (building_with_plague && distance <= 25) {
+        ::building *plague_record = const_cast<::building *>(building_with_plague->record());
         f->wait_ticks_missile = 0;
         f->action_state = FIGURE_ACTION_231_DOCTOR_GOING_TO_PLAGUE;
         f->wait_ticks = 0;
-        f->destination_x = building_with_plague->road_access_x;
-        f->destination_y = building_with_plague->road_access_y;
-        f->destination_building = Building(building_get(building_with_plague_id));
+        f->destination_x = static_cast<unsigned char>(building_with_plague->road_access_x());
+        f->destination_y = static_cast<unsigned char>(building_with_plague->road_access_y());
+        f->destination_building = building_with_plague;
         Route::remove(f);
-        building_with_plague->figure_id4 = f->id();
+        plague_record->figure_id4 = f->id();
         return 1;
     }
     return 0;
@@ -328,14 +336,15 @@ static int fight_plague(Figure *f, int force)
 
 static void heal_plague(Figure *f)
 {
-    building *building_with_plague = building_get(f->destination_building.id());
-    int distance = calc_maximum_distance(f->x, f->y, building_with_plague->x, building_with_plague->y);
+    Building &building_with_plague = *f->destination_building;
+    ::building *plague_record = const_cast<::building *>(building_with_plague.record());
+    int distance = calc_maximum_distance(f->x, f->y, building_with_plague.x(), building_with_plague.y());
 
-    if (building_with_plague->has_plague && distance < 5) {
-        if (building_with_plague->sickness_duration < 95) {
-            building_with_plague->sickness_duration = 95;
+    if (building_with_plague.has_plague() && distance < 5) {
+        if (plague_record->sickness_duration < 95) {
+            plague_record->sickness_duration = 95;
         }
-        building_with_plague->sickness_doctor_cure = 99; // Use sickness_doctor_cure = 99 to know if doctor is currently healing building (Need to stay 99 for retro-compatibility)
+        plague_record->sickness_doctor_cure = 99; // Use sickness_doctor_cure = 99 to know if doctor is currently healing building (Need to stay 99 for retro-compatibility)
     } else {
         f->wait_ticks = 1;
     }
@@ -343,12 +352,12 @@ static void heal_plague(Figure *f)
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         if (!fight_plague(f, 1)) {
-            building *b = building_get(f->building.id());
+            Building &owner = *f->building;
             int x_road, y_road;
-            if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+            if (map_closest_road_within_radius(owner.x(), owner.y(), owner.size(), 2, &x_road, &y_road)) {
                 f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
-                f->destination_x = x_road;
-                f->destination_y = y_road;
+                f->destination_x = static_cast<unsigned char>(x_road);
+                f->destination_y = static_cast<unsigned char>(y_road);
                 Route::remove(f);
             } else {
                 f->state = FIGURE_STATE_DEAD;
@@ -359,7 +368,7 @@ static void heal_plague(Figure *f)
 
 void figure_doctor_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    Building &owner = *f->building;
 
     // special actions
     if (!fight_plague(f, 0)) {
@@ -374,15 +383,15 @@ void figure_doctor_action(Figure *f)
                 f->action_state = FIGURE_ACTION_232_DOCTOR_AT_PLAGUE;
                 Route::remove(f);
                 f->roam_length = 0;
-                f->wait_ticks = game_time_scale_legacy_day_ticks(50);
+                f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(50));
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->wait_ticks++ > FIGURE_REROUTE_DESTINATION_TICKS && !fight_plague(f, 1)) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius(owner.x(), owner.y(), owner.size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
-                    f->destination_x = x_road;
-                    f->destination_y = y_road;
+                    f->destination_x = static_cast<unsigned char>(x_road);
+                    f->destination_y = static_cast<unsigned char>(y_road);
                     f->wait_ticks = 0;
                     Route::remove(f);
                 }
@@ -394,8 +403,9 @@ void figure_doctor_action(Figure *f)
             if (f->image_offset >= sizeof DOCTOR_HEALING_OFFSETS / sizeof DOCTOR_HEALING_OFFSETS[0]) {
                 f->image_offset = 0;
             }
-            f->image_id = assets_get_image_id("Health_Culture\\Doctor_heal", "Doctor heal") +
-                DOCTOR_HEALING_OFFSETS[f->image_offset];
+            f->select_legacy_frame_image(
+                assets_get_image_id("Health_Culture\\Doctor_heal", "Doctor heal"),
+                DOCTOR_HEALING_OFFSETS[f->image_offset]);
             break;
     }
 }
@@ -405,8 +415,9 @@ void figure_missionary_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 192;
-    building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
+    Building &owner = *f->building;
+    ::building *record = const_cast<::building *>(owner.record());
+    if (!owner.is_in_use() || record->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -419,8 +430,9 @@ void figure_labor_seeker_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id2 != f->id()) {
+    Building &owner = *f->building;
+    ::building *record = const_cast<::building *>(owner.record());
+    if (!owner.is_in_use() || record->figure_id2 != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -433,8 +445,9 @@ void figure_market_trader_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *market = building_get(f->building.id());
-    if (market->state != BUILDING_STATE_IN_USE || market->figure_id != f->id()) {
+    Building &market = *f->building;
+    ::building *record = const_cast<::building *>(market.record());
+    if (!market.is_in_use() || record->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -445,10 +458,11 @@ void figure_market_trader_action(Figure *f)
 
 void figure_tax_collector_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    Building &owner = *f->building;
+    ::building *record = const_cast<::building *>(owner.record());
 
     figure_runtime_apply_profile_movement(f);
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
+    if (!owner.is_in_use() || record->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -466,7 +480,7 @@ void figure_tax_collector_action(Figure *f)
             f->wait_ticks--;
             if (f->wait_ticks <= 0) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius(owner.x(), owner.y(), owner.size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_41_TAX_COLLECTOR_ENTERING_EXITING;
                     figure_movement_set_cross_country_destination(f, x_road, y_road);
                     f->roam_length = 0;
@@ -479,7 +493,7 @@ void figure_tax_collector_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                if (map_building_at(f->grid_offset) == f->building.id()) {
+                if (map_building_exists_at(f->grid_offset) && map_building_at(f->grid_offset).id == owner.id) {
                     // returned to own building
                     f->state = FIGURE_STATE_DEAD;
                 } else {
@@ -494,10 +508,10 @@ void figure_tax_collector_action(Figure *f)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius(owner.x(), owner.y(), owner.size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_43_TAX_COLLECTOR_RETURNING;
-                    f->destination_x = x_road;
-                    f->destination_y = y_road;
+                    f->destination_x = static_cast<unsigned char>(x_road);
+                    f->destination_y = static_cast<unsigned char>(y_road);
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -509,7 +523,7 @@ void figure_tax_collector_action(Figure *f)
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_41_TAX_COLLECTOR_ENTERING_EXITING;
-                figure_movement_set_cross_country_destination(f, b->x, b->y);
+                figure_movement_set_cross_country_destination(f, owner.x(), owner.y());
                 f->roam_length = 0;
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;

@@ -13,7 +13,7 @@ int map_elevation_at(int grid_offset)
 
 void map_elevation_set(int grid_offset, int value)
 {
-    elevation.items[grid_offset] = value;
+    elevation.items[grid_offset] = static_cast<uint8_t>(value);
 }
 
 void map_elevation_clear(void)

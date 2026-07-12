@@ -11,9 +11,12 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figuretype/fishing_boat.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "scenario/map.h"
+#include "window/building/common.h"
 
 static const int FLOTSAM_RESOURCE_IDS[] = {
     3, 1, 3, 2, 1, 3, 2, 3, 2, 1, 3, 3, 2, 3, 3, 3, 1, 2, 0, 1
@@ -31,6 +34,30 @@ static const int FLOTSAM_TYPE_3[] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
+static ::building *record_for(Building *runtime_building)
+{
+    return runtime_building ? const_cast<::building *>(runtime_building->record()) : nullptr;
+}
+
+void figuretype::Boat::draw(building_info_context *c)
+{
+    draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    int text_id;
+    switch (action_state) {
+        case FIGURE_ACTION_191_FISHING_BOAT_GOING_TO_FISH: text_id = 3; break;
+        case FIGURE_ACTION_192_FISHING_BOAT_FISHING: text_id = 4; break;
+        case FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF: text_id = 6; break;
+        case FIGURE_ACTION_195_FISHING_BOAT_RETURNING_WITH_FISH: text_id = 7; break;
+        default: text_id = 5; break;
+    }
+    lang_text_draw_multiline(current_string_key(102, text_id), c->x_offset + 92, c->y_offset + 155, 340,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
+
 void figure_create_flotsam(void)
 {
     if (!scenario_map_has_river_entry() || !scenario_map_has_river_exit() || !scenario_map_has_flotsam()) {
@@ -47,8 +74,8 @@ void figure_create_flotsam(void)
     for (int i = 0; i < 20; i++) {
         Figure *f = Figure::create(FIGURE_FLOTSAM, river_entry.x, river_entry.y, DIR_0_TOP);
         f->action_state = FIGURE_ACTION_128_FLOTSAM_CREATED;
-        f->resource_id = FLOTSAM_RESOURCE_IDS[i];
-        f->wait_ticks = FLOTSAM_WAIT_TICKS[i];
+        f->resource_id = static_cast<unsigned char>(FLOTSAM_RESOURCE_IDS[i]);
+        f->wait_ticks = static_cast<short>(FLOTSAM_WAIT_TICKS[i]);
     }
 }
 
@@ -72,8 +99,8 @@ void figure_flotsam_action(Figure *f)
                     f->min_max_seen = 1;
                 }
                 map_point river_exit = scenario_map_river_exit();
-                f->destination_x = river_exit.x;
-                f->destination_y = river_exit.y;
+                f->destination_x = static_cast<unsigned char>(river_exit.x);
+                f->destination_y = static_cast<unsigned char>(river_exit.y);
             }
             break;
         case FIGURE_ACTION_129_FLOTSAM_FLOATING:
@@ -108,32 +135,32 @@ void figure_flotsam_action(Figure *f)
             }
             map_figure_delete(f);
             map_point river_entry = scenario_map_river_entry();
-            f->x = river_entry.x;
-            f->y = river_entry.y;
-            f->grid_offset = map_grid_offset(f->x, f->y);
-            f->cross_country_x = figure_movement_tile_to_cross_country(f->x);
-            f->cross_country_y = figure_movement_tile_to_cross_country(f->y);
+            f->x = static_cast<unsigned char>(river_entry.x);
+            f->y = static_cast<unsigned char>(river_entry.y);
+            f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
+            f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(f->x));
+            f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(f->y));
             break;
     }
     if (f->resource_id == 0) {
         figure_image_increase_offset(f, 12);
         if (f->min_max_seen) {
-            f->image_id = image_group(GROUP_FIGURE_FLOTSAM_SHEEP) + FLOTSAM_TYPE_0[f->image_offset];
+            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_SHEEP), FLOTSAM_TYPE_0[f->image_offset]);
         } else {
-            f->image_id = image_group(GROUP_FIGURE_FLOTSAM_0) + FLOTSAM_TYPE_0[f->image_offset];
+            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_0), FLOTSAM_TYPE_0[f->image_offset]);
         }
     } else if (f->resource_id == 1) {
         figure_image_increase_offset(f, 24);
-        f->image_id = image_group(GROUP_FIGURE_FLOTSAM_1) + FLOTSAM_TYPE_12[f->image_offset];
+        f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_1), FLOTSAM_TYPE_12[f->image_offset]);
     } else if (f->resource_id == 2) {
         figure_image_increase_offset(f, 24);
-        f->image_id = image_group(GROUP_FIGURE_FLOTSAM_2) + FLOTSAM_TYPE_12[f->image_offset];
+        f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_2), FLOTSAM_TYPE_12[f->image_offset]);
     } else if (f->resource_id == 3) {
         figure_image_increase_offset(f, 24);
         if (FLOTSAM_TYPE_3[f->image_offset] == -1) {
-            f->image_id = 0;
+            f->clear_legacy_image();
         } else {
-            f->image_id = image_group(GROUP_FIGURE_FLOTSAM_3) + FLOTSAM_TYPE_3[f->image_offset];
+            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_3), FLOTSAM_TYPE_3[f->image_offset]);
         }
     }
 }
@@ -148,11 +175,11 @@ void figure_shipwreck_action(Figure *f)
         map_figure_delete(f);
         map_point tile;
         if (map_water_find_shipwreck_tile(f, &tile)) {
-            f->x = tile.x;
-            f->y = tile.y;
-            f->grid_offset = map_grid_offset(f->x, f->y);
-            f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
-            f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
+            f->x = static_cast<unsigned char>(tile.x);
+            f->y = static_cast<unsigned char>(tile.y);
+            f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
+            f->cross_country_x = static_cast<short>(figure_movement_tile_center_cross_country(f->x));
+            f->cross_country_y = static_cast<short>(figure_movement_tile_center_cross_country(f->y));
         }
         map_figure_add(f);
         f->wait_ticks = 1000;
@@ -176,7 +203,7 @@ void figure_sink_all_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP) {
-            building *dock = building_get(f->destination_building.id());
+            building *dock = record_for(f->destination_building);
             if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
                 dock->data.dock.trade_ship_id = 0;
             }
@@ -186,7 +213,7 @@ void figure_sink_all_ships(void)
         } else {
             continue;
         }
-        f->building = Building(nullptr);
+        f->building = nullptr;
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }
@@ -215,7 +242,7 @@ void figure_sink_half_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < (int)trade_to_destroy / 2 )) {
-            building *dock = building_get(f->destination_building.id());
+            building *dock = record_for(f->destination_building);
             if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
                 dock->data.dock.trade_ship_id = 0;
             }
@@ -227,7 +254,7 @@ void figure_sink_half_ships(void)
         } else {
             continue;
         }
-        f->building = Building(nullptr);
+        f->building = nullptr;
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }

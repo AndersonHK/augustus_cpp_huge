@@ -709,12 +709,12 @@ void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, bu
     for (int i = 0; i < MAX_MESSAGES; i++) {
         city_message *msg = &data.messages[i];
         buffer_write_i32(messages, msg->param1);
-        buffer_write_i16(messages, msg->year);
-        buffer_write_i16(messages, msg->param2);
-        buffer_write_i16(messages, msg->message_type);
-        buffer_write_i16(messages, msg->sequence);
-        buffer_write_u8(messages, msg->is_read);
-        buffer_write_u8(messages, msg->month);
+        buffer_write_i16(messages, static_cast<int16_t>(msg->year));
+        buffer_write_i16(messages, static_cast<int16_t>(msg->param2));
+        buffer_write_i16(messages, static_cast<int16_t>(msg->message_type));
+        buffer_write_i16(messages, static_cast<int16_t>(msg->sequence));
+        buffer_write_u8(messages, static_cast<uint8_t>(msg->is_read));
+        buffer_write_u8(messages, static_cast<uint8_t>(msg->month));
         buffer_write_i16(messages, 0);
     }
 
@@ -728,15 +728,15 @@ void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, bu
     }
     // population
     buffer_write_u8(population, 0);
-    buffer_write_u8(population, data.population_shown.pop500);
-    buffer_write_u8(population, data.population_shown.pop1000);
-    buffer_write_u8(population, data.population_shown.pop2000);
-    buffer_write_u8(population, data.population_shown.pop3000);
-    buffer_write_u8(population, data.population_shown.pop5000);
-    buffer_write_u8(population, data.population_shown.pop10000);
-    buffer_write_u8(population, data.population_shown.pop15000);
-    buffer_write_u8(population, data.population_shown.pop20000);
-    buffer_write_u8(population, data.population_shown.pop25000);
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop500));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop1000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop2000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop3000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop5000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop10000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop15000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop20000));
+    buffer_write_u8(population, static_cast<uint8_t>(data.population_shown.pop25000));
 }
 
 static void update_message_param_if_resource(city_message *msg)

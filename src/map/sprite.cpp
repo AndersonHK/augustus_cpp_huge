@@ -12,17 +12,12 @@ int map_sprite_animation_at(int grid_offset)
 
 void map_sprite_animation_set(int grid_offset, int value)
 {
-    sprite.items[grid_offset] = value;
+    sprite.items[grid_offset] = static_cast<uint8_t>(value);
 }
 
 int map_sprite_bridge_at(int grid_offset)
 {
     return sprite.items[grid_offset];
-}
-
-void map_sprite_bridge_set(int grid_offset, int value)
-{
-    sprite.items[grid_offset] = value;
 }
 
 void map_sprite_clear_tile(int grid_offset)

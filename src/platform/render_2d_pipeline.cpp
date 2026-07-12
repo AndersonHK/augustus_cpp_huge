@@ -85,6 +85,52 @@ float Render2DPipeline::source_scale_y(const render_2d_request &request, const i
     return height > 0.0f ? img.height / height : 1.0f;
 }
 
+render_destination_rect Render2DPipeline::destination_rect(const render_2d_request &request, const image &img) const
+{
+    switch (request.destination_geometry_policy) {
+        case RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE:
+            return shared_city_tile_destination_rect(request, img);
+        case RENDER_DESTINATION_GEOMETRY_DEFAULT:
+        default:
+            return default_destination_rect(request, img);
+    }
+}
+
+render_destination_rect Render2DPipeline::default_destination_rect(
+    const render_2d_request &request,
+    const image &img) const
+{
+    float scale_x = source_scale_x(request, img);
+    float scale_y = source_scale_y(request, img);
+    return {
+        request.x + (img.x_offset / scale_x),
+        request.y + (img.y_offset / scale_y),
+        logical_width(request, img),
+        logical_height(request, img)
+    };
+}
+
+render_destination_rect Render2DPipeline::shared_city_tile_destination_rect(
+    const render_2d_request &request,
+    const image &img) const
+{
+    return round_shared_edges(default_destination_rect(request, img));
+}
+
+render_destination_rect Render2DPipeline::round_shared_edges(const render_destination_rect &rect) const
+{
+    float left = roundf(rect.x);
+    float top = roundf(rect.y);
+    float right = roundf(rect.x + rect.width);
+    float bottom = roundf(rect.y + rect.height);
+    return {
+        left,
+        top,
+        right - left,
+        bottom - top
+    };
+}
+
 render_domain Render2DPipeline::tooltip_domain_for(render_domain domain) const
 {
     return is_pixel_domain(domain) ? RENDER_DOMAIN_TOOLTIP_PIXEL : RENDER_DOMAIN_TOOLTIP_UI;
