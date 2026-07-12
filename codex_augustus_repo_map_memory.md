@@ -15,7 +15,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - The active local build workflow is the root Visual Studio/MSBuild project.
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
-- Runtime performance tracker contract: `docs/performance_tracker_runtime.md`; `debug_performance_tracker` enables the `vespasian-performance.log` sidecar next to `augustus-log.txt`.
+- Runtime performance tracker contract: `docs/performance_tracker_runtime.md`; `debug_performance_tracker` enables the `vespasian-performance.log` sidecar next to `vespasian-log.txt`.
 - Deep refactor checklist and requirements live in `docs/deep_refactor_implementation_progress.md` and `docs/deep_refactor_requirements.md`.
 - Owner-bound runtime module extraction planning lives in `docs/object_owned_runtime_refactor.md` and `docs/bound_runtime_module_extraction_plan.md`.
 

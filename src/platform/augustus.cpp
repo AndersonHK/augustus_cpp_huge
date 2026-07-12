@@ -380,8 +380,8 @@ static void backup_log(const char *filename, const char *filename_old)
 
 static void setup_logging(void)
 {
-    const char *filename = "augustus-log.txt";
-    const char *backup_filename = "augustus-log-backup.txt";
+    const char *filename = "vespasian-log.txt";
+    const char *backup_filename = "vespasian-log-backup.txt";
     char log_file[FILE_NAME_MAX];
     char log_file_old[FILE_NAME_MAX];
     char *pref_dir = platform_get_logging_path();

@@ -382,7 +382,7 @@ static void report_issue_internal(
         box_message += detail;
         box_message += "\n\n";
     }
-    box_message += "The game will now close after you press OK.\n\nMore details were written to augustus-log.txt.";
+    box_message += "The game will now close after you press OK.\n\nMore details were written to vespasian-log.txt.";
     std::string wrapped_box_message = wrap_error_dialog_text(box_message);
     platform_screen_show_error_message_box(title ? title : "Vespasian Fatal Error", wrapped_box_message.c_str());
     exit_with_status(1);

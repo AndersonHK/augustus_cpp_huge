@@ -1,5 +1,6 @@
 #include "startup/startup_parser.h"
 
+#include "assets/image_group_payload.h"
 #include "building/RubbleState.h"
 #include "building/building_type_registry_internal.h"
 
@@ -133,6 +134,60 @@ bool validate_rubble_repair_contract()
     return true;
 }
 
+struct AnimatedIsometricContract {
+    const char *group;
+    const char *image;
+    int top_height;
+    int footprint_y;
+    int top_y;
+    int animated_y;
+};
+
+bool validate_animated_isometric_contracts()
+{
+    const AnimatedIsometricContract contracts[] = {
+        { "Industry\\Iron_Mine", "Image_0000", 30, -15, -15, -3 },
+        { "Industry\\Marble_Quarry", "Image_0000", 30, -15, -15, -29 },
+        { "Industry\\Warehouse", "Image_0000", 15, 0, 0, -24 },
+        { "Terrain_Maps\\Rubble_General", "Image_0000", 15, 0, 0, -5 },
+        { "Terrain_Maps\\Rubble_General", "Image_0027", 15, 0, 0, -1 },
+    };
+
+    for (const AnimatedIsometricContract &contract : contracts) {
+        if (!image_group_payload_load(contract.group)) {
+            std::cerr << "Animated isometric contract failed: could not load " << contract.group << ".\n";
+            return false;
+        }
+
+        const ImageGroupPayload *payload = image_group_payload_get(contract.group);
+        const ImageGroupEntry *entry = payload ? payload->entry_for(contract.image) : nullptr;
+        const RuntimeDrawSlice *footprint = entry ? entry->footprint() : nullptr;
+        const RuntimeDrawSlice *top = entry ? entry->top() : nullptr;
+        if (!entry || !footprint || !top || !entry->has_animation()) {
+            std::cerr << "Animated isometric contract failed: " << contract.group << "\\"
+                << contract.image << " did not materialize a footprint, top, and animation.\n";
+            return false;
+        }
+
+        const RuntimeDrawSlice frame = entry->animation().frame_slice_at_offset(1);
+        const int animated_y = frame.draw_offset_y + top->draw_offset_y;
+        if (entry->top_height() != contract.top_height ||
+            footprint->draw_offset_y != contract.footprint_y ||
+            top->draw_offset_y != contract.top_y ||
+            animated_y != contract.animated_y) {
+            std::cerr << "Animated isometric contract failed: " << contract.group << "\\"
+                << contract.image << " materialized as top_height=" << entry->top_height()
+                << ", footprint_y=" << footprint->draw_offset_y
+                << ", top_y=" << top->draw_offset_y
+                << ", animated_y=" << animated_y << ".\n";
+            return false;
+        }
+    }
+
+    std::cout << "Validated explicit isometric top layers and animation offsets for mines, warehouses, and rubble.\n";
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -238,6 +293,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_rubble_repair_contract()) {
+        return 1;
+    }
+    if (!validate_animated_isometric_contracts()) {
         return 1;
     }
 

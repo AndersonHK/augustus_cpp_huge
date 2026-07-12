@@ -261,7 +261,7 @@ static void report_malformed_terrain_building_tiles_after_load(int count, int fi
     snprintf(message, sizeof(message),
         "This save contained %d tile%s marked as a building without a valid building record.\n\n"
         "Vespasian repaired the map by removing the invalid building terrain flag and continued loading.\n\n"
-        "%s\n\nMore details were written to augustus-log.txt.",
+        "%s\n\nMore details were written to vespasian-log.txt.",
         count,
         count == 1 ? "" : "s",
         detail);
