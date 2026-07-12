@@ -17,10 +17,34 @@
         <culture_module path="colosseum" capacity="1" count="working" />
     </culture_modules>
     <graphics>
-        <default>
+        <default animation="0">
             <path value="Health_Culture\Colosseum" />
             <image value="Coloseum ON" />
         </default>
+        <variant>
+            <condition type="festival_games" value="1" />
+            <condition type="has_workers" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Naumachia" />
+        </variant>
+        <variant>
+            <condition type="festival_games" value="2" />
+            <condition type="has_workers" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Imp Games" />
+        </variant>
+        <variant>
+            <condition type="festival_games" value="3" />
+            <condition type="has_workers" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Exec" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
+            <condition type="days1_or_days2_positive" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Glad Fight" />
+        </variant>
     </graphics>
     <construction mode="phased" road_update_radius="7" max_count="1">
         <phase index="1">

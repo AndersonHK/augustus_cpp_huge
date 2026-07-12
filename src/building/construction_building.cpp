@@ -485,7 +485,7 @@ static void add_to_map(
     if (definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Small) ||
         definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Large)) {
         if (const building_type_registry_impl::Distribution *distribution = definition.distribution()) {
-            distribution->set_acceptance(building_obj, 0);
+            distribution->set_acceptance(building_obj, false);
         }
     }
     if (definition.has_composition()) {
@@ -535,7 +535,7 @@ static void add_to_map(
     } else if (definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Small)) {
         add_building(b);
         if (const building_type_registry_impl::Distribution *distribution = definition.distribution()) {
-            distribution->set_acceptance(building_obj, 0);
+            distribution->set_acceptance(building_obj, false);
         }
     } else if (definition.attr_is("large_mausoleum") || definition.attr_is("nymphaeum")) {
         map_tiles_update_area_roads(b->x, b->y, 5);

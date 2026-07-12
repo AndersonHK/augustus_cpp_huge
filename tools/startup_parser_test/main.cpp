@@ -9,6 +9,7 @@
 #include "map/terrain.h"
 
 #include <filesystem>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -258,6 +259,46 @@ bool validate_road_aqueduct_crossing_rules()
     return true;
 }
 
+bool validate_colosseum_graphics_contract()
+{
+    using namespace building_type_registry_impl;
+    const BuildingType *colosseum = definition_for_type(type_from_attr("colosseum"));
+    if (!colosseum || colosseum->graphics().default_target().animation_enabled()) {
+        std::cerr << "Colosseum graphics contract failed: idle graphics must not animate.\n";
+        return false;
+    }
+
+    bool active_show = false;
+    int festival_variants = 0;
+    for (const GraphicsVariant &variant : colosseum->graphics().variants()) {
+        bool has_workers = false;
+        bool has_show_days = false;
+        bool festival = false;
+        for (const GraphicsCondition &condition : variant.conditions) {
+            has_workers = has_workers || condition.type == GraphicsConditionType::HasWorkers;
+            has_show_days = has_show_days || condition.type == GraphicsConditionType::Days1OrDays2Positive;
+            festival = festival || condition.type == GraphicsConditionType::FestivalGames;
+        }
+        const char *image = variant.target.image();
+        active_show = active_show ||
+            (has_workers && has_show_days && image && std::strcmp(image, "Col Glad Fight") == 0);
+        festival_variants += festival && has_workers;
+    }
+    if (!active_show || festival_variants != 3 ||
+        !image_group_payload_load("Health_Culture\\Colosseum")) {
+        std::cerr << "Colosseum graphics contract failed: active/festival variants are incomplete.\n";
+        return false;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get("Health_Culture\\Colosseum");
+    const ImageGroupEntry *fight = payload ? payload->entry_for("Col Glad Fight") : nullptr;
+    if (!fight || !fight->has_animation()) {
+        std::cerr << "Colosseum graphics contract failed: active show target has no animation.\n";
+        return false;
+    }
+    std::cout << "Validated idle, active-show, and festival Colosseum graphics.\n";
+    return true;
+}
+
 bool validate_figure_owner_contracts()
 {
     const figure_type_registry_impl::FigureTypeProfile *beggar =
@@ -404,6 +445,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_road_aqueduct_crossing_rules()) {
+        return 1;
+    }
+    if (!validate_colosseum_graphics_contract()) {
         return 1;
     }
     if (!validate_figure_owner_contracts()) {

@@ -318,6 +318,15 @@ void figure_supplier_action(Figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE:
+            if (f->type == FIGURE_MARKET_SUPPLIER &&
+                (!f->building || !f->building->accepts_good(static_cast<resource_type>(f->collecting_item_id)))) {
+                f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+                f->collecting_item_id = RESOURCE_NONE;
+                f->destination_x = f->source_x;
+                f->destination_y = f->source_y;
+                Route::remove(f);
+                break;
+            }
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->wait_ticks = 0;

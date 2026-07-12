@@ -131,7 +131,7 @@ static void adjust_pixel_offset(
     if (draw_request) {
         *pixel_x += x_offset - draw_request->sprite_offset_x;
         *pixel_y += y_offset - draw_request->sprite_offset_y;
-    } else {
+    } else if (f->image_id) {
         const Image &img = Image::from_id(f->image_id);
         const image_animation *animation = img.animation();
         *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
@@ -152,7 +152,9 @@ static void draw_figure(
         draw_request->draw(x, y, color_mask, scale);
         return;
     }
-    Image::from_id(f->image_id).draw(x, y, color_mask, scale);
+    if (f->image_id) {
+        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
+    }
 }
 
 void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)

@@ -796,12 +796,13 @@ def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, d
                 restore_mod_overlay(overlay)
             except RuntimeError as restore_exc:
                 restore_errors.append(str(restore_exc))
-        remove_deploy_workspace(backup_mods, game_root, "managed-content backup after failed deploy", required=False)
         if restore_errors:
             raise RuntimeError(
-                "Unable to deploy managed mod content, and rollback had errors: "
+                f"Unable to deploy managed mod content, and rollback had errors. "
+                f"Recovery backup preserved at {backup_mods}: "
                 + " | ".join(restore_errors)
             ) from exc
+        remove_deploy_workspace(backup_mods, game_root, "managed-content backup after failed deploy", required=False)
         raise
 
     if backup_mods.exists():

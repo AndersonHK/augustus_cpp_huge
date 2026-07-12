@@ -111,7 +111,7 @@ static int distribution_accepts_nothing(const Building &building)
     return distribution ? distribution->accepts_nothing(building) : 1;
 }
 
-static void set_distribution_acceptance(Building &building, int value)
+static void set_distribution_acceptance(Building &building, bool accepted)
 {
     if (is_dock(building)) {
         const resource_list *resources = dock_order_resources();
@@ -119,12 +119,12 @@ static void set_distribution_acceptance(Building &building, int value)
             return;
         }
         for (unsigned int i = 0; i < resources->size; i++) {
-            building.set_accepted_good(resources->items[i], value);
+            building.set_accepted_good(resources->items[i], accepted);
         }
         return;
     }
     if (const building_type_registry_impl::Distribution *distribution = distribution_for(building)) {
-        distribution->set_acceptance(building, value);
+        distribution->set_acceptance(building, accepted);
     }
 }
 
@@ -1695,9 +1695,9 @@ static void market_orders(const generic_button *button)
     if (index == 0) {
         Building &market_building = *data.building;
         if (affect_all_button_distribution_state(market_building) == ACCEPT_ALL) {
-            set_distribution_acceptance(market_building, 1);
+            set_distribution_acceptance(market_building, true);
         } else {
-            set_distribution_acceptance(market_building, 0);
+            set_distribution_acceptance(market_building, false);
         }
     }
     window_invalidate();

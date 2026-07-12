@@ -1841,6 +1841,15 @@ private:
 
     static void move_to_storage(Figure *f, int roam_ticks)
     {
+        const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
+        if (!f->building || !f->building->accepts_good(resource)) {
+            f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+            f->collecting_item_id = RESOURCE_NONE;
+            f->destination_x = f->source_x;
+            f->destination_y = f->source_y;
+            Route::remove(f);
+            return;
+        }
         figure_movement_move_ticks(f, roam_ticks);
         if (f->direction == DIR_FIGURE_AT_DESTINATION) {
             f->wait_ticks = 0;

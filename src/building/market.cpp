@@ -36,7 +36,7 @@ int Market::needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) co
     }
     for (const building_type_registry_impl::DistributionResourceRule &rule : distribution->resources()) {
         const resource_type resource = rule.resource;
-        info[resource].needed = handles_distribution(resource) && (accepts_good(resource) > 0 || wants_good(resource));
+        info[resource].needed = handles_distribution(resource) && (accepts_good(resource) || wants_good(resource));
         if (!needed && info[resource].needed) {
             needed = 1;
         }
@@ -116,5 +116,5 @@ int Market::supply_search_distance() const
 
 int Market::wants_good(resource_type resource) const
 {
-    return accepts_good(resource) > 1;
+    return distribution_demand(resource) > 0;
 }

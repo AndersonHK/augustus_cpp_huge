@@ -6,6 +6,7 @@
 #include "building/distribution.h"
 #include "building/image.h"
 #include "building/industry.h"
+#include "building/local_workforce.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "building/state.h"
@@ -1304,23 +1305,84 @@ void Building::set_fetch_inventory_id(resource_type resource)
     }
 }
 
-int Building::accepts_good(resource_type resource) const
+bool Building::accepts_good(resource_type resource) const
 {
-    return record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? record_->accepted_goods[resource] : 0;
+    return record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && record_->accepted_goods[resource];
 }
 
-void Building::set_accepted_good(resource_type resource, int value)
+void Building::set_accepted_good(resource_type resource, bool accepted)
 {
     if (record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
-        record_->accepted_goods[resource] = static_cast<unsigned char>(value);
+        record_->accepted_goods[resource] = accepted;
+        if (!accepted) {
+            set_distribution_demand(resource, 0);
+        }
     }
 }
 
 void Building::toggle_accepted_good(resource_type resource)
 {
-    if (record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
-        record_->accepted_goods[resource] ^= 1;
+    set_accepted_good(resource, !accepts_good(resource));
+}
+
+unsigned char Building::distribution_demand(resource_type resource) const
+{
+    return building_distribution_demand(record_, resource);
+}
+
+void Building::set_distribution_demand(resource_type resource, unsigned char demand)
+{
+    building_set_distribution_demand(record_, resource, demand);
+}
+
+unsigned char building_distribution_demand(const building *b, resource_type resource)
+{
+    if (!b) {
+        return 0;
     }
+    if (resource == resource_pottery()) {
+        return b->data.market.pottery_demand;
+    }
+    if (resource == resource_furniture()) {
+        return b->data.market.furniture_demand;
+    }
+    if (resource == resource_oil()) {
+        return b->data.market.oil_demand;
+    }
+    return resource == resource_wine() ? b->data.market.wine_demand : 0;
+}
+
+void building_set_distribution_demand(building *b, resource_type resource, unsigned char demand)
+{
+    if (!b) {
+        return;
+    }
+    if (resource == resource_pottery()) {
+        b->data.market.pottery_demand = demand;
+    } else if (resource == resource_furniture()) {
+        b->data.market.furniture_demand = demand;
+    } else if (resource == resource_oil()) {
+        b->data.market.oil_demand = demand;
+    } else if (resource == resource_wine()) {
+        b->data.market.wine_demand = demand;
+    }
+}
+
+unsigned char building_accepted_good_save_value(const building *b, resource_type resource)
+{
+    if (!b || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT || !b->accepted_goods[resource]) {
+        return 0;
+    }
+    return static_cast<unsigned char>(1 + std::min<int>(building_distribution_demand(b, resource), 254));
+}
+
+void building_load_accepted_good(building *b, resource_type resource, unsigned char value)
+{
+    if (!b || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return;
+    }
+    b->accepted_goods[resource] = value != 0;
+    building_set_distribution_demand(b, resource, value ? value - 1 : 0);
 }
 
 void Building::copy_accepted_goods(unsigned char *dst, int count) const
@@ -2622,12 +2684,12 @@ building *building_create(building_type type, int x, int y)
     if (type_attr_is(b->type, "market") && config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
             building_obj->type ? building_obj->type->distribution() : nullptr) {
-            market_distribution->set_acceptance(*building_obj, 0);
+            market_distribution->set_acceptance(*building_obj, false);
         }
     } else if (type_attr_is(b->type, "market") && !config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
             building_obj->type ? building_obj->type->distribution() : nullptr) {
-            market_distribution->set_acceptance(*building_obj, 1);
+            market_distribution->set_acceptance(*building_obj, true);
         }
     }
 
@@ -2647,6 +2709,9 @@ void building_change_type(building *b, building_type type)
 {
     if (b->type == type) {
         return;
+    }
+    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
+        building_local_workforce::change_building(runtime->building);
     }
     city_culture_remove_building_module_capacity(b);
     remove_adjacent_types(b);
@@ -3275,12 +3340,14 @@ static int building_resource_i16_count(const short *values)
     return count;
 }
 
-static int building_resource_u8_count(const unsigned char *values)
+static int building_accepted_good_count(const building *b)
 {
-    int count = building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE]);
+    int count = building_resource_save_value(
+        RESOURCE_NONE, building_accepted_good_save_value(b, RESOURCE_NONE));
     for (int i = 0; i < resource_loaded_count(); i++) {
         resource_type resource = resource_get_loaded(i);
-        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+        if (resource != RESOURCE_NONE &&
+            building_resource_save_value(resource, building_accepted_good_save_value(b, resource))) {
             count++;
         }
     }
@@ -3303,18 +3370,20 @@ static void building_write_resource_i16_values(buffer *buf, const short *values)
     }
 }
 
-static void building_write_resource_u8_values(buffer *buf, const unsigned char *values)
+static void building_write_accepted_goods(buffer *buf, const building *b)
 {
-    buffer_write_u32(buf, building_resource_u8_count(values));
-    if (building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE])) {
+    buffer_write_u32(buf, building_accepted_good_count(b));
+    const unsigned char none_value = building_accepted_good_save_value(b, RESOURCE_NONE);
+    if (building_resource_save_value(RESOURCE_NONE, none_value)) {
         resource_save_write_ref(buf, RESOURCE_NONE);
-        buffer_write_u8(buf, values[RESOURCE_NONE]);
+        buffer_write_u8(buf, none_value);
     }
     for (int i = 0; i < resource_loaded_count(); i++) {
         resource_type resource = resource_get_loaded(i);
-        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+        const unsigned char value = building_accepted_good_save_value(b, resource);
+        if (resource != RESOURCE_NONE && building_resource_save_value(resource, value)) {
             resource_save_write_ref(buf, resource);
-            buffer_write_u8(buf, values[resource]);
+            buffer_write_u8(buf, value);
         }
     }
 }
@@ -3358,7 +3427,7 @@ static void building_resource_state_write_payload(buffer *buf)
             record_matches(b, "cart_depot") ? static_cast<resource_type>(b->data.depot.current_order.resource_type) :
                 RESOURCE_NONE));
         building_write_resource_i16_values(buf, b->resources);
-        building_write_resource_u8_values(buf, b->accepted_goods);
+        building_write_accepted_goods(buf, b);
     }
 }
 
@@ -3396,7 +3465,7 @@ static void building_resource_state_load_u8_values(buffer *buf, building *b)
         resource_type resource = resource_save_read_ref(buf);
         int value = buffer_read_u8(buf);
         if (b && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
-            b->accepted_goods[resource] = static_cast<unsigned char>(value);
+            building_load_accepted_good(b, resource, static_cast<unsigned char>(value));
         }
     }
 }

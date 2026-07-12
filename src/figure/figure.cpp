@@ -5,6 +5,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
+#include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/production_method.h"
 #include "building/properties.h"
@@ -808,6 +809,9 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
 
 void Figure::remove()
 {
+    if (type == FIGURE_LABOR_SEEKER) {
+        building_local_workforce::remove_labor_seeker(*this);
+    }
     release_destination_reservations();
     const int cleared_known_slot = clear_known_building_refs_for_figure(*this);
     switch (type) {

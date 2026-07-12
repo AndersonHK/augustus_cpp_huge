@@ -210,9 +210,11 @@ public:
     int house_happiness() const;
     void set_house_happiness(int value);
     void set_fetch_inventory_id(resource_type resource);
-    int accepts_good(resource_type resource) const;
-    void set_accepted_good(resource_type resource, int value);
+    bool accepts_good(resource_type resource) const;
+    void set_accepted_good(resource_type resource, bool accepted);
     void toggle_accepted_good(resource_type resource);
+    unsigned char distribution_demand(resource_type resource) const;
+    void set_distribution_demand(resource_type resource, unsigned char demand);
     void copy_accepted_goods(unsigned char *dst, int count) const;
     void set_accepted_goods(const unsigned char *src, int count);
     void set_primary_figure_id(unsigned int id);
@@ -324,6 +326,10 @@ int building_find_with_mothballed(building_type type);
 building *building_first_of_type(building_type type);
 
 void building_change_type(building *b, building_type type);
+unsigned char building_distribution_demand(const building *b, resource_type resource);
+void building_set_distribution_demand(building *b, resource_type resource, unsigned char demand);
+unsigned char building_accepted_good_save_value(const building *b, resource_type resource);
+void building_load_accepted_good(building *b, resource_type resource, unsigned char value);
 
 building *building_main(const building *b);
 

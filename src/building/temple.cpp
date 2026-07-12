@@ -33,7 +33,7 @@ Building *building_temple_get_storage_destination(Building &temple)
     };
 
     if (temple.type->is_temple(GOD_VENUS)) {
-        if (!temple.accepts_good(resource_wine()) || temple.accepts_good(resource_wine()) <= 1) {
+        if (!temple.accepts_good(resource_wine()) || !temple.distribution_demand(resource_wine())) {
             return nullptr;
         }
         Building *grand_temple = grand_temple_for_god(GOD_VENUS, false);
@@ -65,7 +65,7 @@ Building *building_temple_get_storage_destination(Building &temple)
     if (!distribution->needed_resources_for(temple, info)) {
         return nullptr;
     }
-    info[resource_oil()].needed = temple.accepts_good(resource_oil()) > 1;
+    info[resource_oil()].needed = temple.distribution_demand(resource_oil()) > 0;
 
     if (!distribution->find_sources_for_building(info, temple, INFINITE)) {
         return nullptr;

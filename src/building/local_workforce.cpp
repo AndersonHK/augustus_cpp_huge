@@ -37,6 +37,7 @@ constexpr const char *kLaborSeekerAcquireProfile = "acquisition";
 constexpr const char *kLaborSeekerValidateProfile = "validation";
 
 building_local_workforce::LocalWorkforceRuntimeState g_runtime_state;
+void refresh_house_unemployed(Building &house);
 
 } // namespace
 
@@ -44,6 +45,7 @@ namespace building_local_workforce {
 
 void LocalWorkforceRuntimeState::clear()
 {
+    reservations_.clear();
     allocations_.clear();
     runtime_lists_.clear();
     preserve_allocations_on_next_city_initialize_ = 0;
@@ -51,6 +53,7 @@ void LocalWorkforceRuntimeState::clear()
 
 void LocalWorkforceRuntimeState::initializeCity()
 {
+    reservations_.clear();
     if (!preserve_allocations_on_next_city_initialize_) {
         allocations_.clear();
     }
@@ -81,6 +84,96 @@ int LocalWorkforceRuntimeState::assignedWorkersForHouse(unsigned int house_id) c
 int LocalWorkforceRuntimeState::assignedWorkersForWorkplace(unsigned int workplace_id) const
 {
     return allocations_.assignedWorkersForWorkplace(workplace_id);
+}
+
+workforce_count LocalWorkforceRuntimeState::reservedWorkersForHouse(const Building &house) const
+{
+    int workers = 0;
+    for (const std::unique_ptr<LaborReservation> &reservation : reservations_) {
+        if (&reservation->house == &house) {
+            workers += reservation->workers;
+        }
+    }
+    return static_cast<workforce_count>(workers);
+}
+
+LaborReservation *LocalWorkforceRuntimeState::reservationFor(const Figure &seeker) const
+{
+    for (const std::unique_ptr<LaborReservation> &reservation : reservations_) {
+        if (&reservation->seeker == &seeker) {
+            return reservation.get();
+        }
+    }
+    return nullptr;
+}
+
+LaborReservation &LocalWorkforceRuntimeState::reserve(
+    Figure &seeker,
+    Building &house,
+    workforce_count workers)
+{
+    cancelReservation(seeker);
+    reservations_.push_back(std::make_unique<LaborReservation>(seeker, house, workers));
+    refresh_house_unemployed(house);
+    return *reservations_.back();
+}
+
+std::unique_ptr<LaborReservation> LocalWorkforceRuntimeState::takeReservation(Figure &seeker)
+{
+    for (auto it = reservations_.begin(); it != reservations_.end(); ++it) {
+        if (&(*it)->seeker != &seeker) {
+            continue;
+        }
+        std::unique_ptr<LaborReservation> reservation = std::move(*it);
+        reservations_.erase(it);
+        seeker.destination_building = nullptr;
+        return reservation;
+    }
+    return nullptr;
+}
+
+void LocalWorkforceRuntimeState::cancelReservation(Figure &seeker)
+{
+    std::unique_ptr<LaborReservation> reservation = takeReservation(seeker);
+    if (reservation) {
+        refresh_house_unemployed(reservation->house);
+    }
+}
+
+void LocalWorkforceRuntimeState::cancelReservationsForBuilding(Building &building)
+{
+    std::vector<Building *> houses;
+    for (auto it = reservations_.begin(); it != reservations_.end();) {
+        LaborReservation &reservation = **it;
+        Figure &seeker = reservation.seeker;
+        const int house_changed = &reservation.house == &building;
+        const int workplace_changed = seeker.building == &building;
+        if (!house_changed && !workplace_changed) {
+            ++it;
+            continue;
+        }
+
+        Building *workplace = seeker.building;
+        if (workplace) {
+            ::building *record = const_cast<::building *>(workplace->record());
+            if (record && record->figure_id2 == seeker.id()) {
+                record->figure_id2 = 0;
+            }
+        }
+        if (workplace_changed) {
+            seeker.building = nullptr;
+        }
+        seeker.destination_building = nullptr;
+        seeker.state = FIGURE_STATE_DEAD;
+        if (!house_changed &&
+            std::find(houses.begin(), houses.end(), &reservation.house) == houses.end()) {
+            houses.push_back(&reservation.house);
+        }
+        it = reservations_.erase(it);
+    }
+    for (Building *house : houses) {
+        refresh_house_unemployed(*house);
+    }
 }
 
 void LocalWorkforceRuntimeState::addAllocation(unsigned int workplace_id, unsigned int house_id, int workers)
@@ -246,7 +339,9 @@ void refresh_house_unemployed(Building &house)
     }
 
     record->local_workforce_assigned = static_cast<short>(g_runtime_state.assignedWorkersForHouse(house.id));
-    const int unemployed = possible_workers_for_house(house) - record->local_workforce_assigned;
+    const int unemployed = possible_workers_for_house(house) -
+        record->local_workforce_assigned -
+        g_runtime_state.reservedWorkersForHouse(house);
     record->local_workforce_unemployed = static_cast<short>(std::max(0, unemployed));
 }
 
@@ -320,6 +415,7 @@ void retire_labor_seeker(Figure *f)
         return;
     }
 
+    g_runtime_state.cancelReservation(*f);
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -404,6 +500,39 @@ int remaining_roam_length(const Figure *f)
     return std::max(0, max_roam_length - f->roam_length);
 }
 
+workforce_count workers_to_reserve(Figure &seeker, Building &house)
+{
+    if (seeker.collecting_item_id == kLaborSeekerTripValidate || !seeker.building) {
+        return 0;
+    }
+    refresh_house_unemployed(house);
+    const building *house_record = house.record();
+    const int needed = required_workers(*seeker.building) - access_workers_for_workplace(*seeker.building);
+    return static_cast<workforce_count>(
+        std::min<int>(std::max(0, needed), house_record ? house_record->local_workforce_unemployed : 0));
+}
+
+building_local_workforce::LaborReservation *ensure_labor_reservation(Figure &seeker)
+{
+    if (building_local_workforce::LaborReservation *reservation = g_runtime_state.reservationFor(seeker)) {
+        return reservation;
+    }
+    if (!seeker.building || !seeker.destination_building) {
+        return nullptr;
+    }
+    Building &house = *seeker.destination_building;
+    if (!is_live_building(house) || !house.has_house_size()) {
+        seeker.destination_building = nullptr;
+        return nullptr;
+    }
+    const workforce_count workers = workers_to_reserve(seeker, house);
+    if (seeker.collecting_item_id == kLaborSeekerTripAcquire && workers <= 0) {
+        seeker.destination_building = nullptr;
+        return nullptr;
+    }
+    return &g_runtime_state.reserve(seeker, house, workers);
+}
+
 int prepare_labor_seeker_target(Figure *f)
 {
     if (!f || !f->building) {
@@ -415,16 +544,17 @@ int prepare_labor_seeker_target(Figure *f)
     if (!uses_active_workforce(workplace) || !workplace_record || workplace_record->figure_id2 != f->id()) {
         return 0;
     }
-    if (!f->destination_building) {
+    building_local_workforce::LaborReservation *reservation = ensure_labor_reservation(*f);
+    if (!reservation) {
         return 0;
     }
 
-    Building &house = *f->destination_building;
+    Building &house = reservation->house;
     if (!is_live_building(house) || !house.has_house_size()) {
         if (f->collecting_item_id == kLaborSeekerTripValidate) {
             release_workplace_source(workplace.id, house.id);
         }
-        f->destination_building = nullptr;
+        g_runtime_state.cancelReservation(*f);
         return 0;
     }
 
@@ -460,10 +590,15 @@ int create_labor_seeker(
 
     building *record = const_cast<building *>(workplace.record());
     // The trip flag is retained for save compatibility; the profile owns the behavior contract.
+    labor_seeker->collecting_item_id = trip_type;
     labor_seeker->destination_building = target.house;
     labor_seeker->destination_x = static_cast<unsigned char>(target.road().x);
     labor_seeker->destination_y = static_cast<unsigned char>(target.road().y);
-    labor_seeker->collecting_item_id = trip_type;
+    if (!ensure_labor_reservation(*labor_seeker)) {
+        labor_seeker->state = FIGURE_STATE_DEAD;
+        labor_seeker->destination_building = nullptr;
+        return 0;
+    }
     record->figure_id2 = labor_seeker->id();
     return 1;
 }
@@ -474,6 +609,7 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
         return 0;
     }
 
+    g_runtime_state.cancelReservation(*f);
     Building &workplace = *f->building;
     building *workplace_record = const_cast<building *>(workplace.record());
     if (!uses_active_workforce(workplace) || !workplace_record || workplace_record->figure_id2 != f->id()) {
@@ -502,19 +638,27 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
     f->destination_x = static_cast<unsigned char>(target.road().x);
     f->destination_y = static_cast<unsigned char>(target.road().y);
     f->collecting_item_id = kLaborSeekerTripAcquire;
+    if (!ensure_labor_reservation(*f)) {
+        f->destination_building = nullptr;
+        return 0;
+    }
     Route::remove(f);
     return 1;
 }
 
 void handle_arrival(Figure *f)
 {
-    if (!f || !f->building || !f->destination_building) {
+    if (!f || !f->building) {
+        retire_labor_seeker(f);
+        return;
+    }
+    building_local_workforce::LaborReservation *reservation = ensure_labor_reservation(*f);
+    if (!reservation) {
         retire_labor_seeker(f);
         return;
     }
     Building &workplace = *f->building;
-    Building &house = *f->destination_building;
-    building *house_record = const_cast<building *>(house.record());
+    Building &house = reservation->house;
     if (!uses_active_workforce(workplace)) {
         retire_labor_seeker(f);
         return;
@@ -528,6 +672,7 @@ void handle_arrival(Figure *f)
     }
 
     if (f->collecting_item_id == kLaborSeekerTripValidate) {
+        g_runtime_state.cancelReservation(*f);
         trim_house_to_possible(house);
         if (retarget_labor_seeker_to_unemployed(f)) {
             return;
@@ -536,43 +681,16 @@ void handle_arrival(Figure *f)
         return;
     }
 
-    refresh_house_unemployed(house);
-    const int needed = required_workers(workplace) - access_workers_for_workplace(workplace);
-    const int assigned = std::min<int>(std::max(0, needed), house_record ? house_record->local_workforce_unemployed : 0);
-    if (assigned > 0) {
-        g_runtime_state.addAllocation(workplace.id, house.id, assigned);
-        refresh_house_unemployed(house);
+    std::unique_ptr<building_local_workforce::LaborReservation> completed =
+        g_runtime_state.takeReservation(*f);
+    if (completed && completed->workers > 0) {
+        g_runtime_state.addAllocation(workplace.id, completed->house.id, completed->workers);
+        refresh_house_unemployed(completed->house);
     }
     if (retarget_labor_seeker_to_unemployed(f)) {
         return;
     }
     retire_labor_seeker(f);
-}
-
-void kill_labor_seekers_for_building(unsigned int building_id)
-{
-    if (!building_id) {
-        return;
-    }
-
-    for (unsigned int id = 1; id < Figure::count(); id++) {
-        Figure *f = Figure::get(id);
-        if (!f || f->state != FIGURE_STATE_ALIVE || f->type != FIGURE_LABOR_SEEKER) {
-            continue;
-        }
-        const unsigned int workplace_id = f->building ? f->building->id : 0;
-        const unsigned int destination_id = f->destination_building ? f->destination_building->id : 0;
-        if (workplace_id != building_id && destination_id != building_id) {
-            continue;
-        }
-        if (f->building) {
-            building *workplace = const_cast<building *>(f->building->record());
-            if (is_live_building(workplace) && workplace->figure_id2 == f->id()) {
-                workplace->figure_id2 = 0;
-            }
-        }
-        f->state = FIGURE_STATE_DEAD;
-    }
 }
 
 void remove_allocations_for_building(unsigned int building_id)
@@ -941,20 +1059,31 @@ void reconcile_house(Building &house)
 void remove_building(Building &target)
 {
     ::g_runtime_state.markBuildingListsDirty();
+    ::g_runtime_state.cancelReservationsForBuilding(target);
     remove_allocations_for_building(target.id);
-    kill_labor_seekers_for_building(target.id);
     building *record = const_cast<building *>(target.record());
     record->local_workforce_assigned = 0;
     record->local_workforce_unemployed = 0;
     record->local_workforce_validation_delay = 0;
 }
 
-void replace_house(const Building &from, const Building &to)
+void change_building(Building &target)
+{
+    ::g_runtime_state.cancelReservationsForBuilding(target);
+}
+
+void remove_labor_seeker(Figure &seeker)
+{
+    ::g_runtime_state.cancelReservation(seeker);
+}
+
+void replace_house(Building &from, const Building &to)
 {
     if (!from.id || !to.id || from.id == to.id) {
         return;
     }
 
+    g_runtime_state.cancelReservationsForBuilding(from);
     g_runtime_state.replaceHouse(from.id, to.id);
     clamp_allocation_table();
     rebuild_counters_from_allocations();
@@ -1028,10 +1157,11 @@ void labor_seeker_failed(Figure *f)
     if (!f) {
         return;
     }
-    if (f->collecting_item_id == kLaborSeekerTripValidate && f->building && f->destination_building) {
-        ::release_workplace_source(f->building->id, f->destination_building->id);
+    LaborReservation *reservation = g_runtime_state.reservationFor(*f);
+    if (f->collecting_item_id == kLaborSeekerTripValidate && f->building && reservation) {
+        ::release_workplace_source(f->building->id, reservation->house.id);
     }
-    f->destination_building = nullptr;
+    g_runtime_state.cancelReservation(*f);
     if (::retarget_labor_seeker_to_unemployed(f)) {
         return;
     }

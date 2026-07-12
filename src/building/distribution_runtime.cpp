@@ -129,7 +129,7 @@ int Distribution::needed_resources_for(const Building &building, resource_storag
 {
     int needed = 0;
     for (const DistributionResourceRule &rule : resources()) {
-        info[rule.resource].needed = building.accepts_good(rule.resource) > 0;
+        info[rule.resource].needed = building.accepts_good(rule.resource);
         if (info[rule.resource].needed) {
             needed = 1;
         }
@@ -137,10 +137,10 @@ int Distribution::needed_resources_for(const Building &building, resource_storag
     return needed;
 }
 
-void Distribution::set_acceptance(Building &building, int value) const
+void Distribution::set_acceptance(Building &building, bool accepted) const
 {
     for (const DistributionResourceRule &rule : resources()) {
-        building.set_accepted_good(rule.resource, value);
+        building.set_accepted_good(rule.resource, accepted);
     }
 }
 
@@ -157,9 +157,9 @@ int Distribution::accepts_nothing(const Building &building) const
 void Distribution::update_demands(Building &building) const
 {
     for (const DistributionResourceRule &rule : resources()) {
-        int accepted = building.accepts_good(rule.resource);
-        if (resource_is_inventory(rule.resource) && accepted > 1) {
-            building.set_accepted_good(rule.resource, accepted - 1);
+        const unsigned char demand = building.distribution_demand(rule.resource);
+        if (demand) {
+            building.set_distribution_demand(rule.resource, demand - 1);
         }
     }
 }

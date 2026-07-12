@@ -74,6 +74,28 @@ static Building *get_deletable_building(int grid_offset)
     return &target;
 }
 
+static bool is_aqueduct_tile(int grid_offset)
+{
+    return map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) ||
+        (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("aqueduct"));
+}
+
+static void remove_aqueduct_tile(int grid_offset)
+{
+    if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("aqueduct")) {
+        Building &aqueduct = map_building_at(grid_offset);
+        building *record = const_cast<::building *>(aqueduct.record());
+        if (record) {
+            game_undo_add_building(record);
+            record->state = BUILDING_STATE_DELETED_BY_PLAYER;
+            record->is_deleted = 1;
+        }
+        map_building_clear_at(grid_offset);
+    }
+    map_terrain_remove(grid_offset, TERRAIN_AQUEDUCT);
+    map_aqueduct_remove(grid_offset);
+}
+
 static int clear_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end)
 {
     int items_placed = 0;
@@ -118,7 +140,10 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
             if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
                 continue;
             }
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
+            if (is_aqueduct_tile(grid_offset)) {
+                remove_aqueduct_tile(grid_offset);
+                items_placed++;
+            } else if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && !map_is_bridge(grid_offset)) {
                 Building *building_obj = get_deletable_building(grid_offset);
                 if (!building_obj) {
                     continue;
@@ -180,20 +205,6 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
-            } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-                if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("aqueduct")) {
-                    Building &aqueduct = map_building_at(grid_offset);
-                    building *aqueduct_record = const_cast<::building *>(aqueduct.record());
-                    if (aqueduct_record) {
-                        game_undo_add_building(aqueduct_record);
-                        aqueduct_record->state = BUILDING_STATE_DELETED_BY_PLAYER;
-                        aqueduct_record->is_deleted = 1;
-                    }
-                    map_building_clear_at(grid_offset);
-                }
-                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
-                items_placed++;
-                map_aqueduct_remove(grid_offset);
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
                 if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
                     city_warning_show_translated(WARNING_PEOPLE_ON_BRIDGE);

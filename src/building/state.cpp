@@ -17,6 +17,7 @@
 #include "game/save_version.h"
 #include "map/grid.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
@@ -682,7 +683,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
 
     // accepted goods
     for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
-        buffer_write_u8(buf, b->accepted_goods[i]);
+        buffer_write_u8(buf, building_accepted_good_save_value(b, static_cast<resource_type>(i)));
     }
 
     // latrines
@@ -788,23 +789,23 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             }
             int pottery_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_pottery()]) {
-                b->accepted_goods[resource_pottery()] =
-                    static_cast<unsigned char>(b->accepted_goods[resource_pottery()] + pottery_demand);
+                building_set_distribution_demand(
+                    b, resource_pottery(), static_cast<unsigned char>(std::clamp(pottery_demand, 0, 254)));
             }
             int furniture_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_furniture()]) {
-                b->accepted_goods[resource_furniture()] =
-                    static_cast<unsigned char>(b->accepted_goods[resource_furniture()] + furniture_demand);
+                building_set_distribution_demand(
+                    b, resource_furniture(), static_cast<unsigned char>(std::clamp(furniture_demand, 0, 254)));
             }
             int oil_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_oil()]) {
-                b->accepted_goods[resource_oil()] =
-                    static_cast<unsigned char>(b->accepted_goods[resource_oil()] + oil_demand);
+                building_set_distribution_demand(
+                    b, resource_oil(), static_cast<unsigned char>(std::clamp(oil_demand, 0, 254)));
             }
             int wine_demand = buffer_read_i16(buf);
             if (b->accepted_goods[resource_wine()]) {
-                b->accepted_goods[resource_wine()] =
-                    static_cast<unsigned char>(b->accepted_goods[resource_wine()] + wine_demand);
+                building_set_distribution_demand(
+                    b, resource_wine(), static_cast<unsigned char>(std::clamp(wine_demand, 0, 254)));
             }
         }
         b->data.market.fetch_inventory_id =
@@ -1195,7 +1196,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
             b->resources[resource_remap(i)] = buffer_read_i16(buf);
         }
         for (int i = 0; i < resource_slots; i++) {
-            b->accepted_goods[resource_remap(i)] = buffer_read_u8(buf);
+            building_load_accepted_good(b, resource_remap(i), buffer_read_u8(buf));
         }
     }
     repair_dock_accepted_goods_if_empty(b);

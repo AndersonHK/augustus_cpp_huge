@@ -487,19 +487,19 @@ static void distribute_market_resources(building *b, building *market)
     }
 
     if (model->pottery && market->accepted_goods[resource_pottery()]) {
-        market->accepted_goods[resource_pottery()] = 11;
+        building_set_distribution_demand(market, resource_pottery(), 10);
         distribute_good(b, market, goods_no * model->pottery, resource_pottery());
     }
     if (model->furniture && market->accepted_goods[resource_furniture()]) {
-        market->accepted_goods[resource_furniture()] = 11;
+        building_set_distribution_demand(market, resource_furniture(), 10);
         distribute_good(b, market, goods_no * model->furniture, resource_furniture());
     }
     if (model->oil && market->accepted_goods[resource_oil()]) {
-        market->accepted_goods[resource_oil()] = 11;
+        building_set_distribution_demand(market, resource_oil(), 10);
         distribute_good(b, market, goods_no * model->oil, resource_oil());
     }
     if (model->wine && market->accepted_goods[resource_wine()]) {
-        market->accepted_goods[resource_wine()] = 11;
+        building_set_distribution_demand(market, resource_wine(), 10);
         distribute_good(b, market, goods_no * model->wine, resource_wine());
     }
 }
