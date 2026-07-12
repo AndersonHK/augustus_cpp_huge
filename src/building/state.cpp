@@ -984,7 +984,9 @@ static void apply_definition_record_properties_after_load(building *b)
         if (b->fire_proof) {
             b->damage_risk = 0;
             b->fire_risk = 0;
-            b->fire_duration = 0;
+            if (!definition->has_rubble() || !definition->rubble().is_burning()) {
+                b->fire_duration = 0;
+            }
         }
     }
 }

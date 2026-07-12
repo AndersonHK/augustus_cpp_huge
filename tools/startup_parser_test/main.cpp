@@ -3,6 +3,8 @@
 #include "assets/image_group_payload.h"
 #include "building/RubbleState.h"
 #include "building/building_type_registry_internal.h"
+#include "figure/figure_type_registry_internal.h"
+#include "figure/type.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
 
@@ -125,6 +127,17 @@ bool validate_rubble_repair_contract()
         std::cerr << "Rubble repair contract failed: distinct rubble origins match.\n";
         return false;
     }
+    if (rubble_record_disposition(BUILDING_STATE_RUBBLE, true, true, false) !=
+            RubbleRecordDisposition::Discard ||
+        rubble_record_disposition(BUILDING_STATE_RUBBLE, true, true, true) !=
+            RubbleRecordDisposition::NormalizeToRubble ||
+        rubble_record_disposition(BUILDING_STATE_RUBBLE, true, false, true) !=
+            RubbleRecordDisposition::Keep ||
+        rubble_record_disposition(BUILDING_STATE_IN_USE, true, true, true) !=
+            RubbleRecordDisposition::Keep) {
+        std::cerr << "Rubble repair contract failed: rubble record lifecycle policy is inconsistent.\n";
+        return false;
+    }
     if (farm->placement_width(0) != 3 || farm->placement_height(0) != 3 ||
         hippodrome->placement_width(0) != 15 || hippodrome->placement_height(0) != 5 ||
         hippodrome->placement_width(1) != 5 || hippodrome->placement_height(1) != 15) {
@@ -245,6 +258,41 @@ bool validate_road_aqueduct_crossing_rules()
     return true;
 }
 
+bool validate_figure_owner_contracts()
+{
+    const figure_type_registry_impl::FigureTypeProfile *beggar =
+        figure_type_registry_impl::profile_for(FIGURE_BEGGAR, "unemployment_wanderer");
+    const figure_type_registry_impl::FigureTypeProfile *homeless =
+        figure_type_registry_impl::profile_for(FIGURE_HOMELESS, "legacy");
+    const figure_type_registry_impl::FigureTypeProfile *fishing_boat =
+        figure_type_registry_impl::profile_for(FIGURE_FISHING_BOAT, "fish_fetch");
+    const figure_type_registry_impl::FigureTypeProfile *prefect =
+        figure_type_registry_impl::profile_for(FIGURE_PREFECT, "service");
+    if (!beggar || beggar->requires_owner()) {
+        std::cerr << "Figure owner contract failed: beggars must be ownerless after spawning.\n";
+        return false;
+    }
+    if (!fishing_boat || !fishing_boat->requires_owner() ||
+        fishing_boat->owner_binding().slot != figure_type_registry_impl::FigureSlot::None ||
+        fishing_boat->owner_binding().required_owner_state !=
+            figure_type_registry_impl::OwnerStateRequirement::InUse) {
+        std::cerr << "Figure owner contract failed: fishing boats require a live shipyard or wharf without using a generic figure slot.\n";
+        return false;
+    }
+    if (!homeless || homeless->requires_owner() ||
+        homeless->native_class() != figure_type_registry_impl::NativeClassId::LegacyAction ||
+        homeless->pathing_policy().mode != &figure_type_registry_impl::VanillaRoaming) {
+        std::cerr << "Figure owner contract failed: homeless figures must use ownerless legacy action with vanilla pathing.\n";
+        return false;
+    }
+    if (!prefect || !prefect->requires_owner()) {
+        std::cerr << "Figure owner contract failed: prefect service requires its owning building.\n";
+        return false;
+    }
+    std::cout << "Validated ownerless and required-owner FigureType profile contracts.\n";
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -356,6 +404,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_road_aqueduct_crossing_rules()) {
+        return 1;
+    }
+    if (!validate_figure_owner_contracts()) {
         return 1;
     }
 

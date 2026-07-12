@@ -13,6 +13,7 @@
 
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
+#include "core/log.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
@@ -256,6 +257,35 @@ void record_service_history(road_service_effect effect, int grid_offset)
     }
 }
 
+const figure_type_registry_impl::FigureTypeProfile *profile_for_figure(const Figure *f)
+{
+    if (!f) {
+        return nullptr;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    if (!definition) {
+        return nullptr;
+    }
+    const figure_type_registry_impl::FigureTypeProfile *profile = definition->profile(infer_profile_id(f));
+    return profile ? profile : definition->default_profile();
+}
+
+void log_loaded_owner_repair(
+    const char *message,
+    const Figure &figure,
+    const figure_type_registry_impl::FigureTypeProfile *profile,
+    unsigned int saved_owner_id)
+{
+    char detail[256];
+    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u",
+        figure.id(),
+        static_cast<unsigned int>(figure.type),
+        profile ? profile->id() : "<none>",
+        saved_owner_id);
+    log_warning(message, detail, 0);
+}
+
 static void write_debug_json_string(FILE *file, const char *text)
 {
     fputc('"', file);
@@ -350,6 +380,51 @@ void figure_runtime_reset()
     g_runtime_entries.clear();
 }
 
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, Building **resolved_owner)
+{
+    if (resolved_owner) {
+        *resolved_owner = nullptr;
+    }
+    if (!f) {
+        return false;
+    }
+
+    const figure_type_registry_impl::FigureTypeProfile *profile = profile_for_figure(f);
+    if (profile && !profile->requires_owner()) {
+        if (saved_owner_id) {
+            log_loaded_owner_repair(
+                "Discarding saved owner reference for ownerless figure",
+                *f,
+                profile,
+                saved_owner_id);
+        }
+        return true;
+    }
+
+    Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
+    if (!profile) {
+        if (saved_owner_id && !owner) {
+            log_loaded_owner_repair("Discarding invalid saved figure owner reference", *f, nullptr, saved_owner_id);
+        }
+        if (resolved_owner) {
+            *resolved_owner = owner;
+        }
+        return true;
+    }
+
+    const building *owner_record = owner ? owner->record() : nullptr;
+    if (!owner_record ||
+        !figure_runtime_native_impl::owner_binding_matches(f, owner_record, profile->owner_binding())) {
+        log_loaded_owner_repair("Removing loaded figure with invalid required owner", *f, profile, saved_owner_id);
+        return false;
+    }
+
+    if (resolved_owner) {
+        *resolved_owner = owner;
+    }
+    return true;
+}
+
 void figure_runtime_initialize_city()
 {
     figure_runtime_reset();
@@ -428,7 +503,7 @@ Figure *figure_runtime_create_profiled(
 
     Figure *f = Figure::create(type, x, y, dir);
 
-    f->building = &owner;
+    f->building = profile->requires_owner() ? &owner : nullptr;
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);

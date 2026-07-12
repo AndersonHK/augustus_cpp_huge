@@ -74,6 +74,14 @@ building_type OwnerBinding::resolved_required_building_type() const
     return building_type_registry_impl::runtime_id_from_text(required_building_reference.c_str());
 }
 
+bool OwnerBinding::requires_owner() const
+{
+    return slot != FigureSlot::None ||
+        resolved_required_building_type() != BUILDING_NONE ||
+        !required_building_reference.empty() ||
+        required_owner_state != OwnerStateRequirement::Any;
+}
+
 building_type EntertainmentVenueTarget::resolved_building_type() const
 {
     if (building != BUILDING_NONE || building_reference.empty()) {
@@ -110,6 +118,11 @@ void FigureTypeProfile::set_owner_binding(const OwnerBinding &owner_binding)
 const OwnerBinding &FigureTypeProfile::owner_binding() const
 {
     return owner_binding_;
+}
+
+bool FigureTypeProfile::requires_owner() const
+{
+    return owner_binding_.requires_owner();
 }
 
 void FigureTypeProfile::set_movement_profile(const MovementProfile &movement_profile)

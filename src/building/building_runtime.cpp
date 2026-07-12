@@ -391,7 +391,12 @@ void building_runtime_for_each(
         return !filter.has_value() || filter.value() == (value != 0);
     };
 
-    for (std::unique_ptr<building_runtime> &instance : building_runtime_impl::g_runtime_instances) {
+    const size_t initial_count = building_runtime_impl::g_runtime_instances.size();
+    for (size_t id = 1; id < initial_count; id++) {
+        if (id >= building_runtime_impl::g_runtime_instances.size()) {
+            break;
+        }
+        building_runtime *instance = building_runtime_impl::g_runtime_instances[id].get();
         if (!instance) {
             continue;
         }

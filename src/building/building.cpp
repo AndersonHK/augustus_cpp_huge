@@ -2667,6 +2667,16 @@ static void building_delete(building *b)
     trim_buildings();
 }
 
+static bool rubble_record_has_map_presence(const building *record)
+{
+    if (!record || !record->id || !map_grid_is_valid_offset(record->grid_offset) ||
+        !map_terrain_is(record->grid_offset, TERRAIN_RUBBLE)) {
+        return false;
+    }
+    return map_building_loaded_id_at(record->grid_offset) == record->id ||
+        map_building_rubble_building_id(record->grid_offset) == record->id;
+}
+
 void building_clear_related_data(building *b)
 {
     if (b && !b->house_size) {
@@ -2946,6 +2956,10 @@ void building_update_state(void)
             land_recalc = 1;
             building_delete(b);
         } else if (b->state == BUILDING_STATE_RUBBLE) {
+            if (!rubble_record_has_map_presence(b)) {
+                building_delete(b);
+                continue;
+            }
             if (b->house_size) {
                 city_population_remove_home_removed(b->house_population);
                 b->house_population = 0;
@@ -3833,6 +3847,51 @@ static void rebuild_loaded_record_type_links()
     }
 }
 
+static void discard_loaded_record(building &record)
+{
+    const unsigned int id = record.id;
+    memset(&record, 0, sizeof(record));
+    record.id = id;
+}
+
+static void normalize_loaded_rubble_records()
+{
+    const building_type rubble_type = type_from_attr("rubble");
+    int discarded = 0;
+    int normalized = 0;
+    for (building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        const bool has_rubble_definition = definition && definition->has_rubble();
+        const bool has_burning_definition =
+            has_rubble_definition && definition->rubble().is_burning();
+        const RubbleRecordDisposition disposition = rubble_record_disposition(
+            record.state,
+            has_rubble_definition,
+            has_burning_definition,
+            rubble_record_has_map_presence(&record));
+        if (disposition == RubbleRecordDisposition::Discard) {
+            discard_loaded_record(record);
+            discarded++;
+        } else if (disposition == RubbleRecordDisposition::NormalizeToRubble &&
+            rubble_type != BUILDING_NONE) {
+            record.type = rubble_type;
+            record.fire_duration = 0;
+            normalized++;
+        }
+    }
+    trim_buildings();
+    rebuild_loaded_record_type_links();
+    if (discarded || normalized) {
+        char detail[128];
+        snprintf(detail, sizeof(detail), "discarded=%d normalized=%d", discarded, normalized);
+        log_info("Normalized loaded rubble records", detail, 0);
+    }
+}
+
 static int building_promote_legacy_tile_buildings_after_load()
 {
     const LegacyTilePromotionTypes types = legacy_tile_promotion_types();
@@ -3948,5 +4007,6 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
     building_promote_legacy_tile_buildings_after_load();
+    normalize_loaded_rubble_records();
     city_culture_rebuild_module_capacity_cache();
 }

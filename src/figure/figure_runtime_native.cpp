@@ -463,12 +463,7 @@ bool owner_binding_matches(const Figure *f, const building *owner, const figure_
 
 bool owner_binding_requires_owner(const figure_type_registry_impl::OwnerBinding &owner_binding)
 {
-    // An "any/none/any" owner node means the profile only wants a source id
-    // for save/debug context. Transient walkers can outlive that building.
-    return owner_binding.slot != figure_type_registry_impl::FigureSlot::None ||
-        owner_binding.resolved_required_building_type() != BUILDING_NONE ||
-        !owner_binding.required_building_reference.empty() ||
-        owner_binding.required_owner_state != figure_type_registry_impl::OwnerStateRequirement::Any;
+    return owner_binding.requires_owner();
 }
 
 building *mutable_record(Building *building)
@@ -501,6 +496,7 @@ bool send_to_owner_road(Figure *f, const building &owner, int action_state)
     f->action_state = static_cast<unsigned char>(action_state);
     f->destination_x = static_cast<unsigned char>(road.x);
     f->destination_y = static_cast<unsigned char>(road.y);
+    f->destination_building = nullptr;
     Route::remove(f);
     return true;
 }
@@ -2353,16 +2349,7 @@ private:
         f->wait_ticks--;
         if (f->wait_ticks <= 0) {
             if (!fight_fire(f, true)) {
-                int x_road = 0;
-                int y_road = 0;
-                if (map_closest_road_within_radius(owner.x, owner.y, owner.size, 2, &x_road, &y_road)) {
-                    f->action_state = FIGURE_ACTION_73_PREFECT_RETURNING;
-                    f->destination_x = static_cast<unsigned char>(x_road);
-                    f->destination_y = static_cast<unsigned char>(y_road);
-                    Route::remove(f);
-                } else {
-                    f->state = FIGURE_STATE_DEAD;
-                }
+                send_to_owner_road(f, owner, FIGURE_ACTION_73_PREFECT_RETURNING);
             }
         }
     }

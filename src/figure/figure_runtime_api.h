@@ -10,6 +10,10 @@ void figure_runtime_initialize_city();
 void figure_runtime_on_created(Figure *f);
 void figure_runtime_on_deleted(Figure *f);
 
+// Resolves a saved owner id only after checking the figure profile's ownership contract.
+// False means that a required owner could not be reconstructed and the figure must be removed.
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, Building **resolved_owner);
+
 // Creates a native FigureType walker using an explicit profile-owned start contract.
 Figure *figure_runtime_create_profiled(
     figure_type type,

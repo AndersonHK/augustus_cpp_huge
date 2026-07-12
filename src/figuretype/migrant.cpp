@@ -14,6 +14,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figure/figure_runtime_api.h"
 #include "game/time.h"
 
 static struct {
@@ -118,8 +119,16 @@ void migrant_create_emigrant(Building &house, int num_people)
 
 Figure *migrant_create_homeless(Building &house, int num_people)
 {
-    Figure *f = Figure::create(FIGURE_HOMELESS, house.x(), house.y(), DIR_0_TOP);
-    f->building = &house;
+    Figure *f = figure_runtime_create_profiled(
+        FIGURE_HOMELESS,
+        house.x(),
+        house.y(),
+        DIR_0_TOP,
+        house,
+        "legacy");
+    if (!f) {
+        return nullptr;
+    }
     f->action_state = FIGURE_ACTION_7_HOMELESS_CREATED;
     f->wait_ticks = 0;
     f->migrant_num_people = static_cast<unsigned char>(num_people);

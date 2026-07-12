@@ -6,6 +6,7 @@
 #include <memory>
 
 class Figure;
+struct building;
 
 struct FigureGraphicDrawLayer {
     RuntimeDrawSlice slice = {};
@@ -60,6 +61,11 @@ private:
 };
 
 namespace figure_runtime_native_impl {
+
+bool owner_binding_matches(
+    const Figure *figure,
+    const building *owner,
+    const figure_type_registry_impl::OwnerBinding &owner_binding);
 
 class NativeFigure {
 public:

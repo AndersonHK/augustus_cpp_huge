@@ -60,6 +60,7 @@ struct OwnerBinding {
     OwnerStateRequirement required_owner_state = OwnerStateRequirement::InUse;
 
     building_type resolved_required_building_type() const;
+    bool requires_owner() const;
 };
 
 struct MovementProfile {
@@ -93,6 +94,7 @@ public:
 
     void set_owner_binding(const OwnerBinding &owner_binding);
     const OwnerBinding &owner_binding() const;
+    bool requires_owner() const;
 
     void set_movement_profile(const MovementProfile &movement_profile);
     const MovementProfile &movement_profile() const;

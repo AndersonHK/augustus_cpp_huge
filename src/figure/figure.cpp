@@ -136,6 +136,21 @@ Building *loaded_building_ref(unsigned int id)
     return Building::get(id);
 }
 
+Building *loaded_optional_building_ref(const Figure &figure, unsigned int id, const char *relation)
+{
+    Building *building = loaded_building_ref(id);
+    if (id && !building) {
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u relation=%s saved_building_id=%u",
+            figure.id(),
+            static_cast<unsigned int>(figure.type),
+            relation ? relation : "<unknown>",
+            id);
+        log_warning("Discarding invalid saved figure building reference", detail, 0);
+    }
+    return building;
+}
+
 void store_pending_building_refs(
     unsigned int figure_id,
     unsigned int building_id,
@@ -1338,6 +1353,7 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
 
 void Figure::resolve_loaded_building_references()
 {
+    std::vector<unsigned int> invalid_figures;
     const size_t count = data.pending_building_refs.size() < data.figures.size() ?
         data.pending_building_refs.size() : data.figures.size();
     for (size_t i = 0; i < count; i++) {
@@ -1345,10 +1361,25 @@ void Figure::resolve_loaded_building_references()
         if (!f) {
             continue;
         }
-        const FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
-        f->building = loaded_building_ref(refs.building_id);
-        f->immigrant_building = loaded_building_ref(refs.immigrant_building_id);
-        f->destination_building = loaded_building_ref(refs.destination_building_id);
+        FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
+        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, &f->building)) {
+            f->building = nullptr;
+            f->immigrant_building = nullptr;
+            f->destination_building = nullptr;
+            invalid_figures.push_back(static_cast<unsigned int>(i));
+            continue;
+        }
+        if (!f->building) {
+            refs.building_id = 0;
+        }
+        f->immigrant_building = loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant");
+        f->destination_building = loaded_optional_building_ref(*f, refs.destination_building_id, "destination");
+        if (!f->immigrant_building) {
+            refs.immigrant_building_id = 0;
+        }
+        if (!f->destination_building) {
+            refs.destination_building_id = 0;
+        }
         if ((f->type == FIGURE_IMMIGRANT || f->type == FIGURE_HOMELESS) && f->last_destination_id <= 0) {
             const unsigned int house_id = refs.destination_building_id ?
                 refs.destination_building_id :
@@ -1356,6 +1387,11 @@ void Figure::resolve_loaded_building_references()
             if (house_id) {
                 f->last_destination_id = static_cast<int>(house_id);
             }
+        }
+    }
+    for (auto it = invalid_figures.rbegin(); it != invalid_figures.rend(); ++it) {
+        if (Figure *figure = Figure::get(*it)) {
+            figure->remove();
         }
     }
     resolve_loaded_migrant_house_refs();
