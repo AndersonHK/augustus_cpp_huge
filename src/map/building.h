@@ -44,8 +44,6 @@ unsigned int map_building_rubble_building_id(int grid_offset);
 
 void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int building_id, int size);
 
-int map_building_ruins_left(const Building &building);
-
 void map_building_backup(void);
 
 /**

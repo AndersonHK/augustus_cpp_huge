@@ -170,25 +170,47 @@ static void write_rubble_type_data(buffer *buf, const building *b)
     const RubbleState *rubble_state = rubble_state_for_save(b);
     buffer_write_u16(buf, save_id_from_runtime_type(original_type_for_save(b)));
     buffer_write_u16(buf, rubble_state ? rubble_state->original_grid_offset : 0);
-    buffer_write_u8(buf, rubble_state ? rubble_state->original_size : 0);
     buffer_write_u8(buf, rubble_state ? rubble_state->original_orientation : 0);
 }
 
-static void read_rubble_type_data(buffer *buf, building *b, int for_preview)
+static void read_rubble_type_data(buffer *buf, building *b, int version, int for_preview)
 {
     const building_type_registry_impl::BuildingType *original_type =
         runtime_type_from_save_id(buffer_read_u16(buf));
-    const unsigned short original_grid_offset = buffer_read_u16(buf);
-    const unsigned char original_size = buffer_read_u8(buf);
-    const unsigned char original_orientation = buffer_read_u8(buf);
+    int original_grid_offset = 0;
+    int original_orientation = 0;
+    if (version <= SAVE_GAME_LAST_RUBBLE_ORIGIN_GRID_OFFSET) {
+        original_grid_offset = buffer_read_u16(buf);
+        buffer_read_u8(buf); // old square size; current BuildingType owns footprint dimensions
+        original_orientation = buffer_read_u8(buf);
+        if (original_type && original_type->has_composition()) {
+            const int rotation = (original_orientation % 4 + 4) % 4;
+            const building_type_registry_impl::ComposedBuildingDefinition &composition =
+                original_type->composition();
+            const building_type_registry_impl::ComposedPartOffset main_offset =
+                composition.main_offset_for_rotation(rotation);
+            original_grid_offset = map_grid_offset(
+                map_grid_offset_to_x(original_grid_offset) - main_offset.x,
+                map_grid_offset_to_y(original_grid_offset) - main_offset.y);
+        }
+    } else if (version <= SAVE_GAME_LAST_RUBBLE_ORIGIN_RECTANGLE) {
+        const int original_x = buffer_read_u8(buf);
+        const int original_y = buffer_read_u8(buf);
+        buffer_read_u8(buf); // width and height were redundant copies of BuildingType data
+        buffer_read_u8(buf);
+        original_grid_offset = map_grid_offset(original_x, original_y);
+        original_orientation = buffer_read_u8(buf);
+    } else {
+        original_grid_offset = buffer_read_u16(buf);
+        original_orientation = buffer_read_u8(buf);
+    }
     if (!b || for_preview) {
         return;
     }
 
     RubbleState rubble_state;
-    rubble_state.original_grid_offset = original_grid_offset;
-    rubble_state.original_size = original_size;
-    rubble_state.original_orientation = original_orientation;
+    rubble_state.original_grid_offset = static_cast<unsigned short>(original_grid_offset);
+    rubble_state.original_orientation = static_cast<unsigned char>(original_orientation);
     rubble_state.original_type = original_type;
     building_runtime_stage_loaded_rubble_state(b->id, rubble_state);
 }
@@ -803,7 +825,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.roadblock.exceptions = buffer_read_u16(buf);
         }
         if (type_is_warehouse(b->type)) {
-            read_rubble_type_data(buf, b, for_preview);
+            read_rubble_type_data(buf, b, version, for_preview);
         }
     } else if (save_type_is_monument && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -882,7 +904,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             b->data.industry.second_fishing_boat_id = 0;
         }
     } else if (type_is_rubble_shell(b->type) && version > SAVE_GAME_LAST_U16_GRIDS) {
-        read_rubble_type_data(buf, b, for_preview);
+        read_rubble_type_data(buf, b, version, for_preview);
     } else {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             buffer_skip(buf, 26);

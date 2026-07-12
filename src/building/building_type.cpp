@@ -1874,6 +1874,22 @@ int BuildingType::declared_model_size() const
     return has_model() && model().has_size() ? model().size() : 0;
 }
 
+int BuildingType::placement_width(int orientation) const
+{
+    if (!has_composition()) {
+        return std::max(declared_model_size(), 1);
+    }
+    return orientation % 2 ? composition().footprint_height() : composition().footprint_width();
+}
+
+int BuildingType::placement_height(int orientation) const
+{
+    if (!has_composition()) {
+        return std::max(declared_model_size(), 1);
+    }
+    return orientation % 2 ? composition().footprint_width() : composition().footprint_height();
+}
+
 figure_type BuildingType::preview_figure_type() const
 {
     if (!has_housing()) {

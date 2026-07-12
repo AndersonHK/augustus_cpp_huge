@@ -947,6 +947,8 @@ public:
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
     int declared_model_size() const;
+    int placement_width(int orientation) const;
+    int placement_height(int orientation) const;
     figure_type preview_figure_type() const;
     int required_workers() const;
     int has_data_only_graphics() const;

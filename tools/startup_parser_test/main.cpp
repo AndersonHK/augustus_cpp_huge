@@ -1,5 +1,8 @@
 #include "startup/startup_parser.h"
 
+#include "building/RubbleState.h"
+#include "building/building_type_registry_internal.h"
+
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -66,6 +69,54 @@ bool run_startup_parse()
         print_step(step);
     }
     return result.succeeded != 0;
+}
+
+bool validate_rubble_repair_contract()
+{
+    using building_type_registry_impl::BuildingType;
+    using building_type_registry_impl::definition_for_type;
+    using building_type_registry_impl::type_from_attr;
+
+    const BuildingType *farm = definition_for_type(type_from_attr("fruit_farm"));
+    const BuildingType *hippodrome = definition_for_type(type_from_attr("hippodrome"));
+    if (!farm || !farm->has_composition() ||
+        farm->composition().footprint_width() != 3 ||
+        farm->composition().footprint_height() != 3 ||
+        farm->composition().parts().size() != 5) {
+        std::cerr << "Rubble repair contract failed: fruit farm composition is not the expected 3x3/5-part shape.\n";
+        return false;
+    }
+    if (!hippodrome || !hippodrome->has_composition() ||
+        hippodrome->composition().footprint_width() != 15 ||
+        hippodrome->composition().footprint_height() != 5 ||
+        hippodrome->composition().parts().size() != 2) {
+        std::cerr << "Rubble repair contract failed: hippodrome composition is not the expected 15x5/2-part shape.\n";
+        return false;
+    }
+
+    RubbleState first;
+    first.original_grid_offset = 1234;
+    first.original_orientation = 3;
+    first.original_type = hippodrome;
+    RubbleState sibling = first;
+    if (!first.original_type || !first.same_origin(sibling)) {
+        std::cerr << "Rubble repair contract failed: identical rubble origins do not match.\n";
+        return false;
+    }
+    sibling.original_orientation++;
+    if (first.same_origin(sibling)) {
+        std::cerr << "Rubble repair contract failed: distinct rubble origins match.\n";
+        return false;
+    }
+    if (farm->placement_width(0) != 3 || farm->placement_height(0) != 3 ||
+        hippodrome->placement_width(0) != 15 || hippodrome->placement_height(0) != 5 ||
+        hippodrome->placement_width(1) != 5 || hippodrome->placement_height(1) != 15) {
+        std::cerr << "Rubble repair contract failed: BuildingType placement dimensions are incorrect.\n";
+        return false;
+    }
+
+    std::cout << "Validated rubble repair contracts (type-derived dimensions and pointer-backed origin identity).\n";
+    return true;
 }
 
 struct ExtractionPrerequisite {
@@ -170,6 +221,9 @@ int main(int argc, char **argv)
 
     if (!run_startup_parse()) {
         std::cerr << "Startup parser test failed.\n";
+        return 1;
+    }
+    if (!validate_rubble_repair_contract()) {
         return 1;
     }
 

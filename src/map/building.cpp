@@ -127,46 +127,6 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
     }
 }
 
-static int rubble_origins_match(const RubbleState &a, const RubbleState &b)
-{
-    return a.original_grid_offset == b.original_grid_offset &&
-        a.original_size == b.original_size &&
-        a.original_orientation == b.original_orientation &&
-        a.original_type == b.original_type;
-}
-
-int map_building_ruins_left(const Building &building)
-{
-    // doesnt work for hippodromes and forts - forts shouldnt turn to rubble, hippodromes are not repairable
-    int ruins_count = 0;
-    const building_type type = building.type ? building.type->type() : BUILDING_NONE;
-    const ::building *record = building.record();
-    if (!record || building.matches("hippodrome") || building_is_fort(type)) {
-        return 0;
-    }
-    const unsigned int building_id = building.id;
-    const RubbleState *rubble_state = building.Rubble ? building.Rubble->state() : nullptr;
-    int size = rubble_state && rubble_state->original_size ? rubble_state->original_size : record->size;
-    int slice_offset =
-        rubble_state && rubble_state->original_grid_offset ? rubble_state->original_grid_offset : record->grid_offset;
-    grid_slice *slice = map_grid_get_grid_slice_square(slice_offset, size);
-    for (int i = 0; i < slice->size; i++) {
-        int grid_offset = slice->grid_offsets[i];
-        if (map_building_exists_at(grid_offset)) {
-            const Building &tile_building = map_building_at(grid_offset);
-            const RubbleState *tile_rubble_state = tile_building.Rubble ? tile_building.Rubble->state() : nullptr;
-            if (rubble_state && tile_rubble_state && rubble_origins_match(*rubble_state, *tile_rubble_state)) {
-                ruins_count++;
-            } else if (!rubble_state && tile_building.id == building_id && tile_building.Rubble) {
-                ruins_count++;
-            }
-        } else if (!rubble_state && map_building_rubble_building_id(grid_offset) == building_id) {
-            ruins_count++;
-        }
-    }
-    return ruins_count;
-}
-
 void map_building_backup(void)
 {
     map_grid_copy_u32(buildings_grid.items, buildings_grid_backup.items);

@@ -52,6 +52,9 @@
 #include <string_view>
 #include <utility>
 
+// Repair and ordinary rubble clearing must quote the same per-tile price.
+constexpr int RUBBLE_CLEAR_COST_PER_TILE = 3;
+
 struct PlaceWarningMessage {
     warning_type type = WARNING_NONE;
     std::string text;
@@ -265,7 +268,7 @@ int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode cle
                 break;
         }
         if (map_terrain_is(g_offset, terrain_mask_to_remove)) {
-            total_cost += (cost == COST_FREE) ? 0 : 3; // base cost per tile is 50% more than regular clear
+            total_cost += (cost == COST_FREE) ? 0 : RUBBLE_CLEAR_COST_PER_TILE;
             if (cost != COST_MEASURE) {
                 map_terrain_remove(g_offset, terrain_mask_to_remove);
             }
@@ -493,7 +496,7 @@ static void add_to_map(
             b->subtype.fort_figure_type =
                 static_cast<short>(building_count_forts_get_figure_type_from_building(type));
         } else if (definition.composition().child_inherits_orientation()) {
-            b->subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+            b->subtype.orientation = static_cast<short>(placement.rotation());
         }
         add_composed_building(b, placement);
         if (definition.has_phased_construction()) {
@@ -577,16 +580,16 @@ static void add_to_map(
         b->data.market.is_mess_hall = 1;
         add_building(b);
     } else if (is_statue_with_orientation_type(type)) {
-        b->subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+        b->subtype.orientation = static_cast<short>(placement.rotation());
         add_building(b);
     } else if (definition.attr_is("small_mausoleum")) {
-        b->subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+        b->subtype.orientation = static_cast<short>(placement.rotation());
         map_tiles_update_area_roads(b->x, b->y, 4);
         building_monument_set_phase(b, MONUMENT_START);
     } else if (definition.attr_is("cart_depot")) {
         add_depot(b);
     } else if (definition.is_temple(std::nullopt, building_type_registry_impl::ReligionTier::Shrine)) {
-        b->subtype.orientation = static_cast<short>(building_rotation_get_rotation());
+        b->subtype.orientation = static_cast<short>(placement.rotation());
         add_building(b);
     } else if (definition.attr_is("barracks")) {
         b->accepted_goods[resource_weapons()] = 1;
@@ -1032,6 +1035,102 @@ static int building_construction_place_building_internal(building_type type, int
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates)
 {
     return building_construction_place_building_internal(type, x, y, exact_coordinates, 0, 1, 1);
+}
+
+building_construction_assessment building_construction_assess_repair(
+    const building_type_registry_impl::BuildingType &definition,
+    const RubbleState &origin)
+{
+    force_place_check check = { 0, 0, 0, 0, { 0 } };
+    int building_orientation = origin.original_orientation;
+    const int origin_x = map_grid_offset_to_x(origin.original_grid_offset);
+    const int origin_y = map_grid_offset_to_y(origin.original_grid_offset);
+    building_construction::ConstructionPlacementPlan placement(
+        definition,
+        origin_x,
+        origin_y,
+        1,
+        0,
+        origin.original_orientation,
+        &origin);
+    const int global_can_place = building_construction_global_rules_allow_placement(definition, 0);
+    const int local_can_place = building_construction_validate_local_placement_plan(
+        placement, &check, 0, &building_orientation);
+    const int can_place = global_can_place && local_can_place;
+    const int clear_cost =
+        placement.replaceable_rubble_tiles() * RUBBLE_CLEAR_COST_PER_TILE;
+    return {std::move(placement), can_place, !global_can_place, clear_cost};
+}
+
+const building_type_registry_impl::BuildingType *building_construction_repair_replacement_type(
+    const building_type_registry_impl::BuildingType &original_type)
+{
+    if (!original_type.has_housing()) {
+        return &original_type;
+    }
+    return building_type_registry_impl::definition_for_type(
+        building_type_registry_impl::vacant_lot_fill_type());
+}
+
+static Building *place_repaired_plan(
+    const building_type_registry_impl::BuildingType &definition,
+    const building_construction::ConstructionPlacementPlan &placement)
+{
+    Building &building_object = city_building_runtime().create(
+        definition,
+        placement.origin_x(),
+        placement.origin_y());
+    ::building *record = const_cast<::building *>(building_object.record());
+    game_undo_add_building(record);
+    add_to_map(definition.type(), record, placement.rotation(), placement);
+    instant_building_remove_required_resources(definition.type());
+    map_water_supply_refresh_building(&building_object);
+    return &building_object;
+}
+
+static Building *place_repaired_housing(
+    const building_construction::ConstructionPlacementPlan &original_placement,
+    const RubbleState &origin)
+{
+    const building_type_registry_impl::BuildingType *vacant_lot =
+        building_construction_repair_replacement_type(original_placement.definition());
+    if (!vacant_lot) {
+        return nullptr;
+    }
+
+    std::vector<building_construction::ConstructionPlacementPlan> lots;
+    for (const building_construction::ConstructionPlacementPart &part : original_placement.parts()) {
+        for (const building_construction::ConstructionPlacementTile &tile : part.tiles) {
+            lots.emplace_back(*vacant_lot, tile.x, tile.y, 1, 0, 0, &origin);
+            if (!lots.back().can_place()) {
+                return nullptr;
+            }
+        }
+    }
+
+    Building *first = nullptr;
+    for (const building_construction::ConstructionPlacementPlan &lot : lots) {
+        Building *placed = place_repaired_plan(*vacant_lot, lot);
+        if (!first) {
+            first = placed;
+        }
+    }
+    return first;
+}
+
+Building *building_construction_place_repaired_building(
+    const building_construction_assessment &assessment,
+    const RubbleState &origin)
+{
+    if (!assessment.can_place) {
+        return nullptr;
+    }
+
+    const building_construction::ConstructionPlacementPlan &placement = assessment.placement;
+    const building_type_registry_impl::BuildingType &definition = placement.definition();
+    return definition.has_housing() ?
+        place_repaired_housing(placement, origin) :
+        place_repaired_plan(definition, placement);
 }
 
 building_construction_assessment building_construction_assess_placement(

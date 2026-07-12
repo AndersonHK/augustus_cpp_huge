@@ -4,6 +4,8 @@
 
 #include <vector>
 
+struct RubbleState;
+
 namespace building_construction {
 
 using building_type_registry_impl::FoundationCellRequirement;
@@ -44,6 +46,15 @@ public:
         int y,
         int exact_coordinates,
         int force_place);
+    // Repair plans use the destroyed building's rotation and may replace only rubble from its origin.
+    ConstructionPlacementPlan(
+        const building_type_registry_impl::BuildingType &definition,
+        int x,
+        int y,
+        int exact_coordinates,
+        int force_place,
+        int rotation,
+        const RubbleState *replaceable_rubble);
 
     int can_place() const;
     building_type type() const;
@@ -56,9 +67,11 @@ public:
     int origin_x() const;
     int origin_y() const;
     int placement_size() const;
+    int rotation() const;
     int waterside_orientation_absolute() const;
     int waterside_orientation_relative() const;
     const std::vector<int> &clear_offsets() const;
+    int replaceable_rubble_tiles() const;
     const std::vector<ConstructionPlacementPart> &parts() const;
 
 private:
@@ -84,6 +97,8 @@ private:
     int origin_y_ = 0;
     int exact_coordinates_ = 0;
     int force_place_ = 0;
+    int rotation_ = 0;
+    const RubbleState *replaceable_rubble_ = nullptr;
     int placement_size_ = 0;
     int blocked_ = 0;
     int shoreline_failure_ = 0;
@@ -92,6 +107,7 @@ private:
     int waterside_orientation_relative_ = -1;
     int clear_cost_ = 0;
     std::vector<int> clear_offsets_;
+    int replaceable_rubble_tiles_ = 0;
     std::vector<ConstructionPlacementPart> parts_;
 };
 

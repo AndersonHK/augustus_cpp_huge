@@ -25,6 +25,7 @@ void building_runtime_stage_loaded_graphics_state(
     unsigned int building_id,
     const BuildingGraphicsState &state);
 void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const RubbleState &state);
+int building_runtime_loaded_rubble_state(unsigned int building_id, RubbleState *state);
 int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state);
 void building_runtime_backup_graphics_state(void);
 void building_runtime_restore_graphics_state(void);

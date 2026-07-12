@@ -552,7 +552,6 @@
     <ClCompile Include="src\figure\PathingMode_metadata.cpp" />
     <ClCompile Include="src\building\RubbleDef.cpp" />
     <ClCompile Include="src\building\RubbleModule.cpp" />
-    <ClCompile Include="src\building\RubbleState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\scenario\allowed_building.h" />

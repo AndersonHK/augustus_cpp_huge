@@ -546,7 +546,6 @@ void building_runtime_debug_dump(FILE *file)
         fprintf(file, "        \"is_rubble\": %d,\n", building.Rubble ? building.Rubble->is_rubble() : 0);
         fprintf(file, "        \"is_burning\": %d,\n", building.Rubble ? building.Rubble->is_burning() : 0);
         fprintf(file, "        \"original_grid_offset\": %u,\n", rubble_state ? rubble_state->original_grid_offset : 0);
-        fprintf(file, "        \"original_size\": %u,\n", rubble_state ? rubble_state->original_size : 0);
         fprintf(file, "        \"original_orientation\": %u,\n", rubble_state ? rubble_state->original_orientation : 0);
         fprintf(file, "        \"original_type_attr\": ");
         write_debug_json_string(
@@ -738,6 +737,20 @@ void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const 
     g_loaded_building_runtime_state[building_id].valid = 1;
     g_loaded_building_runtime_state[building_id].rubble_state_valid = 1;
     g_loaded_building_runtime_state[building_id].rubble_state = state;
+}
+
+int building_runtime_loaded_rubble_state(unsigned int building_id, RubbleState *state)
+{
+    if (!state) {
+        return 0;
+    }
+    const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
+        building_runtime_impl::loaded_runtime_state_for(building_id);
+    if (!loaded || !loaded->rubble_state_valid) {
+        return 0;
+    }
+    *state = loaded->rubble_state;
+    return 1;
 }
 
 int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state)

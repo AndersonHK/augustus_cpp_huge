@@ -51,11 +51,6 @@ static Building *runtime_building_for_id(unsigned int building_id)
     return found;
 }
 
-static building *record_for(Building *building)
-{
-    return building ? const_cast<::building *>(building->record()) : nullptr;
-}
-
 static Building *rubble_building_from_context(building_info_context *c)
 {
     if (c->building && c->building->id == static_cast<unsigned int>(c->rubble_building_id)) {
@@ -308,7 +303,9 @@ void window_building_draw_burning_ruin(building_info_context *c)
 static void trigger_building_repair(const complex_button *button)
 {
     Building *building = static_cast<Building *>(button->user_data);
-    building_repair(record_for(building));
+    if (building) {
+        building->repair();
+    }
     window_invalidate();
     window_go_back();
 }
@@ -322,23 +319,21 @@ static void init_repair_building_button(building_info_context *c)
     repair_building_button->width = static_cast<short>(button_width);
     repair_building_button->height = 20;
     Building *rubble = rubble_building_from_context(c);
-    building *b = building_repair_target(record_for(rubble));
-    Building *repair_target = b ? runtime_building_for_id(b->id) : rubble;
-    repair_building_button->parameters[0] = repair_target ? repair_target->id : 0;
+    repair_building_button->parameters[0] = rubble ? rubble->id : 0;
     static lang_fragment frag;
     frag = {};
     frag.type = LANG_FRAG_LABEL;
-    if (!building_can_repair(b)) {
-        frag.text_key = "TR_WARNING_REPAIR_IMPOSSIBLE";
-        repair_building_button->is_disabled = 1;
-    } else if (building_is_still_burning(b)) {
+    if (rubble && rubble->rubble_is_still_burning()) {
         frag.text_key = "TR_BUILDING_INFO_BUILDING_BURNING";
+        repair_building_button->is_disabled = 1;
+    } else if (!rubble || rubble->repair_cost() <= 0) {
+        frag.text_key = "TR_WARNING_REPAIR_IMPOSSIBLE";
         repair_building_button->is_disabled = 1;
     } else {
         frag.text_key = "TR_BUILDING_INFO_REPAIR_BUILDING";
         repair_building_button->is_disabled = 0;
     }
-    repair_building_button->user_data = repair_target;
+    repair_building_button->user_data = rubble;
     repair_building_button->left_click_handler = trigger_building_repair;
     repair_building_button->sequence = &frag;
     repair_building_button->sequence_size = 1;
@@ -351,24 +346,16 @@ void window_building_draw_rubble(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.140.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     Building *rubble = rubble_building_from_context(c);
-    building *b = building_repair_target(record_for(rubble));
-    if (!b) {
+    const building_type_registry_impl::BuildingType *original_definition =
+        rubble && rubble->Rubble ? rubble->Rubble->original_type() : nullptr;
+    if (!original_definition) {
         return;
     }
-    const building_type_registry_impl::BuildingType *og_type =
-        rubble && rubble->Rubble ? rubble->Rubble->original_type() : nullptr;
-    const building_type original_type = og_type ? og_type->type() : BUILDING_NONE;
-    building_type type = original_type == BUILDING_NONE ? static_cast<building_type>(b->type) : original_type;
-    int is_burning_ruins = building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "burning_ruin");
+    const building_type type = original_definition->type();
+    const int is_burning_ruins = rubble->Rubble->is_burning();
 
-    if (building_can_repair(b)) {
-        init_repair_building_button(c);
-        complex_button_draw(repair_building_button);
-    } else if (type != BUILDING_NONE) {
-        // cant repair but can clone - aqueducts or limited monuments. Show disabled button
-        init_repair_building_button(c);
-        complex_button_draw(repair_building_button);
-    }
+    init_repair_building_button(c);
+    complex_button_draw(repair_building_button);
     int cursor = text_draw(lang_get_building_type_string(type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (is_burning_ruins && type) { // show original building type if it's burning ruins
         cursor += text_draw(lang_get_building_type_string(type), c->x_offset + 32 + cursor, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);

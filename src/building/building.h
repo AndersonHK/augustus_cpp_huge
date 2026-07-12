@@ -150,6 +150,9 @@ public:
     int is_deleted() const;
     int is_in_use() const;
     int is_mothballed() const;
+    int rubble_is_still_burning() const;
+    int repair_cost() const;
+    int repair();
     int has_plague() const;
     int has_cached_road_access() const;
     int cached_road_access_point(map_point *road) const;
@@ -318,33 +321,15 @@ int building_find(building_type type);
 
 int building_find_with_mothballed(building_type type);
 
-int building_can_repair_type(building_type type);
-
 building *building_first_of_type(building_type type);
 
 void building_change_type(building *b, building_type type);
 
 building *building_main(const building *b);
 
-building *building_repair_target(building *b);
-
 building *building_next(building *b);
 
 int building_was_tent(const building *b);
-
-/**
- * @brief Repairs a building using it's entry in the buildings array. In cases of warehouses and burning ruins,
- * some information is removed or reset, so the building's RubbleModule state is used to help restore the building.
- * Keeping a building in the array is helpful because it holds the building's ID, and allows keeping the storage structure.
- */
-
-int building_repair(building *b);
-
-int building_is_still_burning(building *b);
-
-int building_can_repair(building *b);
-
-int building_repair_cost(building *b);
 
 void building_clear_related_data(building *b);
 

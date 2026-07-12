@@ -39,7 +39,6 @@
     <ClCompile Include="src\building\building_type_startup_bridge.cpp" />
     <ClCompile Include="src\building\RubbleDef.cpp" />
     <ClCompile Include="src\building\RubbleModule.cpp" />
-    <ClCompile Include="src\building\RubbleState.cpp" />
     <ClCompile Include="src\building\water_access_type.cpp" />
     <ClCompile Include="src\building\water_access_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />

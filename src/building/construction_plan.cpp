@@ -1,10 +1,13 @@
 #include "building/construction_plan.h"
 
+#include "building/RubbleState.h"
+#include "building/building.h"
 #include "building/construction.h"
 #include "building/properties.h"
 #include "building/rotation.h"
 #include "building/building_type_registry_internal.h"
 #include "map/figure.h"
+#include "map/building.h"
 #include "map/grid.h"
 #include "map/road_aqueduct.h"
 #include "map/terrain.h"
@@ -32,13 +35,14 @@ int type_size(const building_type_registry_impl::BuildingType *definition, build
     return props ? props->size : 1;
 }
 
-int type_placement_size(const building_type_registry_impl::BuildingType *definition, building_type type)
+int type_placement_size(
+    const building_type_registry_impl::BuildingType *definition,
+    building_type type,
+    int rotation)
 {
-    if (!definition || !definition->has_composition()) {
-        return type_size(definition, type);
-    }
-    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
-    return std::max(composition.footprint_width(), composition.footprint_height());
+    return definition ?
+        std::max(definition->placement_width(rotation), definition->placement_height(rotation)) :
+        type_size(nullptr, type);
 }
 
 int clear_land_cost()
@@ -95,6 +99,25 @@ ConstructionPlacementPlan::ConstructionPlacementPlan(
     int y,
     int exact_coordinates,
     int force_place)
+    : ConstructionPlacementPlan(
+        definition,
+        x,
+        y,
+        exact_coordinates,
+        force_place,
+        building_rotation_get_rotation(),
+        nullptr)
+{
+}
+
+ConstructionPlacementPlan::ConstructionPlacementPlan(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int exact_coordinates,
+    int force_place,
+    int rotation,
+    const RubbleState *replaceable_rubble)
     : type_(definition.type()),
       definition_(&definition),
       cursor_x_(x),
@@ -102,9 +125,11 @@ ConstructionPlacementPlan::ConstructionPlacementPlan(
       origin_x_(x),
       origin_y_(y),
       exact_coordinates_(exact_coordinates),
-      force_place_(force_place)
+      force_place_(force_place),
+      rotation_((rotation % 4 + 4) % 4),
+      replaceable_rubble_(replaceable_rubble)
 {
-    placement_size_ = type_ == BUILDING_NONE ? 0 : type_placement_size(definition_, type_);
+    placement_size_ = type_ == BUILDING_NONE ? 0 : type_placement_size(definition_, type_, rotation_);
     if (!exact_coordinates_ && placement_size_ > 0) {
         building_construction_offset_start_from_orientation(&origin_x_, &origin_y_, placement_size_);
     }
@@ -166,6 +191,11 @@ int ConstructionPlacementPlan::placement_size() const
     return placement_size_;
 }
 
+int ConstructionPlacementPlan::rotation() const
+{
+    return rotation_;
+}
+
 int ConstructionPlacementPlan::waterside_orientation_absolute() const
 {
     return waterside_orientation_absolute_;
@@ -179,6 +209,11 @@ int ConstructionPlacementPlan::waterside_orientation_relative() const
 const std::vector<int> &ConstructionPlacementPlan::clear_offsets() const
 {
     return clear_offsets_;
+}
+
+int ConstructionPlacementPlan::replaceable_rubble_tiles() const
+{
+    return replaceable_rubble_tiles_;
 }
 
 const std::vector<ConstructionPlacementPart> &ConstructionPlacementPlan::parts() const
@@ -196,17 +231,16 @@ void ConstructionPlacementPlan::build()
     if (!definition_->has_composition()) {
         add_part(type_, origin_x_, origin_y_);
     } else {
-        const int rotation = building_rotation_get_rotation();
         const building_type_registry_impl::ComposedBuildingDefinition &composition = definition_->composition();
         for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
-            const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+            const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation_);
             if (part.type != BUILDING_NONE && offset.has_value) {
                 add_part(part.type, origin_x_ + offset.x, origin_y_ + offset.y);
             }
         }
 
         const building_type_registry_impl::ComposedPartOffset main_offset =
-            composition.main_offset_for_rotation(rotation);
+            composition.main_offset_for_rotation(rotation_);
         add_part(type_, origin_x_ + main_offset.x, origin_y_ + main_offset.y);
     }
 
@@ -263,7 +297,7 @@ void ConstructionPlacementPlan::validate_part(ConstructionPlacementPart &part)
 int ConstructionPlacementPlan::select_foundation_rotation(const ConstructionPlacementPart &part)
 {
     if (part.definition->foundation().policy_type() != building_type_registry_impl::FoundationPolicy::Shoreline) {
-        return building_rotation_get_rotation();
+        return rotation_;
     }
 
     int absolute = -1;
@@ -316,6 +350,15 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
     }
 
     const int terrain = map_terrain_get(tile.grid_offset);
+    if (replaceable_rubble_ && map_building_exists_at(tile.grid_offset)) {
+        const Building &occupant = map_building_at(tile.grid_offset);
+        const RubbleState *occupant_state = occupant.Rubble ? occupant.Rubble->state() : nullptr;
+        if (occupant_state && replaceable_rubble_->same_origin(*occupant_state)) {
+            replaceable_rubble_tiles_++;
+            return tile.requirement == FoundationCellRequirement::Water ?
+                PlacementTileState::Forbidden : PlacementTileState::Allowed;
+        }
+    }
     int blocked_terrain = 0;
     switch (tile.requirement) {
         case FoundationCellRequirement::Any:

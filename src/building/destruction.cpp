@@ -1,8 +1,8 @@
-#include "building/data_transfer.h"
 #include "building/image.h"
 #include "building/local_workforce.h"
 #include "figuretype/wall.h"
 #include "game/undo.h"
+#include "map/aqueduct.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -48,31 +48,31 @@ static building_type rubble_type()
     return rubble;
 }
 
-struct RubbleOrigin {
-    const building_type_registry_impl::BuildingType *type = nullptr;
-    int grid_offset = 0;
-    int size = 1;
-    int orientation = 0;
-};
-
 struct RubbleTile {
     int x = 0;
     int y = 0;
     int grid_offset = 0;
 };
 
-static RubbleOrigin rubble_origin_for(Building &building_object)
+static RubbleState rubble_origin_for(Building &building_object)
 {
     Building &main_building = building_object.main();
     const building *record = main_building.record();
-    RubbleOrigin origin;
-    origin.type = main_building.type;
-    origin.grid_offset = record ? record->grid_offset : 0;
-    origin.size = record && record->size > 0 ? record->size : 1;
-    origin.orientation = record ? record->subtype.orientation : 0;
-    if (origin.type && origin.type->is_warehouse()) {
-        origin.size = 3;
+    RubbleState origin;
+    origin.original_type = main_building.type;
+    origin.original_orientation = record ? static_cast<unsigned char>(record->subtype.orientation) : 0;
+    int x = record ? record->x : 0;
+    int y = record ? record->y : 0;
+    if (origin.original_type && origin.original_type->has_composition()) {
+        const int rotation = (origin.original_orientation % 4 + 4) % 4;
+        const building_type_registry_impl::ComposedBuildingDefinition &composition =
+            origin.original_type->composition();
+        const building_type_registry_impl::ComposedPartOffset main_offset =
+            composition.main_offset_for_rotation(rotation);
+        x -= main_offset.x;
+        y -= main_offset.y;
     }
+    origin.original_grid_offset = static_cast<unsigned short>(map_grid_offset(x, y));
     return origin;
 }
 
@@ -144,53 +144,9 @@ static void retire_destroyed_part(Building &building_object)
     record->state = BUILDING_STATE_DELETED_BY_GAME;
 }
 
-static void bind_rubble_origin(Building &rubble, const RubbleOrigin &origin)
-{
-    if (!rubble.Rubble) {
-        return;
-    }
-    RubbleState *state = rubble.Rubble->state();
-    if (!state) {
-        return;
-    }
-    state->original_grid_offset = static_cast<unsigned short>(origin.grid_offset);
-    state->original_size = static_cast<unsigned char>(origin.size);
-    state->original_orientation = static_cast<unsigned char>(origin.orientation);
-    state->original_type = origin.type;
-}
-
-static building *create_rubble_piece(
-    const building_type_registry_impl::BuildingType &definition,
-    const RubbleOrigin &origin,
-    const RubbleTile &tile,
-    int burning,
-    int plagued)
-{
-    Building &rubble = city_building_runtime().create(definition, tile.x, tile.y);
-    building *record = const_cast<building *>(rubble.record());
-    if (!record) {
-        return nullptr;
-    }
-    record->state = static_cast<unsigned char>(burning ? BUILDING_STATE_IN_USE : BUILDING_STATE_RUBBLE);
-    record->x = static_cast<unsigned char>(tile.x);
-    record->y = static_cast<unsigned char>(tile.y);
-    record->grid_offset = static_cast<short>(tile.grid_offset);
-    record->size = 1;
-    record->prev_part_building_id = 0;
-    record->next_part_building_id = 0;
-    record->figure_id4 = 0;
-    record->tax_income_or_storage = 0;
-    record->fire_duration = burning ? static_cast<short>((record->house_figure_generation_delay & 7) + 1) : 0;
-    record->fire_proof = 1;
-    record->has_plague = static_cast<unsigned char>(plagued);
-    bind_rubble_origin(rubble, origin);
-    map_building_tiles_add_rubble(rubble, record->x, record->y, building_image_get(&rubble));
-    return record;
-}
-
 static void create_rubble_pieces(
     building_type rubble_building_type,
-    const RubbleOrigin &origin,
+    const RubbleState &origin,
     const std::vector<RubbleTile> &tiles,
     int burning,
     int plagued)
@@ -200,22 +156,36 @@ static void create_rubble_pieces(
     if (!definition) {
         return;
     }
-    building *previous = nullptr;
     for (const RubbleTile &tile : tiles) {
-        building *record = create_rubble_piece(*definition, origin, tile, burning, plagued);
-        if (!record) {
+        Building &rubble = city_building_runtime().create(*definition, tile.x, tile.y);
+        building *record = const_cast<building *>(rubble.record());
+        if (!record || !rubble.Rubble || !rubble.Rubble->state()) {
             continue;
         }
-        if (previous) {
-            previous->next_part_building_id = static_cast<short>(record->id);
-            record->prev_part_building_id = static_cast<short>(previous->id);
-        }
-        previous = record;
+        record->state = static_cast<unsigned char>(burning ? BUILDING_STATE_IN_USE : BUILDING_STATE_RUBBLE);
+        record->size = 1;
+        record->prev_part_building_id = 0;
+        record->next_part_building_id = 0;
+        record->figure_id4 = 0;
+        record->tax_income_or_storage = 0;
+        record->fire_duration = burning ? static_cast<short>((record->house_figure_generation_delay & 7) + 1) : 0;
+        record->fire_proof = 1;
+        record->has_plague = static_cast<unsigned char>(plagued);
+        *rubble.Rubble->state() = origin;
+        map_building_tiles_add_rubble(rubble, tile.x, tile.y, building_image_get(&rubble));
     }
-    if (origin.grid_offset) {
-        const int x = map_grid_offset_to_x(origin.grid_offset);
-        const int y = map_grid_offset_to_y(origin.grid_offset);
-        map_tiles_update_region_rubble(x, y, x + origin.size, y + origin.size);
+    if (!tiles.empty()) {
+        int x_min = tiles.front().x;
+        int x_max = x_min;
+        int y_min = tiles.front().y;
+        int y_max = y_min;
+        for (const RubbleTile &tile : tiles) {
+            x_min = std::min(x_min, tile.x);
+            x_max = std::max(x_max, tile.x);
+            y_min = std::min(y_min, tile.y);
+            y_max = std::max(y_max, tile.y);
+        }
+        map_tiles_update_region_rubble(x_min, y_min, x_max, y_max);
     }
 }
 
@@ -228,7 +198,6 @@ static void destroy_with_rubble(building *b, building_type rubble_building_type,
     }
 
     Building &destroyed = runtime->building;
-    const RubbleOrigin origin = rubble_origin_for(destroyed);
     std::vector<Building *> parts = collect_destroyed_parts(destroyed);
     std::vector<RubbleTile> tiles;
     for (Building *part : parts) {
@@ -236,10 +205,12 @@ static void destroy_with_rubble(building *b, building_type rubble_building_type,
             capture_rubble_tiles(*part, tiles);
         }
     }
+    const RubbleState origin = rubble_origin_for(destroyed);
 
-    const int updates_water_route = destroyed.type &&
-        destroyed.type->has_foundation() &&
-        destroyed.type->foundation().has_water_requirement();
+    const int destroys_aqueduct = destroyed.type && destroyed.type->tool().is_aqueduct();
+    const int updates_water_route = destroys_aqueduct ||
+        (destroyed.type && destroyed.type->has_foundation() &&
+            destroyed.type->foundation().has_water_requirement());
     for (Building *part : parts) {
         if (!part) {
             continue;
@@ -251,12 +222,21 @@ static void destroy_with_rubble(building *b, building_type rubble_building_type,
         retire_destroyed_part(*part);
     }
 
+    if (destroys_aqueduct) {
+        for (const RubbleTile &tile : tiles) {
+            map_aqueduct_remove(tile.grid_offset);
+            map_terrain_remove(tile.grid_offset, TERRAIN_AQUEDUCT);
+        }
+    }
+
     create_rubble_pieces(rubble_building_type, origin, tiles, burning, plagued);
-    if (origin.grid_offset) {
+    if (!tiles.empty() && origin.original_type) {
         figure_create_explosion_cloud(
-            map_grid_offset_to_x(origin.grid_offset),
-            map_grid_offset_to_y(origin.grid_offset),
-            origin.size,
+            tiles.front().x,
+            tiles.front().y,
+            std::max(
+                origin.original_type->placement_width(origin.original_orientation),
+                origin.original_type->placement_height(origin.original_orientation)),
             0);
     }
     if (updates_water_route) {
