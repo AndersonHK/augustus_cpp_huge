@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\s_pond_south_off">
+    <image id="s pond south off" isometric="true">
+        <layer src="s_pond_south_off" part="footprint"/>
+    </image>
+    <image id="s pond south on" isometric="true">
+        <layer group="Aesthetics\s_pond_south_off" image="s pond south off" part="footprint"/>
+        <layer group="Aesthetics\s_pond_south_off" image="s pond south off" part="top"/>
+        <layer src="s_pond_south_on_Layer_03" x="32" y="26" part="top" rotate="90"/>
+        <animation speed="12" x="31" y="25">
+            <frame src="s_pond_south_on_Frame_01" x="1" y="1" rotate="90"/>
+            <frame src="s_pond_south_on_Frame_02" x="1" y="1" rotate="90"/>
+            <frame src="s_pond_south_on_Frame_03" x="1" y="1"/>
+            <frame src="s_pond_south_on_Frame_04" x="1" y="1"/>
+            <frame src="s_pond_south_on_Frame_05" x="1" y="1"/>
+            <frame src="s_pond_south_on_Frame_06" x="1" y="1"/>
+            <frame src="s_pond_south_on_Frame_07" x="1" y="1" rotate="90"/>
+            <frame src="s_pond_south_on_Frame_08" x="1" y="1" rotate="90"/>
+        </animation>
+    </image>
+</assetlist>

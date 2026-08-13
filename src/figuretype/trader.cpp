@@ -43,6 +43,7 @@
 #include "figure/visited_buildings.h"
 #include "game/ResourceGraphics.h"
 #include "game/resource.h"
+#include "map/water_navigation.h"
 #include "game/time.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
@@ -98,16 +99,7 @@ static Figure &head_of_caravan(Figure &figure)
 
 static Building *building_ref(unsigned int id)
 {
-    Building *match = nullptr;
-    if (!id) {
-        return nullptr;
-    }
-    Building::for_each([id, &match](Building *building) {
-        if (!match && building->id == id) {
-            match = building;
-        }
-    });
-    return match;
+    return Building::get(id);
 }
 
 static ::building *record_for(Building *runtime_building)
@@ -687,8 +679,7 @@ static Building *get_closest_storage(const Figure *f, int, int, int city_id, map
             map_point_store_result(best->x() + 1, best->y() + 1, dst);
         } else if (best->matches("warehouse") && best->has_cached_road_access()) {
             map_point_store_result(best->x(), best->y(), dst);
-        } else if (!map_has_road_access_warehouse(best->x(), best->y(), dst) &&
-            !map_has_road_access_granary(best->x(), best->y(), dst)) {
+        } else if (!map_has_road_access_building(best->x(), best->y(), dst)) {
             resource_multiplier_reset();
             return nullptr; // No road access found
         } else {
@@ -706,7 +697,7 @@ static void go_to_next_storage(Figure *f)
     map_point dst;
     Building *destination = get_closest_storage(f, f->x, f->y, f->empire_city_id, &dst);
     if (destination) {
-        f->destination_building = destination;
+    f->set_destination_building(destination);
         f->action_state = FIGURE_ACTION_101_TRADE_CARAVAN_ARRIVING;
         f->destination_x = static_cast<unsigned char>(dst.x);
         f->destination_y = static_cast<unsigned char>(dst.y);
@@ -921,7 +912,7 @@ void figure_native_trader_action(Figure *f)
                 Building *building = get_closest_storage(f, f->x, f->y, 0, &tile);
                 if (building) {
                     f->action_state = FIGURE_ACTION_160_NATIVE_TRADER_GOING_TO_STORAGE;
-                    f->destination_building = building;
+    f->set_destination_building(building);
                     f->destination_x = static_cast<unsigned char>(tile.x);
                     f->destination_y = static_cast<unsigned char>(tile.y);
                 } else {
@@ -960,7 +951,7 @@ void figure_native_trader_action(Figure *f)
                     Building *next_storage = get_closest_storage(f, f->x, f->y, 0, &tile);
                     if (next_storage) {
                         f->action_state = FIGURE_ACTION_160_NATIVE_TRADER_GOING_TO_STORAGE;
-                        f->destination_building = next_storage;
+    f->set_destination_building(next_storage);
                         f->destination_x = static_cast<unsigned char>(tile.x);
                         f->destination_y = static_cast<unsigned char>(tile.y);
                     } else {
@@ -978,12 +969,9 @@ void figure_native_trader_action(Figure *f)
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);
-        f->clear_legacy_cart_overlay_image();
     } else {
         f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_MIGRANT_CART) + 8 + 8 * f->resource_id);
     }
-    f->finalize_legacy_cartpusher_overlay_image(dir);
 }
 
 int figure_trade_ship_is_trading(Figure *ship)
@@ -1054,7 +1042,6 @@ void figure_trade_ship_action(Figure *f)
     f->is_ghost = 0;
     f->is_boat = 1;
     figure_image_increase_offset(f, 12);
-    f->clear_legacy_cart_overlay_image();
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
             figure_combat_handle_attack(f);
@@ -1076,7 +1063,7 @@ void figure_trade_ship_action(Figure *f)
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_x = static_cast<unsigned char>(queue_tile.x);
                     f->destination_y = static_cast<unsigned char>(queue_tile.y);
-                    f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                     f->wait_ticks = FIGURE_REROUTE_DESTINATION_TICKS;
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -1104,7 +1091,7 @@ void figure_trade_ship_action(Figure *f)
                 Building *destination_dock = building_dock_get_destination(*f, nullptr, &tile);
                 if (!f->destination_building && destination_dock) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                    f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                     f->destination_x = static_cast<unsigned char>(tile.x);
                     f->destination_y = static_cast<unsigned char>(tile.y);
                     Route::remove(f);
@@ -1112,7 +1099,7 @@ void figure_trade_ship_action(Figure *f)
                 destination_dock = building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile);
                 if (destination_dock) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                    f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                     f->destination_x = static_cast<unsigned char>(tile.x);
                     f->destination_y = static_cast<unsigned char>(tile.y);
                     Route::remove(f);
@@ -1122,7 +1109,7 @@ void figure_trade_ship_action(Figure *f)
                     destination_dock = building_dock_get_destination(*f, nullptr, &tile);
                     if (destination_dock) {
                         f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                        f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                         f->destination_x = static_cast<unsigned char>(tile.x);
                         f->destination_y = static_cast<unsigned char>(tile.y);
                         Route::remove(f);
@@ -1143,7 +1130,7 @@ void figure_trade_ship_action(Figure *f)
                     Building *destination_dock = building_dock_get_destination(*f, f->destination_building, &tile);
                     if (destination_dock) {
                         f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                        f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                         f->destination_x = static_cast<unsigned char>(tile.x);
                         f->destination_y = static_cast<unsigned char>(tile.y);
                     } else {
@@ -1174,7 +1161,7 @@ void figure_trade_ship_action(Figure *f)
                         building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_1_DOCKING, &tile);
                     if (destination_dock && building_dock_request_docking(*f, *destination_dock, &tile)) {
                         f->action_state = FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK;
-                        f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                         f->destination_x = static_cast<unsigned char>(tile.x);
                         f->destination_y = static_cast<unsigned char>(tile.y);
                         building *record = record_for(f->destination_building);
@@ -1185,7 +1172,7 @@ void figure_trade_ship_action(Figure *f)
                         destination_dock = building_dock_reposition_anchored_ship(*f, &tile);
                         if (destination_dock) {
                             f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                            f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                             f->destination_x = static_cast<unsigned char>(tile.x);
                             f->destination_y = static_cast<unsigned char>(tile.y);
                         }
@@ -1229,12 +1216,12 @@ void figure_trade_ship_action(Figure *f)
                 Building *destination_dock = building_dock_get_destination(*f, f->destination_building, &tile);
                 if (destination_dock) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                    f->destination_building = destination_dock;
+    f->set_destination_building(destination_dock);
                     f->destination_x = static_cast<unsigned char>(tile.x);
                     f->destination_y = static_cast<unsigned char>(tile.y);
                 } else {
                     building *dst = record_for(f->destination_building);
-                    f->destination_building = nullptr;
+    f->set_destination_building(nullptr);
                     f->trade_ship_failed_dock_attempts = 0;
                     f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
                     f->wait_ticks = 0;
@@ -1271,7 +1258,7 @@ void figure_trade_ship_action(Figure *f)
         }
         case FIGURE_ACTION_115_TRADE_SHIP_LEAVING:
             figure_movement_move_ticks_with_percentage(f, 1, move_speed);
-            f->destination_building = nullptr;
+    f->set_destination_building(nullptr);
             f->height_adjusted_ticks = 0;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_110_TRADE_SHIP_CREATED;
@@ -1283,8 +1270,6 @@ void figure_trade_ship_action(Figure *f)
             }
             break;
     }
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHIP), dir, 0);
 }
 
 int figure_trade_land_trade_units(void)
@@ -1388,7 +1373,8 @@ int figure_trader_ship_get_distance_to_dock(const Figure *ship, unsigned int doc
     }
     map_point tile;
     building_dock_get_ship_request_tile(*dock, SHIP_DOCK_REQUEST_1_DOCKING, &tile);
-    return Route::waterPathLength({ ship->x, ship->y }, tile);
+    return water_navigation::path_length(
+        { ship->x, ship->y }, tile, WaterNavigationProfile::Boat);
 }
 
 int figure_trader_ship_other_ship_closer_to_dock(unsigned int dock_id, int distance)

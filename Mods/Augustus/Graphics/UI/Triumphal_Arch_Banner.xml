@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Triumphal_Arch_Banner">
+    <image id="Triumphal_Arch_Banner">
+        <layer src="Triumphal_Arch_Banner"/>
+    </image>
+</assetlist>

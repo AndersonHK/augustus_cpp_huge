@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Image_Border_Small">
+    <image id="Image Border Small">
+        <layer src="Image_Border_Small"/>
+    </image>
+    <image id="Image_0000">
+        <layer src="Image_0000"/>
+    </image>
+    <image id="Image_0001">
+        <layer src="Image_0001"/>
+    </image>
+    <image id="Image_0002">
+        <layer src="Image_0002"/>
+    </image>
+</assetlist>

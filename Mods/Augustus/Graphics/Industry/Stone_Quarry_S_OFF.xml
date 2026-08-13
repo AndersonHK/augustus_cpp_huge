@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Stone_Quarry_S_OFF">
+    <image id="Stone_Quarry_C_OFF" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_C_OFF"/>
+    <image id="Stone_Quarry_N_OFF" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_N_OFF"/>
+    <image id="Stone_Quarry_S_OFF" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_S_OFF"/>
+    <image id="Stone_Quarry_ON_01" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_01"/>
+    <image id="Stone_Quarry_ON_02" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_02"/>
+    <image id="Stone_Quarry_ON_03" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_03"/>
+    <image id="Stone_Quarry_ON_04" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_04"/>
+    <image id="Stone_Quarry_ON_05" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_05"/>
+    <image id="Stone_Quarry_ON_06" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_06"/>
+    <image id="Stone_Quarry_ON_07" width="48" height="49" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_ON_07"/>
+    <image id="Stone_Quarry_C_ON" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_C_ON"/>
+    <image id="Stone_Quarry_N_ON" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_N_ON"/>
+    <image id="Stone_Quarry_S_ON" width="118" height="60" isometric="true" group="Industry\Stone_Quarry_C_OFF" image="Stone_Quarry_S_ON"/>
+</assetlist>

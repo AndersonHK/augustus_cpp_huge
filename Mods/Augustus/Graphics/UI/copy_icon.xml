@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\copy_icon">
+    <image id="copy_icon" width="16" height="16">
+        <layer src="copy_icon" x="2" y="2"/>
+    </image>
+</assetlist>

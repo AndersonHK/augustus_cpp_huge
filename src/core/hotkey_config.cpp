@@ -173,7 +173,7 @@ const char *hotkey_building_text_id_for_action(hotkey_action action)
         case HOTKEY_BUILD_MARKET: return "market";
         case HOTKEY_BUILD_WALL: return "wall";
         case HOTKEY_BUILD_GATEHOUSE: return "gatehouse";
-        case HOTKEY_BUILD_RESERVOIR: return "draggable_reservoir";
+        case HOTKEY_BUILD_RESERVOIR: return "reservoir";
         case HOTKEY_BUILD_AQUEDUCT: return "aqueduct";
         case HOTKEY_BUILD_FOUNTAIN: return "fountain";
         case HOTKEY_BUILD_ROADBLOCK: return "roadblock";

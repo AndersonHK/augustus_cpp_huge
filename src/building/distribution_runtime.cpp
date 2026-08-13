@@ -1,25 +1,23 @@
 #include "building/distribution.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
+#include "building/BuildingGeometry.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
 #include "city/resource.h"
-#include "core/calc.h"
 #include "figure/figure.h"
 
 #include <climits>
-#include <memory>
 
 namespace building_type_registry_impl {
 
 namespace {
 
-void update_food_source(resource_storage_info *info, resource_type resource, const Building &source, int distance)
+void update_food_source(resource_storage_info *info, resource_type resource, Building &source, int distance)
 {
     if (distance < info[resource].min_distance && source.resource_amount(resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id;
+        info[resource].source = &source;
     }
 }
 
@@ -29,7 +27,7 @@ void update_warehouse_source(resource_storage_info *info, resource_type resource
         !city_resource_is_stockpiled(resource) &&
         building_warehouse_get_available_amount(source, resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id;
+        info[resource].source = &source;
     }
 }
 
@@ -53,70 +51,58 @@ int has_needed_food(const resource_storage_info info[RESOURCE_SLOT_COUNT])
     return 0;
 }
 
-int distance_to_building_box(int x, int y, int width, int height, const Building &source)
+int distance_between_buildings(const BuildingGeometry &target, const Building &source)
 {
-    int size = source.size();
-    return calc_box_distance(x, y, width, height, source.x(), source.y(), size, size);
+    const BuildingGeometry source_geometry = BuildingGeometry::query(source);
+    const int distance = target.distance_to(source_geometry);
+    return distance >= 0 ? distance : INT_MAX;
 }
 
 int find_distribution_sources(
     resource_storage_info info[RESOURCE_SLOT_COUNT],
     building_type type,
     int road_network,
-    int x,
-    int y,
-    int width,
-    int height,
+    const BuildingGeometry &target,
     int max_distance)
 {
     for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
         resource = static_cast<resource_type>(resource + 1)) {
         info[resource].min_distance = max_distance;
-        info[resource].building_id = 0;
+        info[resource].source = nullptr;
     }
 
     building_storage_permission_states permission = building_storage_get_permission_from_building_type(type);
     if (has_needed_food(info)) {
-        for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-            if (!definition || !definition->is_granary()) {
-                continue;
-            }
-            for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
-                if (type && invalid_distribution_source(*source, permission, road_network)) {
-                    continue;
-                }
-                int distance = distance_to_building_box(x, y, width, height, *source);
-                for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
-                    resource = static_cast<resource_type>(resource + 1)) {
-                    if (info[resource].needed && resource_is_food(resource)) {
-                        update_food_source(info, resource, *source, distance);
-                    }
-                }
-            }
-        }
-    }
-
-    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (!definition || !definition->is_warehouse()) {
-            continue;
-        }
-        for (Building *source = Building::first_of_type(definition->type()); source; source = source->next_of_type()) {
+        Building::for_each(BuildingRuntimeList::Granaries, [&](Building *source) {
             if (type && invalid_distribution_source(*source, permission, road_network)) {
-                continue;
+                return;
             }
-            int distance = distance_to_building_box(x, y, width, height, *source);
+            int distance = distance_between_buildings(target, *source);
             for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                 resource = static_cast<resource_type>(resource + 1)) {
-                if (info[resource].needed && resource_is_storable(resource)) {
-                    update_warehouse_source(info, resource, *source, distance);
+                if (info[resource].needed && resource_is_food(resource)) {
+                    update_food_source(info, resource, *source, distance);
                 }
             }
-        }
+        });
     }
+
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *source) {
+        if (type && invalid_distribution_source(*source, permission, road_network)) {
+            return;
+        }
+        int distance = distance_between_buildings(target, *source);
+        for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
+            resource = static_cast<resource_type>(resource + 1)) {
+            if (info[resource].needed && resource_is_storable(resource)) {
+                update_warehouse_source(info, resource, *source, distance);
+            }
+        }
+    });
 
     for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
         resource = static_cast<resource_type>(resource + 1)) {
-        if (info[resource].building_id) {
+        if (info[resource].source) {
             return 1;
         }
     }
@@ -199,7 +185,7 @@ resource_type Distribution::fetch_resource(
         }
 
         resource_type resource = rule.resource;
-        if (!info[resource].needed || !info[resource].building_id) {
+        if (!info[resource].needed || !info[resource].source) {
             continue;
         }
 
@@ -237,15 +223,11 @@ int find_distribution_sources_for_building(
     int max_distance)
 {
     const building_type type = start.type ? start.type->type() : BUILDING_NONE;
-    int size = start.size();
     return find_distribution_sources(
         info,
         type,
         start.road_network_id(),
-        start.x(),
-        start.y(),
-        size,
-        size,
+        BuildingGeometry::query(start),
         max_distance);
 }
 
@@ -256,7 +238,13 @@ int find_distribution_sources_for_figure(
     Figure *start,
     int max_distance)
 {
-    return start ? find_distribution_sources(info, type, road_network, start->x, start->y, 1, 1, max_distance) : 0;
+    if (!start) {
+        return 0;
+    }
+    const BuildingGeometry target = BuildingGeometry::from_world_cells({
+        { start->x, start->y }
+    });
+    return find_distribution_sources(info, type, road_network, target, max_distance);
 }
 
 } // namespace building_type_registry_impl

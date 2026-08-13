@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Sand_Supplied_Workshop">
+    <image id="Sand_Supplied_Workshop" width="25" height="21">
+        <layer src="Sand_Supplied_Workshop" x="1"/>
+    </image>
+</assetlist>

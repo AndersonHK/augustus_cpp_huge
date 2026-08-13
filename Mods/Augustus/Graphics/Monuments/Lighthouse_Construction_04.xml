@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Lighthouse_Construction_04">
+    <image id="Lighthouse_Construction_02" isometric="true" group="Monuments\Lighthouse_Construction_02" image="Lighthouse_Construction_02"/>
+    <image id="Lighthouse_Construction_03" width="178" height="139" isometric="true" group="Monuments\Lighthouse_Construction_02" image="Lighthouse_Construction_03"/>
+    <image id="Lighthouse_Construction_04" width="178" height="198" isometric="true" group="Monuments\Lighthouse_Construction_02" image="Lighthouse_Construction_04"/>
+</assetlist>

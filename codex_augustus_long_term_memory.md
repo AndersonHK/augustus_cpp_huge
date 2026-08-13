@@ -95,7 +95,7 @@ Primary design goals remain:
 - `ResourceGraphics`
   - resource-owned image-group references for carts, storage stacks, panel icons, empire icons, and editor icons
 - `building_type_registry` / `housing_type_registry`
-  - native BuildingType and HousingType XML loading, compatibility validation, legacy house-level bridge, and registry-to-legacy fan-out
+  - native BuildingType and HousingProfile XML loading, compatibility validation, legacy house-level bridge, and registry-to-legacy fan-out
 - `figure_type_registry` / `figure_runtime`
   - native FigureType XML loading and walker runtime migration direction
 - `map_road_service_history`
@@ -121,4 +121,4 @@ Primary design goals remain:
 - Do not collapse renderer policy back into many ad hoc draw helpers once the chokepoints exist.
 
 ## Short mnemonic
-Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType, FigureType, WaterAccessType, BuildingAnimation, FigureGraphics, ResourceGraphics, UnitType, and FormationType runtimes are active or mid-migration; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints and owner-bound modules, not broad rewrites.
+Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingProfile, FigureType, WaterAccessType, BuildingAnimation, FigureGraphics, ResourceGraphics, UnitType, and FormationType runtimes are active or mid-migration; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints and owner-bound modules, not broad rewrites.

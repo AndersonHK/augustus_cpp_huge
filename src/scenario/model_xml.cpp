@@ -55,9 +55,17 @@ static void export_model_data(buffer *buf)
         if (!props) {
             continue;
         }
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition) {
+            continue;
+        }
 
-        if (((!props->size || !props->event_data.attr) &&
-                !building_type_registry_impl::type_attr_is_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+        const bool has_scenario_identity =
+            !definition->has_rubble() || !definition->rubble().is_rubble();
+        const bool is_editor_tool = building_type_registry_impl::type_attr_is_any(
+            type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]));
+        if (((!has_scenario_identity || !definition->foundation_def()) && !is_editor_tool) ||
             building_type_registry_impl::type_attr_is_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
@@ -67,9 +75,6 @@ static void export_model_data(buffer *buf)
         if (!model) {
             continue;
         }
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-
         const int production_per_month = definition ? building_production_per_month(definition) : 0;
         const int default_production_per_month = definition ? building_default_production_per_month(definition) : 0;
         const int production_changed = production_per_month != default_production_per_month;
@@ -84,7 +89,7 @@ static void export_model_data(buffer *buf)
         }
 
         xml_exporter_new_element("building_model");
-        xml_exporter_add_attribute_text("building_type", props->event_data.attr);
+        xml_exporter_add_attribute_text("building_type", definition->attr());
         xml_exporter_add_attribute_int("cost", model->cost);
         xml_exporter_add_attribute_int("desirability_value", model->desirability_value);
         xml_exporter_add_attribute_int("desirability_step", model->desirability_step);

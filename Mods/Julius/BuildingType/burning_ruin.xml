@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="burning_ruin">
     <identity name_key="main_strings.28.99" />
-    <model size="1" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="-1" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <rubble kind="burning_ruin" burn_days="32" decays_to="rubble" />
-    <event_data attr="burning_ruin" />
     <flags fire_proof="1" />
     <labor>
         <employees count="0" />

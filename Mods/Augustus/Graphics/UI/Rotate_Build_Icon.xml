@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Rotate_Build_Icon">
+    <image id="Rotate Build Icon">
+        <layer src="Rotate_Build_Icon"/>
+    </image>
+</assetlist>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="ballista" graphics_only="true">
+    <graphics>
+        <missile_launcher cursor="missile_wait_ticks" frame_divisor="4" frames="0,1,2,3,4,5,6" after_frame="0" />
+        <state role="idle" action="ballista_created" image_group="ballista" base_offset="0" direction="movement" view_adjustments="1" frame="static" frame_divisor="1" direction_stride="8" />
+        <state role="firing" action="ballista_firing" image_group="ballista" base_offset="0" direction="movement" view_adjustments="1" frame="missile_launcher" frame_divisor="1" direction_stride="8" />
+        <state role="dead" action="corpse" image_group="ballista" base_offset="0" direction="movement" view_adjustments="1" frame="static" frame_divisor="1" direction_stride="8" />
+    </graphics>
+</figure>

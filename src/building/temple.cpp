@@ -12,20 +12,7 @@
 
 Building *building_temple_get_storage_destination(Building &temple)
 {
-    auto building_for_id = [](unsigned int building_id) -> Building * {
-        if (!building_id) {
-            return nullptr;
-        }
-        Building *destination = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!destination && building->id == building_id) {
-                destination = building;
-            }
-        });
-        return destination;
-    };
-    auto destination_for_resource = [&](resource_type resource, unsigned int building_id) -> Building * {
-        Building *destination = building_for_id(building_id);
+    auto destination_for_resource = [&](resource_type resource, Building *destination) -> Building * {
         if (destination) {
             temple.set_fetch_inventory_id(resource);
         }
@@ -72,8 +59,8 @@ Building *building_temple_get_storage_destination(Building &temple)
     }
 
     // Get food if below threshold
-    if (info[food].building_id && temple.resource_amount(food) < MAX_FOOD) {
-        return destination_for_resource(food, info[food].building_id);
+    if (info[food].source && temple.resource_amount(food) < MAX_FOOD) {
+        return destination_for_resource(food, info[food].source);
     }
 
     // Otherwise get allowed oil depending on stock
@@ -81,7 +68,7 @@ Building *building_temple_get_storage_destination(Building &temple)
     if (fetch_resource == RESOURCE_NONE) {
         return nullptr;
     }
-    return destination_for_resource(fetch_resource, info[fetch_resource].building_id);
+    return destination_for_resource(fetch_resource, info[fetch_resource].source);
 }
 
 int building_temple_mars_food_to_deliver(Building temple, Building mess_hall)

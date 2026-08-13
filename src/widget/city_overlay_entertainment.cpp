@@ -18,11 +18,18 @@ static Building &runtime_building_for_overlay_record(const building *record)
     if (tile_building.id == record->id) {
         return tile_building;
     }
-    Building &main_building = tile_building.main();
-    if (main_building.id == record->id) {
-        return main_building;
+    Building *main_building = tile_building.Composition ? tile_building.Composition->owner() : &tile_building;
+    if (main_building && main_building->id == record->id) {
+        return *main_building;
     }
     std::terminate();
+}
+
+static const HousingState &housing_state_for_overlay_record(const building *record)
+{
+    static const HousingState empty;
+    const Building &building = runtime_building_for_overlay_record(record);
+    return building.Housing ? building.Housing->state() : empty;
 }
 
 static int show_building_entertainment(const building *b)
@@ -141,65 +148,73 @@ static int show_figure_tavern(const Figure *f)
 
 static int get_column_height_entertainment(const building *b)
 {
-    return b->house_size && b->data.house.entertainment ? b->data.house.entertainment / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.entertainment ? services.entertainment / 10 : NO_COLUMN;
 }
 
 static int get_column_height_theater(const building *b)
 {
-    return b->house_size && b->data.house.theater ? b->data.house.theater / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.theater ? services.theater / 10 : NO_COLUMN;
 }
 
 static int get_column_height_amphitheater(const building *b)
 {
-    return b->house_size && b->data.house.amphitheater_actor ? b->data.house.amphitheater_actor / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.amphitheater_actor ? services.amphitheater_actor / 10 : NO_COLUMN;
 }
 
 static int get_column_height_arena(const building *b)
 {
-    return b->house_size && b->house_arena_gladiator ? b->house_arena_gladiator / 10 : NO_COLUMN;
+    const auto &state = housing_state_for_overlay_record(b);
+    return state.arena_gladiator ? state.arena_gladiator / 10 : NO_COLUMN;
 }
 
 static int get_column_height_colosseum(const building *b)
 {
-    return b->house_size && b->data.house.colosseum_gladiator ? b->data.house.colosseum_gladiator / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.colosseum_gladiator ? services.colosseum_gladiator / 10 : NO_COLUMN;
 }
 
 static int get_column_height_hippodrome(const building *b)
 {
-    return b->house_size && b->data.house.hippodrome ? b->data.house.hippodrome / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.hippodrome ? services.hippodrome / 10 : NO_COLUMN;
 }
 
 static int get_column_height_tavern(const building *b)
 {
-    if (!b->house_size || !b->house_tavern_wine_access) {
+    const auto &state = housing_state_for_overlay_record(b);
+    if (!state.tavern_wine_access) {
         return NO_COLUMN;
     }
-    return (((b->house_tavern_wine_access / 10) * 2) + (b->house_tavern_food_access / 10)) / 3;
+    return (((state.tavern_wine_access / 10) * 2) + (state.tavern_food_access / 10)) / 3;
 }
 
 static int get_tooltip_entertainment(tooltip_context *c, const building *b)
 {
     (void)c;
+    const int entertainment = housing_state_for_overlay_record(b).services.entertainment;
 
-    if (b->data.house.entertainment <= 0) {
+    if (entertainment <= 0) {
         return 64;
-    } else if (b->data.house.entertainment < 10) {
+    } else if (entertainment < 10) {
         return 65;
-    } else if (b->data.house.entertainment < 20) {
+    } else if (entertainment < 20) {
         return 66;
-    } else if (b->data.house.entertainment < 30) {
+    } else if (entertainment < 30) {
         return 67;
-    } else if (b->data.house.entertainment < 40) {
+    } else if (entertainment < 40) {
         return 68;
-    } else if (b->data.house.entertainment < 50) {
+    } else if (entertainment < 50) {
         return 69;
-    } else if (b->data.house.entertainment < 60) {
+    } else if (entertainment < 60) {
         return 70;
-    } else if (b->data.house.entertainment < 70) {
+    } else if (entertainment < 70) {
         return 71;
-    } else if (b->data.house.entertainment < 80) {
+    } else if (entertainment < 80) {
         return 72;
-    } else if (b->data.house.entertainment < 90) {
+    } else if (entertainment < 90) {
         return 73;
     } else {
         return 74;
@@ -209,12 +224,13 @@ static int get_tooltip_entertainment(tooltip_context *c, const building *b)
 static int get_tooltip_theater(tooltip_context *c, const building *b)
 {
     (void)c;
+    const int theater = housing_state_for_overlay_record(b).services.theater;
 
-    if (b->data.house.theater <= 0) {
+    if (theater <= 0) {
         return 75;
-    } else if (b->data.house.theater >= 80) {
+    } else if (theater >= 80) {
         return 76;
-    } else if (b->data.house.theater >= 20) {
+    } else if (theater >= 20) {
         return 77;
     } else {
         return 78;
@@ -224,12 +240,13 @@ static int get_tooltip_theater(tooltip_context *c, const building *b)
 static int get_tooltip_amphitheater(tooltip_context *c, const building *b)
 {
     (void)c;
+    const int amphitheater = housing_state_for_overlay_record(b).services.amphitheater_actor;
 
-    if (b->data.house.amphitheater_actor <= 0) {
+    if (amphitheater <= 0) {
         return 79;
-    } else if (b->data.house.amphitheater_actor >= 80) {
+    } else if (amphitheater >= 80) {
         return 80;
-    } else if (b->data.house.amphitheater_actor >= 20) {
+    } else if (amphitheater >= 20) {
         return 81;
     } else {
         return 82;
@@ -238,13 +255,14 @@ static int get_tooltip_amphitheater(tooltip_context *c, const building *b)
 
 static int get_tooltip_colosseum(tooltip_context *c, const building *b)
 {
-    if (b->data.house.colosseum_gladiator && b->data.house.colosseum_lion) {
+    const HousingState &state = housing_state_for_overlay_record(b);
+    if (state.services.colosseum_gladiator && state.services.colosseum_lion) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_5";
-    } else if (b->data.house.colosseum_gladiator) {
+    } else if (state.services.colosseum_gladiator) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_4";
-    } else if (b->house_arena_gladiator && b->house_arena_lion) {
+    } else if (state.arena_gladiator && state.arena_lion) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_3";
-    } else if (b->house_arena_gladiator) {
+    } else if (state.arena_gladiator) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_2";
     } else {
         c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_1";
@@ -255,12 +273,13 @@ static int get_tooltip_colosseum(tooltip_context *c, const building *b)
 static int get_tooltip_hippodrome(tooltip_context *c, const building *b)
 {
     (void)c;
+    const int hippodrome = housing_state_for_overlay_record(b).services.hippodrome;
 
-    if (b->data.house.hippodrome <= 0) {
+    if (hippodrome <= 0) {
         return 87;
-    } else if (b->data.house.hippodrome >= 80) {
+    } else if (hippodrome >= 80) {
         return 88;
-    } else if (b->data.house.hippodrome >= 20) {
+    } else if (hippodrome >= 20) {
         return 89;
     } else {
         return 90;
@@ -269,18 +288,19 @@ static int get_tooltip_hippodrome(tooltip_context *c, const building *b)
 
 static int get_tooltip_tavern(tooltip_context *c, const building *b)
 {
-    if (b->house_tavern_wine_access <= 0) {
+    const HousingState &state = housing_state_for_overlay_record(b);
+    if (state.tavern_wine_access <= 0) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_1";
-    } else if (b->house_tavern_wine_access <= 20) {
+    } else if (state.tavern_wine_access <= 20) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_2";
-    } else if (b->data.house.hippodrome <= 80) {
-        if (!b->house_tavern_food_access) {
+    } else if (state.services.hippodrome <= 80) {
+        if (!state.tavern_food_access) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_3";
         } else {
             c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_4";
         }
     } else {
-        if (!b->house_tavern_food_access) {
+        if (!state.tavern_food_access) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_5";
         } else {
             c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_6";

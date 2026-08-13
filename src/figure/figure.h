@@ -9,6 +9,7 @@
 #include "translation/translation.h"
 
 #include <cstdio>
+#include <vector>
 
 constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
 
@@ -45,10 +46,23 @@ public:
     static void save_state(buffer *list, buffer *seq);
     static void load_state(buffer *list, buffer *seq, int version);
     static void resolve_loaded_building_references();
+    static std::vector<unsigned int> ids_referencing_building(const Building &building);
+    static std::vector<unsigned int> ids_directly_referencing_building(const Building &building);
 
     void remove();
     void release_destination_reservations();
     int retarget_building(Building &from, Building &to);
+    bool set_home_building(Building *building);
+    bool set_immigrant_building(Building *building);
+    bool set_destination_building(Building *building);
+    bool set_last_destination_building(Building *building);
+    void set_last_destination_figure_id(unsigned int figure_id);
+    bool clear_last_destination_building_if_matches(const Building &building);
+    void clear_building_references();
+    unsigned int home_building_id() const;
+    unsigned int immigrant_building_id() const;
+    unsigned int destination_building_id() const;
+    bool references_building(const Building &building) const;
     int is_dead() const;
     int is_enemy() const;
     int is_melee_enemy() const;
@@ -95,9 +109,6 @@ public:
     void clear_legacy_image();
     void adjust_legacy_gladiator_attack_image_row();
     void clear_legacy_cart_overlay_image();
-    void select_legacy_cart_overlay_base_image(int base_image_id);
-    void select_legacy_cart_overlay_image(int base_image_id, int frame_direction);
-    void finalize_legacy_cartpusher_overlay_image(int frame_direction, bool lift_full_food_load = false);
 
     unsigned int image_id;
     unsigned int cart_image_id;
@@ -213,7 +224,14 @@ public:
     } tourist;
 
 private:
+    bool set_building_reference(Building *&relation, unsigned int &relation_id, Building *building);
+    bool set_indexed_building_id(unsigned int &relation_id, unsigned int building_id);
+
     unsigned int slot_ = 0;
+    unsigned int home_building_id_ = 0;
+    unsigned int immigrant_building_id_ = 0;
+    unsigned int destination_building_id_ = 0;
+    unsigned int last_destination_building_id_ = 0;
 };
 
 void figure_debug_dump(FILE *file);

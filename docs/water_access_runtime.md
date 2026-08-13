@@ -61,6 +61,14 @@ Julius must load without `latrines` and must not reference it.
 
 BuildingType XML stores water facts under a root-level `<water_access>` block. Do not put water semantics under graphics or spawn nodes.
 
+Navigable open-water requirements are declared on that block:
+
+```xml
+<water_access requires_open_water="true" />
+```
+
+The runtime evaluates this against the selected rotation's Foundation cells that require water. At least one cardinal neighbor outside those authored cells must be reachable from the scenario river entry through navigable water. The Foundation therefore owns shoreline geometry, while `WaterAccessDefinition` owns the semantic connectivity requirement. No additional rows of water are implied. Docks declare this requirement; wharves and shipyards do not unless their own XML opts in.
+
 Provider rules:
 
 ```xml
@@ -112,7 +120,7 @@ Primary files:
 - `src/building/water_access_type_id_bridge.h/.cpp`
   owns save-local water access id tables and old-save raw-id migration.
 - `src/building/building_type.h/.cpp`
-  stores `WaterAccessDefinition`, provide rules, requirement rules, and nodes.
+  stores `WaterAccessDefinition`, open-water connectivity, provide rules, requirement rules, and nodes.
 - `src/building/building_type_registry_xml.cpp`
   parses and validates XML references.
 - `src/building/water_access_runtime.h/.cpp`

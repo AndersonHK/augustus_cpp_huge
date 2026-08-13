@@ -1,31 +1,6 @@
 #include "formation_layout.h"
 
-#include "figure/formation.h"
-
 namespace {
-
-constexpr int LEGACY_LAYOUT_SLOT_COUNT = 16;
-
-static const FormationLayoutPosition LEGACY_LAYOUT_POSITIONS[FORMATION_MAX][LEGACY_LAYOUT_SLOT_COUNT] = {
-    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {-1, 0}, {-1, 1}, {0, -1}, {1, -1}, {-1, -1}, {2, -1}, {2, 0}, {2, 1}, {0, 2}, {1, 2}, {-1, 2}, {2, 2}},
-    {{0, 0}, {0, 1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}, {-2, 0}, {-2, 1}, {2, 0}, {2, 1}, {-3, 0}, {-3, 1}, {3, 0}, {3, 1}, {-4, 0}, {-4, 1}},
-    {{0, 0}, {0, -1}, {0, 1}, {1, 0}, {1, -1}, {1, 1}, {0, -2}, {1, -2}, {0, 2}, {1, 2}, {0, -3}, {1, -3}, {0, 3}, {1, 3}, {0, -4}, {1, -4}},
-    {{0, 0}, {2, 0}, {-2, 0}, {1, 1}, {-1, 1}, {3, 1}, {-3, 1}, {4, 0}, {-4, 0}, {5, 1}, {6, 0}, {-5, 1}, {-6, 0}, {7, 1}, {8, 0}, {-7, 1}},
-    {{0, 0}, {0, -2}, {0, 2}, {1, -1}, {1, 1}, {1, -3}, {1, 3}, {0, -4}, {0, 4}, {1, -5}, {0, -6}, {1, 5}, {0, 6}, {1, -7}, {0, -8}, {1, 7}},
-    {{0, 0}, {0, -1}, {1, 0}, {0, 1}, {-1, 0}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 0}},
-    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}},
-    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}},
-    {{0, 0}, {1, -1}, {0, 1}, {0, 0}, {1, 0}, {-1, 1}, {2, 1}, {-1, -1}, {1, -1}, {0, 1}, {1, 0}, {0, 2}, {1, 1}, {-1, 1}, {1, -2}, {-1, 1}},
-    {{0, 0}, {2, 1}, {-1, -1}, {1, 1}, {1, 0}, {-1, 1}, {3, 1}, {-2, -1}, {0, 2}, {-4, 0}, {-1, 3}, {0, 5}, {1, 4}, {4, 0}, {2, 3}, {-5, 2}},
-    {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
-    {{0, 0}, {2, 0}, {0, 2}, {2, 2}, {-2, 0}, {-2, 2}, {0, -2}, {2, -2}, {-2, -2}, {4, -2}, {4, 0}, {4, 2}, {0, 4}, {2, 4}, {-2, 4}, {4, 4}},
-    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}}
-};
-
-bool has_legacy_position(int layout, int index)
-{
-    return layout >= 0 && layout < FORMATION_MAX && index >= 0 && index < LEGACY_LAYOUT_SLOT_COUNT;
-}
 
 int positive_or(int value, int fallback)
 {
@@ -59,10 +34,14 @@ FormationLayoutPosition computed_position(int index, int declared_capacity, Form
     return {index % columns, index / columns};
 }
 
-FormationLayoutPosition position_for_slot(int layout, int index, int declared_capacity, FormationLayoutFootprint footprint)
+FormationLayoutPosition position_for_slot(
+    const FormationLayoutDef *layout,
+    int index,
+    int declared_capacity,
+    FormationLayoutFootprint footprint)
 {
-    if (has_legacy_position(layout, index)) {
-        return LEGACY_LAYOUT_POSITIONS[layout][index];
+    if (layout && index >= 0 && index < layout->authored_position_count()) {
+        return layout->authored_position(index);
     }
     return computed_position(index, declared_capacity, footprint);
 }
@@ -75,7 +54,7 @@ FormationLayoutFootprint formation_layout_legacy_footprint()
 }
 
 FormationLayoutPosition formation_layout_position(
-    int layout,
+    const FormationLayoutDef *layout,
     int index,
     int declared_capacity)
 {
@@ -87,7 +66,7 @@ FormationLayoutPosition formation_layout_position(
 }
 
 FormationLayoutPosition formation_layout_position(
-    int layout,
+    const FormationLayoutDef *layout,
     int index,
     int declared_capacity,
     FormationLayoutFootprint footprint)
@@ -99,7 +78,7 @@ FormationLayoutPosition formation_layout_position(
 }
 
 std::vector<FormationLayoutPosition> formation_layout_positions(
-    int layout,
+    const FormationLayoutDef *layout,
     int live_slot_count,
     int declared_capacity)
 {
@@ -111,7 +90,7 @@ std::vector<FormationLayoutPosition> formation_layout_positions(
 }
 
 std::vector<FormationLayoutPosition> formation_layout_positions(
-    int layout,
+    const FormationLayoutDef *layout,
     int live_slot_count,
     int declared_capacity,
     FormationLayoutFootprint footprint)

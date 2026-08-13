@@ -5,21 +5,16 @@
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "building/dock.h"
-#include "building/house.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 
 static const building DUMMY_BUILDING = { 0 };
 
-static building *first_of_type(const char *text_id)
-{
-    building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
-}
-
 static const building *get_first_working_building(const char *text_id)
 {
-    for (building *b = first_of_type(text_id); b; b = b->next_of_type) {
+    const building_type type = building_type_registry_impl::type_from_attr(text_id);
+    for (const Building &building : Building::of_type(type)) {
+        const ::building *b = building.record();
         if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
             b->state == BUILDING_STATE_MOTHBALLED) {
             return b;
@@ -125,84 +120,39 @@ void city_buildings_main_native_meeting_center(int *x, int *y)
     *y = native_meeting->y;
 }
 
-static int is_plague_service_building(const Building &building)
+Building *city_buildings_get_closest_plague(int x, int y, int *distance)
 {
-    const auto *definition = building.type;
-    return definition &&
-        (building.matches("dock") ||
-            definition->is_warehouse() ||
-            definition->is_granary());
-}
-
-int city_buildings_get_closest_plague(int x, int y, int *distance)
-{
-    int min_free_building_id = 0;
-    int min_occupied_building_id = 0;
+    Building *closest_free = nullptr;
+    Building *closest_occupied = nullptr;
     int min_occupied_dist = *distance = 10000;
 
-    auto record_plague_candidate = [&](building *b) {
-        int dist = calc_maximum_distance(x, y, b->x, b->y);
-        if (b->figure_id4) {
+    Building::for_each(BuildingRuntimeList::PlagueTargets, [&](Building *candidate) {
+        if (!candidate || !candidate->has_plague() || !candidate->distance_from_entry() ||
+            !candidate->is_in_use()) {
+            return;
+        }
+        const int dist = candidate->max_distance_to(x, y);
+        if (candidate->has_quaternary_figure()) {
             if (dist < min_occupied_dist) {
                 min_occupied_dist = dist;
-                min_occupied_building_id = b->id;
+                closest_occupied = candidate;
             }
         } else if (dist < *distance) {
             *distance = dist;
-            min_free_building_id = b->id;
-        }
-    };
-
-    Building::for_each([&](Building *building_object) {
-        building *b = const_cast<building *>(building_object->record());
-        if (!b || !b->has_plague || !b->distance_from_entry) {
-            return;
-        }
-        if (building_house_is_active(*building_object) ||
-            (b->state == BUILDING_STATE_IN_USE && is_plague_service_building(*building_object))) {
-            record_plague_candidate(b);
+            closest_free = candidate;
         }
     });
 
-    if (!min_free_building_id && min_occupied_dist <= 2) {
-        min_free_building_id = min_occupied_building_id;
+    if (!closest_free && min_occupied_dist <= 2) {
         *distance = 2;
+        return closest_occupied;
     }
-    return min_free_building_id;
-}
-
-static void update_sickness_duration(building *b)
-{
-    if (!b) {
-        return;
-    }
-    if (b->state != BUILDING_STATE_IN_USE || !b->has_plague) {
-        return;
-    }
-
-    // Stop plague after time or if doctor heals it
-    if (b->sickness_duration == 99) {
-        b->sickness_duration = 0;
-        b->has_plague = 0;
-        b->sickness_level = 0;
-        b->sickness_doctor_cure = 0;
-        b->figure_id4 = 0;
-        b->fumigation_frame = 0;
-        b->fumigation_direction = 0;
-    } else {
-        b->sickness_duration += 1;
-    }
+    return closest_free;
 }
 
 void city_buildings_update_plague(void)
 {
-    Building::for_each([](Building *building_object) {
-        building *b = const_cast<building *>(building_object->record());
-        if (!b) {
-            return;
-        }
-        if (b->house_size || is_plague_service_building(*building_object)) {
-            update_sickness_duration(b);
-        }
+    Building::for_each(BuildingRuntimeList::PlagueTargets, [](Building *building_object) {
+        building_object->advance_plague_day();
     });
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\16Legion_Bears">
+    <image id="16Legion_Bears" width="29" height="18">
+        <layer src="16Legion_Bears" x="1" y="1"/>
+    </image>
+</assetlist>

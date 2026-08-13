@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Caravanserai_S_On_02">
+    <image id="Caravanserai_S_On_01" width="238" height="155" group="Monuments\Caravanserai_S_On_01" image="Caravanserai_S_On_01"/>
+    <image id="Caravanserai_S_On_02" width="238" height="155" group="Monuments\Caravanserai_S_On_01" image="Caravanserai_S_On_02"/>
+    <image id="Caravanserai_S_On_03" width="238" height="155" group="Monuments\Caravanserai_S_On_01" image="Caravanserai_S_On_03"/>
+    <image id="Caravanserai_S_OFF" width="238" height="155" isometric="true" group="Monuments\Caravanserai_S_On_01" image="Caravanserai_S_OFF"/>
+    <image id="Caravanserai_S_ON" width="238" height="155" isometric="true" group="Monuments\Caravanserai_S_On_01" image="Caravanserai_S_ON"/>
+</assetlist>

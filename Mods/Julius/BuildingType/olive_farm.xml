@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="olive_farm">
     <identity name_key="main_strings.28.103" />
-    <model size="2" cost="40" />
+    <model cost="40" />
     <desirability>
         <value value="2" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land">
-        <terrain value="meadow" />
-    </foundation>
+    <foundation path="meadow_2x2" />
     <button group="farms" order="40" icon="Industry\Farm_House" text_key="main_strings.28.103" />
     <sound id="olive_farm" />
-    <event_data attr="olive_farm" />
     <graphics>
+        <overlay_summary mode="composition_owner" />
+        <status_icon x="50" y="-50" />
         <default>
             <path value="Industry\Farm_House" />
             <image value="Image_0000" />
@@ -30,11 +29,11 @@
     <storages>
         <storage path="olives_output_olive_farm" />
     </storages>
-    <composed footprint_width="3" footprint_height="3">
-        <part type="olive_farm_field" role="field_1" x="0" y="2" />
-        <part type="olive_farm_field" role="field_2" x="1" y="2" />
-        <part type="olive_farm_field" role="field_3" x="2" y="2" />
-        <part type="olive_farm_field" role="field_4" x="2" y="1" />
-        <part type="olive_farm_field" role="field_5" x="2" y="0" />
-    </composed>
+    <composition>
+        <child type="olive_farm_field" role="field_1" x="0" y="2" />
+        <child type="olive_farm_field" role="field_2" x="1" y="2" />
+        <child type="olive_farm_field" role="field_3" x="2" y="2" />
+        <child type="olive_farm_field" role="field_4" x="2" y="1" />
+        <child type="olive_farm_field" role="field_5" x="2" y="0" />
+    </composition>
 </building>

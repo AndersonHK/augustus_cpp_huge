@@ -6,6 +6,7 @@
 #include "figure/type.h"
 
 #include <algorithm>
+#include <functional>
 #include <initializer_list>
 #include <vector>
 class Building;
@@ -13,7 +14,76 @@ class Figure;
 
 
 #define MAX_LEGIONS 6
-constexpr int LEGACY_FORMATION_ROSTER_SLOTS = 16;
+
+enum class FormationFortLinkFailure {
+    None,
+    MissingFormation,
+    MissingFort,
+    InactiveFort,
+    InactiveFormation,
+    NotLegion,
+    MissingFormationType,
+    ConflictingFormationId,
+    ConflictingFortId
+};
+
+struct FormationFortLinkState {
+    unsigned int formation_id = 0;
+    unsigned int fort_id = 0;
+    int fort_is_live = 0;
+    int formation_in_use = 0;
+    int formation_is_legion = 0;
+    int has_resolved_formation_type = 0;
+    int saved_fort_formation_id = 0;
+    int saved_formation_fort_id = 0;
+};
+
+inline FormationFortLinkFailure validate_formation_fort_link(const FormationFortLinkState &state)
+{
+    if (!state.formation_id) {
+        return FormationFortLinkFailure::MissingFormation;
+    }
+    if (!state.fort_id) {
+        return FormationFortLinkFailure::MissingFort;
+    }
+    if (!state.fort_is_live) {
+        return FormationFortLinkFailure::InactiveFort;
+    }
+    if (!state.formation_in_use) {
+        return FormationFortLinkFailure::InactiveFormation;
+    }
+    if (!state.formation_is_legion) {
+        return FormationFortLinkFailure::NotLegion;
+    }
+    if (!state.has_resolved_formation_type) {
+        return FormationFortLinkFailure::MissingFormationType;
+    }
+    if (state.saved_fort_formation_id != 0 &&
+        static_cast<unsigned int>(state.saved_fort_formation_id) != state.formation_id) {
+        return FormationFortLinkFailure::ConflictingFormationId;
+    }
+    if (state.saved_formation_fort_id != 0 &&
+        static_cast<unsigned int>(state.saved_formation_fort_id) != state.fort_id) {
+        return FormationFortLinkFailure::ConflictingFortId;
+    }
+    return FormationFortLinkFailure::None;
+}
+
+inline const char *formation_fort_link_failure_text(FormationFortLinkFailure failure)
+{
+    switch (failure) {
+        case FormationFortLinkFailure::None: return "none";
+        case FormationFortLinkFailure::MissingFormation: return "formation has no runtime id";
+        case FormationFortLinkFailure::MissingFort: return "fort has no runtime id";
+        case FormationFortLinkFailure::InactiveFort: return "fort is not live";
+        case FormationFortLinkFailure::InactiveFormation: return "formation is inactive";
+        case FormationFortLinkFailure::NotLegion: return "formation is not a legion";
+        case FormationFortLinkFailure::MissingFormationType: return "fort has no resolved FormationType";
+        case FormationFortLinkFailure::ConflictingFormationId: return "fort references a different formation";
+        case FormationFortLinkFailure::ConflictingFortId: return "formation references a different fort";
+    }
+    return "unknown formation-fort link failure";
+}
 
 #define NATIVE_FORMATION 0
 
@@ -23,23 +93,6 @@ enum formation_attack_enum {
     FORMATION_ATTACK_BEST_BUILDINGS = 2,
     FORMATION_ATTACK_TROOPS = 3,
     FORMATION_ATTACK_RANDOM = 4
-};
-
-enum {
-    FORMATION_COLUMN = 0,
-    FORMATION_DOUBLE_LINE_1 = 1,
-    FORMATION_DOUBLE_LINE_2 = 2,
-    FORMATION_SINGLE_LINE_1 = 3,
-    FORMATION_SINGLE_LINE_2 = 4,
-    FORMATION_TORTOISE = 5,
-    FORMATION_MOP_UP = 6,
-    FORMATION_AT_REST = 7,
-    FORMATION_ENEMY_MOB = 8,
-    FORMATION_HERD = 9,
-    FORMATION_ENEMY_DOUBLE_LINE = 10,
-    FORMATION_ENEMY_WIDE_COLUMN = 11,
-    FORMATION_ENEMY12 = 12,
-    FORMATION_MAX = 13
 };
 
 struct formation_state {
@@ -60,7 +113,7 @@ struct formation {
     int is_herd; /**< Flag to indicate herd */
     int is_legion; /**< Flag to indicate (own) legion */
     int legion_id; /**< Legion ID > 0 for own troops */
-    int layout;
+    const FormationLayoutDef *layout_definition; /**< Runtime layout; legacy numeric ids exist only at bridges. */
     int direction;
     int orientation;
 
@@ -132,7 +185,7 @@ struct formation {
     int herd_wolf_spawn_delay;
 
     struct {
-        int layout;
+        const FormationLayoutDef *layout_definition;
         int x_home;
         int y_home;
     } prev;
@@ -153,9 +206,38 @@ struct formation {
         return formation_type_definition;
     }
 
-    void bind_legion_definition_from_fort(const Building &fort);
-    void refresh_legion_definition_from_home();
-    void initialize_legion_from_fort(const Building &fort, int assigned_legion_id);
+    bool set_layout(const char *key)
+    {
+        const FormationLayoutDef *definition = formation_layout_registry_impl::find_layout(key);
+        if (!definition) {
+            return false;
+        }
+        layout_definition = definition;
+        return true;
+    }
+
+    bool set_layout_from_legacy_id(int legacy_id)
+    {
+        const FormationLayoutDef *definition = formation_layout_from_legacy_id(legacy_id);
+        layout_definition = definition;
+        return definition != nullptr;
+    }
+
+    const FormationLayoutDef *layout_type() const
+    {
+        return layout_definition;
+    }
+
+    bool uses_layout(const char *key) const
+    {
+        return layout_definition && layout_definition->matches_key(key);
+    }
+
+    bool bind_to_fort(Building &fort, const char **failure_reason = nullptr);
+    void unbind_from_fort();
+    Building *fort() const;
+    bool refresh_legion_definition_from_home();
+    bool initialize_legion_from_fort(Building &fort, int assigned_legion_id);
 
     ::figure_type figure_type_id() const
     {
@@ -182,13 +264,13 @@ struct formation {
         if (formation_type_definition) {
             return formation_type_definition->capacity();
         }
-        return max_figures > 0 ? max_figures : LEGACY_FORMATION_ROSTER_SLOTS;
+        return max_figures > 0 ? max_figures : 0;
     }
 
     int slot_capacity() const
     {
         const int capacity = declared_capacity();
-        return capacity > 0 ? capacity : LEGACY_FORMATION_ROSTER_SLOTS;
+        return capacity > 0 ? capacity : std::max(num_figures, 1);
     }
 
     int figure_count() const
@@ -196,8 +278,7 @@ struct formation {
         if (num_figures <= 0) {
             return 0;
         }
-        const int capacity = slot_capacity();
-        return num_figures < capacity ? num_figures : capacity;
+        return num_figures;
     }
 
     int total_figure_count() const
@@ -212,17 +293,20 @@ struct formation {
 
     int has_open_slot() const
     {
-        return num_figures < slot_capacity();
+        const int capacity = declared_capacity();
+        return capacity <= 0 || num_figures < capacity;
     }
 
     int is_full() const
     {
-        return num_figures >= slot_capacity();
+        const int capacity = declared_capacity();
+        return capacity > 0 && num_figures >= capacity;
     }
 
     int overflow_count() const
     {
-        const int overflow = num_figures - slot_capacity();
+        const int capacity = declared_capacity();
+        const int overflow = capacity > 0 ? num_figures - capacity : 0;
         return overflow > 0 ? overflow : 0;
     }
 
@@ -243,7 +327,6 @@ struct formation {
     int legion_distant_battle_strength_factor() const;
     int legion_curse_weight() const;
     std::vector<int> layout_grid_offsets() const;
-    int legacy_storage_slot_count() const;
     void ensure_roster_capacity(int capacity);
     int roster_figure_id(int slot) const;
     void write_legacy_figure_slots(buffer *buf) const;
@@ -262,16 +345,14 @@ struct formation {
 
     int assign_figure_to_open_slot(int figure_id)
     {
-        const int capacity = slot_capacity();
-        ensure_roster_capacity(capacity);
-        for (int slot = 0; slot < capacity; slot++) {
+        for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
             if (!figures[slot]) {
                 figures[slot] = figure_id;
                 return slot;
             }
         }
-        // Large invasions can overflow the fixed legacy array; spread overflow soldiers across existing slots.
-        return figure_id % capacity;
+        figures.push_back(figure_id);
+        return static_cast<int>(figures.size()) - 1;
     }
 
     int add_figure_to_roster(int figure_id, int deployed, int damage, int max_damage)
@@ -287,8 +368,7 @@ struct formation {
 
     int first_figure_id() const
     {
-        const int capacity = slot_capacity();
-        for (int slot = 0; slot < capacity; slot++) {
+        for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
             const int figure_id = roster_figure_id(slot);
             if (figure_id) {
                 return figure_id;
@@ -299,6 +379,8 @@ struct formation {
 
     Figure *first_figure() const;
     Figure *first_alive_figure() const;
+    void for_each_figure(const std::function<void(Figure &, int)> &visitor) const;
+    void for_each_alive_figure(const std::function<void(Figure &, int)> &visitor) const;
     int count_alive_figures() const;
     int count_figures_in_action(int action_state) const;
     bool has_figure_in_action(int action_state) const;
@@ -319,8 +401,7 @@ struct formation {
     template <typename Visitor>
     void for_each_figure_id(Visitor visitor) const
     {
-        const int capacity = slot_capacity();
-        for (int slot = 0; slot < capacity; slot++) {
+        for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
             const int figure_id = roster_figure_id(slot);
             if (figure_id) {
                 visitor(figure_id, slot);
@@ -331,7 +412,7 @@ struct formation {
     template <typename Visitor>
     void for_each_figure_id_reverse(Visitor visitor) const
     {
-        for (int slot = slot_capacity() - 1; slot >= 0; slot--) {
+        for (int slot = static_cast<int>(figures.size()) - 1; slot >= 0; slot--) {
             const int figure_id = roster_figure_id(slot);
             if (figure_id) {
                 visitor(figure_id, slot);
@@ -342,8 +423,7 @@ struct formation {
     template <typename Predicate>
     bool any_figure_id(Predicate predicate) const
     {
-        const int capacity = slot_capacity();
-        for (int slot = 0; slot < capacity; slot++) {
+        for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
             const int figure_id = roster_figure_id(slot);
             if (figure_id && predicate(figure_id, slot)) {
                 return true;
@@ -358,12 +438,13 @@ void formations_clear(void);
 
 void formation_clear(int formation_id);
 
-formation *formation_create_legion(const Building &fort);
+formation *formation_create_legion(Building &fort);
 int formation_create_herd(figure_type type, int x, int y, int num_animals);
 int formation_create_enemy(figure_type type, int x, int y, int layout, int orientation,
                            int enemy_type, int attack_type, int invasion_id, int invasion_sequence);
 
 formation *formation_get(int formation_id);
+int formation_bind_runtime_fort(Building &fort, const char **failure_reason = nullptr);
 int formation_count(void);
 
 unsigned int formation_get_selected(void);
@@ -422,7 +503,7 @@ void formation_move_herds_away(int x, int y);
 void formation_calculate_figures(void);
 
 void formation_update_all(int second_time);
-void formation_refresh_runtime_definitions(void);
+int formation_refresh_runtime_definitions(void);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);

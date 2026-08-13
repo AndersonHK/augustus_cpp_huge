@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Mission_Selection_Border">
+    <image id="Mission Selection Border">
+        <layer src="Mission_Selection_Border"/>
+    </image>
+    <image id="Image_0012">
+        <layer src="Image_0012"/>
+    </image>
+    <image id="Image_0013">
+        <layer src="Image_0013"/>
+    </image>
+    <image id="Image_0014">
+        <layer src="Image_0014"/>
+    </image>
+</assetlist>

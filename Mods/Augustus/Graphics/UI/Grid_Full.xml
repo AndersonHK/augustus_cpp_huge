@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Grid_Full">
+    <image id="Grid_Full">
+        <layer src="Grid_Full"/>
+    </image>
+</assetlist>

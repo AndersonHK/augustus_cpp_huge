@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Ships\Cargo_Boat_Portrait">
+    <image id="Cargo_Boat_Portrait">
+        <layer group="UI\Big_People" image="Image_0000"/>
+        <layer src="Cargo_Boat_Portrait_Layer_02" x="12" y="12"/>
+    </image>
+</assetlist>

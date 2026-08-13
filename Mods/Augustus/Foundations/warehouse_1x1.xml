@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="warehouse_1x1" width="1" height="1" rotates="false" default_permissions="none" configurable_permissions="all">
+    <profile symbol="R" requires="land" adds="building road" passage="owner_controlled" />
+    <rows><row cells="R" /></rows>
+</foundation>

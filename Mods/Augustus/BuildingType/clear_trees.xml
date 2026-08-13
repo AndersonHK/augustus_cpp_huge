@@ -10,7 +10,6 @@
     </desirability>
     <button group="tools" order="30" text_key="TR_BUILDING_CLEAR_TREES" />
     <tool kind="clear_trees" />
-    <event_data attr="clear_trees" />
     <labor>
         <employees count="0" />
     </labor>

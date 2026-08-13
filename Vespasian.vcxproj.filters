@@ -189,6 +189,7 @@
     <ClCompile Include="src\window\victory_dialog.cpp" />
     <ClCompile Include="src\window\video.cpp" />
     <ClCompile Include="src\assets\augustus_asset_extractor.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_abi.cpp" />
     <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\assets.cpp" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
@@ -204,6 +205,7 @@
     <ClCompile Include="src\assets\xml.cpp" />
     <ClCompile Include="src\building\armoury.cpp" />
     <ClCompile Include="src\building\barracks.cpp" />
+    <ClCompile Include="src\building\BuildingGeometry.cpp" />
     <ClCompile Include="src\building\building.cpp" />
     <ClCompile Include="src\building\building_runtime.cpp" />
     <ClCompile Include="src\building\building_runtime_graphics.cpp" />
@@ -218,8 +220,6 @@
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
     <ClCompile Include="src\building\culture_module.cpp" />
     <ClCompile Include="src\building\culture_module_registry.cpp" />
-    <ClCompile Include="src\building\housing_type.cpp" />
-    <ClCompile Include="src\building\housing_type_registry.cpp" />
     <ClCompile Include="src\building\local_workforce.cpp" />
     <ClCompile Include="src\building\local_workforce_route_access.cpp" />
     <ClCompile Include="src\building\local_workforce_runtime_lists.cpp" />
@@ -231,6 +231,7 @@
     <ClCompile Include="src\building\construction_session.cpp" />
     <ClCompile Include="src\building\construction_building.cpp" />
     <ClCompile Include="src\building\construction_plan.cpp" />
+    <ClCompile Include="src\building\PlacementRotationSelection.cpp" />
     <ClCompile Include="src\building\construction_clear.cpp" />
     <ClCompile Include="src\building\construction_routed.cpp" />
     <ClCompile Include="src\building\construction_warning.cpp" />
@@ -369,6 +370,7 @@
     <ClCompile Include="src\figure\formation_enemy.cpp" />
     <ClCompile Include="src\figure\formation_herd.cpp" />
     <ClCompile Include="src\figure\formation_layout.cpp" />
+    <ClCompile Include="src\figure\formation_layout_registry.cpp" />
     <ClCompile Include="src\figure\formation_legion.cpp" />
     <ClCompile Include="src\figure\image.cpp" />
     <ClCompile Include="src\figure\movement.cpp" />
@@ -417,6 +419,9 @@
     <ClCompile Include="src\game\performance_tracker.cpp" />
     <ClCompile Include="src\game\mission.cpp" />
     <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\game\mod_definition_loader.cpp" />
+    <ClCompile Include="src\startup\startup_definition_loader.cpp" />
+    <ClCompile Include="src\startup\startup_parser.cpp" />
     <ClCompile Include="src\game\orientation.cpp" />
     <ClCompile Include="src\game\resource.cpp" />
     <ClCompile Include="src\game\resource_id_bridge.cpp" />
@@ -519,6 +524,7 @@
     <ClCompile Include="src\map\tile_runtime.cpp" />
     <ClCompile Include="src\map\tiles.cpp" />
     <ClCompile Include="src\map\water.cpp" />
+    <ClCompile Include="src\map\water_navigation.cpp" />
     <ClCompile Include="src\map\water_supply.cpp" />
     <ClCompile Include="src\platform\augustus.cpp" />
     <ClCompile Include="src\platform\crash_handler.cpp" />
@@ -734,6 +740,7 @@
     <ClInclude Include="src\window\victory_dialog.h" />
     <ClInclude Include="src\window\video.h" />
     <ClInclude Include="src\assets\augustus_asset_extractor.h" />
+    <ClInclude Include="src\assets\graphics_extraction_abi.h" />
     <ClInclude Include="src\assets\augustus_julius_template_resolver.h" />
     <ClInclude Include="src\assets\assets.h" />
     <ClInclude Include="src\assets\graphics_extractor_common.h" />
@@ -758,12 +765,12 @@
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_startup_bridge.h" />
+    <ClInclude Include="src\building\BuildingGeometry.h" />
+    <ClInclude Include="src\building\BuildingGeometryProjection.h" />
     <ClInclude Include="src\building\water_access_type.h" />
     <ClInclude Include="src\building\water_access_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
     <ClInclude Include="src\building\building_type_registry_internal.h" />
-    <ClInclude Include="src\building\housing_type.h" />
-    <ClInclude Include="src\building\housing_type_registry.h" />
     <ClInclude Include="src\building\local_workforce.h" />
     <ClInclude Include="src\building\local_workforce_route_access.h" />
     <ClInclude Include="src\building\local_workforce_runtime_lists.h" />
@@ -774,6 +781,7 @@
     <ClInclude Include="src\building\construction_area_tile.h" />
     <ClInclude Include="src\building\construction_building.h" />
     <ClInclude Include="src\building\construction_plan.h" />
+    <ClInclude Include="src\building\PlacementRotationSelection.h" />
     <ClInclude Include="src\building\construction_clear.h" />
     <ClInclude Include="src\building\tool_mode.h" />
     <ClInclude Include="src\building\construction_routed.h" />
@@ -967,6 +975,9 @@
     <ClInclude Include="src\game\file_io.h" />
     <ClInclude Include="src\game\defines.h" />
     <ClInclude Include="src\game\mod_manager.h" />
+    <ClInclude Include="src\game\mod_definition_loader.h" />
+    <ClInclude Include="src\startup\startup_definition_loader.h" />
+    <ClInclude Include="src\startup\startup_parser_abi.h" />
     <ClInclude Include="src\game\game.h" />
     <ClInclude Include="src\game\performance_tracker.h" />
     <ClInclude Include="src\game\mission.h" />
@@ -1080,6 +1091,7 @@
     <ClInclude Include="src\map\tile_runtime_internal.h" />
     <ClInclude Include="src\map\tiles.h" />
     <ClInclude Include="src\map\water.h" />
+    <ClInclude Include="src\map\water_navigation.h" />
     <ClInclude Include="src\map\water_supply.h" />
     <ClInclude Include="src\platform\arguments.h" />
     <ClInclude Include="src\platform\cursor.h" />
@@ -1097,7 +1109,7 @@
     <ClInclude Include="src\platform\user_path.h" />
     <ClInclude Include="src\platform\emscripten\emscripten.h" />
     <ClInclude Include="src\assets\xml_path_resolution.h" />
-    <ClInclude Include="src\building\BuildingForEachArgs.h" />
+    <ClInclude Include="src\building\BuildingRuntimeList.h" />
     <ClInclude Include="src\building\RubbleDef.h" />
     <ClInclude Include="src\building\RubbleModule.h" />
     <ClInclude Include="src\building\RubbleState.h" />

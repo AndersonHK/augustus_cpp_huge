@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Advisor_Building_Window_Education_3">
+    <image id="Housing_Advisor_S_UH" width="28" height="28" group="UI\Message_Advisor_Buttons" image="Housing_Advisor_S_UH"/>
+    <image id="Unmothball_1" group="UI\Message_Advisor_Buttons" image="Unmothball_1"/>
+    <image id="Unmothball_4" group="UI\Message_Advisor_Buttons" image="Unmothball_4"/>
+    <image id="Mothball_1" group="UI\Message_Advisor_Buttons" image="Mothball_1"/>
+    <image id="Mothball_4" group="UI\Message_Advisor_Buttons" image="Mothball_4"/>
+    <image id="Advisor_Building_Window_Border_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Border_1"/>
+    <image id="Advisor_Building_Window_Border_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Border_4"/>
+    <image id="Advisor_Building_Window_Labor_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Labor_1"/>
+    <image id="Advisor_Building_Window_Labor_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Labor_4"/>
+    <image id="Advisor_Building_Window_Military_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Military_1"/>
+    <image id="Advisor_Building_Window_Military_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Military_4"/>
+    <image id="Advisor_Building_Window_Imperial_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Imperial_1"/>
+    <image id="Advisor_Building_Window_Imperial_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Imperial_4"/>
+    <image id="Advisor_Building_Window_Ratings_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Ratings_1"/>
+    <image id="Advisor_Building_Window_Ratings_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Ratings_4"/>
+    <image id="Advisor_Building_Window_Trade_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Trade_1"/>
+    <image id="Advisor_Building_Window_Trade_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Trade_4"/>
+    <image id="Advisor_Building_Window_Population_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Population_1"/>
+    <image id="Advisor_Building_Window_Population_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Population_4"/>
+    <image id="Advisor_Building_Window_Housing_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Housing_1"/>
+    <image id="Advisor_Building_Window_Housing_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Housing_4"/>
+    <image id="Advisor_Building_Window_Health_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Health_1"/>
+    <image id="Advisor_Building_Window_Health_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Health_4"/>
+    <image id="Advisor_Building_Window_Education_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Education_1"/>
+    <image id="Advisor_Building_Window_Education_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Education_4"/>
+    <image id="Advisor_Building_Window_Entertainment_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Entertainment_1"/>
+    <image id="Advisor_Building_Window_Entertainment_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Entertainment_4"/>
+    <image id="Advisor_Building_Window_Religion_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Religion_1"/>
+    <image id="Advisor_Building_Window_Religion_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Religion_4"/>
+    <image id="Advisor_Building_Window_Financial_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Financial_1"/>
+    <image id="Advisor_Building_Window_Financial_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Financial_4"/>
+    <image id="Advisor_Building_Window_Chief_1" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Chief_1"/>
+    <image id="Advisor_Building_Window_Chief_4" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Chief_4"/>
+    <image id="Housing_Advisor_S_H" width="28" height="28" group="UI\Message_Advisor_Buttons" image="Housing_Advisor_S_H"/>
+    <image id="Unmothball_2" group="UI\Message_Advisor_Buttons" image="Unmothball_2"/>
+    <image id="Unmothball_3" group="UI\Message_Advisor_Buttons" image="Unmothball_3"/>
+    <image id="Mothball_2" group="UI\Message_Advisor_Buttons" image="Mothball_2"/>
+    <image id="Mothball_3" group="UI\Message_Advisor_Buttons" image="Mothball_3"/>
+    <image id="Advisor_Building_Window_Border_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Border_2"/>
+    <image id="Advisor_Building_Window_Border_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Border_3"/>
+    <image id="Advisor_Building_Window_Labor_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Labor_2"/>
+    <image id="Advisor_Building_Window_Labor_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Labor_3"/>
+    <image id="Advisor_Building_Window_Military_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Military_2"/>
+    <image id="Advisor_Building_Window_Military_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Military_3"/>
+    <image id="Advisor_Building_Window_Imperial_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Imperial_2"/>
+    <image id="Advisor_Building_Window_Imperial_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Imperial_3"/>
+    <image id="Advisor_Building_Window_Ratings_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Ratings_2"/>
+    <image id="Advisor_Building_Window_Ratings_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Ratings_3"/>
+    <image id="Advisor_Building_Window_Trade_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Trade_2"/>
+    <image id="Advisor_Building_Window_Trade_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Trade_3"/>
+    <image id="Advisor_Building_Window_Population_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Population_2"/>
+    <image id="Advisor_Building_Window_Population_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Population_3"/>
+    <image id="Advisor_Building_Window_Housing_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Housing_2"/>
+    <image id="Advisor_Building_Window_Housing_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Housing_3"/>
+    <image id="Advisor_Building_Window_Health_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Health_2"/>
+    <image id="Advisor_Building_Window_Health_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Health_3"/>
+    <image id="Advisor_Building_Window_Education_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Education_2"/>
+    <image id="Advisor_Building_Window_Education_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Education_3"/>
+    <image id="Advisor_Building_Window_Entertainment_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Entertainment_2"/>
+    <image id="Advisor_Building_Window_Entertainment_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Entertainment_3"/>
+    <image id="Advisor_Building_Window_Religion_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Religion_2"/>
+    <image id="Advisor_Building_Window_Religion_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Religion_3"/>
+    <image id="Advisor_Building_Window_Financial_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Financial_2"/>
+    <image id="Advisor_Building_Window_Financial_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Financial_3"/>
+    <image id="Advisor_Building_Window_Chief_2" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Chief_2"/>
+    <image id="Advisor_Building_Window_Chief_3" width="24" height="24" group="UI\Message_Advisor_Buttons" image="Advisor_Building_Window_Chief_3"/>
+</assetlist>

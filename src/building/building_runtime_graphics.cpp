@@ -15,6 +15,7 @@
 
 #include "assets/image_group_payload.h"
 #include "building/BuildingGraphicsDef.h"
+#include "building/BuildingGeometry.h"
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/calc.h"
@@ -73,12 +74,17 @@ void log_building_scope_state(void *userdata)
             nullptr;
 
     char details[256];
+    const building_type_registry_impl::BuildingGeometry geometry =
+        building_type_registry_impl::BuildingGeometry::query(b);
+    const building_type_registry_impl::BuildingGeometryBounds bounds = geometry.bounds();
     snprintf(
         details,
         sizeof(details),
-        "state=%d size=%d desirability=%d water=%d upgrade=%d target_path=%s target_image=%s",
+        "state=%d footprint=%dx%d cells=%d desirability=%d water=%d upgrade=%d target_path=%s target_image=%s",
         b.state_id(),
-        b.size(),
+        geometry.valid() ? bounds.width() : 0,
+        geometry.valid() ? bounds.height() : 0,
+        static_cast<int>(geometry.cells().size()),
         b.desirability(),
         b.has_water_access(),
         definition ? definition->upgrade_level_for(b) : 0,
@@ -213,7 +219,8 @@ int selected_option_for_selection(
         return option < 0 ? option + option_count : option;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
-        return (4 + building.orientation() - city_view_orientation() / 2) % 4;
+        return building_type_registry_impl::graphics_orientation_option_index(
+            building.orientation(), city_view_orientation(), option_count);
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::ProductionProgress) {
         const ::building *record = building.record();
@@ -221,9 +228,10 @@ int selected_option_for_selection(
             return 0;
         }
         Production *production = production_runtime_impl::get_or_create_primary(building);
+        const Building *owner = building.Composition ? building.Composition->owner() : &building;
         const int max_value = production ? production->max_progress() :
             (building.type && !building.type->production_methods().empty() ?
-                building.type->production_methods().front()->max_progress_for(building.main()) :
+                building.type->production_methods().front()->max_progress_for(owner ? *owner : building) :
                 0);
         if (max_value <= 0) {
             return calc_bound(record->data.industry.progress, 0, option_count - 1);
@@ -390,32 +398,20 @@ int building_runtime::building_state_supports_native_graphics() const
 
 void building_runtime::invalidate_graphics_cache()
 {
-    graphics_cache_.dirty = 1;
+    graphics_state_.invalidate();
 }
 
-std::uint64_t building_runtime::graphics_state_signature() const
+std::uint64_t building_runtime::graphics_owner_generation() const
 {
     const Building b = building;
-    if (!b.type) {
+    if (!b.type || !b.record()) {
         return 0;
     }
-
-    int selected_option = -1;
-    if (const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target()) {
-        if (target->has_options()) {
-            selected_option = building_runtime_graphics_selected_option(b, *target, graphics_variant());
-        }
-    }
-    std::uint64_t signature = b.graphics_state_signature(selected_option);
-    building_runtime *owner_runtime = building_runtime_impl::get_ephemeral_main_instance(record_);
-    if (!owner_runtime && record_->id) {
-        owner_runtime = building_runtime_impl::get_or_create_instance(building_main(record_));
-    }
-    if (owner_runtime && owner_runtime != this) {
-        signature ^= owner_runtime->building.graphics_state_signature(-1);
-        signature *= 1099511628211ull;
-    }
-    return signature;
+    const Building *owner = b.type && b.type->bridge().is_bridge() ?
+        &b.dynamic_bridge_owner() :
+        (b.Composition ? b.Composition->owner() : &b);
+    building_runtime *owner_runtime = owner ? owner->runtime_instance() : nullptr;
+    return owner_runtime && owner_runtime != this ? owner_runtime->graphics_state_.generation() : 0;
 }
 
 const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_graphic_target() const
@@ -518,9 +514,11 @@ static int resolve_graphic_layer_binding(
 
 static int animation_owner_is_working_for_runtime_preview(Building building)
 {
-    const Building animation_owner = building.composition_owner();
-    if (animation_owner.id) {
-        return animation_owner.is_working();
+    Building *animation_owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : &building);
+    if (animation_owner && animation_owner->id) {
+        return animation_owner->is_working();
     }
     return building.is_working();
 }
@@ -757,8 +755,8 @@ void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
     graphics_cache_.animation_slice = frame_slice;
 }
 
-// Input: one live building instance that may have missed an explicit graphics invalidation.
-// Output: makes sure the cached image-group bindings are current before any renderer-facing accessor returns them.
+// Input: one live building instance whose graphics state or composition owner may have changed.
+// Output: makes sure the cached image-group bindings match the latest explicit invalidation generation.
 void building_runtime::ensure_cached_graphics_bindings()
 {
     if (!uses_new_graphics()) {
@@ -767,8 +765,10 @@ void building_runtime::ensure_cached_graphics_bindings()
     }
 
     refresh_runtime_state();
-    const std::uint64_t signature = graphics_state_signature();
-    if (graphics_cache_.resolved && !graphics_cache_.dirty && graphics_cache_.signature == signature) {
+    if (graphics_cache_.resolved &&
+        graphics_cache_.generation == graphics_state_.generation() &&
+        graphics_cache_.owner_generation == graphics_owner_generation() &&
+        graphics_cache_.view_orientation_generation == city_view_orientation_generation()) {
         return;
     }
 
@@ -786,8 +786,9 @@ void building_runtime::rebuild_cached_graphics_bindings()
 
     refresh_runtime_state();
     graphics_cache_.resolved = 1;
-    graphics_cache_.dirty = 0;
-    graphics_cache_.signature = graphics_state_signature();
+    graphics_cache_.generation = graphics_state_.generation();
+    graphics_cache_.owner_generation = graphics_owner_generation();
+    graphics_cache_.view_orientation_generation = city_view_orientation_generation();
     graphics_cache_.owns_graphic_animation = 0;
     if (!building_state_supports_native_graphics()) {
         return;
@@ -935,10 +936,15 @@ void building_runtime::set_building_graphic()
     rebuild_cached_graphics_bindings();
     // XML payload graphics render from cached RuntimeDrawSlice entries; map_image only keeps legacy tile bookkeeping alive.
     Building b = building;
-    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : b.image_id();
-    if (!image_id) {
+    const int terrain_owns_foundation_image = cached_graphics_uses_terrain_foundation();
+    int image_id = terrain_owns_foundation_image ? -1 :
+        (graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : b.image_id());
+    if (!terrain_owns_foundation_image && !image_id) {
         image_id = runtime_tile_sentinel_image_id();
     }
+    // Foundation publication still restores map ownership and multi-tile
+    // properties for terrain-backed graphics. A negative image id leaves the
+    // already composed terrain image untouched.
     b.add_map_tiles(image_id);
 }
 

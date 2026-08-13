@@ -32,7 +32,8 @@ public:
     int draw_top(const BuildingDrawContext &ctx) const;
     int draw_animation(const BuildingDrawContext &ctx) const;
     int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation) const;
-    int mothball_status_icon_offset(int grid_offset, int icon_width, int icon_height, int *x, int *y) const;
+    int uses_terrain_foundation() const;
+    int mothball_status_icon_offset(int icon_width, int icon_height, int *x, int *y) const;
 
 private:
     building_runtime *runtime_instance() const;

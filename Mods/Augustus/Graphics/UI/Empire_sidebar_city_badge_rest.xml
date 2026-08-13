@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Empire_sidebar_city_badge_rest">
+    <image id="Empire_panel_texture_vertical" group="PaperMap\Empire_Panels" image="Empire_panel_texture_vertical"/>
+    <image id="Empire_sidebar_city_badge_corner" width="12" height="33" group="PaperMap\Empire_Panels" image="Empire_sidebar_city_badge_corner"/>
+    <image id="Empire_sidebar_city_badge_rest" width="250" height="33" group="PaperMap\Empire_Panels" image="Empire_sidebar_city_badge_rest"/>
+    <image id="Empire_sidebar_city_badge" width="262" height="33" group="PaperMap\Empire_Panels" image="Empire_sidebar_city_badge"/>
+</assetlist>

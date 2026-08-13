@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Ceres_Complex_Off">
+    <image id="Ceres Complex Off" width="418" height="234" isometric="true">
+        <layer src="Ceres_Complex_Off_Layer_01" y="3" part="top"/>
+        <layer group="Health_Culture\Temple_Ceres" image="Image_0001" x="90" part="footprint"/>
+        <layer group="Health_Culture\Temple_Ceres" image="Image_0001" x="90" part="top"/>
+        <layer src="Ceres_Complex_Off_Layer_04" x="59" y="87" part="top"/>
+    </image>
+    <image id="Ceres Complex Module" width="418" height="234" isometric="true">
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="footprint"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <animation speed="6" x="230" y="110">
+            <frame src="Ceres_Complex_Module_Frame_01" x="13" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_02" x="13" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_03" x="13" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_04" x="11" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_05" x="11" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_06" x="9" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_07" x="7" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_08" x="6" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_09" x="5" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_10" x="10" y="9"/>
+            <frame src="Ceres_Complex_Module_Frame_11" x="13" y="9"/>
+        </animation>
+    </image>
+    <image id="Ceres_Temple_Complex_Module2_01" width="146" height="95">
+        <layer src="Ceres_Temple_Complex_Module2_01_Layer_01" x="1"/>
+        <layer src="Ceres_Temple_Complex_Module2_01_Layer_02" x="45" y="24"/>
+    </image>
+    <image id="Ceres_Temple_Complex_Module2_02" width="146" height="95">
+        <layer src="Ceres_Temple_Complex_Module2_02_Layer_01" x="1"/>
+        <layer src="Ceres_Temple_Complex_Module2_02_Layer_02" x="45" y="25"/>
+    </image>
+    <image id="Ceres_Temple_Complex_Module2_03" width="146" height="95">
+        <layer src="Ceres_Temple_Complex_Module2_03_Layer_01" x="1"/>
+        <layer src="Ceres_Temple_Complex_Module2_03_Layer_02" x="45" y="26"/>
+    </image>
+    <image id="Ceres Complex Module2" width="418" height="234" isometric="true">
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="footprint"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <layer group="Monuments\Ceres_Complex_Off" image="Ceres Complex Off" part="top"/>
+        <animation speed="6" reversible="true" x="190" y="95">
+            <frame group="Monuments\Ceres_Complex_Off" image="Ceres_Temple_Complex_Module2_01"/>
+            <frame group="Monuments\Ceres_Complex_Off" image="Ceres_Temple_Complex_Module2_02"/>
+            <frame group="Monuments\Ceres_Complex_Off" image="Ceres_Temple_Complex_Module2_03"/>
+        </animation>
+    </image>
+</assetlist>

@@ -45,11 +45,10 @@ Current supported nodes:
 - `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
-- `<roadblock ... />`
+- `<bridge ... />`
 - `<tile ... />`
 - `<temple ... />`
 - `<sound ... />`
-- `<event_data ... />`
 - `<market ... />`
 - `<flags ... />`
 - `<water_access> ... </water_access>`
@@ -67,13 +66,14 @@ Current supported `<identity>` attributes:
 
 - `name_key="translation.key"` stores the localized building name key for generated UI
 - `translation_key="translation.key"` is accepted as an alias
+- `aliases="legacy_name|other_legacy_name"` declares old scenario/XML identity aliases. The root `<building type="...">` value is always the canonical identity, so aliases should be rare compatibility data.
 
 Current supported `<model>` attributes:
 
-- `size="N"`
 - `cost="N"`
+- `hp="N"`
 
-Model `cost` currently overrides the legacy runtime model after XML load. `size` is parsed into BuildingType data and also bridged into the legacy building-properties footprint fields during registry load, so old placement/building code sees XML-authored sizes until placement authority reads BuildingType definitions directly.
+Model `cost` and `hp` override the corresponding legacy runtime values after XML load. Physical dimensions never belong to `<model>`; they come exclusively from the referenced Foundation definition.
 
 Current supported `<desirability>` child nodes:
 
@@ -95,17 +95,16 @@ Small building example:
 ```xml
 <building type="barber">
     <identity name_key="main_strings.28.49" />
-    <model size="1" cost="25" />
+    <model cost="25" />
     <desirability>
         <value value="2" />
         <step value="1" />
         <step_size value="-1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <button group="health" order="40" icon="barber" text_key="main_strings.28.49" />
     <sound id="barber" />
-    <event_data attr="barber" />
     <labor>
         <employees count="2" />
         <labor_seeker>
@@ -118,43 +117,48 @@ Small building example:
 
 Current supported `<foundation>` attributes:
 
-- `policy="land|road|road_or_land|road_or_wall_or_land|wall|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
-- `open_water="true|false"` requires the footprint to connect to open navigable water after the shoreline check; use this for shoreline buildings that must be reachable by ships
+- `path="definition_id"` is required for every buildable BuildingType and resolves a file under `Mods/<Mod>/Foundations`.
 
-Current supported `<foundation>` child nodes:
+Foundation geometry and terrain behavior are not authored inline in BuildingType XML. A Foundation file uses this shape:
 
-- `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
-- `<cell x="0" y="0" terrain="land|clear|water|road|road_or_land|road_or_wall_or_land|wall|aqueduct|any" />`
-- `<cell rotation="0|1|2|3" x="0" y="0" terrain="..." />`
+```xml
+<foundation type="example_2x3" width="2" height="3" rotates="true" site_requires="rock">
+    <profile symbol="L" requires="land" adds="building" />
+    <profile symbol="R" requires="road_or_land" adds="building road"
+        passage="owner_controlled" />
+    <rows>
+        <row cells="LR" />
+        <row cells="LR" />
+        <row cells="LR" />
+    </rows>
+</foundation>
+```
 
 Foundation terrain rules:
 
-- `<terrain>` may appear zero or more times
-- terrain requirements feed the existing placement warning/check path
-- use `meadow` for farms, `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits or lighthouses
-- `<cell>` may appear zero or more times and declares a per-footprint tile requirement in local building coordinates
-- `rotation` is optional; omit it for all rotations or set it to `0..3` for rotation-specific shoreline or composed-footprint cells
-- cells not listed by XML inherit the foundation policy: `land/custom/shoreline` require clear land, `road` requires road, `road_or_land` allows clear land, road, highway, and valid highway-under-aqueduct tiles, `road_or_wall_or_land` also allows wall tiles, `wall` requires wall, `water` requires water
-- shoreline buildings select their waterside orientation from adjacent water, register their placed footprint with the water map, and save their shoreline orientation from the shared construction placement plan; water footprint cells must be declared explicitly with `<cell ... terrain="water" />`
-- `policy="wall"` declares a wall-mounted structure: construction requires the wall footprint, replaces the underlying wall terrain with the placed building terrain, and refreshes surrounding wall images through the shared placement path
+- `type` must match the normalized Foundation filename; width, height, `rotates`, profiles, and exactly `height` rows are required.
+- `.` marks an inactive sparse cell. Every other row symbol must resolve to one unique profile.
+- `requires` accepts `land`, `land_or_aqueduct`, `water`, `road`, `road_or_land`, `road_wall_or_land`, `wall`, `aqueduct`, `meadow`, or `any`.
+- `permits`, `adds`, and `removes` accept terrain-bit names. `binds` controls map ownership and `passage` is `none`, `uncontrolled`, or `owner_controlled`.
+- `site_requires` accepts `meadow`, `rock`, `tree`, `water`, `wall`, and `distant_water` for whole-site resource/topology gates.
+- `default_permissions` and `configurable_permissions` declare walker permission masks for owner-controlled road cells.
+- Rotation transforms dimensions, active cells, requirements, terrain changes, and passages together. There is no shoreline policy or rotation-specific cell list.
 
-Current supported `<composed>` attributes:
+Farm meadow behavior deliberately differs by mod. Augustus and Julius keep the original whole-site nearby-meadow gate on each 2x2 farm owner through `meadow_2x2`, while Vespasian uses a normal `land_2x2` owner and requires actual meadow independently beneath each composed 1x1 field through `meadow_1x1`.
 
-- `footprint_width="N"` and `footprint_height="N"` declare the full placement footprint used by construction and ghost previews
-- `inherit_orientation="true|false"` is optional; use it only when child records must copy the main record orientation byte
+Current supported `<composition>` child nodes:
 
-Current supported `<composed>` child nodes:
-
-- `<main x="0" y="0" />` optionally declares the main building record offset inside the composed footprint
-- `<main><offset rotation="0|1|2|3" x="0" y="0" /></main>` declares rotation-specific main offsets
-- `<part type="building_attr" role="..." x="0" y="0" />` declares a child building part offset for all rotations
-- `<part type="building_attr" role="..."><offset rotation="0|1|2|3" x="0" y="0" /></part>` declares rotation-specific child offsets
+- `<child type="building_attr" role="..." x="0" y="0" />` declares a child BuildingType, a unique stable role, and its canonical offset from the owner
+- `orientation="canonical|inherit_owner"` is optional and defaults to `canonical`; it controls the child building's authored orientation, not foundation rotation
+- Canonical offsets rotate automatically with the owner and with both definitions' rotated Foundation dimensions
+- A child may contain `<offset rotation="0|1|2|3" x="0" y="0" />` overrides only when stable per-rotation role ordering requires them. Overrides must define all four rotations, and rotation 0 must equal the canonical `x`/`y` offset
 
 Composition rules:
 
-- construction validation, ghost previews, and live placement all consume the same composed part offsets
-- part `type` references another BuildingType `attr`; recursive composed parts are rejected
-- `role` is optional runtime metadata for specialized repair paths, such as farm fields
+- The owner has no authored aggregate width, height, or main offset. Aggregate bounds are derived from the rotated owner and child Foundations
+- Construction validation, ghost previews, placement, repair, and runtime publication consume the same normalized owner-plus-children layout
+- Child `type` references another BuildingType `attr`; self-reference, nested composition, overlapping Foundations, duplicate roles, unresolved child types, and incomplete overrides are rejected
+- Composition children are separate Building objects owned by `BuildingComposition`; Foundation always describes exactly one Building object
 
 Current supported `<button>` attributes:
 
@@ -181,12 +185,16 @@ Current supported `<tool>` attributes:
 - `kind="clear_land|clear_trees|repair_land|road|highway|wall|roadblock|aqueduct|draggable_reservoir|draggable_building"` declares construction-tool behavior used by construction, ghost rendering, and special tool previews without inferring behavior from the BuildingType name
 - `drag_terrain="land|land_or_road"` is required for `kind="draggable_building"` and declares whether drag placement may transform road tiles into gate variants
 - `rotation="none|path|hedge|variant|pair"` is required for `kind="draggable_building"` and declares how the placed building stores orientation or variant state
+- nested `<mode>` entries resolve XML-owned target BuildingTypes for smart tools; `modifier="any|ctrl|shift"` retains authored modifier priority, `target="drag|single"` controls drag collapse, and `footprint="N"` offsets drag endpoints
+- `context="default|water|route"` separates ordinary modifier modes from hover-water bridge selection and routed auxiliary segments; C++ continues to own shoreline probing and route construction
 
-Current supported `<roadblock>` attributes:
+Current supported `<bridge>` attributes:
 
-- `kind="standard|storage|bridge"` stores the roadblock category used by roadblock routing and permissions
-- `bridge_type="low|ship"` is required when `kind="bridge"` and declares the bridge placement/sprite variant without relying on the building type name
-- `passage="wall_gate|center_road"` is optional for `kind="standard"` and declares multi-tile pass-through terrain behavior such as wall gates or center-road arches
+- `type="low|ship"` declares dynamic bridge-chain placement and sprite behavior without relying on the building type name
+
+Ordinary walker permissions and pass-through cells belong to the referenced
+Foundation definition. BuildingType roadblock kinds and geometric passage tags
+must not be used for gates, arches, roadblocks, granaries, or warehouses.
 
 Current supported `<tile>` attributes:
 
@@ -196,9 +204,9 @@ Current supported `<tile>` attributes:
 - `overgrown="true|false"` marks garden placement with the overgrown tile state used by overgrown gardens
 
 Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza-like tiles, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images. Other tile-backed tools may declare named graphics roles for their live rendering path, such as highway `tile_base` and `tile_barrier`.
-Area-drag tile tools such as gardens and plazas declare both their foundation policy and tile `placement`, so shared ghost validation and final construction agree on which map cells are legal.
+Area-drag tile tools such as gardens and plazas reference a Foundation and declare tile `placement`, so shared ghost validation and final construction agree on which map cells are legal.
 Construction refreshes each placed tile-backed part through its declared tile refresh behavior, so new tile-backed BuildingTypes should not need construction-side branches.
-Single-tile roadblock tiles use their declared `foundation policy="road"` for placement and are treated as passable road tools during shared foundation validation, so walkers standing on the road do not create a separate construction branch.
+Single-tile roadblocks use a road-requiring Foundation profile with an owner-controlled passage, so walkers standing on the road do not create a separate construction branch.
 
 Current supported `<temple>` attributes:
 
@@ -248,9 +256,7 @@ Current supported `<sound>` attributes:
 
 Raw-material producer sound ids currently include `clay_pit`, `iron_mine`, `timber_yard`, and `marble_quarry`. Gold mine, stone quarry, and sand pit do not declare sounds because the legacy properties do not assign city sounds to them.
 
-Current supported `<event_data>` attributes:
-
-- `attr="..."` stores the scenario-event/query building attribute key
+Scenario events and model-data XML use the root `<building type="...">` identity directly. Do not duplicate that value in a second node. Historical scenario names belong in `<identity aliases="...">` and are accepted only as compatibility inputs; exports always write the canonical type.
 
 Current supported `<market>` attributes:
 
@@ -265,6 +271,8 @@ Current supported `<flags>` attributes:
 
 Current supported root-level `<water_access>` child nodes:
 
+- `requires_open_water="true|false"` requires navigable open-water connectivity from the
+  selected rotated Foundation water cells
 - `<provides type="well|fountain|reservoir|aqueduct|latrines" range="N" origin="footprint|nodes" />`
 - `<requires mode="any|all" where="footprint|nodes"> ... </requires>`
 - `<access type="well|fountain|reservoir|aqueduct|latrines" where="footprint|nodes" />`
@@ -273,7 +281,9 @@ Current supported root-level `<water_access>` child nodes:
 
 Root-level `<water_access>` rules:
 
-- at least one `<provides>` or `<requires>` rule is required
+- at least one enabled `requires_open_water`, `<provides>`, or `<requires>` rule is required
+- `requires_open_water` is optional and defaults to false; it is valid only when the referenced
+  Foundation contains water-requiring cells
 - `<provides>` may appear more than once so one building can emit multiple access types
 - `origin` is optional and defaults to `footprint`; use `nodes` for reservoir aqueduct connection points
 - `<requires>` may appear more than once; all requirement rules must pass
@@ -328,6 +338,8 @@ Runtime water behavior:
 
 Current supported `<graphics>` child nodes:
 
+- `<status_icon x="N" y="N" />` optionally declares the base mothball/stockpile icon anchor relative to the building draw origin; both strict integer coordinates are required, and the renderer still subtracts the resolved image top height
+- `<overlay_summary mode="composition_owner" />` optionally declares that overlay summaries draw only once on the composed owner draw tile; omission retains ordinary per-draw-tile behavior
 - `<default> ... </default>`
 - `<variant> ... </variant>`
 - `<variant role="..."> ... </variant>`
@@ -368,6 +380,8 @@ Graphics target examples:
 
 Structured `<graphics>` rules:
 
+- `<status_icon>` is valid only once under the completed building's root-level `<graphics>`; phase graphics cannot override UI status placement
+- `<overlay_summary>` is valid only once under the completed building's root-level `<graphics>`; `composition_owner` requires a composition, and composition children consume the owner's policy rather than duplicating it
 - `<default>` is required
 - `<variant>` entries are checked in XML order
 - `<variant role="...">` declares named graphics used by tile/runtime renderers and is not considered by normal building rendering when the role is tile-only metadata
@@ -461,8 +475,10 @@ Current supported `<production_methods>` child nodes:
 
 Current supported `<housing>` attributes:
 
-- `path="..."` references a `HousingType` definition
+- `path="..."` references a `HousingProfile` definition
 - `capacity="N"` is required and stores the complete building's residential capacity
+- `goods_consumption_events_per_month="N"` is required and controls consumption cadence without deriving it from footprint geometry
+- `mars_offering_amount="N"` is required and controls the generated offering without deriving it from footprint geometry
 - `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
 
 Current supported `<vacant_lot>` attributes:
@@ -471,18 +487,19 @@ Current supported `<vacant_lot>` attributes:
 
 Housing rules:
 
-- Footprint remains on BuildingType via `<model size="N" />`
+- Footprint comes from the BuildingType's required external Foundation reference.
 - Residential capacity is a whole-building BuildingType value; do not derive it from tile count
-- Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingType
+- Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingProfile
 - Any non-empty transition target must resolve to an existing BuildingType during load
 - Vacant lots are declared as their own BuildingType with normal level-0 `<housing ... />` data and a `<vacant_lot fill_to="house_small_tent" />` node; do not assign the vacant-house tool directly to `house_small_tent`
 - Vacant lots are direct-tool special cases and should not declare generated buttons
-- Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
-- Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
+- Native housing identity and transitions use resolved BuildingType references; population and housing behavior live in the owner-bound HousingModule and HousingState
+- Old save dimensions, merged flags, and housing levels are consumed or synthesized only by the legacy save DTO. They are not runtime housing identity or geometry
+- Vespasian, Augustus, and Julius house chains include explicit `_2x2` BuildingTypes where transitions need larger Foundations; merge and split behavior resolves those targets directly rather than inferring them from legacy flags
 
 Shared definition path rules:
 
-- path is relative to the winning `StorageType`, `ProductionMethod`, or `HousingType` folder
+- path is relative to the winning `StorageType`, `ProductionMethod`, or `HousingProfile` folder
 - do not include the folder prefix
 - do not include the `.xml` suffix
 - example: `Mods\Vespasian\ProductionMethod\pottery_workshop_basic.xml` becomes `pottery_workshop_basic`
@@ -577,7 +594,7 @@ Current raw-material producer notes:
 - Julius, Augustus, and Vespasian define BuildingType XML for `clay_pit`, `marble_quarry`, `iron_mine`, and `timber_yard`.
 - Augustus and Vespasian additionally define XML for `gold_mine`, `stone_quarry`, and `sand_pit`; Julius does not because those resources/buildings are Augustus-era content.
 - The four Julius-era raw producers intentionally use Julius extracted graphics payloads when loaded by Augustus or Vespasian. Augustus/Vespasian-specific gold, stone, and sand producers use Augustus extracted payloads.
-- These buildings are placeable build-menu entries under `raw_materials`. Their XML uses `foundation policy="custom"` plus a `<terrain>` child for the legacy terrain gates: rock for marble/iron/gold/stone, tree adjacency/coverage for timber, water adjacency for clay, and distant/open-water adjacency for sand.
+- These buildings are placeable build-menu entries under `raw_materials`. Their external foundations declare the site gates: rock for marble/iron/gold/stone, tree adjacency/coverage for timber, water adjacency for clay, and distant/open-water adjacency for sand.
 - Raw-material producers attach native one-output `ProductionMethod` XML and matching output `StorageType` XML. Gold mine production uses `<treasury_cost amount="600" />` to preserve the legacy per-cycle finance charge.
 - The raw-producer-specific terrain cases were removed from `src/building/construction.cpp::set_required_terrain`; the function now reads these requirements from BuildingType XML when present.
 

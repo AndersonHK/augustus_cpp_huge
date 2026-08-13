@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\architect_sw_10">
+    <image id="architect_sw_10">
+        <layer group="Walkers\Group_110" image="Image_0076"/>
+        <layer src="architect_sw_10_Layer_02" x="9" y="10"/>
+    </image>
+</assetlist>

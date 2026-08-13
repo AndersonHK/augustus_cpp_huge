@@ -77,10 +77,13 @@ void city_water_ghost_draw_reservoir_ranges(void)
 void city_water_ghost_draw_preview(
     const building_type_registry_impl::BuildingType *definition,
     int primary_grid_offset,
-    int secondary_grid_offset)
+    int secondary_grid_offset,
+    int primary_rotation,
+    int secondary_rotation)
 {
     g_preview_access_type = preview_access_type_for_building(definition);
-    water_access_runtime_begin_preview(definition, primary_grid_offset, secondary_grid_offset);
+    water_access_runtime_begin_preview(
+        definition, primary_grid_offset, secondary_grid_offset, primary_rotation, secondary_rotation);
     city_view_foreach_valid_map_tile(draw_preview_access);
     water_access_runtime_end_preview();
 }

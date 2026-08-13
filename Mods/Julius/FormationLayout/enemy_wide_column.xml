@@ -1,0 +1,22 @@
+<layout key="enemy_wide_column" legacy_id="11">
+    <position x="0" y="0"/><position x="2" y="0"/><position x="0" y="2"/><position x="2" y="2"/>
+    <position x="-2" y="0"/><position x="-2" y="2"/><position x="0" y="-2"/><position x="2" y="-2"/>
+    <position x="-2" y="-2"/><position x="4" y="-2"/><position x="4" y="0"/><position x="4" y="2"/>
+    <position x="0" y="4"/><position x="2" y="4"/><position x="-2" y="4"/><position x="4" y="4"/>
+    <army orientation="0">
+        <position x="0" y="0"/><position x="-4" y="0"/><position x="4" y="0"/>
+        <position x="-12" y="0"/><position x="12" y="0"/><position x="-4" y="12"/><position x="4" y="12"/>
+    </army>
+    <army orientation="1">
+        <position x="0" y="0"/><position x="0" y="-4"/><position x="0" y="4"/>
+        <position x="0" y="-12"/><position x="0" y="12"/><position x="12" y="-4"/><position x="12" y="4"/>
+    </army>
+    <army orientation="2">
+        <position x="0" y="0"/><position x="-4" y="0"/><position x="4" y="0"/>
+        <position x="-12" y="0"/><position x="12" y="0"/><position x="-4" y="-12"/><position x="4" y="-12"/>
+    </army>
+    <army orientation="3">
+        <position x="0" y="0"/><position x="0" y="-4"/><position x="0" y="4"/>
+        <position x="0" y="-12"/><position x="0" y="12"/><position x="-12" y="-4"/><position x="-12" y="4"/>
+    </army>
+</layout>

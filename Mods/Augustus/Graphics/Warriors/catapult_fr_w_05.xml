@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\catapult_fr_w_05">
+    <image id="catapult_w_01" width="80" height="80" group="Warriors\catapult_w_01" image="catapult_w_01"/>
+    <image id="catapult_rock_w_01" group="Warriors\catapult_w_01" image="catapult_rock_w_01"/>
+    <image id="catapult_fr_w_02" width="80" height="80" group="Warriors\catapult_w_01" image="catapult_fr_w_02"/>
+    <image id="catapult_fr_w_03" width="80" height="80" group="Warriors\catapult_w_01" image="catapult_fr_w_03"/>
+    <image id="catapult_fr_w_04" width="80" height="80" group="Warriors\catapult_w_01" image="catapult_fr_w_04"/>
+    <image id="catapult_fr_w_05" group="Warriors\catapult_w_01" image="catapult_fr_w_05"/>
+    <image id="catapult_fr_w_06" group="Warriors\catapult_w_01" image="catapult_fr_w_06"/>
+    <image id="catapult_fr_w_07" group="Warriors\catapult_w_01" image="catapult_fr_w_07"/>
+    <image id="catapult_fr_w_08" group="Warriors\catapult_w_01" image="catapult_fr_w_08"/>
+</assetlist>

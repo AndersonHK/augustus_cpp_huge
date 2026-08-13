@@ -1,198 +1,130 @@
-#include "startup/startup_parser.h"
-
-#include "building/building_type_registry.h"
-#include "building/building_type_startup_bridge.h"
-#include "building/properties.h"
-#include "core/config.h"
-#include "figure/figure_type_registry.h"
-#include "figure/formation_type.h"
-#include "figure/unit_type.h"
-#include "game/defines.h"
-#include "game/mod_manager.h"
-#include "game/resource.h"
-#include "translation/translation.h"
+#include "startup/startup_parser_abi.h"
+#include "startup/startup_definition_loader.h"
 
 #include <algorithm>
-#include <cctype>
-#include <filesystem>
-#include <sstream>
-#include <string>
-#include <system_error>
-#include <vector>
+#include <cstring>
 
 namespace startup_parser {
-
 void install_graphics_validation_renderer();
+#ifndef STARTUP_PARSER_TEST
+void install_graphics_validation_renderer()
+{
+}
+#endif
+} // namespace startup_parser
 
 namespace {
 
-bool has_case_insensitive_extension(const std::filesystem::path &path, const char *extension)
+uint32_t copy_abi_text(char *destination, size_t capacity, const std::string &source)
 {
-    std::string actual = path.extension().string();
-    std::string expected = extension ? extension : "";
-    std::transform(actual.begin(), actual.end(), actual.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    std::transform(expected.begin(), expected.end(), expected.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return actual == expected;
-}
-
-int count_xml_files(const std::filesystem::path &directory, std::string &failure)
-{
-    std::error_code error;
-    if (!std::filesystem::is_directory(directory, error)) {
-        failure = "Missing XML directory: " + directory.string();
-        return -1;
+    if (!destination || !capacity) {
+        return static_cast<uint32_t>(source.size());
     }
-
-    int count = 0;
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(directory, error)) {
-        if (error) {
-            failure = "Unable to enumerate XML directory: " + directory.string();
-            return -1;
-        }
-        if (entry.is_regular_file(error) && has_case_insensitive_extension(entry.path(), ".xml")) {
-            ++count;
-        }
-    }
-    return count;
+    const size_t copied = std::min(capacity - 1, source.size());
+    std::memcpy(destination, source.data(), copied);
+    destination[copied] = '\0';
+    return static_cast<uint32_t>(source.size());
 }
 
-void append_step(StartupParseResult &result, const char *label, int succeeded, const std::string &detail = std::string())
+void initialize_abi_result(startup_parser_result_v1 &result)
 {
-    StartupParseStep step;
-    step.label = label ? label : "";
-    step.succeeded = succeeded;
-    step.detail = detail;
-    result.steps.push_back(step);
-}
-
-int fail_step(StartupParseResult &result, const char *label, const std::string &message)
-{
-    append_step(result, label, 0, message);
-    result.failure_step = label ? label : "";
-    result.failure_message = message;
-    return 0;
-}
-
-int run_step(StartupParseResult &result, const char *label, int (*step)(), const char *failure_reason = nullptr)
-{
-    if (step()) {
-        append_step(result, label, 1);
-        return 1;
-    }
-
-    const std::string detail = failure_reason && *failure_reason ? failure_reason : "";
-    return fail_step(result, label, detail);
-}
-
-int load_resources(StartupParseResult &result)
-{
-    const std::filesystem::path resource_path = std::filesystem::path(mod_manager::mod_path()) / "Resources";
-    std::string failure;
-    const int expected_resources = count_xml_files(resource_path, failure);
-    if (expected_resources <= 0) {
-        if (failure.empty()) {
-            failure = "No resource XML files found in: " + resource_path.string();
-        }
-        return fail_step(result, "Resources", failure);
-    }
-
-    resource_init();
-    const int loaded_resources = resource_loaded_count();
-    if (loaded_resources != expected_resources) {
-        std::ostringstream detail;
-        detail << "Loaded " << loaded_resources << " resources, expected "
-            << expected_resources << " XML files from " << resource_path.string() << ".";
-        return fail_step(result, "Resources", detail.str());
-    }
-
-    result.definitions.resource_definitions = loaded_resources;
-    std::ostringstream detail;
-    detail << loaded_resources << " definitions";
-    append_step(result, "Resources", 1, detail.str());
-    return 1;
-}
-
-int prepare_graphics_validation(StartupParseResult &result)
-{
-    install_graphics_validation_renderer();
-    result.definitions.graphics_validation_prepared = 1;
-    append_step(
-        result,
-        "graphics validation prerequisites",
-        1,
-        "headless renderer installed; generated graphics must already exist");
-    return 1;
+    std::memset(&result, 0, sizeof(result));
+    result.struct_size = sizeof(result);
+    result.abi_version = STARTUP_PARSER_ABI_VERSION;
 }
 
 } // namespace
 
-StartupEnvironment inspect_startup_environment()
+extern "C" startup_parser_status_v1 startup_parser_run_v1(
+    const startup_parser_request_v1 *request,
+    startup_parser_result_v1 *result)
 {
-    StartupEnvironment environment;
-    environment.game_root = std::filesystem::current_path().string();
-    environment.mod_stack = mod_manager::mod_names();
-    environment.mod_path = mod_manager::mod_path();
-    return environment;
+    if (!result || result->struct_size < sizeof(startup_parser_result_v1)) {
+        return STARTUP_PARSER_STATUS_INVALID_ABI;
+    }
+
+    initialize_abi_result(*result);
+    constexpr uint32_t known_flags = STARTUP_PARSER_LOAD_CONFIG |
+        STARTUP_PARSER_LOAD_LOCALIZATION |
+        STARTUP_PARSER_VALIDATE_MOD_LAYOUT |
+        STARTUP_PARSER_PREPARE_GRAPHICS_VALIDATION;
+    if (!request || request->struct_size < sizeof(startup_parser_request_v1) ||
+        request->abi_version != STARTUP_PARSER_ABI_VERSION || request->reserved != 0 ||
+        (request->flags & ~known_flags) != 0) {
+        result->failure_step_length = copy_abi_text(
+            result->failure_step, sizeof(result->failure_step), "startup parser ABI");
+        result->failure_message_length = copy_abi_text(
+            result->failure_message,
+            sizeof(result->failure_message),
+            "Startup parser request has an unsupported version or structure size.");
+        return STARTUP_PARSER_STATUS_INVALID_ABI;
+    }
+
+    startup_definition_loader::Request internal_request;
+    internal_request.load_config = (request->flags & STARTUP_PARSER_LOAD_CONFIG) != 0;
+    internal_request.load_localization = (request->flags & STARTUP_PARSER_LOAD_LOCALIZATION) != 0;
+    internal_request.validate_mod_layout = (request->flags & STARTUP_PARSER_VALIDATE_MOD_LAYOUT) != 0;
+    internal_request.prepare_graphics_validation =
+        (request->flags & STARTUP_PARSER_PREPARE_GRAPHICS_VALIDATION) != 0;
+
+    const startup_definition_loader::Result internal_result =
+        startup_definition_loader::load(internal_request);
+    result->succeeded = internal_result.succeeded;
+    result->resource_definitions = internal_result.resource_definitions;
+    result->graphics_validation_prepared = internal_result.graphics_validation_prepared;
+    result->failure_step_length = copy_abi_text(
+        result->failure_step, sizeof(result->failure_step), internal_result.failure_step);
+    result->failure_message_length = copy_abi_text(
+        result->failure_message, sizeof(result->failure_message), internal_result.failure_message);
+
+    if (request->on_step) {
+        for (const startup_definition_loader::Step &internal_step : internal_result.steps) {
+            startup_parser_step_v1 step = {};
+            step.struct_size = sizeof(step);
+            step.succeeded = internal_step.succeeded;
+            step.label = internal_step.label.c_str();
+            step.detail = internal_step.detail.c_str();
+            request->on_step(request->callback_context, &step);
+        }
+    }
+    return internal_result.succeeded ?
+        STARTUP_PARSER_STATUS_SUCCEEDED :
+        STARTUP_PARSER_STATUS_FAILED;
 }
 
-StartupParseResult parse_startup_definitions(const StartupParseRequest &request)
+extern "C" startup_parser_status_v1 startup_parser_inspect_environment_v1(
+    const startup_parser_environment_request_v1 *request,
+    startup_parser_environment_result_v1 *result)
 {
-    StartupParseResult result;
-
-    config_load();
-
-    if (request.validate_mod_layout && !building_type_startup_bridge_validate_mod()) {
-        fail_step(
-            result,
-            "mod data",
-            std::string("Selected mod data is missing. Expected BuildingType folder: ") +
-                building_type_startup_bridge_get_building_type_path());
-        return result;
+    if (!result || result->struct_size < sizeof(startup_parser_environment_result_v1)) {
+        return STARTUP_PARSER_STATUS_INVALID_ABI;
     }
 
-    if (request.load_localization && !run_step(result, "localization", []() { return lang_load(0); })) {
-        return result;
+    std::memset(result, 0, sizeof(*result));
+    result->struct_size = sizeof(*result);
+    result->abi_version = STARTUP_PARSER_ABI_VERSION;
+    if (!request || request->struct_size < sizeof(startup_parser_environment_request_v1) ||
+        request->abi_version != STARTUP_PARSER_ABI_VERSION || request->reserved != 0 ||
+        request->reserved_alignment != 0 ||
+        (request->game_root_capacity && !request->game_root) ||
+        (request->mod_path_capacity && !request->mod_path)) {
+        return STARTUP_PARSER_STATUS_INVALID_ABI;
     }
 
-    model_reset();
-    if (!load_resources(result)) {
-        return result;
+    const startup_definition_loader::Environment environment =
+        startup_definition_loader::inspect_environment();
+    result->game_root_length = copy_abi_text(
+        request->game_root, request->game_root_capacity, environment.game_root);
+    result->mod_path_length = copy_abi_text(
+        request->mod_path, request->mod_path_capacity, environment.mod_path);
+    result->mod_count = static_cast<uint32_t>(environment.mod_stack.size());
+    if (request->on_mod) {
+        for (uint32_t index = 0; index < result->mod_count; ++index) {
+            request->on_mod(
+                request->callback_context,
+                index,
+                environment.mod_stack[index].c_str());
+        }
     }
-    if (!run_step(result, "game defines", game_defines_load, game_defines_get_failure_reason())) {
-        return result;
-    }
-    if (request.prepare_graphics_validation && !prepare_graphics_validation(result)) {
-        return result;
-    }
-
-    building_properties_init();
-    figure_type_registry_reset();
-    unit_type_registry_reset();
-    formation_type_registry_reset();
-
-    if (!run_step(result, "FigureType definitions", figure_type_registry_load, figure_type_registry_get_failure_reason())) {
-        return result;
-    }
-    if (!run_step(result, "UnitType definitions", unit_type_registry_load, unit_type_registry_get_failure_reason())) {
-        return result;
-    }
-    if (!run_step(result, "FormationType definitions", formation_type_registry_load, formation_type_registry_get_failure_reason())) {
-        return result;
-    }
-    if (!run_step(result, "BuildingType definitions", building_type_registry_load)) {
-        return result;
-    }
-    if (!run_step(result, "FigureType building references", figure_type_registry_resolve_building_references,
-        figure_type_registry_get_failure_reason())) {
-        return result;
-    }
-
-    result.succeeded = 1;
-    return result;
+    return STARTUP_PARSER_STATUS_SUCCEEDED;
 }
-
-} // namespace startup_parser

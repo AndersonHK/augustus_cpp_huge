@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Mars_M_Icon">
+    <image id="Mars M Icon">
+        <layer src="Mars_M_Icon"/>
+    </image>
+</assetlist>

@@ -20,7 +20,7 @@ static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUIL
     { "wine_workshop", "oil_workshop", "weapons_workshop", "furniture_workshop", "pottery_workshop", "brickworks", "concrete_maker" },
     { "road" },
     { "wall", "palisade" },
-    { "draggable_reservoir", "aqueduct", "fountain" },
+    { "reservoir", "aqueduct", "fountain" },
     { 0 },
     { "amphitheater" },
     { 0 },

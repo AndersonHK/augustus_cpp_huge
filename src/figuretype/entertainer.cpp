@@ -126,7 +126,7 @@ static Building *determine_tourist_destination(int x, int y)
         }
         if (record->is_tourism_venue && !record->tourism_disabled && record->distance_from_entry
             && record->road_network_id == road_network) {
-            if (venue_kind(*building) == EntertainmentVenueKind::Hippodrome && record->prev_part_building_id) {
+            if (building->Composition && building->Composition->is_child()) {
                 return;
             }
             venues.push_back(building);
@@ -163,7 +163,7 @@ static Building *determine_destination(Figure *f)
         if (!record->distance_from_entry || record->road_network_id != road_network) {
             return;
         }
-        if (kind == EntertainmentVenueKind::Hippodrome && record->prev_part_building_id) {
+        if (building->Composition && building->Composition->is_child()) {
             return;
         }
 
@@ -184,13 +184,16 @@ static void update_shows(Figure *f)
     if (!f->destination_building) {
         return;
     }
-    Building &venue = f->destination_building->main();
-    building *b = const_cast<building *>(venue.record());
-    if (!b) {
+    Building *venue = f->destination_building;
+    if (venue->Composition) {
+        venue = venue->Composition->owner();
+    }
+    building *b = venue ? const_cast<building *>(venue->record()) : nullptr;
+    if (!venue || !b) {
         return;
     }
-    EntertainmentVenueKind kind = venue_kind(venue);
-    if (!venue_ready(venue, kind)) {
+    EntertainmentVenueKind kind = venue_kind(*venue);
+    if (!venue_ready(*venue, kind)) {
         return;
     }
     switch (f->type) {
@@ -217,6 +220,7 @@ static void update_shows(Figure *f)
             b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             break;
     }
+    venue->invalidate_graphic();
 }
 
 static void update_image(Figure *f)
@@ -224,7 +228,6 @@ static void update_image(Figure *f)
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
     if (f->type == FIGURE_CHARIOTEER) {
-        f->clear_legacy_cart_overlay_image();
         const int frame_offset =
             f->action_state == FIGURE_ACTION_150_ATTACK || f->action_state == FIGURE_ACTION_149_CORPSE ?
                 0 :
@@ -244,7 +247,6 @@ static void update_image(Figure *f)
         if (f->wait_ticks_missile >= 96 && f->action_state != FIGURE_ACTION_149_CORPSE) {
             image_id = image_group(GROUP_FIGURE_LION_TAMER_WHIP);
         }
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_LION));
     } else {
         return;
     }
@@ -257,11 +259,9 @@ static void update_image(Figure *f)
         }
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(image_id + 96);
-        f->clear_legacy_cart_overlay_image();
     } else {
         f->select_legacy_directional_frame_image(image_id, dir, f->image_offset);
     }
-    f->select_legacy_cart_overlay_image(f->cart_image_id, dir);
 }
 
 static int get_enemy_distance(Figure *f, int x, int y)
@@ -336,7 +336,6 @@ static int fight_enemy(Figure *f)
 
 void figure_entertainer_action(Figure *f)
 {
-    f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART));
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     f->use_cross_country = 0;
     f->max_roam_length = 512;
@@ -373,7 +372,7 @@ void figure_entertainer_action(Figure *f)
             if (f->wait_ticks <= 0) {
                 int x_road, y_road;
                 if (f->building &&
-                    map_closest_road_within_radius(f->building->x(), f->building->y(), f->building->size(), 2, &x_road, &y_road)) {
+                    map_closest_road_within_radius_building(*f->building, 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL;
                     figure_movement_set_cross_country_destination(f, x_road, y_road);
                     f->roam_length = 0;
@@ -388,21 +387,21 @@ void figure_entertainer_action(Figure *f)
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 Building *destination = determine_destination(f);
                 if (destination) {
-                    int x_road, y_road;
+                    map_point road = {};
                     int found_road = 0;
-                    Building *candidate = destination;
-                    do {
-                        if (map_closest_road_within_radius(candidate->x(), candidate->y(), candidate->size(), 2, &x_road, &y_road)) {
-                            f->destination_building = candidate;
-                            f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
-                            f->destination_x = static_cast<unsigned char>(x_road);
-                            f->destination_y = static_cast<unsigned char>(y_road);
-                            f->roam_length = 0;
-                            found_road = 1;
-                            break;
-                        }
-                        candidate = candidate->next();
-                    } while (candidate);
+                    Building *owner = destination->Composition ?
+                        destination->Composition->owner() : destination;
+                    if (owner) {
+                        found_road = map_closest_road_within_radius_building(
+                            *owner, 2, &road.x, &road.y);
+                    }
+                    if (found_road) {
+                        f->set_destination_building(owner);
+                        f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
+                        f->destination_x = static_cast<unsigned char>(road.x);
+                        f->destination_y = static_cast<unsigned char>(road.y);
+                        f->roam_length = 0;
+                    }
                     if (!found_road) {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -435,7 +434,7 @@ void figure_entertainer_action(Figure *f)
             if (f->roam_length >= f->max_roam_length) {
                 int x_road, y_road;
                 if (f->building &&
-                    map_closest_road_within_radius(f->building->x(), f->building->y(), f->building->size(), 2, &x_road, &y_road)) {
+                    map_closest_road_within_radius_building(*f->building, 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
                     f->destination_x = static_cast<unsigned char>(x_road);
                     f->destination_y = static_cast<unsigned char>(y_road);
@@ -505,8 +504,8 @@ void figure_tourist_action(Figure *f)
                 Building *destination = determine_tourist_destination(f->x, f->y);
                 if (destination) {
                     int x_road, y_road;
-                    if (map_closest_road_within_radius(destination->x(), destination->y(), destination->size(), 2, &x_road, &y_road)) {
-                        f->destination_building = destination;
+                    if (map_closest_road_within_radius_building(*destination, 2, &x_road, &y_road)) {
+                        f->set_destination_building(destination);
                         f->action_state = FIGURE_ACTION_219_TOURIST_GOING_TO_VENUE;
                         f->destination_x = static_cast<unsigned char>(x_road);
                         f->destination_y = static_cast<unsigned char>(y_road);

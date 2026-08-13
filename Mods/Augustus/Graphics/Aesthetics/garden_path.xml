@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\garden_path">
+    <image id="garden path" isometric="true" group="Terrain_Maps\Garden" image="garden path"/>
+</assetlist>

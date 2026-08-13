@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="oracle">
     <identity name_key="main_strings.28.98" />
-    <model size="2" cost="200" />
+    <model cost="200" />
     <desirability>
         <value value="8" />
         <step value="2" />
@@ -11,11 +11,10 @@
     <labor>
         <employees count="0" />
     </labor>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <temple religion="oracle" />
     <button group="temples" order="500" icon="Health_Culture\Oracle" text_key="main_strings.28.98" />
     <sound id="oracle" />
-    <event_data attr="oracle" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>
         <culture_module path="oracle" capacity="500" count="total" />

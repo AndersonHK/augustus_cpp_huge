@@ -20,16 +20,12 @@ struct FigureGraphicDrawLayer {
 
 class FigureMapFlagNumberOverlay {
 public:
-    void set_from_resource_id(int resource_id);
+    void set(int number, GraphicsPoint offset);
     void draw(int x, int y, float scale) const;
 
 private:
-    static constexpr int kXOffset = 6;
-    static constexpr int kYOffset = 7;
-
-    static int number_from_resource_id(int resource_id);
-
     int number_ = 0;
+    GraphicsPoint offset_ = {};
 };
 
 struct FigureGraphicDrawRequest {

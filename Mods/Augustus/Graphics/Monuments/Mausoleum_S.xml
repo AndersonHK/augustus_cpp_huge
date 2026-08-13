@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mausoleum_S">
+    <image id="Mausoleum S" isometric="true">
+        <layer src="Mausoleum_S" part="footprint"/>
+    </image>
+    <image id="Mausoleum S R" isometric="true">
+        <layer group="Monuments\Mausoleum_S" image="Mausoleum S" part="footprint"/>
+        <layer src="Mausoleum_S_R_Layer_02" part="top"/>
+    </image>
+</assetlist>

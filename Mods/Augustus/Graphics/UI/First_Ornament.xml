@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\First_Ornament">
+    <image id="First Ornament">
+        <layer src="First_Ornament"/>
+    </image>
+    <image id="Image_0030">
+        <layer src="Image_0030"/>
+    </image>
+    <image id="Image_0031">
+        <layer src="Image_0031"/>
+    </image>
+    <image id="Image_0032">
+        <layer src="Image_0032"/>
+    </image>
+</assetlist>

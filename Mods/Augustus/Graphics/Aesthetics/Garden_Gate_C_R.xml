@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\Garden_Gate_C_R">
+    <image id="Garden_Gate_C_R" width="58" height="61" isometric="true">
+        <layer src="Garden_Gate_C_R_Layer_01" x="23" y="17" part="footprint"/>
+        <layer src="Garden_Gate_C_R_Layer_02" x="46" y="17" part="top"/>
+        <layer src="Garden_Gate_C_R_Layer_03" part="top"/>
+        <animation speed="1">
+            <frame src="Garden_Gate_C_R_Frame_01"/>
+        </animation>
+    </image>
+</assetlist>

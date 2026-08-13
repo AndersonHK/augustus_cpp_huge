@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Senate_T2_Construction_03">
+    <image id="Senate_T2_Construction_03" width="298" height="181" isometric="true">
+        <layer group="Admin_Logistics\Senate" image="Image_0000" part="footprint"/>
+        <layer src="Senate_T2_Construction_03_Layer_02" x="20" y="68" part="top"/>
+        <layer src="Senate_T2_Construction_03_Layer_03" x="69" y="31" part="top"/>
+        <layer src="Senate_T2_Construction_03_Layer_04" x="69" y="23" part="top"/>
+        <layer src="Senate_T2_Construction_03_Layer_05" x="36" y="55" part="top"/>
+        <layer src="Senate_T2_Construction_03_Layer_06" x="123" y="136" part="top"/>
+        <layer src="Senate_T2_Construction_03_Layer_07" x="239" y="90" part="top"/>
+    </image>
+</assetlist>

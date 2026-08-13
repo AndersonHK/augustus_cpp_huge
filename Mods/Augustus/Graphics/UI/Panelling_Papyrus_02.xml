@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Panelling_Papyrus_02">
+    <image id="Panelling_Papyrus_02">
+        <layer src="Panelling_Papyrus_02"/>
+    </image>
+</assetlist>

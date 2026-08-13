@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Highlight">
+    <image id="Highlight">
+        <layer src="Highlight"/>
+    </image>
+    <image id="Image_0009">
+        <layer src="Image_0009"/>
+    </image>
+    <image id="Image_0010">
+        <layer src="Image_0010"/>
+    </image>
+    <image id="Image_0011">
+        <layer src="Image_0011"/>
+    </image>
+</assetlist>

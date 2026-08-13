@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Upgraded_Academy">
+    <image id="Upgraded_Academy" isometric="true">
+        <layer group="Health_Culture\Academy" image="Image_0000" part="footprint"/>
+        <layer group="Health_Culture\Academy" image="Image_0000" part="top"/>
+        <layer src="Upgraded_Academy_Layer_03" x="6" y="20" part="top"/>
+    </image>
+</assetlist>

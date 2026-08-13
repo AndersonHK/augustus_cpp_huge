@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="tower_sentry">
+    <figure type="tower_sentry" />
+    <combat>
+        <health value="50" />
+        <attack value="6" />
+        <defense value="0" />
+        <armor value="0" />
+    </combat>
+    <abilities>
+        <melee exposed_back_bonus="4" />
+        <ranged range="10" cooldown="50" damage="20" launch_frame="1" projectile="javelin" />
+    </abilities>
+</unit>

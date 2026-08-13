@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fountain">
     <identity name_key="main_strings.28.91" />
-    <model size="1" cost="15" />
+    <model cost="15" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
   <button group="water" order="30" icon="Admin_Logistics\Fountain_1" icon_image="Image_0000" text_key="main_strings.28.91" />
     <sound id="fountain" />
-    <event_data attr="fountain" />
     <flags fire_proof="1" />
     <water_access>
         <provides type="fountain" range="4" origin="footprint" />
@@ -20,6 +19,7 @@
         </requires>
     </water_access>
     <graphics>
+        <status_icon x="20" y="-15" />
         <default>
             <path value="Admin_Logistics\Fountain_1" />
             <image value="Image_0000" />

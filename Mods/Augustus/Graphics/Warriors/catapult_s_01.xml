@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\catapult_s_01">
+    <image id="catapult_s_01" width="80" height="80">
+        <layer src="catapult_s_01" x="20" y="14"/>
+    </image>
+    <image id="catapult_rock_s_01">
+        <layer src="catapult_rock_s_01"/>
+    </image>
+    <image id="catapult_fr_s_02" width="80" height="80">
+        <layer src="catapult_fr_s_02" x="20" y="10"/>
+    </image>
+    <image id="catapult_fr_s_03" width="80" height="80">
+        <layer src="catapult_fr_s_03" x="20" y="14"/>
+    </image>
+    <image id="catapult_fr_s_04" width="80" height="80">
+        <layer src="catapult_fr_s_04" x="20" y="23"/>
+    </image>
+    <image id="catapult_fr_s_05">
+        <layer group="Warriors\catapult_s_01" image="catapult_fr_s_04"/>
+        <layer group="Warriors\catapult_s_01" image="catapult_rock_s_01" x="34" y="19"/>
+    </image>
+    <image id="catapult_fr_s_06">
+        <layer group="Warriors\catapult_s_01" image="catapult_fr_s_03"/>
+        <layer group="Warriors\catapult_s_01" image="catapult_rock_s_01" x="34" y="11"/>
+    </image>
+    <image id="catapult_fr_s_07">
+        <layer group="Warriors\catapult_s_01" image="catapult_fr_s_02"/>
+        <layer group="Warriors\catapult_s_01" image="catapult_rock_s_01" x="34" y="8"/>
+    </image>
+    <image id="catapult_fr_s_08">
+        <layer group="Warriors\catapult_s_01" image="catapult_s_01"/>
+        <layer group="Warriors\catapult_s_01" image="catapult_rock_s_01" x="34" y="12"/>
+    </image>
+</assetlist>

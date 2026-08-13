@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Colosseum">
+    <image id="Coloseum ON" width="298" height="213" isometric="true">
+        <layer group="Health_Culture\Colosseum" image="Image_0000" part="footprint"/>
+        <layer group="Health_Culture\Colosseum" image="Image_0000" part="top"/>
+        <layer group="Health_Culture\Colosseum_Show" image="Image_0000" x="70" y="33" part="top"/>
+        <layer src="Coloseum_ON_Layer_04" x="70" y="33" part="top"/>
+    </image>
+    <image id="Col Glad Fight" width="298" height="213" isometric="true">
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="footprint"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <animation speed="5" x="122" y="57">
+            <frame group="Health_Culture\Colosseum" image="Image_0001"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0002"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0003"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0004"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0005"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0006"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0007"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0008"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0009"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0010"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0011"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0012"/>
+            <frame group="Health_Culture\Colosseum" image="Image_0013"/>
+        </animation>
+    </image>
+    <image id="Col Naumachia" width="298" height="213" isometric="true">
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="footprint"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <animation speed="9" x="100" y="58">
+            <frame src="Col_Naumachia_Frame_01"/>
+            <frame src="Col_Naumachia_Frame_02" y="2"/>
+            <frame src="Col_Naumachia_Frame_03" y="3" rotate="90"/>
+            <frame src="Col_Naumachia_Frame_04" y="4"/>
+            <frame src="Col_Naumachia_Frame_05" y="3" rotate="90"/>
+            <frame src="Col_Naumachia_Frame_06" y="1"/>
+            <frame src="Col_Naumachia_Frame_07" y="1"/>
+            <frame src="Col_Naumachia_Frame_08"/>
+            <frame src="Col_Naumachia_Frame_09"/>
+            <frame src="Col_Naumachia_Frame_10" y="1"/>
+            <frame src="Col_Naumachia_Frame_11" y="4"/>
+            <frame src="Col_Naumachia_Frame_12" y="4"/>
+        </animation>
+    </image>
+    <image id="Imperial_Games_01" width="110" height="67">
+        <layer src="Imperial_Games_01_Layer_01"/>
+        <layer src="Imperial_Games_01_Layer_02" x="39" y="38"/>
+    </image>
+    <image id="Imperial_Games_02" width="110" height="67">
+        <layer src="Imperial_Games_02_Layer_01"/>
+        <layer src="Imperial_Games_02_Layer_02" x="38" y="39"/>
+    </image>
+    <image id="Imperial_Games_03" width="110" height="67">
+        <layer src="Imperial_Games_03_Layer_01"/>
+        <layer src="Imperial_Games_03_Layer_02" x="39" y="39"/>
+    </image>
+    <image id="Imperial_Games_04" width="110" height="67">
+        <layer src="Imperial_Games_04_Layer_01"/>
+        <layer src="Imperial_Games_04_Layer_02" x="39" y="40"/>
+    </image>
+    <image id="Imperial_Games_05" width="110" height="67">
+        <layer src="Imperial_Games_05_Layer_01"/>
+        <layer src="Imperial_Games_05_Layer_02" x="40" y="39"/>
+    </image>
+    <image id="Imperial_Games_06" width="110" height="67">
+        <layer src="Imperial_Games_06_Layer_01"/>
+        <layer src="Imperial_Games_06_Layer_02" x="41" y="39"/>
+    </image>
+    <image id="Col Imp Games" width="298" height="213" isometric="true">
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="footprint"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <animation speed="9" x="90" y="34">
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_01"/>
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_02"/>
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_03"/>
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_04"/>
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_05"/>
+            <frame group="Health_Culture\Colosseum" image="Imperial_Games_06"/>
+        </animation>
+    </image>
+    <image id="Executions_01" width="102" height="60">
+        <layer src="Executions_01_Layer_01"/>
+        <layer src="Executions_01_Layer_02" x="23" y="16"/>
+    </image>
+    <image id="Executions_02" width="102" height="60">
+        <layer src="Executions_02_Layer_01"/>
+        <layer src="Executions_02_Layer_02" x="22" y="16"/>
+    </image>
+    <image id="Executions_03" width="102" height="60">
+        <layer src="Executions_03_Layer_01"/>
+        <layer src="Executions_03_Layer_02" x="21" y="16"/>
+    </image>
+    <image id="Executions_04" width="102" height="60">
+        <layer src="Executions_04_Layer_01"/>
+        <layer src="Executions_04_Layer_02" x="20" y="16"/>
+    </image>
+    <image id="Executions_05" width="102" height="60">
+        <layer src="Executions_05_Layer_01"/>
+        <layer src="Executions_05_Layer_02" x="19" y="16"/>
+    </image>
+    <image id="Executions_06" width="102" height="60">
+        <layer src="Executions_06_Layer_01"/>
+        <layer src="Executions_06_Layer_02" x="19" y="16"/>
+    </image>
+    <image id="Col Exec" width="298" height="213" isometric="true">
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="footprint"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <layer group="Health_Culture\Colosseum" image="Coloseum ON" part="top"/>
+        <animation speed="9" x="100" y="43">
+            <frame group="Health_Culture\Colosseum" image="Executions_01"/>
+            <frame group="Health_Culture\Colosseum" image="Executions_02"/>
+            <frame group="Health_Culture\Colosseum" image="Executions_03"/>
+            <frame group="Health_Culture\Colosseum" image="Executions_04"/>
+            <frame group="Health_Culture\Colosseum" image="Executions_05"/>
+            <frame group="Health_Culture\Colosseum" image="Executions_06"/>
+        </animation>
+    </image>
+</assetlist>

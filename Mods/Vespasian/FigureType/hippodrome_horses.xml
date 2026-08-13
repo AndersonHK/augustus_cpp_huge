@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="hippodrome_horses">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="cross_country" terrain="any" />
+        </profile>
+    </profiles>
+    <graphics>
+        <default image_group="hippodrome_horse_1" max_image_offset="8" />
+        <hippodrome_race resource_min="0" resource_max_exclusive="256" horse_view_adjustments="2" cart_view_adjustments="1" frame_stride="8" cart_direction_offset="4" cart_offsets_x="13,18,12,0,-13,-18,-13,0" cart_offsets_y="-7,-1,7,11,6,-1,-7,-12">
+            <team resource_min="0" resource_max_exclusive="1" horse_image_group="hippodrome_horse_1" cart_image_group="hippodrome_cart_1" />
+            <team resource_min="1" resource_max_exclusive="256" horse_image_group="hippodrome_horse_2" cart_image_group="hippodrome_cart_2" />
+            <offsets orientation="top" max_wait_ticks="10,11,12,13,20,21,2147483647" x="10,10,10,10,10,10,10" y="-2,-10,-18,-16,-14,-10,-2" />
+            <offsets orientation="right" max_wait_ticks="9,10,11,13,20,21,2147483647" x="-10,-10,-15,-15,-10,-10,-10" y="-12,4,2,0,-2,-6,-12" />
+            <offsets orientation="bottom" max_wait_ticks="9,10,11,13,20,21,2147483647" x="20,30,30,20,20,20,20" y="4,4,-4,-6,-12,-10,-2" />
+            <offsets orientation="left" max_wait_ticks="9,10,11,13,20,21,2147483647" x="-10,-10,-10,-10,-10,-10,-10" y="-12,4,2,0,-2,-6,-12" />
+        </hippodrome_race>
+    </graphics>
+</figure>

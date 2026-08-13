@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="map_flag">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="stand_still" terrain="any" />
+        </profile>
+    </profiles>
+    <graphics>
+        <default image_group="map_flag_flags" max_image_offset="16" />
+        <map_flag resource_min="1" resource_max_exclusive="26" base_direction="0" view_adjustments="1" frame_divisor="2" frame_stride="1" number_x="6" number_y="7">
+            <marker resource_min="1" resource_max_exclusive="2" image_group="map_flag_icons" image_offset="0" number_base="0" />
+            <marker resource_min="2" resource_max_exclusive="3" image_group="map_flag_icons" image_offset="2" number_base="0" />
+            <marker resource_min="3" resource_max_exclusive="4" image_group="map_flag_icons" image_offset="3" number_base="0" />
+            <marker resource_min="4" resource_max_exclusive="12" image_group="map_flag_icons" image_offset="1" number_base="1" />
+            <marker resource_min="12" resource_max_exclusive="13" image_group="map_flag_icons" image_offset="4" number_base="0" />
+            <marker resource_min="13" resource_max_exclusive="14" image_group="map_flag_icons" image_offset="5" number_base="0" />
+            <marker resource_min="14" resource_max_exclusive="22" image_group="fort_standard_icons" image_offset="3" number_base="1" />
+            <marker resource_min="22" resource_max_exclusive="26" image_group="fort_standard_icons" image_offset="4" number_base="1" />
+        </map_flag>
+    </graphics>
+</figure>

@@ -46,7 +46,7 @@ int map_water_supply_is_building_unnecessary(Building *building, int radius)
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
             Building *found_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
-            if (found_building && found_building->has_house_size()) {
+            if (found_building && found_building->Housing) {
                 num_houses++;
                 if (!water_access_runtime_tile_has_access(grid_offset, "fountain") &&
                     !map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {

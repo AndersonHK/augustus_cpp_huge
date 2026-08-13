@@ -25,7 +25,7 @@ int formation_legion_create_for_fort(Building &fort)
         return 0;
     }
     Figure *standard = Figure::create(FIGURE_FORT_STANDARD, 0, 0, DIR_0_TOP);
-    standard->building = &fort;
+    standard->set_home_building(&fort);
     standard->formation_id = m->id;
     m->standard_figure_id = standard->id();
 
@@ -34,14 +34,13 @@ int formation_legion_create_for_fort(Building &fort)
 
 void formation_legion_delete_for_fort(const Building &fort)
 {
-    if (fort.formation_id() > 0) {
-        formation *m = formation_get(fort.formation_id());
+    if (formation *m = fort.formation_object()) {
         if (m->in_use) {
             if (m->standard_figure_id) {
                 Figure::get(m->standard_figure_id)->remove();
             }
             m->kill_figures();
-            formation_clear(fort.formation_id());
+            formation_clear(static_cast<int>(m->id));
             formation_calculate_legion_totals();
         }
     }
@@ -61,7 +60,10 @@ int formation_legion_recruits_needed(void)
 
 void formation_legion_update_recruit_status(const Building &fort)
 {
-    formation *m = formation_get(fort.formation_id());
+    formation *m = fort.formation_object();
+    if (!m) {
+        return;
+    }
     m->legion_recruit_type = LEGION_RECRUIT_NONE;
     if (!m->is_at_fort || m->cursed_by_mars) {
         return;
@@ -74,18 +76,24 @@ void formation_legion_update_recruit_status(const Building &fort)
     }
 }
 
-void formation_legion_change_layout(formation *m, int new_layout)
+void formation_legion_change_layout(formation *m, const char *layout_key)
 {
-    if (new_layout == FORMATION_MOP_UP && m->layout != FORMATION_MOP_UP) {
-        m->prev.layout = m->layout;
+    const FormationLayoutDef *definition = formation_layout_registry_impl::find_layout(layout_key);
+    if (!m || !definition) {
+        return;
     }
-    m->layout = new_layout;
+    if (definition->matches_key("mop_up") && !m->uses_layout("mop_up")) {
+        m->prev.layout_definition = m->layout_type();
+    }
+    m->layout_definition = definition;
 }
 
 void formation_legion_restore_layout(formation *m)
 {
-    if (m->layout == FORMATION_MOP_UP) {
-        m->layout = m->prev.layout;
+    if (m->uses_layout("mop_up")) {
+        m->layout_definition = m->prev.layout_definition ?
+            m->prev.layout_definition :
+            formation_layout_registry_impl::find_layout("column");
     }
 }
 
@@ -283,7 +291,8 @@ int formation_legion_at_building(int grid_offset)
         const building_type type = b.type ? b.type->type() : BUILDING_NONE;
         if (b.is_in_use() && (building_is_fort(type) ||
                 (fort_ground != BUILDING_NONE && type == fort_ground))) {
-            return b.formation_id();
+            const formation *m = b.formation_object();
+            return m ? static_cast<int>(m->id) : 0;
         }
     }
     return 0;
@@ -306,7 +315,7 @@ void formation_legion_update(void)
         if (formation_has_low_morale(m)) {
             // flee back to fort
             m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
-        } else if (m->layout == FORMATION_MOP_UP) {
+        } else if (m->uses_layout("mop_up")) {
             if (enemy_army_total_enemy_formations() +
                 city_figures_rioters() +
                 city_figures_attacking_natives() > 0) {
@@ -320,14 +329,15 @@ void formation_legion_update(void)
 
 void formation_legion_decrease_damage(void)
 {
-    for (unsigned int i = 1; i < Figure::count(); i++) {
-        Figure *f = Figure::get(i);
-        if (f->state == FIGURE_STATE_ALIVE && f->is_legion()) {
-            if (f->action_state == FIGURE_ACTION_80_SOLDIER_AT_REST) {
-                if (f->damage) {
-                    f->damage--;
-                }
-            }
+    for (int i = 1; i < formation_count(); i++) {
+        formation *m = formation_get(i);
+        if (!m || !m->in_use || !m->is_legion) {
+            continue;
         }
+        m->for_each_alive_figure([](Figure &figure, int) {
+            if (figure.action_state == FIGURE_ACTION_80_SOLDIER_AT_REST && figure.damage) {
+                figure.damage--;
+            }
+        });
     }
 }

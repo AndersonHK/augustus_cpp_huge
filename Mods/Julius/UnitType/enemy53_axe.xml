@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="enemy53_axe">
+    <figure type="enemy53_axe" />
+    <combat><health value="120" /><attack value="15" /><defense value="2" /><armor value="0" /></combat>
+    <abilities><melee exposed_back_bonus="4" /></abilities>
+</unit>

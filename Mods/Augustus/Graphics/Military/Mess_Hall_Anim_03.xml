@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Mess_Hall_Anim_03">
+    <image id="Mess OFF Central" isometric="true" group="Military\Mess_OFF_Central" image="Mess OFF Central"/>
+    <image id="Mess OFF North" isometric="true" group="Military\Mess_OFF_Central" image="Mess OFF North"/>
+    <image id="Mess OFF South" isometric="true" group="Military\Mess_OFF_Central" image="Mess OFF South"/>
+    <image id="Mess_Hall_Anim_01" width="178" height="121" group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_01"/>
+    <image id="Mess_Hall_Anim_02" width="178" height="121" group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_02"/>
+    <image id="Mess_Hall_Anim_03" width="178" height="121" group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_03"/>
+    <image id="Mess_Hall_Anim_04" width="178" height="121" group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_04"/>
+    <image id="Mess_Hall_Anim_05" width="178" height="121" group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_05"/>
+    <image id="Mess ON Central" isometric="true" group="Military\Mess_OFF_Central" image="Mess ON Central"/>
+    <image id="Mess ON North" isometric="true" group="Military\Mess_OFF_Central" image="Mess ON North"/>
+    <image id="Mess ON South" isometric="true" group="Military\Mess_OFF_Central" image="Mess ON South"/>
+</assetlist>

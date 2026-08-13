@@ -57,7 +57,7 @@ int figure_belongs_to_building(const Figure *f, const Building &building)
 void attach_figure_to_building(Figure *f, Building &building)
 {
     if (f) {
-        f->building = &building;
+        f->set_home_building(&building);
     }
 }
 
@@ -67,10 +67,10 @@ void send_supplier_to_storage_destination(Figure *supplier, Building *destinatio
         return;
     }
     if (supplier->destination_building) {
-        supplier->last_destination_id = supplier->destination_building->id;
+        supplier->set_last_destination_building(supplier->destination_building);
     }
 
-    supplier->destination_building = destination;
+    supplier->set_destination_building(destination);
     if (!destination || !destination->type) {
         return;
     }
@@ -569,7 +569,7 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
         return 0;
     }
     assign_figure_slot(building_type_registry_impl::FigureSlot::Quaternary, priest->id());
-    priest->destination_building = pantheon;
+    priest->set_destination_building(pantheon);
     attach_figure_to_building(priest, building);
     priest->action_state = FIGURE_ACTION_212_DESTINATION_PRIEST_CREATED;
     return 1;
@@ -582,16 +582,8 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         return 0;
     }
 
-    Building *mess_hall = nullptr;
     const int mess_hall_id = city_buildings_get_mess_hall();
-    if (mess_hall_id) {
-        const unsigned int storage_destination_id = static_cast<unsigned int>(mess_hall_id);
-        Building::for_each([&](Building *building) {
-            if (!mess_hall && building->id == storage_destination_id) {
-                mess_hall = building;
-            }
-        });
-    }
+    Building *mess_hall = mess_hall_id > 0 ? Building::get(static_cast<unsigned int>(mess_hall_id)) : nullptr;
     if (!mess_hall || !mess_hall->type || !mess_hall->type->is_mess_hall()) {
         return 0;
     }
@@ -617,7 +609,7 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
     }
     priest->collecting_item_id = static_cast<unsigned char>(food_to_deliver);
     assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, priest->id());
-    priest->destination_building = mess_hall;
+    priest->set_destination_building(mess_hall);
     attach_figure_to_building(priest, building);
     priest->action_state = FIGURE_ACTION_214_DESTINATION_MARS_PRIEST_CREATED;
     return 1;
@@ -944,9 +936,12 @@ resource_type building_runtime::figure_delivery_output_resource() const
 
 void building_runtime::spawn_figure_delivery_cart(const map_point &road)
 {
-    Building &output_owner = building.main();
-    if (output_owner.id != building.id) {
-        if (building_runtime *owner_runtime = output_owner.runtime_instance()) {
+    Building *output_owner = building.Composition ? building.Composition->owner() : &building;
+    if (!output_owner) {
+        return;
+    }
+    if (output_owner->id != building.id) {
+        if (building_runtime *owner_runtime = output_owner->runtime_instance()) {
             map_point owner_road;
             if (owner_runtime->resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &owner_road)) {
                 owner_runtime->spawn_figure_delivery_cart(owner_road);
@@ -1149,38 +1144,24 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         return 0;
     }
 
-    const figure_type_registry_impl::FigureTypeProfile *profile = policy.profile.empty() ?
-        nullptr :
-        figure_type_registry_impl::profile_for(policy.spawn_figure, policy.profile.c_str());
-    const int legacy_profile = profile &&
-        profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction;
     int spawned_any = 0;
     int spawn_count = policy.spawn_count > 0 ? policy.spawn_count : 1;
     for (int i = 0; i < spawn_count; i++) {
         // XML profiles are the handoff point between BuildingType spawn policy and FigureType behavior.
         Building &current = building;
-        Figure *spawned = policy.profile.empty() ?
-            Figure::create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction)) :
-            figure_runtime_create_profiled(
-                policy.spawn_figure,
-                road.x,
-                road.y,
-                static_cast<direction_type>(policy.spawn_direction),
-                current,
-                policy.profile.c_str());
+        Figure *spawned = figure_runtime_create_profiled(
+            policy.spawn_figure,
+            road.x,
+            road.y,
+            static_cast<direction_type>(policy.spawn_direction),
+            current,
+            policy.profile.c_str());
         if (!spawned) {
             continue;
-        }
-        if (policy.profile.empty() || legacy_profile) {
-            spawned->action_state = static_cast<unsigned char>(policy.action_state);
-            attach_figure_to_building(spawned, current);
         }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.
         if (!spawned_any) {
             assign_figure_slot(policy.figure_slot, spawned->id());
-        }
-        if ((policy.profile.empty() || legacy_profile) && policy.init_roaming) {
-            figure_movement_init_roaming(spawned);
         }
         spawned_any = 1;
     }
@@ -1209,23 +1190,25 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
         set_building_graphic();
     }
 
-    switch (policy.mode) {
-        case building_type_registry_impl::SpawnMode::FigureSpawn:
-            return create_spawned_figure(policy, road);
-        case building_type_registry_impl::SpawnMode::TempleSupplier:
+    if (!policy.profile.empty()) {
+        return create_spawned_figure(policy, road);
+    }
+
+    switch (policy.special_mode) {
+        case building_type_registry_impl::SpecialSpawnMode::TempleSupplier:
             return spawn_temple_supplier(road);
-        case building_type_registry_impl::SpawnMode::TempleDestinationPriest:
+        case building_type_registry_impl::SpecialSpawnMode::TempleDestinationPriest:
             return spawn_temple_destination_priest(road);
-        case building_type_registry_impl::SpawnMode::TempleMarsMessHallPriest:
+        case building_type_registry_impl::SpecialSpawnMode::TempleMarsMessHallPriest:
             return spawn_temple_mars_mess_hall_priest(road);
-        case building_type_registry_impl::SpawnMode::TempleNeptuneChariot:
+        case building_type_registry_impl::SpecialSpawnMode::TempleNeptuneChariot:
             return spawn_temple_neptune_chariot(road);
-        case building_type_registry_impl::SpawnMode::GrandTempleMarsRecruit:
+        case building_type_registry_impl::SpecialSpawnMode::GrandTempleMarsRecruit:
             return spawn_grand_temple_mars_recruit(road);
-        case building_type_registry_impl::SpawnMode::FishingBoat:
+        case building_type_registry_impl::SpecialSpawnMode::FishingBoat:
             return policy.spawn_source == building_type_registry_impl::SpawnSource::Self ?
                 map_water_spawn_fishing_boat_from_wharf(building) : 0;
-        case building_type_registry_impl::SpawnMode::None:
+        case building_type_registry_impl::SpecialSpawnMode::None:
         default:
             return 0;
     }
@@ -1271,7 +1254,7 @@ void building_runtime::run_spawn_group(
     }
 
     if (!group.policies.empty() &&
-        group.policies.front().mode == building_type_registry_impl::SpawnMode::GrandTempleMarsRecruit) {
+        group.policies.front().special_mode == building_type_registry_impl::SpecialSpawnMode::GrandTempleMarsRecruit) {
         for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
             if (try_spawn_policy(policy, road) && policy.block_on_success) {
                 break;

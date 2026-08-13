@@ -23,17 +23,26 @@ int water_access_runtime_building_type_requires_access_text(
 int water_access_runtime_tile_has_access(int grid_offset, const char *text_id);
 int water_access_runtime_building_area_has_access(const Building *building, const char *text_id);
 int water_access_runtime_building_has_required_access(const Building *building);
+int water_access_runtime_building_has_open_water_access(const Building *building);
+int water_access_runtime_building_type_has_open_water_access_at(
+    const building_type_registry_impl::BuildingType *definition,
+    int x,
+    int y,
+    int rotation);
+void water_access_runtime_update_open_water_access(void);
 int water_access_runtime_building_type_has_required_access_at(
     const building_type_registry_impl::BuildingType *definition,
     int x,
     int y,
-    int size);
+    int rotation);
 int water_access_runtime_reservoir_has_network_access(int grid_offset);
 
 void water_access_runtime_begin_preview(
     const building_type_registry_impl::BuildingType *definition,
     int primary_grid_offset,
-    int secondary_grid_offset);
+    int secondary_grid_offset,
+    int primary_rotation = 0,
+    int secondary_rotation = 0);
 void water_access_runtime_end_preview(void);
 int water_access_runtime_tile_has_preview_highlight(int grid_offset);
 int water_access_runtime_should_draw_overlay_at(int grid_offset);

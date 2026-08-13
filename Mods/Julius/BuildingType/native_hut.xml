@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_hut">
     <identity name_key="main_strings.41.88" />
-    <model size="1" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <flags fire_proof="1" />
     <sound id="native_hut" always_play="true" />
-    <event_data attr="native_hut" />
     <graphics>
         <default>
             <path value="Aesthetics\Native" />

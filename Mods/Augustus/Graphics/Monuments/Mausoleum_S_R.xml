@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mausoleum_S_R">
+    <image id="Mausoleum S" isometric="true" group="Monuments\Mausoleum_S" image="Mausoleum S"/>
+    <image id="Mausoleum S R" isometric="true" group="Monuments\Mausoleum_S" image="Mausoleum S R"/>
+</assetlist>

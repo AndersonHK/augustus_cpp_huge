@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Mess_OFF_Central">
+    <image id="Mess OFF Central" isometric="true">
+        <layer src="Mess_OFF_Central" part="footprint"/>
+    </image>
+    <image id="Mess OFF North" isometric="true">
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="footprint"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="top"/>
+        <layer src="Mess_OFF_North_Layer_03" y="70" part="top"/>
+    </image>
+    <image id="Mess OFF South" isometric="true">
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="footprint"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="top"/>
+        <layer src="Mess_OFF_South_Layer_03" y="70" part="top"/>
+    </image>
+    <image id="Mess_Hall_Anim_01" width="178" height="121">
+        <layer src="Mess_Hall_Anim_01_Layer_01" x="12" y="62"/>
+        <layer src="Mess_Hall_Anim_01_Layer_02" x="129" y="67"/>
+        <layer src="Mess_Hall_Anim_01_Layer_03" x="169" y="48"/>
+    </image>
+    <image id="Mess_Hall_Anim_02" width="178" height="121">
+        <layer src="Mess_Hall_Anim_02_Layer_01" x="12" y="62"/>
+        <layer src="Mess_Hall_Anim_02_Layer_02" x="129" y="67"/>
+        <layer src="Mess_Hall_Anim_02_Layer_03" x="169" y="48"/>
+    </image>
+    <image id="Mess_Hall_Anim_03" width="178" height="121">
+        <layer src="Mess_Hall_Anim_03_Layer_01" x="12" y="62"/>
+        <layer src="Mess_Hall_Anim_03_Layer_02" x="129" y="67"/>
+        <layer src="Mess_Hall_Anim_03_Layer_03" x="169" y="48"/>
+    </image>
+    <image id="Mess_Hall_Anim_04" width="178" height="121">
+        <layer src="Mess_Hall_Anim_04_Layer_01" x="12" y="62"/>
+        <layer src="Mess_Hall_Anim_04_Layer_02" x="129" y="67"/>
+        <layer src="Mess_Hall_Anim_04_Layer_03" x="169" y="48"/>
+    </image>
+    <image id="Mess_Hall_Anim_05" width="178" height="121">
+        <layer src="Mess_Hall_Anim_05_Layer_01" x="12" y="62"/>
+        <layer src="Mess_Hall_Anim_05_Layer_02" x="129" y="67"/>
+        <layer src="Mess_Hall_Anim_05_Layer_03" x="169" y="48"/>
+    </image>
+    <image id="Mess ON Central" isometric="true">
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="footprint"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF Central" part="top"/>
+        <animation speed="6">
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_01"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_02"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_03"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_04"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_05"/>
+        </animation>
+    </image>
+    <image id="Mess ON North" isometric="true">
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF North" part="footprint"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF North" part="top"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF North" part="top"/>
+        <animation speed="6">
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_01"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_02"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_03"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_04"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_05"/>
+        </animation>
+    </image>
+    <image id="Mess ON South" isometric="true">
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF South" part="footprint"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF South" part="top"/>
+        <layer group="Military\Mess_OFF_Central" image="Mess OFF South" part="top"/>
+        <animation speed="6">
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_01"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_02"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_03"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_04"/>
+            <frame group="Military\Mess_OFF_Central" image="Mess_Hall_Anim_05"/>
+        </animation>
+    </image>
+</assetlist>

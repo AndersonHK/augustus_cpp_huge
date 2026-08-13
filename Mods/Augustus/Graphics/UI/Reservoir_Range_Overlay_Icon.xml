@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Reservoir_Range_Overlay_Icon">
+    <image id="Reservoir_Range_Overlay_Icon" isometric="true">
+        <layer group="Terrain_Maps\Overlay" image="Image_0011" part="footprint"/>
+        <layer src="Reservoir_Range_Overlay_Icon_Layer_02" part="top" mask="alpha"/>
+    </image>
+</assetlist>

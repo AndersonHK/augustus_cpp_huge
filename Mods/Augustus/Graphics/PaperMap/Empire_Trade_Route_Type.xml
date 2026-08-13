@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="PaperMap\Empire_Trade_Route_Type">
+    <image id="Sea Trade Policy Off Button">
+        <layer group="PaperMap\Empire_Trade_Route_Type" image="Image_0000" mask="grayscale"/>
+    </image>
+    <image id="Land Trade Policy Off Button">
+        <layer group="PaperMap\Empire_Trade_Route_Type" image="Image_0001" mask="grayscale"/>
+    </image>
+</assetlist>

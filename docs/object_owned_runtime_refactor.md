@@ -259,7 +259,7 @@ Rendering follows the same rule. Current city rendering still exposes `Building:
 
 ## Semantic Modules Over Event Attrs
 
-`<event_data attr="...">` is a compatibility crutch, not a semantic contract. It exists to keep legacy event ids, old save bridges, and unported systems alive while the XML model grows. New runtime behavior should not compare `event_data attr` strings such as `academy`, `dock`, or `warehouse` to decide what a building is.
+The former `<event_data attr="...">` compatibility copy has been deleted. Building and menu XML now use the root `type` as the single canonical scenario/XML identity. Rare historical inputs such as `house_vacant_lot` live in `<identity aliases="...">`; exporters always write the canonical type.
 
 Building identity should come from higher-level declarations:
 
@@ -267,13 +267,13 @@ Building identity should come from higher-level declarations:
 - Dedicated modules for real behavior, such as distribution, storage, production, labor, water access, religion, formation ownership, roadblock permissions, and construction policies.
 - Typed runtime registration for systems that need to iterate a category quickly.
 
-If a system still needs `event_data attr` to select behavior, treat that as evidence that the system is missing a module, policy, typed list, or object method. Do not promote those attrs into another layer of string-matched building logic. The migration sequence should be:
+If a system needs an identity string to select behavior, treat that as evidence that the system is missing a module, policy, typed list, or object method. Do not promote compatibility aliases into another layer of string-matched building logic. The migration sequence is:
 
 1. Identify the behavior hidden behind the attr comparison.
 2. Add or extend the correct XML-owned module for that behavior.
 3. Resolve the module once at load/startup into typed runtime data.
 4. Change callers to ask the object/module for behavior.
-5. Leave `event_data attr` only for legacy event/save compatibility until that compatibility path can be removed.
+5. Keep old names only as identity aliases at the XML import boundary, and emit canonical identities on save/export.
 
 ## Save/Load Boundary
 

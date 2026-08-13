@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="well">
     <identity name_key="main_strings.28.92" />
-    <model size="1" cost="5" />
+    <model cost="5" />
     <desirability>
         <value value="-1" />
         <step value="1" />
         <step_size value="2" />
         <range value="1" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <construction free_when_broke_limit="5" />
     <button group="water" order="40" icon="Admin_Logistics\Well" text_key="main_strings.28.92" />
     <flags fire_proof="1" />
     <sound id="well" />
-    <event_data attr="well" />
     <water_access>
         <provides type="well" range="2" origin="footprint" />
     </water_access>

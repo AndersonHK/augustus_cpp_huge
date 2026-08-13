@@ -2,12 +2,14 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/storage.h"
 #include "core/config.h"
 #include "city/buildings.h"
+#include "city/data_private.h"
 #include "city/military.h"
 #include "city/resource.h"
 #include "core/calc.h"
@@ -16,6 +18,7 @@
 #include "figure/formation.h"
 #include "map/grid.h"
 #include "map/road_access.h"
+#include "game/time.h"
 
 #define INFINITE 10000
 
@@ -284,6 +287,118 @@ int Barracks::create_tower_sentry(int x, int y)
         return 0;
     }
     tower->set_primary_figure_id(f->id());
-    f->building = tower;
+    if (!f->set_home_building(tower)) {
+        tower->set_primary_figure_id(0);
+        f->remove();
+        return 0;
+    }
     return 1;
+}
+
+static int barracks_recruitment_delay(const Building &building)
+{
+    const int percentage = calc_percentage(
+        building.employment_worker_count(), building.employment_required_workers());
+    int delay_days = -1;
+    if (percentage >= 100) {
+        delay_days = 8;
+    } else if (percentage >= 75) {
+        delay_days = 12;
+    } else if (percentage >= 50) {
+        delay_days = 16;
+    } else if (percentage >= 25) {
+        delay_days = 32;
+    } else if (percentage >= 1) {
+        delay_days = 48;
+    }
+    if (delay_days < 0) {
+        return -1;
+    }
+    if (city_data.mess_hall.food_stress_cumulative > 20) {
+        delay_days += city_data.mess_hall.food_stress_cumulative - 20;
+    }
+    return game_time_scale_legacy_day_ticks(delay_days);
+}
+
+void Barracks::spawn_recruitment()
+{
+    building *b = const_cast<building *>(record());
+    building_runtime *runtime = runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (!map_has_road_access_building(b->x, b->y, &road)) {
+        return;
+    }
+    runtime->run_labor_phase_if_defined(road);
+    const int spawn_delay = barracks_recruitment_delay(*this);
+    if (spawn_delay < 0) {
+        return;
+    }
+    b->figure_spawn_delay++;
+    if (b->figure_spawn_delay <= spawn_delay) {
+        return;
+    }
+    b->figure_spawn_delay = 0;
+    map_has_road_access_building(b->x, b->y, &road);
+    switch (priority()) {
+        case PRIORITY_FORT:
+        case PRIORITY_FORT_JAVELIN:
+        case PRIORITY_FORT_MOUNTED:
+        case PRIORITY_FORT_AUXILIA_INFANTRY:
+        case PRIORITY_FORT_AUXILIA_ARCHERY:
+            if (!create_soldier(road.x, road.y)) {
+                create_tower_sentry(road.x, road.y);
+            }
+            break;
+        default:
+            if (!create_tower_sentry(road.x, road.y)) {
+                create_soldier(road.x, road.y);
+            }
+            break;
+    }
+}
+
+void building_military_spawn_tower(Building &tower)
+{
+    building *b = const_cast<building *>(tower.record());
+    building_runtime *runtime = tower.runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (!map_has_road_access_building(b->x, b->y, &road)) {
+        return;
+    }
+    runtime->run_labor_phase_if_defined(road);
+    if (b->num_workers > 0 && !b->figure_id4 && b->figure_id) {
+        Figure *ballista = Figure::create(FIGURE_BALLISTA, b->x, b->y, DIR_0_TOP);
+        if (!ballista) {
+            return;
+        }
+        b->figure_id4 = ballista->id();
+        if (!ballista->set_home_building(&tower)) {
+            b->figure_id4 = 0;
+            ballista->remove();
+            return;
+        }
+        ballista->action_state = FIGURE_ACTION_180_BALLISTA_CREATED;
+    }
+}
+
+void building_military_run_academy(Building &academy)
+{
+    building *b = const_cast<building *>(academy.record());
+    building_runtime *runtime = academy.runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (map_has_road_access_building(b->x, b->y, &road)) {
+        runtime->run_labor_phase_if_defined(road);
+    }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Marshland_02">
+    <image id="Marshland_02" isometric="true">
+        <layer src="Marshland_02" part="footprint"/>
+    </image>
+</assetlist>

@@ -2,6 +2,10 @@
 #include "native.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
+#include "building/image.h"
+#include "city/population.h"
+#include "core/image.h"
 #include "city/figures.h"
 #include "city/military.h"
 #include "figure/combat.h"
@@ -9,12 +13,140 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "game/time.h"
+#include "map/image.h"
+#include "map/random.h"
+#include "map/road_access.h"
 #include "map/terrain.h"
 #include "sound/speech.h"
 
 #define NATIVE_ATTACK_SOUND_DELAY 60000
 
 static time_millis native_attack_last_played = 0;
+
+building *NativeBuildingSpawner::record() const
+{
+    return const_cast<building *>(owner_.record());
+}
+
+bool NativeBuildingSpawner::has_primary_figure(figure_type type) const
+{
+    building *b = record();
+    if (!b || !b->figure_id) {
+        return false;
+    }
+    Figure *figure = Figure::get(b->figure_id);
+    if (figure && !figure->is_dead() && figure->type == type &&
+        figure->home_building_id() == static_cast<unsigned int>(owner_.id)) {
+        return true;
+    }
+    b->figure_id = 0;
+    return false;
+}
+
+Figure *NativeBuildingSpawner::create_primary_figure(
+    figure_type type,
+    int x,
+    int y,
+    int action_state,
+    bool roaming)
+{
+    building *b = record();
+    if (!b) {
+        return nullptr;
+    }
+    Figure *figure = Figure::create(type, x, y, DIR_0_TOP);
+    if (!figure) {
+        return nullptr;
+    }
+    figure->action_state = static_cast<unsigned char>(action_state);
+    if (!figure->set_home_building(&owner_)) {
+        figure->remove();
+        return nullptr;
+    }
+    b->figure_id = figure->id();
+    if (roaming) {
+        figure_movement_init_roaming(figure);
+    }
+    return figure;
+}
+
+void NativeBuildingSpawner::spawn_hut_resident()
+{
+    building *b = record();
+    if (!b) {
+        return;
+    }
+    if (owner_.matches("native_hut")) {
+        map_image_set(b->grid_offset, image_group(GROUP_BUILDING_NATIVE) + (map_random_get(b->grid_offset) & 1));
+    } else {
+        map_image_set(b->grid_offset, building_image_get(&owner_));
+    }
+    if (has_primary_figure(FIGURE_INDIGENOUS_NATIVE)) {
+        return;
+    }
+    int x_out, y_out;
+    if (b->subtype.native_meeting_center_id > 0 &&
+        map_terrain_get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
+        b->figure_spawn_delay++;
+        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(4)) {
+            b->figure_spawn_delay = 0;
+            create_primary_figure(
+                FIGURE_INDIGENOUS_NATIVE, x_out, y_out, FIGURE_ACTION_158_NATIVE_CREATED, false);
+        }
+    }
+}
+
+void NativeBuildingSpawner::spawn_meeting_trader()
+{
+    building *b = record();
+    if (!b) {
+        return;
+    }
+    owner_.add_map_tiles(building_image_get(&owner_));
+    if (b->native_anger >= 100 || has_primary_figure(FIGURE_NATIVE_TRADER)) {
+        return;
+    }
+    int x_out, y_out;
+    if (map_terrain_get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
+        b->figure_spawn_delay++;
+        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(8)) {
+            b->figure_spawn_delay = 0;
+            create_primary_figure(
+                FIGURE_NATIVE_TRADER, x_out, y_out, FIGURE_ACTION_162_NATIVE_TRADER_CREATED, false);
+        }
+    }
+}
+
+void NativeBuildingSpawner::spawn_missionary()
+{
+    building *b = record();
+    if (!b || has_primary_figure(FIGURE_MISSIONARY)) {
+        return;
+    }
+    map_point road;
+    if (map_has_road_access_building(b->x, b->y, &road) && city_population() > 0) {
+        b->figure_spawn_delay++;
+        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(1)) {
+            b->figure_spawn_delay = 0;
+            create_primary_figure(FIGURE_MISSIONARY, road.x, road.y, FIGURE_ACTION_125_ROAMING, true);
+        }
+    }
+}
+
+void NativeBuildingSpawner::advance_crop_graphics()
+{
+    building *b = record();
+    const int option_count = owner_.type ? owner_.type->graphics().production_progress_option_count() : 0;
+    if (!b || option_count <= 0) {
+        return;
+    }
+    b->data.industry.progress++;
+    if (b->data.industry.progress >= option_count) {
+        b->data.industry.progress = 0;
+    }
+    owner_.refresh_graphic_if_native();
+}
 
 void figure_indigenous_native_action(Figure *f)
 {
@@ -65,22 +197,14 @@ void figure_indigenous_native_action(Figure *f)
                 const formation *m = formation_get(NATIVE_FORMATION);
                 if (!city_military_is_native_attack_active() || m->months_low_morale > 0) {
                     int x_tile, y_tile;
-                    Building *meeting_building = nullptr;
-                    Building::for_each([&](Building *building) {
-                        if (!meeting_building && building &&
-                            building->id == static_cast<unsigned int>(b->subtype.native_meeting_center_id)) {
-                            meeting_building = building;
-                        }
-                    });
-                    building *meeting = meeting_building ?
-                        const_cast<building *>(meeting_building->record()) :
-                        nullptr;
-                    if (!meeting) {
+                    Building *meeting_building =
+                        Building::get(static_cast<unsigned int>(b->subtype.native_meeting_center_id));
+                    if (!meeting_building) {
                         f->state = FIGURE_STATE_DEAD;
                         break;
                     }
                     if (map_terrain_get_adjacent_road_or_clear_land(
-                        meeting->x, meeting->y, meeting->size, &x_tile, &y_tile)) {
+                            *meeting_building, &x_tile, &y_tile)) {
                         f->action_state = FIGURE_ACTION_156_NATIVE_GOING_TO_MEETING_CENTER;
                         f->destination_x = static_cast<unsigned char>(x_tile);
                         f->destination_y = static_cast<unsigned char>(y_tile);
@@ -89,14 +213,8 @@ void figure_indigenous_native_action(Figure *f)
                     f->action_state = FIGURE_ACTION_159_NATIVE_ATTACKING;
                     f->destination_x = static_cast<unsigned char>(m->destination_x);
                     f->destination_y = static_cast<unsigned char>(m->destination_y);
-                    Building *destination = nullptr;
-                    Building::for_each([&](Building *building) {
-                        if (!destination && building &&
-                            building->id == static_cast<unsigned int>(m->destination_building_id)) {
-                            destination = building;
-                        }
-                    });
-                    f->destination_building = destination;
+                    Building *destination = Building::get(static_cast<unsigned int>(m->destination_building_id));
+                    f->set_destination_building(destination);
                     if (native_attack_last_played == 0 || (now - native_attack_last_played) > NATIVE_ATTACK_SOUND_DELAY) {
                         sound_speech_play_file("wavs/barbarian_war_cry.wav");
                         native_attack_last_played = now;

@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="hippodrome_end">
     <identity name_key="main_strings.28.32" />
-    <model size="5" />
-    <foundation policy="land" />
-    <event_data attr="hippodrome_end" />
+    <foundation path="land_5x5" />
     <flags fire_proof="1" />
     <graphics>
         <default>

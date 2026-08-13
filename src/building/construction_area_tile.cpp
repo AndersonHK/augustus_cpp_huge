@@ -153,7 +153,7 @@ int ConstructionAreaTilePlacement::place_plaza_area(const Region &region)
             }
             map_image_set(grid_offset, 0);
             map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
-            map_property_set_multi_tile_size(grid_offset, 1);
+            map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
         }
     }

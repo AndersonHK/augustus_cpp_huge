@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Trade_Policy">
+    <image id="Trade Policy">
+        <layer src="Trade_Policy"/>
+    </image>
+</assetlist>

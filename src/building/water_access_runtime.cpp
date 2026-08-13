@@ -1,15 +1,14 @@
 #include "building/count.h"
-#include "building/house.h"
 #include "building/image.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
-#include "map/building_tiles.h"
 #include "map/image.h"
 #include "map/tiles.h"
 
 #include "building/water_access_runtime.h"
 
 #include "assets/assets.h"
+#include "building/BuildingGeometry.h"
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
@@ -18,17 +17,20 @@
 
 #include "building/building_record.h"
 #include "building/monument.h"
-#include "city/view.h"
+#include "game/performance_tracker.h"
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
+#include "map/water_navigation.h"
 #include "scenario/property.h"
+#include "scenario/map.h"
 
 
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -40,6 +42,9 @@ constexpr const char *kAccessReservoir = "reservoir";
 constexpr const char *kAccessLatrines = "latrines";
 
 using building_type_registry_impl::BuildingType;
+using building_type_registry_impl::BuildingGeometry;
+using building_type_registry_impl::BuildingGeometryCell;
+using building_type_registry_impl::BuildingGeometryPoint;
 using building_type_registry_impl::WaterAccessDefinition;
 using building_type_registry_impl::WaterAccessOrigin;
 using building_type_registry_impl::WaterAccessProvideRule;
@@ -67,7 +72,9 @@ struct RuntimeState {
 
 struct PlannedProvider {
     const BuildingType *definition = nullptr;
-    int grid_offset = 0;
+    BuildingGeometry geometry;
+    int origin_x = 0;
+    int origin_y = 0;
 };
 
 struct SimulationInput {
@@ -82,10 +89,6 @@ struct SimulationResult {
     MaskSet masks;
     std::array<uint8_t, GRID_SIZE * GRID_SIZE> wet_aqueduct = {};
 };
-
-std::array<uint8_t, GRID_SIZE * GRID_SIZE> *g_range_mask_target = nullptr;
-uint8_t g_range_mask_bit = 0;
-int g_range_mask_changed = 0;
 
 uint8_t access_mask(const char *text_id)
 {
@@ -102,15 +105,6 @@ const BuildingType *reservoir_definition()
     static const BuildingType *definition = nullptr;
     if (!definition) {
         definition = definition_from_attr("reservoir");
-    }
-    return definition;
-}
-
-const BuildingType *draggable_reservoir_definition()
-{
-    static const BuildingType *definition = nullptr;
-    if (!definition) {
-        definition = definition_from_attr("draggable_reservoir");
     }
     return definition;
 }
@@ -135,19 +129,8 @@ const char *text_from_mask(uint8_t mask)
     return nullptr;
 }
 
-const BuildingType *normalize_provider_definition(const BuildingType *definition)
-{
-    return definition == draggable_reservoir_definition() ? reservoir_definition() : definition;
-}
-
-const BuildingType *definition_for_provider(const BuildingType *definition)
-{
-    return normalize_provider_definition(definition);
-}
-
 const WaterAccessDefinition *water_definition_for_provider(const BuildingType *definition)
 {
-    definition = definition_for_provider(definition);
     return definition ? &definition->water_access() : nullptr;
 }
 
@@ -165,11 +148,114 @@ const WaterAccessProvideRule *primary_provider_rule(const BuildingType *definiti
     return &water->provide_rules().front();
 }
 
-int provider_size_for_definition(const BuildingType *definition)
+// Registry-derived type ranges for the current water-runtime generation.
+// They contain no save ids and are discarded by water_access_runtime_reset().
+class WaterRuntimeTypeLists {
+public:
+    void clear()
+    {
+        provider_types_.clear();
+        projected_state_types_.clear();
+        open_water_types_.clear();
+        initialized_ = false;
+    }
+
+    template<typename Visitor>
+    void for_each_provider(Visitor &&visitor)
+    {
+        ensure_current();
+        for_each(provider_types_, std::forward<Visitor>(visitor));
+    }
+
+    template<typename Visitor>
+    void for_each_projected_state(Visitor &&visitor)
+    {
+        ensure_current();
+        for_each(projected_state_types_, std::forward<Visitor>(visitor));
+    }
+
+    template<typename Visitor>
+    void for_each_open_water(Visitor &&visitor)
+    {
+        ensure_current();
+        for_each(open_water_types_, std::forward<Visitor>(visitor));
+    }
+
+private:
+    struct Entry {
+        building_type type = BUILDING_NONE;
+        const BuildingType *definition = nullptr;
+        const WaterAccessDefinition *water = nullptr;
+    };
+
+    void ensure_current()
+    {
+        if (initialized_) {
+            return;
+        }
+        for (int value = BUILDING_NONE + 1; value < BUILDING_TYPE_MAX; ++value) {
+            const building_type type = static_cast<building_type>(value);
+            const BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+            const WaterAccessDefinition *water = water_definition_for_provider(definition);
+            if (!definition || !water) {
+                continue;
+            }
+            const Entry entry{ type, definition, water };
+            if (water->has_provider()) {
+                provider_types_.push_back(entry);
+            }
+            if (definition->has_housing() || water->has_provider() || water->has_requirements() ||
+                water->requires_open_water()) {
+                projected_state_types_.push_back(entry);
+            }
+            if (water->requires_open_water()) {
+                open_water_types_.push_back(entry);
+            }
+        }
+        initialized_ = true;
+    }
+
+    template<typename Visitor>
+    static void for_each(const std::vector<Entry> &types, Visitor &&visitor)
+    {
+        for (const Entry &entry : types) {
+            for (Building &building : Building::of_type(entry.type)) {
+                visitor(building, *entry.definition, *entry.water);
+            }
+        }
+    }
+
+    std::vector<Entry> provider_types_;
+    std::vector<Entry> projected_state_types_;
+    std::vector<Entry> open_water_types_;
+    bool initialized_ = false;
+};
+
+WaterRuntimeTypeLists g_water_runtime_types;
+
+BuildingGeometry planned_geometry(
+    const BuildingType *definition,
+    int x,
+    int y,
+    int rotation)
 {
-    definition = definition_for_provider(definition);
-    const int declared_size = definition ? definition->declared_model_size() : 0;
-    return declared_size > 0 ? declared_size : 1;
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    return foundation ? BuildingGeometry::from_foundation(*foundation, x, y, rotation) : BuildingGeometry{};
+}
+
+std::vector<int> required_water_offsets(const BuildingGeometry &geometry)
+{
+    std::vector<int> result;
+    if (!geometry.valid()) {
+        return result;
+    }
+    for (const BuildingGeometryCell &cell : geometry.cells()) {
+        if (cell.requires_water && map_grid_is_inside(cell.x, cell.y, 1)) {
+            result.push_back(map_grid_offset(cell.x, cell.y));
+        }
+    }
+    return result;
 }
 
 int add_mask_tile(std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask, int grid_offset, uint8_t bit)
@@ -180,14 +266,6 @@ int add_mask_tile(std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask, int grid_off
     const uint8_t before = mask[grid_offset];
     mask[grid_offset] = static_cast<uint8_t>(mask[grid_offset] | bit);
     return before != mask[grid_offset];
-}
-
-void mark_range_tile(int, int, int grid_offset)
-{
-    if (!g_range_mask_target || !map_grid_is_valid_offset(grid_offset)) {
-        return;
-    }
-    g_range_mask_changed |= add_mask_tile(*g_range_mask_target, grid_offset, g_range_mask_bit);
 }
 
 void clear_masks(MaskSet &masks)
@@ -210,22 +288,20 @@ void clear_preview_state()
 
 void ensure_runtime_refreshed();
 
-int area_has_access(
+int geometry_has_access(
     const std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask,
-    int x,
-    int y,
-    int size,
+    const BuildingGeometry &geometry,
     uint8_t bit)
 {
-    if (!bit) {
+    if (!bit || !geometry.valid()) {
         return 0;
     }
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            int grid_offset = map_grid_offset(x + dx, y + dy);
-            if (map_grid_is_valid_offset(grid_offset) && (mask[grid_offset] & bit)) {
-                return 1;
-            }
+    for (const BuildingGeometryCell &cell : geometry.cells()) {
+        if (!map_grid_is_inside(cell.x, cell.y, 1)) {
+            continue;
+        }
+        if (mask[map_grid_offset(cell.x, cell.y)] & bit) {
+            return 1;
         }
     }
     return 0;
@@ -250,27 +326,42 @@ int nodes_have_access(
     return 0;
 }
 
-int has_water_source_access(int x, int y, int size)
+int has_water_source_access(const BuildingGeometry &geometry)
 {
-    return map_terrain_exists_tile_in_area_with_type(x - 1, y - 1, size + 2, TERRAIN_WATER);
+    if (!geometry.valid()) {
+        return 0;
+    }
+    for (const BuildingGeometryCell &cell : geometry.cells()) {
+        if (map_grid_is_inside(cell.x, cell.y, 1) &&
+            map_terrain_is(map_grid_offset(cell.x, cell.y), TERRAIN_WATER)) {
+            return 1;
+        }
+    }
+    for (const BuildingGeometryPoint &candidate : geometry.points_at_distance(1)) {
+        if (map_grid_is_inside(candidate.x, candidate.y, 1) &&
+            map_terrain_is(map_grid_offset(candidate.x, candidate.y), TERRAIN_WATER)) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int requirement_term_is_satisfied(
     const WaterAccessDefinition &water,
     const WaterAccessRequirementTerm &term,
+    const BuildingGeometry &geometry,
     int x,
     int y,
-    int size,
     const MaskSet &masks)
 {
     switch (term.kind) {
         case WaterAccessRequirementTermKind::Access:
             return term.where == WaterAccessRequirementWhere::Nodes ?
                 nodes_have_access(water, masks.access, x, y, term.mask) :
-                area_has_access(masks.access, x, y, size, term.mask);
+                geometry_has_access(masks.access, geometry, term.mask);
         case WaterAccessRequirementTermKind::WaterSourceAny:
         case WaterAccessRequirementTermKind::WaterSourceFreshOnly:
-            return has_water_source_access(x, y, size);
+            return has_water_source_access(geometry);
         default:
             return 0;
     }
@@ -279,9 +370,9 @@ int requirement_term_is_satisfied(
 int requirement_rule_is_satisfied(
     const WaterAccessDefinition &water,
     const WaterAccessRequirementRule &rule,
+    const BuildingGeometry &geometry,
     int x,
     int y,
-    int size,
     const MaskSet &masks)
 {
     if (rule.terms.empty()) {
@@ -289,14 +380,14 @@ int requirement_rule_is_satisfied(
     }
     if (rule.mode == WaterAccessRequirementMode::Any) {
         for (const WaterAccessRequirementTerm &term : rule.terms) {
-            if (requirement_term_is_satisfied(water, term, x, y, size, masks)) {
+            if (requirement_term_is_satisfied(water, term, geometry, x, y, masks)) {
                 return 1;
             }
         }
         return 0;
     }
     for (const WaterAccessRequirementTerm &term : rule.terms) {
-        if (!requirement_term_is_satisfied(water, term, x, y, size, masks)) {
+        if (!requirement_term_is_satisfied(water, term, geometry, x, y, masks)) {
             return 0;
         }
     }
@@ -305,64 +396,69 @@ int requirement_rule_is_satisfied(
 
 int requirements_are_satisfied(
     const WaterAccessDefinition &water,
+    const BuildingGeometry &geometry,
     int x,
     int y,
-    int size,
     const MaskSet &masks)
 {
+    if (!geometry.valid()) {
+        return 0;
+    }
     for (const WaterAccessRequirementRule &rule : water.requirement_rules()) {
-        if (!requirement_rule_is_satisfied(water, rule, x, y, size, masks)) {
+        if (!requirement_rule_is_satisfied(water, rule, geometry, x, y, masks)) {
             return 0;
         }
     }
     return 1;
 }
 
-int mark_building_footprint(
+int mark_geometry_footprint(
     std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask,
-    int x,
-    int y,
-    int size,
+    const BuildingGeometry &geometry,
     uint8_t bit)
 {
     int changed = 0;
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            changed |= add_mask_tile(mask, map_grid_offset(x + dx, y + dy), bit);
+    if (!geometry.valid()) {
+        return changed;
+    }
+    for (const BuildingGeometryCell &cell : geometry.cells()) {
+        if (map_grid_is_inside(cell.x, cell.y, 1)) {
+            changed |= add_mask_tile(mask, map_grid_offset(cell.x, cell.y), bit);
         }
     }
     return changed;
 }
 
-int mark_range(
+int mark_geometry_range(
     std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask,
-    int grid_offset,
-    int size,
+    const BuildingGeometry &geometry,
     int range,
     uint8_t bit)
 {
-    g_range_mask_target = &mask;
-    g_range_mask_bit = bit;
-    g_range_mask_changed = 0;
-    city_view_foreach_tile_in_range(grid_offset, size, range, mark_range_tile);
-    g_range_mask_target = nullptr;
-    g_range_mask_bit = 0;
-    return g_range_mask_changed;
+    int changed = 0;
+    if (!geometry.valid()) {
+        return changed;
+    }
+    for (int distance = 1; distance <= range; ++distance) {
+        for (const BuildingGeometryPoint &point : geometry.points_at_distance(distance)) {
+            if (map_grid_is_inside(point.x, point.y, 1)) {
+                changed |= add_mask_tile(mask, map_grid_offset(point.x, point.y), bit);
+            }
+        }
+    }
+    return changed;
 }
 
 int mark_rule_from_footprint(
     MaskSet &masks,
     const WaterAccessProvideRule &rule,
-    int x,
-    int y,
-    int grid_offset,
-    int size)
+    const BuildingGeometry &geometry)
 {
-    int changed = mark_building_footprint(masks.providers, x, y, size, rule.mask);
+    int changed = mark_geometry_footprint(masks.providers, geometry, rule.mask);
     if (rule.range > 0) {
-        changed |= mark_range(masks.access, grid_offset, size, rule.range, rule.mask);
+        changed |= mark_geometry_range(masks.access, geometry, rule.range, rule.mask);
     } else {
-        changed |= mark_building_footprint(masks.access, x, y, size, rule.mask);
+        changed |= mark_geometry_footprint(masks.access, geometry, rule.mask);
     }
     return changed;
 }
@@ -379,7 +475,9 @@ int mark_rule_from_nodes(
         const int grid_offset = map_grid_offset(x + node.x, y + node.y);
         changed |= add_mask_tile(masks.providers, grid_offset, rule.mask);
         if (rule.range > 0) {
-            changed |= mark_range(masks.access, grid_offset, 1, rule.range, rule.mask);
+            changed |= mark_geometry_range(masks.access, BuildingGeometry::from_world_cells({
+                { x + node.x, y + node.y }
+            }), rule.range, rule.mask);
         } else {
             changed |= add_mask_tile(masks.access, grid_offset, rule.mask);
         }
@@ -390,17 +488,16 @@ int mark_rule_from_nodes(
 int mark_provider_rules(
     MaskSet &masks,
     const WaterAccessDefinition &water,
+    const BuildingGeometry &geometry,
     int x,
-    int y,
-    int grid_offset,
-    int size)
+    int y)
 {
     int changed = 0;
     for (const WaterAccessProvideRule &rule : water.provide_rules()) {
         if (rule.origin == WaterAccessOrigin::Nodes) {
             changed |= mark_rule_from_nodes(masks, water, rule, x, y);
         } else {
-            changed |= mark_rule_from_footprint(masks, rule, x, y, grid_offset, size);
+            changed |= mark_rule_from_footprint(masks, rule, geometry);
         }
     }
     return changed;
@@ -415,30 +512,35 @@ int building_has_required_workers(const Building *building)
     return required_workers <= 0 || building->worker_count() > 0;
 }
 
-int live_provider_is_active(const Building *building, const WaterAccessDefinition &water, const MaskSet &requirement_masks)
+int live_provider_is_active(
+    const Building *building,
+    const WaterAccessDefinition &water,
+    const BuildingGeometry &geometry,
+    const MaskSet &requirement_masks)
 {
     if (!building || !building->is_in_use() || !building_has_required_workers(building)) {
         return 0;
     }
-    return requirements_are_satisfied(water, building->x(), building->y(), building->size(), requirement_masks);
+    return requirements_are_satisfied(water, geometry, building->x(), building->y(), requirement_masks) &&
+        (!water.requires_open_water() || water_access_runtime_building_has_open_water_access(building));
 }
 
 int mark_live_building_providers(SimulationResult &result, const MaskSet &requirement_masks)
 {
     int changed = 0;
-    Building::for_each([&](Building *building_object) {
-        if (!building_object->is_in_use()) {
+    g_water_runtime_types.for_each_provider([&](
+        Building &building_object,
+        const BuildingType &,
+        const WaterAccessDefinition &water) {
+        if (!building_object.is_in_use()) {
             return;
         }
-        const WaterAccessDefinition *water = water_definition_for_provider(building_object->type);
-        if (!water || !water->has_provider() || !live_provider_is_active(building_object, *water, requirement_masks)) {
+        const BuildingGeometry geometry = BuildingGeometry::query(building_object);
+        if (!live_provider_is_active(&building_object, water, geometry, requirement_masks)) {
             return;
         }
-        changed |= mark_provider_rules(result.masks, *water,
-            building_object->x(),
-            building_object->y(),
-            building_object->grid_offset(),
-            building_object->size());
+        changed |= mark_provider_rules(
+            result.masks, water, geometry, building_object.x(), building_object.y());
     });
     return changed;
 }
@@ -451,21 +553,20 @@ int mark_planned_providers(
     int changed = 0;
     for (int i = 0; i < input.planned_provider_count; i++) {
         const PlannedProvider &planned = input.planned_providers[i];
-        if (!planned.grid_offset) {
+        if (!planned.geometry.valid()) {
             continue;
         }
-        const BuildingType *definition = definition_for_provider(planned.definition);
+        const BuildingType *definition = planned.definition;
         const WaterAccessDefinition *water = water_definition_for_provider(definition);
         if (!water || !water->has_provider()) {
             continue;
         }
-        const int x = map_grid_offset_to_x(planned.grid_offset);
-        const int y = map_grid_offset_to_y(planned.grid_offset);
-        const int size = provider_size_for_definition(definition);
         if (input.force_planned_provider_access ||
             !water->has_requirements() ||
-            requirements_are_satisfied(*water, x, y, size, requirement_masks)) {
-            changed |= mark_provider_rules(result.masks, *water, x, y, planned.grid_offset, size);
+            requirements_are_satisfied(
+                *water, planned.geometry, planned.origin_x, planned.origin_y, requirement_masks)) {
+            changed |= mark_provider_rules(
+                result.masks, *water, planned.geometry, planned.origin_x, planned.origin_y);
         }
     }
     return changed;
@@ -490,13 +591,7 @@ int mark_neptune_bonus(SimulationResult &result)
     rule.mask = reservoir_mask;
     rule.range = water_access_runtime_range_for_building(reservoir_definition());
     rule.origin = WaterAccessOrigin::Footprint;
-    return mark_rule_from_footprint(
-        result.masks,
-        rule,
-        neptune_gt->x(),
-        neptune_gt->y(),
-        neptune_gt->grid_offset(),
-        7);
+    return mark_rule_from_footprint(result.masks, rule, BuildingGeometry::query(*neptune_gt));
 }
 
 int is_aqueduct_tile_for_simulation(int grid_offset, const SimulationInput &input)
@@ -537,13 +632,14 @@ int mark_aqueduct_tile_providers(
             if (!is_aqueduct_tile_for_simulation(grid_offset, input)) {
                 continue;
             }
+            const BuildingGeometry geometry = planned_geometry(aqueduct_definition(), x, y, 0);
             if (!input.force_planned_provider_access || !is_preview_tile) {
-                if (!requirements_are_satisfied(*water, x, y, 1, requirement_masks)) {
+                if (!requirements_are_satisfied(*water, geometry, x, y, requirement_masks)) {
                     continue;
                 }
             }
             result.wet_aqueduct[grid_offset] = 1;
-            changed |= mark_provider_rules(result.masks, *water, x, y, grid_offset, 1);
+            changed |= mark_provider_rules(result.masks, *water, geometry, x, y);
         }
     }
     return changed;
@@ -645,72 +741,61 @@ void project_house_water_state(Building *building_object, const SimulationResult
     if (!record) {
         return;
     }
+    const BuildingGeometry geometry = BuildingGeometry::query(*building_object);
     record->has_well_access =
-        area_has_access(result.masks.access,
-            building_object->x(),
-            building_object->y(),
-            building_object->size(),
-            access_mask(kAccessWell)) ? 1 : 0;
+        geometry_has_access(result.masks.access, geometry, access_mask(kAccessWell)) ? 1 : 0;
     building_object->set_has_water_access(
-        area_has_access(result.masks.access,
-            building_object->x(),
-            building_object->y(),
-            building_object->size(),
-            access_mask(kAccessFountain)) ? 1 : 0);
+        geometry_has_access(result.masks.access, geometry, access_mask(kAccessFountain)) ? 1 : 0);
     record->has_latrines_access =
-        area_has_access(result.masks.access,
-            building_object->x(),
-            building_object->y(),
-            building_object->size(),
-            access_mask(kAccessLatrines)) ? 1 : 0;
+        geometry_has_access(result.masks.access, geometry, access_mask(kAccessLatrines)) ? 1 : 0;
 }
 
 void refresh_water_graphic(Building *building, const BuildingType *definition)
 {
-    if (!building || !definition || !definition->has_graphic() || !definition->water_access().has_requirements()) {
+    if (!building || !definition || !definition->has_graphic() ||
+        (!definition->water_access().has_requirements() &&
+            !definition->water_access().requires_open_water())) {
         return;
     }
     if (!building->refresh_graphic_if_native()) {
-        map_building_tiles_add(*building,
-            building->x(),
-            building->y(),
-            building->size(),
-            building_image_get(building),
-            TERRAIN_BUILDING);
+        if (building->Foundation) {
+            building->Foundation->refresh(building_image_get(building));
+        }
     }
 }
 
 void project_building_state(const SimulationResult &result)
 {
-    Building::for_each([&](Building *building_object) {
-        building *b = const_cast<building *>(building_object->record());
-        if (!building_object->is_in_use()) {
+    g_water_runtime_types.for_each_projected_state([&](
+        Building &building_object,
+        const BuildingType &definition,
+        const WaterAccessDefinition &water) {
+        building *b = const_cast<building *>(building_object.record());
+        if (!building_object.is_in_use()) {
             return;
         }
 
-        if (building_object->has_house_size()) {
-            project_house_water_state(building_object, result);
+        if (building_object.Housing) {
+            project_house_water_state(&building_object, result);
         }
 
-        const BuildingType *definition = definition_for_provider(building_object->type);
-        if (!definition) {
-            return;
-        }
-
-        const WaterAccessDefinition &water = definition->water_access();
-        if (water.has_requirements()) {
-            int has_access = 0;
-            if (building_has_required_workers(building_object)) {
+        if (water.has_requirements() || water.requires_open_water()) {
+            int has_access = building_has_required_workers(&building_object);
+            if (has_access && water.has_requirements()) {
+                const BuildingGeometry geometry = BuildingGeometry::query(building_object);
                 has_access = requirements_are_satisfied(water,
-                    building_object->x(),
-                    building_object->y(),
-                    building_object->size(),
+                    geometry,
+                    building_object.x(),
+                    building_object.y(),
                     result.masks);
             }
-            building_object->set_has_water_access(has_access);
+            if (has_access && water.requires_open_water()) {
+                has_access = water_access_runtime_building_has_open_water_access(&building_object);
+            }
+            building_object.set_has_water_access(has_access);
         }
         if (b) {
-            if (definition->attr_is("fountain")) {
+            if (definition.attr_is("fountain")) {
                 if (b->desirability > 60) {
                     b->upgrade_level = 3;
                 } else if (b->desirability > 40) {
@@ -722,7 +807,7 @@ void project_building_state(const SimulationResult &result)
                 }
             }
         }
-        refresh_water_graphic(building_object, definition);
+        refresh_water_graphic(&building_object, &definition);
     });
 }
 
@@ -759,6 +844,7 @@ void ensure_runtime_refreshed()
 
 void water_access_runtime_reset(void)
 {
+    g_water_runtime_types.clear();
     clear_masks(g_state.masks);
     clear_preview_state();
     g_state.refreshed = 0;
@@ -783,25 +869,29 @@ void water_access_runtime_refresh_building(Building *building)
         return;
     }
 
-    const BuildingType *definition = definition_for_provider(building->type);
+    const BuildingType *definition = building->type;
     if (!definition) {
         return;
     }
 
     const WaterAccessDefinition &water = definition->water_access();
-    if (!water.has_provider() && !water.has_requirements()) {
+    if (!water.has_provider() && !water.has_requirements() && !water.requires_open_water()) {
         return;
     }
 
     water_access_runtime_refresh();
-    if (water.has_requirements()) {
-        int has_access = 0;
-        if (building_has_required_workers(building)) {
+    if (water.has_requirements() || water.requires_open_water()) {
+        int has_access = building_has_required_workers(building);
+        if (has_access && water.has_requirements()) {
+            const BuildingGeometry geometry = BuildingGeometry::query(*building);
             has_access = requirements_are_satisfied(water,
+                geometry,
                 building->x(),
                 building->y(),
-                building->size(),
                 g_state.masks);
+        }
+        if (has_access && water.requires_open_water()) {
+            has_access = water_access_runtime_building_has_open_water_access(building);
         }
         building->set_has_water_access(has_access);
     }
@@ -813,7 +903,6 @@ void water_access_runtime_refresh_building(Building *building)
 
 int water_access_runtime_range_for_building(const BuildingType *definition)
 {
-    definition = definition_for_provider(definition);
     const WaterAccessProvideRule *rule = primary_provider_rule(definition);
     int radius = rule ? rule->range : 0;
     const uint8_t mask = rule ? rule->mask : 0;
@@ -902,11 +991,47 @@ int water_access_runtime_building_area_has_access(const Building *building, cons
         return 0;
     }
     ensure_runtime_refreshed();
-    return area_has_access(g_state.masks.access,
-        building->x(),
-        building->y(),
-        building->size(),
-        access_mask(text_id));
+    return geometry_has_access(
+        g_state.masks.access, BuildingGeometry::query(*building), access_mask(text_id));
+}
+
+int water_access_runtime_building_type_has_open_water_access_at(
+    const BuildingType *definition,
+    int x,
+    int y,
+    int rotation)
+{
+    if (!definition || !definition->water_access().requires_open_water()) {
+        return 1;
+    }
+    const std::vector<int> water_cells = required_water_offsets(planned_geometry(definition, x, y, rotation));
+    return water_navigation::can_reach_adjacent(scenario_map_river_entry(), water_cells) ? 1 : 0;
+}
+
+int water_access_runtime_building_has_open_water_access(const Building *building)
+{
+    if (!building || !building->type) {
+        return 0;
+    }
+    if (!building->type->water_access().requires_open_water()) {
+        return 1;
+    }
+    return water_navigation::can_reach_adjacent(
+        scenario_map_river_entry(), required_water_offsets(BuildingGeometry::query(*building))) ? 1 : 0;
+}
+
+void water_access_runtime_update_open_water_access(void)
+{
+    PerformanceTrackerScope lookup_scope(PERFORMANCE_TRACKER_BUCKET_WATER_ACCESS_LOOKUP);
+    g_water_runtime_types.for_each_open_water([](
+        Building &building,
+        const BuildingType &,
+        const WaterAccessDefinition &) {
+        if (!building.is_in_use()) {
+            return;
+        }
+        building.set_has_water_access(water_access_runtime_building_has_open_water_access(&building));
+    });
 }
 
 int water_access_runtime_building_has_required_access(const Building *building)
@@ -916,43 +1041,56 @@ int water_access_runtime_building_has_required_access(const Building *building)
     }
     ensure_runtime_refreshed();
 
-    const BuildingType *definition = definition_for_provider(building->type);
-    if (!definition || !definition->water_access().has_requirements()) {
+    const BuildingType *definition = building->type;
+    if (!definition) {
         return 0;
     }
-    return requirements_are_satisfied(definition->water_access(),
-        building->x(),
-        building->y(),
-        building->size(),
-        g_state.masks);
+    const WaterAccessDefinition &water = definition->water_access();
+    if (!water.has_requirements() && !water.requires_open_water()) {
+        return 0;
+    }
+    if (water.has_requirements() && !requirements_are_satisfied(water,
+            BuildingGeometry::query(*building), building->x(), building->y(), g_state.masks)) {
+        return 0;
+    }
+    return !water.requires_open_water() || water_access_runtime_building_has_open_water_access(building);
 }
 
-int water_access_runtime_building_type_has_required_access_at(const BuildingType *definition, int x, int y, int size)
+int water_access_runtime_building_type_has_required_access_at(
+    const BuildingType *definition,
+    int x,
+    int y,
+    int rotation)
 {
     ensure_runtime_refreshed();
-    definition = definition_for_provider(definition);
     if (!definition || !definition->water_access().has_requirements()) {
         return 1;
     }
-    return requirements_are_satisfied(definition->water_access(), x, y, size, g_state.masks);
+    return requirements_are_satisfied(
+        definition->water_access(), planned_geometry(definition, x, y, rotation), x, y, g_state.masks);
 }
 
 int water_access_runtime_reservoir_has_network_access(int grid_offset)
 {
     ensure_runtime_refreshed();
-    const BuildingType *definition = definition_for_provider(reservoir_definition());
+    const BuildingType *definition = reservoir_definition();
     if (!definition) {
         return 0;
     }
     return requirements_are_satisfied(
         definition->water_access(),
+        planned_geometry(definition, map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), 0),
         map_grid_offset_to_x(grid_offset),
         map_grid_offset_to_y(grid_offset),
-        provider_size_for_definition(definition),
         g_state.masks);
 }
 
-void water_access_runtime_begin_preview(const BuildingType *definition, int primary_grid_offset, int secondary_grid_offset)
+void water_access_runtime_begin_preview(
+    const BuildingType *definition,
+    int primary_grid_offset,
+    int secondary_grid_offset,
+    int primary_rotation,
+    int secondary_rotation)
 {
     ensure_runtime_refreshed();
 
@@ -967,16 +1105,22 @@ void water_access_runtime_begin_preview(const BuildingType *definition, int prim
         if (primary_grid_offset) {
             PlannedProvider &provider = input.planned_providers[input.planned_provider_count++];
             provider.definition = definition;
-            provider.grid_offset = primary_grid_offset;
+            provider.origin_x = map_grid_offset_to_x(primary_grid_offset);
+            provider.origin_y = map_grid_offset_to_y(primary_grid_offset);
+            provider.geometry = planned_geometry(
+                definition, provider.origin_x, provider.origin_y, primary_rotation);
         }
         if (secondary_grid_offset) {
             if (secondary_grid_offset != primary_grid_offset && input.planned_provider_count < 2) {
                 PlannedProvider &provider = input.planned_providers[input.planned_provider_count++];
                 provider.definition = definition;
-                provider.grid_offset = secondary_grid_offset;
+                provider.origin_x = map_grid_offset_to_x(secondary_grid_offset);
+                provider.origin_y = map_grid_offset_to_y(secondary_grid_offset);
+                provider.geometry = planned_geometry(
+                    definition, provider.origin_x, provider.origin_y, secondary_rotation);
             }
         }
-        if (definition == draggable_reservoir_definition()) {
+        if (definition && definition->tool().is_draggable_reservoir()) {
             input.include_constructing_aqueduct = 1;
         }
     }
@@ -1009,7 +1153,7 @@ int water_access_runtime_should_draw_overlay_at(int grid_offset)
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         const Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
-        const BuildingType *definition = building ? definition_for_provider(building->type) : nullptr;
+        const BuildingType *definition = building ? building->type : nullptr;
         if (definition && definition->water_access().has_provider()) {
             return 0;
         }

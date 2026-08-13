@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Fountain_Desert_Fix">
+    <image id="Frame_Flickering_Fix" group="Admin_Logistics\Fountain_4" image="Frame_Flickering_Fix"/>
+    <image id="Fountain_Desert_Fix" isometric="true" group="Admin_Logistics\Fountain_4" image="Fountain_Desert_Fix"/>
+</assetlist>

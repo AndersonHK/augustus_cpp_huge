@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Native_Well_Central">
+    <image id="Native_Well_Central" isometric="true">
+        <layer src="Native_Well_Central" part="footprint"/>
+    </image>
+</assetlist>

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\sml_col_B_R">
+    <image id="sml col B R" width="58" height="83" isometric="true">
+        <layer src="sml_col_B_R_Layer_01" y="12" part="footprint"/>
+        <layer src="sml_col_B_R_Layer_02" x="14" y="61" part="top"/>
+        <layer src="sml_col_B_R_Layer_03" x="20" y="1" part="top"/>
+        <layer src="sml_col_B_R_Layer_04" x="27" y="21" part="top"/>
+    </image>
+    <image id="sml col G R" isometric="true">
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="footprint"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer src="sml_col_G_R_Layer_05" x="27" y="21" part="top"/>
+    </image>
+    <image id="sml col O R" isometric="true">
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="footprint"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer src="sml_col_O_R_Layer_05" x="27" y="21" part="top"/>
+    </image>
+    <image id="sml col R R" isometric="true">
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="footprint"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer src="sml_col_R_R_Layer_05" x="27" y="21" part="top"/>
+    </image>
+    <image id="sml col Y R" isometric="true">
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="footprint"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer src="sml_col_Y_R_Layer_05" x="27" y="21" part="top"/>
+    </image>
+    <image id="sml col Y P" isometric="true">
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="footprint"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer group="Aesthetics\sml_col_B_R" image="sml col B R" part="top"/>
+        <layer src="sml_col_Y_P_Layer_05" x="27" y="21" part="top"/>
+    </image>
+</assetlist>

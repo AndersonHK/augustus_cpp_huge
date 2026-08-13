@@ -22,6 +22,9 @@ static const char *BUCKET_NAMES[PERFORMANCE_TRACKER_BUCKET_MAX] = {
     "road_network",
     "resource",
     "water",
+    "water_navigation_rebuild",
+    "water_navigation_astar",
+    "water_access_lookup",
     "production",
     "labor",
     "desirability",
@@ -55,7 +58,12 @@ static const char *ROUTE_METRIC_NAMES[PERFORMANCE_TRACKER_ROUTE_METRIC_MAX] = {
     "pruned_by_current_path",
     "pruned_by_backoff",
     "failed",
-    "async_jobs"
+    "async_jobs",
+    "water_topology_rebuilds",
+    "water_endpoint_fields",
+    "water_astar_requests",
+    "water_astar_expanded_nodes",
+    "water_field_lookups"
 };
 
 static const char *ROUTE_PURPOSE_NAMES[PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX] = {
@@ -187,14 +195,16 @@ static void flush_sample(uint64_t now)
         wrote_render_metric = 1;
     }
     int wrote_route_metric = 0;
+    int wrote_route_header = 0;
     for (int metric = 0; metric < PERFORMANCE_TRACKER_ROUTE_METRIC_MAX; metric++) {
         int wrote_purpose = 0;
         for (int purpose = 0; purpose < PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX; purpose++) {
             if (!data.route_counters[metric][purpose]) {
                 continue;
             }
-            if (!wrote_route_metric) {
+            if (!wrote_route_header) {
                 fprintf(data.log_file, " route_metrics=");
+                wrote_route_header = 1;
             }
             if (!wrote_purpose) {
                 fprintf(data.log_file, "%s%s:", wrote_route_metric ? ";" : "", ROUTE_METRIC_NAMES[metric]);

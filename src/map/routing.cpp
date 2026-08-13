@@ -62,8 +62,6 @@ static struct {
     int items[MAX_QUEUE];
 } queue;
 
-static grid_u8 water_drag;
-
 static struct {
     grid_u8 status;
     time_millis last_check;
@@ -256,11 +254,10 @@ static void route_queue_from_to(int src_x, int src_y, int dst_x, int dst_y, int 
 }
 
 static void route_queue_all_from(int source, max_directions directions,
-    int (*callback)(int next_offset, int dist, int direction), int is_boat)
+    int (*callback)(int next_offset, int dist, int direction))
 {
     clear_data();
     record_cost_map_generation();
-    map_grid_clear_u8(water_drag.items);
     enqueue(source, 1);
     int tiles = 0;
     while (queue.head != queue.tail) {
@@ -268,22 +265,13 @@ static void route_queue_all_from(int source, max_directions directions,
             break;
         }
         int offset = queue_pop();
-        int drag = is_boat && terrain_water.items[offset] == WATER_N2_MAP_EDGE ? 4 : 0;
-        if (water_drag.items[offset] < drag) {
-            water_drag.items[offset]++;
-            queue.items[queue.tail++] = offset;
-            if (queue.tail >= MAX_QUEUE) {
-                queue.tail = 0;
-            }
-        } else {
-            int dist = 1 + distance.determined.items[offset];
-            for (int i = 0; i < directions; i++) {
-                int route_offset = ROUTE_OFFSETS[i];
-                int next_offset = offset + route_offset;
-                if (valid_offset(next_offset, dist)) {
-                    if (callback(next_offset, dist, i) == UNTIL_STOP) {
-                        break;
-                    }
+        int dist = 1 + distance.determined.items[offset];
+        for (int i = 0; i < directions; i++) {
+            int route_offset = ROUTE_OFFSETS[i];
+            int next_offset = offset + route_offset;
+            if (valid_offset(next_offset, dist)) {
+                if (callback(next_offset, dist, i) == UNTIL_STOP) {
+                    break;
                 }
             }
         }
@@ -326,56 +314,14 @@ static int callback_calc_distance_road_garden(int next_offset, int dist, int dir
 void map_routing_calculate_distances(int x, int y)
 {
     ++stats.total_routes_calculated;
-    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance, 0);
+    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance);
 }
 
 void map_routing_calculate_distances_road_garden(int x, int y, roadblock_permission permission)
 {
     state.roadblock_permission = permission;
     ++stats.total_routes_calculated;
-    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance_road_garden, 0);
-}
-
-static int callback_calc_distance_water_boat(int next_offset, int dist, int direction)
-{
-    (void) direction;
-    if (terrain_water.items[next_offset] != WATER_N1_BLOCKED &&
-        terrain_water.items[next_offset] != WATER_N3_LOW_BRIDGE) {
-        enqueue(next_offset, dist);
-        if (terrain_water.items[next_offset] == WATER_N2_MAP_EDGE) {
-            distance.determined.items[next_offset] += 4;
-        }
-    }
-    return 1;
-}
-
-void map_routing_calculate_distances_water_boat(int x, int y)
-{
-    int grid_offset = map_grid_offset(x, y);
-    if (terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
-        clear_data();
-    } else {
-        route_queue_all_from(grid_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_water_boat, 1);
-    }
-}
-
-static int callback_calc_distance_water_flotsam(int next_offset, int dist, int direction)
-{
-    (void) direction;
-    if (terrain_water.items[next_offset] != WATER_N1_BLOCKED) {
-        enqueue(next_offset, dist);
-    }
-    return 1;
-}
-
-void map_routing_calculate_distances_water_flotsam(int x, int y)
-{
-    int grid_offset = map_grid_offset(x, y);
-    if (terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
-        clear_data();
-    } else {
-        route_queue_all_from(grid_offset, DIRECTIONS_DIAGONALS, callback_calc_distance_water_flotsam, 0);
-    }
+    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance_road_garden);
 }
 
 static int callback_calc_distance_build_wall(int next_offset, int dist, int direction)
@@ -456,10 +402,6 @@ static int callback_calc_distance_build_aqueduct(int next_offset, int dist, int 
     int blocked = 0;
     switch (terrain_land_citizen.items[next_offset]) {
         case CITIZEN_N3_AQUEDUCT:
-            if (!map_can_place_aqueduct_on_aqueduct(next_offset)) {
-                distance.determined.items[next_offset] = -1;
-                blocked = 1;
-            }
             break;
         case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden
         case CITIZEN_N1_BLOCKED: // non-empty land
@@ -509,7 +451,7 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
         return 0;
     } else if (terrain_land_citizen.items[grid_offset] == CITIZEN_N3_AQUEDUCT) {
         if (is_aqueduct) {
-            return 0;
+            return 1;
         }
         if (map_can_place_road_under_aqueduct(grid_offset)) {
             return 1;
@@ -537,7 +479,7 @@ int map_routing_calculate_distances_for_building(routed_building_type type, int 
 {
     int source_offset = map_grid_offset(x, y);
     if (type == ROUTED_BUILDING_WALL) {
-        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_wall, 0);
+        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_wall);
         return 1;
     }
 
@@ -547,7 +489,7 @@ int map_routing_calculate_distances_for_building(routed_building_type type, int 
         if (!can_build_highway(source_offset, 0)) {
             return 0;
         }
-        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_highway, 0);
+        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_highway);
         return 1;
     }
 
@@ -567,9 +509,9 @@ int map_routing_calculate_distances_for_building(routed_building_type type, int 
     }
     ++stats.total_routes_calculated;
     if (type == ROUTED_BUILDING_ROAD) {
-        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_road, 0);
+        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_road);
     } else {
-        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_aqueduct, 0);
+        route_queue_all_from(source_offset, DIRECTIONS_NO_DIAGONALS, callback_calc_distance_build_aqueduct);
     }
     return 1;
 }
@@ -591,7 +533,7 @@ static int callback_delete_wall_aqueduct(int next_offset, int dist, int directio
 void map_routing_delete_first_wall_or_aqueduct(int x, int y)
 {
     ++stats.total_routes_calculated;
-    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_delete_wall_aqueduct, 0);
+    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_delete_wall_aqueduct);
 }
 
 static int is_fighting_friendly(Figure *f)
@@ -631,7 +573,8 @@ static int citizen_can_enter_roadblock(int grid_offset)
     }
 
     Roadblock roadblock(map_building_at(grid_offset));
-    return roadblock.kind() == ROADBLOCK_NONE || roadblock.has_permission(state.roadblock_permission);
+    return roadblock.kind() == ROADBLOCK_NONE ||
+        roadblock.allows_at(grid_offset, state.roadblock_permission);
 }
 
 static int callback_travel_citizen_land(int offset, int next_offset, int direction)

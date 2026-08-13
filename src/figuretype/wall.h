@@ -14,7 +14,7 @@
 
 	void figure_kill_tower_sentries_at(int x, int y);
 
-	void figure_kill_tower_sentries_in_building(building *b);
+	void figure_kill_tower_sentries_in_building(Building &building);
 
 	void figure_watchman_action(Figure *f);
 

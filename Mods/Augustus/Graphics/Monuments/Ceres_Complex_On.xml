@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Ceres_Complex_On">
+    <image id="Ceres worshippers" group="Monuments\Ceres_worshippers" image="Ceres worshippers"/>
+    <image id="Ceres Complex On" width="418" height="234" isometric="true" group="Monuments\Ceres_worshippers" image="Ceres Complex On"/>
+</assetlist>

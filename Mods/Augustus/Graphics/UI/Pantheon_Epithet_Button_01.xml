@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Pantheon_Epithet_Button_01">
+    <image id="Pantheon_Epithet_Button_01">
+        <layer src="Pantheon_Epithet_Button_01"/>
+    </image>
+</assetlist>

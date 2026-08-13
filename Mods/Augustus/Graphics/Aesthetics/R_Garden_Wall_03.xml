@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\R_Garden_Wall_03">
+    <image id="R Garden Wall 03" isometric="true">
+        <layer src="R_Garden_Wall_03" part="footprint"/>
+    </image>
+</assetlist>

@@ -26,6 +26,7 @@
 #include "core/image.h"
 #include "figure/combat.h"
 #include "figure/enemy_army.h"
+#include "figure/FigureGraphics.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
@@ -54,6 +55,7 @@ struct RuntimeEntry {
     unsigned short created_sequence = 0;
     const figure_type_registry_impl::FigureTypeDefinition *definition = nullptr;
     const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
+    figure_type_registry_impl::FigureGraphicsState graphics_state;
     std::unique_ptr<figure_runtime_native_impl::NativeFigure> controller;
 };
 
@@ -204,22 +206,35 @@ RuntimeEntry *bind_entry(Figure *f)
         return nullptr;
     }
 
+    const figure_type type = static_cast<figure_type>(f->type);
     const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    if (!definition) {
+        figure_type_registry_impl::definition_for(type);
+    const figure_type_registry_impl::FigureGraphics *graphics =
+        figure_type_registry_impl::FigureGraphics::for_type(type);
+    const bool figure_changed = !entry_matches_figure(*entry, f);
+    if (figure_changed) {
         *entry = RuntimeEntry();
-        return nullptr;
+        entry->data = f;
+        entry->created_sequence = f->created_sequence;
+    }
+    entry->graphics_state.bind(*f, graphics);
+
+    if (!definition) {
+        entry->definition = nullptr;
+        entry->profile = nullptr;
+        entry->controller.reset();
+        return graphics ? entry : nullptr;
     }
 
     const figure_type_registry_impl::FigureTypeProfile *profile = entry->profile;
-    if (!entry_matches_figure(*entry, f) || entry->definition != definition || !profile) {
+    if (figure_changed || entry->definition != definition || !profile) {
         profile = definition->profile(infer_profile_id(f));
     }
     if (!profile) {
         profile = definition->default_profile();
     }
 
-    if (!entry_matches_figure(*entry, f) ||
+    if (figure_changed ||
         entry->definition != definition ||
         entry->profile != profile) {
         entry->data = f;
@@ -235,8 +250,7 @@ RuntimeEntry *bind_entry(Figure *f)
     }
 
     if (!entry->profile) {
-        *entry = RuntimeEntry();
-        return nullptr;
+        entry->controller.reset();
     }
     return entry;
 }
@@ -478,6 +492,9 @@ static int figure_runtime_bind_profile(Figure *f, const char *profile_id)
     entry->created_sequence = f->created_sequence;
     entry->definition = definition;
     entry->profile = profile;
+    entry->graphics_state.bind(
+        *f,
+        figure_type_registry_impl::FigureGraphics::for_type(static_cast<figure_type>(f->type)));
     entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
     return profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction ||
         entry->controller ? 1 : 0;
@@ -503,7 +520,7 @@ Figure *figure_runtime_create_profiled(
 
     Figure *f = Figure::create(type, x, y, dir);
 
-    f->building = profile->requires_owner() ? &owner : nullptr;
+    f->set_home_building(profile->requires_owner() ? &owner : nullptr);
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);
@@ -595,6 +612,44 @@ int figure_runtime_update_graphics(Figure *f)
     return figure_runtime_native_impl::update_legacy_figure_graphics_image_state(
         *f,
         entry->definition) ? 1 : 0;
+}
+
+void figure_runtime_graphics_begin_update(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.begin_cart_update();
+    }
+}
+
+void figure_runtime_graphics_show_empty_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.show_empty_cart();
+    }
+}
+
+void figure_runtime_graphics_show_resource_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.show_resource_cart();
+    }
+}
+
+void figure_runtime_graphics_hide_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.hide_cart();
+    }
+}
+
+const figure_type_registry_impl::FigureGraphicsState *figure_runtime_graphics_state(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    return entry ? &entry->graphics_state : nullptr;
 }
 
 int figure_runtime_choose_roaming_direction(

@@ -1,13 +1,14 @@
 #pragma once
 
 #include "core/buffer.h"
+#include "figure/formation_layout.h"
 
 
 #define MAX_ENEMY_ARMIES 125
 
 typedef struct {
     int formation_id;
-    int layout;
+    const FormationLayoutDef *layout_definition;
     int home_x;
     int home_y;
     int destination_x;

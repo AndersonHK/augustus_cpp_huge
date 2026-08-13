@@ -20,8 +20,6 @@ typedef enum {
 } ship_dock_request_type;
 
 int building_dock_count_idle_dockers(const Building &dock);
-void building_dock_update_open_water_access(void);
-int building_dock_is_connected_to_open_water(int x, int y);
 Building *building_dock_get_destination(Figure &ship, const Building *exclude_dock, map_point *tile);
 Building *building_dock_get_closer_free_destination(Figure &ship, ship_dock_request_type request_type, map_point *tile);
 int building_dock_request_docking(Figure &ship, const Building &dock, map_point *tile);

@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_large_shack">
     <identity name_key="TR_BUILDING_HOUSE_LARGE_SHACK" />
-    <model size="1" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="-2" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <sound id="house_slum" />
-    <event_data attr="house_large_shack" />
     <graphics>
         <default>
             <path value="Aesthetics\House_Shack" />
@@ -36,8 +35,8 @@
             </options>
         </variant>
     </graphics>
-    <housing path="house_large_shack" capacity="11" evolve_to="house_small_hovel" devolve_to="house_small_shack" merge_to="house_large_shack_2x2" />
+    <housing path="house_large_shack" capacity="11" evolve_to="house_small_hovel" devolve_to="house_small_shack" merge_to="house_large_shack_2x2" goods_consumption_events_per_month="1" mars_offering_amount="1" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="city_unemployment_percent" chance_per_million_bands="20:31250,19:20833,18:15625,17:10417,16:8929,15:7813,14:6250,13:5682,12:5208,11:3472,10:3289,9:3125,8:2016,7:1953" />
+        <spawn spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="city_unemployment_percent" chance_per_million_bands="20:31250,19:20833,18:15625,17:10417,16:8929,15:7813,14:6250,13:5682,12:5208,11:3472,10:3289,9:3125,8:2016,7:1953" />
     </spawn_group>
 </building>

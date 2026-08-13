@@ -60,7 +60,7 @@ mandate an exact adjustment that damages the design intent.
   connect these service ratios to walker coverage and physical footprint
   assumptions.
 - [BuildingType README](../Mods/Vespasian/BuildingType/_README.md),
-  [HousingType README](../Mods/Vespasian/HousingType/_README.md), and
+  [HousingProfile README](../Mods/Vespasian/HousingProfile/_README.md), and
   [FigureType README](../Mods/Vespasian/FigureType/_README.md) are the XML
   contracts most likely to consume these ratios.
 - [Comparative City-Builder Design Notes](comparative_citybuilder_design/README.md)

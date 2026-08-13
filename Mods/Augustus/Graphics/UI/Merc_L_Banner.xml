@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Merc_L_Banner">
+    <image id="Merc L Banner">
+        <layer src="Merc_L_Banner"/>
+    </image>
+</assetlist>

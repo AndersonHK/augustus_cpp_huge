@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Pantheon_Off">
+    <image id="Pantheon Off" width="418" height="231" isometric="true">
+        <layer src="Pantheon_Off_Layer_01" part="footprint"/>
+        <layer src="Pantheon_Off_Layer_02" x="150" y="14" part="top"/>
+        <layer src="Pantheon_Off_Layer_03" x="201" y="79" part="top"/>
+    </image>
+    <image id="Pantheon worshippers">
+        <layer src="Pantheon_worshippers_Layer_01"/>
+        <layer src="Pantheon_worshippers_Layer_02" x="2" y="5"/>
+    </image>
+    <image id="Pantheon On" width="418" height="231" isometric="true">
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="footprint"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <animation speed="1" x="138" y="120">
+            <frame group="Monuments\Pantheon_Off" image="Pantheon worshippers"/>
+        </animation>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module_01" width="118" height="123">
+        <layer src="Pantheon_Temple_Complex_Module_01_Layer_01"/>
+        <layer src="Pantheon_Temple_Complex_Module_01_Layer_02" x="32" y="57"/>
+        <layer src="Pantheon_Temple_Complex_Module_01_Layer_03" x="73" y="77"/>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module_02" width="118" height="123">
+        <layer src="Pantheon_Temple_Complex_Module_02_Layer_01"/>
+        <layer src="Pantheon_Temple_Complex_Module_02_Layer_02" x="31" y="58"/>
+        <layer src="Pantheon_Temple_Complex_Module_02_Layer_03" x="72" y="78"/>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module_03" width="118" height="123">
+        <layer src="Pantheon_Temple_Complex_Module_03_Layer_01"/>
+        <layer src="Pantheon_Temple_Complex_Module_03_Layer_02" x="30" y="59"/>
+        <layer src="Pantheon_Temple_Complex_Module_03_Layer_03" x="71" y="79"/>
+    </image>
+    <image id="Pantheon Module" width="418" height="231" isometric="true">
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="footprint"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <animation speed="5" reversible="true" x="105" y="53">
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_01"/>
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_02"/>
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_03"/>
+        </animation>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module2_01" width="145" height="72">
+        <layer src="Pantheon_Temple_Complex_Module2_01_Layer_01" x="4"/>
+        <layer src="Pantheon_Temple_Complex_Module2_01_Layer_02" x="66" y="17"/>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module2_02" width="145" height="72">
+        <layer src="Pantheon_Temple_Complex_Module2_02_Layer_01" x="4"/>
+        <layer src="Pantheon_Temple_Complex_Module2_02_Layer_02" x="65" y="18"/>
+    </image>
+    <image id="Pantheon_Temple_Complex_Module2_03" width="145" height="72">
+        <layer src="Pantheon_Temple_Complex_Module2_03_Layer_01" x="4"/>
+        <layer src="Pantheon_Temple_Complex_Module2_03_Layer_02" x="64" y="19"/>
+    </image>
+    <image id="Pantheon Module2" width="418" height="231" isometric="true">
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="footprint"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <layer group="Monuments\Pantheon_Off" image="Pantheon Off" part="top"/>
+        <animation speed="5" reversible="true" x="86" y="104">
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_01"/>
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_02"/>
+            <frame group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_03"/>
+        </animation>
+    </image>
+</assetlist>

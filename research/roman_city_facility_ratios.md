@@ -7,7 +7,7 @@ Snapshot: 2026-05-10
 This document collects historical anchors for Roman urban service density from the
 Republican and Imperial periods, then turns them into practical ratio bands for
 city simulation. The goal is not to make a one-to-one archaeological model. It
-is to give `BuildingType`, `HousingType`, service walker, labor, and area tuning
+is to give `BuildingType`, `HousingProfile`, service walker, labor, and area tuning
 credible starting points.
 
 Use the tables as calibration bands:

@@ -123,7 +123,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Shared UI primitives/widget/runtime chain is active for common widget primitives.
 - Graphics-pack precedence and retained critical startup failures are now part of the architecture, not temporary patches.
 - Native FigureType XML and `figure_runtime` are active for the currently ported service walkers.
-- Native BuildingType XML and HousingType XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
+- Native BuildingType XML and HousingProfile XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
 - Native WaterAccessType XML is active. BuildingType water rules now describe providers, requirements, nodes, and natural-source terms; runtime propagates typed masks through a fixed-point pass.
 - `WaterAccessType` is not a complete building module definition; it is the vocabulary. Building-specific water provider/requirement policy still lives in BuildingType until a future module-definition folder peels it away.
 - Building animation policy has been extracted from runtime drawing. `building_runtime_graphics.cpp` should resolve/copy draw slices, while `animations.cpp` decides what frame can advance or render.

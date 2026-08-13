@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Brickworks_On_01">
+    <image id="Brickworks_On_01" width="84" height="29">
+        <layer src="Brickworks_On_01_Layer_01"/>
+        <layer src="Brickworks_On_01_Layer_02" x="67" rotate="90"/>
+    </image>
+    <image id="Brickworks_On_02" width="84" height="29">
+        <layer src="Brickworks_On_02_Layer_01"/>
+        <layer src="Brickworks_On_02_Layer_02" x="67"/>
+    </image>
+    <image id="Brickworks_On_03" width="84" height="29">
+        <layer src="Brickworks_On_03_Layer_01"/>
+        <layer src="Brickworks_On_03_Layer_02" x="67"/>
+    </image>
+    <image id="Brickworks_On_04" width="84" height="29">
+        <layer src="Brickworks_On_04_Layer_01"/>
+        <layer src="Brickworks_On_04_Layer_02" x="67"/>
+    </image>
+    <image id="Brickworks_On_05" width="84" height="29">
+        <layer src="Brickworks_On_05_Layer_01"/>
+        <layer src="Brickworks_On_05_Layer_02" x="67"/>
+    </image>
+    <image id="Brickworks_On_06" width="84" height="29">
+        <layer src="Brickworks_On_06_Layer_01"/>
+        <layer src="Brickworks_On_06_Layer_02" x="67" rotate="90"/>
+    </image>
+    <image id="Brickworks_C_OFF" width="118" height="80" isometric="true">
+        <layer src="Brickworks_C_OFF" part="footprint"/>
+    </image>
+    <image id="Brickworks_N_OFF" width="118" height="80" isometric="true">
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="footprint"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="top"/>
+        <layer src="Brickworks_N_OFF_Layer_03" y="47" part="top"/>
+    </image>
+    <image id="Brickworks_S_OFF" width="118" height="80" isometric="true">
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="footprint"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="top"/>
+        <layer src="Brickworks_S_OFF_Layer_03" y="47" part="top"/>
+    </image>
+    <image id="Brickworks_C_ON" width="118" height="80" isometric="true">
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="footprint"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_C_OFF" part="top"/>
+        <animation speed="6" x="11" y="34">
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_01"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_02"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_03"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_04"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_05"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_06"/>
+        </animation>
+    </image>
+    <image id="Brickworks_N_ON" width="118" height="80" isometric="true">
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_N_OFF" part="footprint"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_N_OFF" part="top"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_N_OFF" part="top"/>
+        <animation speed="6" x="11" y="34">
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_01"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_02"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_03"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_04"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_05"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_06"/>
+        </animation>
+    </image>
+    <image id="Brickworks_S_ON" width="118" height="80" isometric="true">
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_S_OFF" part="footprint"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_S_OFF" part="top"/>
+        <layer group="Industry\Brickworks_On_01" image="Brickworks_S_OFF" part="top"/>
+        <animation speed="6" x="11" y="34">
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_01"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_02"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_03"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_04"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_05"/>
+            <frame group="Industry\Brickworks_On_01" image="Brickworks_On_06"/>
+        </animation>
+    </image>
+</assetlist>

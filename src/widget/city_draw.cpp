@@ -9,10 +9,14 @@
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 #include "city/view.h"
+#include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"
+#include "map/image.h"
 #include "map/property.h"
+#include "map/terrain.h"
 #include "map/tile_runtime_graphics.h"
+#include "map/tiles.h"
 
 namespace {
 
@@ -35,7 +39,10 @@ const int kAdjacentDeletionOffsets[2][4][7] = {
 
 int has_adjacent_deletion(int grid_offset)
 {
-    int size = map_property_multi_tile_size(grid_offset);
+    const int size = map_property_legacy_multi_tile_size(grid_offset);
+    if (size < 2 || size > 3) {
+        return 0;
+    }
     int total_adjacent_offsets = size * 2 + 1;
     const int *adjacent_offset = kAdjacentDeletionOffsets[size - 2][city_view_orientation() / 2];
     for (int i = 0; i < total_adjacent_offsets; ++i) {
@@ -91,18 +98,52 @@ void city_draw_depot_resource(const Building &building, int x, int y, float scal
 
 int city_draw_building_as_deleted(const Building &building)
 {
-    Building main_building = building.main();
-    return main_building.id && (main_building.is_deleted() || map_property_is_deleted(main_building.grid_offset()));
+    Building *owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : const_cast<Building *>(&building));
+    return owner && owner->id && (owner->is_deleted() || map_property_is_deleted(owner->grid_offset()));
 }
 
 int city_draw_is_multi_tile_terrain(int grid_offset)
 {
-    return !map_building_exists_at(grid_offset) && map_property_multi_tile_size(grid_offset) > 1;
+    // This path intentionally describes ownerless legacy/editor terrain.
+    // Published buildings use their bound Foundation rendering path.
+    return !map_building_exists_at(grid_offset) && map_property_legacy_multi_tile_size(grid_offset) > 1;
 }
 
 int city_draw_should_draw_top_before_deletion(int grid_offset)
 {
     return city_draw_is_multi_tile_terrain(grid_offset) && has_adjacent_deletion(grid_offset);
+}
+
+int city_draw_terrain_foundation_footprint(
+    int grid_offset, int x, int y, color_t color_mask, float scale)
+{
+    // Bridge tiles deliberately carry both water and road terrain bits. Draw
+    // the water below the bridge here, not the traversable road deck above it.
+    if (map_terrain_is(grid_offset, TERRAIN_WATER) && map_is_bridge(grid_offset)) {
+        const int image_id = map_image_at(grid_offset);
+        if (image_id) {
+            Image::from_id(image_id)
+                .draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+            return 1;
+        }
+    }
+
+    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        Image::from_id(map_tiles_road_surface_image_id(grid_offset))
+            .draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+        return 1;
+    }
+    if (city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, scale)) {
+        return 1;
+    }
+    const int image_id = map_image_at(grid_offset);
+    if (!image_id) {
+        return 0;
+    }
+    Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+    return 1;
 }
 
 int city_draw_runtime_tile_footprint(int grid_offset, int x, int y, color_t color_mask, float scale)

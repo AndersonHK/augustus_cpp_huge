@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="furniture_workshop">
     <identity name_key="main_strings.28.113" />
-    <model size="2" cost="40" />
+    <model cost="40" />
     <desirability>
         <value value="-4" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <button group="workshops" order="40" icon="Industry\Furniture_Workshop" text_key="main_strings.28.113" />
     <sound id="furniture_workshop" />
-    <event_data attr="furniture_workshop" />
     <graphics>
         <default>
             <path value="Industry\Furniture_Workshop" />

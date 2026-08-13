@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="actor_colony">
     <identity name_key="main_strings.28.36" />
-    <model size="3" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="2" />
         <step value="1" />
         <step_size value="-1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="entertainment" order="70" icon="Health_Culture\Actor_Colony" icon_image="Image_0000" text_key="main_strings.28.36" />
     <sound id="actor_colony" mute_on_enemies="true" />
-    <event_data attr="actor_colony" />
     <graphics>
         <default>
             <path value="Health_Culture\Actor_Colony" />
@@ -25,8 +24,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44">
-        <spawn mode="profiled_figure" spawn_figure="actor"
-            action_state="entertainer_school_created" direction="top" figure_slot="primary"
-            init_roaming="false" profile="venue_seeker" />
+        <spawn spawn_figure="actor" direction="top" figure_slot="primary" profile="venue_seeker" />
     </spawn_group>
 </building>

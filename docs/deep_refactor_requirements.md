@@ -9,7 +9,7 @@ This is the stable requirements companion for `deep_refactor_implementation_prog
 - Startup should resolve XML keys into immutable typed definition objects once, then hand those definitions to runtime for the rest of the process.
 - Save/load should be the only layer that knows save records. It should hydrate records into live objects, serialize live objects and module state back into save records, and apply old-save migrations without owning game-loop behavior.
 - Runtime should consume resolved definitions and live objects. It should not reset or recreate type registries, know legacy records exist, or translate records into objects.
-- Compatibility attrs such as `<event_data attr="...">` are allowed only as migration bridges for old events, saves, or unported systems. New behavior should live in explicit modules such as storage, labor, production, religion, military, water access, construction, graphics, or pathing.
+- Root XML `type` values are canonical identity. Rare historical names may be accepted through explicit identity aliases at import boundaries, but new behavior must live in modules such as storage, labor, production, religion, military, water access, construction, graphics, or pathing rather than string identity checks.
 - The runtime bit/mask layer must be generated from data-owned declarations. Bits are acceleration structures, not authored design.
 
 ## Object Ownership

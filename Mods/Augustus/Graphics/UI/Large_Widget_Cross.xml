@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Large_Widget_Cross">
+    <image id="Large_Widget_Cross" width="24" height="24">
+        <layer src="Large_Widget_Cross" x="1" y="1"/>
+    </image>
+</assetlist>

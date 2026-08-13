@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\pavilion_blue">
+    <image id="pavilion blue" isometric="true">
+        <layer src="pavilion_blue" part="footprint"/>
+    </image>
+    <image id="pavilion red" isometric="true">
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="footprint"/>
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="top"/>
+        <layer src="pavilion_red_Layer_03" x="18" y="7" part="top"/>
+    </image>
+    <image id="pavilion orange" isometric="true">
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="footprint"/>
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="top"/>
+        <layer src="pavilion_orange_Layer_03" x="18" y="7" part="top"/>
+    </image>
+    <image id="pavilion yellow" isometric="true">
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="footprint"/>
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="top"/>
+        <layer src="pavilion_yellow_Layer_03" x="18" y="7" part="top"/>
+    </image>
+    <image id="pavilion green" isometric="true">
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="footprint"/>
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="top"/>
+        <layer src="pavilion_green_Layer_03" x="18" y="7" part="top"/>
+    </image>
+    <image id="pavilion purple" isometric="true">
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="footprint"/>
+        <layer group="Aesthetics\pavilion_blue" image="pavilion blue" part="top"/>
+        <layer src="pavilion_purple_Layer_03" x="18" y="7" part="top"/>
+    </image>
+</assetlist>

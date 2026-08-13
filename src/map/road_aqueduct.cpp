@@ -1,15 +1,14 @@
-#include "figure/figure.h"
-#include "building/building_record.h"
 #include "road_aqueduct.h"
 
 #include "building/building.h"
+#include "building/image.h"
 #include "building/building_type.h"
 #include "building/connectable.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
-#include "figure/PathingMode.h"
 #include "figure/route.h"
+#include "figure/PathingMode.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/image.h"
@@ -43,6 +42,40 @@ int map_can_place_road_under_aqueduct(int grid_offset)
     return !axis_has_construction_conflict(grid_offset, aqueduct_axis, 1);
 }
 
+road_preview_graphic map_road_preview_graphic_at(int grid_offset)
+{
+    road_preview_graphic preview;
+    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+        preview.image_id = image_group(GROUP_BUILDING_AQUEDUCT);
+        if (map_can_place_road_under_aqueduct(grid_offset)) {
+            preview.image_id += map_get_aqueduct_with_road_image(grid_offset);
+        } else {
+            preview.blocked = 1;
+        }
+        return preview;
+    }
+
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
+        figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
+        // Gate graphics come from the projected gate BuildingType's native
+        // graphics definition; the road preview only asks for the result.
+        preview.image_id = building_image_get_garden_gate_image(grid_offset);
+        return preview;
+    }
+
+    if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+        preview.blocked = 1;
+        return preview;
+    }
+
+    preview.image_id = image_group(GROUP_TERRAIN_ROAD);
+    if (!map_terrain_has_adjacent_x_with_type(grid_offset, TERRAIN_ROAD) &&
+        map_terrain_has_adjacent_y_with_type(grid_offset, TERRAIN_ROAD)) {
+        preview.image_id++;
+    }
+    return preview;
+}
+
 int map_can_place_aqueduct_on_road(int grid_offset)
 {
     const road_aqueduct_axis road_axis = straight_road_axis_for_aqueduct(grid_offset);
@@ -54,18 +87,6 @@ int map_can_place_aqueduct_on_road(int grid_offset)
     }
 
     return !axis_has_construction_conflict(grid_offset, road_axis, 0);
-}
-
-int map_can_place_aqueduct_on_aqueduct(int grid_offset)
-{
-    if (!map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-        return 1;
-    }
-    int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);
-    return image_id <= 3 ||
-        (image_id >= 8 && image_id <= 9) ||
-        (image_id >= 15 && image_id <= 18) ||
-        (image_id >= 23 && image_id <= 24);
 }
 
 int map_get_aqueduct_with_road_image(int grid_offset)
@@ -101,13 +122,10 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_building_exists_at(grid_offset)) {
         Building &current = map_building_at(grid_offset);
-        building *b = const_cast<::building *>(current.record());
-        if (b && current.type && current.type->roadblock().is_wall_gate()) {
-            if (b->subtype.orientation == gate_orientation) {
-                is_road = 1;
-            }
-        } else if (current.type && current.type->is_granary()) {
-            if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
+        if (current.Foundation &&
+            current.Foundation->passage_at(grid_offset) != building_type_registry_impl::FoundationPassage::None) {
+            if (!map_terrain_is(grid_offset, TERRAIN_GATEHOUSE) ||
+                current.Foundation->passage_axis() == gate_orientation) {
                 is_road = 1;
             }
         }

@@ -16,8 +16,8 @@
 #include <vector>
 
 #include "core/file.h"
-#include "game/mod_manager.h"
 #include "core/xml_parser.h"
+#include "game/mod_definition_loader.h"
 
 namespace {
 
@@ -542,9 +542,11 @@ int declarative_window_registry_load(void)
     g_constructed_windows.clear();
     g_failure_reason.clear();
 
-    char filename[FILE_NAME_MAX];
-    snprintf(filename, sizeof(filename), "%s%s", mod_manager::mod_path().c_str(), kMissionBriefingPath);
-    if (!parse_definition_file(filename)) {
+    mod_definition::LayeredFileSource source;
+    if (!mod_definition::find_nearest_configured_file(kMissionBriefingPath, &source, &g_failure_reason)) {
+        return 0;
+    }
+    if (!parse_definition_file(source.full_path.c_str())) {
         return 0;
     }
     if (!validate_mission_briefing()) {

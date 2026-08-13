@@ -14,5 +14,4 @@ public:
 private:
     int ensure_wharf_assignment();
     void go_to_wharf(const map_point &tile);
-    void update_image(const figure_type_registry_impl::FigureTypeDefinition *definition);
 };

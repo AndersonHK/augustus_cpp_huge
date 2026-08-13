@@ -1,6 +1,7 @@
 #include "image.h"
 
 #include "building/building.h"
+#include "building/BuildingGeometry.h"
 #include "building/building_type.h"
 #include "figure/figure.h"
 #include "building/building_record.h"
@@ -80,7 +81,7 @@ void map_image_update_all(void)
             b.state_id() != BUILDING_STATE_CREATED) {
             return;
         }
-        if ((b.type && b.type->roadblock().is_bridge()) || b.matches("wall")) {
+    if ((b.type && b.type->bridge().is_bridge()) || b.matches("wall")) {
             return; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         if (building_is_drawn_by_terrain_tiles(b)) {
@@ -91,10 +92,10 @@ void map_image_update_all(void)
         }
         int image_id = b.image_id();
 
-        for (int dy = 0; dy < b.size(); dy++) {
-            for (int dx = 0; dx < b.size(); dx++) {
-                map_image_set(map_grid_offset(b.x() + dx, b.y() + dy), image_id);
-            }
+        const building_type_registry_impl::BuildingGeometry geometry =
+            building_type_registry_impl::BuildingGeometry::query(b);
+        for (const building_type_registry_impl::BuildingGeometryCell &cell : geometry.cells()) {
+            map_image_set(map_grid_offset(cell.x, cell.y), image_id);
         }
     });
 }

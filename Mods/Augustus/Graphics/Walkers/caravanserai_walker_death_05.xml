@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\caravanserai_walker_death_05">
+    <image id="caravanserai_walker_death_05" width="39" height="39">
+        <layer src="caravanserai_walker_death_05_Layer_01" y="16"/>
+        <layer src="caravanserai_walker_death_05_Layer_02" y="16"/>
+        <layer src="caravanserai_walker_death_05_Layer_03" x="12" y="24"/>
+    </image>
+</assetlist>

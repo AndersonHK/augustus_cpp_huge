@@ -6,6 +6,7 @@
 
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_registry_internal.h"
+#include "building/housing_profile_registry.h"
 #include "building/menu.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -912,9 +913,23 @@ static special_attribute_mapping_t make_mapping(parameter_type type, const char 
     return mapping;
 }
 
-static translation_key event_data_key_or_dynamic(const building_properties *props)
+static bool has_scenario_identity(const building_type_registry_impl::BuildingType *definition)
 {
-    return props->event_data.key ? translation_key{props->event_data.key} : "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE";
+    return definition && (!definition->has_rubble() || !definition->rubble().is_rubble());
+}
+
+static void append_identity_mappings(
+    special_attribute_mapping_t *mappings,
+    unsigned int *size,
+    parameter_type parameter,
+    const building_type_registry_impl::BuildingType &definition,
+    int value)
+{
+    const translation_key dynamic_key = "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE";
+    append_mapping(mappings, size, make_mapping(parameter, definition.attr(), value, dynamic_key));
+    for (const std::string &alias : definition.identity().aliases()) {
+        append_mapping(mappings, size, make_mapping(parameter, alias.c_str(), value, dynamic_key));
+    }
 }
 
 static void generate_building_type_mappings(void)
@@ -927,12 +942,17 @@ static void generate_building_type_mappings(void)
             special_attribute_mappings_counting_specials[i]);
     }
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type++) {
-        const building_properties *props = building_properties_for_type(type);
-        if (!props->event_data.attr || props->event_data.cannot_count) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!has_scenario_identity(definition)) {
             continue;
         }
-        append_mapping(special_attribute_mappings_buildings, &special_attribute_mappings_building_type_size,
-            make_mapping(PARAMETER_TYPE_BUILDING, props->event_data.attr, type, event_data_key_or_dynamic(props)));
+        append_identity_mappings(
+            special_attribute_mappings_buildings,
+            &special_attribute_mappings_building_type_size,
+            PARAMETER_TYPE_BUILDING,
+            *definition,
+            type);
     }
 }
 
@@ -952,14 +972,23 @@ static void generate_model_mappings(void)
     };
 
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type++) {
-        const building_properties *props = building_properties_for_type(type);
-        if (((!props->size || !props->event_data.attr) &&
-                !building_type_registry_impl::type_attr_is_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition) {
+            continue;
+        }
+        const bool is_editor_tool = building_type_registry_impl::type_attr_is_any(
+            type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]));
+        if (((!has_scenario_identity(definition) || !definition->foundation_def()) && !is_editor_tool) ||
             building_type_registry_impl::type_attr_is_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
-        append_mapping(special_attribute_mappings_model_buildings, &special_attribute_mappings_model_buildings_size,
-            make_mapping(PARAMETER_TYPE_MODEL, props->event_data.attr, type, event_data_key_or_dynamic(props)));
+        append_identity_mappings(
+            special_attribute_mappings_model_buildings,
+            &special_attribute_mappings_model_buildings_size,
+            PARAMETER_TYPE_MODEL,
+            *definition,
+            type);
     }
 }
 
@@ -969,19 +998,25 @@ static void generate_housing_mappings(void)
         return;
     }
 
-    int level_count = building_type_registry_impl::housing_type_level_count();
+    int level_count = building_type_registry_impl::housing_profile_compatibility_level_count();
     if (level_count <= 0) {
         return;
     }
     for (int i = 0; i < level_count; i++) {
-        int level = building_type_registry_impl::housing_type_level_at(i);
-        building_type type = building_type_registry_impl::building_type_for_housing_level(level, 1);
-        const building_properties *props = type == BUILDING_NONE ? 0 : building_properties_for_type(type);
-        if (!props || !props->event_data.attr) {
+        int level = building_type_registry_impl::housing_profile_compatibility_level_at(i);
+        building_type type =
+            building_type_registry_impl::building_type_for_housing_compatibility_level(level, 1);
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!has_scenario_identity(definition)) {
             continue;
         }
-        append_mapping(special_attribute_mappings_housing, &special_attribute_mappings_housing_size,
-            make_mapping(PARAMETER_TYPE_HOUSING_TYPE, props->event_data.attr, level, event_data_key_or_dynamic(props)));
+        append_identity_mappings(
+            special_attribute_mappings_housing,
+            &special_attribute_mappings_housing_size,
+            PARAMETER_TYPE_HOUSING_TYPE,
+            *definition,
+            level);
     }
     for (int i = 0; i < (int) SPECIAL_ATTRIBUTE_MAPPINGS_HOUSING_GROUPS_SIZE; i++) {
         append_mapping(special_attribute_mappings_housing, &special_attribute_mappings_housing_size,
@@ -1001,16 +1036,17 @@ static void generate_submenu_mappings(build_menu_group menu)
             }
             generate_submenu_mappings(submenu);
         } else {
-            const building_properties *props = building_properties_for_type(type);
-            if (!props->event_data.attr) {
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(type);
+            if (!has_scenario_identity(definition)) {
                 continue;
             }
-            special_attribute_mapping_t *mapping = &special_attribute_mappings_allowed_buildings[special_attribute_mappings_allowed_buildings_size];
-            mapping->type = PARAMETER_TYPE_ALLOWED_BUILDING;
-            mapping->text = props->event_data.attr;
-            mapping->value = type;
-            mapping->key = event_data_key_or_dynamic(props);
-            special_attribute_mappings_allowed_buildings_size++;
+            append_identity_mappings(
+                special_attribute_mappings_allowed_buildings,
+                &special_attribute_mappings_allowed_buildings_size,
+                PARAMETER_TYPE_ALLOWED_BUILDING,
+                *definition,
+                type);
         }
     }
 }
@@ -1236,7 +1272,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_DATA_TYPE:
             return MODEL_COST;
         case PARAMETER_TYPE_HOUSING_TYPE:
-            return building_type_registry_impl::housing_type_level_at(0);
+            return building_type_registry_impl::housing_profile_compatibility_level_at(0);
         case PARAMETER_TYPE_CITY_PROPERTY:
             return CITY_PROPERTY_DIFFICULTY;
         case PARAMETER_TYPE_ENEMY_CLASS:

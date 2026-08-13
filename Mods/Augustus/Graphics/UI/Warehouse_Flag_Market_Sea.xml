@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Warehouse_Flag_Market_Sea">
+    <image id="Warehouse_Flag_Market_Sea_1" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_1"/>
+    <image id="Warehouse_Flag_Market_Sea_2" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_2"/>
+    <image id="Warehouse_Flag_Market_Sea_3" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_3"/>
+    <image id="Warehouse_Flag_Market_Sea_4" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_4"/>
+    <image id="Warehouse_Flag_Market_Sea_5" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_5"/>
+    <image id="Warehouse_Flag_Market_Sea_6" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_6"/>
+    <image id="Warehouse_Flag_Market_Sea_7" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_7"/>
+    <image id="Warehouse_Flag_Market_Sea_8" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea_8"/>
+    <image id="Warehouse_Flag_Market_Sea" width="21" height="24" group="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea"/>
+</assetlist>

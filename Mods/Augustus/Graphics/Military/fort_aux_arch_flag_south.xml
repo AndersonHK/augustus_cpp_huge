@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\fort_aux_arch_flag_south">
+    <image id="fort_aux_arch_flag_south">
+        <layer group="Military\Fort" image="Image_0002"/>
+        <layer src="fort_aux_arch_flag_south_Layer_02" x="22" y="30"/>
+        <layer src="fort_aux_arch_flag_south_Layer_03" x="10" y="4"/>
+    </image>
+</assetlist>

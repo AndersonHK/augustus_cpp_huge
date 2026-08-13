@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Concrete_Maker_C_ON">
+    <image id="Concrete_Maker_C_OFF" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_C_OFF"/>
+    <image id="Concrete_Maker_N_OFF" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_N_OFF"/>
+    <image id="Concrete_Maker_S_OFF" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_S_OFF"/>
+    <image id="Concrete_Maker_C_ON" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_C_ON"/>
+    <image id="Concrete_Maker_N_ON" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_N_ON"/>
+    <image id="Concrete_Maker_S_ON" width="118" height="75" isometric="true" group="Industry\Concrete_Maker_C_OFF" image="Concrete_Maker_S_ON"/>
+</assetlist>

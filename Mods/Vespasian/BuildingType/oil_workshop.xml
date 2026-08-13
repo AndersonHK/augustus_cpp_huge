@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="oil_workshop">
     <identity name_key="main_strings.28.111" />
-    <model size="2" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="-4" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <button group="workshops" order="20" icon="Industry\Oil_Workshop" text_key="main_strings.28.111" />
     <sound id="oil_workshop" />
-    <event_data attr="oil_workshop" />
     <graphics>
         <default>
             <path value="Industry\Oil_Workshop" />

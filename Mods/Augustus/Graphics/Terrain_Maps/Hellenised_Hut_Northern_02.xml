@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Hellenised_Hut_Northern_02">
+    <image id="Hellenised_Hut_Central_02" isometric="true" group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Central_02"/>
+    <image id="Hellenised_Hut_Northern_02" isometric="true" group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Northern_02"/>
+    <image id="Hellenised_Hut_Southern_02" isometric="true" group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Southern_02"/>
+</assetlist>

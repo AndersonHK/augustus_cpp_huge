@@ -5,7 +5,7 @@ Snapshot: 2026-05-10
 ## Purpose
 
 This document gives city-size bands and social-ratio guidance for tuning Roman
-urban populations. It is meant to support `HousingType` resident classes,
+urban populations. It is meant to support `HousingProfile` resident classes,
 employment share, service demand, tax balance, and city growth pacing.
 
 The most important conclusion is simple: for gameplay, "patrician" should mean

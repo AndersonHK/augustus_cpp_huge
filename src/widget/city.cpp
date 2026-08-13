@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "building/construction_plan.h"
 #include "translation/translation.h"
 #include "building/rotation.h"
 #include "city/warning.h"
@@ -20,12 +21,10 @@
 
 #include "city/view.h"
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "input/zoom.h"
 
 #include "game/settings.h"
 
-#include "building/properties.h"
 #include "city/finance.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -394,31 +393,16 @@ static void scroll_map(const mouse *m)
     }
 }
 
-static int adjust_offset_for_orientation(int grid_offset, int size)
+static int has_confirmed_construction(
+    const building_construction::ConstructionPlacementPlan &placement,
+    int tile_offset)
 {
-    switch (city_view_orientation()) {
-        case static_cast<int>(DIR_0_TOP):
-            return map_grid_add_delta(grid_offset, -size + 1, -size + 1);
-        case static_cast<int>(DIR_2_RIGHT):
-            return map_grid_add_delta(grid_offset, 0, -size + 1);
-        case static_cast<int>(DIR_6_LEFT):
-            return map_grid_add_delta(grid_offset, -size + 1, 0);
-        default:
-            return grid_offset;
-    }
-}
-
-static int has_confirmed_construction(int ghost_offset, int tile_offset, int range_size)
-{
-    tile_offset = adjust_offset_for_orientation(tile_offset, range_size);
-    int x = map_grid_offset_to_x(tile_offset);
-    int y = map_grid_offset_to_y(tile_offset);
-    if (ghost_offset <= 0 || !map_grid_is_inside(x, y, range_size)) {
+    if (tile_offset <= 0) {
         return 0;
     }
-    for (int dy = 0; dy < range_size; dy++) {
-        for (int dx = 0; dx < range_size; dx++) {
-            if (ghost_offset == tile_offset + map_grid_delta(dx, dy)) {
+    for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
+        for (const building_construction::ConstructionPlacementTile &tile : part.tiles) {
+            if (tile.grid_offset == tile_offset) {
                 return 1;
             }
         }
@@ -590,13 +574,19 @@ static void handle_first_touch(map_tile *tile)
         return;
     }
 
-    int size = building_properties_for_type(type)->size;
-    if (building_type_registry_impl::type_attr_is(type, "warehouse")) {
-        size = 3;
+    int confirmed_construction = 0;
+    if (touch_was_click(first) && first->has_ended && data.capture_input &&
+        data.selected_tile.grid_offset > 0) {
+        const building_construction::ConstructionPlacementPlan selected_placement(
+            type,
+            data.selected_tile.x,
+            data.selected_tile.y,
+            0,
+            0);
+        confirmed_construction = has_confirmed_construction(selected_placement, tile->grid_offset);
     }
 
-    if (touch_was_click(first) && first->has_ended && data.capture_input &&
-        has_confirmed_construction(data.selected_tile.grid_offset, tile->grid_offset, size)) {
+    if (confirmed_construction) {
         build_start(&data.selected_tile);
         build_move(&data.selected_tile);
         build_end();
@@ -671,8 +661,11 @@ static void handle_mouse(const mouse *m)
         } else {
             int grid_offset = tile->grid_offset;
             if (map_building_exists_at(grid_offset)) {
-                Building b = map_building_at(grid_offset).main();
-                grid_offset = b.grid_offset();
+                Building &selected = map_building_at(grid_offset);
+                Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+                    &selected.dynamic_bridge_owner() :
+                    (selected.Composition ? selected.Composition->owner() : &selected);
+                grid_offset = owner ? owner->grid_offset() : grid_offset;
             }
             if (data.routing_grid_offset != grid_offset) {
                 data.routing_grid_offset = grid_offset;
@@ -693,9 +686,14 @@ static void handle_mouse(const mouse *m)
             return;
         }
         if (handle_right_click_allow_building_info(tile)) {
-            int building_id = map_building_exists_at(tile->grid_offset) ?
-                map_building_at(tile->grid_offset).main().id :
-                0;
+            int building_id = 0;
+            if (map_building_exists_at(tile->grid_offset)) {
+                Building &selected = map_building_at(tile->grid_offset);
+                Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+                    &selected.dynamic_bridge_owner() :
+                    (selected.Composition ? selected.Composition->owner() : &selected);
+                building_id = owner ? owner->id : 0;
+            }
             data.selected_building_id = building_id ? building_id : NO_POSITION; //no position if selected 0
             window_building_info_show(tile->grid_offset);
             return;
@@ -874,7 +872,14 @@ void widget_city_setup_routing_preview(void)
 
     if (building_id) {
         data.selected_building_id = building_id;
-        Building b = map_building_at(data.routing_grid_offset).main();
+        Building &selected = map_building_at(data.routing_grid_offset);
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        if (!owner) {
+            return;
+        }
+        Building b = *owner;
         const building_type type = b.type ? b.type->type() : BUILDING_NONE;
         figure_roamer_preview_reset(type);
         figure_roamer_preview_create(type, b.x(), b.y());

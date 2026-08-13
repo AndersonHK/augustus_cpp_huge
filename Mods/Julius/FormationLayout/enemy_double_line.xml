@@ -1,0 +1,6 @@
+<layout key="enemy_double_line" legacy_id="10" army_from="column">
+    <position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/>
+    <position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/>
+    <position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/>
+    <position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/><position x="0" y="0"/>
+</layout>

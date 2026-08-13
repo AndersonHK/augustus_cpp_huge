@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="chariot_maker">
     <identity name_key="main_strings.28.37" />
-    <model size="3" cost="75" />
+    <model cost="75" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
     <button group="entertainment" order="80" icon="Industry\Chariot_Maker" text_key="main_strings.28.37" />
     <sound id="chariot_maker" mute_on_enemies="true" />
-    <event_data attr="chariot_maker" />
     <graphics>
         <default>
             <path value="Industry\Chariot_Maker" />
@@ -26,8 +25,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:7,75:15,50:30,25:60,1:90" existing_figure="charioteer">
-        <spawn mode="profiled_figure" spawn_figure="charioteer"
-            action_state="entertainer_school_created" direction="top" figure_slot="primary"
-            init_roaming="false" profile="venue_seeker" />
+        <spawn spawn_figure="charioteer" direction="top" figure_slot="primary" profile="venue_seeker" />
     </spawn_group>
 </building>

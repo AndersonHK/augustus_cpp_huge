@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="paths">
-    <identity name_key="TR_BUILDING_MENU_PATHS" />
-    <event_data attr="paths|all_paths" />
+    <identity name_key="TR_BUILDING_MENU_PATHS" aliases="all_paths" />
 </building>

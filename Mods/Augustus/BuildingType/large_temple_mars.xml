@@ -2,18 +2,17 @@
 <building type="large_temple_mars">
     <identity name_key="main_strings.28.68" />
     <temple religion="large_temple_mars" />
-    <model size="3" cost="150" />
+    <model cost="150" />
     <desirability>
         <value value="14" />
         <step value="2" />
         <step_size value="-2" />
         <range value="5" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
     <button group="large_temples" order="40" icon="Health_Culture\Temple_Mars" icon_image="Image_0001" text_key="main_strings.28.68" />
     <cycle group="large_temples" order="40" steps="1" />
     <sound id="temple_mars" />
-    <event_data attr="large_temple_mars" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>
         <culture_module path="temple_active" capacity="3000" count="active" />
@@ -51,9 +50,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn mode="profiled_figure" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary"
-            init_roaming="true" profile="mars_service" />
+        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="mars_service" />
     </spawn_group>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="temple_mars_mess_hall_priest" />

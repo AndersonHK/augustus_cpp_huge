@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="tower">
     <identity name_key="main_strings.28.59" />
-    <model size="2" cost="150" />
+    <model cost="150" />
     <desirability>
         <value value="-8" />
         <step value="1" />
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="wall" />
+    <foundation path="tower_2x2" />
   <button group="security" order="50" text_key="main_strings.28.59" />
-    <event_data attr="tower" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>
         <employees count="6" />

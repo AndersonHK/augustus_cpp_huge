@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\sml_statue_2">
+    <image id="sml statue 2" isometric="true">
+        <layer src="sml_statue_2" part="footprint"/>
+    </image>
+</assetlist>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="enemy_caesar_mounted">
+    <figure type="enemy_caesar_mounted" />
+    <combat><health value="100" /><attack value="8" /><defense value="0" /><armor value="0" /></combat>
+    <abilities><melee exposed_back_bonus="4" /></abilities>
+</unit>

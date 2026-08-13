@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="enemy50_sword">
+    <figure type="enemy50_sword" />
+    <combat><health value="110" /><attack value="10" /><defense value="2" /><armor value="2" /></combat>
+    <abilities><melee exposed_back_bonus="4" /></abilities>
+</unit>

@@ -52,7 +52,7 @@ void building_construction_cancel(void);
 
 void building_construction_update(int x, int y, int grid_offset);
 
-figure_type building_construction_nearby_enemy_type(grid_slice *slice);
+figure_type building_construction_nearby_enemy_type(const int *grid_offsets, int count);
 
 void building_construction_offset_start_from_orientation(int *x, int *y, int size);
 

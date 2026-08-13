@@ -44,7 +44,8 @@ building_type ConstructionToolSession::resolve_type(key_modifier_type modifiers,
     }
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    if (construction_in_progress && definition && definition->roadblock().is_bridge()) {
+    if (construction_in_progress && definition &&
+        construction_session_retains_resolved_type(*definition)) {
         return type;
     }
     const map_tile &hover_tile = raw_end.grid_offset ? raw_end : raw_start;
@@ -87,7 +88,7 @@ void ConstructionToolSession::sync_drag_points(key_modifier_type modifiers)
 
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    if (definition && definition->roadblock().is_bridge()) {
+    if (definition && construction_session_retains_resolved_type(*definition)) {
         start_x = raw_end_x;
         start_y = raw_end_y;
         end_x = raw_end_x;

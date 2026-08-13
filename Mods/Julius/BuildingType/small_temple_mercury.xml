@@ -2,18 +2,17 @@
 <building type="small_temple_mercury">
     <identity name_key="TR_BUILDING_SMALL_TEMPLE_MERCURY_NAME" />
     <temple religion="small_temple_mercury" />
-    <model size="2" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="4" />
         <step value="2" />
         <step_size value="6" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <button group="small_temples" order="30" icon="Health_Culture\Temple_Mercury" text_key="TR_BUILDING_SMALL_TEMPLE_MERCURY_NAME" />
     <cycle group="small_temples" order="30" steps="1" />
     <sound id="temple_mercury" />
-    <event_data attr="small_temple_mercury" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>
         <culture_module path="temple_active" capacity="750" count="active" />
@@ -32,9 +31,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn mode="profiled_figure" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary"
-            init_roaming="true" profile="mercury_service" />
+        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="mercury_service" />
     </spawn_group>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="temple_destination_priest" />

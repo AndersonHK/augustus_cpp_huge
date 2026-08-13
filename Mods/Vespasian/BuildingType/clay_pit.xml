@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="clay_pit">
     <identity name_key="main_strings.28.109" />
-    <model size="2" cost="40" />
+    <model cost="40" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="custom">
-        <terrain value="water" />
-    </foundation>
+    <foundation path="water_site_2x2" />
     <button group="raw_materials" order="10" icon="Industry\Clay_Pit" text_key="main_strings.28.109" />
     <sound id="clay_pit" />
-    <event_data attr="clay_pit" />
     <graphics>
         <default>
             <path value="Industry\Clay_Pit" />

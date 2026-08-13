@@ -2,20 +2,12 @@
 
 #include "building/building.h"
 
-void map_building_tiles_add_remove(
-    Building &building,
-    int x,
-    int y,
-    int size,
-    int image_id,
-    int terrain_to_add,
-    int terrain_to_remove);
-
-void map_building_tiles_add(Building &building, int x, int y, int size, int image_id, int terrain);
-
+// Square legacy terrain art such as rocks and editor-authored map features.
 void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain);
 
-void map_building_tiles_remove(const Building *building, int x, int y);
+// Compatibility cleanup for ownerless map records decoded before runtime
+// Building/Foundation materialization. Live buildings remove their Foundation.
+void map_legacy_building_tiles_remove(int x, int y);
 
 void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id);
 
@@ -24,5 +16,3 @@ void map_building_tiles_add_bridge(Building &building, int x, int y);
 void map_building_tiles_mark_deleting(int grid_offset);
 
 int map_building_tiles_mark_construction(int x, int y, int size, int terrain, int absolute_xy);
-
-int map_building_tiles_are_clear(int x, int y, int size, int terrain);

@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barber">
     <identity name_key="main_strings.28.49" />
-    <model size="1" cost="25" />
+    <model cost="25" />
     <desirability>
         <value value="2" />
         <step value="1" />
         <step_size value="-1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <button group="health" order="10" icon="Health_Culture\Barber" text_key="main_strings.28.49" />
     <sound id="barber" />
-    <event_data attr="barber" />
     <graphics>
         <default>
             <path value="Health_Culture\Barber" />
@@ -26,7 +25,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="barber">
-        <spawn mode="profiled_figure" spawn_figure="barber"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" profile="service" />
+        <spawn spawn_figure="barber" direction="top" figure_slot="primary" profile="service" />
     </spawn_group>
 </building>

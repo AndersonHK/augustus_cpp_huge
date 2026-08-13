@@ -2,7 +2,9 @@
 #include "figure/figure_type_registry_internal.h"
 
 #include "assets/image_group_payload.h"
+#include "city/view.h"
 #include "core/crash_context.h"
+#include "core/direction.h"
 #include "core/image.h"
 #include "core/log.h"
 #include "figure/action.h"
@@ -10,10 +12,12 @@
 #include "figure/image.h"
 #include "game/Animation.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -78,15 +82,6 @@ int valid_resource_cart_graphics_index(resource_type resource)
     return resource >= RESOURCE_NONE && resource < RESOURCE_CART_GRAPHICS_COUNT;
 }
 
-resource_type legacy_cart_overlay_resource(const Figure &figure)
-{
-    if (figure.type == FIGURE_LIGHTHOUSE_SUPPLIER &&
-        figure.action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING) {
-        return static_cast<resource_type>(figure.collecting_item_id);
-    }
-    return static_cast<resource_type>(figure.resource_id);
-}
-
 int legacy_direction_index(int direction)
 {
     int dir = figure_image_normalize_direction(direction);
@@ -104,10 +99,43 @@ int target_direction_index(const Figure &figure)
             figure.previous_tile_direction);
 }
 
+int direction_after_view_adjustments(int direction, int view_orientation, int adjustments)
+{
+    direction %= GRAPHICS_DIRECTION8_COUNT;
+    if (direction < 0) {
+        direction += GRAPHICS_DIRECTION8_COUNT;
+    }
+    view_orientation %= GRAPHICS_DIRECTION8_COUNT;
+    if (view_orientation < 0) {
+        view_orientation += GRAPHICS_DIRECTION8_COUNT;
+    }
+    for (int pass = 0; pass < adjustments; ++pass) {
+        direction -= view_orientation;
+        if (direction < 0) {
+            direction += GRAPHICS_DIRECTION8_COUNT;
+        }
+    }
+    return direction;
+}
+
+int legacy_unbounded_direction_after_view_adjustments(
+    int direction,
+    int view_orientation,
+    int adjustments)
+{
+    for (int pass = 0; pass < adjustments; ++pass) {
+        direction -= view_orientation;
+        if (direction < 0) {
+            direction += GRAPHICS_DIRECTION8_COUNT;
+        }
+    }
+    return direction;
+}
+
 int corpse_frame_offset(const Figure &figure)
 {
     return figure.action_state == FIGURE_ACTION_149_CORPSE ?
-        figure_image_corpse_offset(const_cast<Figure *>(&figure)) :
+        FigureGraphics::corpse_frame_for_wait_ticks(figure.wait_ticks) :
         0;
 }
 
@@ -193,6 +221,270 @@ int FigureGraphicsLayer::is_valid() const
     return slice.is_valid();
 }
 
+int FigureGraphicsLayerSet::add(FigureGraphicsLayer layer)
+{
+    if (!layer.is_valid() || count >= static_cast<int>(layers.size())) {
+        return 0;
+    }
+    layers[count++] = std::move(layer);
+    return 1;
+}
+
+int FigureMissileLauncherGraphics::enabled() const
+{
+    return cursor != FigureMissileLauncherCursor::None &&
+        frame_divisor > 0 &&
+        !frames.empty();
+}
+
+int FigureMissileLauncherGraphics::frame_for(
+    int attack_image_offset,
+    int missile_wait_ticks) const
+{
+    if (!enabled()) {
+        return 0;
+    }
+    const int cursor_value = cursor == FigureMissileLauncherCursor::AttackImageOffset ?
+        attack_image_offset :
+        missile_wait_ticks;
+    if (cursor_value < 0) {
+        return frames.front();
+    }
+    const std::size_t index = static_cast<std::size_t>(cursor_value / frame_divisor);
+    return index < frames.size() ? frames[index] : after_frame;
+}
+
+const FigureDirectionalPoseGraphics *FigureDirectionalGraphics::pose_for_action(int action_state) const
+{
+    for (const FigureDirectionalPoseGraphics &pose : poses) {
+        if (pose.action_state == action_state) {
+            return &pose;
+        }
+    }
+    return nullptr;
+}
+
+int FigureDirectionalGraphics::image_offset_for(
+    int action_state,
+    int raw_direction,
+    int view_orientation,
+    int image_offset) const
+{
+    const FigureDirectionalPoseGraphics *pose = pose_for_action(action_state);
+    const int base_image_offset = pose ? pose->base_image_offset : default_base_image_offset;
+    return base_image_offset +
+        direction_after_view_adjustments(raw_direction, view_orientation, view_adjustments) +
+        frame_stride * (image_offset / frame_divisor);
+}
+
+const FigureGraphics *FigureGraphics::for_type(figure_type type)
+{
+    return graphics_for(type);
+}
+
+int FigureGraphics::corpse_frame_for_wait_ticks(int wait_ticks)
+{
+    if (wait_ticks <= 0) {
+        return 0;
+    }
+    if (wait_ticks < 8) {
+        return wait_ticks / 2;
+    }
+    if (wait_ticks < 32) {
+        return 4;
+    }
+    if (wait_ticks < 72) {
+        return 5;
+    }
+    if (wait_ticks < 152) {
+        return 6;
+    }
+    return 7;
+}
+
+int FigureGraphics::missile_launcher_frame_for(const Figure &figure)
+{
+    const FigureGraphics *graphics = for_type(static_cast<figure_type>(figure.type));
+    return graphics ? graphics->missile_launcher_frame(figure) : 0;
+}
+
+const FigureStandardFlagGraphics *FigureStandardGraphics::flag_for(figure_type unit_type) const
+{
+    for (const FigureStandardFlagGraphics &flag : flags) {
+        if (flag.unit_type == unit_type) {
+            return &flag;
+        }
+    }
+    return nullptr;
+}
+
+int FigureStandardGraphics::flag_image_offset(
+    figure_type unit_type,
+    int halted,
+    int figure_frame) const
+{
+    const FigureStandardFlagGraphics *flag = flag_for(unit_type);
+    if (!flag || moving_frame_divisor <= 0) {
+        return -1;
+    }
+    return halted ? flag->halted_frame_offset : flag->moving_base_offset + figure_frame / moving_frame_divisor;
+}
+
+int FigureGraphicsOverlay::is_visible(const Figure &figure) const
+{
+    if (hide_on_corpse && figure.action_state == FIGURE_ACTION_149_CORPSE) {
+        return 0;
+    }
+    if (visible_actions.empty()) {
+        return 1;
+    }
+    return std::find(visible_actions.begin(), visible_actions.end(), figure.action_state) !=
+        visible_actions.end();
+}
+
+int FigureGraphicsOverlay::legacy_image_offset(
+    int normalized_direction,
+    int figure_frame,
+    int resource_id) const
+{
+    const int direction_offset = direction == FigureOverlayDirection::Figure ? normalized_direction : 0;
+    const int frame_offset = frame == FigureOverlayFrame::Figure ? figure_frame : 0;
+    return resource_base_image_offset + resource_stride * resource_id +
+        direction_offset + direction_frame_stride * frame_offset;
+}
+
+int FigureGraphicsStateLayer::legacy_image_offset(
+    int raw_direction,
+    int view_orientation,
+    int image_offset) const
+{
+    const int direction_offset = direction_after_view_adjustments(
+        raw_direction, view_orientation, view_adjustments);
+    const int frame_offset = frame == FigureStateFrame::Static ? 0 : image_offset / frame_divisor;
+    return base_image_offset + direction_offset + direction_frame_stride * frame_offset;
+}
+
+const FigureMapFlagMarkerGraphics *FigureMapFlagGraphics::marker_for(int resource_id) const
+{
+    for (const FigureMapFlagMarkerGraphics &marker : markers) {
+        if (resource_id >= marker.resource_min && resource_id < marker.resource_max_exclusive) {
+            return &marker;
+        }
+    }
+    return nullptr;
+}
+
+int FigureMapFlagGraphics::number_for(int resource_id) const
+{
+    const FigureMapFlagMarkerGraphics *marker = marker_for(resource_id);
+    return marker && marker->number_base > 0 ?
+        marker->number_base + resource_id - marker->resource_min :
+        0;
+}
+
+int FigureMapFlagGraphics::legacy_base_image_offset(int view_orientation, int image_offset) const
+{
+    if (!enabled || frame_divisor <= 0) {
+        return -1;
+    }
+    return direction_after_view_adjustments(base_direction, view_orientation, view_adjustments) +
+        frame_stride * (image_offset / frame_divisor);
+}
+
+int FigureMapFlagGraphics::covers_authored_range() const
+{
+    if (!enabled || resource_max_exclusive <= resource_min) {
+        return 0;
+    }
+    for (int resource_id = resource_min; resource_id < resource_max_exclusive; ++resource_id) {
+        if (!marker_for(resource_id)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+GraphicsPoint FigureHippodromeOffsetSchedule::offset_for(int wait_ticks) const
+{
+    for (std::size_t index = 0; index < max_wait_ticks.size(); ++index) {
+        if (wait_ticks <= max_wait_ticks[index]) {
+            return { x[index], y[index] };
+        }
+    }
+    return {};
+}
+
+const FigureHippodromeTeamGraphics *FigureHippodromeGraphics::team_for(int resource_id) const
+{
+    for (const FigureHippodromeTeamGraphics &team : teams) {
+        if (resource_id >= team.resource_min && resource_id < team.resource_max_exclusive) {
+            return &team;
+        }
+    }
+    return nullptr;
+}
+
+const FigureHippodromeOffsetSchedule *FigureHippodromeGraphics::schedule_for(int orientation) const
+{
+    for (const FigureHippodromeOffsetSchedule &schedule : offset_schedules) {
+        if (schedule.orientation == orientation) {
+            return &schedule;
+        }
+    }
+    return nullptr;
+}
+
+int FigureHippodromeGraphics::covers_authored_range() const
+{
+    if (!enabled || resource_max_exclusive <= resource_min) {
+        return 0;
+    }
+    for (int resource_id = resource_min; resource_id < resource_max_exclusive; ++resource_id) {
+        if (!team_for(resource_id)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int FigureHippodromeGraphics::is_complete() const
+{
+    return covers_authored_range() &&
+        schedule_for(DIR_0_TOP) &&
+        schedule_for(DIR_2_RIGHT) &&
+        schedule_for(DIR_4_BOTTOM) &&
+        schedule_for(DIR_6_LEFT) &&
+        offset_schedules.size() == 4;
+}
+
+int FigureHippodromeGraphics::horse_image_offset(
+    int raw_direction,
+    int view_orientation,
+    int image_offset) const
+{
+    return legacy_unbounded_direction_after_view_adjustments(
+               raw_direction, view_orientation, horse_view_adjustments) +
+        frame_stride * image_offset;
+}
+
+int FigureHippodromeGraphics::cart_image_offset(int raw_direction, int view_orientation) const
+{
+    return legacy_unbounded_direction_after_view_adjustments(
+        raw_direction, view_orientation, cart_view_adjustments);
+}
+
+GraphicsPoint FigureHippodromeGraphics::cart_draw_offset(int raw_direction, int view_orientation) const
+{
+    const int cart_direction =
+        (cart_image_offset(raw_direction, view_orientation) + cart_direction_offset) % GRAPHICS_DIRECTION8_COUNT;
+    return { cart_offsets_x[cart_direction], cart_offsets_y[cart_direction] };
+}
+
+GraphicsPoint FigureGraphicsOverlay::legacy_draw_offset(int normalized_direction) const
+{
+    return { offsets_x[normalized_direction], offsets_y[normalized_direction] };
+}
+
 int FigureGraphics::default_source_count() const
 {
     return (image_group ? 1 : 0) +
@@ -251,6 +543,156 @@ int FigureGraphics::has_legacy_resource_cart_graphics() const
     return image_asset != ASSET_MAX_KEY &&
         corpse_image_asset != ASSET_MAX_KEY &&
         cart_mode == CartGraphicsMode::ResourceLoad;
+}
+
+resource_type FigureResourceCartGraphics::resource_for(const Figure &figure) const
+{
+    int resource = RESOURCE_NONE;
+    switch (resource_source) {
+        case FigureResourceCartSource::ResourceId:
+            resource = figure.resource_id;
+            break;
+        case FigureResourceCartSource::CollectingItemOnAction:
+            if (figure.action_state == resource_action) {
+                resource = figure.collecting_item_id;
+            }
+            break;
+        case FigureResourceCartSource::None:
+        default:
+            break;
+    }
+    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ?
+        static_cast<resource_type>(resource) :
+        RESOURCE_NONE;
+}
+
+int FigureResourceCartGraphics::loads_for(const Figure &figure, resource_type resource) const
+{
+    if (resource == RESOURCE_NONE) {
+        return 0;
+    }
+    switch (load_mode) {
+        case FigureResourceCartLoadMode::CarriedLoads:
+            return figure.loads_sold_or_carrying;
+        case FigureResourceCartLoadMode::CarriedOrOne:
+            return figure.loads_sold_or_carrying ? figure.loads_sold_or_carrying : 1;
+        case FigureResourceCartLoadMode::FixedOne:
+        default:
+            return 1;
+    }
+}
+
+int FigureResourceCartGraphics::direction_for(const Figure &figure) const
+{
+    return target_direction_index(figure);
+}
+
+GraphicsPoint FigureResourceCartGraphics::offset_for(
+    const Figure &figure,
+    resource_type resource,
+    int loads) const
+{
+    const int direction = direction_for(figure);
+    GraphicsPoint offset = { offsets_x[direction], offsets_y[direction] };
+    if (lift_food_at_loads > 0 && loads >= lift_food_at_loads && resource_is_food(resource)) {
+        offset.y += lift_food_y_adjust;
+    }
+    return offset;
+}
+
+FigureResourceCartPresentation FigureResourceCartGraphics::normalize_presentation(
+    FigureResourceCartPresentation requested,
+    resource_type resource) const
+{
+    if (requested == FigureResourceCartPresentation::Resource && resource == RESOURCE_NONE) {
+        return FigureResourceCartPresentation::Empty;
+    }
+    return requested;
+}
+
+void FigureGraphicsState::bind(Figure &figure, const FigureGraphics *graphics)
+{
+    if (is_bound_to(figure) && graphics_ == graphics) {
+        return;
+    }
+
+    owner_ = &figure;
+    created_sequence_ = figure.created_sequence;
+    graphics_ = graphics;
+    cart_presentation_ = FigureResourceCartPresentation::Hidden;
+    if (!graphics_) {
+        return;
+    }
+
+    const FigureResourceCartGraphics &policy = graphics_->resource_cart();
+    if (!policy.enabled || policy.state_source != FigureResourceCartStateSource::RuntimeState) {
+        return;
+    }
+
+    if (FigureGraphics::resource_cart_marker_is(figure.cart_image_id)) {
+        cart_presentation_ = FigureResourceCartPresentation::Resource;
+    } else if (figure.cart_image_id) {
+        cart_presentation_ = FigureResourceCartPresentation::Empty;
+    }
+    cart_presentation_ = policy.normalize_presentation(
+        cart_presentation_, policy.resource_for(figure));
+}
+
+int FigureGraphicsState::is_bound_to(const Figure &figure) const
+{
+    return owner_ == &figure && created_sequence_ == figure.created_sequence;
+}
+
+void FigureGraphicsState::begin_cart_update()
+{
+    publish_cart(FigureResourceCartPresentation::Hidden);
+}
+
+void FigureGraphicsState::show_empty_cart()
+{
+    publish_cart(FigureResourceCartPresentation::Empty);
+}
+
+void FigureGraphicsState::show_resource_cart()
+{
+    publish_cart(FigureResourceCartPresentation::Resource);
+}
+
+void FigureGraphicsState::hide_cart()
+{
+    publish_cart(FigureResourceCartPresentation::Hidden);
+}
+
+FigureResourceCartPresentation FigureGraphicsState::cart_presentation() const
+{
+    return cart_presentation_;
+}
+
+void FigureGraphicsState::publish_cart(FigureResourceCartPresentation presentation)
+{
+    if (!owner_ || !is_bound_to(*owner_) || !graphics_) {
+        return;
+    }
+
+    const FigureResourceCartGraphics &policy = graphics_->resource_cart();
+    if (!policy.enabled || policy.state_source != FigureResourceCartStateSource::RuntimeState) {
+        return;
+    }
+
+    cart_presentation_ = policy.normalize_presentation(
+        presentation, policy.resource_for(*owner_));
+    switch (cart_presentation_) {
+        case FigureResourceCartPresentation::Resource:
+            owner_->cart_image_id = FigureGraphics::resource_cart_marker_for_direction(0);
+            break;
+        case FigureResourceCartPresentation::Empty:
+            owner_->cart_image_id = ::image_group(policy.empty_image_group);
+            break;
+        case FigureResourceCartPresentation::Hidden:
+        default:
+            owner_->cart_image_id = 0;
+            break;
+    }
 }
 
 void FigureGraphics::set_resource_cart_images(
@@ -334,28 +776,6 @@ int FigureGraphics::resource_cart_marker_is(unsigned int image_id)
     return image_id >= RESOURCE_CART_MARKER_BASE && image_id < RESOURCE_CART_MARKER_BASE + 8;
 }
 
-int FigureGraphics::resource_cart_marker_direction(unsigned int image_id)
-{
-    return resource_cart_marker_is(image_id) ? static_cast<int>(image_id) - RESOURCE_CART_MARKER_BASE : 0;
-}
-
-int FigureGraphics::uses_legacy_cart_overlay(figure_type type)
-{
-    switch (type) {
-        case FIGURE_CART_PUSHER:
-        case FIGURE_WAREHOUSEMAN:
-        case FIGURE_LION_TAMER:
-        case FIGURE_DOCKER:
-        case FIGURE_NATIVE_TRADER:
-        case FIGURE_IMMIGRANT:
-        case FIGURE_EMIGRANT:
-        case FIGURE_LIGHTHOUSE_SUPPLIER:
-            return 1;
-        default:
-            return 0;
-    }
-}
-
 const Image &FigureGraphics::legacy_image(int image_id)
 {
     if (image_id >= IMAGE_MAIN_ENTRIES) {
@@ -410,36 +830,532 @@ FigureGraphicsLayer FigureGraphics::native_entry_layer_above(const ImageGroupEnt
     return layer;
 }
 
-RuntimeDrawSlice FigureGraphics::legacy_cart_overlay_slice(const Figure &figure)
+int FigureGraphics::configure_resource_cart(FigureResourceCartGraphics resource_cart)
 {
-    if (!resource_cart_marker_is(figure.cart_image_id)) {
-        return legacy_image(figure.cart_image_id).runtime_slice();
+    if (resource_cart_.enabled || !resource_cart.empty_image_group ||
+        resource_cart.resource_source == FigureResourceCartSource::None ||
+        (resource_cart.resource_source == FigureResourceCartSource::CollectingItemOnAction &&
+            resource_cart.resource_action <= 0) ||
+        (resource_cart.state_source == FigureResourceCartStateSource::RuntimeState &&
+            resource_cart.resource_source != FigureResourceCartSource::ResourceId) ||
+        (resource_cart.suppress_body_when_hidden &&
+            resource_cart.state_source != FigureResourceCartStateSource::RuntimeState) ||
+        resource_cart.lift_food_at_loads < 0 ||
+        ((resource_cart.lift_food_at_loads > 0) != (resource_cart.lift_food_y_adjust != 0))) {
+        return 0;
     }
-
-    resource_type resource = legacy_cart_overlay_resource(figure);
-    int loads = figure.loads_sold_or_carrying > 0 ? figure.loads_sold_or_carrying : 1;
-    if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
-        resource = RESOURCE_NONE;
-        loads = 0;
+    for (std::size_t index = 0; index < resource_cart.offsets_x.size(); ++index) {
+        if (resource_cart.offsets_x[index] < std::numeric_limits<signed char>::min() ||
+            resource_cart.offsets_x[index] > std::numeric_limits<signed char>::max() ||
+            resource_cart.offsets_y[index] < std::numeric_limits<signed char>::min() ||
+            resource_cart.offsets_y[index] > std::numeric_limits<signed char>::max()) {
+            return 0;
+        }
     }
-    return resource_cart_image_for_direction(
-        resource,
-        loads,
-        resource_is_food(resource),
-        resource_cart_marker_direction(figure.cart_image_id)).runtime_slice();
+    resource_cart.enabled = 1;
+    resource_cart_ = std::move(resource_cart);
+    return 1;
 }
 
-FigureGraphicsLayer FigureGraphics::legacy_cart_overlay_layer(
-    const Figure &figure,
-    GraphicsPoint offset,
-    int draw_before_base)
+const FigureResourceCartGraphics &FigureGraphics::resource_cart() const
 {
+    return resource_cart_;
+}
+
+FigureResourceCartPresentation FigureGraphics::resource_cart_presentation(
+    const Figure &figure,
+    const FigureGraphicsState *state) const
+{
+    if (!resource_cart_.enabled ||
+        (resource_cart_.hide_on_corpse && figure.action_state == FIGURE_ACTION_149_CORPSE)) {
+        return FigureResourceCartPresentation::Hidden;
+    }
+
+    const resource_type resource = resource_cart_.resource_for(figure);
+    if (resource_cart_.state_source == FigureResourceCartStateSource::RuntimeState) {
+        const FigureResourceCartPresentation requested =
+            state && state->is_bound_to(figure) ? state->cart_presentation() :
+            FigureResourceCartPresentation::Hidden;
+        return resource_cart_.normalize_presentation(requested, resource);
+    }
+    return resource == RESOURCE_NONE ?
+        FigureResourceCartPresentation::Empty :
+        FigureResourceCartPresentation::Resource;
+}
+
+FigureGraphicsLayer FigureGraphics::resource_cart_layer(
+    const Figure &figure,
+    const FigureGraphicsState *state) const
+{
+    const FigureResourceCartPresentation presentation =
+        resource_cart_presentation(figure, state);
+    if (presentation == FigureResourceCartPresentation::Hidden) {
+        return {};
+    }
+
+    const resource_type resource = presentation == FigureResourceCartPresentation::Resource ?
+        resource_cart_.resource_for(figure) : RESOURCE_NONE;
+    const int loads = resource_cart_.loads_for(figure, resource);
+    const int direction = resource_cart_.direction_for(figure);
+    const GraphicsPoint offset = resource_cart_.offset_for(figure, resource, loads);
     FigureGraphicsLayer layer;
-    layer.slice = legacy_cart_overlay_slice(figure);
-    layer.offset = offset;
-    layer.draw_before_base = draw_before_base >= 0 ? draw_before_base : offset.y < 0;
-    layer.height = layer.slice.height;
+    if (presentation == FigureResourceCartPresentation::Empty || loads <= 0) {
+        layer = legacy_image_layer(::image_group(resource_cart_.empty_image_group) + direction, offset);
+    } else {
+        const ImageGroupEntryRef image = resource_cart_image_for_direction(
+            resource,
+            loads,
+            resource_cart_.lift_food_at_loads > 0,
+            direction);
+        layer.slice = image.runtime_slice();
+        if (!layer.slice.is_valid()) {
+            return {};
+        }
+        layer.offset = offset;
+        layer.height = image.height();
+    }
+    layer.draw_before_base = offset.y < 0;
     return layer;
+}
+
+int FigureGraphics::configure_directional(FigureDirectionalGraphics directional)
+{
+    if (directional_.enabled || !directional.image_group ||
+        directional.default_base_image_offset < 0 ||
+        directional.view_adjustments < 0 || directional.view_adjustments > 4 ||
+        directional.frame_divisor <= 0 || directional.frame_stride < 0) {
+        return 0;
+    }
+    directional.enabled = 1;
+    directional_ = std::move(directional);
+    return 1;
+}
+
+int FigureGraphics::add_directional_pose(FigureDirectionalPoseGraphics pose)
+{
+    if (!directional_.enabled || pose.role.empty() || !pose.action_state ||
+        pose.base_image_offset < 0) {
+        return 0;
+    }
+    for (const FigureDirectionalPoseGraphics &existing : directional_.poses) {
+        if (existing.role == pose.role || existing.action_state == pose.action_state) {
+            return 0;
+        }
+    }
+    directional_.poses.push_back(std::move(pose));
+    return 1;
+}
+
+const FigureDirectionalGraphics &FigureGraphics::directional() const
+{
+    return directional_;
+}
+
+int FigureGraphics::directional_image_id(const Figure &figure) const
+{
+    if (!directional_.enabled) {
+        return 0;
+    }
+    const int raw_direction = figure.direction < GRAPHICS_DIRECTION8_COUNT ?
+        figure.direction : figure.previous_tile_direction;
+    return ::image_group(directional_.image_group) + directional_.image_offset_for(
+        figure.action_state,
+        raw_direction,
+        city_view_orientation(),
+        figure.image_offset);
+}
+
+int FigureGraphics::add_overlay(FigureGraphicsOverlay overlay)
+{
+    if (overlay.role.empty() || !overlay.image_group || overlay.direction_frame_stride <= 0 ||
+        overlay.resource_base_image_offset < 0 || overlay.resource_stride < 0) {
+        return 0;
+    }
+    for (std::size_t index = 0; index < overlay.offsets_x.size(); ++index) {
+        if (overlay.offsets_x[index] < std::numeric_limits<signed char>::min() ||
+            overlay.offsets_x[index] > std::numeric_limits<signed char>::max() ||
+            overlay.offsets_y[index] < std::numeric_limits<signed char>::min() ||
+            overlay.offsets_y[index] > std::numeric_limits<signed char>::max()) {
+            return 0;
+        }
+    }
+    for (std::size_t index = 0; index < overlay.visible_actions.size(); ++index) {
+        if (overlay.visible_actions[index] <= 0 ||
+            std::find(
+                overlay.visible_actions.begin(),
+                overlay.visible_actions.begin() + index,
+                overlay.visible_actions[index]) != overlay.visible_actions.begin() + index) {
+            return 0;
+        }
+    }
+    for (const FigureGraphicsOverlay &existing : overlay_definitions) {
+        if (existing.role == overlay.role) {
+            return 0;
+        }
+    }
+    overlay_definitions.push_back(std::move(overlay));
+    return 1;
+}
+
+const std::vector<FigureGraphicsOverlay> &FigureGraphics::overlays() const
+{
+    return overlay_definitions;
+}
+
+FigureGraphicsLayer FigureGraphics::legacy_overlay_layer(
+    const Figure &figure,
+    const FigureGraphicsOverlay &overlay) const
+{
+    if (!overlay.is_visible(figure)) {
+        return {};
+    }
+
+    const int direction = overlay.direction == FigureOverlayDirection::Figure ?
+        target_direction_index(figure) :
+        0;
+    const GraphicsPoint offset = overlay.legacy_draw_offset(direction);
+
+    FigureGraphicsLayer layer = legacy_image_layer(
+        ::image_group(overlay.image_group) + overlay.legacy_image_offset(
+            direction, figure.image_offset, figure.resource_id),
+        offset);
+    layer.draw_before_base = offset.y < 0;
+    return layer;
+}
+
+int FigureGraphics::add_state_layer(FigureGraphicsStateLayer state_layer)
+{
+    if (state_layer.role.empty() || !state_layer.action_state || !state_layer.image_group ||
+        state_layer.base_image_offset < 0 || state_layer.view_adjustments < 0 ||
+        state_layer.view_adjustments > 4 || state_layer.frame_divisor <= 0 ||
+        state_layer.direction_frame_stride <= 0) {
+        return 0;
+    }
+    for (const FigureGraphicsStateLayer &existing : state_layer_definitions) {
+        if (existing.role == state_layer.role || existing.action_state == state_layer.action_state) {
+            return 0;
+        }
+    }
+    state_layer_definitions.push_back(std::move(state_layer));
+    return 1;
+}
+
+const std::vector<FigureGraphicsStateLayer> &FigureGraphics::state_layers() const
+{
+    return state_layer_definitions;
+}
+
+const FigureGraphicsStateLayer *FigureGraphics::state_layer_for_action(int requested_action_state) const
+{
+    for (const FigureGraphicsStateLayer &state_layer : state_layer_definitions) {
+        if (state_layer.action_state == requested_action_state) {
+            return &state_layer;
+        }
+    }
+    return nullptr;
+}
+
+int FigureGraphics::legacy_state_layer_image_id(const Figure &figure) const
+{
+    const FigureGraphicsStateLayer *state_layer = state_layer_for_action(figure.action_state);
+    if (!state_layer) {
+        return 0;
+    }
+    const int raw_direction = state_layer->direction == FigureStateDirection::Attack ?
+        figure.attack_direction :
+        (figure.direction < GRAPHICS_DIRECTION8_COUNT ? figure.direction : figure.previous_tile_direction);
+    const int frame_offset = state_layer->frame == FigureStateFrame::MissileLauncher ?
+        missile_launcher_frame(figure) :
+        figure.image_offset;
+    return ::image_group(state_layer->image_group) + state_layer->legacy_image_offset(
+        raw_direction,
+        city_view_orientation(),
+        frame_offset);
+}
+
+FigureGraphicsLayerSet FigureGraphics::legacy_state_layers(const Figure &figure) const
+{
+    FigureGraphicsLayerSet result;
+    const int image_id = legacy_state_layer_image_id(figure);
+    if (!image_id) {
+        return result;
+    }
+    const Image &image = legacy_image(image_id);
+    if (const image_animation *animation = image.animation()) {
+        result.sprite_offset.x = animation->sprite_offset_x;
+        result.sprite_offset.y = animation->sprite_offset_y;
+    }
+    result.add(image_layer(image));
+    return result;
+}
+
+int FigureGraphics::configure_standard(int moving_frame_divisor)
+{
+    if (standard_definition.enabled || moving_frame_divisor <= 0) {
+        return 0;
+    }
+    standard_definition.enabled = 1;
+    standard_definition.moving_frame_divisor = moving_frame_divisor;
+    return 1;
+}
+
+int FigureGraphics::add_standard_flag(FigureStandardFlagGraphics flag)
+{
+    if (!standard_definition.enabled || flag.unit_type == FIGURE_NONE || !flag.image_group ||
+        flag.moving_base_offset < 0 || flag.halted_frame_offset < 0 ||
+        standard_definition.flag_for(flag.unit_type)) {
+        return 0;
+    }
+    standard_definition.flags.push_back(std::move(flag));
+    return 1;
+}
+
+const FigureStandardGraphics &FigureGraphics::standard() const
+{
+    return standard_definition;
+}
+
+FigureGraphicsLayerSet FigureGraphics::legacy_standard_layers(
+    const Figure &figure,
+    figure_type unit_type,
+    int halted,
+    int legion_flag_image_id) const
+{
+    FigureGraphicsLayerSet result;
+    const FigureStandardFlagGraphics *flag = standard_definition.flag_for(unit_type);
+    if (!flag) {
+        return result;
+    }
+
+    const Image &pole_image = legacy_image(figure.image_id);
+    if (const image_animation *animation = pole_image.animation()) {
+        result.sprite_offset.x = animation->sprite_offset_x;
+        result.sprite_offset.y = animation->sprite_offset_y;
+    }
+    result.add(image_layer(pole_image, {}, 0));
+
+    const int flag_offset = standard_definition.flag_image_offset(unit_type, halted, figure.image_offset);
+    const FigureGraphicsLayer flag_layer = legacy_image_layer_above(
+        ::image_group(flag->image_group) + flag_offset,
+        0);
+    result.add(flag_layer);
+    result.add(legacy_image_layer_above(legion_flag_image_id, flag_layer.height));
+    return result;
+}
+
+int FigureGraphics::configure_map_flag(
+    int resource_min,
+    int resource_max_exclusive,
+    int base_direction,
+    int view_adjustments,
+    int frame_divisor,
+    int frame_stride,
+    GraphicsPoint number_offset)
+{
+    if (map_flag_definition.enabled || resource_min < 0 ||
+        resource_max_exclusive <= resource_min || base_direction < 0 ||
+        base_direction >= GRAPHICS_DIRECTION8_COUNT || view_adjustments < 0 ||
+        view_adjustments > 4 || frame_divisor <= 0 || frame_stride <= 0) {
+        return 0;
+    }
+    map_flag_definition.enabled = 1;
+    map_flag_definition.resource_min = resource_min;
+    map_flag_definition.resource_max_exclusive = resource_max_exclusive;
+    map_flag_definition.base_direction = base_direction;
+    map_flag_definition.view_adjustments = view_adjustments;
+    map_flag_definition.frame_divisor = frame_divisor;
+    map_flag_definition.frame_stride = frame_stride;
+    map_flag_definition.number_offset = number_offset;
+    return 1;
+}
+
+int FigureGraphics::add_map_flag_marker(FigureMapFlagMarkerGraphics marker)
+{
+    if (!map_flag_definition.enabled || marker.resource_min < 0 ||
+        marker.resource_max_exclusive <= marker.resource_min || !marker.image_group ||
+        marker.image_offset < 0 || marker.number_base < 0 ||
+        marker.resource_min < map_flag_definition.resource_min ||
+        marker.resource_max_exclusive > map_flag_definition.resource_max_exclusive) {
+        return 0;
+    }
+    for (const FigureMapFlagMarkerGraphics &existing : map_flag_definition.markers) {
+        if (marker.resource_min < existing.resource_max_exclusive &&
+            existing.resource_min < marker.resource_max_exclusive) {
+            return 0;
+        }
+    }
+    map_flag_definition.markers.push_back(std::move(marker));
+    return 1;
+}
+
+const FigureMapFlagGraphics &FigureGraphics::map_flag() const
+{
+    return map_flag_definition;
+}
+
+FigureGraphicsLayerSet FigureGraphics::legacy_map_flag_layers(const Figure &figure) const
+{
+    FigureGraphicsLayerSet result;
+    const FigureMapFlagMarkerGraphics *marker = map_flag_definition.marker_for(figure.resource_id);
+    const int base_offset = map_flag_definition.legacy_base_image_offset(
+        city_view_orientation(), figure.image_offset);
+    if (!marker || base_offset < 0) {
+        return result;
+    }
+
+    const Image &base_image = legacy_image(legacy_image_base() + base_offset);
+    if (const image_animation *animation = base_image.animation()) {
+        result.sprite_offset.x = animation->sprite_offset_x;
+        result.sprite_offset.y = animation->sprite_offset_y;
+    }
+    result.add(image_layer(base_image, {}, 0));
+    result.add(legacy_image_layer_above(
+        ::image_group(marker->image_group) + marker->image_offset,
+        0));
+    return result;
+}
+
+int FigureGraphics::configure_hippodrome(
+    int resource_min,
+    int resource_max_exclusive,
+    int horse_view_adjustments,
+    int cart_view_adjustments,
+    int frame_stride,
+    int cart_direction_offset,
+    std::array<int, 8> hippodrome_cart_offsets_x,
+    std::array<int, 8> hippodrome_cart_offsets_y)
+{
+    if (hippodrome_definition.enabled || resource_min < 0 ||
+        resource_max_exclusive <= resource_min || horse_view_adjustments < 0 ||
+        horse_view_adjustments > 4 || cart_view_adjustments < 0 ||
+        cart_view_adjustments > 4 || frame_stride <= 0 || cart_direction_offset < 0 ||
+        cart_direction_offset >= GRAPHICS_DIRECTION8_COUNT) {
+        return 0;
+    }
+    for (std::size_t index = 0; index < hippodrome_cart_offsets_x.size(); ++index) {
+        if (hippodrome_cart_offsets_x[index] < std::numeric_limits<signed char>::min() ||
+            hippodrome_cart_offsets_x[index] > std::numeric_limits<signed char>::max() ||
+            hippodrome_cart_offsets_y[index] < std::numeric_limits<signed char>::min() ||
+            hippodrome_cart_offsets_y[index] > std::numeric_limits<signed char>::max()) {
+            return 0;
+        }
+    }
+    hippodrome_definition.enabled = 1;
+    hippodrome_definition.resource_min = resource_min;
+    hippodrome_definition.resource_max_exclusive = resource_max_exclusive;
+    hippodrome_definition.horse_view_adjustments = horse_view_adjustments;
+    hippodrome_definition.cart_view_adjustments = cart_view_adjustments;
+    hippodrome_definition.frame_stride = frame_stride;
+    hippodrome_definition.cart_direction_offset = cart_direction_offset;
+    hippodrome_definition.cart_offsets_x = std::move(hippodrome_cart_offsets_x);
+    hippodrome_definition.cart_offsets_y = std::move(hippodrome_cart_offsets_y);
+    return 1;
+}
+
+int FigureGraphics::add_hippodrome_team(FigureHippodromeTeamGraphics team)
+{
+    if (!hippodrome_definition.enabled || team.resource_min < hippodrome_definition.resource_min ||
+        team.resource_max_exclusive <= team.resource_min ||
+        team.resource_max_exclusive > hippodrome_definition.resource_max_exclusive ||
+        !team.horse_image_group || !team.cart_image_group) {
+        return 0;
+    }
+    for (const FigureHippodromeTeamGraphics &existing : hippodrome_definition.teams) {
+        if (team.resource_min < existing.resource_max_exclusive &&
+            existing.resource_min < team.resource_max_exclusive) {
+            return 0;
+        }
+    }
+    hippodrome_definition.teams.push_back(std::move(team));
+    return 1;
+}
+
+int FigureGraphics::add_hippodrome_offset_schedule(FigureHippodromeOffsetSchedule schedule)
+{
+    if (!hippodrome_definition.enabled ||
+        (schedule.orientation != DIR_0_TOP && schedule.orientation != DIR_2_RIGHT &&
+            schedule.orientation != DIR_4_BOTTOM && schedule.orientation != DIR_6_LEFT) ||
+        hippodrome_definition.schedule_for(schedule.orientation)) {
+        return 0;
+    }
+    for (std::size_t index = 1; index < schedule.max_wait_ticks.size(); ++index) {
+        if (schedule.max_wait_ticks[index] <= schedule.max_wait_ticks[index - 1]) {
+            return 0;
+        }
+    }
+    if (schedule.max_wait_ticks.back() != std::numeric_limits<int>::max()) {
+        return 0;
+    }
+    hippodrome_definition.offset_schedules.push_back(std::move(schedule));
+    return 1;
+}
+
+const FigureHippodromeGraphics &FigureGraphics::hippodrome() const
+{
+    return hippodrome_definition;
+}
+
+FigureGraphicsLayerSet FigureGraphics::legacy_hippodrome_layers(const Figure &figure) const
+{
+    FigureGraphicsLayerSet result;
+    const FigureHippodromeTeamGraphics *team = hippodrome_definition.team_for(figure.resource_id);
+    const FigureHippodromeOffsetSchedule *schedule =
+        hippodrome_definition.schedule_for(city_view_orientation());
+    if (!team || !schedule) {
+        return result;
+    }
+
+    const int view_orientation = city_view_orientation();
+    const GraphicsPoint world_offset = schedule->offset_for(figure.wait_ticks_missile);
+    const Image &horse_image = legacy_image(
+        ::image_group(team->horse_image_group) +
+        hippodrome_definition.horse_image_offset(figure.direction, view_orientation, figure.image_offset));
+    if (const image_animation *animation = horse_image.animation()) {
+        result.sprite_offset.x = animation->sprite_offset_x;
+        result.sprite_offset.y = animation->sprite_offset_y;
+    }
+    result.add(image_layer(horse_image, world_offset));
+
+    const GraphicsPoint cart_offset =
+        hippodrome_definition.cart_draw_offset(figure.direction, view_orientation);
+    FigureGraphicsLayer cart_layer = legacy_image_layer(
+        ::image_group(team->cart_image_group) +
+            hippodrome_definition.cart_image_offset(figure.direction, view_orientation),
+        world_offset.translated(cart_offset.x, cart_offset.y));
+    cart_layer.draw_before_base = cart_offset.y < 0;
+    result.add(std::move(cart_layer));
+    return result;
+}
+
+int FigureGraphics::configure_missile_launcher(
+    FigureMissileLauncherCursor cursor,
+    int frame_divisor,
+    std::vector<int> frames,
+    int after_frame)
+{
+    if (missile_launcher_.enabled() ||
+        cursor == FigureMissileLauncherCursor::None ||
+        frame_divisor <= 0 ||
+        frames.empty()) {
+        return 0;
+    }
+    missile_launcher_.cursor = cursor;
+    missile_launcher_.frame_divisor = frame_divisor;
+    missile_launcher_.frames = std::move(frames);
+    missile_launcher_.after_frame = after_frame;
+    return 1;
+}
+
+const FigureMissileLauncherGraphics &FigureGraphics::missile_launcher() const
+{
+    return missile_launcher_;
+}
+
+int FigureGraphics::missile_launcher_frame(const Figure &figure) const
+{
+    return missile_launcher_.frame_for(
+        figure.attack_image_offset,
+        figure.wait_ticks_missile);
 }
 
 GraphicsPoint FigureGraphics::legacy_resource_cart_layer_offset(int cart_direction, int carried_loads) const

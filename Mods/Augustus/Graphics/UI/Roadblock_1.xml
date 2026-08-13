@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Roadblock_1">
+    <image id="Roadblock_1">
+        <layer src="Roadblock_1"/>
+    </image>
+</assetlist>

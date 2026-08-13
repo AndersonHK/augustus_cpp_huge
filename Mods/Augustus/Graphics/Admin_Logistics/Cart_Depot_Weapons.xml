@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Cart_Depot_Weapons">
+    <image id="Cart_Depot_Weapons">
+        <layer src="Cart_Depot_Weapons"/>
+    </image>
+</assetlist>

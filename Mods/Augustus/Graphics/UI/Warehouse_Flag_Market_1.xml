@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Warehouse_Flag_Market_1">
+    <image id="Warehouse_Flag_Market_1" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_1_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_1_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_1_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_1_Layer_04" x="13" y="8"/>
+        <layer src="Warehouse_Flag_Market_1_Layer_05" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Market_2" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_2_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_2_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_2_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_2_Layer_04" x="13" y="8"/>
+        <layer src="Warehouse_Flag_Market_2_Layer_05" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Market_3" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_3_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_3_Layer_02" y="1"/>
+        <layer src="Warehouse_Flag_Market_3_Layer_03" x="5" y="2"/>
+    </image>
+    <image id="Warehouse_Flag_Market_4" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_4_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_4_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_4_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_4_Layer_04" x="12" y="11"/>
+    </image>
+    <image id="Warehouse_Flag_Market_5" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_5_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_5_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_5_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_5_Layer_04" x="13" y="8"/>
+    </image>
+    <image id="Warehouse_Flag_Market_6" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_6_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_6_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_6_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_6_Layer_04" x="13" y="8"/>
+        <layer src="Warehouse_Flag_Market_6_Layer_05" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Market_7" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_7_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_7_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_7_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_7_Layer_04" x="13" y="8"/>
+        <layer src="Warehouse_Flag_Market_7_Layer_05" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Market_8" width="21" height="24">
+        <layer src="Warehouse_Flag_Market_8_Layer_01"/>
+        <layer src="Warehouse_Flag_Market_8_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Market_8_Layer_03" x="5" y="2"/>
+        <layer src="Warehouse_Flag_Market_8_Layer_04" x="13" y="8"/>
+        <layer src="Warehouse_Flag_Market_8_Layer_05" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Market" width="21" height="24">
+        <layer group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_1"/>
+        <animation speed="6">
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_2"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_3"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_4"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_5"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_6"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_7"/>
+            <frame group="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market_8"/>
+        </animation>
+    </image>
+</assetlist>

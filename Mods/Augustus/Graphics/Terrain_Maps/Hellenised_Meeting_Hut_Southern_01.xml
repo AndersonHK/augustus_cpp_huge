@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Hellenised_Meeting_Hut_Southern_01">
+    <image id="Hellenised_Meeting_Hut_Central_01" isometric="true" group="Terrain_Maps\Hellenised_Meeting_Hut_Central_01" image="Hellenised_Meeting_Hut_Central_01"/>
+    <image id="Hellenised_Meeting_Hut_Northern_01" isometric="true" group="Terrain_Maps\Hellenised_Meeting_Hut_Central_01" image="Hellenised_Meeting_Hut_Northern_01"/>
+    <image id="Hellenised_Meeting_Hut_Southern_01" isometric="true" group="Terrain_Maps\Hellenised_Meeting_Hut_Central_01" image="Hellenised_Meeting_Hut_Southern_01"/>
+</assetlist>

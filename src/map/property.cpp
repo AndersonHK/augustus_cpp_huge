@@ -115,9 +115,9 @@ void map_property_clear_multi_tile_xy(int grid_offset)
     edge_grid.items[grid_offset] &= EDGE_NATIVE_LAND;
 }
 
-int map_property_multi_tile_size(int grid_offset)
+static int legacy_multi_tile_size_from_bits(unsigned int bits)
 {
-    switch (bitfields_grid.items[grid_offset] & BIT_SIZES) {
+    switch (bits & BIT_SIZES) {
         case BIT_SIZE2: return 2;
         case BIT_SIZE3: return 3;
         case BIT_SIZE4: return 4;
@@ -127,33 +127,24 @@ int map_property_multi_tile_size(int grid_offset)
     }
 }
 
-int map_property_multi_tile_size_from_buffer_8(buffer *bitfields, int grid_offset)
+int map_property_legacy_multi_tile_size(int grid_offset)
+{
+    return legacy_multi_tile_size_from_bits(bitfields_grid.items[grid_offset]);
+}
+
+int map_property_legacy_multi_tile_size_from_buffer_8(buffer *bitfields, int grid_offset)
 {
     buffer_set(bitfields, grid_offset);
-    switch (buffer_read_u8(bitfields) & BIT_SIZES) {
-        case BIT_SIZE2: return 2;
-        case BIT_SIZE3: return 3;
-        case BIT_SIZE4: return 4;
-        case BIT_SIZE5: return 5;
-        case BIT_SIZE7: return 7;
-        default: return 1;
-    }
+    return legacy_multi_tile_size_from_bits(buffer_read_u8(bitfields));
 }
 
-int map_property_multi_tile_size_from_buffer_16(buffer *bitfields, int grid_offset)
+int map_property_legacy_multi_tile_size_from_buffer_16(buffer *bitfields, int grid_offset)
 {
     buffer_set(bitfields, grid_offset * sizeof(uint16_t));
-    switch (buffer_read_u16(bitfields) & BIT_SIZES) {
-        case BIT_SIZE2: return 2;
-        case BIT_SIZE3: return 3;
-        case BIT_SIZE4: return 4;
-        case BIT_SIZE5: return 5;
-        case BIT_SIZE7: return 7;
-        default: return 1;
-    }
+    return legacy_multi_tile_size_from_bits(buffer_read_u16(bitfields));
 }
 
-void map_property_set_multi_tile_size(int grid_offset, int size)
+void map_property_set_legacy_multi_tile_size(int grid_offset, int size)
 {
     bitfields_grid.items[grid_offset] &= BIT_NO_SIZES;
     switch (size) {

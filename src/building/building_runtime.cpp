@@ -12,6 +12,8 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/local_workforce.h"
+#include "building/HousingStateBridge.h"
+#include "building/FoundationStateSaveBridge.h"
 #include "building/water_access_runtime.h"
 
 #include "assets/image_group_payload.h"
@@ -27,6 +29,7 @@
 #include "core/crash_context.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/formation.h"
 
 #include "building/granary.h"
 #include "building/monument.h"
@@ -42,6 +45,7 @@
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/sprite.h"
+#include "map/grid.h"
 #include "map/terrain.h"
 #include "core/log.h"
 
@@ -50,6 +54,11 @@
 #include <cstdint>
 #include <exception>
 #include <string>
+#include <vector>
+
+namespace {
+void invalidate_runtime_building_index();
+}
 
 static const RubbleDef *runtime_rubble_definition_for_record(
     const ::building *building_data,
@@ -83,6 +92,8 @@ building_runtime::building_runtime(
     , ephemeral_(ephemeral)
     , graphics_state_()
     , rubble_state_(runtime_rubble_definition_for_record(building_data, definition) ? std::make_unique<RubbleState>() : nullptr)
+    , foundation_state_()
+    , housing_state_()
     , building_(
         building_data,
         definition,
@@ -92,6 +103,58 @@ building_runtime::building_runtime(
     , data(*building_data)
     , building(building_)
 {
+    bind_native_modules();
+}
+
+void building_runtime::bind_native_modules()
+{
+    foundation_module_.reset();
+    housing_module_.reset();
+    building_.Foundation = nullptr;
+    building_.Housing = nullptr;
+    building_.Formation = nullptr;
+
+    if (definition_ && definition_->foundation_def()) {
+        foundation_module_ = std::make_unique<building_type_registry_impl::BuildingFoundation>(
+            building_, *definition_->foundation_def(), foundation_state_);
+        building_.Foundation = foundation_module_.get();
+    }
+    if (definition_ && definition_->has_housing()) {
+        housing_module_ = std::make_unique<HousingModule>(building_, &definition_->housing_def(), housing_state_);
+        building_.Housing = housing_module_.get();
+    }
+    if (definition_ && definition_->has_composition()) {
+        composition_module_.bind_owner(&building_, &definition_->composition());
+    } else {
+        composition_module_.bind_standalone(&building_);
+    }
+    building_.Composition = &composition_module_;
+
+    if (!ephemeral_ && definition_ && definition_->has_military() && record_ && record_->formation_id > 0) {
+        const char *failure = nullptr;
+        if (!formation_bind_runtime_fort(building_, &failure)) {
+            log_error("Unable to bind fort runtime to saved formation", failure, static_cast<int>(record_->id));
+        }
+    }
+}
+
+void building_runtime::rebind_definition(const building_type_registry_impl::BuildingType *definition)
+{
+    definition_ = definition;
+    building_.type = definition;
+    const RubbleDef *rubble_definition = runtime_rubble_definition_for_record(record_, definition_);
+    if (rubble_definition && rubble_definition->has_any()) {
+        if (!rubble_state_) {
+            rubble_state_ = std::make_unique<RubbleState>();
+        }
+    } else {
+        rubble_state_.reset();
+    }
+    building_.bind_graphics(&graphics_state_);
+    building_.bind_rubble(rubble_definition, rubble_state_.get());
+    bind_native_modules();
+    invalidate_graphics_cache();
+    invalidate_runtime_building_index();
 }
 
 unsigned int building_runtime::runtime_id() const
@@ -158,6 +221,111 @@ namespace building_runtime_impl {
 std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
 static ScopedEphemeralBuildingRuntime *g_ephemeral_runtime_context = nullptr;
 
+constexpr BuildingRuntimeList INDEXED_BUILDING_LISTS[] = {
+    BuildingRuntimeList::Housing,
+    BuildingRuntimeList::Labor,
+    BuildingRuntimeList::Production,
+    BuildingRuntimeList::Granaries,
+    BuildingRuntimeList::Warehouses,
+    BuildingRuntimeList::Storage,
+    BuildingRuntimeList::PlagueTargets,
+};
+
+struct RuntimeBuildingIndex {
+    std::vector<Building *> housing;
+    std::vector<Building *> labor;
+    std::vector<Building *> production;
+    std::vector<Building *> granaries;
+    std::vector<Building *> warehouses;
+    std::vector<Building *> storage;
+    std::vector<Building *> plague_targets;
+    uint64_t revision = 1;
+    uint64_t built_revision = 0;
+
+    static bool contains(
+        BuildingRuntimeList list,
+        const building_type_registry_impl::BuildingType *definition)
+    {
+        if (!definition) {
+            return false;
+        }
+        switch (list) {
+            case BuildingRuntimeList::Housing: return definition->has_housing();
+            case BuildingRuntimeList::Labor: return definition->has_labor();
+            case BuildingRuntimeList::Production: return definition->has_native_production();
+            case BuildingRuntimeList::Granaries: return definition->is_granary();
+            case BuildingRuntimeList::Warehouses: return definition->is_warehouse();
+            case BuildingRuntimeList::Storage: return definition->is_storage();
+            case BuildingRuntimeList::PlagueTargets: return definition->is_plague_treatment_target();
+        }
+        std::terminate();
+    }
+
+    std::vector<Building *> &entries(BuildingRuntimeList list)
+    {
+        switch (list) {
+            case BuildingRuntimeList::Housing: return housing;
+            case BuildingRuntimeList::Labor: return labor;
+            case BuildingRuntimeList::Production: return production;
+            case BuildingRuntimeList::Granaries: return granaries;
+            case BuildingRuntimeList::Warehouses: return warehouses;
+            case BuildingRuntimeList::Storage: return storage;
+            case BuildingRuntimeList::PlagueTargets: return plague_targets;
+        }
+        std::terminate();
+    }
+
+    void invalidate()
+    {
+        ++revision;
+    }
+
+    void clear()
+    {
+        for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
+            entries(list).clear();
+        }
+        revision = 1;
+        built_revision = 0;
+    }
+
+    void ensure_current()
+    {
+        if (built_revision == revision) {
+            return;
+        }
+        for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
+            entries(list).clear();
+        }
+        for (const std::unique_ptr<building_runtime> &runtime : g_runtime_instances) {
+            if (!runtime) {
+                continue;
+            }
+            Building *building = &runtime->building;
+            const building_type_registry_impl::BuildingType *definition = building->type;
+            for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
+                if (contains(list, definition)) {
+                    entries(list).push_back(building);
+                }
+            }
+        }
+        const auto type_then_id = [](const Building *left, const Building *right) {
+            const building_type left_type = left && left->type ? left->type->type() : BUILDING_NONE;
+            const building_type right_type = right && right->type ? right->type->type() : BUILDING_NONE;
+            return left_type != right_type ? left_type < right_type : left->id < right->id;
+        };
+        std::sort(granaries.begin(), granaries.end(), type_then_id);
+        std::sort(warehouses.begin(), warehouses.end(), type_then_id);
+        std::sort(storage.begin(), storage.end(), type_then_id);
+        std::sort(plague_targets.begin(), plague_targets.end(), [](const Building *left, const Building *right) {
+            return left->id < right->id;
+        });
+        built_revision = revision;
+    }
+};
+
+static RuntimeBuildingIndex g_runtime_building_index;
+
 ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
     const std::vector<EphemeralBuildingRuntimeBinding> &bindings)
     : previous_(g_ephemeral_runtime_context)
@@ -178,6 +346,30 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
         main_id_by_runtime_id_[binding.runtime_id] =
             binding.main_runtime_id ? binding.main_runtime_id : binding.runtime_id;
         runtimes_.push_back(std::move(runtime));
+    }
+
+    // Placement ghosts use the same object-owned composition graph as live
+    // buildings. main_runtime_id is scoped preview metadata, not a building
+    // record chain.
+    for (const std::unique_ptr<building_runtime> &owner_runtime : runtimes_) {
+        BuildingComposition *composition = owner_runtime ? owner_runtime->building.Composition : nullptr;
+        if (!composition || !composition->is_owner()) {
+            continue;
+        }
+        std::vector<BuildingComposition *> children;
+        for (const std::unique_ptr<building_runtime> &candidate : runtimes_) {
+            if (!candidate || candidate.get() == owner_runtime.get()) {
+                continue;
+            }
+            const auto main = main_id_by_runtime_id_.find(candidate->runtime_id());
+            if (main != main_id_by_runtime_id_.end() && main->second == owner_runtime->runtime_id()) {
+                children.push_back(candidate->building.Composition);
+            }
+        }
+        std::string error;
+        if (!composition->attach_children(children, &error)) {
+            log_error("Unable to bind ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
+        }
     }
 
     g_ephemeral_runtime_context = this;
@@ -236,6 +428,8 @@ building_runtime *ScopedEphemeralBuildingRuntime::main_runtime_for_record(::buil
 
 building_runtime *ScopedEphemeralBuildingRuntime::next_runtime_for_record(::building *record) const
 {
+    // Ephemeral record chains are authored only by the dynamic-bridge ghost.
+    // Native composition previews attach BuildingComposition directly.
     if (!record) {
         return nullptr;
     }
@@ -266,6 +460,10 @@ struct LoadedBuildingRuntimeState {
     BuildingGraphicsState graphics_state;
     int rubble_state_valid = 0;
     RubbleState rubble_state;
+    int housing_state_valid = 0;
+    HousingState housing_state;
+    int foundation_state_valid = 0;
+    building_type_registry_impl::FoundationTerrainSaveState foundation_state;
 };
 
 std::vector<GraphicsStateBackup> g_graphics_state_backup;
@@ -273,6 +471,7 @@ std::vector<LoadedBuildingRuntimeState> g_loaded_building_runtime_state;
 
 void reset_live_runtime_modules()
 {
+    g_runtime_building_index.clear();
     g_runtime_instances.clear();
     g_graphics_state_backup.clear();
     production_runtime_impl::reset();
@@ -353,77 +552,77 @@ building_runtime *get_or_create_instance(::building *building_data)
 
     const RubbleDef *rubble_definition = runtime_rubble_definition_for_record(building_data, definition);
     std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
-    RubbleState existing_rubble_state;
-    const int existing_rubble_state_valid =
-        slot && slot->building.Rubble && slot->building.Rubble->state();
-    if (existing_rubble_state_valid) {
-        existing_rubble_state = *slot->building.Rubble->state();
-    }
     const int has_expected_rubble_module =
         (!rubble_definition && (!slot || !slot->building.Rubble)) ||
         (rubble_definition && slot && slot->building.Rubble &&
             slot->building.Rubble->definition() == rubble_definition);
-    if (!slot || &slot->data != building_data || slot->definition() != definition || !has_expected_rubble_module) {
+    if (!slot) {
         slot = std::make_unique<building_runtime>(building_data, definition);
-        if (existing_rubble_state_valid && slot->building.Rubble && slot->building.Rubble->state()) {
-            *slot->building.Rubble->state() = existing_rubble_state;
-        }
+        g_runtime_building_index.invalidate();
+    } else if (&slot->data != building_data) {
+        // Runtime indexes and owner modules publish stable pointers. Loading a
+        // different record array must reset the runtime first, never replace a
+        // live wrapper behind those pointers.
+        log_error("Building runtime id is already bound to a different record", 0, building_data->id);
+        std::terminate();
+    } else if (slot->definition() != definition || !has_expected_rubble_module) {
+        slot->rebind_definition(definition);
     }
     return slot.get();
 }
 
 }
 
+namespace {
+void invalidate_runtime_building_index()
+{
+    building_runtime_impl::g_runtime_building_index.invalidate();
+}
+}
+
 void building_runtime_for_each(const std::function<void(Building *)> &visitor)
 {
-    building_runtime_for_each({}, visitor);
+    if (!visitor) {
+        return;
+    }
+    const size_t initial_count = building_runtime_impl::g_runtime_instances.size();
+    for (size_t id = 1; id < initial_count; ++id) {
+        building_runtime *instance = building_runtime_impl::g_runtime_instances[id].get();
+        if (instance && instance->building.id &&
+            instance->building.state_id() != BUILDING_STATE_UNUSED) {
+            visitor(&instance->building);
+        }
+    }
 }
 
 void building_runtime_for_each(
-    const BuildingForEachArgs &args,
+    BuildingRuntimeList list,
     const std::function<void(Building *)> &visitor)
 {
     if (!visitor) {
         return;
     }
 
-    const auto matches_bool = [](const std::optional<bool> &filter, int value) {
-        return !filter.has_value() || filter.value() == (value != 0);
-    };
-
-    const size_t initial_count = building_runtime_impl::g_runtime_instances.size();
-    for (size_t id = 1; id < initial_count; id++) {
-        if (id >= building_runtime_impl::g_runtime_instances.size()) {
-            break;
-        }
-        building_runtime *instance = building_runtime_impl::g_runtime_instances[id].get();
-        if (!instance) {
-            continue;
-        }
-
-        Building *building = &instance->building;
+    const auto visit_if_matching = [&](Building *building) {
         if (!building->id) {
-            continue;
+            return;
         }
         if (building->state_id() == BUILDING_STATE_UNUSED) {
-            continue;
+            return;
         }
 
-        const building_type_registry_impl::BuildingType *definition = building->type;
-        if (args.BuildingType && definition != args.BuildingType) {
-            continue;
-        }
-        if (!matches_bool(args.hasHousing, definition && definition->has_housing())) {
-            continue;
-        }
-        if (!matches_bool(args.hasLabor, definition && definition->has_labor())) {
-            continue;
-        }
-        if (!matches_bool(args.hasProductionMethod, definition && definition->has_native_production())) {
-            continue;
+        if (!building_runtime_impl::RuntimeBuildingIndex::contains(list, building->type)) {
+            return;
         }
 
         visitor(building);
+    };
+
+    building_runtime_impl::g_runtime_building_index.ensure_current();
+    std::vector<Building *> &indexed = building_runtime_impl::g_runtime_building_index.entries(list);
+    const size_t initial_count = indexed.size();
+    for (size_t i = 0; i < initial_count; ++i) {
+        visit_if_matching(indexed[i]);
     }
 }
 
@@ -496,6 +695,18 @@ void building_runtime_debug_dump(FILE *file)
         const ::building *record = building.record();
         const building_type_registry_impl::BuildingType *definition = instance->definition();
         const RubbleState *rubble_state = building.Rubble ? building.Rubble->state() : nullptr;
+        const int foundation_rotation = building.Foundation && building.Foundation->state().is_published()
+            ? building.Foundation->state().rotation()
+            : building.orientation();
+        const int foundation_width = building.Foundation
+            ? building.Foundation->width(foundation_rotation)
+            : 0;
+        const int foundation_height = building.Foundation
+            ? building.Foundation->height(foundation_rotation)
+            : 0;
+        const std::size_t foundation_cell_count = building.Foundation
+            ? building.Foundation->cells(foundation_rotation).size()
+            : 0;
 
         if (wrote++) {
             fprintf(file, ",\n");
@@ -522,7 +733,9 @@ void building_runtime_debug_dump(FILE *file)
         fprintf(file, "      \"x\": %d,\n", record ? record->x : 0);
         fprintf(file, "      \"y\": %d,\n", record ? record->y : 0);
         fprintf(file, "      \"grid_offset\": %d,\n", record ? record->grid_offset : 0);
-        fprintf(file, "      \"size\": %d,\n", record ? record->size : 0);
+        fprintf(file, "      \"foundation_width\": %d,\n", foundation_width);
+        fprintf(file, "      \"foundation_height\": %d,\n", foundation_height);
+        fprintf(file, "      \"foundation_cells\": %zu,\n", foundation_cell_count);
         fprintf(file, "      \"prev_part_id\": %d,\n", record ? record->prev_part_building_id : 0);
         fprintf(file, "      \"next_part_id\": %d,\n", record ? record->next_part_building_id : 0);
         fprintf(file, "      \"road_network_id\": %d,\n", record ? record->road_network_id : 0);
@@ -535,14 +748,17 @@ void building_runtime_debug_dump(FILE *file)
         fprintf(file, "      \"formation_id\": %d,\n", record ? record->formation_id : 0);
         fprintf(file, "      \"figure_id\": %u,\n", record ? record->figure_id : 0);
         fprintf(file, "      \"figure_id2\": %u,\n", record ? record->figure_id2 : 0);
-        fprintf(file, "      \"immigrant_figure_id\": %u,\n", record ? record->immigrant_figure_id : 0);
+        fprintf(file, "      \"immigrant_figure_id\": %u,\n",
+            building.Housing ? building.Housing->state().immigrant_figure_id : 0);
         fprintf(file, "      \"figure_id4\": %u,\n", record ? record->figure_id4 : 0);
         fprintf(file, "      \"house\": {\n");
-        fprintf(file, "        \"house_size\": %d,\n", record ? record->house_size : 0);
-        fprintf(file, "        \"population\": %d,\n", record ? record->house_population : 0);
-        fprintf(file, "        \"population_room\": %d,\n", record ? record->house_population_room : 0);
-        fprintf(file, "        \"merged\": %d,\n", record ? record->house_is_merged : 0);
-        fprintf(file, "        \"unreachable_ticks\": %d,\n", record ? record->house_unreachable_ticks : 0);
+        fprintf(file, "        \"has_module\": %d,\n", building.Housing ? 1 : 0);
+        fprintf(file, "        \"population\": %d,\n",
+            building.Housing ? building.Housing->state().population : 0);
+        fprintf(file, "        \"population_room\": %d,\n",
+            building.Housing ? building.Housing->state().population_room : 0);
+        fprintf(file, "        \"unreachable_ticks\": %d,\n",
+            building.Housing ? building.Housing->state().unreachable_ticks : 0);
         fprintf(file, "        \"local_workforce_assigned\": %d,\n", record ? record->local_workforce_assigned : 0);
         fprintf(file, "        \"local_workforce_unemployed\": %d\n", record ? record->local_workforce_unemployed : 0);
         fprintf(file, "      },\n");
@@ -569,16 +785,28 @@ void building_runtime::refresh_runtime_state()
         return;
     }
 
+    int graphics_state_changed = 0;
     if (type().water_access().has_requirements()) {
-        record().has_water_access =
+        const unsigned char has_water_access = static_cast<unsigned char>(
             building_runtime_impl::building_has_required_workers_for_runtime_water(building) &&
-            water_access_runtime_building_has_required_access(&building) ? 1 : 0;
+            water_access_runtime_building_has_required_access(&building) ? 1 : 0);
+        if (record().has_water_access != has_water_access) {
+            record().has_water_access = has_water_access;
+            graphics_state_changed = 1;
+        }
     }
 
     if (type().has_graphic()) {
-        city_culture_remove_building_module_capacity(&record());
-        record().upgrade_level = type().upgrade_level_for(building);
-        city_culture_add_building_module_capacity(&record());
+        const unsigned char upgrade_level = static_cast<unsigned char>(type().upgrade_level_for(building));
+        if (record().upgrade_level != upgrade_level) {
+            city_culture_remove_building_module_capacity(&record());
+            record().upgrade_level = upgrade_level;
+            city_culture_add_building_module_capacity(&record());
+            graphics_state_changed = 1;
+        }
+    }
+    if (graphics_state_changed) {
+        invalidate_graphics_cache();
     }
 }
 
@@ -599,69 +827,24 @@ unsigned char building_runtime::graphics_variant() const
 
 void building_runtime::set_graphics_variant(int variant)
 {
-    const int changed = graphics_state_.set_variant(variant);
-    if (changed) {
-        invalidate_graphics_cache();
-    }
+    graphics_state_.set_variant(variant);
 }
 
-building_runtime::LegacyStorageReservation *building_runtime::legacy_storage_reservation_for(unsigned int figure_id)
+building_runtime::LegacyStorageReservation *building_runtime::legacy_storage_reservation_for(const Figure &figure)
 {
-    if (!figure_id) {
-        return nullptr;
-    }
-    prune_legacy_storage_reservations();
     for (LegacyStorageReservation &reservation : legacy_storage_reservations_) {
-        if (reservation.figure_id == figure_id) {
+        if (reservation.figure == &figure) {
             return &reservation;
         }
     }
     return nullptr;
 }
 
-int building_runtime::legacy_storage_reservation_is_current(const LegacyStorageReservation &reservation) const
-{
-    if (!record_ || !reservation.figure_id || reservation.resource == RESOURCE_NONE || reservation.loads <= 0) {
-        return 0;
-    }
-
-    Figure *figure = Figure::get(reservation.figure_id);
-    if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
-        !figure->destination_building || figure->destination_building->id != record_->id ||
-        static_cast<resource_type>(figure->resource_id) != reservation.resource ||
-        figure->loads_sold_or_carrying <= 0) {
-        return 0;
-    }
-
-    switch (figure->action_state) {
-        case FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
-        case FIGURE_ACTION_22_CARTPUSHER_DELIVERING_TO_GRANARY:
-        case FIGURE_ACTION_24_CARTPUSHER_AT_WAREHOUSE:
-        case FIGURE_ACTION_25_CARTPUSHER_AT_GRANARY:
-        case FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE:
-        case FIGURE_ACTION_52_WAREHOUSEMAN_AT_DELIVERY_BUILDING:
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-void building_runtime::prune_legacy_storage_reservations()
-{
-    legacy_storage_reservations_.erase(
-        std::remove_if(legacy_storage_reservations_.begin(), legacy_storage_reservations_.end(),
-            [this](const LegacyStorageReservation &reservation) {
-                return !legacy_storage_reservation_is_current(reservation);
-            }),
-        legacy_storage_reservations_.end());
-}
-
 int building_runtime::reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id)
 {
-    prune_legacy_storage_reservations();
     int total = 0;
     for (const LegacyStorageReservation &reservation : legacy_storage_reservations_) {
-        if (reservation.figure_id != ignore_figure_id &&
+        if (reservation.figure && reservation.figure->id() != ignore_figure_id &&
             (resource == RESOURCE_NONE || reservation.resource == resource)) {
             total += reservation.loads;
         }
@@ -669,33 +852,35 @@ int building_runtime::reserved_legacy_storage_loads(resource_type resource, unsi
     return total;
 }
 
-int building_runtime::reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id)
+int building_runtime::reserve_legacy_storage_loads(resource_type resource, int loads, Figure &figure)
 {
-    if (!record_ || !figure_id || resource == RESOURCE_NONE || loads <= 0) {
+    if (!record_ || !figure.id() || resource == RESOURCE_NONE || loads <= 0) {
         return 0;
     }
 
-    if (LegacyStorageReservation *existing = legacy_storage_reservation_for(figure_id)) {
+    if (LegacyStorageReservation *existing = legacy_storage_reservation_for(figure)) {
         existing->resource = resource;
         existing->loads = loads;
         return 1;
     }
 
-    legacy_storage_reservations_.push_back({ figure_id, resource, loads });
+    legacy_storage_reservations_.push_back({ &figure, resource, loads });
     return 1;
 }
 
-void building_runtime::release_legacy_storage_reservation(unsigned int figure_id)
+void building_runtime::release_legacy_storage_reservation(const Figure &figure)
 {
-    if (!figure_id) {
-        return;
-    }
     legacy_storage_reservations_.erase(
         std::remove_if(legacy_storage_reservations_.begin(), legacy_storage_reservations_.end(),
-            [figure_id](const LegacyStorageReservation &reservation) {
-                return reservation.figure_id == figure_id;
+            [&figure](const LegacyStorageReservation &reservation) {
+                return reservation.figure == &figure;
             }),
         legacy_storage_reservations_.end());
+}
+
+void building_runtime::release_all_legacy_storage_reservations()
+{
+    legacy_storage_reservations_.clear();
 }
 
 void building_runtime_reset(void)
@@ -744,6 +929,89 @@ void building_runtime_stage_loaded_rubble_state(unsigned int building_id, const 
     g_loaded_building_runtime_state[building_id].rubble_state = state;
 }
 
+void building_runtime_stage_loaded_housing_state(unsigned int building_id, const HousingState &state)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+    if (!building_id) {
+        return;
+    }
+    if (g_loaded_building_runtime_state.size() <= building_id) {
+        g_loaded_building_runtime_state.resize(static_cast<size_t>(building_id) + 1);
+    }
+    g_loaded_building_runtime_state[building_id].valid = 1;
+    g_loaded_building_runtime_state[building_id].housing_state_valid = 1;
+    g_loaded_building_runtime_state[building_id].housing_state = state;
+}
+
+void building_runtime_stage_loaded_foundation_state(
+    unsigned int building_id,
+    const building_type_registry_impl::FoundationTerrainSaveState &state)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+    if (!building_id) {
+        return;
+    }
+    if (g_loaded_building_runtime_state.size() <= building_id) {
+        g_loaded_building_runtime_state.resize(static_cast<size_t>(building_id) + 1);
+    }
+    g_loaded_building_runtime_state[building_id].valid = 1;
+    g_loaded_building_runtime_state[building_id].foundation_state_valid = 1;
+    g_loaded_building_runtime_state[building_id].foundation_state = state;
+}
+
+int building_runtime_loaded_foundation_state(
+    unsigned int building_id,
+    building_type_registry_impl::FoundationTerrainSaveState *state)
+{
+    using building_runtime_impl::g_loaded_building_runtime_state;
+    if (!state || !building_id || building_id >= g_loaded_building_runtime_state.size()) {
+        return 0;
+    }
+    const building_runtime_impl::LoadedBuildingRuntimeState &loaded =
+        g_loaded_building_runtime_state[building_id];
+    if (!loaded.valid || !loaded.foundation_state_valid) {
+        return 0;
+    }
+    *state = loaded.foundation_state;
+    return 1;
+}
+
+static int restore_loaded_foundation_state(
+    Building &building_object,
+    const building_type_registry_impl::FoundationTerrainSaveState &saved)
+{
+    using namespace building_type_registry_impl;
+    if (!building_object.Foundation || !building_object.record()) {
+        return 0;
+    }
+    std::vector<FoundationTerrainDelta> deltas;
+    const FoundationDef &definition = building_object.Foundation->definition();
+    if (!foundation_terrain_deltas_from_save(definition, saved, &deltas)) {
+        return 0;
+    }
+
+    const building *record = building_object.record();
+    const int rotation = definition.rotates() ? building_object.orientation() : 0;
+    FoundationState &state = building_object.Foundation->state();
+    state.begin_publication(record->x, record->y, rotation);
+    const std::vector<FoundationCellDefinition> &canonical = definition.cells();
+    for (const RotatedFoundationCell &cell : definition.rotated_cells(rotation)) {
+        if (!cell.definition || !map_grid_is_inside(record->x + cell.x, record->y + cell.y, 1)) {
+            state.clear();
+            return 0;
+        }
+        const int cell_index = static_cast<int>(cell.definition - canonical.data());
+        if (cell_index < 0 || cell_index >= static_cast<int>(deltas.size())) {
+            state.clear();
+            return 0;
+        }
+        FoundationTerrainDelta delta = deltas[cell_index];
+        delta.grid_offset = map_grid_offset(record->x + cell.x, record->y + cell.y);
+        state.record_delta(delta);
+    }
+    return 1;
+}
+
 int building_runtime_loaded_rubble_state(unsigned int building_id, RubbleState *state)
 {
     if (!state) {
@@ -769,6 +1037,20 @@ int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGra
         return 0;
     }
     *state = loaded->graphics_state;
+    return 1;
+}
+
+int building_runtime_loaded_housing_state(unsigned int building_id, HousingState *state)
+{
+    if (!state) {
+        return 0;
+    }
+    const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
+        building_runtime_impl::loaded_runtime_state_for(building_id);
+    if (!loaded || !loaded->housing_state_valid) {
+        return 0;
+    }
+    *state = loaded->housing_state;
     return 1;
 }
 
@@ -804,10 +1086,81 @@ void building_runtime_restore_graphics_state(void)
     }
 }
 
+struct NativeCompositionRuntimeSnapshot {
+    unsigned int owner_id = 0;
+    std::vector<unsigned int> child_ids;
+};
+
+static std::vector<NativeCompositionRuntimeSnapshot> snapshot_native_compositions()
+{
+    std::vector<NativeCompositionRuntimeSnapshot> snapshots;
+    for (const std::unique_ptr<building_runtime> &runtime : building_runtime_impl::g_runtime_instances) {
+        BuildingComposition *composition = runtime ? runtime->building.Composition : nullptr;
+        if (!composition || !composition->is_owner() || !composition->complete()) {
+            continue;
+        }
+        NativeCompositionRuntimeSnapshot snapshot;
+        snapshot.owner_id = runtime->building.id;
+        for (BuildingComposition *child : composition->children()) {
+            if (child && child->building()) {
+                snapshot.child_ids.push_back(child->building()->id);
+            }
+        }
+        snapshots.push_back(std::move(snapshot));
+    }
+    return snapshots;
+}
+
+static int restore_native_composition_snapshots(
+    const std::vector<NativeCompositionRuntimeSnapshot> &snapshots)
+{
+    for (const NativeCompositionRuntimeSnapshot &snapshot : snapshots) {
+        Building *owner = Building::get(snapshot.owner_id);
+        BuildingComposition *composition = owner ? owner->Composition : nullptr;
+        if (!composition || !composition->is_owner() ||
+            composition->children().size() != snapshot.child_ids.size()) {
+            return 0;
+        }
+        std::vector<BuildingComposition *> children;
+        children.reserve(snapshot.child_ids.size());
+        for (unsigned int child_id : snapshot.child_ids) {
+            Building *child = Building::get(child_id);
+            if (!child || !child->Composition) {
+                return 0;
+            }
+            children.push_back(child->Composition);
+        }
+        std::string error;
+        if (!composition->attach_children(children, &error)) {
+            log_error("Unable to restore native composition snapshot", error.c_str(), snapshot.owner_id);
+            return 0;
+        }
+    }
+    for (const NativeCompositionRuntimeSnapshot &snapshot : snapshots) {
+        if (Building *owner = Building::get(snapshot.owner_id)) {
+            if (building *record = const_cast<building *>(owner->record())) {
+                record->prev_part_building_id = 0;
+                record->next_part_building_id = 0;
+            }
+        }
+        for (unsigned int child_id : snapshot.child_ids) {
+            if (Building *child = Building::get(child_id)) {
+                if (building *record = const_cast<building *>(child->record())) {
+                    record->prev_part_building_id = 0;
+                    record->next_part_building_id = 0;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
 // After save load/new city init, bind each live building instance to its runtime wrapper, rebuild native storage/production instances,
 // and precompute cached image-group bindings.
 void building_runtime_initialize_city_graphics_cache(void)
 {
+    const std::vector<NativeCompositionRuntimeSnapshot> composition_snapshots =
+        snapshot_native_compositions();
     building_runtime_impl::reset_live_runtime_modules();
     map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
@@ -824,15 +1177,58 @@ void building_runtime_initialize_city_graphics_cache(void)
                         *instance->building.Rubble->state() = loaded->rubble_state;
                     }
                 }
+                if (loaded->housing_state_valid && instance->building.Housing) {
+                    instance->building.Housing->state() = loaded->housing_state;
+                }
+                if (loaded->foundation_state_valid && instance->building.Foundation &&
+                    !restore_loaded_foundation_state(instance->building, loaded->foundation_state)) {
+                    log_error("Unable to restore building FoundationState", 0, b->id);
+                }
             }
             if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
                 b->state == BUILDING_STATE_CREATED) {
+                if (instance->building.Foundation) {
+                    const int rotation = instance->building.Foundation->definition().rotates()
+                        ? instance->building.orientation()
+                        : 0;
+                    instance->building.Foundation->rebind(b->x, b->y, rotation);
+                    if (instance->building.Foundation->has_owner_controlled_passage() &&
+                        !(instance->building.type && instance->building.type->bridge().is_bridge())) {
+                        if (instance->building.type && instance->building.type->is_warehouse()) {
+                            // Warehouse tower roads are freight access, not a
+                            // shortcut for ordinary walkers. Freight is handled
+                            // explicitly by Roadblock::allows_at().
+                            if (config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
+                                instance->building.Foundation->roadblock_state().accept_all();
+                            } else {
+                                instance->building.Foundation->roadblock_state().accept_none();
+                            }
+                        } else {
+                            instance->building.Foundation->roadblock_state().hydrate(
+                                b->data.roadblock.exceptions);
+                        }
+                    }
+                }
                 instance->set_building_graphic();
             }
         }
     });
 
+    // Load initialization has already consumed legacy fixed-composition chains
+    // through building_hydrate_loaded_compositions(). Preserve that owner-bound
+    // graph across the runtime-module reset instead of interpreting record ids
+    // a second time. Dynamic bridge chains remain on their legacy path.
+    if (!composition_snapshots.empty() &&
+        !restore_native_composition_snapshots(composition_snapshots)) {
+        log_error("Unable to restore native composition runtime snapshots", 0, 0);
+    }
+
     storage_runtime_impl::initialize_city();
     production_runtime_impl::initialize_city();
+
+    // Culture modules (including religion) depend on the runtime composition
+    // graph, so loading cannot rebuild their capacity cache any earlier.
+    city_culture_rebuild_module_capacity_cache();
+
     building_runtime_impl::clear_loaded_runtime_state();
 }

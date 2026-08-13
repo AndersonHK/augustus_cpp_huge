@@ -60,42 +60,40 @@ void BuildingEntertainment::attach_figure_to_venue(Figure *figure) const
 {
     if (figure) {
         building_runtime *runtime = venue_.runtime_instance();
-        figure->building = runtime ? &runtime->building : nullptr;
+    figure->set_home_building(runtime ? &runtime->building : nullptr);
     }
 }
 
 void BuildingEntertainment::copy_problem_overlay_to_hippodrome_parts() const
 {
-    building *main_record = record();
-    if (!main_record) {
+    BuildingComposition *composition = venue_.Composition;
+    if (!composition || !composition->complete()) {
+        return;
+    }
+    Building *owner = composition->owner();
+    building *owner_record = owner ? const_cast<building *>(owner->record()) : nullptr;
+    if (!owner_record) {
         return;
     }
 
-    building *part = main_record;
-    for (int i = 0; i < 2; i++) {
-        part = building_next(part);
-        if (part && part->id) {
-            part->show_on_problem_overlay = main_record->show_on_problem_overlay;
+    composition->for_each_member([owner_record](Building &part) {
+        building *part_record = const_cast<building *>(part.record());
+        if (part_record) {
+            part_record->show_on_problem_overlay = owner_record->show_on_problem_overlay;
         }
-    }
+    });
 }
 
 int BuildingEntertainment::find_hippodrome_road(map_point &road) const
 {
     building *venue_record = record();
-    return venue_record &&
-        map_has_road_access_hippodrome_rotation(
-            venue_record->x,
-            venue_record->y,
-            &road,
-            venue_record->subtype.orientation);
+    return venue_record && map_has_road_access_building(venue_record->x, venue_record->y, &road);
 }
 
 int BuildingEntertainment::find_venue_road(map_point &road) const
 {
     building *venue_record = record();
-    return venue_record &&
-        map_has_road_access(venue_record->x, venue_record->y, venue_record->size, &road);
+    return venue_record && map_has_road_access_building(venue_record->x, venue_record->y, &road);
 }
 
 void BuildingEntertainment::run_labor_phase(const map_point &road) const
@@ -233,7 +231,7 @@ void BuildingEntertainment::spawn_hippodrome_service()
     }
 
     building *venue_record = record();
-    if (!venue_record || venue_record->prev_part_building_id) {
+    if (!venue_record || (venue_.Composition && venue_.Composition->is_child())) {
         return;
     }
 
@@ -336,6 +334,9 @@ void BuildingEntertainment::run_show_countdown()
         ++shows;
     }
     venue_record->data.entertainment.num_shows = static_cast<unsigned char>(shows);
+    if (shows > 0) {
+        venue_.invalidate_graphic();
+    }
 }
 
 void building_entertainment_run_shows(void)

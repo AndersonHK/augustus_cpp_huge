@@ -9,8 +9,10 @@
         <range value="0" />
     </desirability>
     <button group="tools" order="10" text_key="TR_BUILDING_LAND_CLEAR" />
-    <tool kind="clear_land" />
-    <event_data attr="clear_land" />
+    <tool kind="clear_land">
+        <mode modifier="ctrl" type="repair_land" />
+        <mode modifier="shift" type="clear_trees" />
+    </tool>
     <labor>
         <employees count="0" />
     </labor>

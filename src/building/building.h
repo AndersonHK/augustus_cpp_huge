@@ -1,8 +1,11 @@
 #pragma once
 
 #include "building/building_fwd.h"
-#include "building/BuildingForEachArgs.h"
+#include "building/BuildingRuntimeList.h"
 #include "building/BuildingGraphics.h"
+#include "building/BuildingComposition.h"
+#include "building/BuildingFoundation.h"
+#include "building/HousingModule.h"
 #include "building/RubbleModule.h"
 #include "building/building_order.h"
 #include "building/storage_type.h"
@@ -20,12 +23,27 @@
 
 class building_runtime;
 class BuildingGraphicsState;
+struct formation;
+class Figure;
 
 class Building {
     friend class building_runtime;
     friend class building_type_registry_impl::BuildingAnimation;
 
 public:
+    struct MaintenanceRiskTick {
+        int random_selector = 0;
+        int damage_risk_bonus = 0;
+        int fire_risk_bonus = 0;
+        bool suppress_fire = false;
+    };
+
+    enum class MaintenanceRiskOutcome {
+        None,
+        Collapse,
+        Fire,
+    };
+
     template <typename Stored, typename Public = Stored>
     class RecordField {
     public:
@@ -120,25 +138,29 @@ public:
     static Building *get(unsigned int id);
     // Iterates live runtime-owned Building objects; filters belong here so callers stop open-coding id scans.
     static void for_each(const std::function<void(Building *)> &visitor);
-    static void for_each(const BuildingForEachArgs &args, const std::function<void(Building *)> &visitor);
+    static void for_each(BuildingRuntimeList list, const std::function<void(Building *)> &visitor);
     static int count();
 
     const ::building *record() const;
-    Building &main() const;
-    Building &composition_owner() const;
-    Building *next() const;
-    void for_each_part(const std::function<void(Building)> &visitor) const;
+    // Dynamic bridge record-chain API. Fixed composition must use
+    // BuildingComposition owner/child relationships instead.
+    Building &dynamic_bridge_owner() const;
+    Building *dynamic_bridge_next() const;
     Building *next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
     RubbleModule *Rubble = nullptr;
+    building_type_registry_impl::BuildingFoundation *Foundation = nullptr;
+    HousingModule *Housing = nullptr;
+    BuildingComposition *Composition = nullptr;
+    formation *Formation = nullptr;
     int matches(const char *text_id) const;
     int grid_offset() const;
     int x() const;
     int y() const;
-    int size() const;
-    int previous_part_id() const;
-    int next_part_id() const;
-    int is_main_part() const;
+    int is_dynamic_bridge_owner() const;
+    int is_dynamic_bridge_segment() const;
+    int has_dynamic_bridge_predecessor() const;
+    int has_dynamic_bridge_next() const;
     int road_network_id() const;
     int distance_from_entry() const;
     void set_distance_from_entry(int value);
@@ -147,24 +169,29 @@ public:
     int state_id() const;
     int formation_id() const;
     void set_formation_id(int formation_id);
+    formation *formation_object() const;
     int is_deleted() const;
     int is_in_use() const;
     int is_mothballed() const;
+    int is_fire_proof() const;
+    MaintenanceRiskOutcome apply_maintenance_risk(const MaintenanceRiskTick &tick);
+    void destroy_by_collapse();
+    void destroy_by_fire();
+    void destroy_by_plague();
+    void destroy_without_rubble();
+    void initialize_destruction_rubble(const RubbleState &origin, bool burning, bool plagued);
     int rubble_is_still_burning() const;
     int repair_cost() const;
     int repair();
+    int yield_rubble_to_repair(const RubbleState &origin);
+    void restore_rubble_after_failed_repair();
+    void retire_rubble_after_repair();
     int has_plague() const;
+    void advance_plague_day();
+    void apply_plague_treatment();
     int has_cached_road_access() const;
     int cached_road_access_point(map_point *road) const;
     int access_area_touches_same_road_network(const map_point &source_road, int radius) const;
-    int has_house_size() const;
-    int house_population() const;
-    void set_house_population(int value);
-    int house_population_room() const;
-    void set_house_population_room(int value);
-    unsigned int immigrant_figure_id() const;
-    void set_immigrant_figure_id(unsigned int id);
-    int house_figure_generation_delay() const;
     building_runtime *runtime_instance() const;
     BuildingGraphics &Graphics(const std::source_location &location = std::source_location::current()) const;
     building_type_registry_impl::BuildingAnimation animate();
@@ -172,7 +199,8 @@ public:
     int draw_top(const BuildingDrawContext &ctx);
     int draw_animation(const BuildingDrawContext &ctx);
     int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation);
-    int mothball_status_icon_offset(int grid_offset, int icon_width, int icon_height, int *x, int *y) const;
+    int mothball_status_icon_offset(int icon_width, int icon_height, int *x, int *y) const;
+    void invalidate_graphic();
     void refresh_graphic();
     int refresh_graphic_if_native();
     void spawn_figure();
@@ -186,7 +214,6 @@ public:
     int storage_destination_road_access_point(map_point *road) const;
     int has_water_access() const;
     int is_working() const;
-    int is_merged_house() const;
     int has_primary_figure() const;
     int has_secondary_figure() const;
     int has_quaternary_figure() const;
@@ -201,14 +228,13 @@ public:
         resource_type resource, int amount, building_type_registry_impl::StorageRole role);
     int storage_resource_amount(resource_type resource, building_type_registry_impl::StorageRole role) const;
     int input_storage_available_space(resource_type resource) const;
-    int reserve_input_storage_load(resource_type resource, unsigned int figure_id);
-    void release_input_storage_reservation(unsigned int figure_id);
-    int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    int reserve_input_storage_load(resource_type resource, Figure &figure);
+    void release_input_storage_reservation(const Figure &figure);
+    int receive_input_storage_loads(resource_type resource, int loads, Figure &figure);
     int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0) const;
-    int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
-    void release_legacy_storage_reservation(unsigned int figure_id);
-    int house_happiness() const;
-    void set_house_happiness(int value);
+    int reserve_legacy_storage_loads(resource_type resource, int loads, Figure &figure);
+    void release_legacy_storage_reservation(const Figure &figure);
+    void release_storage_reservations();
     void set_fetch_inventory_id(resource_type resource);
     bool accepts_good(resource_type resource) const;
     void set_accepted_good(resource_type resource, bool accepted);
@@ -218,6 +244,7 @@ public:
     void copy_accepted_goods(unsigned char *dst, int count) const;
     void set_accepted_goods(const unsigned char *src, int count);
     void set_primary_figure_id(unsigned int id);
+    void set_quaternary_figure_id(unsigned int id);
     void copy_house_figure_slot_from(const Building &source, unsigned int figure_id);
     int max_distance_to(int x, int y) const;
     int max_distance_to(const Building &other) const;
@@ -269,7 +296,7 @@ public:
     void set_industry_stockpiling(int value);
     void set_mothballed(int value);
     void change_type(building_type type, const std::source_location &location = std::source_location::current());
-    int configure_house_replacement(building_type type, int x, int y, int size, int merged);
+    int configure_house_replacement(building_type type, int x, int y);
     void copy_house_data_from(const Building &source);
     void retire_replaced_house();
     void cleanup_figure_references_for_removal();
@@ -284,7 +311,6 @@ public:
     int entertainment_days1() const;
     int entertainment_days2() const;
     int desirability() const;
-    std::uint64_t graphics_state_signature(int selected_graphics_option) const;
     int building_mothball_toggle();
 
     RecordField<unsigned int> id;
@@ -292,14 +318,10 @@ public:
     RecordField<unsigned char, int> dock_has_accepted_route_ids;
 
 private:
+    void retire_for_destruction();
     void bind_record_fields();
     void bind_graphics(BuildingGraphicsState *graphics_state);
     void bind_rubble(const RubbleDef *rubble_definition, RubbleState *rubble_state);
-    void bind_surface_map_tiles();
-    void unbind_aqueduct_map_tiles();
-    void normalize_surface_map_tile(int grid_offset, int dx, int dy);
-    int highway_terrain_for_surface_tile(int dx, int dy) const;
-    int terrain_for_map_tiles() const;
 
     ::building *record_ = nullptr;
     std::source_location construction_location_;
@@ -321,21 +343,11 @@ int building_count(void);
 // Load/startup bridge: walk full save records before runtime Building instances are materialized.
 void building_for_each_loaded_record(const std::function<void(building *)> &visitor);
 
-int building_find(building_type type);
-
-int building_find_with_mothballed(building_type type);
-
-building *building_first_of_type(building_type type);
-
-void building_change_type(building *b, building_type type);
+int building_change_type(building *b, building_type type);
 unsigned char building_distribution_demand(const building *b, resource_type resource);
 void building_set_distribution_demand(building *b, resource_type resource, unsigned char demand);
 unsigned char building_accepted_good_save_value(const building *b, resource_type resource);
 void building_load_accepted_good(building *b, resource_type resource, unsigned char value);
-
-building *building_main(const building *b);
-
-building *building_next(building *b);
 
 int building_was_tent(const building *b);
 
@@ -367,8 +379,6 @@ int building_get_tourism(const building *b);
 
 int building_get_levy(const building *b);
 
-void building_totals_add_corrupted_house(int unfixable);
-
 void building_clear_all(void);
 
 void building_make_immune_cheat(void);
@@ -380,7 +390,9 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
 
-void building_repair_loaded_compositions(void);
+// Load/new-scenario boundary: hydrate fixed composition object graphs from
+// legacy record chains before normal runtime initialization.
+void building_hydrate_loaded_compositions(void);
 
 void building_resource_state_save(buffer *buf);
 

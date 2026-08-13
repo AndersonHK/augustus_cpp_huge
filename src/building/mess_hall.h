@@ -12,6 +12,7 @@ public:
 
     Building *storage_destination();
     int spawn_fort_supplier_to(Building &fort);
+    static void spawn_supplier_for_fort(Building &fort);
 
 private:
     building *legacy_record() const;

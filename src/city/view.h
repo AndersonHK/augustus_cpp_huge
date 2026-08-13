@@ -2,6 +2,8 @@
 
 #include "core/buffer.h"
 
+#include <cstdint>
+
 
 // TODO get rid of these
 #define VIEW_X_MAX 165
@@ -27,6 +29,7 @@ void city_view_set_custom_lookup(int start_offset, int width, int height, int bo
 void city_view_restore_lookup(void);
 
 int city_view_orientation(void);
+std::uint64_t city_view_orientation_generation(void);
 
 void city_view_reset_orientation(void);
 

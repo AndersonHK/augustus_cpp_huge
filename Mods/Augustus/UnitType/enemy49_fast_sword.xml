@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="enemy49_fast_sword">
+    <figure type="enemy49_fast_sword" />
+    <combat><health value="90" /><attack value="7" /><defense value="1" /><armor value="0" /></combat>
+    <abilities><melee exposed_back_bonus="4" /></abilities>
+</unit>

@@ -1,16 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="road">
     <identity name_key="main_strings.28.5" />
-    <model size="1" cost="4" />
+    <model cost="4" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
-    <tool kind="road" />
-    <event_data attr="road" />
+    <foundation path="road_1x1" replaces="road" />
+    <tool kind="road">
+        <mode modifier="ctrl" type="roadblock" target="single" />
+        <mode modifier="shift" type="highway" footprint="2" />
+        <mode context="water" modifier="any" type="low_bridge" />
+        <mode context="water" modifier="shift" type="ship_bridge" />
+    </tool>
     <flags fire_proof="1" />
     <labor>
         <employees count="0" />

@@ -159,6 +159,20 @@ Disallowed shared dependencies:
 
 Headers at the DLL boundary should be small, versioned, and mostly plain data. Prefer opaque handles and exported functions over sharing implementation classes across the boundary.
 
+The first concrete shared boundary is `startup/startup_parser_abi.h`. It is a
+C-compatible, versioned request/result contract with explicit flags, reserved
+field validation, fixed caller-owned failure diagnostics, transient step and
+ordered-mod callbacks, and caller-owned environment buffers with complete
+source lengths for truncation detection. Unknown versions, truncated result
+structures, reserved values, and unknown flags fail before parser state
+changes. Both the game bootstrap and `StartupParserTest` call this ABI. The ABI
+adapter delegates to the internal `startup_definition_loader` module; runtime
+callers cannot include registry orchestration or parser-owned result types.
+The current implementation remains a static boundary and still publishes the
+validated definitions into global registries internally. Replacing that final
+static bridge with a transferred immutable definition payload is the remaining
+ownership prerequisite for moving the same ABI implementation into a DLL.
+
 ## Load/Unload Discipline
 
 Each one-shot DLL should be treated as a tool that runs and disappears:
@@ -180,9 +194,10 @@ No runtime object should store pointers to DLL-owned memory. Returned data must 
   - Current state: the facade returns step diagnostics and startup environment facts, but still relies on global registries as the static-boundary bridge.
 - [~] Move parser-only helpers, schema walkers, and cross-reference validators behind that facade.
   - Current state: several parser-visible/runtime-visible seams were split, but generated image materialization and cleanup hooks still expose runtime-shaped dependencies.
-- [ ] Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
+- [~] Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
+  - Current state: the versioned C ABI is exercised by both production startup and `StartupParserTest`; immutable definition payload transfer and DLL load/unload remain.
 - [~] Apply the same treatment to graphics extraction, starting from the standalone Julius and Augustus extractor executables and a shared extraction implementation module.
-  - Current state: Julius/Augustus extraction are separate executable concerns with shared helper code; the explicit DLL boundary is still future work.
+  - Current state: a versioned C ABI owns Augustus extraction and climate-atlas bootstrap requests/results. Runtime climate loading and the standalone Augustus extractor call only that boundary; Julius reaches the same bootstrap ABI after its atlas load. Concrete extractor classes are private to the implementation module. Dynamic DLL loading/unloading remains future work.
 - [ ] Apply the same treatment to save/load migration after current-version runtime ownership is strong enough that bridge data can be discarded immediately after import.
 
 ## Test Harness Pattern

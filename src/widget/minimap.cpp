@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/BuildingFoundation.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "graphics/graphics.h"
@@ -64,6 +65,8 @@ typedef struct {
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
 static unsigned int runtime_building_id_at(int grid_offset);
+static int runtime_is_draw_tile(int grid_offset);
+static int runtime_tile_size(int grid_offset);
 
 static minimap_functions default_functions = {
     scenario_property_climate,
@@ -73,8 +76,8 @@ static minimap_functions default_functions = {
         map_figure_foreach_until,
         map_terrain_get,
         runtime_building_id_at,
-        map_property_is_draw_tile,
-        map_property_multi_tile_size,
+        runtime_is_draw_tile,
+        runtime_tile_size,
         map_random_get
     },
     get_viewport
@@ -83,6 +86,32 @@ static minimap_functions default_functions = {
 static unsigned int runtime_building_id_at(int grid_offset)
 {
     return map_building_exists_at(grid_offset) ? map_building_at(grid_offset).id : 0;
+}
+
+static int runtime_is_draw_tile(int grid_offset)
+{
+    if (map_building_exists_at(grid_offset)) {
+        Building &building = map_building_at(grid_offset);
+        if (building.Foundation && building.Foundation->state().is_published() &&
+            building.Foundation->contains_grid_offset(grid_offset)) {
+            return 1;
+        }
+    }
+    return map_property_is_draw_tile(grid_offset);
+}
+
+static int runtime_tile_size(int grid_offset)
+{
+    if (map_building_exists_at(grid_offset)) {
+        Building &building = map_building_at(grid_offset);
+        if (building.Foundation && building.Foundation->state().is_published() &&
+            building.Foundation->contains_grid_offset(grid_offset)) {
+            // Live foundations are rendered one exact bound cell at a time;
+            // serialized scenario previews retain their square tile-size DTO.
+            return 1;
+        }
+    }
+    return map_property_legacy_multi_tile_size(grid_offset);
 }
 
 static const tile_color_climate_variants CLIMATE_VARIANTS[3] = {
@@ -479,7 +508,7 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         } else if (b) {
             type_definition = building_type_registry_impl::definition_for_type(b->type);
         }
-        if (b && b->house_size) {
+        if (b && building_type_registry_impl::type_has_housing(b->type)) {
             colors = &minimap_colors.house;
         } else if (type_definition && building_is_water_structure(*type_definition)) {
             colors = &minimap_colors.water_structure;

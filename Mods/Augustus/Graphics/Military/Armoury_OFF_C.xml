@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Armoury_OFF_C">
+    <image id="Armoury_OFF_C" isometric="true">
+        <layer src="Armoury_OFF_C" part="footprint"/>
+    </image>
+    <image id="Armoury_OFF_N" isometric="true">
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="footprint"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="top"/>
+        <layer src="Armoury_OFF_N_Layer_03" y="48" part="top"/>
+    </image>
+    <image id="Armoury_OFF_S" isometric="true">
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="footprint"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="top"/>
+        <layer src="Armoury_OFF_S_Layer_03" y="48" part="top"/>
+    </image>
+    <image id="Armoury_Anim_01" width="118" height="83">
+        <layer src="Armoury_Anim_01_Layer_01" x="1" y="25"/>
+        <layer src="Armoury_Anim_01_Layer_02" x="102" y="15"/>
+    </image>
+    <image id="Armoury_Anim_02" width="118" height="83">
+        <layer src="Armoury_Anim_02_Layer_01" x="1" y="25"/>
+        <layer src="Armoury_Anim_02_Layer_02" x="102" y="15"/>
+    </image>
+    <image id="Armoury_Anim_03" width="118" height="83">
+        <layer src="Armoury_Anim_03_Layer_01" x="1" y="25"/>
+        <layer src="Armoury_Anim_03_Layer_02" x="102" y="15"/>
+    </image>
+    <image id="Armoury_Anim_04" width="118" height="83">
+        <layer src="Armoury_Anim_04_Layer_01" x="1" y="25"/>
+        <layer src="Armoury_Anim_04_Layer_02" x="102" y="15"/>
+    </image>
+    <image id="Armoury_Anim_05" width="118" height="83">
+        <layer src="Armoury_Anim_05_Layer_01" x="1" y="25"/>
+        <layer src="Armoury_Anim_05_Layer_02" x="102" y="15"/>
+    </image>
+    <image id="Armoury_ON_C" isometric="true">
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="footprint"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_C" part="top"/>
+        <animation speed="8">
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_01"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_02"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_03"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_04"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_05"/>
+        </animation>
+    </image>
+    <image id="Armoury_ON_N" isometric="true">
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_N" part="footprint"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_N" part="top"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_N" part="top"/>
+        <animation speed="8">
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_01"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_02"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_03"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_04"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_05"/>
+        </animation>
+    </image>
+    <image id="Armoury_ON_S" isometric="true">
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_S" part="footprint"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_S" part="top"/>
+        <layer group="Military\Armoury_OFF_C" image="Armoury_OFF_S" part="top"/>
+        <animation speed="8">
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_01"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_02"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_03"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_04"/>
+            <frame group="Military\Armoury_OFF_C" image="Armoury_Anim_05"/>
+        </animation>
+    </image>
+</assetlist>

@@ -314,24 +314,39 @@ void map_building_remove_invalid_references(void)
 
 int map_building_is_reservoir(int x, int y)
 {
-    if (!map_grid_is_inside(x, y, 3)) {
+    if (!map_grid_is_inside(x, y, 1)) {
         return 0;
     }
-    int grid_offset = map_grid_offset(x, y);
+    const int grid_offset = map_grid_offset(x, y);
     if (!map_building_exists_at(grid_offset)) {
         return 0;
     }
     const Building &reservoir = map_building_at(grid_offset);
-    const unsigned int building_id = reservoir.id;
     if (!reservoir.matches("reservoir")) {
         return 0;
     }
-    for (int dy = 0; dy < 3; dy++) {
-        for (int dx = 0; dx < 3; dx++) {
-            const int offset = grid_offset + map_grid_delta(dx, dy);
-            if (!map_building_exists_at(offset) || map_building_at(offset).id != building_id) {
-                return 0;
-            }
+    const building *record = reservoir.record();
+    if (!record || record->x != x || record->y != y || !reservoir.Foundation ||
+        !reservoir.Foundation->state().is_published() ||
+        reservoir.Foundation->state().origin_x() != x ||
+        reservoir.Foundation->state().origin_y() != y) {
+        return 0;
+    }
+
+    const int rotation = reservoir.Foundation->state().rotation();
+    for (const building_type_registry_impl::RotatedFoundationCell &cell :
+            reservoir.Foundation->cells(rotation)) {
+        if (!cell.definition || !cell.definition->binds_building) {
+            continue;
+        }
+        const int cell_x = x + cell.x;
+        const int cell_y = y + cell.y;
+        if (!map_grid_is_inside(cell_x, cell_y, 1)) {
+            return 0;
+        }
+        const int offset = map_grid_offset(cell_x, cell_y);
+        if (!map_building_exists_at(offset) || map_building_at(offset).record() != record) {
+            return 0;
         }
     }
     return 1;

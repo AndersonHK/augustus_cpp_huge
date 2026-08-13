@@ -1,13 +1,12 @@
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_legacy_migration.h"
-#include "building/housing_type.h"
-#include "building/housing_type_registry.h"
+#include "building/housing_profile_registry.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 #include "building/water_access_type_id_bridge.h"
-#include "game/mod_manager.h"
 
 #include "building/properties.h"
+#include "core/xml_definition.h"
 #include "game/resource.h"
 
 #include <cstdio>
@@ -15,14 +14,9 @@
 
 namespace building_type_registry_impl {
 
-std::string g_building_type_path;
 std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> g_building_types;
+mod_definition::DefinitionOverlayTracker g_building_type_overlays;
 ParseState g_parse_state;
-
-void refresh_building_type_path()
-{
-    g_building_type_path = mod_manager::mod_path() + "BuildingType/";
-}
 
 const BuildingType *definition_for_type(building_type type)
 {
@@ -57,10 +51,24 @@ building_type type_from_attr(std::string_view attr)
     return BUILDING_NONE;
 }
 
+const mod_definition::DefinitionOverlayEntry *find_building_type_definition_overlay(const char *identity)
+{
+    if (!identity || !*identity) {
+        return nullptr;
+    }
+    return g_building_type_overlays.find(xml_definition::normalize_path(identity));
+}
+
 int type_attr_is(building_type type, std::string_view attr)
 {
     const BuildingType *definition = definition_for_type(type);
     return definition && definition->attr_is(attr) ? 1 : 0;
+}
+
+int type_has_housing(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->housing_def().profile;
 }
 
 int type_attr_is_any(building_type type, std::initializer_list<std::string_view> attrs)
@@ -83,14 +91,14 @@ int type_attr_is_any(building_type type, const char *const *attrs, int count)
     return 0;
 }
 
-building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type)
+building_type type_from_bridge(BridgeType bridge_type)
 {
-    if (bridge_type == RoadblockBridgeType::None) {
+    if (bridge_type == BridgeType::None) {
         return BUILDING_NONE;
     }
 
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (definition && definition->roadblock().bridge_type() == bridge_type) {
+        if (definition && definition->bridge().type() == bridge_type) {
             return definition->type();
         }
     }
@@ -107,23 +115,23 @@ void clear_xml_runtime_property_fields()
     }
 }
 
-building_type building_type_for_housing_level(int level, int footprint_size)
+building_type building_type_for_housing_compatibility_level(int level, int footprint_size)
 {
-    const HousingType *housing_type = find_housing_type_definition_for_level(level);
-    if (!housing_type) {
+    const HousingProfileDef *profile = find_housing_profile_definition_for_compatibility_level(level);
+    if (!profile) {
         return BUILDING_NONE;
     }
 
     building_type fallback = BUILDING_NONE;
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (!definition || !definition->has_housing() || definition->housing_type() != housing_type) {
+        if (!definition || definition->housing_def().profile != profile) {
             continue;
         }
         if (definition->is_vacant_lot()) {
             continue;
         }
-        const int declared_size = definition->declared_model_size();
-        const int size = declared_size > 0 ? declared_size : 1;
+        const FoundationDef *foundation = definition->foundation_def();
+        const int size = foundation ? std::max(foundation->width(), foundation->height()) : 1;
         if (size == footprint_size) {
             return definition->type();
         }
@@ -151,8 +159,8 @@ building_type vacant_lot_occupancy_type()
     if (definition && definition->is_vacant_lot() && definition->vacant_lot_fill_type() != BUILDING_NONE) {
         return definition->vacant_lot_fill_type();
     }
-    const int first_level = housing_type_level_at(0);
-    return first_level < 0 ? BUILDING_NONE : building_type_for_housing_level(first_level, 1);
+    const int first_level = housing_profile_compatibility_level_at(0);
+    return first_level < 0 ? BUILDING_NONE : building_type_for_housing_compatibility_level(first_level, 1);
 }
 
 }

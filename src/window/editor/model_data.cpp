@@ -119,8 +119,11 @@ static void populate_list(void)
     data.total_items = 0;
     for (int i = 0; i < BUILDING_TYPE_MAX; i++) {
         building_type type = static_cast<building_type>(i);
-        const building_properties *props = building_properties_for_type(type);
-        if (((props->size && props->event_data.attr) &&
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        const bool has_scenario_identity = definition &&
+            (!definition->has_rubble() || !definition->rubble().is_rubble());
+        if (((has_scenario_identity && definition->foundation_def()) &&
             !is_hidden_editor_model_type(type)) ||
             is_extra_editor_model_type(type)) {
             data.items[data.total_items++] = type;

@@ -84,7 +84,7 @@ void initialize_city()
 {
     reset();
 
-    Building::for_each([] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         const size_t method_count = get_method_count(*building);
         for (size_t i = 0; i < method_count; i++) {

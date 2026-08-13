@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="low_bridge">
     <identity name_key="main_strings.28.82" />
-    <model size="1" cost="40" />
+    <model cost="40" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="custom" />
-    <event_data attr="low_bridge" />
-    <roadblock kind="bridge" bridge_type="low" />
+    <foundation path="bridge_1x1" />
+    <bridge type="low" />
     <flags fire_proof="1" />
     <graphics>
         <default use_terrain_as_foundation="1">

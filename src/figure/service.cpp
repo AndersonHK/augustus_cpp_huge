@@ -1,6 +1,5 @@
 #include "building/building.h"
 #include "building/distribution.h"
-#include "building/house.h"
 #include "figure/roamer_preview.h"
 #include "figuretype/crime.h"
 #include "map/building.h"
@@ -11,7 +10,7 @@
 #include "building/religion.h"
 
 #include "building/building_record.h"
-#include "building/housing_type.h"
+#include "building/HousingProfileDef.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -21,6 +20,8 @@
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/grid.h"
+
+#include <algorithm>
 
 #define MAX_COVERAGE 96
 #define TOURISM_COOLDOWN 96
@@ -59,19 +60,10 @@ static building *service_building_record(Building &building)
 
 static Building *service_building_for_record(building *record)
 {
-    if (!record) {
-        return nullptr;
-    }
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building && building->id == record->id) {
-            found = building;
-        }
-    });
-    return found;
+    return record ? Building::get(record->id) : nullptr;
 }
 
-static int provide_culture(int x, int y, void (*callback)(building *))
+static int provide_culture(int x, int y, void (*callback)(Building &))
 {
     int serviced = 0;
     int x_min, y_min, x_max, y_max;
@@ -80,9 +72,8 @@ static int provide_culture(int x, int y, void (*callback)(building *))
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
             if (Building *building_object = service_building_at(grid_offset)) {
-                building *b = service_building_record(*building_object);
-                if (b->house_size && b->house_population > 0) {
-                    callback(b);
+                if (building_object->Housing && building_object->Housing->state().population > 0) {
+                    callback(*building_object);
                     serviced++;
                 }
             }
@@ -102,7 +93,8 @@ static void provide_sickness(int x, int y, void (*callback)(building *, int sick
                 building *b = service_building_record(*building_object);
                 random_generate_next();
                 // 1/16 chance of spreading sickness
-                if (b->house_size && b->house_population > 0 && !(random_short() & 0xf)) {
+                if (building_object->Housing && building_object->Housing->state().population > 0 &&
+                    !(random_short() & 0xf)) {
                     callback(b, sickness_dest);
                 }
             }
@@ -110,7 +102,7 @@ static void provide_sickness(int x, int y, void (*callback)(building *, int sick
     }
 }
 
-static int provide_entertainment(int x, int y, int shows, void (*callback)(building *, int))
+static int provide_entertainment(int x, int y, int shows, void (*callback)(Building &, int))
 {
     int serviced = 0;
     int x_min, y_min, x_max, y_max;
@@ -119,9 +111,8 @@ static int provide_entertainment(int x, int y, int shows, void (*callback)(build
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
             if (Building *building_object = service_building_at(grid_offset)) {
-                building *b = service_building_record(*building_object);
-                if (b->house_size && b->house_population > 0) {
-                    callback(b, shows);
+                if (building_object->Housing && building_object->Housing->state().population > 0) {
+                    callback(*building_object, shows);
                     serviced++;
                 }
             }
@@ -130,118 +121,122 @@ static int provide_entertainment(int x, int y, int shows, void (*callback)(build
     return serviced;
 }
 
-static void labor_seeker_coverage(building *b)
+static void labor_seeker_coverage(Building &building)
 {
-    (void)b;
+    (void)building;
 }
 
-static void theater_coverage(building *b)
+static void theater_coverage(Building &building)
 {
-    b->data.house.theater = MAX_COVERAGE;
+    building.Housing->state().services.theater = MAX_COVERAGE;
 }
 
-static void amphitheater_coverage(building *b, int shows)
+static void amphitheater_coverage(Building &building, int shows)
 {
-    b->data.house.amphitheater_actor = MAX_COVERAGE;
+    HousingServiceState &services = building.Housing->state().services;
+    services.amphitheater_actor = MAX_COVERAGE;
     if (shows == 2) {
-        b->data.house.amphitheater_gladiator = MAX_COVERAGE;
+        services.amphitheater_gladiator = MAX_COVERAGE;
     }
 }
 
-static void colosseum_coverage(building *b, int shows)
+static void colosseum_coverage(Building &building, int shows)
 {
-    b->data.house.colosseum_gladiator = MAX_COVERAGE;
+    HousingServiceState &services = building.Housing->state().services;
+    services.colosseum_gladiator = MAX_COVERAGE;
     if (shows == 2) {
-        b->data.house.colosseum_lion = MAX_COVERAGE;
+        services.colosseum_lion = MAX_COVERAGE;
     }
 }
 
-static void arena_coverage(building *b, int shows)
+static void arena_coverage(Building &building, int shows)
 {
-    b->house_arena_gladiator = MAX_COVERAGE;
+    HousingState &state = building.Housing->state();
+    state.arena_gladiator = MAX_COVERAGE;
     if (shows == 2) {
-        b->house_arena_lion = MAX_COVERAGE;
+        state.arena_lion = MAX_COVERAGE;
     }
 }
 
-static void hippodrome_coverage(building *b)
+static void hippodrome_coverage(Building &building)
 {
-    b->data.house.hippodrome = MAX_COVERAGE;
+    building.Housing->state().services.hippodrome = MAX_COVERAGE;
 }
 
-static void tavern_coverage(building *b, int products)
+static void tavern_coverage(Building &building, int products)
 {
     if (products) {
-        b->house_tavern_wine_access = MAX_COVERAGE;
+        HousingState &state = building.Housing->state();
+        state.tavern_wine_access = MAX_COVERAGE;
         if (products > 1) {
-            b->house_tavern_food_access = MAX_COVERAGE;
+            state.tavern_food_access = MAX_COVERAGE;
         }
     }
 }
 
-static void bathhouse_coverage(building *b)
+static void bathhouse_coverage(Building &building)
 {
-    b->data.house.bathhouse = MAX_COVERAGE;
+    building.Housing->state().services.bathhouse = MAX_COVERAGE;
 }
 
-static void religion_coverage_ceres(building *b)
+static void religion_coverage_ceres(Building &building)
 {
-    b->data.house.temple_ceres = MAX_COVERAGE;
+    building.Housing->state().services.temple_ceres = MAX_COVERAGE;
 }
 
-static void religion_coverage_neptune(building *b)
+static void religion_coverage_neptune(Building &building)
 {
-    b->data.house.temple_neptune = MAX_COVERAGE;
+    building.Housing->state().services.temple_neptune = MAX_COVERAGE;
 }
 
-static void religion_coverage_mercury(building *b)
+static void religion_coverage_mercury(Building &building)
 {
-    b->data.house.temple_mercury = MAX_COVERAGE;
+    building.Housing->state().services.temple_mercury = MAX_COVERAGE;
 }
 
-static void religion_coverage_mars(building *b)
+static void religion_coverage_mars(Building &building)
 {
-    b->data.house.temple_mars = MAX_COVERAGE;
+    building.Housing->state().services.temple_mars = MAX_COVERAGE;
 }
 
-static void religion_coverage_venus(building *b)
+static void religion_coverage_venus(Building &building)
 {
-    b->data.house.temple_venus = MAX_COVERAGE;
+    building.Housing->state().services.temple_venus = MAX_COVERAGE;
 }
 
-static void religion_coverage_pantheon(building *b)
+static void religion_coverage_pantheon(Building &building)
 {
-    b->house_pantheon_access = MAX_COVERAGE;
+    building.Housing->state().pantheon_access = MAX_COVERAGE;
 }
 
-static void school_coverage(building *b)
+static void school_coverage(Building &building)
 {
-    b->data.house.school = MAX_COVERAGE;
+    building.Housing->state().services.school = MAX_COVERAGE;
 }
 
-static void academy_coverage(building *b)
+static void academy_coverage(Building &building)
 {
-    b->data.house.academy = MAX_COVERAGE;
+    building.Housing->state().services.academy = MAX_COVERAGE;
 }
 
-static void library_coverage(building *b)
+static void library_coverage(Building &building)
 {
-    b->data.house.library = MAX_COVERAGE;
+    building.Housing->state().services.library = MAX_COVERAGE;
 }
 
-static void barber_coverage(building *b)
+static void barber_coverage(Building &building)
 {
-    b->data.house.barber = MAX_COVERAGE;
+    building.Housing->state().services.barber = MAX_COVERAGE;
 }
 
-static void clinic_coverage(building *b)
+static void clinic_coverage(Building &building)
 {
-    b->data.house.clinic = MAX_COVERAGE;
+    building.Housing->state().services.clinic = MAX_COVERAGE;
 }
 
-static void hospital_coverage(building *b)
+static void hospital_coverage(Building &building)
 {
-    b->data.house.hospital = MAX_COVERAGE;
+    building.Housing->state().services.hospital = MAX_COVERAGE;
 }
 
 static void cart_pusher_sickness(building *b, int sickness_dest)
@@ -263,7 +258,7 @@ static int provide_missionary_coverage(int x, int y)
                     native_building->matches("native_hut_alt") ||
                     native_building->matches("native_meeting") ||
                     native_building->matches("native_watchtower")) {
-                    b->sentiment.native_anger = 0;
+                    b->native_anger = 0;
                 }
             }
         }
@@ -296,8 +291,12 @@ static void tourist_spend(building *b, Figure *f)
     }
 
     Building *building = service_building_for_record(b);
-    if (building && building->matches("hippodrome")) {
-        b = building_main(b);
+    if (building) {
+        Building *owner = building->Composition ? building->Composition->owner() : building;
+        b = owner ? const_cast<::building *>(owner->record()) : nullptr;
+        if (!b) {
+            return;
+        }
     }
     for (int i = 0; i <= 12; ++i) {
         if (f->tourist.visited_building_type_ids[i]) {
@@ -323,7 +322,7 @@ static void tourist_spend(building *b, Figure *f)
     }
 }
 
-static int provide_service(int x, int y, int *data, void (*callback)(building *, int *))
+static int provide_service(int x, int y, int *data, void (*callback)(Building &, int *))
 {
     int serviced = 0;
     int x_min, y_min, x_max, y_max;
@@ -332,9 +331,8 @@ static int provide_service(int x, int y, int *data, void (*callback)(building *,
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
             if (Building *building_object = service_building_at(grid_offset)) {
-                building *b = service_building_record(*building_object);
-                callback(b, data);
-                if (b->house_size && b->house_population > 0) {
+                callback(*building_object, data);
+                if (building_object->Housing && building_object->Housing->state().population > 0) {
                     serviced++;
                 }
             }
@@ -343,11 +341,12 @@ static int provide_service(int x, int y, int *data, void (*callback)(building *,
     return serviced;
 }
 
-static void engineer_coverage(building *b, int *max_damage_seen)
+static void engineer_coverage(Building &object, int *max_damage_seen)
 {
-    Building *building = service_building_for_record(b);
-    if (building && building->matches("hippodrome")) {
-        b = building_main(b);
+    Building *owner = object.Composition ? object.Composition->owner() : &object;
+    building *b = owner ? const_cast<::building *>(owner->record()) : nullptr;
+    if (!b) {
+        return;
     }
     if (b->damage_risk > *max_damage_seen) {
         *max_damage_seen = b->damage_risk;
@@ -355,28 +354,28 @@ static void engineer_coverage(building *b, int *max_damage_seen)
     b->damage_risk = 0;
 }
 
-static void prefect_coverage(building *b, int *min_happiness_seen)
+static void prefect_coverage(Building &object, int *min_happiness_seen)
 {
-    Building *building = service_building_for_record(b);
-    if (building && building->matches("hippodrome")) {
-        b = building_main(b);
+    Building *owner = object.Composition ? object.Composition->owner() : &object;
+    ::building *b = owner ? const_cast<::building *>(owner->record()) : nullptr;
+    if (!owner || !b) {
+        return;
     }
     b->fire_risk = 0;
-    if (b->sentiment.house_happiness < *min_happiness_seen) {
-        *min_happiness_seen = b->sentiment.house_happiness;
+    if (owner->Housing && owner->Housing->state().happiness < *min_happiness_seen) {
+        *min_happiness_seen = owner->Housing->state().happiness;
     }
 }
 
-static void tax_collector_coverage(building *b, int *max_tax_multiplier)
+static void tax_collector_coverage(Building &object, int *max_tax_multiplier)
 {
-    if (b->house_size && b->house_population > 0) {
-        Building *house = service_building_for_record(b);
-        const model_house *house_model = house ? building_house_get_model(*house) : nullptr;
-        int tax_multiplier = house_model ? house_model->tax_multiplier : 0;
+    if (object.Housing && object.Housing->state().population > 0) {
+        const auto *profile = object.Housing->definition().profile;
+        int tax_multiplier = profile ? profile->tax_multiplier : 0;
         if (tax_multiplier > *max_tax_multiplier) {
             *max_tax_multiplier = tax_multiplier;
         }
-        b->house_tax_coverage = 50;
+        object.Housing->state().tax_coverage = 50;
     }
 }
 
@@ -400,6 +399,14 @@ static void distribute_good(building *b, building *market, int stock_wanted, res
 
 static void collect_offerings_from_house(building *house, building *temple)
 {
+    Building *house_object = service_building_for_record(house);
+    const int offering_amount = house_object && house_object->Housing
+        ? house_object->Housing->mars_offering_amount()
+        : 0;
+    if (offering_amount <= 0) {
+        return;
+    }
+
     // offerings are generated, not removed from house stores
     if (house->days_since_offering >= MARS_OFFERING_FREQUENCY) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
@@ -407,40 +414,25 @@ static void collect_offerings_from_house(building *house, building *temple)
                 continue;
             }
             if (house->resources[r]) {
-                if (house->house_size == 1 && house->house_is_merged) {
-                    temple->resources[r] += 2;
-                } else {
-                    temple->resources[r] += house->house_size;
-                }
-            }
-            if (temple->resources[r] > 400) {
-                temple->resources[r] = 400;
+                const int accumulated = temple->resources[r] + offering_amount;
+                temple->resources[r] = static_cast<short>(std::min(accumulated, 400));
             }
         }
         house->days_since_offering = 0;
     }
 }
 
-static const model_house *house_evolution_target_model(Building house)
+static const building_type_registry_impl::HousingProfileDef *house_evolution_target_profile(Building house)
 {
-    building_type evolve_to = house.type ?
-        house.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo) :
-        BUILDING_NONE;
-    if (evolve_to != BUILDING_NONE) {
-        const building_type_registry_impl::BuildingType *evolve_definition =
-            building_type_registry_impl::definition_for_type(evolve_to);
-        if (evolve_definition && evolve_definition->housing_type()) {
-            return &evolve_definition->housing_type()->model();
-        }
+    const auto *evolve_definition = house.Housing
+        ? house.Housing->transition_target(building_type_registry_impl::HousingTransitionKind::EvolveTo)
+        : nullptr;
+    const auto *profile = evolve_definition ? evolve_definition->housing_def().profile : nullptr;
+    if (profile) {
+        return profile;
     }
 
-    int level = building_house_legacy_level(house);
-    if (level < HOUSE_MIN) {
-        level = HOUSE_MIN;
-    } else if (level < HOUSE_LUXURY_PALACE) {
-        level++;
-    }
-    return model_get_house(static_cast<house_level>(level));
+    return house.Housing ? house.Housing->definition().profile : nullptr;
 }
 
 static void distribute_market_resources(building *b, building *market)
@@ -450,18 +442,9 @@ static void distribute_market_resources(building *b, building *market)
     if (!house || !market_object) {
         return;
     }
-    int max_food_stocks = 4 * b->house_highest_population;
-    int food_types_stored_max = 0;
-    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
-        if (!resource_is_food(r)) {
-            continue;
-        }
-        if (b->resources[r] >= max_food_stocks) {
-            food_types_stored_max++;
-        }
-    }
-    const model_house *model = house_evolution_target_model(*house);
-    if (model->food_types) {
+    int max_food_stocks = 4 * house->Housing->state().highest_population;
+    const auto *profile = house_evolution_target_profile(*house);
+    if (profile && profile->requirements.food_types) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
             if (!resource_is_food(r) || b->resources[r] >= max_food_stocks ||
                 !market_object->accepts_good(r)) {
@@ -486,21 +469,25 @@ static void distribute_market_resources(building *b, building *market)
         goods_no = 12;
     }
 
-    if (model->pottery && market->accepted_goods[resource_pottery()]) {
+    if (!profile) {
+        return;
+    }
+    const auto &requirements = profile->requirements;
+    if (requirements.pottery && market->accepted_goods[resource_pottery()]) {
         building_set_distribution_demand(market, resource_pottery(), 10);
-        distribute_good(b, market, goods_no * model->pottery, resource_pottery());
+        distribute_good(b, market, goods_no * requirements.pottery, resource_pottery());
     }
-    if (model->furniture && market->accepted_goods[resource_furniture()]) {
+    if (requirements.furniture && market->accepted_goods[resource_furniture()]) {
         building_set_distribution_demand(market, resource_furniture(), 10);
-        distribute_good(b, market, goods_no * model->furniture, resource_furniture());
+        distribute_good(b, market, goods_no * requirements.furniture, resource_furniture());
     }
-    if (model->oil && market->accepted_goods[resource_oil()]) {
+    if (requirements.oil && market->accepted_goods[resource_oil()]) {
         building_set_distribution_demand(market, resource_oil(), 10);
-        distribute_good(b, market, goods_no * model->oil, resource_oil());
+        distribute_good(b, market, goods_no * requirements.oil, resource_oil());
     }
-    if (model->wine && market->accepted_goods[resource_wine()]) {
+    if (requirements.wine && market->accepted_goods[resource_wine()]) {
         building_set_distribution_demand(market, resource_wine(), 10);
-        distribute_good(b, market, goods_no * model->wine, resource_wine());
+        distribute_good(b, market, goods_no * requirements.wine, resource_wine());
     }
 }
 
@@ -514,7 +501,7 @@ static int provide_market_goods(building *market, int x, int y)
             int grid_offset = map_grid_offset(xx, yy);
             if (Building *building_object = service_building_at(grid_offset)) {
                 building *b = service_building_record(*building_object);
-                if (b->house_size && b->house_population > 0) {
+                if (building_object->Housing && building_object->Housing->state().population > 0) {
                     distribute_market_resources(b, market);
                     serviced++;
                 }
@@ -566,7 +553,7 @@ static int collect_offerings(building *market, int x, int y)
             int grid_offset = map_grid_offset(xx, yy);
             if (Building *building_object = service_building_at(grid_offset)) {
                 building *b = service_building_record(*building_object);
-                if (b->house_size && b->house_population > 0) {
+                if (building_object->Housing && building_object->Housing->state().population > 0) {
                     collect_offerings_from_house(b, market);
                     serviced++;
                 }

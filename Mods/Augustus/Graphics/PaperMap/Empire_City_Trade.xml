@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="PaperMap\Empire_City_Trade">
+    <image id="city_flag_red_01" width="19" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0001"/>
+    </image>
+    <image id="city_flag_red_02" width="19" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0002"/>
+    </image>
+    <image id="city_flag_red_03" width="18" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0003"/>
+    </image>
+    <image id="city_flag_red_04" width="19" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0004"/>
+    </image>
+    <image id="city_flag_red_05" width="18" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0005"/>
+    </image>
+    <image id="city_flag_red_06" width="18" height="12">
+        <layer group="PaperMap\Empire_City_Trade" image="Image_0006"/>
+    </image>
+    <image id="Empire_Icon_Roman_01">
+        <layer src="Empire_Icon_Roman_01_Layer_01"/>
+        <animation speed="6" x="17" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Roman_03">
+        <layer src="Empire_Icon_Roman_03_Layer_01"/>
+        <animation speed="6" x="17" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Resource_01">
+        <layer src="Empire_Icon_Resource_01_Layer_01"/>
+        <animation speed="6" x="1" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Resource_02">
+        <layer src="Empire_Icon_Resource_02_Layer_01"/>
+        <animation speed="6" x="1" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Resource_03">
+        <layer src="Empire_Icon_Resource_03_Layer_01"/>
+        <animation speed="6" x="9" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Trade_01">
+        <layer src="Empire_Icon_Trade_01_Layer_01"/>
+        <animation speed="6" x="19" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+    <image id="Empire_Icon_Trade_02">
+        <layer src="Empire_Icon_Trade_02_Layer_01"/>
+        <animation speed="6" x="19" y="6">
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_01"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_02"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_03"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_04"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_05"/>
+            <frame group="PaperMap\Empire_City_Trade" image="city_flag_red_06"/>
+        </animation>
+    </image>
+</assetlist>

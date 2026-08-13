@@ -7,6 +7,8 @@
 #include "building/destruction.h"
 #include "building/granary.h"
 #include "building/house.h"
+#include "building/HousingProfileDef.h"
+#include "building/housing_profile_registry.h"
 #include "building/warehouse.h"
 #include "city/culture.h"
 #include "city/data_private.h"
@@ -19,17 +21,15 @@
 
 #define SICKNESS_SPREAD_DIVISION_FACTOR 4
 
-static building *first_building_of_type(const char *text_id)
-{
-    const building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
-}
-
 static int active_count(const char *text_id)
 {
     int active = 0;
-    for (building *b = first_building_of_type(text_id); b; b = b->next_of_type) {
-        if (building_is_active(b) && b == building_main(b)) {
+    const building_type type = building_type_registry_impl::type_from_attr(text_id);
+    for (const Building &building : Building::of_type(type)) {
+        const ::building *b = building.record();
+        if (building_is_active(b) &&
+            (!building.Composition || !building.Composition->is_child()) &&
+            !building.is_dynamic_bridge_segment()) {
             active++;
         }
     }
@@ -58,12 +58,6 @@ static int is_plague_building(const Building &building)
         (building.matches("dock") ||
             definition->is_warehouse() ||
             definition->is_granary());
-}
-
-static int occupied_house_at_level(Building house, int level)
-{
-    const building *b = house.record();
-    return b && building_house_is_active(house) && b->house_population && building_house_legacy_level(house) == level;
 }
 
 static void cause_disease_in_building(Building &building_object)
@@ -155,16 +149,18 @@ static int cause_disease(void)
     building_type sick_building_type = BUILDING_NONE;
     int grid_offset = 0;
     // Kill people who have sickness level to max in houses
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        HousingModule &housing = *house->Housing;
+        HousingState &state = housing.state();
         building *record = const_cast<building *>(house->record());
-        int population = house->house_population();
-        if (building_house_is_active(*house) && population) {
+        const int population = state.population;
+        if (housing.is_occupied()) {
             if (record->sickness_level >= MAX_SICKNESS_LEVEL) {
                 sick_people = 1;
                 sick_building_type = record->type;
                 grid_offset = house->grid_offset();
                 if (city_health() < 40) {
-                    building_destroy_by_plague(record);
+                    house->destroy_by_plague();
                 } else {
                     int killed_people = population -
                         calc_adjust_with_percentage(population, city_health());
@@ -172,14 +168,14 @@ static int cause_disease(void)
                         killed_people = 1;
                     }
                     if (killed_people < population) {
-                        house->set_house_population(population - killed_people);
+                        state.population = static_cast<int16_t>(population - killed_people);
                     } else {
                         building_house_change_to_vacant_lot(*house);
                     }
                     city_population_remove_home_removed(killed_people);
 
                     // Cause plague in the house
-                    house->set_immigrant_figure_id(0);
+                    housing.clear_immigrant_reference();
                     record->has_plague = 1;
                     record->sickness_duration = 0;
                 }
@@ -204,7 +200,9 @@ static int cause_disease(void)
 static int count_hospital_workers(void)
 {
     int total_workers = 0;
-    for (const building *b = first_building_of_type("hospital"); b; b = b->next_of_type) {
+    const building_type hospital = building_type_registry_impl::type_from_attr("hospital");
+    for (const Building &building : Building::of_type(hospital)) {
+        const ::building *b = building.record();
         if (b->state == BUILDING_STATE_IN_USE) {
             total_workers += b->num_workers;
         }
@@ -249,21 +247,22 @@ static void cause_plague(int total_people)
     }
     tutorial_on_disease();
     // kill people who don't have access to a doctor
-    int housing_level_count = building_type_registry_impl::housing_type_level_count();
+    int housing_level_count = building_type_registry_impl::housing_profile_compatibility_level_count();
     for (int level_index = 0; level_index < housing_level_count; level_index++) {
-        int level = building_type_registry_impl::housing_type_level_at(level_index);
+        int level = building_type_registry_impl::housing_profile_compatibility_level_at(level_index);
         if (level < 0) {
             continue;
         }
-        Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
             if (people_to_kill <= 0) {
                 return;
             }
-            building *record = const_cast<building *>(house->record());
-            if (occupied_house_at_level(*house, level)) {
-                if (!record->data.house.clinic) {
-                    people_to_kill -= house->house_population();
-                    building_destroy_by_plague(record);
+            const HousingModule &housing = *house->Housing;
+            if (housing.is_occupied_at_compatibility_level(level)) {
+                const HousingState &state = housing.state();
+                if (!state.services.clinic) {
+                    people_to_kill -= state.population;
+                    house->destroy_by_plague();
                 }
             }
         });
@@ -273,18 +272,18 @@ static void cause_plague(int total_people)
     }
     // kill anyone, starting with tents and working up the housing levels
     for (int level_index = 0; level_index < housing_level_count; level_index++) {
-        int level = building_type_registry_impl::housing_type_level_at(level_index);
+        int level = building_type_registry_impl::housing_profile_compatibility_level_at(level_index);
         if (level < 0) {
             continue;
         }
-        Building::for_each({ .hasHousing = true }, [&](Building *house) {
+        Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
             if (people_to_kill <= 0) {
                 return;
             }
-            building *record = const_cast<building *>(house->record());
-            if (occupied_house_at_level(*house, level)) {
-                people_to_kill -= house->house_population();
-                building_destroy_by_plague(record);
+            const HousingModule &housing = *house->Housing;
+            if (housing.is_occupied_at_compatibility_level(level)) {
+                people_to_kill -= housing.state().population;
+                house->destroy_by_plague();
             }
         });
         if (people_to_kill <= 0) {
@@ -310,82 +309,78 @@ static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonu
     });
 }
 
-static void adjust_sickness_level_in_house(building *, int, int, int)
-{
-}
-
 // House Health Calculation
 int city_health_get_house_health_level(Building house, int update_city_data)
 {
     const building *b = house.record();
-    if (!b) {
+    if (!b || !house.Housing || !*house.Housing) {
         return 0;
     }
     // Define house health to be 0 as a starting point
     int house_health = 0;
 
-    // Check if the building is a house
-    if (house.type && house.type->has_housing()) {
-        // House Level: What is the level of the house?
-        house_health = calc_bound(building_house_legacy_level(house), 0, 10);
+    const HousingModule &housing = *house.Housing;
+    const HousingState &state = housing.state();
+    const HousingServiceState &services = state.services;
+    const building_type_registry_impl::HousingProfileDef &profile = *housing.definition().profile;
+    // House Level: What is the level of the house?
+    house_health = calc_bound(profile.compatibility_level, 0, 10);
 
-        // Healthcare: Do they have access to a Clinic and/or Hospital?
-        if (b->data.house.clinic && b->data.house.hospital) {
-            house_health += 50; // Hospital + Clinic is best
-        } else if (b->data.house.hospital) {
-            house_health += 40; // Hospital alone is still good
-        } else if (b->data.house.clinic) {
-            house_health += 30; // Clinics are better than nothing
+    // Healthcare: Do they have access to a Clinic and/or Hospital?
+    if (services.clinic && services.hospital) {
+        house_health += 50; // Hospital + Clinic is best
+    } else if (services.hospital) {
+        house_health += 40; // Hospital alone is still good
+    } else if (services.clinic) {
+        house_health += 30; // Clinics are better than nothing
+    }
+
+    // Bathhouse: Do they have access to a bathhouse?
+    if (services.bathhouse) {
+        house_health += 15;
+    }
+
+    // Barber: Do they have access to a barber?
+    if (services.barber) {
+        house_health += 10;
+    }
+
+    // Hygiene: Do they have access to clean water or latrines?
+    if (b->has_water_access || b->has_latrines_access) {
+        house_health += 10;
+    }
+
+    // Mausoleum: Are they in range of a Mausoleum so they may bury their dead?
+    int mausoleum_health = active_count("small_mausoleum") * 2;
+    mausoleum_health += active_count("large_mausoleum") * 5;
+    // Sums the combined health from all Mausoleums and clamps it between 0 and 10
+    house_health += calc_bound(mausoleum_health, 0, 10);
+
+    // Diet: How many foods do they have access to?
+    house_health += services.num_foods * 10;
+    // Cap health to 40 if their house level requires food but they don't have any
+    int health_cap = (profile.requirements.food_types && !services.num_foods) ? 40 : 100;
+    house_health = calc_bound(house_health, 0, health_cap);
+
+    // Update city_data
+    if (update_city_data) {
+        if (services.clinic) {
+            city_data.health.population_access.clinic += state.population;
         }
-
-        // Bathhouse: Do they have access to a bathhouse?
-        if (b->data.house.bathhouse) {
-            house_health += 15;
+        if (services.barber) {
+            city_data.health.population_access.barber += state.population;
         }
-
-        // Barber: Do they have access to a barber?
-        if (b->data.house.barber) {
-            house_health += 10;
+        if (services.bathhouse) {
+            city_data.health.population_access.baths += state.population;
         }
-
-        // Hygiene: Do they have access to clean water or latrines?
-        if (b->has_water_access || b->has_latrines_access) {
-            house_health += 10;
+        if (b->has_well_access) {
+            city_data.health.population_access.wells += state.population;
         }
-
-        // Mausoleum: Are they in range of a Mausoleum so they may bury their dead?
-        int mausoleum_health = active_count("small_mausoleum") * 2;
-        mausoleum_health += active_count("large_mausoleum") * 5;
-        // Sums the combined health from all Mausoleums and clamps it between 0 and 10
-        house_health += calc_bound(mausoleum_health, 0, 10);
-
-        // Diet: How many foods do they have access to?
-        house_health += b->data.house.num_foods * 10;
-        // Cap health to 40 if their house level requires food but they don't have any
-        const model_house *house_model = building_house_get_model(house);
-        int health_cap = (house_model && house_model->food_types && !b->data.house.num_foods) ? 40 : 100;
-        house_health = calc_bound(house_health, 0, health_cap);
-
-        // Update city_data
-        if (update_city_data) {
-            if (b->data.house.clinic) {
-                city_data.health.population_access.clinic += b->house_population;
-            }
-            if (b->data.house.barber) {
-                city_data.health.population_access.barber += b->house_population;
-            }
-            if (b->data.house.bathhouse) {
-                city_data.health.population_access.baths += b->house_population;
-            }
-            if (b->has_well_access) {
-                city_data.health.population_access.wells += b->house_population;
-            }
-            if (b->has_latrines_access) {
-                city_data.health.population_access.latrines += b->house_population;
-            }
-            if (b->has_water_access) {
-                city_data.health.population_access.fountains += b->house_population;
-            }
+        if (b->has_latrines_access) {
+            city_data.health.population_access.latrines += state.population;
+        }
+        if (b->has_water_access) {
+            city_data.health.population_access.fountains += state.population;
         }
     }
     return house_health;
@@ -401,7 +396,6 @@ void city_health_update(void)
     }
     int total_population = 0;
     int healthy_population = 0;
-    int population_health_offset = calc_bound((city_population() - 1) / 1000, 0, 10);
     int hospital_coverage_bonus = city_culture_coverage_hospital() / 20 * 5;
     city_data.health.population_access.clinic = 0;
     city_data.health.population_access.barber = 0;
@@ -410,12 +404,14 @@ void city_health_update(void)
     city_data.health.population_access.latrines = 0;
     city_data.health.population_access.fountains = 0;
 
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        HousingModule &housing = *house->Housing;
+        HousingState &state = housing.state();
         building *record = const_cast<building *>(house->record());
-        if (!building_house_is_active(*house)) {
+        if (!house->is_in_use()) {
             return;
         }
-        int population = house->house_population();
+        const int population = state.population;
         if (!population) {
             record->sickness_level = 0;
             return;
@@ -425,7 +421,6 @@ void city_health_update(void)
         total_population += population;
         if (!only_gather_stats) {
             healthy_population += calc_adjust_with_percentage(population, house_health);
-            adjust_sickness_level_in_house(record, house_health, population_health_offset, hospital_coverage_bonus);
         }
     });
     if (only_gather_stats) {
@@ -453,15 +448,13 @@ void city_health_update(void)
 int city_health_get_global_sickness_level(void)
 {
     int building_number = 0;
-    int building_sickness_level = 0;
     int max_sickness_level = 0;
 
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        const HousingModule &housing = *house->Housing;
         building *record = const_cast<building *>(house->record());
-        if (building_house_is_active(*house) && house->house_population()) {
+        if (housing.is_occupied()) {
             building_number++;
-            building_sickness_level += calc_bound(record->sickness_level, 0, MAX_SICKNESS_LEVEL);
-
             if (record->sickness_level > max_sickness_level) {
                 max_sickness_level = record->sickness_level;
             }
@@ -474,14 +467,15 @@ int city_health_get_global_sickness_level(void)
             return;
         }
         building_number++;
-        building_sickness_level += calc_bound(record->sickness_level, 0, MAX_SICKNESS_LEVEL);
         if (record->sickness_level > max_sickness_level) {
             max_sickness_level = record->sickness_level;
         }
     });
 
     if (max_sickness_level < MAX_SICKNESS_LEVEL) {
-        for (building *b = first_building_of_type("burning_ruin"); b; b = b->next_of_type) {
+        const building_type burning_ruin = building_type_registry_impl::type_from_attr("burning_ruin");
+        for (const Building &building : Building::of_type(burning_ruin)) {
+            const ::building *b = building.record();
             if (b->state == BUILDING_STATE_IN_USE && b->has_plague) {
                 max_sickness_level = MAX_SICKNESS_LEVEL;
                 break;

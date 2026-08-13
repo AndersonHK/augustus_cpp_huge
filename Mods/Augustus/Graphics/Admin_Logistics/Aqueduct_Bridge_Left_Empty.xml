@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Aqueduct_Bridge_Left_Empty">
+    <image id="Aqueduct_Bridge_Left_Empty" width="58" height="58" isometric="true">
+        <layer group="Admin_Logistics\Aqueduct_Desert" image="Image_0000" part="footprint"/>
+        <layer group="Admin_Logistics\Aqueduct_Desert" image="Image_0000" part="top"/>
+        <layer src="Aqueduct_Bridge_Left_Empty_Layer_03" y="28" part="top" mask="alpha"/>
+    </image>
+</assetlist>

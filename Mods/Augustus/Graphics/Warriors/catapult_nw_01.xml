@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\catapult_nw_01">
+    <image id="catapult_nw_01" width="80" height="80">
+        <layer src="catapult_nw_01" x="10" y="8"/>
+    </image>
+    <image id="catapult_rock_nw_01">
+        <layer src="catapult_rock_nw_01" rotate="90"/>
+    </image>
+    <image id="catapult_fr_nw_04" width="80" height="80">
+        <layer src="catapult_fr_nw_04" x="10" y="18"/>
+    </image>
+    <image id="catapult_fr_nw_05">
+        <layer group="Warriors\catapult_nw_01" image="catapult_fr_nw_04"/>
+        <layer group="Warriors\catapult_nw_01" image="catapult_rock_nw_01" x="54" y="45" invert="horizontal"/>
+    </image>
+    <image id="catapult_fr_nw_08" width="80" height="80">
+        <layer group="Warriors\catapult_nw_01" image="catapult_nw_01"/>
+        <layer group="Warriors\catapult_nw_01" image="catapult_rock_nw_01" x="16" y="5" invert="horizontal"/>
+    </image>
+</assetlist>

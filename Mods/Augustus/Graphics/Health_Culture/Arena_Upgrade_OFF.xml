@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Arena_Upgrade_OFF">
+    <image id="Arena OFF" width="178" height="152" isometric="true" group="Health_Culture\Arena_OFF" image="Arena OFF"/>
+    <image id="Arena_On_01" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_01"/>
+    <image id="Arena_On_02" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_02"/>
+    <image id="Arena_On_03" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_03"/>
+    <image id="Arena_On_04" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_04"/>
+    <image id="Arena_On_05" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_05"/>
+    <image id="Arena_On_06" width="92" height="42" group="Health_Culture\Arena_OFF" image="Arena_On_06"/>
+    <image id="Arena ON" width="178" height="152" isometric="true" group="Health_Culture\Arena_OFF" image="Arena ON"/>
+    <image id="Arena Upgrade OFF" width="178" height="152" isometric="true" group="Health_Culture\Arena_OFF" image="Arena Upgrade OFF"/>
+    <image id="Arena Upgrade ON" width="178" height="152" isometric="true" group="Health_Culture\Arena_OFF" image="Arena Upgrade ON"/>
+</assetlist>

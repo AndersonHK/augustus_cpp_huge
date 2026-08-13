@@ -6,7 +6,6 @@
 #include "building/monument.h"
 #include "city/message.h"
 #include "core/calc.h"
-#include "core/image.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
@@ -40,15 +39,6 @@ int wharf_worker_percentage(const Building &wharf)
 {
     const int required_workers = wharf.type ? wharf.type->required_workers() : 0;
     return required_workers > 0 ? calc_percentage(wharf.worker_count(), required_workers) : 100;
-}
-
-int image_base_for(const figure_type_registry_impl::FigureTypeDefinition *definition)
-{
-    if (!definition) {
-        return image_group(GROUP_FIGURE_SHIP) + 8;
-    }
-    const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
-    return image_group(graphics.image_group ? graphics.image_group : GROUP_FIGURE_SHIP) + graphics.image_group_offset;
 }
 
 } // namespace
@@ -96,7 +86,7 @@ int FishingBoat::ensure_wharf_assignment()
     if (building) {
         building->clear_figure_slot_if_matches(id());
     }
-    this->building = wharf;
+        set_home_building(wharf);
     go_to_wharf(tile);
     return 1;
 }
@@ -113,7 +103,6 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
 
     is_ghost = 0;
     is_boat = 1;
-    clear_legacy_cart_overlay_image();
     figure_image_increase_offset(this, definition ? definition->graphics().max_image_offset : 12);
 
     switch (action_state) {
@@ -125,7 +114,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 Building *wharf = map_water_assign_wharf_for_new_fishing_boat(this, &tile);
                 if (wharf) {
                     building->clear_figure_slot_if_matches(id());
-                    this->building = wharf;
+        set_home_building(wharf);
                     go_to_wharf(tile);
                 }
             }
@@ -215,7 +204,6 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
             break;
     }
 
-    update_image(definition);
     return 1;
 }
 
@@ -225,16 +213,7 @@ void FishingBoat::sink()
         building->clear_figure_slot_if_matches(id());
         map_water_clear_fishing_boat_from_wharf(*building, id());
     }
-    this->building = nullptr;
+    set_home_building(nullptr);
     type = FIGURE_SHIPWRECK;
     wait_ticks = 0;
-}
-
-void FishingBoat::update_image(const figure_type_registry_impl::FigureTypeDefinition *definition)
-{
-    const int dir = figure_image_normalize_direction(direction < 8 ? direction : previous_tile_direction);
-    select_legacy_directional_frame_image(
-        image_base_for(definition) + (action_state == FIGURE_ACTION_192_FISHING_BOAT_FISHING ? 8 : 0),
-        dir,
-        0);
 }

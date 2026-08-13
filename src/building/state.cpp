@@ -4,6 +4,10 @@
 
 #include "game/resource_id_bridge.h"
 #include "building/BuildingGraphicsState.h"
+#include "building/FoundationStateSaveBridge.h"
+#include "building/HousingStateBridge.h"
+#include "building/HousingProfileDef.h"
+#include "building/LegacyBuildingSaveDto.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_runtime.h"
@@ -12,6 +16,7 @@
 #include "figure/figure.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/housing_profile_registry.h"
 #include "building/monument.h"
 #include "core/log.h"
 #include "game/save_version.h"
@@ -21,6 +26,7 @@
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
+#include <vector>
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
@@ -77,9 +83,8 @@ int type_is_depot(building_type type)
 int type_is_roadblock_record(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition ?
-        definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None :
-        0;
+    return definition && (definition->bridge().is_bridge() ||
+        (definition->foundation_def() && definition->foundation_def()->has_owner_controlled_passage()));
 }
 
 int type_is_burning_ruin(building_type type)
@@ -98,8 +103,8 @@ const building_type_registry_impl::BuildingType *original_type_for_save(const bu
     if (!b || !b->id) {
         return nullptr;
     }
-    if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
-        return runtime->building.Rubble ? runtime->building.Rubble->original_type() : nullptr;
+    if (Building *building_object = Building::get(b->id)) {
+        return building_object->Rubble ? building_object->Rubble->original_type() : nullptr;
     }
     return nullptr;
 }
@@ -109,8 +114,44 @@ const RubbleState *rubble_state_for_save(const building *b)
     if (!b || !b->id) {
         return nullptr;
     }
-    building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b));
-    return runtime && runtime->building.Rubble ? runtime->building.Rubble->state() : nullptr;
+    Building *building_object = Building::get(b->id);
+    return building_object && building_object->Rubble ? building_object->Rubble->state() : nullptr;
+}
+
+void composition_state_to_legacy_record(const Building &building_object, building &record)
+{
+    // Save DTO boundary: synthesize the historical chain bytes from the
+    // owner-bound runtime graph without restoring those links to live records.
+    BuildingComposition *composition = building_object.Composition;
+    if (!composition || !composition->is_composed()) {
+        return;
+    }
+    BuildingComposition *owner = composition->owner_module();
+    if (!owner || !owner->is_owner()) {
+        return;
+    }
+
+    const std::vector<BuildingComposition *> &children = owner->children();
+    if (composition == owner) {
+        record.prev_part_building_id = 0;
+        record.next_part_building_id = children.empty() || !children.front() || !children.front()->building() ?
+            0 : static_cast<short>(children.front()->building()->id);
+        return;
+    }
+
+    const auto found = std::find(children.begin(), children.end(), composition);
+    if (found == children.end()) {
+        record.prev_part_building_id = 0;
+        record.next_part_building_id = 0;
+        return;
+    }
+    const std::size_t index = static_cast<std::size_t>(found - children.begin());
+    Building *previous = index == 0 ? owner->building() :
+        (children[index - 1] ? children[index - 1]->building() : nullptr);
+    Building *next = index + 1 < children.size() && children[index + 1] ?
+        children[index + 1]->building() : nullptr;
+    record.prev_part_building_id = previous ? static_cast<short>(previous->id) : 0;
+    record.next_part_building_id = next ? static_cast<short>(next->id) : 0;
 }
 
 int type_uses_industry_state(const building *b)
@@ -186,13 +227,16 @@ static void read_rubble_type_data(buffer *buf, building *b, int version, int for
         original_orientation = buffer_read_u8(buf);
         if (original_type && original_type->has_composition()) {
             const int rotation = (original_orientation % 4 + 4) % 4;
-            const building_type_registry_impl::ComposedBuildingDefinition &composition =
-                original_type->composition();
-            const building_type_registry_impl::ComposedPartOffset main_offset =
-                composition.main_offset_for_rotation(rotation);
-            original_grid_offset = map_grid_offset(
-                map_grid_offset_to_x(original_grid_offset) - main_offset.x,
-                map_grid_offset_to_y(original_grid_offset) - main_offset.y);
+            const building_type_registry_impl::CompositionLayoutResult layout =
+                building_type_registry_impl::build_composition_layout(
+                    original_type,
+                    original_type->composition(),
+                    map_grid_offset_to_x(original_grid_offset),
+                    map_grid_offset_to_y(original_grid_offset),
+                    rotation);
+            if (layout.valid()) {
+                original_grid_offset = map_grid_offset(layout.bounds.min_x, layout.bounds.min_y);
+            }
         }
     } else if (version <= SAVE_GAME_LAST_RUBBLE_ORIGIN_RECTANGLE) {
         const int original_x = buffer_read_u8(buf);
@@ -266,7 +310,7 @@ static void format_loaded_building_type_problem(
         detail_size,
         "reason=%s building_id=%u state=%d saved_type=%u save_text_id=%s legacy_save_text_id=%s "
         "runtime_type=%d runtime_text_id=%s runtime_save_type=%u legacy_runtime_text_id=%s "
-        "registry_has_definition=%d x=%d y=%d grid_offset=%d size=%d prev_part=%d next_part=%d deleted=%d",
+        "registry_has_definition=%d x=%d y=%d grid_offset=%d prev_part=%d next_part=%d deleted=%d",
         safe_text(reason),
         b ? b->id : 0,
         b ? b->state : BUILDING_STATE_UNUSED,
@@ -281,7 +325,6 @@ static void format_loaded_building_type_problem(
         b ? b->x : 0,
         b ? b->y : 0,
         b ? b->grid_offset : 0,
-        b ? b->size : 0,
         b ? b->prev_part_building_id : 0,
         b ? b->next_part_building_id : 0,
         b ? b->is_deleted : 0);
@@ -292,25 +335,6 @@ static void log_loaded_building_type_problem(const building *b, uint16_t saved_t
     char detail[1200];
     format_loaded_building_type_problem(detail, sizeof(detail), b, saved_type, reason);
     log_warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
-}
-
-static void remove_figures_referencing_unsupported_building(unsigned int building_id)
-{
-    if (!building_id) {
-        return;
-    }
-    const unsigned int count = Figure::count();
-    for (unsigned int i = 1; i < count; i++) {
-        Figure *f = Figure::get(i);
-        if (!f || !f->state) {
-            continue;
-        }
-        if ((f->building && f->building->id == building_id) ||
-            (f->destination_building && f->destination_building->id == building_id) ||
-            (f->immigrant_building && f->immigrant_building->id == building_id)) {
-            f->remove();
-        }
-    }
 }
 
 static void remove_tiles_for_unsupported_building(const building *b)
@@ -327,7 +351,7 @@ static void remove_tiles_for_unsupported_building(const building *b)
         x = map_grid_offset_to_x(b->grid_offset);
         y = map_grid_offset_to_y(b->grid_offset);
     }
-    map_building_tiles_remove(nullptr, x, y);
+    map_legacy_building_tiles_remove(x, y);
 }
 
 static void quarantine_loaded_building_type_problem(
@@ -342,7 +366,6 @@ static void quarantine_loaded_building_type_problem(
     log_loaded_building_type_problem(b, saved_type, reason);
     if (!for_preview) {
         b->type = BUILDING_NONE;
-        remove_figures_referencing_unsupported_building(b->id);
         remove_tiles_for_unsupported_building(b);
     }
     const unsigned int id = b->id;
@@ -376,6 +399,9 @@ static int remaining_building_record_bytes(const buffer *buf, size_t record_star
 static int flat_resource_slots_left_in_record(const buffer *buf, size_t record_start, int building_buf_size)
 {
     int bytes = remaining_building_record_bytes(buf, record_start, building_buf_size);
+    if (building_buf_size >= BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS) {
+        bytes -= building_type_registry_impl::FOUNDATION_SAVE_TERRAIN_BYTES;
+    }
     if (building_buf_size >= BUILDING_STATE_LATRINES && bytes > 0) {
         bytes--;
     }
@@ -432,48 +458,114 @@ static building_type get_fort_type(building *b)
 
 }
 
-static void normalize_native_housing_after_load(building *b)
+static void copy_subtype_bits(short value, building *b)
 {
-    if (!b || b->state == BUILDING_STATE_UNUSED || !b->house_size) {
+    static_assert(sizeof(b->subtype) == sizeof(value));
+    memcpy(&b->subtype, &value, sizeof(value));
+}
+
+static void write_foundation_terrain_state(
+    buffer *buf,
+    const building_type_registry_impl::FoundationTerrainSaveState &state)
+{
+    buffer_write_u8(buf, state.published);
+    for (uint32_t value : state.added) {
+        buffer_write_u32(buf, value);
+    }
+    for (uint32_t value : state.removed) {
+        buffer_write_u32(buf, value);
+    }
+}
+
+static building_type_registry_impl::FoundationTerrainSaveState read_foundation_terrain_state(buffer *buf)
+{
+    building_type_registry_impl::FoundationTerrainSaveState state;
+    state.published = buffer_read_u8(buf);
+    for (uint32_t &value : state.added) {
+        value = buffer_read_u32(buf);
+    }
+    for (uint32_t &value : state.removed) {
+        value = buffer_read_u32(buf);
+    }
+    return state;
+}
+
+static short subtype_bits(const building &b)
+{
+    short value = 0;
+    static_assert(sizeof(b.subtype) == sizeof(value));
+    memcpy(&value, &b.subtype, sizeof(value));
+    return value;
+}
+
+static building_save_bridge::LegacyBuildingSaveDto legacy_save_dto_for(const building &b)
+{
+    building_save_bridge::LegacyBuildingDefinitionView view;
+    view.non_housing_subtype_value = subtype_bits(b);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(b.type);
+    if (definition) {
+        const int rotation = Building::get(b.id) ? Building::get(b.id)->orientation() : 0;
+        const building_type_registry_impl::FoundationDef *foundation = definition->foundation_def();
+        if (foundation) {
+            view.foundation_width = foundation->rotated_width(rotation);
+            view.foundation_height = foundation->rotated_height(rotation);
+            view.foundation_cell_count = static_cast<int>(foundation->rotated_cells(rotation).size());
+        }
+        const building_type_registry_impl::HousingProfileDef *profile = definition->housing_def().profile;
+        if (profile) {
+            view.housing_compatibility_level = profile->compatibility_level;
+        }
+    }
+    return building_save_bridge::synthesize_legacy_building_save_dto(view);
+}
+
+static void normalize_native_housing_after_load(
+    building *b,
+    const building_save_bridge::LegacyBuildingSaveDto &legacy,
+    int save_version)
+{
+    if (!b || b->state == BUILDING_STATE_UNUSED) {
         return;
     }
 
     const building_type_registry_impl::BuildingType *current_definition =
         building_type_registry_impl::definition_for_type(b->type);
-    int housing_level = current_definition ? current_definition->housing_level() : -1;
+    const building_type_registry_impl::HousingProfileDef *profile =
+        current_definition ? current_definition->housing_def().profile : nullptr;
+    int housing_level = profile ? profile->compatibility_level : -1;
+    const building_type_registry_impl::HousingProfileDef *saved_profile =
+        building_type_registry_impl::find_housing_profile_definition_for_compatibility_level(
+            legacy.housing_level_or_subtype);
+    if (profile && saved_profile == profile) {
+        housing_level = legacy.housing_level_or_subtype;
+    }
     if (housing_level < 0) {
         return;
     }
-    if (housing_level == HOUSE_SMALL_TENT && b->house_population <= 0) {
+    if (housing_level == HOUSE_SMALL_TENT && legacy.housing_population <= 0) {
         building_type vacant_lot_type = building_type_registry_impl::vacant_lot_fill_type();
         if (vacant_lot_type != BUILDING_NONE) {
             b->type = vacant_lot_type;
-            b->subtype.house_level = static_cast<short>(housing_level);
-            b->size = b->house_size = 1;
-            b->house_is_merged = 0;
         }
         return;
     }
-    int footprint_size = b->house_size > 0 ? b->house_size : b->size;
-    if (b->house_is_merged && footprint_size < 2) {
+    if (!building_save_bridge::legacy_housing_identity_needs_disambiguation(
+            save_version, SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE) ||
+        !legacy.house_size) {
+        return;
+    }
+    int footprint_size = legacy.house_size > 0 ? legacy.house_size : legacy.size;
+    if (legacy.house_is_merged && footprint_size < 2) {
         footprint_size = 2;
     }
 
-    building_type native_type = building_type_registry_impl::building_type_for_housing_level(housing_level, footprint_size);
+    building_type native_type =
+        building_type_registry_impl::building_type_for_housing_compatibility_level(housing_level, footprint_size);
     if (native_type == BUILDING_NONE || native_type == b->type) {
         return;
     }
 
     b->type = native_type;
-    b->subtype.house_level = static_cast<short>(housing_level);
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(native_type);
-    int model_size = definition ? definition->declared_model_size() : 0;
-    if (model_size > 0) {
-        b->size = static_cast<unsigned char>(model_size);
-        b->house_size = static_cast<unsigned char>(model_size);
-        b->house_is_merged = static_cast<unsigned char>(model_size > 1 ? 1 : b->house_is_merged);
-    }
 }
 
 static int migrate_legacy_entertainment_show_days(int days)
@@ -482,7 +574,10 @@ static int migrate_legacy_entertainment_show_days(int days)
     return active_days > 255 ? 255 : active_days;
 }
 
-static void write_type_data(buffer *buf, const building *b)
+static void write_type_data(
+    buffer *buf,
+    const building *b,
+    const building_save_bridge::LegacyBuildingSaveDto &legacy)
 {
     // This function should ALWAYS write 26 bytes.
     // If you don't write 26 bytes, the function will pad them at the end.
@@ -492,32 +587,32 @@ static void write_type_data(buffer *buf, const building *b)
     const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
 
     if (definition && definition->has_housing()) {
-        buffer_write_u8(buf, b->data.house.theater);
-        buffer_write_u8(buf, b->data.house.amphitheater_actor);
-        buffer_write_u8(buf, b->data.house.amphitheater_gladiator);
-        buffer_write_u8(buf, b->data.house.colosseum_gladiator);
-        buffer_write_u8(buf, b->data.house.colosseum_lion);
-        buffer_write_u8(buf, b->data.house.hippodrome);
-        buffer_write_u8(buf, b->data.house.school);
-        buffer_write_u8(buf, b->data.house.library);
-        buffer_write_u8(buf, b->data.house.academy);
-        buffer_write_u8(buf, b->data.house.barber);
-        buffer_write_u8(buf, b->data.house.clinic);
-        buffer_write_u8(buf, b->data.house.bathhouse);
-        buffer_write_u8(buf, b->data.house.hospital);
-        buffer_write_u8(buf, b->data.house.temple_ceres);
-        buffer_write_u8(buf, b->data.house.temple_neptune);
-        buffer_write_u8(buf, b->data.house.temple_mercury);
-        buffer_write_u8(buf, b->data.house.temple_mars);
-        buffer_write_u8(buf, b->data.house.temple_venus);
-        buffer_write_u8(buf, b->data.house.no_space_to_expand);
-        buffer_write_u8(buf, b->data.house.num_foods);
-        buffer_write_u8(buf, b->data.house.entertainment);
-        buffer_write_u8(buf, b->data.house.education);
-        buffer_write_u8(buf, b->data.house.health);
-        buffer_write_u8(buf, b->data.house.num_gods);
-        buffer_write_u8(buf, b->data.house.devolve_delay);
-        buffer_write_u8(buf, b->data.house.evolve_text_id);
+        buffer_write_u8(buf, legacy.housing.theater);
+        buffer_write_u8(buf, legacy.housing.amphitheater_actor);
+        buffer_write_u8(buf, legacy.housing.amphitheater_gladiator);
+        buffer_write_u8(buf, legacy.housing.colosseum_gladiator);
+        buffer_write_u8(buf, legacy.housing.colosseum_lion);
+        buffer_write_u8(buf, legacy.housing.hippodrome);
+        buffer_write_u8(buf, legacy.housing.school);
+        buffer_write_u8(buf, legacy.housing.library);
+        buffer_write_u8(buf, legacy.housing.academy);
+        buffer_write_u8(buf, legacy.housing.barber);
+        buffer_write_u8(buf, legacy.housing.clinic);
+        buffer_write_u8(buf, legacy.housing.bathhouse);
+        buffer_write_u8(buf, legacy.housing.hospital);
+        buffer_write_u8(buf, legacy.housing.temple_ceres);
+        buffer_write_u8(buf, legacy.housing.temple_neptune);
+        buffer_write_u8(buf, legacy.housing.temple_mercury);
+        buffer_write_u8(buf, legacy.housing.temple_mars);
+        buffer_write_u8(buf, legacy.housing.temple_venus);
+        buffer_write_u8(buf, legacy.housing.no_space_to_expand);
+        buffer_write_u8(buf, legacy.housing.num_foods);
+        buffer_write_u8(buf, legacy.housing.entertainment);
+        buffer_write_u8(buf, legacy.housing.education);
+        buffer_write_u8(buf, legacy.housing.health);
+        buffer_write_u8(buf, legacy.housing.num_gods);
+        buffer_write_u8(buf, legacy.housing.devolve_delay);
+        buffer_write_u8(buf, legacy.housing.evolve_text_id);
     } else if (type_is_caravanserai(b->type) || type_is_large_temple_supplier(b->type)) {
         buffer_write_u8(buf, b->data.market.fetch_inventory_id);
     } else if (type_has_distribution(b->type)) {
@@ -578,66 +673,95 @@ static void write_type_data(buffer *buf, const building *b)
 
 void building_state_save_to_buffer(buffer *buf, const building *b)
 {
+    const building *source_record = b;
+    building staged_record = *b;
+    building_type_registry_impl::FoundationTerrainSaveState foundation_terrain_state;
+    Building *building_object = Building::get(source_record->id);
+    if (building_object) {
+        composition_state_to_legacy_record(*building_object, staged_record);
+        if (building_object->Foundation) {
+            foundation_terrain_state = building_type_registry_impl::foundation_terrain_state_for_save(
+                building_object->Foundation->definition(), building_object->Foundation->state());
+        }
+        if (building_object->Foundation &&
+            building_object->Foundation->has_owner_controlled_passage() &&
+            !(building_object->type && building_object->type->bridge().is_bridge())) {
+            staged_record.data.roadblock.exceptions =
+                building_object->Foundation->roadblock_state().permissions();
+        }
+    }
+    b = &staged_record;
+    building_save_bridge::LegacyBuildingSaveDto legacy = legacy_save_dto_for(*b);
+    if (building_object && building_object->Housing) {
+        housing_state_to_legacy_save(building_object->Housing->state(), legacy);
+    } else {
+        legacy.housing_monthly_levy_or_building_levy = b->levy_amount;
+        legacy.housing_tax_income_or_collected_tax = b->collected_tax_income;
+        legacy.housing_happiness_or_native_anger = b->native_anger;
+    }
+    if (building_object && building_object->Rubble && building_object->Rubble->state()) {
+        legacy.housing_generation_delay_or_rubble_seed = building_object->Rubble->state()->random_seed;
+    }
     buffer_write_u8(buf, b->state);
     buffer_write_u8(buf, b->faction_id);
     buffer_write_u8(buf, b->unknown_value);
-    buffer_write_u8(buf, b->size);
-    buffer_write_u8(buf, b->house_is_merged);
-    buffer_write_u8(buf, b->house_size);
+    buffer_write_u8(buf, legacy.size);
+    buffer_write_u8(buf, legacy.house_is_merged);
+    buffer_write_u8(buf, legacy.house_size);
     buffer_write_u8(buf, b->x);
     buffer_write_u8(buf, b->y);
     buffer_write_i16(buf, b->grid_offset);
     buffer_write_u16(buf, building_type_id_bridge_save_id_from_runtime(b->type));
-    buffer_write_i16(buf, b->subtype.house_level); // which union field we use does not matter
+    buffer_write_i16(buf, legacy.housing_level_or_subtype);
     buffer_write_u8(buf, b->road_network_id);
-    buffer_write_u8(buf, b->monthly_levy);
+    buffer_write_u8(buf, legacy.housing_monthly_levy_or_building_levy);
     buffer_write_u16(buf, b->created_sequence);
     buffer_write_i16(buf, b->houses_covered);
     buffer_write_i16(buf, b->percentage_houses_covered);
-    buffer_write_i16(buf, b->house_population);
-    buffer_write_i16(buf, b->house_population_room);
+    buffer_write_i16(buf, legacy.housing_population);
+    buffer_write_i16(buf, legacy.housing_population_room);
     buffer_write_i16(buf, b->distance_from_entry);
-    buffer_write_i16(buf, b->house_highest_population);
-    buffer_write_i16(buf, b->house_unreachable_ticks);
+    buffer_write_i16(buf, legacy.housing_highest_population);
+    buffer_write_i16(buf, legacy.housing_unreachable_ticks);
     buffer_write_u8(buf, b->road_access_x);
     buffer_write_u8(buf, b->road_access_y);
     buffer_write_i16(buf, static_cast<int16_t>(b->figure_id));
     buffer_write_i16(buf, static_cast<int16_t>(b->figure_id2));
-    buffer_write_i16(buf, static_cast<int16_t>(b->immigrant_figure_id));
+    buffer_write_i16(buf, static_cast<int16_t>(legacy.housing_immigrant_figure_id));
     buffer_write_i16(buf, static_cast<int16_t>(b->figure_id4));
     buffer_write_u8(buf, b->figure_spawn_delay);
     buffer_write_u8(buf, b->days_since_offering);
     buffer_write_u8(buf, b->figure_roam_direction);
     buffer_write_u8(buf, b->has_water_access);
-    buffer_write_u8(buf, b->house_tavern_wine_access);
-    buffer_write_u8(buf, b->house_tavern_food_access);
-    buffer_write_i16(buf, b->prev_part_building_id);
-    buffer_write_i16(buf, b->next_part_building_id);
+    buffer_write_u8(buf, legacy.housing_tavern_wine_access);
+    buffer_write_u8(buf, legacy.housing_tavern_food_access);
+    buffer_write_i16(buf, b->prev_part_building_id); // bridge chain or synthesized composition DTO
+    buffer_write_i16(buf, b->next_part_building_id); // bridge chain or synthesized composition DTO
     buffer_write_i16(buf, 0); // Q: what was here and why was it removed? can we replace it with something useful?
-    buffer_write_u8(buf, b->house_sentiment_message);
+    buffer_write_u8(buf, legacy.housing_sentiment_message);
     buffer_write_u8(buf, b->has_well_access);
     buffer_write_i16(buf, b->num_workers);
     buffer_write_u8(buf, b->labor_category);
     buffer_write_u8(buf, b->output_resource_id);
     buffer_write_u8(buf, b->has_road_access);
-    buffer_write_u8(buf, b->house_criminal_active);
+    buffer_write_u8(buf, legacy.housing_criminal_active);
     buffer_write_i16(buf, b->damage_risk);
     buffer_write_i16(buf, b->fire_risk);
     buffer_write_i16(buf, b->fire_duration);
     buffer_write_u8(buf, b->fire_proof);
-    buffer_write_u8(buf, b->house_figure_generation_delay);
-    buffer_write_u8(buf, b->house_tax_coverage);
-    buffer_write_u8(buf, b->house_pantheon_access);
+    buffer_write_u8(buf, legacy.housing_generation_delay_or_rubble_seed);
+    buffer_write_u8(buf, legacy.housing_tax_coverage);
+    buffer_write_u8(buf, legacy.housing_pantheon_access);
     buffer_write_i16(buf, b->formation_id);
-    write_type_data(buf, b);
-    buffer_write_i32(buf, b->tax_income_or_storage);
-    buffer_write_u8(buf, b->house_days_without_food);
+    write_type_data(buf, b, legacy);
+    buffer_write_i32(buf, legacy.housing_tax_income_or_collected_tax);
+    buffer_write_u8(buf, legacy.housing_days_without_food);
     buffer_write_u8(buf, b->has_plague);
     buffer_write_i8(buf, b->desirability);
     buffer_write_u8(buf, b->is_deleted);
     buffer_write_u8(buf, b->is_close_to_water);
     buffer_write_u8(buf, b->storage_id);
-    buffer_write_i8(buf, b->sentiment.house_happiness); // which union field we use does not matter
+    buffer_write_i8(buf, legacy.housing_happiness_or_native_anger);
     buffer_write_u8(buf, b->show_on_problem_overlay);
 
     // expanded building data
@@ -647,8 +771,8 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_i16(buf, b->monument.phase);
 
     // Tourism
-    buffer_write_u8(buf, b->house_arena_gladiator);
-    buffer_write_u8(buf, b->house_arena_lion);
+    buffer_write_u8(buf, legacy.housing_arena_gladiator);
+    buffer_write_u8(buf, legacy.housing_arena_lion);
     buffer_write_u8(buf, b->is_tourism_venue);
     buffer_write_u8(buf, b->tourism_disabled);
     buffer_write_u8(buf, b->tourism_income);
@@ -659,8 +783,8 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     unsigned char graphics_variant = 0;
     if (b->id && (b->state == BUILDING_STATE_CREATED || b->state == BUILDING_STATE_IN_USE ||
             b->state == BUILDING_STATE_MOTHBALLED)) {
-        if (building_runtime *runtime = building_runtime_impl::get_city_building(const_cast<building *>(b))) {
-            graphics_variant = runtime->graphics_variant();
+        if (building_object && building_object->runtime_instance()) {
+            graphics_variant = building_object->runtime_instance()->graphics_variant();
         }
     }
     buffer_write_u8(buf, graphics_variant);
@@ -689,13 +813,21 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     // latrines
     buffer_write_u8(buf, b->has_latrines_access);
 
+    write_foundation_terrain_state(buf, foundation_terrain_state);
+
     // New building state code should always be added at the end to preserve savegame retrocompatibility
     // Also, don't forget to update BUILDING_STATE_CURRENT_BUFFER_SIZE and if possible, add a new macro like
     // BUILDING_STATE_NEW_FEATURE_BUFFER_SIZE with the full building state buffer size including all added features
     // up until that point in Augustus' development
 }
 
-static void read_type_data(buffer *buf, building *b, int version, int save_type_is_monument, int for_preview)
+static void read_type_data(
+    buffer *buf,
+    building *b,
+    building_save_bridge::LegacyBuildingSaveDto *legacy,
+    int version,
+    int save_type_is_monument,
+    int for_preview)
 {
     // This function should ALWAYS read 42 bytes for versions before or at SAVE_GAME_LAST_STATIC_RESOURCES.
     // The only exception is for Caravanserai on old savegame versions, which due to an oversight only read 41 bytes.
@@ -717,38 +849,38 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
     const int is_dock = type_attr_is(b->type, "dock");
     const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
 
-    if (definition && definition->has_housing()) {
+    if (definition && definition->has_housing() && legacy) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             for (int i = 0; i < resource_id_bridge_legacy_inventory_count(); i++) {
                 b->resources[resource_map_legacy_inventory(i)] = buffer_read_i16(buf);
             }
         }
-        b->data.house.theater = buffer_read_u8(buf);
-        b->data.house.amphitheater_actor = buffer_read_u8(buf);
-        b->data.house.amphitheater_gladiator = buffer_read_u8(buf);
-        b->data.house.colosseum_gladiator = buffer_read_u8(buf);
-        b->data.house.colosseum_lion = buffer_read_u8(buf);
-        b->data.house.hippodrome = buffer_read_u8(buf);
-        b->data.house.school = buffer_read_u8(buf);
-        b->data.house.library = buffer_read_u8(buf);
-        b->data.house.academy = buffer_read_u8(buf);
-        b->data.house.barber = buffer_read_u8(buf);
-        b->data.house.clinic = buffer_read_u8(buf);
-        b->data.house.bathhouse = buffer_read_u8(buf);
-        b->data.house.hospital = buffer_read_u8(buf);
-        b->data.house.temple_ceres = buffer_read_u8(buf);
-        b->data.house.temple_neptune = buffer_read_u8(buf);
-        b->data.house.temple_mercury = buffer_read_u8(buf);
-        b->data.house.temple_mars = buffer_read_u8(buf);
-        b->data.house.temple_venus = buffer_read_u8(buf);
-        b->data.house.no_space_to_expand = buffer_read_u8(buf);
-        b->data.house.num_foods = buffer_read_u8(buf);
-        b->data.house.entertainment = buffer_read_u8(buf);
-        b->data.house.education = buffer_read_u8(buf);
-        b->data.house.health = buffer_read_u8(buf);
-        b->data.house.num_gods = buffer_read_u8(buf);
-        b->data.house.devolve_delay = buffer_read_u8(buf);
-        b->data.house.evolve_text_id = buffer_read_u8(buf);
+        legacy->housing.theater = buffer_read_u8(buf);
+        legacy->housing.amphitheater_actor = buffer_read_u8(buf);
+        legacy->housing.amphitheater_gladiator = buffer_read_u8(buf);
+        legacy->housing.colosseum_gladiator = buffer_read_u8(buf);
+        legacy->housing.colosseum_lion = buffer_read_u8(buf);
+        legacy->housing.hippodrome = buffer_read_u8(buf);
+        legacy->housing.school = buffer_read_u8(buf);
+        legacy->housing.library = buffer_read_u8(buf);
+        legacy->housing.academy = buffer_read_u8(buf);
+        legacy->housing.barber = buffer_read_u8(buf);
+        legacy->housing.clinic = buffer_read_u8(buf);
+        legacy->housing.bathhouse = buffer_read_u8(buf);
+        legacy->housing.hospital = buffer_read_u8(buf);
+        legacy->housing.temple_ceres = buffer_read_u8(buf);
+        legacy->housing.temple_neptune = buffer_read_u8(buf);
+        legacy->housing.temple_mercury = buffer_read_u8(buf);
+        legacy->housing.temple_mars = buffer_read_u8(buf);
+        legacy->housing.temple_venus = buffer_read_u8(buf);
+        legacy->housing.no_space_to_expand = buffer_read_u8(buf);
+        legacy->housing.num_foods = buffer_read_u8(buf);
+        legacy->housing.entertainment = buffer_read_u8(buf);
+        legacy->housing.education = buffer_read_u8(buf);
+        legacy->housing.health = buffer_read_u8(buf);
+        legacy->housing.num_gods = buffer_read_u8(buf);
+        legacy->housing.devolve_delay = buffer_read_u8(buf);
+        legacy->housing.evolve_text_id = buffer_read_u8(buf);
         // Do not place this after supplier-distribution or monument handling.
         // Because Caravanserai is monument AND supplier building and resources_needed / inventory is same memory spot
     } else if (type_is_caravanserai(b->type)) {
@@ -968,14 +1100,6 @@ static void apply_definition_record_properties_after_load(building *b)
         return;
     }
 
-    const int declared_size = definition->declared_model_size();
-    if (declared_size > 0) {
-        b->size = static_cast<unsigned char>(declared_size);
-        if (definition->has_housing()) {
-            b->house_size = static_cast<unsigned char>(declared_size);
-        }
-    }
-
     if (!definition->has_flags()) {
         return;
     }
@@ -996,12 +1120,13 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 {
     size_t record_start = buf->index;
     unsigned char legacy_graphics_variant = 0;
+    building_save_bridge::LegacyBuildingSaveDto legacy;
     b->state = buffer_read_u8(buf);
     b->faction_id = buffer_read_u8(buf);
     b->unknown_value = buffer_read_u8(buf);
-    b->size = buffer_read_u8(buf);
-    b->house_is_merged = buffer_read_u8(buf);
-    b->house_size = buffer_read_u8(buf);
+    legacy.size = buffer_read_u8(buf);
+    legacy.house_is_merged = buffer_read_u8(buf);
+    legacy.house_size = buffer_read_u8(buf);
     b->x = buffer_read_u8(buf);
     b->y = buffer_read_u8(buf);
     b->grid_offset = buffer_read_i16(buf);
@@ -1009,57 +1134,63 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     int missing_building_type = building_type_id_bridge_save_id_is_missing(saved_building_type);
     b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
     const int is_dock = type_attr_is(b->type, "dock");
+    legacy.housing_level_or_subtype = buffer_read_i16(buf);
     if (type_is_warehouse_space(b->type)) {
-        b->subtype.warehouse_resource_id = static_cast<short>(resource_remap(buffer_read_i16(buf)));
+        b->subtype.warehouse_resource_id = static_cast<short>(resource_remap(legacy.housing_level_or_subtype));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
         (is_dock || type_has_distribution(b->type))) {
-        migrate_accepted_goods(b, buffer_read_i16(buf));
+        migrate_accepted_goods(b, legacy.housing_level_or_subtype);
     } else if (saved_building_type == LEGACY_SAVE_TYPE_MENU_FORT) { // Forts used to use a generic type for the main building
-        b->subtype.fort_figure_type = buffer_read_i16(buf);// union field, written as fort_figure_type for clarity
+        b->subtype.fort_figure_type = legacy.housing_level_or_subtype;
         b->type = get_fort_type(b); // get the correct fort type to ensure compatibility
     } else {
-        b->subtype.house_level = buffer_read_i16(buf); // which union field we use does not matter
+        const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
+        if (!definition || !definition->has_housing()) {
+            copy_subtype_bits(legacy.housing_level_or_subtype, b);
+        }
     }
     b->road_network_id = buffer_read_u8(buf);
-    b->monthly_levy = buffer_read_u8(buf);
+    legacy.housing_monthly_levy_or_building_levy = buffer_read_u8(buf);
     b->created_sequence = buffer_read_u16(buf);
     b->houses_covered = buffer_read_i16(buf);
     b->labor_access_score = 0.0f;
     b->percentage_houses_covered = buffer_read_i16(buf);
-    b->house_population = buffer_read_i16(buf);
-    b->house_population_room = buffer_read_i16(buf);
+    legacy.housing_population = buffer_read_i16(buf);
+    legacy.housing_population_room = buffer_read_i16(buf);
     b->distance_from_entry = buffer_read_i16(buf);
-    b->house_highest_population = buffer_read_i16(buf);
-    b->house_unreachable_ticks = buffer_read_i16(buf);
+    legacy.housing_highest_population = buffer_read_i16(buf);
+    legacy.housing_unreachable_ticks = buffer_read_i16(buf);
     b->road_access_x = buffer_read_u8(buf);
     b->road_access_y = buffer_read_u8(buf);
     b->figure_id = buffer_read_i16(buf);
     b->figure_id2 = buffer_read_i16(buf);
-    b->immigrant_figure_id = buffer_read_i16(buf);
+    legacy.housing_immigrant_figure_id = static_cast<uint16_t>(buffer_read_i16(buf));
     b->figure_id4 = buffer_read_i16(buf);
     b->figure_spawn_delay = buffer_read_u8(buf);
     b->days_since_offering = buffer_read_u8(buf);
     b->figure_roam_direction = buffer_read_u8(buf);
     b->has_water_access = buffer_read_u8(buf);
-    b->house_tavern_wine_access = buffer_read_u8(buf);
-    b->house_tavern_food_access = buffer_read_u8(buf);
+    legacy.housing_tavern_wine_access = buffer_read_u8(buf);
+    legacy.housing_tavern_food_access = buffer_read_u8(buf);
+    // Legacy load DTO boundary. Native composition consumes these ids during
+    // hydration; only dynamic bridges retain them afterward.
     b->prev_part_building_id = buffer_read_i16(buf);
     b->next_part_building_id = buffer_read_i16(buf);
     int loads_stored = buffer_read_i16(buf);
-    b->house_sentiment_message = buffer_read_u8(buf);
+    legacy.housing_sentiment_message = buffer_read_u8(buf);
     b->has_well_access = buffer_read_u8(buf);
     b->num_workers = buffer_read_i16(buf);
     b->labor_category = buffer_read_u8(buf);
     b->output_resource_id = static_cast<unsigned char>(resource_remap(buffer_read_u8(buf)));
     b->has_road_access = buffer_read_u8(buf);
-    b->house_criminal_active = buffer_read_u8(buf);
+    legacy.housing_criminal_active = buffer_read_u8(buf);
     b->damage_risk = buffer_read_i16(buf);
     b->fire_risk = buffer_read_i16(buf);
     b->fire_duration = buffer_read_i16(buf);
     b->fire_proof = buffer_read_u8(buf);
-    b->house_figure_generation_delay = buffer_read_u8(buf);
-    b->house_tax_coverage = buffer_read_u8(buf);
-    b->house_pantheon_access = buffer_read_u8(buf);
+    legacy.housing_generation_delay_or_rubble_seed = buffer_read_u8(buf);
+    legacy.housing_tax_coverage = buffer_read_u8(buf);
+    legacy.housing_pantheon_access = buffer_read_u8(buf);
     b->formation_id = buffer_read_i16(buf);
 
     const char *early_type_problem = loaded_building_type_problem(b, saved_building_type, missing_building_type);
@@ -1070,16 +1201,32 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     int save_type_monument = saved_type_is_monument(saved_building_type, b->type);
-    read_type_data(buf, b, save_version, save_type_monument, for_preview);
-    normalize_native_housing_after_load(b);
-    b->tax_income_or_storage = buffer_read_i32(buf);
-    b->house_days_without_food = buffer_read_u8(buf);
+    read_type_data(buf, b, &legacy, save_version, save_type_monument, for_preview);
+    const building_type_registry_impl::BuildingType *loaded_definition = definition_for_type(b->type);
+    const building_type_registry_impl::FoundationDef *loaded_foundation =
+        loaded_definition ? loaded_definition->foundation_def() : nullptr;
+    if (loaded_foundation && loaded_foundation->rotates()) {
+        b->subtype.orientation = static_cast<short>(
+            building_type_registry_impl::foundation_rotation_from_save(
+                *loaded_foundation,
+                b->subtype.orientation,
+                save_version,
+                SAVE_GAME_LAST_NO_FOUNDATION_TERRAIN_DELTAS));
+        if (is_dock) {
+            // Compatibility alias for legacy dock code. Building orientation is
+            // authoritative for foundation and native graphics runtime state.
+            b->data.dock.orientation = static_cast<signed char>(b->subtype.orientation);
+        }
+    }
+    normalize_native_housing_after_load(b, legacy, save_version);
+    legacy.housing_tax_income_or_collected_tax = buffer_read_i32(buf);
+    legacy.housing_days_without_food = buffer_read_u8(buf);
     b->has_plague = buffer_read_u8(buf);
     b->desirability = buffer_read_i8(buf);
     b->is_deleted = buffer_read_u8(buf);
     b->is_close_to_water = buffer_read_u8(buf);
     b->storage_id = buffer_read_u8(buf);
-    b->sentiment.house_happiness = buffer_read_i8(buf); // which union field we use does not matter
+    legacy.housing_happiness_or_native_anger = buffer_read_i8(buf);
     b->show_on_problem_overlay = buffer_read_u8(buf);
 
     // Wharves produce fish and don't need any progress
@@ -1095,14 +1242,14 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 
     if (building_buf_size < BUILDING_STATE_STRIKES) {
         // Backwards compatibility fixes for sentiment update
-        if (b->house_population && b->sentiment.house_happiness < 20) {
-            b->sentiment.house_happiness = 30;
+        if (legacy.housing_population && legacy.housing_happiness_or_native_anger < 20) {
+            legacy.housing_happiness_or_native_anger = 30;
         }
 
         // Backwards compatibility fixes for culture update
-        if (building_monument_is_monument(b) && b->subtype.house_level && !type_attr_is(b->type, "hippodrome") &&
+        if (building_monument_is_monument(b) && legacy.housing_level_or_subtype && !type_attr_is(b->type, "hippodrome") &&
             saved_building_type <= LEGACY_SAVE_TYPE_LIGHTHOUSE) {
-            b->monument.phase = b->subtype.house_level;
+            b->monument.phase = legacy.housing_level_or_subtype;
         }
 
         if ((type_attr_is(b->type, "hippodrome") || type_attr_is(b->type, "colosseum")) && !b->monument.phase) {
@@ -1159,8 +1306,8 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     normalize_monument_phase_after_load(b);
 
     if (building_buf_size >= BUILDING_STATE_TOURISM_BUFFER_SIZE) {
-        b->house_arena_gladiator = buffer_read_u8(buf);
-        b->house_arena_lion = buffer_read_u8(buf);
+        legacy.housing_arena_gladiator = buffer_read_u8(buf);
+        legacy.housing_arena_lion = buffer_read_u8(buf);
         b->is_tourism_venue = buffer_read_u8(buf);
         b->tourism_disabled = buffer_read_u8(buf);
         b->tourism_income = buffer_read_u8(buf);
@@ -1204,6 +1351,15 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     if (building_buf_size >= BUILDING_STATE_LATRINES &&
         remaining_building_record_bytes(buf, record_start, building_buf_size) > 0) {
         b->has_latrines_access = buffer_read_u8(buf);
+    }
+
+    if (building_buf_size >= BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS &&
+        save_version > SAVE_GAME_LAST_NO_FOUNDATION_TERRAIN_DELTAS) {
+        const building_type_registry_impl::FoundationTerrainSaveState foundation_state =
+            read_foundation_terrain_state(buf);
+        if (!for_preview && b->id && foundation_state.published == 1) {
+            building_runtime_stage_loaded_foundation_state(b->id, foundation_state);
+        }
     }
 
     // Update resource requirement changes on monuments
@@ -1285,6 +1441,14 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 
     apply_definition_record_properties_after_load(b);
 
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (!definition || !definition->has_housing()) {
+        b->levy_amount = legacy.housing_monthly_levy_or_building_levy;
+        b->collected_tax_income = legacy.housing_tax_income_or_collected_tax;
+        b->native_anger = legacy.housing_happiness_or_native_anger;
+    }
+
     if (!for_preview) {
         // Keep load as full records plus staged module state until building_runtime_initialize_city_graphics_cache().
         BuildingGraphicsState graphics_state;
@@ -1292,6 +1456,15 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         building_runtime_stage_loaded_graphics_state(
             b->id,
             graphics_state);
+        if (definition && definition->has_housing()) {
+            building_runtime_stage_loaded_housing_state(
+                b->id, housing_state_from_legacy_save(legacy));
+        }
+        RubbleState rubble_state;
+        if (building_runtime_loaded_rubble_state(b->id, &rubble_state)) {
+            rubble_state.random_seed = legacy.housing_generation_delay_or_rubble_seed;
+            building_runtime_stage_loaded_rubble_state(b->id, rubble_state);
+        }
     }
     return 0;
 }

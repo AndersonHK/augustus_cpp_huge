@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="PaperMap\Empire_Panels">
+    <image id="Empire_panel_texture_vertical">
+        <layer group="PaperMap\Empire_Panels" image="Image_0003" rotate="90"/>
+    </image>
+    <image id="Empire_sidebar_city_badge_corner" width="12" height="33">
+        <layer group="PaperMap\Empire_Panels" image="Image_0008" y="-59" invert="horizontal"/>
+    </image>
+    <image id="Empire_sidebar_city_badge_rest" width="250" height="33">
+        <layer group="PaperMap\Empire_Panels" image="Image_0008" x="-82" y="-59"/>
+    </image>
+    <image id="Empire_sidebar_city_badge" width="262" height="33">
+        <layer group="PaperMap\Empire_Panels" image="Empire_sidebar_city_badge_corner"/>
+        <layer group="PaperMap\Empire_Panels" image="Empire_sidebar_city_badge_rest" x="12"/>
+    </image>
+</assetlist>

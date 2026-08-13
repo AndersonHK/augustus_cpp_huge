@@ -2,10 +2,10 @@
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type.h"
+
 #include "building/building_type_registry_internal.h"
 
 #include "building/connectable.h"
-#include "building/housing_type.h"
 #include "building/industry.h"
 #include "building/production_method.h"
 #include "building/religion.h"
@@ -15,6 +15,7 @@
 #include "building/properties.h"
 #include "city/constants.h"
 
+#include <algorithm>
 #include <initializer_list>
 #include <utility>
 
@@ -23,6 +24,15 @@ namespace building_type_registry_impl {
 void IdentityDefinition::set_name_key(std::string key)
 {
     name_key_ = std::move(key);
+}
+
+bool IdentityDefinition::add_alias(std::string alias)
+{
+    if (alias.empty() || has_alias(alias)) {
+        return false;
+    }
+    aliases_.push_back(std::move(alias));
+    return true;
 }
 
 int IdentityDefinition::has_name_key() const
@@ -35,10 +45,14 @@ const char *IdentityDefinition::name_key() const
     return name_key_.c_str();
 }
 
-void BuildModelDefinition::set_size(int value)
+bool IdentityDefinition::has_alias(std::string_view alias) const
 {
-    has_size_ = 1;
-    size_ = value;
+    return std::find(aliases_.begin(), aliases_.end(), alias) != aliases_.end();
+}
+
+const std::vector<std::string> &IdentityDefinition::aliases() const
+{
+    return aliases_;
 }
 
 void BuildModelDefinition::set_cost(int value)
@@ -75,16 +89,6 @@ void BuildModelDefinition::set_desirability_range(int value)
 {
     has_desirability_range_ = 1;
     desirability_range_ = value;
-}
-
-int BuildModelDefinition::has_size() const
-{
-    return has_size_;
-}
-
-int BuildModelDefinition::size() const
-{
-    return size_;
 }
 
 int BuildModelDefinition::has_cost() const
@@ -149,92 +153,8 @@ int BuildModelDefinition::desirability_range() const
 
 int BuildModelDefinition::has_any() const
 {
-    return has_size_ || has_cost_ || has_hit_points_ || has_desirability_value_ || has_desirability_step_ ||
+    return has_cost_ || has_hit_points_ || has_desirability_value_ || has_desirability_step_ ||
         has_desirability_step_size_ || has_desirability_range_;
-}
-
-void FoundationDefinition::set_policy(
-    std::string policy,
-    FoundationPolicy type,
-    FoundationCellRequirement requirement)
-{
-    policy_ = std::move(policy);
-    policy_type_ = type;
-    policy_requirement_ = requirement;
-}
-
-void FoundationDefinition::set_requires_open_water(int value)
-{
-    requires_open_water_ = value ? 1 : 0;
-}
-
-void FoundationDefinition::add_required_terrain(int flags)
-{
-    required_terrain_ |= flags;
-}
-
-void FoundationDefinition::add_cell(int x, int y, int rotation, FoundationCellRequirement requirement)
-{
-    FoundationCellDefinition cell;
-    cell.x = x;
-    cell.y = y;
-    cell.rotation = rotation;
-    cell.requirement = requirement;
-    cells_.push_back(cell);
-}
-
-int FoundationDefinition::has_policy() const
-{
-    return !policy_.empty();
-}
-
-const char *FoundationDefinition::policy() const
-{
-    return policy_.c_str();
-}
-
-FoundationPolicy FoundationDefinition::policy_type() const
-{
-    return policy_type_;
-}
-
-FoundationCellRequirement FoundationDefinition::policy_requirement() const
-{
-    return policy_requirement_;
-}
-
-int FoundationDefinition::requires_open_water() const
-{
-    return requires_open_water_;
-}
-
-int FoundationDefinition::required_terrain() const
-{
-    return required_terrain_;
-}
-
-int FoundationDefinition::has_cells() const
-{
-    return !cells_.empty();
-}
-
-int FoundationDefinition::has_water_requirement() const
-{
-    if (policy_type_ == FoundationPolicy::Shoreline || policy_type_ == FoundationPolicy::Water ||
-        policy_requirement_ == FoundationCellRequirement::Water) {
-        return 1;
-    }
-    for (const FoundationCellDefinition &cell : cells_) {
-        if (cell.requirement == FoundationCellRequirement::Water) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-const std::vector<FoundationCellDefinition> &FoundationDefinition::cells() const
-{
-    return cells_;
 }
 
 void BuildButtonDefinition::set_group(std::string group)
@@ -326,62 +246,24 @@ int BuildButtonDefinition::has_any() const
     return has_group() || has_order() || has_icon() || has_icon_image() || has_text_key();
 }
 
-void RoadblockDefinition::set_kind(RoadblockKind kind)
+void BridgeDefinition::set_type(BridgeType type)
 {
-    kind_ = kind;
-    if (kind != RoadblockKind::Bridge) {
-        bridge_type_ = RoadblockBridgeType::None;
-    }
+    type_ = type;
 }
 
-void RoadblockDefinition::set_bridge_type(RoadblockBridgeType type)
+BridgeType BridgeDefinition::type() const
 {
-    bridge_type_ = type;
+    return type_;
 }
 
-void RoadblockDefinition::set_passage_type(RoadblockPassageType type)
+int BridgeDefinition::is_bridge() const
 {
-    passage_type_ = type;
+    return type_ != BridgeType::None;
 }
 
-RoadblockKind RoadblockDefinition::kind() const
+int BridgeDefinition::is_ship_bridge() const
 {
-    return kind_;
-}
-
-RoadblockBridgeType RoadblockDefinition::bridge_type() const
-{
-    return bridge_type_;
-}
-
-RoadblockPassageType RoadblockDefinition::passage_type() const
-{
-    return passage_type_;
-}
-
-int RoadblockDefinition::is_bridge() const
-{
-    return kind_ == RoadblockKind::Bridge;
-}
-
-int RoadblockDefinition::is_ship_bridge() const
-{
-    return bridge_type_ == RoadblockBridgeType::Ship;
-}
-
-int RoadblockDefinition::is_wall_gate() const
-{
-    return passage_type_ == RoadblockPassageType::WallGate;
-}
-
-int RoadblockDefinition::has_center_road_passage() const
-{
-    return passage_type_ == RoadblockPassageType::CenterRoad;
-}
-
-int RoadblockDefinition::has_any() const
-{
-    return kind_ != RoadblockKind::None;
+    return type_ == BridgeType::Ship;
 }
 
 void TileDefinition::set_kind(TileKind kind)
@@ -466,6 +348,75 @@ void ConstructionToolDefinition::set_drag_rotation(ConstructionDragRotation rota
     drag_rotation_ = rotation;
 }
 
+void SmartToolDef::add_mode(SmartToolModeDefinition mode)
+{
+    modes_.push_back(std::move(mode));
+}
+
+void SmartToolDef::resolve_mode_type(std::size_t index, const BuildingType *type)
+{
+    if (index < modes_.size()) {
+        modes_[index].type = type;
+    }
+}
+
+const std::vector<SmartToolModeDefinition> &SmartToolDef::modes() const
+{
+    return modes_;
+}
+
+const SmartToolModeDefinition *SmartToolDef::resolve_mode(
+    int control,
+    int shift,
+    SmartToolContext context) const
+{
+    // Specific modifiers retain authored priority when both keys are held.
+    // An unconditional mode is a fallback, never an order-dependent shadow.
+    for (const SmartToolModeDefinition &mode : modes_) {
+        if (mode.context == context &&
+            ((mode.modifier == SmartToolModifier::Control && control) ||
+            (mode.modifier == SmartToolModifier::Shift && shift))) {
+            return &mode;
+        }
+    }
+    for (const SmartToolModeDefinition &mode : modes_) {
+        if (mode.context == context && mode.modifier == SmartToolModifier::Any) {
+            return &mode;
+        }
+    }
+    return nullptr;
+}
+
+const SmartToolModeDefinition *SmartToolDef::mode_for_type(
+    const BuildingType *type,
+    SmartToolContext context) const
+{
+    if (!type) {
+        return nullptr;
+    }
+    for (const SmartToolModeDefinition &mode : modes_) {
+        if (mode.context == context && mode.type == type) {
+            return &mode;
+        }
+    }
+    return nullptr;
+}
+
+int SmartToolDef::has_any() const
+{
+    return !modes_.empty();
+}
+
+void ConstructionToolDefinition::add_smart_mode(SmartToolModeDefinition mode)
+{
+    smart_tool_.add_mode(std::move(mode));
+}
+
+void ConstructionToolDefinition::resolve_smart_mode_type(std::size_t index, const BuildingType *type)
+{
+    smart_tool_.resolve_mode_type(index, type);
+}
+
 ConstructionToolKind ConstructionToolDefinition::kind() const
 {
     return kind_;
@@ -544,6 +495,11 @@ int ConstructionToolDefinition::is_draggable_building() const
 int ConstructionToolDefinition::draggable_allows_roads() const
 {
     return drag_terrain_ == ConstructionDragTerrain::LandOrRoad;
+}
+
+const SmartToolDef &ConstructionToolDefinition::smart_tool() const
+{
+    return smart_tool_;
 }
 
 void ConstructionCycleDefinition::set_group(std::string group)
@@ -625,26 +581,6 @@ int SoundDefinition::always_play() const
 int SoundDefinition::has_any() const
 {
     return has_city_sound_ || mute_on_enemies_ || always_play_;
-}
-
-void EventDataDefinition::set_attr(std::string attr)
-{
-    attr_ = std::move(attr);
-}
-
-int EventDataDefinition::has_attr() const
-{
-    return !attr_.empty();
-}
-
-const char *EventDataDefinition::attr() const
-{
-    return attr_.c_str();
-}
-
-int EventDataDefinition::has_any() const
-{
-    return has_attr();
 }
 
 void MarketDefinition::set_max_distance(int value)
@@ -755,6 +691,11 @@ int MilitaryDefinition::has_any() const
     return !formation_reference_.empty();
 }
 
+void WaterAccessDefinition::set_requires_open_water(int required)
+{
+    requires_open_water_ = required ? 1 : 0;
+}
+
 void WaterAccessDefinition::add_provide_rule(WaterAccessProvideRule rule)
 {
     provide_rules_.push_back(std::move(rule));
@@ -790,6 +731,11 @@ int WaterAccessDefinition::has_provider() const
 int WaterAccessDefinition::has_requirements() const
 {
     return !requirement_rules_.empty();
+}
+
+int WaterAccessDefinition::requires_open_water() const
+{
+    return requires_open_water_;
 }
 
 const std::vector<WaterAccessProvideRule> &WaterAccessDefinition::provide_rules() const
@@ -1001,98 +947,6 @@ const std::vector<ConstructionPhase> &ConstructionDefinition::phases() const
     return phases_;
 }
 
-ComposedPartOffset ComposedPartDefinition::offset_for_rotation(int rotation) const
-{
-    int normalized_rotation = rotation % 4;
-    if (normalized_rotation < 0) {
-        normalized_rotation += 4;
-    }
-    if (offsets[normalized_rotation].has_value) {
-        return offsets[normalized_rotation];
-    }
-    for (const ComposedPartOffset &offset : offsets) {
-        if (offset.has_value) {
-            return offset;
-        }
-    }
-    return ComposedPartOffset();
-}
-
-void ComposedBuildingDefinition::set_footprint(int width, int height)
-{
-    footprint_width_ = width;
-    footprint_height_ = height;
-}
-
-void ComposedBuildingDefinition::set_child_inherits_orientation(int value)
-{
-    child_inherits_orientation_ = value ? 1 : 0;
-}
-
-void ComposedBuildingDefinition::set_main_offset(int rotation, int x, int y)
-{
-    int normalized_rotation = rotation % 4;
-    if (normalized_rotation < 0) {
-        normalized_rotation += 4;
-    }
-    main_offsets_[normalized_rotation] = { x, y, 1 };
-}
-
-ComposedPartDefinition &ComposedBuildingDefinition::add_part(std::string type_attr, std::string role)
-{
-    parts_.push_back(ComposedPartDefinition());
-    parts_.back().type_attr = std::move(type_attr);
-    parts_.back().role = std::move(role);
-    return parts_.back();
-}
-
-int ComposedBuildingDefinition::footprint_width() const
-{
-    return footprint_width_;
-}
-
-int ComposedBuildingDefinition::footprint_height() const
-{
-    return footprint_height_;
-}
-
-int ComposedBuildingDefinition::child_inherits_orientation() const
-{
-    return child_inherits_orientation_;
-}
-
-ComposedPartOffset ComposedBuildingDefinition::main_offset_for_rotation(int rotation) const
-{
-    int normalized_rotation = rotation % 4;
-    if (normalized_rotation < 0) {
-        normalized_rotation += 4;
-    }
-    if (main_offsets_[normalized_rotation].has_value) {
-        return main_offsets_[normalized_rotation];
-    }
-    for (const ComposedPartOffset &offset : main_offsets_) {
-        if (offset.has_value) {
-            return offset;
-        }
-    }
-    return ComposedPartOffset{ 0, 0, 1 };
-}
-
-const std::vector<ComposedPartDefinition> &ComposedBuildingDefinition::parts() const
-{
-    return parts_;
-}
-
-std::vector<ComposedPartDefinition> &ComposedBuildingDefinition::parts()
-{
-    return parts_;
-}
-
-int ComposedBuildingDefinition::has_any() const
-{
-    return footprint_width_ > 0 && footprint_height_ > 0 && !parts_.empty();
-}
-
 static bool attr_is(const std::string &attr, const char *text_id)
 {
     return attr == text_id;
@@ -1167,14 +1021,19 @@ BuildingType::BuildingType(building_type type, std::string attr)
 {
 }
 
+void BuildingType::assign_runtime_type(building_type type)
+{
+    type_ = type;
+}
+
 void BuildingType::set_identity_name_key(std::string key)
 {
     identity_.set_name_key(std::move(key));
 }
 
-void BuildingType::set_model_size(int value)
+bool BuildingType::add_identity_alias(std::string alias)
 {
-    model_.set_size(value);
+    return identity_.add_alias(std::move(alias));
 }
 
 void BuildingType::set_model_cost(int value)
@@ -1207,27 +1066,36 @@ void BuildingType::set_model_desirability_range(int value)
     model_.set_desirability_range(value);
 }
 
-void BuildingType::set_foundation_policy(
-    std::string policy,
-    FoundationPolicy type,
-    FoundationCellRequirement requirement)
+void BuildingType::set_foundation_reference(std::string path)
 {
-    foundation_.set_policy(std::move(policy), type, requirement);
+    foundation_reference_path_ = std::move(path);
 }
 
-void BuildingType::set_foundation_requires_open_water(int value)
+void BuildingType::set_foundation_definition(const FoundationDef *foundation)
 {
-    foundation_.set_requires_open_water(value);
+    foundation_def_ = foundation;
 }
 
-void BuildingType::add_foundation_required_terrain(int flags)
+int BuildingType::add_foundation_replacement_reference(std::string type)
 {
-    foundation_.add_required_terrain(flags);
+    if (type.empty() || std::find(
+            foundation_replacement_reference_paths_.begin(),
+            foundation_replacement_reference_paths_.end(),
+            type) != foundation_replacement_reference_paths_.end()) {
+        return 0;
+    }
+    foundation_replacement_reference_paths_.push_back(std::move(type));
+    return 1;
 }
 
-void BuildingType::add_foundation_cell(int x, int y, int rotation, FoundationCellRequirement requirement)
+void BuildingType::add_foundation_replacement_type(const BuildingType *type)
 {
-    foundation_.add_cell(x, y, rotation, requirement);
+    if (type && std::find(
+            foundation_replacement_types_.begin(),
+            foundation_replacement_types_.end(),
+            type) == foundation_replacement_types_.end()) {
+        foundation_replacement_types_.push_back(type);
+    }
 }
 
 void BuildingType::set_button_group(std::string group)
@@ -1275,19 +1143,9 @@ void BuildingType::add_button(BuildButtonDefinition button)
     buttons_.push_back(std::move(button));
 }
 
-void BuildingType::set_roadblock_kind(RoadblockKind kind)
+void BuildingType::set_bridge_type(BridgeType type)
 {
-    roadblock_.set_kind(kind);
-}
-
-void BuildingType::set_roadblock_bridge_type(RoadblockBridgeType type)
-{
-    roadblock_.set_bridge_type(type);
-}
-
-void BuildingType::set_roadblock_passage_type(RoadblockPassageType type)
-{
-    roadblock_.set_passage_type(type);
+    bridge_.set_type(type);
 }
 
 void BuildingType::set_rubble(RubbleType type)
@@ -1350,6 +1208,16 @@ void BuildingType::set_tool_drag_rotation(ConstructionDragRotation rotation)
     tool_.set_drag_rotation(rotation);
 }
 
+void BuildingType::add_tool_smart_mode(SmartToolModeDefinition mode)
+{
+    tool_.add_smart_mode(std::move(mode));
+}
+
+void BuildingType::resolve_tool_smart_mode_type(std::size_t index, const BuildingType *type)
+{
+    tool_.resolve_smart_mode_type(index, type);
+}
+
 void BuildingType::set_cycle_group(std::string group)
 {
     cycle_.set_group(std::move(group));
@@ -1383,11 +1251,6 @@ void BuildingType::set_sound_mute_on_enemies(int value)
 void BuildingType::set_sound_always_play(int value)
 {
     sound_.set_always_play(value);
-}
-
-void BuildingType::set_event_attr(std::string attr)
-{
-    event_data_.set_attr(std::move(attr));
 }
 
 void BuildingType::set_market_max_distance(int value)
@@ -1435,6 +1298,11 @@ void BuildingType::add_water_access_requirement_rule(WaterAccessRequirementRule 
     water_access_.add_requirement_rule(std::move(rule));
 }
 
+void BuildingType::set_water_access_requires_open_water(int required)
+{
+    water_access_.set_requires_open_water(required);
+}
+
 void BuildingType::add_water_access_node(WaterAccessNode node)
 {
     water_access_.add_node(std::move(node));
@@ -1448,6 +1316,16 @@ void BuildingType::add_water_access_provider_node(WaterAccessNode node)
 void BuildingType::add_water_access_requirement_node(WaterAccessNode node)
 {
     water_access_.add_requirement_node(std::move(node));
+}
+
+void BuildingType::set_graphics_status_icon_anchor(int x, int y)
+{
+    graphics_.set_status_icon_anchor(x, y);
+}
+
+void BuildingType::set_graphics_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy)
+{
+    graphics_.set_overlay_summary_policy(policy);
 }
 
 void BuildingType::mark_graphics_default_node()
@@ -1554,34 +1432,6 @@ void BuildingType::add_construction_requirement(resource_type resource, int amou
     construction_.add_requirement(resource, amount);
 }
 
-void BuildingType::set_composed_footprint(int width, int height)
-{
-    composition_.set_footprint(width, height);
-}
-
-void BuildingType::set_composed_child_inherits_orientation(int value)
-{
-    composition_.set_child_inherits_orientation(value);
-}
-
-void BuildingType::set_composed_main_offset(int rotation, int x, int y)
-{
-    composition_.set_main_offset(rotation, x, y);
-}
-
-ComposedPartDefinition &BuildingType::add_composed_part(std::string type_attr, std::string role)
-{
-    return composition_.add_part(std::move(type_attr), std::move(role));
-}
-
-void BuildingType::set_composed_part_type(size_t index, building_type type)
-{
-    std::vector<ComposedPartDefinition> &parts = composition_.parts();
-    if (index < parts.size()) {
-        parts[index].type = type;
-    }
-}
-
 void BuildingType::add_spawn_policy(SpawnPolicy policy)
 {
     if (spawn_groups_.empty()) {
@@ -1630,39 +1480,6 @@ void BuildingType::set_distribution_reference(std::string path)
     distribution_reference_path_ = std::move(path);
 }
 
-void BuildingType::set_housing_reference(std::string path)
-{
-    housing_reference_path_ = std::move(path);
-}
-
-void BuildingType::set_housing_capacity(int capacity)
-{
-    housing_capacity_ = capacity;
-}
-
-void BuildingType::set_housing_transition(HousingTransitionKind kind, std::string text_id)
-{
-    switch (kind) {
-        case HousingTransitionKind::EvolveTo:
-            housing_evolve_to_ = std::move(text_id);
-            break;
-        case HousingTransitionKind::DevolveTo:
-            housing_devolve_to_ = std::move(text_id);
-            break;
-        case HousingTransitionKind::MergeTo:
-            housing_merge_to_ = std::move(text_id);
-            break;
-        case HousingTransitionKind::SplitTo:
-            housing_split_to_ = std::move(text_id);
-            break;
-    }
-}
-
-void BuildingType::set_vacant_lot_fill_reference(std::string text_id)
-{
-    vacant_lot_fill_to_ = std::move(text_id);
-}
-
 void BuildingType::resolve_culture_module(const std::string &path, const CultureModule *culture_module)
 {
     for (BuildingCultureModule &module : culture_modules_) {
@@ -1699,37 +1516,9 @@ void BuildingType::set_distribution(const Distribution *distribution)
     distribution_ = distribution;
 }
 
-void BuildingType::set_housing_type(const HousingType *housing_type)
-{
-    housing_type_ = housing_type;
-}
-
 void BuildingType::set_temple_religion(const Religion *religion)
 {
     religion_ = religion;
-}
-
-void BuildingType::set_housing_transition_type(HousingTransitionKind kind, building_type type)
-{
-    switch (kind) {
-        case HousingTransitionKind::EvolveTo:
-            housing_evolve_to_type_ = type;
-            break;
-        case HousingTransitionKind::DevolveTo:
-            housing_devolve_to_type_ = type;
-            break;
-        case HousingTransitionKind::MergeTo:
-            housing_merge_to_type_ = type;
-            break;
-        case HousingTransitionKind::SplitTo:
-            housing_split_to_type_ = type;
-            break;
-    }
-}
-
-void BuildingType::set_vacant_lot_fill_type(building_type type)
-{
-    vacant_lot_fill_type_ = type;
 }
 
 SpawnDelayGroup *BuildingType::last_spawn_group()
@@ -1752,6 +1541,11 @@ bool BuildingType::attr_is(std::string_view attr) const
     return attr_ == attr;
 }
 
+bool BuildingType::matches_identity(std::string_view identity) const
+{
+    return attr_is(identity) || identity_.has_alias(identity);
+}
+
 const IdentityDefinition &BuildingType::identity() const
 {
     return identity_;
@@ -1762,9 +1556,32 @@ const BuildModelDefinition &BuildingType::model() const
     return model_;
 }
 
-const FoundationDefinition &BuildingType::foundation() const
+const FoundationDef *BuildingType::foundation_def() const
 {
-    return foundation_;
+    return foundation_def_;
+}
+
+const std::string &BuildingType::foundation_reference_path() const
+{
+    return foundation_reference_path_;
+}
+
+const std::vector<std::string> &BuildingType::foundation_replacement_reference_paths() const
+{
+    return foundation_replacement_reference_paths_;
+}
+
+const std::vector<const BuildingType *> &BuildingType::foundation_replacement_types() const
+{
+    return foundation_replacement_types_;
+}
+
+int BuildingType::foundation_may_replace(const BuildingType *type) const
+{
+    return type && std::find(
+        foundation_replacement_types_.begin(),
+        foundation_replacement_types_.end(),
+        type) != foundation_replacement_types_.end();
 }
 
 const BuildButtonDefinition &BuildingType::button() const
@@ -1778,9 +1595,9 @@ const std::vector<BuildButtonDefinition> &BuildingType::buttons() const
     return buttons_;
 }
 
-const RoadblockDefinition &BuildingType::roadblock() const
+const BridgeDefinition &BuildingType::bridge() const
 {
-    return roadblock_;
+    return bridge_;
 }
 
 const RubbleDef &BuildingType::rubble() const
@@ -1818,11 +1635,6 @@ const SoundDefinition &BuildingType::sound() const
     return sound_;
 }
 
-const EventDataDefinition &BuildingType::event_data() const
-{
-    return event_data_;
-}
-
 const MarketDefinition &BuildingType::market() const
 {
     return market_;
@@ -1853,7 +1665,12 @@ const ConstructionDefinition &BuildingType::construction() const
     return construction_;
 }
 
-const ComposedBuildingDefinition &BuildingType::composition() const
+CompositionDef &BuildingType::composition()
+{
+    return composition_;
+}
+
+const CompositionDef &BuildingType::composition() const
 {
     return composition_;
 }
@@ -1869,25 +1686,24 @@ const char *BuildingType::button_text_key() const
     return has_button() && primary_button.has_text_key() ? primary_button.text_key() : nullptr;
 }
 
-int BuildingType::declared_model_size() const
-{
-    return has_model() && model().has_size() ? model().size() : 0;
-}
-
 int BuildingType::placement_width(int orientation) const
 {
-    if (!has_composition()) {
-        return std::max(declared_model_size(), 1);
+    if (has_composition()) {
+        const CompositionLayoutResult layout = build_composition_layout(
+            this, composition_, 0, 0, orientation);
+        return layout.valid() ? layout.bounds.width() : 0;
     }
-    return orientation % 2 ? composition().footprint_height() : composition().footprint_width();
+    return foundation_def_ ? foundation_def_->rotated_width(orientation) : 0;
 }
 
 int BuildingType::placement_height(int orientation) const
 {
-    if (!has_composition()) {
-        return std::max(declared_model_size(), 1);
+    if (has_composition()) {
+        const CompositionLayoutResult layout = build_composition_layout(
+            this, composition_, 0, 0, orientation);
+        return layout.valid() ? layout.bounds.height() : 0;
     }
-    return orientation % 2 ? composition().footprint_width() : composition().footprint_height();
+    return foundation_def_ ? foundation_def_->rotated_height(orientation) : 0;
 }
 
 figure_type BuildingType::preview_figure_type() const
@@ -1974,6 +1790,11 @@ int BuildingType::is_storage() const
     return is_granary() || is_warehouse();
 }
 
+int BuildingType::is_plague_treatment_target() const
+{
+    return has_housing() || attr_is("dock") || is_storage();
+}
+
 int BuildingType::is_mess_hall() const
 {
     return attr_ == "mess_hall";
@@ -2037,17 +1858,6 @@ int BuildingType::has_model() const
     return model_.has_any();
 }
 
-int BuildingType::has_foundation() const
-{
-    return foundation_.has_policy() || foundation_.requires_open_water() ||
-        foundation_.required_terrain() != 0 || foundation_.has_cells();
-}
-
-int BuildingType::foundation_required_terrain() const
-{
-    return foundation_.required_terrain();
-}
-
 int BuildingType::has_button() const
 {
     for (const BuildButtonDefinition &button : buttons_) {
@@ -2056,11 +1866,6 @@ int BuildingType::has_button() const
         }
     }
     return 0;
-}
-
-int BuildingType::has_roadblock() const
-{
-    return roadblock_.has_any();
 }
 
 int BuildingType::has_rubble() const
@@ -2086,11 +1891,6 @@ int BuildingType::has_temple() const
 int BuildingType::has_sound() const
 {
     return sound_.has_any();
-}
-
-int BuildingType::has_event_data() const
-{
-    return event_data_.has_any();
 }
 
 int BuildingType::has_market() const
@@ -2128,6 +1928,11 @@ int BuildingType::has_composition() const
     return composition_.has_any();
 }
 
+int BuildingType::has_rotated_placement_geometry() const
+{
+    return (foundation_def_ && foundation_def_->rotates()) || has_composition();
+}
+
 int BuildingType::has_phased_construction() const
 {
     return construction_.is_phased() && construction_.phase_count() > 0;
@@ -2163,39 +1968,9 @@ const std::string &BuildingType::distribution_reference_path() const
     return distribution_reference_path_;
 }
 
-const std::string &BuildingType::housing_reference_path() const
-{
-    return housing_reference_path_;
-}
-
-const std::string &BuildingType::vacant_lot_fill_reference() const
-{
-    return vacant_lot_fill_to_;
-}
-
 const std::string &BuildingType::temple_religion_reference_path() const
 {
     return religion_reference_path_;
-}
-
-int BuildingType::housing_capacity() const
-{
-    return housing_capacity_;
-}
-
-const std::string &BuildingType::housing_transition_reference(HousingTransitionKind kind) const
-{
-    switch (kind) {
-        case HousingTransitionKind::EvolveTo:
-            return housing_evolve_to_;
-        case HousingTransitionKind::DevolveTo:
-            return housing_devolve_to_;
-        case HousingTransitionKind::MergeTo:
-            return housing_merge_to_;
-        case HousingTransitionKind::SplitTo:
-            return housing_split_to_;
-    }
-    return housing_evolve_to_;
 }
 
 const std::vector<BuildingCultureModule> &BuildingType::culture_modules() const
@@ -2223,8 +1998,8 @@ resource_type BuildingType::output_resource() const
     if (!has_composition()) {
         return RESOURCE_NONE;
     }
-    for (const ComposedPartDefinition &part : composition().parts()) {
-        const BuildingType *part_type = building_type_registry_impl::definition_for_type(part.type);
+    for (const CompositionChildDef &part : composition().children()) {
+        const BuildingType *part_type = part.type;
         if (part_type) {
             resource_type resource = part_type->output_resource();
             if (resource != RESOURCE_NONE) {
@@ -2240,29 +2015,20 @@ const Distribution *BuildingType::distribution() const
     return distribution_;
 }
 
-const HousingType *BuildingType::housing_type() const
+HousingDef &BuildingType::housing_def()
 {
-    return housing_type_;
+    return housing_def_;
 }
 
-building_type BuildingType::housing_transition_type(HousingTransitionKind kind) const
+const HousingDef &BuildingType::housing_def() const
 {
-    switch (kind) {
-        case HousingTransitionKind::EvolveTo:
-            return housing_evolve_to_type_;
-        case HousingTransitionKind::DevolveTo:
-            return housing_devolve_to_type_;
-        case HousingTransitionKind::MergeTo:
-            return housing_merge_to_type_;
-        case HousingTransitionKind::SplitTo:
-            return housing_split_to_type_;
-    }
-    return BUILDING_NONE;
+    return housing_def_;
 }
 
 building_type BuildingType::vacant_lot_fill_type() const
 {
-    return vacant_lot_fill_type_;
+    const BuildingType *target = housing_def_.transition(HousingTransitionKind::VacantLot).type;
+    return target ? target->type() : BUILDING_NONE;
 }
 
 int BuildingType::has_native_storage() const
@@ -2298,8 +2064,8 @@ const ProductionMethod *BuildingType::farm_panel_production_method() const
     if (!has_composition()) {
         return nullptr;
     }
-    for (const ComposedPartDefinition &part : composition().parts()) {
-        const BuildingType *part_type = building_type_registry_impl::definition_for_type(part.type);
+    for (const CompositionChildDef &part : composition().children()) {
+        const BuildingType *part_type = part.type;
         if (!part_type) {
             continue;
         }
@@ -2332,17 +2098,12 @@ int BuildingType::has_distribution() const
 
 int BuildingType::has_housing() const
 {
-    return housing_type_ ? 1 : 0;
-}
-
-int BuildingType::housing_level() const
-{
-    return housing_type_ ? housing_type_->level() : -1;
+    return housing_def_.profile ? 1 : 0;
 }
 
 int BuildingType::is_vacant_lot() const
 {
-    return !vacant_lot_fill_to_.empty();
+    return !housing_def_.transition(HousingTransitionKind::VacantLot).type_path.empty();
 }
 
 unsigned char BuildingType::upgrade_level_for(const Building &building) const

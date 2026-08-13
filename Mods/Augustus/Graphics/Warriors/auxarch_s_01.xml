@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\auxarch_s_01">
+    <image id="auxarch_s_01" width="39" height="39">
+        <layer src="auxarch_s_01" x="14"/>
+    </image>
+</assetlist>

@@ -15,6 +15,7 @@
     <ClCompile Include="tools\augustus_graphics_extractor\extractor_shims.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_abi.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
     <ClCompile Include="src\core\buffer.cpp" />
     <ClCompile Include="src\core\image.cpp" />
@@ -30,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\assets\graphics_extractor_common.h" />
+    <ClInclude Include="src\assets\graphics_extraction_abi.h" />
     <ClInclude Include="src\core\legacy_image_extractor.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

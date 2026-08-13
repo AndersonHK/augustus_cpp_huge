@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Village">
+    <image id="Village" width="40" height="40">
+        <layer src="Village" x="4" y="5"/>
+    </image>
+</assetlist>

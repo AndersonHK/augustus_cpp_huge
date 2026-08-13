@@ -26,7 +26,7 @@ void enemy_armies_clear(void)
 void enemy_army_clear(int invasion_id)
 {
     enemy_armies[invasion_id].formation_id = 0;
-    enemy_armies[invasion_id].layout = 0;
+    enemy_armies[invasion_id].layout_definition = nullptr;
     enemy_armies[invasion_id].home_x = 0;
     enemy_armies[invasion_id].home_y = 0;
     enemy_armies[invasion_id].destination_x = 0;
@@ -138,7 +138,7 @@ void enemy_armies_save_state(buffer *buf, buffer *totals_buf)
         buffer_write_i32(buf, enemy_armies[i].home_y);
     }
     for (int i = 0; i < MAX_ENEMY_ARMIES; i++) {
-        buffer_write_i32(buf, enemy_armies[i].layout);
+        buffer_write_i32(buf, formation_layout_to_legacy_id(enemy_armies[i].layout_definition));
     }
     for (int i = 0; i < MAX_ENEMY_ARMIES; i++) {
         buffer_write_i32(buf, enemy_armies[i].destination_x);
@@ -174,7 +174,8 @@ void enemy_armies_load_state(buffer *buf, buffer *totals_buf)
         enemy_armies[i].home_y = buffer_read_i32(buf);
     }
     for (int i = 0; i < MAX_ENEMY_ARMIES; i++) {
-        enemy_armies[i].layout = buffer_read_i32(buf);
+        const int saved_layout = buffer_read_i32(buf);
+        enemy_armies[i].layout_definition = formation_layout_from_legacy_id(saved_layout);
     }
     for (int i = 0; i < MAX_ENEMY_ARMIES; i++) {
         enemy_armies[i].destination_x = buffer_read_i32(buf);

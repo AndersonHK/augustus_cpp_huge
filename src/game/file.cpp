@@ -2,6 +2,7 @@
 #include "translation/translation.h"
 
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_runtime.h"
 #include "building/construction.h"
@@ -67,6 +68,7 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
+#include "map/water_navigation.h"
 #include "platform/file_manager.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_messages.h"
@@ -172,6 +174,7 @@ void game_file_clear_scenario_data_for_save_load(void)
 
 static void initialize_scenario_data(const uint8_t *scenario_name)
 {
+    water_navigation::begin_world_load();
     scenario_set_name(scenario_name);
     scenario_map_init();
 
@@ -236,10 +239,11 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     game_state_unpause();
 
     weather_reset();
-    building_repair_loaded_compositions();
+    building_hydrate_loaded_compositions();
     // After new city/scenario init, every live building instance is rebound to its runtime wrapper and rebuilds native
     // graphics/storage/production state.
     building_runtime_initialize_city_graphics_cache();
+    water_navigation::finish_world_load();
     figure_runtime_initialize_city();
 }
 
@@ -277,15 +281,13 @@ static int load_custom_scenario(const uint8_t *scenario_name, const char *scenar
  */
 static void check_hippodrome_compatibility(Building b)
 {
+    // Legacy-load compatibility runs before fixed composition record links are
+    // consumed into BuildingComposition and cleared from the live records.
+    const building *record = b.record();
     // if we got the middle part of the hippodrome
-    if (b.next_part_id() && b.previous_part_id()) {
-        Building *next = b.next();
-        Building *prev = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!prev && building && building->id == static_cast<unsigned int>(b.previous_part_id())) {
-                prev = building;
-            }
-        });
+    if (record && record->next_part_building_id != 0 && record->prev_part_building_id != 0) {
+        Building *next = Building::get(static_cast<unsigned int>(record->next_part_building_id));
+        Building *prev = Building::get(static_cast<unsigned int>(record->prev_part_building_id));
         if (!next || !prev) {
             return;
         }
@@ -311,6 +313,7 @@ static void check_backward_compatibility(void)
 
 static void initialize_saved_game(void)
 {
+    water_navigation::begin_world_load();
     load_empire_data(!game_campaign_is_original(), scenario_empire_id());
     if (resource_id_bridge_mapping_joins_meat_and_fish()) {
         empire_city_update_our_fish_and_meat_production();
@@ -319,7 +322,7 @@ static void initialize_saved_game(void)
 
     map_image_context_init();
     map_image_clear();
-    building_repair_loaded_compositions();
+    building_hydrate_loaded_compositions();
     map_image_update_all();
 
     scenario_map_init();
@@ -369,6 +372,7 @@ static void initialize_saved_game(void)
     Route::updateAllTerrain();
     map_road_network_update();
     Route::updateLandTerrain();
+    water_navigation::finish_world_load();
     building_maintenance_check_rome_access();
     house_population_update_room();
     Figure::resolve_loaded_building_references();

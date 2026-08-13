@@ -404,7 +404,14 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         if (!map_building_exists_at(current_grid_offset)) {
             continue;
         }
-        Building b = map_building_at(current_grid_offset).main();
+        Building &selected = map_building_at(current_grid_offset);
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        if (!owner) {
+            continue;
+        }
+        Building b = *owner;
         if (b.matches("burning_ruin")) {
             continue;
         }
@@ -414,9 +421,7 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         const building_type building_type_id = b.type ? b.type->type() : BUILDING_NONE;
         if (destroy_all || building_type_id == type ||
             (type == SCENARIO_BUILDING_MENU_FORT && building_is_fort(building_type_id))) {
-            if (building *record = const_cast<::building *>(b.record())) {
-                building_destroy_by_collapse(record);
-            }
+            b.destroy_by_collapse();
         }
     }
 
@@ -756,10 +761,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
             if (terrain & TERRAIN_NOT_CLEAR) {
                 // Destroy buildings if the new terrains doesn't allow for buildings
                 if (map_building_exists_at(current_grid_offset)) {
-                    Building b = map_building_at(current_grid_offset).main();
-                    if (building *record = const_cast<::building *>(b.record())) {
-                        building_destroy_without_rubble(record);
-                    }
+                    Building &selected = map_building_at(current_grid_offset);
+                    Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+                        &selected.dynamic_bridge_owner() :
+                        (selected.Composition ? selected.Composition->owner() : &selected);
+                    owner->destroy_without_rubble();
                 }
                 // Since the engine only supports one blocking terrain per tile, 
                 // remove all others before adding a new one
@@ -770,10 +776,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
             if (terrain == TERRAIN_WATER && map_terrain_get(current_grid_offset) & TERRAIN_WATER) {
                 // Destroy water buildings when removing water
                 if (map_building_exists_at(current_grid_offset)) {
-                    Building b = map_building_at(current_grid_offset).main();
-                    if (building *record = const_cast<::building *>(b.record())) {
-                        building_destroy_without_rubble(record);
-                    }
+                    Building &selected = map_building_at(current_grid_offset);
+                    Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+                        &selected.dynamic_bridge_owner() :
+                        (selected.Composition ? selected.Composition->owner() : &selected);
+                    owner->destroy_without_rubble();
                 }
 
             }

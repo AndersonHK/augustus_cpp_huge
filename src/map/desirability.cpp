@@ -2,79 +2,66 @@
 #include "desirability.h"
 
 #include "building/building.h"
+#include "building/BuildingGeometry.h"
 #include "building/building_type_registry_internal.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "core/calc.h"
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/ring.h"
 #include "map/terrain.h"
 
-static grid_i8 desirability_grid;
+#include <algorithm>
 
-static const model_building *model_for_type_text(const char *text_id)
-{
-    building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type != BUILDING_NONE ? model_get_building(type) : nullptr;
-}
+static grid_i8 desirability_grid;
 
 void map_desirability_clear(void)
 {
     map_grid_clear_i8(desirability_grid.items);
 }
 
-static void add_desirability_at_distance(int x, int y, int size, int distance, int desirability)
+static void add_to_terrain(
+    const building_type_registry_impl::BuildingGeometry &geometry,
+    int desirability,
+    int step,
+    int step_size,
+    int range)
 {
-    int partially_outside_map = 0;
-    if (x - distance < -1 || x + distance + size - 1 > map_data.width) {
-        partially_outside_map = 1;
+    if (!geometry.valid() || range <= 0) {
+        return;
     }
-    if (y - distance < -1 || y + distance + size - 1 > map_data.height) {
-        partially_outside_map = 1;
-    }
-    int base_offset = map_grid_offset(x, y);
-    int start = map_ring_start(size, distance);
-    int end = map_ring_end(size, distance);
-
-    if (partially_outside_map) {
-        for (int i = start; i < end; i++) {
-            const ring_tile *tile = map_ring_tile(i);
-            if (map_ring_is_inside_map(x + tile->x, y + tile->y)) {
-                desirability_grid.items[base_offset + tile->grid_offset] = static_cast<int8_t>(
-                    calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100));
+    range = std::min(range, 8);
+    const int step_interval = std::max(1, step);
+    for (int distance = 1; distance <= range; ++distance) {
+        const int value = desirability + ((distance - 1) / step_interval) * step_size;
+        for (const building_type_registry_impl::BuildingGeometryPoint &point :
+            geometry.points_at_distance(distance)) {
+            if (point.x < -1 || point.x > map_data.width || point.y < -1 || point.y > map_data.height) {
+                continue;
             }
-        }
-    } else {
-        for (int i = start; i < end; i++) {
-            const ring_tile *tile = map_ring_tile(i);
-            desirability_grid.items[base_offset + tile->grid_offset] = static_cast<int8_t>(
-                calc_bound(desirability_grid.items[base_offset + tile->grid_offset] + desirability, -100, 100));
+            const int grid_offset = map_grid_offset(point.x, point.y);
+            desirability_grid.items[grid_offset] = static_cast<int8_t>(
+                calc_bound(desirability_grid.items[grid_offset] + value, -100, 100));
         }
     }
 }
 
-static void add_to_terrain(int x, int y, int size, int desirability, int step, int step_size, int range)
+static void add_to_terrain_cell(
+    int x,
+    int y,
+    int desirability,
+    int step,
+    int step_size,
+    int range)
 {
-    if (size > 0) {
-        if (range > 8) {
-            range = 8;
-        }
-        int tiles_within_step = 0;
-        int distance = 1;
-        while (range > 0) {
-            add_desirability_at_distance(x, y, size, distance, desirability);
-            distance++;
-            range--;
-            tiles_within_step++;
-            if (tiles_within_step >= step) {
-                desirability += step_size;
-                tiles_within_step = 0;
-            }
-        }
-    }
+    add_to_terrain(
+        building_type_registry_impl::BuildingGeometry::from_world_cells({ { x, y } }),
+        desirability,
+        step,
+        step_size,
+        range);
 }
 
 static void update_buildings(void)
@@ -103,9 +90,10 @@ static void update_buildings(void)
         range = model->desirability_range;
 
         // Venus Module 2 House Desirability Bonus
-        if (building->type && building->type->has_housing() && b->data.house.temple_venus && venus_module2) {
-            int legacy_level = building_house_legacy_level(*building);
-            if (building_house_has_patrician_residents(*building)) {
+        if (building->Housing && building->Housing->state().services.temple_venus && venus_module2) {
+            const auto *profile = building->Housing->definition().profile;
+            int legacy_level = profile ? profile->compatibility_level : -1;
+            if (building->Housing->has_patrician_residents()) {
                 value += 4;
                 range += 1;
             } else if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
@@ -136,18 +124,18 @@ static void update_buildings(void)
             range += 1;
         }
 
-        add_to_terrain(
-            b->x, b->y, b->size,
-            value,
-            step,
-            step_size,
-            range);
+        const building_type_registry_impl::BuildingGeometry geometry =
+            building_type_registry_impl::BuildingGeometry::query(*building);
+        add_to_terrain(geometry, value, step, step_size, range);
     });
 }
 
-static void add_garden_desirability(int x, int y)
+static void add_garden_desirability(
+    int x,
+    int y,
+    const model_building *model,
+    int venus_bonus)
 {
-    const model_building *model = model_for_type_text("gardens");
     if (!model) {
         return;
     }
@@ -157,61 +145,75 @@ static void add_garden_desirability(int x, int y)
     int step_size = model->desirability_step_size;
     int range = model->desirability_range;
 
-    if (grand_temple_for_god(GOD_VENUS, true)) {
+    if (venus_bonus) {
         int value_bonus = ((value / 4) > 1) ? (value / 4) : 1;
         value += value_bonus;
         step += 1;
         range += 1;
     }
 
-    add_to_terrain(x, y, 1, value, step, step_size, range);
+    const building_type_registry_impl::BuildingGeometry geometry =
+        building_type_registry_impl::BuildingGeometry::from_world_cells({ { x, y } });
+    add_to_terrain(geometry, value, step, step_size, range);
 }
 
 static void update_terrain(void)
 {
+    const building_type garden_type = building_type_registry_impl::type_from_attr("gardens");
+    const building_type highway_type = building_type_registry_impl::type_from_attr("highway");
+    const building_type plaza_type = building_type_registry_impl::type_from_attr("plaza");
+    const building_type earthquake_type = building_type_registry_impl::vacant_lot_fill_type();
+    const model_building *garden_model =
+        garden_type != BUILDING_NONE ? model_get_building(garden_type) : nullptr;
+    const model_building *highway_model =
+        highway_type != BUILDING_NONE ? model_get_building(highway_type) : nullptr;
+    const model_building *plaza_model =
+        plaza_type != BUILDING_NONE ? model_get_building(plaza_type) : nullptr;
+    const model_building *earthquake_model =
+        earthquake_type != BUILDING_NONE ? model_get_building(earthquake_type) : nullptr;
+    const int venus_garden_bonus = grand_temple_for_god(GOD_VENUS, true) != nullptr;
+
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             int terrain = map_terrain_get(grid_offset);
             if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-                building_type type = BUILDING_NONE;
+                const model_building *model = nullptr;
                 if (terrain & TERRAIN_ROAD) {
-                    type = building_type_registry_impl::type_from_attr("plaza");
+                    model = plaza_model;
                 } else if (terrain & TERRAIN_ROCK) {
                     // earthquake fault line: slight negative
-                    type = building_type_registry_impl::vacant_lot_fill_type();
+                    model = earthquake_model;
                 } else if (terrain & TERRAIN_GARDEN) {
-                    add_garden_desirability(x, y);
+                    add_garden_desirability(x, y, garden_model, venus_garden_bonus);
                     continue;
                 } else {
                     // invalid plaza/earthquake flag
                     map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
                     continue;
                 }
-                const model_building *model = type != BUILDING_NONE ? model_get_building(type) : nullptr;
                 if (!model) {
                     continue;
                 }
-                add_to_terrain(x, y, 1,
+                add_to_terrain_cell(x, y,
                     model->desirability_value,
                     model->desirability_step,
                     model->desirability_step_size,
                     model->desirability_range);
             } else if (terrain & TERRAIN_GARDEN) {
-                add_garden_desirability(x, y);
+                add_garden_desirability(x, y, garden_model, venus_garden_bonus);
             } else if (terrain & TERRAIN_RUBBLE) {
-                add_to_terrain(x, y, 1, -2, 1, 1, 2);
+                add_to_terrain_cell(x, y, -2, 1, 1, 2);
             } else if (terrain & TERRAIN_HIGHWAY) {
-                const model_building *model = model_for_type_text("highway");
-                if (model) {
-                    add_to_terrain(x, y, 1,
-                        model->desirability_value,
-                        model->desirability_step,
-                        model->desirability_step_size,
-                        model->desirability_range);
+                if (highway_model) {
+                    add_to_terrain_cell(x, y,
+                        highway_model->desirability_value,
+                        highway_model->desirability_step,
+                        highway_model->desirability_step_size,
+                        highway_model->desirability_range);
                 }
             } else if (terrain & TERRAIN_AQUEDUCT) {
-                add_to_terrain(x, y, 1, -2, 1, 1, 2);
+                add_to_terrain_cell(x, y, -2, 1, 1, 2);
             }
         }
     }
@@ -227,23 +229,6 @@ void map_desirability_update(void)
 int map_desirability_get(int grid_offset)
 {
     return desirability_grid.items[grid_offset];
-}
-
-int map_desirability_get_max(int x, int y, int size)
-{
-    if (size == 1) {
-        return desirability_grid.items[map_grid_offset(x, y)];
-    }
-    int max = -9999;
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            int grid_offset = map_grid_offset(x + dx, y + dy);
-            if (desirability_grid.items[grid_offset] > max) {
-                max = desirability_grid.items[grid_offset];
-            }
-        }
-    }
-    return max;
 }
 
 void map_desirability_save_state(buffer *buf)

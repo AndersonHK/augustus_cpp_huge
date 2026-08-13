@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Stone_Cart_Getting_NE">
+    <image id="Stone_Cart_Getting_NE" width="39" height="39">
+        <layer group="Walkers\Group_097" image="Image_0000"/>
+        <layer src="Stone_Cart_Getting_NE_Layer_02" x="12"/>
+    </image>
+</assetlist>

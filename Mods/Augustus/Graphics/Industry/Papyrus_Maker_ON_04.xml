@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Papyrus_Maker_ON_04">
+    <image id="Papyrus_Maker_OFF" width="118" height="92" isometric="true" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_OFF"/>
+    <image id="Papyrus_Maker_ON_01" width="118" height="92" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON_01"/>
+    <image id="Papyrus_Maker_ON_02" width="118" height="92" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON_02"/>
+    <image id="Papyrus_Maker_ON_03" width="118" height="92" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON_03"/>
+    <image id="Papyrus_Maker_ON_04" width="118" height="92" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON_04"/>
+    <image id="Papyrus_Maker_ON_05" width="118" height="92" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON_05"/>
+    <image id="Papyrus_Maker_ON" width="118" height="92" isometric="true" group="Industry\Papyrus_Maker_OFF" image="Papyrus_Maker_ON"/>
+</assetlist>

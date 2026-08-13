@@ -5,7 +5,7 @@ Snapshot: 2026-05-10
 ## Purpose
 
 This document records the vanilla Caesar III / Julius housing progression as a
-design reference for `HousingType`, `BuildingType`, employment, tax, prosperity,
+design reference for `HousingProfile`, `BuildingType`, employment, tax, prosperity,
 and city-growth pacing. It should be used beside
 [Caesar III Housing Balance and Play Analysis](caesar3_housing_balance_play_analysis.md),
 [Vespasian Housing Progression Design Notes](vespasian_housing_progression_design_notes.md),
@@ -32,7 +32,7 @@ expansion before changing a house level. Julius does not replace the original
 game data file: it requires the original Caesar III install.
 
 The values below are taken from the local Julius XML materialization in
-`Mods/Julius/HousingType/*.xml` and `Mods/Julius/BuildingType/house_*.xml`,
+`Mods/Julius/HousingProfile/*.xml` and `Mods/Julius/BuildingType/house_*.xml`,
 cross-checked against the public picture table at
 [Caesar III Augustus: Housing Levels with pictures](https://mmxl.wz.cz/c3a/housing2.html).
 The MMXL table reports full-block population for the 1x1 levels after merging
@@ -50,7 +50,7 @@ Primary references:
 - [MMXL housing table](https://mmxl.wz.cz/c3a/housing2.html) - readable table
   with images, population, prosperity, entertainment, tax, desirability, and
   qualitative requirements.
-- Local XML: `Mods/Julius/HousingType`, `Mods/Julius/BuildingType`,
+- Local XML: `Mods/Julius/HousingProfile`, `Mods/Julius/BuildingType`,
   `Mods/Vespasian/Graphics/Housing`, and
   `extracted_graphics_sample/Julius/Graphics/Aesthetics`.
 

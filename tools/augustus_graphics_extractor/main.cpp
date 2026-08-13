@@ -1,4 +1,4 @@
-#include "assets/augustus_asset_extractor.h"
+#include "assets/graphics_extraction_abi.h"
 #include "core/image.h"
 #include "scenario/property.h"
 
@@ -101,21 +101,8 @@ public:
         return julius_graphics_;
     }
 
-    vespasian::graphics::extraction::ExtractorPaths extractor_paths() const
-    {
-        return vespasian::graphics::extraction::ExtractorPaths(
-            game_root_,
-            source_graphics_,
-            output_graphics_,
-            julius_graphics_);
-    }
-
-    vespasian::graphics::extraction::ExtractorOptions extractor_options() const
-    {
-        return vespasian::graphics::extraction::ExtractorOptions(
-            force_ && !extract_julius_first_,
-            write_stamp_ || extract_julius_first_);
-    }
+    bool force() const { return force_ && !extract_julius_first_; }
+    bool write_stamp() const { return write_stamp_ || extract_julius_first_; }
 
 private:
     static std::string absolute_path(const std::string &path)
@@ -205,6 +192,16 @@ int main(int argc, char **argv)
         }
     }
 
-    vespasian::graphics::extraction::AugustusExtractor extractor;
-    return extractor.extract(cli.extractor_paths(), cli.extractor_options()).succeeded() ? 0 : 1;
+    graphics_extraction_augustus_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = GRAPHICS_EXTRACTION_ABI_VERSION;
+    request.flags = (cli.force() ? GRAPHICS_EXTRACTION_FORCE : 0) |
+        (cli.write_stamp() ? GRAPHICS_EXTRACTION_WRITE_STAMP : 0);
+    request.game_root = cli.game_root().c_str();
+    request.source_graphics = cli.source_graphics().c_str();
+    request.output_graphics = cli.output_graphics().c_str();
+    request.julius_graphics = cli.julius_graphics().c_str();
+    graphics_extraction_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    return graphics_extraction_run_augustus_v1(&request, &result) == GRAPHICS_EXTRACTION_STATUS_SUCCEEDED ? 0 : 1;
 }

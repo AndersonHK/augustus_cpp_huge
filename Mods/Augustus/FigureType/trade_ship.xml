@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="trade_ship" graphics_only="true">
+    <graphics>
+        <directional image_group="ship" default_base_offset="0" view_adjustments="1" frame_divisor="1" frame_stride="0" />
+    </graphics>
+</figure>

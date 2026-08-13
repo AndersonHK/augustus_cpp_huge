@@ -233,6 +233,12 @@ int building_connectable_gate_type(building_type type)
     return 0;
 }
 
+building_type building_connectable_preview_type(building_type type, int grid_offset)
+{
+    const building_type gate_type = static_cast<building_type>(building_connectable_gate_type(type));
+    return gate_type != BUILDING_NONE && map_terrain_is(grid_offset, TERRAIN_ROAD) ? gate_type : type;
+}
+
 static int context_matches_tiles(const building_image_context *context,
     const int tiles[MAX_TILES], int rotation, int terrain_tiles[MAX_TILES])
 {
@@ -507,16 +513,16 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
 
 static int building_has_aqueduct_connection_node_at(const Building &building, int aqueduct_grid_offset)
 {
-    Building owner = building.main();
-    const ::building *record = owner.record();
-    if (!record || !owner.type) {
+    Building *owner = building.Composition ? building.Composition->owner() : const_cast<Building *>(&building);
+    const ::building *record = owner ? owner->record() : nullptr;
+    if (!record || !owner || !owner->type) {
         return 0;
     }
 
     const uint8_t aqueduct_mask = building_type_registry_impl::water_access_mask_from_text("aqueduct");
     const int aqueduct_x = map_grid_offset_to_x(aqueduct_grid_offset);
     const int aqueduct_y = map_grid_offset_to_y(aqueduct_grid_offset);
-    const auto &water = owner.type->water_access();
+    const auto &water = owner->type->water_access();
     for (const building_type_registry_impl::WaterAccessProvideRule &rule : water.provide_rules()) {
         if (rule.origin != building_type_registry_impl::WaterAccessOrigin::Nodes ||
             !(rule.mask & aqueduct_mask)) {
@@ -672,14 +678,7 @@ void building_connectable_update_connections_for_type(building_type type)
         if (runtime_building->refresh_graphic_if_native()) {
             continue;
         }
-        int image_id;
-        building_type current_type = runtime_building->type ? runtime_building->type->type() : BUILDING_NONE;
-        if (building_connectable_gate_type(current_type) && map_terrain_is(b->grid_offset, TERRAIN_ROAD)) {
-            image_id = building_image_get_garden_gate_image(b->grid_offset);
-        } else {
-            image_id = building_image_get(runtime_building);
-        }
-        map_image_set(b->grid_offset, image_id);
+        map_image_set(b->grid_offset, building_image_get(runtime_building));
     }
 }
 

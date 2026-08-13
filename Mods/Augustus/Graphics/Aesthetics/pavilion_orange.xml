@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\pavilion_orange">
+    <image id="pavilion blue" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion blue"/>
+    <image id="pavilion red" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion red"/>
+    <image id="pavilion orange" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion orange"/>
+    <image id="pavilion yellow" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion yellow"/>
+    <image id="pavilion green" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion green"/>
+    <image id="pavilion purple" isometric="true" group="Aesthetics\pavilion_blue" image="pavilion purple"/>
+</assetlist>

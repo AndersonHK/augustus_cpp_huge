@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mercury_Complex_Off">
+    <image id="Mercury Complex Off" width="418" height="231" isometric="true">
+        <layer src="Mercury_Complex_Off_Layer_01" part="top"/>
+        <layer group="Health_Culture\Temple_Mercury" image="Image_0001" x="150" y="8" part="footprint"/>
+        <layer group="Health_Culture\Temple_Mercury" image="Image_0001" x="150" y="8" part="top"/>
+        <layer src="Mercury_Complex_Off_Layer_04" x="199" y="79" part="top"/>
+    </image>
+    <image id="Mercury worshippers">
+        <layer src="Mercury_worshippers"/>
+    </image>
+    <image id="Mercury Complex On" width="418" height="231" isometric="true">
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="footprint"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <animation speed="1" x="135" y="117">
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury worshippers"/>
+        </animation>
+    </image>
+    <image id="Mercury_Temple_Complex_Module_01" width="118" height="77">
+        <layer src="Mercury_Temple_Complex_Module_01_Layer_01" x="19" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module_01_Layer_02" x="1" y="17"/>
+        <layer src="Mercury_Temple_Complex_Module_01_Layer_03" x="51" y="5"/>
+    </image>
+    <image id="Mercury_Temple_Complex_Module_02" width="118" height="77">
+        <layer src="Mercury_Temple_Complex_Module_02_Layer_01" x="19" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module_02_Layer_02" x="1" y="17"/>
+        <layer src="Mercury_Temple_Complex_Module_02_Layer_03" x="50" y="6"/>
+    </image>
+    <image id="Mercury_Temple_Complex_Module_03" width="118" height="77">
+        <layer src="Mercury_Temple_Complex_Module_03_Layer_01" x="19" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module_03_Layer_02" x="1" y="17"/>
+        <layer src="Mercury_Temple_Complex_Module_03_Layer_03" x="49" y="7"/>
+    </image>
+    <image id="Mercury Complex Module" width="418" height="231" isometric="true">
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="footprint"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <animation speed="5" reversible="true" x="115" y="105">
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_01"/>
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_02"/>
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_03"/>
+        </animation>
+    </image>
+    <image id="Mercury_Temple_Complex_Module2_01" width="137" height="76">
+        <layer src="Mercury_Temple_Complex_Module2_01_Layer_01" x="1" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module2_01_Layer_02" x="69" y="15"/>
+    </image>
+    <image id="Mercury_Temple_Complex_Module2_02" width="137" height="76">
+        <layer src="Mercury_Temple_Complex_Module2_02_Layer_01" x="1" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module2_02_Layer_02" x="68" y="16"/>
+    </image>
+    <image id="Mercury_Temple_Complex_Module2_03" width="137" height="76">
+        <layer src="Mercury_Temple_Complex_Module2_03_Layer_01" x="1" y="1"/>
+        <layer src="Mercury_Temple_Complex_Module2_03_Layer_02" x="67" y="17"/>
+    </image>
+    <image id="Mercury Complex Module2" width="418" height="231" isometric="true">
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="footprint"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <layer group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off" part="top"/>
+        <animation speed="5" reversible="true" x="94" y="103">
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_01"/>
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_02"/>
+            <frame group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_03"/>
+        </animation>
+    </image>
+</assetlist>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="tower_2x2" width="2" height="2" rotates="false">
+    <profile symbol="T" requires="wall" adds="building gatehouse" />
+    <rows><row cells="TT" /><row cells="TT" /></rows>
+</foundation>
+

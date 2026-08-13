@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Desirability">
+    <image id="Water_Range">
+        <layer group="Terrain_Maps\Desirability" image="Image_0004" mask="grayscale"/>
+    </image>
+</assetlist>

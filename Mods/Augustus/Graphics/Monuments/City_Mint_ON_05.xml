@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\City_Mint_ON_05">
+    <image id="City_Mint_OFF" width="178" height="117" isometric="true" group="Monuments\City_Mint_OFF" image="City_Mint_OFF"/>
+    <image id="City_Mint_OFF_Alt" width="178" height="117" isometric="true" group="Monuments\City_Mint_OFF" image="City_Mint_OFF_Alt"/>
+    <image id="City_Mint_ON_01" width="178" height="117" group="Monuments\City_Mint_OFF" image="City_Mint_ON_01"/>
+    <image id="City_Mint_ON_02" width="178" height="117" group="Monuments\City_Mint_OFF" image="City_Mint_ON_02"/>
+    <image id="City_Mint_ON_03" width="178" height="117" group="Monuments\City_Mint_OFF" image="City_Mint_ON_03"/>
+    <image id="City_Mint_ON_04" width="178" height="117" group="Monuments\City_Mint_OFF" image="City_Mint_ON_04"/>
+    <image id="City_Mint_ON_05" width="178" height="117" group="Monuments\City_Mint_OFF" image="City_Mint_ON_05"/>
+    <image id="City_Mint_ON" width="178" height="117" isometric="true" group="Monuments\City_Mint_OFF" image="City_Mint_ON"/>
+    <image id="City_Mint_ON_Alt" width="178" height="117" isometric="true" group="Monuments\City_Mint_OFF" image="City_Mint_ON_Alt"/>
+</assetlist>

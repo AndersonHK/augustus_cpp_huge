@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Tavern_ON">
+    <image id="Tavern OFF" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern OFF"/>
+    <image id="Tavern Supp" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern Supp"/>
+    <image id="Tavern_ON_01" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_ON_01"/>
+    <image id="Tavern_ON_02" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_ON_02"/>
+    <image id="Tavern_ON_03" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_ON_03"/>
+    <image id="Tavern_ON_04" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_ON_04"/>
+    <image id="Tavern_ON_05" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_ON_05"/>
+    <image id="Tavern ON" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern ON"/>
+    <image id="Tavern Upgrade OFF" width="118" height="82" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF"/>
+    <image id="Tavern Upgrade Supp" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern Upgrade Supp"/>
+    <image id="Tavern_UG_ON_01" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_01"/>
+    <image id="Tavern_UG_ON_02" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_02"/>
+    <image id="Tavern_UG_ON_03" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_03"/>
+    <image id="Tavern_UG_ON_04" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_04"/>
+    <image id="Tavern_UG_ON_05" width="118" height="82" group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_05"/>
+    <image id="Tavern Upgrade ON" isometric="true" group="Health_Culture\Tavern_OFF" image="Tavern Upgrade ON"/>
+</assetlist>

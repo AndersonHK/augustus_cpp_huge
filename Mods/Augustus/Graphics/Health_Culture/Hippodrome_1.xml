@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Hippodrome_1">
+    <image id="Circus NESW 41" isometric="true">
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0000" part="footprint"/>
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0000" part="top"/>
+    </image>
+    <image id="Circus NESW 42" isometric="true">
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0002" part="footprint"/>
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0002" part="top"/>
+    </image>
+    <image id="Circus NESW 43" isometric="true">
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0004" part="footprint"/>
+        <layer group="Health_Culture\Hippodrome_1" image="Image_0004" part="top"/>
+    </image>
+</assetlist>

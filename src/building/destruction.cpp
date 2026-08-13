@@ -10,8 +10,9 @@
 #include "map/tiles.h"
 
 #include "building/building.h"
+#include "building/BuildingGeometry.h"
 #include "building/building_record.h"
-#include "building/building_runtime_internal.h"
+#include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
 #include "city/ratings.h"
 #include "city/culture.h"
@@ -20,14 +21,17 @@
 #include "city/message.h"
 #include "city/population.h"
 #include "core/image.h"
+#include "core/random.h"
 #include "figuretype/missile.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/terrain.h"
+#include "map/water_navigation.h"
 #include "sound/effect.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 static building_type burning_ruin_type()
@@ -54,6 +58,17 @@ struct RubbleTile {
     int grid_offset = 0;
 };
 
+static building_type_registry_impl::BuildingGeometry geometry_from_rubble_tiles(
+    const std::vector<RubbleTile> &tiles)
+{
+    std::vector<building_type_registry_impl::BuildingGeometryCell> cells;
+    cells.reserve(tiles.size());
+    for (const RubbleTile &tile : tiles) {
+        cells.push_back({tile.x, tile.y});
+    }
+    return building_type_registry_impl::BuildingGeometry::from_world_cells(std::move(cells));
+}
+
 static const building_type_registry_impl::BuildingType *surface_type_at(int grid_offset)
 {
     const char *type_attr = nullptr;
@@ -76,39 +91,60 @@ static RubbleState rubble_origin_for_surface(int grid_offset)
     return origin;
 }
 
-static void refresh_after_destruction(const building_type_registry_impl::BuildingType *type)
+static void refresh_after_destruction(
+    const building_type_registry_impl::BuildingType *type,
+    const std::vector<RubbleTile> &tiles)
 {
     if (!type) {
         return;
     }
-    if (type->tool().is_aqueduct() ||
-        (type->has_foundation() && type->foundation().has_water_requirement())) {
-        Route::updateWaterTerrain();
+    if (type->bridge().is_bridge()) {
+        water_navigation::invalidate_topology();
+    }
+    if (type->attr_is("dock")) {
+        water_navigation::invalidate_dock_endpoints();
     }
     if (building_is_connectable(type->type())) {
         building_connectable_update_connections_for_type(type->type());
     }
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
+    if (tiles.empty()) {
+        return;
+    }
+    int min_x = tiles.front().x;
+    int min_y = tiles.front().y;
+    int max_x = min_x;
+    int max_y = min_y;
+    for (const RubbleTile &tile : tiles) {
+        min_x = std::min(min_x, tile.x);
+        min_y = std::min(min_y, tile.y);
+        max_x = std::max(max_x, tile.x);
+        max_y = std::max(max_y, tile.y);
+    }
+    map_tiles_update_region_empty_land(min_x, min_y, max_x, max_y);
+    map_tiles_update_region_meadow(min_x, min_y, max_x, max_y);
+    map_tiles_update_region_rubble(min_x, min_y, max_x, max_y);
+    map_tiles_update_area_roads(min_x, min_y, std::max(max_x - min_x, max_y - min_y) + 3);
+    map_tiles_update_area_highways(min_x, min_y, std::max(max_x - min_x, max_y - min_y) + 3);
+}
+
+static Building &destruction_owner(Building &building_object)
+{
+    if (building_object.type && building_object.type->bridge().is_bridge()) {
+        return building_object.dynamic_bridge_owner();
+    }
+    return building_object.Composition ? *building_object.Composition->owner() : building_object;
 }
 
 static RubbleState rubble_origin_for(Building &building_object)
 {
-    Building &main_building = building_object.main();
-    const building *record = main_building.record();
+    Building &owner = destruction_owner(building_object);
     RubbleState origin;
-    origin.original_type = main_building.type;
-    origin.original_orientation = record ? static_cast<unsigned char>(record->subtype.orientation) : 0;
-    int x = record ? record->x : 0;
-    int y = record ? record->y : 0;
-    if (origin.original_type && origin.original_type->has_composition()) {
-        const int rotation = (origin.original_orientation % 4 + 4) % 4;
-        const building_type_registry_impl::ComposedBuildingDefinition &composition =
-            origin.original_type->composition();
-        const building_type_registry_impl::ComposedPartOffset main_offset =
-            composition.main_offset_for_rotation(rotation);
-        x -= main_offset.x;
-        y -= main_offset.y;
-    }
-    origin.original_grid_offset = static_cast<unsigned short>(map_grid_offset(x, y));
+    origin.original_type = owner.type;
+    origin.original_orientation = static_cast<unsigned char>(owner.orientation());
+    origin.original_grid_offset = static_cast<unsigned short>(
+        map_grid_offset(owner.x(), owner.y()));
     return origin;
 }
 
@@ -121,63 +157,89 @@ static int rubble_tile_is_captured(const std::vector<RubbleTile> &tiles, int gri
 
 static void capture_rubble_tiles(Building &building_object, std::vector<RubbleTile> &tiles)
 {
-    const building *record = building_object.record();
-    if (!record) {
+    if (!building_object.Foundation) {
         return;
     }
-    const int size = record->size > 0 ? record->size : 1;
-    if (!map_grid_is_inside(record->x, record->y, size)) {
-        return;
-    }
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            const int x = record->x + dx;
-            const int y = record->y + dy;
-            const int grid_offset = map_grid_offset(x, y);
-            if (map_terrain_is(grid_offset, TERRAIN_WATER) || rubble_tile_is_captured(tiles, grid_offset)) {
-                continue;
-            }
-            if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).id != building_object.id) {
-                continue;
-            }
-            tiles.push_back({x, y, grid_offset});
+    const int rotation = building_object.Foundation->definition().rotates() ? building_object.orientation() : 0;
+    for (const building_type_registry_impl::RotatedFoundationCell &cell :
+        building_object.Foundation->cells(rotation)) {
+        const int x = building_object.x() + cell.x;
+        const int y = building_object.y() + cell.y;
+        if (!map_grid_is_inside(x, y, 1)) {
+            continue;
         }
+        const int grid_offset = map_grid_offset(x, y);
+        if (map_terrain_is(grid_offset, TERRAIN_WATER) || rubble_tile_is_captured(tiles, grid_offset)) {
+            continue;
+        }
+        if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).id != building_object.id) {
+            continue;
+        }
+        tiles.push_back({x, y, grid_offset});
     }
 }
 
 static std::vector<Building *> collect_destroyed_parts(Building &building)
 {
     std::vector<Building *> parts;
-    Building &main_building = building.main();
-    for (Building *part = &main_building; part; part = part->next()) {
-        parts.push_back(part);
-        if (!part->next_part_id() || parts.size() >= 64) {
-            break;
+    Building &owner = destruction_owner(building);
+    if (owner.type && owner.type->bridge().is_bridge()) {
+        Building *part = &owner;
+        for (int guard = 0; part && guard < 64; ++guard) {
+            Building *next = part->dynamic_bridge_next();
+            if (Building *stable = Building::get(part->id)) {
+                parts.push_back(stable);
+            }
+            part = next;
         }
+        return parts;
+    }
+    if (owner.Composition) {
+        owner.Composition->for_each_member([&parts](Building &part) {
+            if (Building *stable = Building::get(part.id)) {
+                parts.push_back(stable);
+            }
+        });
+    } else {
+        parts.push_back(&owner);
     }
     return parts;
 }
 
-static void retire_destroyed_part(Building &building_object)
+void Building::retire_for_destruction()
 {
-    building *record = const_cast<building *>(building_object.record());
-    if (!record) {
-        return;
+    city_culture_remove_building_module_capacity(record_);
+    building_local_workforce::remove_building(*this);
+    if (Housing && Housing->state().population) {
+        city_population_remove_home_removed(Housing->state().population);
     }
-    city_culture_remove_building_module_capacity(record);
-    building_object.cleanup_figure_references_for_removal();
-    building_local_workforce::remove_building(building_object);
-    if (record->house_size && record->house_population) {
-        city_population_remove_home_removed(record->house_population);
+    const bool is_dynamic_bridge = type && type->bridge().is_bridge();
+    if (is_dynamic_bridge) {
+        map_bridge_remove(record_->grid_offset, 0);
     }
-    if (building_object.type && building_object.type->roadblock().is_bridge()) {
-        map_bridge_remove(record->grid_offset, 0);
+    building_clear_related_data(record_);
+    remove_map_tiles();
+    if (is_dynamic_bridge) {
+        record_->prev_part_building_id = 0;
+        record_->next_part_building_id = 0;
     }
-    building_clear_related_data(record);
-    building_object.remove_map_tiles();
-    record->prev_part_building_id = 0;
-    record->next_part_building_id = 0;
-    record->state = BUILDING_STATE_DELETED_BY_GAME;
+    record_->state = BUILDING_STATE_DELETED_BY_GAME;
+}
+
+void Building::initialize_destruction_rubble(
+    const RubbleState &origin,
+    bool burning,
+    bool plagued)
+{
+    record_->state = static_cast<unsigned char>(burning ? BUILDING_STATE_IN_USE : BUILDING_STATE_RUBBLE);
+    record_->figure_id4 = 0;
+    record_->fire_proof = 1;
+    record_->has_plague = static_cast<unsigned char>(plagued);
+    *Rubble->state() = origin;
+    Rubble->state()->random_seed = random_byte();
+    record_->fire_duration = burning
+        ? static_cast<short>((Rubble->state()->random_seed & 7) + 1)
+        : 0;
 }
 
 static int create_rubble_pieces(
@@ -195,136 +257,136 @@ static int create_rubble_pieces(
     int created = 0;
     for (const RubbleTile &tile : tiles) {
         Building &rubble = city_building_runtime().create(*definition, tile.x, tile.y);
-        building *record = const_cast<building *>(rubble.record());
-        if (!record || !rubble.Rubble || !rubble.Rubble->state()) {
-            continue;
-        }
-        record->state = static_cast<unsigned char>(burning ? BUILDING_STATE_IN_USE : BUILDING_STATE_RUBBLE);
-        record->size = 1;
-        record->prev_part_building_id = 0;
-        record->next_part_building_id = 0;
-        record->figure_id4 = 0;
-        record->tax_income_or_storage = 0;
-        record->fire_duration = burning ? static_cast<short>((record->house_figure_generation_delay & 7) + 1) : 0;
-        record->fire_proof = 1;
-        record->has_plague = static_cast<unsigned char>(plagued);
-        *rubble.Rubble->state() = origin;
+        rubble.initialize_destruction_rubble(origin, burning != 0, plagued != 0);
         map_building_tiles_add_rubble(rubble, tile.x, tile.y, building_image_get(&rubble));
         created++;
     }
     return created;
 }
 
-static int destroy_with_rubble(building *b, building_type rubble_building_type, int burning, int plagued)
+void Building::destroy_by_collapse()
 {
     game_undo_disable();
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    if (!runtime) {
-        return 0;
-    }
-
-    Building &destroyed = runtime->building;
+    Building &destroyed = destruction_owner(*this);
     std::vector<Building *> parts = collect_destroyed_parts(destroyed);
     std::vector<RubbleTile> tiles;
     for (Building *part : parts) {
-        if (part) {
-            capture_rubble_tiles(*part, tiles);
-        }
+        capture_rubble_tiles(*part, tiles);
     }
     const RubbleState origin = rubble_origin_for(destroyed);
-
+    const building_type_registry_impl::BuildingGeometry destroyed_geometry =
+        geometry_from_rubble_tiles(tiles);
     const building_type_registry_impl::BuildingType *destroyed_type = destroyed.type;
     for (Building *part : parts) {
-        if (!part) {
-            continue;
+        if (part->matches("tower")) {
+            figure_kill_tower_sentries_in_building(*part);
         }
-        building *part_record = const_cast<building *>(part->record());
-        if (part_record && building_type_registry_impl::type_attr_is(part_record->type, "tower")) {
-            figure_kill_tower_sentries_in_building(part_record);
-        }
-        retire_destroyed_part(*part);
+        part->retire_for_destruction();
     }
-
-    create_rubble_pieces(rubble_building_type, origin, tiles, burning, plagued);
-    if (!tiles.empty() && origin.original_type) {
-        figure_create_explosion_cloud(
-            tiles.front().x,
-            tiles.front().y,
-            std::max(
-                origin.original_type->placement_width(origin.original_orientation),
-                origin.original_type->placement_height(origin.original_orientation)),
-            0);
+    create_rubble_pieces(rubble_type(), origin, tiles, 0, 0);
+    const building_type_registry_impl::BuildingGeometrySquareExtent explosion =
+        destroyed_geometry.centered_square_extent(5);
+    if (explosion.size) {
+        figure_create_explosion_cloud(explosion.x, explosion.y, explosion.size, 0);
     }
-    refresh_after_destruction(destroyed_type);
-    return 1;
+    refresh_after_destruction(destroyed_type, tiles);
 }
 
-static void destroy_group_without_rubble(building *b)
+void Building::destroy_by_fire()
 {
     game_undo_disable();
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
-    if (!runtime) {
-        return;
-    }
-    const building_type_registry_impl::BuildingType *destroyed_type = runtime->building.type;
-    std::vector<Building *> parts = collect_destroyed_parts(runtime->building);
+    Building &destroyed = destruction_owner(*this);
+    std::vector<Building *> parts = collect_destroyed_parts(destroyed);
+    std::vector<RubbleTile> tiles;
     for (Building *part : parts) {
-        if (part) {
-            retire_destroyed_part(*part);
-        }
+        capture_rubble_tiles(*part, tiles);
     }
-    refresh_after_destruction(destroyed_type);
-}
-
-static void destroy_without_rubble(building *b)
-{
-    destroy_group_without_rubble(b);
-}
-
-static void destroy_on_fire(building *b, int plagued)
-{
+    const RubbleState origin = rubble_origin_for(destroyed);
+    const building_type_registry_impl::BuildingGeometry destroyed_geometry =
+        geometry_from_rubble_tiles(tiles);
+    const building_type_registry_impl::BuildingType *destroyed_type = destroyed.type;
+    for (Building *part : parts) {
+        if (part->matches("tower")) {
+            figure_kill_tower_sentries_in_building(*part);
+        }
+        part->retire_for_destruction();
+    }
     const building_type burning_ruin = burning_ruin_type();
-    destroy_with_rubble(b, burning_ruin == BUILDING_NONE ? rubble_type() : burning_ruin, burning_ruin != BUILDING_NONE, plagued);
+    create_rubble_pieces(
+        burning_ruin == BUILDING_NONE ? rubble_type() : burning_ruin,
+        origin,
+        tiles,
+        burning_ruin != BUILDING_NONE,
+        0);
+    const building_type_registry_impl::BuildingGeometrySquareExtent explosion =
+        destroyed_geometry.centered_square_extent(5);
+    if (explosion.size) {
+        figure_create_explosion_cloud(explosion.x, explosion.y, explosion.size, 0);
+    }
+    refresh_after_destruction(destroyed_type, tiles);
 }
 
-void building_destroy_by_collapse(building *b)
+void Building::destroy_by_plague()
 {
-    destroy_with_rubble(b, rubble_type(), 0, 0);
+    game_undo_disable();
+    Building &destroyed = destruction_owner(*this);
+    std::vector<Building *> parts = collect_destroyed_parts(destroyed);
+    std::vector<RubbleTile> tiles;
+    for (Building *part : parts) {
+        capture_rubble_tiles(*part, tiles);
+    }
+    const RubbleState origin = rubble_origin_for(destroyed);
+    const building_type_registry_impl::BuildingGeometry destroyed_geometry =
+        geometry_from_rubble_tiles(tiles);
+    const building_type_registry_impl::BuildingType *destroyed_type = destroyed.type;
+    for (Building *part : parts) {
+        if (part->matches("tower")) {
+            figure_kill_tower_sentries_in_building(*part);
+        }
+        part->retire_for_destruction();
+    }
+    const building_type burning_ruin = burning_ruin_type();
+    create_rubble_pieces(
+        burning_ruin == BUILDING_NONE ? rubble_type() : burning_ruin,
+        origin,
+        tiles,
+        burning_ruin != BUILDING_NONE,
+        1);
+    const building_type_registry_impl::BuildingGeometrySquareExtent explosion =
+        destroyed_geometry.centered_square_extent(5);
+    if (explosion.size) {
+        figure_create_explosion_cloud(explosion.x, explosion.y, explosion.size, 0);
+    }
+    refresh_after_destruction(destroyed_type, tiles);
 }
 
-void building_destroy_by_fire(building *b)
+void Building::destroy_without_rubble()
 {
-    destroy_on_fire(b, 0);
-}
-
-void building_destroy_by_earthquake(building *b)
-{
-    destroy_with_rubble(b, rubble_type(), 0, 0);
-}
-
-void building_destroy_by_plague(building *b)
-{
-    destroy_on_fire(b, 1);
-}
-
-void building_destroy_without_rubble(building *b)
-{
-    destroy_without_rubble(b);
-}
-
-void building_destroy_by_rioter(building *b)
-{
-    destroy_on_fire(b, 0);
+    game_undo_disable();
+    Building &destroyed = destruction_owner(*this);
+    const building_type_registry_impl::BuildingType *destroyed_type = destroyed.type;
+    std::vector<Building *> parts = collect_destroyed_parts(destroyed);
+    std::vector<RubbleTile> tiles;
+    for (Building *part : parts) {
+        capture_rubble_tiles(*part, tiles);
+    }
+    for (Building *part : parts) {
+        part->retire_for_destruction();
+    }
+    refresh_after_destruction(destroyed_type, tiles);
 }
 
 int building_destroy_first_of_type(building_type type)
 {
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) {
+    if (type == BUILDING_NONE) {
+        return 0;
+    }
+    for (Building &target : Building::of_type(type)) {
+        if (!target.is_in_use() && !target.is_mothballed()) {
             continue;
         }
-        int grid_offset = b->grid_offset;
-        building_destroy_by_collapse(b);
+        const int grid_offset = target.grid_offset();
+        target.destroy_by_collapse();
         Route::updateLandTerrain();
         return grid_offset;
     }
@@ -334,19 +396,19 @@ int building_destroy_first_of_type(building_type type)
 void building_destroy_last_placed(void)
 {
     int highest_sequence = 0;
-    building *last_building = 0;
+    Building *last_building = nullptr;
     Building::for_each([&](Building *runtime_building) {
-        building *b = const_cast<::building *>(runtime_building->record());
+        const building *b = runtime_building->record();
         if (b->state == BUILDING_STATE_CREATED || b->state == BUILDING_STATE_IN_USE) {
             if (b->created_sequence > highest_sequence) {
                 highest_sequence = b->created_sequence;
-                last_building = b;
+                last_building = runtime_building;
             }
         }
     });
     if (last_building) {
-        city_message_post(1, MESSAGE_ROAD_TO_ROME_BLOCKED, 0, last_building->grid_offset);
-        building_destroy_by_collapse(last_building);
+        city_message_post(1, MESSAGE_ROAD_TO_ROME_BLOCKED, 0, last_building->grid_offset());
+        last_building->destroy_by_collapse();
         Route::updateLandTerrain();
     }
 }
@@ -392,7 +454,7 @@ static int destroy_surface_by_enemy(int grid_offset)
     if (!create_rubble_pieces(rubble_type(), origin, tiles, 0, 0)) {
         return 0;
     }
-    refresh_after_destruction(origin.original_type);
+    refresh_after_destruction(origin.original_type, tiles);
     return 1;
 }
 
@@ -405,10 +467,10 @@ void building_destroy_by_enemy(int grid_offset)
     int destroyed = 0;
     if (map_building_exists_at(grid_offset)) {
         Building &destroyed_building = map_building_at(grid_offset);
-        building *b = const_cast<::building *>(destroyed_building.record());
-        if (b && !destroyed_building.Rubble) {
+        if (!destroyed_building.Rubble) {
             city_ratings_peace_building_destroyed(destroyed_building);
-            destroyed = destroy_with_rubble(b, rubble_type(), 0, 0);
+            destroyed_building.destroy_by_collapse();
+            destroyed = 1;
         }
     } else {
         destroyed = destroy_surface_by_enemy(grid_offset);

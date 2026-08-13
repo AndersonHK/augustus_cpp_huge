@@ -2,6 +2,7 @@
 
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
+#include "building/building_type_registry_internal.h"
 #include "building/local_workforce.h"
 #include "building/local_workforce_runtime_lists.h"
 #include "game/performance_tracker.h"
@@ -58,7 +59,8 @@ int RouteAccessSelector::houseAccessAreaTouchesSourceNetwork(const Building &hou
 
 int RouteAccessSelector::houseRecordIsLiveLaborSource(const building *house) const
 {
-    return house && house->id && house->state == BUILDING_STATE_IN_USE && house->house_size;
+    const auto *definition = house ? building_type_registry_impl::definition_for_type(house->type) : nullptr;
+    return house && house->id && house->state == BUILDING_STATE_IN_USE && definition && definition->has_housing();
 }
 
 void RouteAccessSelector::recordNetworkPrune() const

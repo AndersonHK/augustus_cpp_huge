@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\City_Mint_OFF">
+    <image id="City_Mint_OFF" width="178" height="117" isometric="true">
+        <layer src="City_Mint_OFF" part="footprint"/>
+    </image>
+    <image id="City_Mint_OFF_Alt" width="178" height="117" isometric="true">
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF" part="footprint"/>
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF" part="top"/>
+        <layer src="City_Mint_OFF_Alt_Layer_03" x="13" part="top"/>
+    </image>
+    <image id="City_Mint_ON_01" width="178" height="117">
+        <layer src="City_Mint_ON_01_Layer_01" x="54" y="46"/>
+        <layer src="City_Mint_ON_01_Layer_02" x="59" y="80"/>
+    </image>
+    <image id="City_Mint_ON_02" width="178" height="117">
+        <layer src="City_Mint_ON_02_Layer_01" x="54" y="46"/>
+        <layer src="City_Mint_ON_02_Layer_02" x="59" y="80"/>
+    </image>
+    <image id="City_Mint_ON_03" width="178" height="117">
+        <layer src="City_Mint_ON_03_Layer_01" x="54" y="46"/>
+        <layer src="City_Mint_ON_03_Layer_02" x="59" y="80"/>
+    </image>
+    <image id="City_Mint_ON_04" width="178" height="117">
+        <layer src="City_Mint_ON_04_Layer_01" x="54" y="46"/>
+        <layer src="City_Mint_ON_04_Layer_02" x="59" y="80"/>
+    </image>
+    <image id="City_Mint_ON_05" width="178" height="117">
+        <layer src="City_Mint_ON_05_Layer_01" x="54" y="46"/>
+        <layer src="City_Mint_ON_05_Layer_02" x="59" y="79"/>
+    </image>
+    <image id="City_Mint_ON" width="178" height="117" isometric="true">
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF" part="footprint"/>
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF" part="top"/>
+        <animation speed="6">
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_01"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_02"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_03"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_04"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_05"/>
+        </animation>
+    </image>
+    <image id="City_Mint_ON_Alt" width="178" height="117" isometric="true">
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF_Alt" part="footprint"/>
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF_Alt" part="top"/>
+        <layer group="Monuments\City_Mint_OFF" image="City_Mint_OFF_Alt" part="top"/>
+        <animation speed="6">
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_01"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_02"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_03"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_04"/>
+            <frame group="Monuments\City_Mint_OFF" image="City_Mint_ON_05"/>
+        </animation>
+    </image>
+</assetlist>

@@ -1,12 +1,33 @@
-#include "startup/startup_parser.h"
+#include "startup/startup_parser_abi.h"
 
 #include "assets/image_group_payload.h"
+#include "building/BuildingGraphicsState.h"
 #include "building/RubbleState.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/type.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
+#include "building_graphics_contract_test.h"
+#include "building_type_registry_layering_test.h"
+#include "composition_contracts.h"
+#include "culture_module_layering_test.h"
+#include "distribution_layering_test.h"
+#include "FoundationDefTest.h"
+#include "foundation_registry_layering_test.h"
+#include "god_layering_test.h"
+#include "housing_transition_planner_test.h"
+#include "housing_profile_registry_layering_test.h"
+#include "mod_definition_loader_test.h"
+#include "plague_runtime_contract_test.h"
+#include "production_method_layering_test.h"
+#include "resource_layering_test.h"
+#include "religion_layering_test.h"
+#include "storage_type_registry_layering_test.h"
+#include "water_access_type_layering_test.h"
+#include "unit_type_registry_layering_test.h"
+#include "formation_type_registry_layering_test.h"
+#include "figure_type_registry_layering_test.h"
 
 #include <filesystem>
 #include <cstring>
@@ -20,6 +41,71 @@ namespace {
 struct Options {
     std::filesystem::path game_root;
 };
+
+struct StartupEnvironmentSnapshot {
+    std::string game_root;
+    std::vector<std::string> mod_stack;
+    std::string mod_path;
+};
+
+void collect_mod_name(void *context, uint32_t index, const char *mod_name)
+{
+    auto *environment = static_cast<StartupEnvironmentSnapshot *>(context);
+    if (!environment || index != environment->mod_stack.size()) {
+        return;
+    }
+    environment->mod_stack.emplace_back(mod_name ? mod_name : "");
+}
+
+bool inspect_startup_environment(StartupEnvironmentSnapshot &environment)
+{
+    char game_root[4096] = {};
+    char mod_path[4096] = {};
+    startup_parser_environment_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = STARTUP_PARSER_ABI_VERSION;
+    request.game_root = game_root;
+    request.game_root_capacity = sizeof(game_root);
+    request.mod_path = mod_path;
+    request.mod_path_capacity = sizeof(mod_path);
+    request.on_mod = collect_mod_name;
+    request.callback_context = &environment;
+
+    startup_parser_environment_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    if (startup_parser_inspect_environment_v1(&request, &result) !=
+            STARTUP_PARSER_STATUS_SUCCEEDED ||
+        result.game_root_length >= sizeof(game_root) ||
+        result.mod_path_length >= sizeof(mod_path) ||
+        result.mod_count != environment.mod_stack.size()) {
+        std::cerr << "Startup parser environment ABI returned incomplete or inconsistent data.\n";
+        return false;
+    }
+    environment.game_root = game_root;
+    environment.mod_path = mod_path;
+    return true;
+}
+
+bool validate_building_graphics_generation_contract()
+{
+    BuildingGraphicsState state;
+    const std::uint64_t initial = state.generation();
+    if (initial == 0 || state.set_variant(0) || state.generation() != initial) {
+        std::cerr << "Building graphics generation changed for a no-op variant assignment.\n";
+        return false;
+    }
+    if (!state.set_variant(3) || state.variant() != 3 || state.generation() == initial) {
+        std::cerr << "Building graphics generation did not advance with the variant.\n";
+        return false;
+    }
+    const std::uint64_t variant_generation = state.generation();
+    state.invalidate();
+    if (state.generation() == variant_generation) {
+        std::cerr << "Building graphics generation did not advance on explicit invalidation.\n";
+        return false;
+    }
+    return true;
+}
 
 void print_usage()
 {
@@ -51,30 +137,115 @@ int parse_options(int argc, char **argv, Options &options)
     return 1;
 }
 
-void print_step(const startup_parser::StartupParseStep &step)
+void print_step(void *, const startup_parser_step_v1 *step)
 {
-    std::cout << "Loading " << step.label << "... ";
-    if (step.succeeded) {
+    if (!step) {
+        return;
+    }
+    const char *label = step->label ? step->label : "";
+    const char *detail = step->detail ? step->detail : "";
+    std::cout << "Loading " << label << "... ";
+    if (step->succeeded) {
         std::cout << "ok";
-        if (!step.detail.empty()) {
-            std::cout << " (" << step.detail << ")";
+        if (*detail) {
+            std::cout << " (" << detail << ")";
         }
         std::cout << "\n";
         return;
     }
     std::cout << "failed\n";
-    if (!step.detail.empty()) {
-        std::cerr << step.detail << "\n";
+    if (*detail) {
+        std::cerr << detail << "\n";
     }
 }
 
 bool run_startup_parse()
 {
-    const startup_parser::StartupParseResult result = startup_parser::parse_startup_definitions();
-    for (const startup_parser::StartupParseStep &step : result.steps) {
-        print_step(step);
+    startup_parser_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = STARTUP_PARSER_ABI_VERSION;
+    request.flags = STARTUP_PARSER_LOAD_CONFIG |
+        STARTUP_PARSER_LOAD_LOCALIZATION |
+        STARTUP_PARSER_VALIDATE_MOD_LAYOUT |
+        STARTUP_PARSER_PREPARE_GRAPHICS_VALIDATION;
+    request.on_step = print_step;
+
+    startup_parser_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    const startup_parser_status_v1 status = startup_parser_run_v1(&request, &result);
+    if (status != STARTUP_PARSER_STATUS_SUCCEEDED && result.failure_message[0]) {
+        std::cerr << result.failure_message << "\n";
     }
-    return result.succeeded != 0;
+    return status == STARTUP_PARSER_STATUS_SUCCEEDED && result.succeeded;
+}
+
+bool validate_startup_parser_abi_contract()
+{
+    startup_parser_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = STARTUP_PARSER_ABI_VERSION + 1;
+    startup_parser_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    if (startup_parser_run_v1(&request, &result) != STARTUP_PARSER_STATUS_INVALID_ABI ||
+        result.abi_version != STARTUP_PARSER_ABI_VERSION ||
+        !result.failure_step[0] || !result.failure_message[0] ||
+        result.failure_step_length != std::strlen(result.failure_step) ||
+        result.failure_message_length != std::strlen(result.failure_message)) {
+        std::cerr << "Startup parser ABI did not reject an unsupported caller contract deterministically.\n";
+        return false;
+    }
+
+    request.abi_version = STARTUP_PARSER_ABI_VERSION;
+    request.flags = 1u << 31;
+    result = {};
+    result.struct_size = sizeof(result);
+    if (startup_parser_run_v1(&request, &result) != STARTUP_PARSER_STATUS_INVALID_ABI) {
+        std::cerr << "Startup parser ABI accepted unknown request flags.\n";
+        return false;
+    }
+
+    startup_parser_result_v1 short_result = {};
+    short_result.struct_size = sizeof(short_result) - 1;
+    if (startup_parser_run_v1(&request, &short_result) != STARTUP_PARSER_STATUS_INVALID_ABI) {
+        std::cerr << "Startup parser ABI accepted a truncated result structure.\n";
+        return false;
+    }
+
+    startup_parser_environment_request_v1 environment_request = {};
+    environment_request.struct_size = sizeof(environment_request);
+    environment_request.abi_version = STARTUP_PARSER_ABI_VERSION + 1;
+    startup_parser_environment_result_v1 environment_result = {};
+    environment_result.struct_size = sizeof(environment_result);
+    if (startup_parser_inspect_environment_v1(&environment_request, &environment_result) !=
+        STARTUP_PARSER_STATUS_INVALID_ABI) {
+        std::cerr << "Startup parser environment ABI accepted an unsupported caller contract.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_building_identity_contract()
+{
+    using building_type_registry_impl::BuildingType;
+    using building_type_registry_impl::definition_for_type;
+    using building_type_registry_impl::type_from_attr;
+
+    const BuildingType *vacant_lot = definition_for_type(type_from_attr("vacant_lot"));
+    const BuildingType *goddess_statue = definition_for_type(type_from_attr("goddess_statue"));
+    const BuildingType *senator_statue = definition_for_type(type_from_attr("senator_statue"));
+    const BuildingType *barber = definition_for_type(type_from_attr("barber"));
+    if (!vacant_lot || !vacant_lot->matches_identity("vacant_lot") ||
+        !vacant_lot->matches_identity("house_vacant_lot") ||
+        vacant_lot->identity().aliases().size() != 1 ||
+        !goddess_statue || !goddess_statue->matches_identity("small_statue_alt") ||
+        !senator_statue || !senator_statue->matches_identity("small_statue_alt_b") ||
+        !barber || !barber->identity().aliases().empty() || barber->matches_identity("doctor")) {
+        std::cerr << "Building identity contract failed: canonical ids and compatibility aliases overlap or are incomplete.\n";
+        return false;
+    }
+
+    std::cout << "Validated canonical BuildingType identity and legacy scenario aliases without event_data duplication.\n";
+    return true;
 }
 
 bool validate_rubble_repair_contract()
@@ -89,27 +260,35 @@ bool validate_rubble_repair_contract()
     const BuildingType *rubble = definition_for_type(type_from_attr("rubble"));
     const BuildingType *burning_ruin = definition_for_type(type_from_attr("burning_ruin"));
     if (!aqueduct || !aqueduct->tool().is_aqueduct() || aqueduct->has_rubble() ||
-        aqueduct->declared_model_size() != 1 ||
+        aqueduct->placement_width(0) != 1 || aqueduct->placement_height(0) != 1 ||
         !rubble || !rubble->has_rubble() || !rubble->rubble().is_rubble() || rubble->tool().is_aqueduct() ||
-        rubble->declared_model_size() != 1 ||
+        rubble->placement_width(0) != 1 || rubble->placement_height(0) != 1 ||
         !burning_ruin || !burning_ruin->has_rubble() || !burning_ruin->rubble().is_burning() ||
-        burning_ruin->declared_model_size() != 1 ||
+        burning_ruin->placement_width(0) != 1 || burning_ruin->placement_height(0) != 1 ||
         burning_ruin->rubble().decay_type != rubble ||
         aqueduct->type() == rubble->type() || aqueduct->type() == burning_ruin->type()) {
         std::cerr << "Rubble repair contract failed: aqueduct/rubble BuildingType XML identities overlap or are incomplete.\n";
         return false;
     }
-    if (!farm || !farm->has_composition() ||
-        farm->composition().footprint_width() != 3 ||
-        farm->composition().footprint_height() != 3 ||
-        farm->composition().parts().size() != 5) {
+    const building_type_registry_impl::CompositionLayoutResult farm_layout = farm && farm->has_composition()
+        ? building_type_registry_impl::build_composition_layout(farm, farm->composition(), 0, 0, 0)
+        : building_type_registry_impl::CompositionLayoutResult{};
+    if (!farm || !farm_layout.valid() ||
+        farm_layout.bounds.width() != 3 ||
+        farm_layout.bounds.height() != 3 ||
+        farm->composition().children().size() != 5) {
         std::cerr << "Rubble repair contract failed: fruit farm composition is not the expected 3x3/5-part shape.\n";
         return false;
     }
-    if (!hippodrome || !hippodrome->has_composition() ||
-        hippodrome->composition().footprint_width() != 15 ||
-        hippodrome->composition().footprint_height() != 5 ||
-        hippodrome->composition().parts().size() != 2) {
+    const building_type_registry_impl::CompositionLayoutResult hippodrome_layout =
+        hippodrome && hippodrome->has_composition()
+        ? building_type_registry_impl::build_composition_layout(
+            hippodrome, hippodrome->composition(), 0, 0, 0)
+        : building_type_registry_impl::CompositionLayoutResult{};
+    if (!hippodrome || !hippodrome_layout.valid() ||
+        hippodrome_layout.bounds.width() != 15 ||
+        hippodrome_layout.bounds.height() != 5 ||
+        hippodrome->composition().children().size() != 2) {
         std::cerr << "Rubble repair contract failed: hippodrome composition is not the expected 15x5/2-part shape.\n";
         return false;
     }
@@ -259,6 +438,171 @@ bool validate_road_aqueduct_crossing_rules()
     return true;
 }
 
+bool validate_gate_terrain_foundation_contract()
+{
+    using namespace building_type_registry_impl;
+    const BuildingType *gatehouse = definition_for_type(type_from_attr("gatehouse"));
+    if (!gatehouse || !gatehouse->graphics().default_target().has_layer_role("gatehouse_overlay")) {
+        std::cerr << "Gate graphics contract failed: gatehouse overlay is not declared by layer role.\n";
+        return false;
+    }
+
+    static const char *const gate_types[] = {
+        "garden_wall_gate",
+        "hedge_gate_dark",
+        "hedge_gate_light",
+        "looped_garden_gate",
+        "palisade_gate",
+        "panelled_garden_gate",
+    };
+
+    for (const char *type_name : gate_types) {
+        const BuildingType *gate = definition_for_type(type_from_attr(type_name));
+        if (!gate) {
+            std::cerr << "Gate terrain-foundation contract failed: missing " << type_name << ".\n";
+            return false;
+        }
+        const GraphicsTarget &target = gate->graphics().default_target();
+        if (!target.uses_terrain_foundation() || target.option_count() != 2 ||
+            !target.resolved_option(0).uses_terrain_foundation() ||
+            !target.resolved_option(1).uses_terrain_foundation() ||
+            target.has_layer_role("gatehouse_overlay")) {
+            std::cerr << "Gate terrain-foundation contract failed: " << type_name
+                << " does not preserve its road underlay or incorrectly owns the gatehouse cap.\n";
+            return false;
+        }
+    }
+
+    std::cout << "Validated XML-owned road underlays for all decorative and palisade gates.\n";
+    return true;
+}
+
+bool validate_dock_native_orientation_contract()
+{
+    using namespace building_type_registry_impl;
+    const BuildingType *dock = definition_for_type(type_from_attr("dock"));
+    if (!dock) {
+        std::cerr << "Dock graphics contract failed: missing dock BuildingType.\n";
+        return false;
+    }
+    const GraphicsTarget &target = dock->graphics().default_target();
+    if (target.option_selection() != GraphicsOptionSelection::Orientation || target.option_count() != 4) {
+        std::cerr << "Dock graphics contract failed: expected four native orientation options.\n";
+        return false;
+    }
+    for (int orientation = 0; orientation < 4; ++orientation) {
+        const GraphicsTarget resolved = target.resolved_option(static_cast<unsigned char>(orientation));
+        if (!resolved.has_path() || !resolved.has_image()) {
+            std::cerr << "Dock graphics contract failed: orientation " << orientation
+                << " does not resolve to a complete native image target.\n";
+            return false;
+        }
+    }
+    std::cout << "Validated XML-owned dock orientation graphics.\n";
+    return true;
+}
+
+bool validate_simple_native_building_graphics_contract()
+{
+    using namespace building_type_registry_impl;
+    struct ExpectedTarget {
+        const char *type;
+        const char *path;
+    };
+    static const ExpectedTarget expected_targets[] = {
+        { "mission_post", "Admin_Logistics\\Mission_Post" },
+        { "military_academy", "Military\\Military_Academy" },
+        { "barracks", "Military\\Barracks" },
+    };
+
+    for (const ExpectedTarget &expected : expected_targets) {
+        const BuildingType *definition = definition_for_type(type_from_attr(expected.type));
+        if (!definition || !definition->has_graphic()) {
+            std::cerr << "Simple native graphics contract failed: missing graphics for "
+                << expected.type << ".\n";
+            return false;
+        }
+        const GraphicsTarget &target = definition->graphics().default_target();
+        if (!target.has_path() || std::strcmp(target.path(), expected.path) != 0 ||
+            target.has_image() || target.has_options() || target.is_resource_storage()) {
+            std::cerr << "Simple native graphics contract failed: " << expected.type
+                << " is not an unconditional direct default target.\n";
+            return false;
+        }
+        if (!image_group_payload_load(expected.path)) {
+            std::cerr << "Simple native graphics contract failed: unable to load "
+                << expected.path << ".\n";
+            return false;
+        }
+        const ImageGroupPayload *payload = image_group_payload_get(expected.path);
+        const ImageGroupEntry *entry = payload ? payload->default_entry() : nullptr;
+        if (!entry || !entry->footprint()) {
+            std::cerr << "Simple native graphics contract failed: " << expected.type
+                << " has no default footprint entry.\n";
+            return false;
+        }
+    }
+
+    std::cout << "Validated direct native graphics for mission post, military academy, and barracks.\n";
+    return true;
+}
+
+bool validate_native_storage_and_fort_base_graphics_contract()
+{
+    using namespace building_type_registry_impl;
+    struct ExpectedTarget {
+        const char *type;
+        const char *path;
+        const char *image;
+        bool resource_storage;
+    };
+    static const ExpectedTarget expected_targets[] = {
+        { "warehouse", "Industry\\Warehouse", "Image_0000", false },
+        { "warehouse_space", nullptr, nullptr, true },
+        { "fort_ground", "Military\\Fort", "Image_0001", false },
+    };
+
+    for (const ExpectedTarget &expected : expected_targets) {
+        const BuildingType *definition = definition_for_type(type_from_attr(expected.type));
+        if (!definition || !definition->has_graphic()) {
+            std::cerr << "Native base graphics contract failed: missing graphics for "
+                << expected.type << ".\n";
+            return false;
+        }
+        const GraphicsTarget &target = definition->graphics().default_target();
+        if (target.has_options() || static_cast<bool>(target.is_resource_storage()) != expected.resource_storage) {
+            std::cerr << "Native base graphics contract failed: unexpected strategy for "
+                << expected.type << ".\n";
+            return false;
+        }
+        if (expected.resource_storage) {
+            if (target.has_path() || target.has_image()) {
+                std::cerr << "Native base graphics contract failed: warehouse space mixes resource storage with an image.\n";
+                return false;
+            }
+            continue;
+        }
+        if (!target.has_path() || !target.has_image() ||
+            std::strcmp(target.path(), expected.path) != 0 ||
+            std::strcmp(target.image(), expected.image) != 0 ||
+            !image_group_payload_load(expected.path)) {
+            std::cerr << "Native base graphics contract failed: incomplete target for "
+                << expected.type << ".\n";
+            return false;
+        }
+        const ImageGroupPayload *payload = image_group_payload_get(expected.path);
+        const ImageGroupEntry *entry = payload ? payload->entry_for(expected.image) : nullptr;
+        if (!entry || !entry->footprint()) {
+            std::cerr << "Native base graphics contract failed: " << expected.type
+                << " has no referenced footprint entry.\n";
+            return false;
+        }
+    }
+
+    std::cout << "Validated native warehouse, warehouse-space, and fort-ground base graphics.\n";
+    return true;
+}
+
 bool validate_colosseum_graphics_contract()
 {
     using namespace building_type_registry_impl;
@@ -331,6 +675,28 @@ bool validate_figure_owner_contracts()
         return false;
     }
     std::cout << "Validated ownerless and required-owner FigureType profile contracts.\n";
+    return true;
+}
+
+bool validate_entertainer_graphics_contract()
+{
+    const figure_type entertainers[] = {
+        FIGURE_ACTOR,
+        FIGURE_GLADIATOR,
+        FIGURE_TOURIST
+    };
+    for (figure_type type : entertainers) {
+        const figure_type_registry_impl::FigureGraphics *graphics =
+            figure_type_registry_impl::graphics_for(type);
+        if (!graphics || !graphics->overlays().empty()) {
+            std::cerr << "Entertainer graphics contract failed: figure "
+                      << static_cast<int>(type) << " acquired "
+                      << (graphics ? graphics->overlays().size() : 0)
+                      << " overlay(s), or has no graphics definition.\n";
+            return false;
+        }
+    }
+    std::cout << "Validated entertainer graphics contain no resource-cart overlays.\n";
     return true;
 }
 
@@ -447,12 +813,20 @@ int main(int argc, char **argv)
         }
     }
 
+    if (!validate_startup_parser_abi_contract() ||
+        !validate_building_graphics_generation_contract()) {
+        return 1;
+    }
+
     const std::filesystem::path game_root = std::filesystem::current_path();
     if (!check_extraction_prerequisites(game_root, executable_directory(argv[0]))) {
         return 1;
     }
 
-    const startup_parser::StartupEnvironment environment = startup_parser::inspect_startup_environment();
+    StartupEnvironmentSnapshot environment;
+    if (!inspect_startup_environment(environment)) {
+        return 1;
+    }
     std::cout << "Startup parser test game root: " << environment.game_root << "\n";
     std::cout << "Selected mod stack: ";
     const auto &mods = environment.mod_stack;
@@ -461,8 +835,69 @@ int main(int argc, char **argv)
     }
     std::cout << "\nSelected mod path: " << environment.mod_path << "\n";
 
+    // These fixture loaders intentionally publish temporary registries. Run
+    // them before startup so the ordinary parse replaces them before any
+    // BuildingType resolves definition pointers.
+    if (!validate_housing_profile_registry_layering_contract(std::cerr) ||
+        !validate_foundation_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
     if (!run_startup_parse()) {
         std::cerr << "Startup parser test failed.\n";
+        return 1;
+    }
+    if (!validate_entertainer_graphics_contract()) {
+        return 1;
+    }
+    if (!validate_building_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_mod_definition_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_culture_module_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_god_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_resource_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_religion_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_production_method_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_storage_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_distribution_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_water_access_type_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_unit_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_formation_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_figure_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_building_identity_contract()) {
+        return 1;
+    }
+    if (!validate_plague_runtime_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_foundation_rotation_contract() ||
+        !validate_composition_rotation_contracts(std::cerr) ||
+        !validate_parsed_composition_contracts(std::cerr) ||
+        !validate_housing_transition_planner_contract()) {
         return 1;
     }
     if (!validate_rubble_repair_contract()) {
@@ -472,6 +907,30 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_road_aqueduct_crossing_rules()) {
+        return 1;
+    }
+    if (!validate_gate_terrain_foundation_contract()) {
+        return 1;
+    }
+    if (!validate_native_gatehouse_bridge_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_native_statue_orientation_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_native_hippodrome_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_native_overlay_summary_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_dock_native_orientation_contract()) {
+        return 1;
+    }
+    if (!validate_simple_native_building_graphics_contract()) {
+        return 1;
+    }
+    if (!validate_native_storage_and_fort_base_graphics_contract()) {
         return 1;
     }
     if (!validate_colosseum_graphics_contract()) {

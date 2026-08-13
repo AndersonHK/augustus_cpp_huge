@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\caravanserai_walker_nw_06">
+    <image id="caravanserai_walker_nw_06" width="39" height="39">
+        <layer src="caravanserai_walker_nw_06_Layer_01" x="10" y="2"/>
+        <layer src="caravanserai_walker_nw_06_Layer_02" x="16" y="2"/>
+        <layer src="caravanserai_walker_nw_06_Layer_03" x="16" y="9"/>
+    </image>
+</assetlist>

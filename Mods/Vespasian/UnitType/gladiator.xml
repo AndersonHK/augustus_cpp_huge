@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="gladiator">
+    <figure type="gladiator" />
+    <combat>
+        <health value="100" />
+        <attack value="9" />
+        <defense value="2" />
+        <armor value="0" />
+    </combat>
+    <abilities>
+        <melee exposed_back_bonus="4" />
+    </abilities>
+</unit>

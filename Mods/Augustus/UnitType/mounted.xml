@@ -1,2 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<unit key="mounted"><figure type="fort_mounted" /><combat><health value="110" /><attack value="14" /><defense value="6" /><morale value="70" /><armor value="3" /></combat><movement pathing="soldier_land" /><recruit type="mounted" /><abilities><melee /></abilities><graphics figure_type="mounted" /></unit>
+<unit key="mounted">
+    <figure type="fort_mounted" />
+    <combat>
+        <health value="120" />
+        <attack value="8" />
+        <defense value="0" />
+        <morale value="60" />
+        <armor value="0" />
+    </combat>
+    <movement pathing="soldier_land" />
+    <recruit type="mounted" />
+    <abilities>
+        <melee exposed_back_bonus="4" charge_attack_bonus="4" />
+    </abilities>
+    <graphics figure_type="mounted" />
+</unit>

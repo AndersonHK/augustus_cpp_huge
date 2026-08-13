@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\path_orn_pine">
+    <image id="path orn pine" width="58" height="71" isometric="true">
+        <layer group="Terrain_Maps\Garden" image="Image_0003" y="39" part="footprint"/>
+        <layer group="Terrain_Maps\Garden" image="Image_0003" y="39" part="top"/>
+        <layer src="path_orn_pine_Layer_03" x="4" part="top"/>
+    </image>
+</assetlist>

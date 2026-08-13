@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Fort_Leg_Flag_Central">
+    <image id="Fort_Jav_Flag_Central" group="Military\Fort" image="Fort_Jav_Flag_Central"/>
+    <image id="Fort_Cav_Flag_Central" group="Military\Fort" image="Fort_Cav_Flag_Central"/>
+    <image id="Fort_Leg_Flag_Central" group="Military\Fort" image="Fort_Leg_Flag_Central"/>
+</assetlist>

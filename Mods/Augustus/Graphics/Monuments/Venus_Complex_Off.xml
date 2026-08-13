@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Venus_Complex_Off">
+    <image id="Venus Complex Off" width="418" height="231" isometric="true">
+        <layer src="Venus_Complex_Off_Layer_01" part="top"/>
+        <layer group="Health_Culture\Temple_Venus" image="Image_0001" x="90" y="14" part="footprint"/>
+        <layer group="Health_Culture\Temple_Venus" image="Image_0001" x="90" y="14" part="top"/>
+        <layer src="Venus_Complex_Off_Layer_04" x="71" y="79" part="top" invert="horizontal"/>
+    </image>
+    <image id="Venus worshippers">
+        <layer src="Venus_worshippers"/>
+    </image>
+    <image id="Venus Complex On" width="418" height="231" isometric="true">
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="footprint"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <animation speed="1" x="198" y="121">
+            <frame group="Monuments\Venus_Complex_Off" image="Venus worshippers"/>
+        </animation>
+    </image>
+    <image id="Venus_CM_0">
+        <layer src="Venus_CM_0_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0000"/>
+    </image>
+    <image id="Venus_CM_1">
+        <layer src="Venus_CM_1_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0001"/>
+    </image>
+    <image id="Venus_CM_10">
+        <layer src="Venus_CM_10_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0010"/>
+    </image>
+    <image id="Venus_CM_11">
+        <layer src="Venus_CM_11_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0011"/>
+    </image>
+    <image id="Venus_CM_19">
+        <layer src="Venus_CM_19_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0019"/>
+    </image>
+    <image id="Venus_CM_20">
+        <layer src="Venus_CM_20_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0020"/>
+    </image>
+    <image id="Venus_CM_28">
+        <layer src="Venus_CM_28_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0028"/>
+    </image>
+    <image id="Venus_CM_29">
+        <layer src="Venus_CM_29_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0029"/>
+    </image>
+    <image id="Venus_CM_37">
+        <layer src="Venus_CM_37_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0037"/>
+    </image>
+    <image id="Venus_CM_38">
+        <layer src="Venus_CM_38_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0038"/>
+    </image>
+    <image id="Venus_CM_46">
+        <layer src="Venus_CM_46_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0046"/>
+    </image>
+    <image id="Venus_CM_47">
+        <layer src="Venus_CM_47_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0047"/>
+    </image>
+    <image id="Venus_CM_55">
+        <layer src="Venus_CM_55_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0055"/>
+    </image>
+    <image id="Venus_CM_64">
+        <layer src="Venus_CM_64_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0064"/>
+    </image>
+    <image id="Venus_CM_65">
+        <layer src="Venus_CM_65_Layer_01" x="-40" y="-22"/>
+        <layer group="Walkers\Group_105" image="Image_0065"/>
+    </image>
+    <image id="Venus Complex Module" width="418" height="231" isometric="true">
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="footprint"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <animation speed="8" x="225" y="114">
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_0"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_1"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_10"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_11"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_19"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_20"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_28"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_29"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_37"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_38"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_46"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_47"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_55"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_64"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_CM_65"/>
+        </animation>
+    </image>
+    <image id="Venus_Temple_Complex_Module2_01" width="150" height="95">
+        <layer src="Venus_Temple_Complex_Module2_01_Layer_01" x="1"/>
+        <layer src="Venus_Temple_Complex_Module2_01_Layer_02" x="54" y="22"/>
+    </image>
+    <image id="Venus_Temple_Complex_Module2_02" width="150" height="95">
+        <layer src="Venus_Temple_Complex_Module2_02_Layer_01" x="1"/>
+        <layer src="Venus_Temple_Complex_Module2_02_Layer_02" x="54" y="23"/>
+    </image>
+    <image id="Venus_Temple_Complex_Module2_03" width="150" height="95">
+        <layer src="Venus_Temple_Complex_Module2_03_Layer_01" x="1"/>
+        <layer src="Venus_Temple_Complex_Module2_03_Layer_02" x="54" y="24"/>
+    </image>
+    <image id="Venus Complex Module2" width="418" height="231" isometric="true">
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="footprint"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <layer group="Monuments\Venus_Complex_Off" image="Venus Complex Off" part="top"/>
+        <animation speed="6" reversible="true" x="184" y="92">
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_Temple_Complex_Module2_01"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_Temple_Complex_Module2_02"/>
+            <frame group="Monuments\Venus_Complex_Off" image="Venus_Temple_Complex_Module2_03"/>
+        </animation>
+    </image>
+</assetlist>

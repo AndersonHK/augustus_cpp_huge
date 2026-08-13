@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Amphitheater">
+    <image id="Amphitheatre_ON_01" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0001" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_01_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_02" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0002" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_02_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_03" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0003" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_03_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_04" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0004" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_04_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_05" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0005" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_05_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_06" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0006" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_06_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_07" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0007" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_07_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_08" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0008" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_08_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_09" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0009" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_09_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre_ON_10" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater_Show" image="Image_0000"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0010" x="63" y="13"/>
+        <layer src="Amphitheatre_ON_10_Layer_03" x="56" y="1"/>
+    </image>
+    <image id="Amphitheatre ON" width="178" height="146" isometric="true">
+        <layer group="Health_Culture\Amphitheater" image="Image_0000" part="footprint"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0000" part="top"/>
+        <animation speed="5" x="37" y="39">
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_01"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_02"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_03"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_04"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_05"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_06"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_07"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_08"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_09"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_ON_10"/>
+        </animation>
+    </image>
+    <image id="Amphitheatre Upgrade OFF" width="178" height="146" isometric="true">
+        <layer group="Health_Culture\Amphitheater" image="Image_0000" part="footprint"/>
+        <layer group="Health_Culture\Amphitheater" image="Image_0000" part="top"/>
+        <layer src="Amphitheatre_Upgrade_OFF_Layer_03" part="top"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_01" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_01"/>
+        <layer src="Amphitheatre_UP_ON_01_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_02" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_02"/>
+        <layer src="Amphitheatre_UP_ON_02_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_03" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_03"/>
+        <layer src="Amphitheatre_UP_ON_03_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_04" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_04"/>
+        <layer src="Amphitheatre_UP_ON_04_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_05" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_05"/>
+        <layer src="Amphitheatre_UP_ON_05_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_06" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_06"/>
+        <layer src="Amphitheatre_UP_ON_06_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_07" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_07"/>
+        <layer src="Amphitheatre_UP_ON_07_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_08" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_08"/>
+        <layer src="Amphitheatre_UP_ON_08_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_09" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_09"/>
+        <layer src="Amphitheatre_UP_ON_09_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre_UP_ON_10" width="104" height="57">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre_ON_10"/>
+        <layer src="Amphitheatre_UP_ON_10_Layer_02" x="-37" y="-39"/>
+    </image>
+    <image id="Amphitheatre Upgrade ON" width="178" height="146" isometric="true">
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre Upgrade OFF" part="footprint"/>
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre Upgrade OFF" part="top"/>
+        <layer group="Health_Culture\Amphitheater" image="Amphitheatre Upgrade OFF" part="top"/>
+        <animation speed="5" x="37" y="39">
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_01"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_02"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_03"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_04"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_05"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_06"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_07"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_08"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_09"/>
+            <frame group="Health_Culture\Amphitheater" image="Amphitheatre_UP_ON_10"/>
+        </animation>
+    </image>
+</assetlist>

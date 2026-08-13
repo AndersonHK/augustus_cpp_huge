@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\G_Colonnade_02">
+    <image id="G Colonnade 02" width="58" height="46" isometric="true">
+        <layer src="G_Colonnade_02" y="1" part="footprint"/>
+    </image>
+</assetlist>

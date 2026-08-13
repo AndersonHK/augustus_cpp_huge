@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="prefect">
+    <figure type="prefect" />
+    <combat>
+        <health value="50" />
+        <attack value="5" />
+        <defense value="0" />
+        <armor value="0" />
+    </combat>
+    <abilities>
+        <melee exposed_back_bonus="4" />
+    </abilities>
+</unit>

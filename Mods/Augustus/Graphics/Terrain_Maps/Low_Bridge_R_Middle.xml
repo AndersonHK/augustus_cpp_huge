@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Low_Bridge_R_Middle">
+    <image id="Low_Bridge_R_Middle" isometric="true">
+        <layer src="Low_Bridge_R_Middle" part="footprint"/>
+    </image>
+</assetlist>

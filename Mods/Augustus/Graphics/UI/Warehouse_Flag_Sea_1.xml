@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Warehouse_Flag_Sea_1">
+    <image id="Warehouse_Flag_Sea_1" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_1_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_1_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_1_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_1_Layer_04" x="12" y="10"/>
+        <layer src="Warehouse_Flag_Sea_1_Layer_05" x="14" y="7"/>
+        <layer src="Warehouse_Flag_Sea_1_Layer_06" x="13" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_2" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_2_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_2_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_2_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_2_Layer_04" x="12" y="10"/>
+        <layer src="Warehouse_Flag_Sea_2_Layer_05" x="14" y="7"/>
+        <layer src="Warehouse_Flag_Sea_2_Layer_06" x="13" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_3" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_3_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_3_Layer_02" y="1"/>
+        <layer src="Warehouse_Flag_Sea_3_Layer_03" x="4" y="2"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_4" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_4_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_4_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_4_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_4_Layer_04" x="12" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_5" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_5_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_5_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_5_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_5_Layer_04" x="14" y="7"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_6" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_6_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_6_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_6_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_6_Layer_04" x="12" y="10"/>
+        <layer src="Warehouse_Flag_Sea_6_Layer_05" x="14" y="7"/>
+        <layer src="Warehouse_Flag_Sea_6_Layer_06" x="13" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_7" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_7_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_7_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_7_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_7_Layer_04" x="12" y="10"/>
+        <layer src="Warehouse_Flag_Sea_7_Layer_05" x="14" y="7"/>
+        <layer src="Warehouse_Flag_Sea_7_Layer_06" x="13" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea_8" width="21" height="24">
+        <layer src="Warehouse_Flag_Sea_8_Layer_01"/>
+        <layer src="Warehouse_Flag_Sea_8_Layer_02" x="1" y="1"/>
+        <layer src="Warehouse_Flag_Sea_8_Layer_03" x="4" y="2"/>
+        <layer src="Warehouse_Flag_Sea_8_Layer_04" x="12" y="10"/>
+        <layer src="Warehouse_Flag_Sea_8_Layer_05" x="14" y="7"/>
+        <layer src="Warehouse_Flag_Sea_8_Layer_06" x="13" y="10"/>
+    </image>
+    <image id="Warehouse_Flag_Sea" width="21" height="24">
+        <layer group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_1"/>
+        <animation speed="6">
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_2"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_3"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_4"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_5"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_6"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_7"/>
+            <frame group="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea_8"/>
+        </animation>
+    </image>
+</assetlist>

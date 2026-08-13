@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mercury_Temple_Complex_Module2_03">
+    <image id="Mercury Complex Off" width="418" height="231" isometric="true" group="Monuments\Mercury_Complex_Off" image="Mercury Complex Off"/>
+    <image id="Mercury worshippers" group="Monuments\Mercury_Complex_Off" image="Mercury worshippers"/>
+    <image id="Mercury Complex On" width="418" height="231" isometric="true" group="Monuments\Mercury_Complex_Off" image="Mercury Complex On"/>
+    <image id="Mercury_Temple_Complex_Module_01" width="118" height="77" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_01"/>
+    <image id="Mercury_Temple_Complex_Module_02" width="118" height="77" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_02"/>
+    <image id="Mercury_Temple_Complex_Module_03" width="118" height="77" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module_03"/>
+    <image id="Mercury Complex Module" width="418" height="231" isometric="true" group="Monuments\Mercury_Complex_Off" image="Mercury Complex Module"/>
+    <image id="Mercury_Temple_Complex_Module2_01" width="137" height="76" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_01"/>
+    <image id="Mercury_Temple_Complex_Module2_02" width="137" height="76" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_02"/>
+    <image id="Mercury_Temple_Complex_Module2_03" width="137" height="76" group="Monuments\Mercury_Complex_Off" image="Mercury_Temple_Complex_Module2_03"/>
+    <image id="Mercury Complex Module2" width="418" height="231" isometric="true" group="Monuments\Mercury_Complex_Off" image="Mercury Complex Module2"/>
+</assetlist>

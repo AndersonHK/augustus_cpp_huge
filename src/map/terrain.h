@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "core/buffer.h"
 
+class Building;
+
 
 #define TERRAIN_LAST_FLAG TERRAIN_HIGHWAY_BOTTOM_RIGHT
 #define TERRAIN_NUM_FLAGS  (21)  // bits
@@ -141,7 +143,10 @@ int map_terrain_is_adjacent_to_wall(int x, int y, int size);
 
 int map_terrain_is_adjacent_to_water(int x, int y, int size);
 
-int map_terrain_get_adjacent_road_or_clear_land(int x, int y, int size, int *x_tile, int *y_tile);
+int map_terrain_get_adjacent_road_or_clear_land(
+    const Building &building,
+    int *x_tile,
+    int *y_tile);
 
 void map_terrain_add_roadblock_road(int x, int y);
 void map_terrain_add_gatehouse_roads(int x, int y, int orientation);

@@ -239,7 +239,7 @@ int building_granary_count_available_resource(const Building &b, resource_type r
     }
     if (!respect_maintaining ||
         building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_MAINTAINING ||
-        building_storage_get_empty_all(b.id)) {
+        building_storage_get_empty_all(b)) {
         return building_granary_get_amount(b, resource);
     } else {
         return 0;
@@ -268,7 +268,7 @@ static void try_create_cart_to_rome(Building &b, resource_type resource, int loa
         f->action_state = FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED;
         f->resource_id = static_cast<unsigned char>(resource);
         f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
-        f->building = &b;
+    f->set_home_building(&b);
     }
 }
 
@@ -280,7 +280,7 @@ int building_granaries_send_resources_to_rome(resource_type resource, int amount
             break;
         }
         if (b.is_in_use()) {
-            if ((building_storage_get_empty_all(b.id) ||
+            if ((building_storage_get_empty_all(b) ||
                  building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_GETTING) &&
                 building_storage_get_permission(BUILDING_STORAGE_PERMISSION_CAESAR, b)) {
                 int taken_loads = building_granary_try_remove_resource(b, resource, amount);
@@ -316,7 +316,7 @@ int building_granaries_send_resources_to_rome(resource_type resource, int amount
 int building_granary_maximum_receptible_amount(
     const Building &b, resource_type resource, unsigned int ignore_figure_id)
 {
-    if (b.has_plague() || building_storage_get_empty_all(b.id) ||
+    if (b.has_plague() || building_storage_get_empty_all(b) ||
          !b.is_in_use() || b.resource_amount(RESOURCE_NONE) <= 0) {
         return 0;
     }
@@ -735,7 +735,7 @@ void building_granary_warehouse_curse(int big)
             MESSAGE_FIRE,
             max_building->type ? max_building->type->type() : BUILDING_NONE,
             max_building->grid_offset());
-        building_destroy_by_fire(const_cast<building *>(max_building->record()));
+        max_building->destroy_by_fire();
         sound_effect_play(SOUND_EFFECT_EXPLOSION);
         Route::updateLandTerrain();
     } else {

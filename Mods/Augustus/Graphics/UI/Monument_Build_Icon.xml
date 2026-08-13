@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Monument_Build_Icon">
+    <image id="Monument Build Icon">
+        <layer src="Monument_Build_Icon"/>
+    </image>
+</assetlist>

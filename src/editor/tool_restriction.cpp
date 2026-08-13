@@ -1,5 +1,6 @@
 #include "tool_restriction.h"
 
+#include "building/FoundationDef.h"
 #include "city/warning.h"
 #include "map/elevation.h"
 #include "map/figure.h"
@@ -141,20 +142,38 @@ int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_ind
     return 0;
 }
 
-int editor_tool_can_place_building(const map_tile *tile, int num_tiles, int *blocked_tiles)
+int editor_tool_can_place_building(
+    const map_tile *tile,
+    const building_type_registry_impl::FoundationDef &foundation,
+    int rotation,
+    std::vector<int> *blocked_tiles)
 {
+    if (!tile) {
+        return 0;
+    }
+    const std::vector<building_type_registry_impl::RotatedFoundationCell> cells =
+        foundation.rotated_cells(foundation.rotates() ? rotation : 0);
+    if (blocked_tiles) {
+        blocked_tiles->assign(cells.size(), 0);
+    }
     int blocked = 0;
-    for (int i = 0; i < num_tiles; i++) {
-        int tile_offset = tile->grid_offset + TILE_GRID_OFFSETS[i];
+    for (int i = 0; i < static_cast<int>(cells.size()); i++) {
+        const building_type_registry_impl::RotatedFoundationCell &cell = cells[i];
+        const int x = tile->x + cell.x;
+        const int y = tile->y + cell.y;
+        if (!map_grid_is_inside(x, y, 1)) {
+            blocked = 1;
+            if (blocked_tiles) {
+                (*blocked_tiles)[i] = 1;
+            }
+            continue;
+        }
+        int tile_offset = map_grid_offset(x, y);
         int forbidden_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
         if (forbidden_terrain || map_has_figure_at(tile_offset)) {
             blocked = 1;
             if (blocked_tiles) {
-                blocked_tiles[i] = 1;
-            }
-        } else {
-            if (blocked_tiles) {
-                blocked_tiles[i] = 0;
+                (*blocked_tiles)[i] = 1;
             }
         }
     }

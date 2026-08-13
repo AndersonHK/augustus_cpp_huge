@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\Group_229">
+    <image id="overseer_death_05">
+        <layer group="Walkers\Group_229" image="Image_0100"/>
+    </image>
+    <image id="overseer_death_06">
+        <layer group="Walkers\Group_229" image="Image_0101"/>
+    </image>
+    <image id="overseer_death_07">
+        <layer group="Walkers\Group_229" image="Image_0102"/>
+    </image>
+    <image id="overseer_death_08">
+        <layer group="Walkers\Group_229" image="Image_0103"/>
+    </image>
+    <image id="caravanserai_overseer_death_05">
+        <layer group="Walkers\Group_229" image="Image_0100"/>
+    </image>
+    <image id="caravanserai_overseer_death_06">
+        <layer group="Walkers\Group_229" image="Image_0101"/>
+    </image>
+    <image id="caravanserai_overseer_death_07">
+        <layer group="Walkers\Group_229" image="Image_0102"/>
+    </image>
+    <image id="caravanserai_overseer_death_08">
+        <layer group="Walkers\Group_229" image="Image_0103"/>
+    </image>
+</assetlist>

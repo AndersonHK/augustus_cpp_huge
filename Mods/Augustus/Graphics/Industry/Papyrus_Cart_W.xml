@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Papyrus_Cart_W">
+    <image id="Papyrus_Cart_W" width="39" height="39">
+        <layer group="Walkers\Group_097" image="Image_0005"/>
+        <layer src="Papyrus_Cart_W_Layer_02" x="8" y="10"/>
+    </image>
+</assetlist>

@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Road">
+    <image id="3x3_Cobblestone_Footprint" width="178" height="90" isometric="true">
+        <layer group="Terrain_Maps\Road" image="Image_0017" y="30" part="footprint" invert="horizontal"/>
+        <layer group="Terrain_Maps\Road" image="Image_0034" x="30" y="15" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="Image_0017" x="30" y="45" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="Image_0034" x="60" part="footprint" invert="horizontal"/>
+        <layer group="Terrain_Maps\Road" image="Image_0017" x="60" y="30" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="Image_0034" x="60" y="60" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="Image_0017" x="90" y="15" part="footprint" invert="horizontal"/>
+        <layer group="Terrain_Maps\Road" image="Image_0034" x="90" y="45" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="Image_0017" x="120" y="30" part="footprint"/>
+    </image>
+    <image id="Nymphaeum_Construction_02" width="178" height="113" isometric="true">
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="23" part="footprint"/>
+        <layer src="Nymphaeum_Construction_02_Layer_10" part="top"/>
+        <layer src="Nymphaeum_Construction_02_Layer_11" x="9" y="50" part="top"/>
+        <layer src="Nymphaeum_Construction_02_Layer_12" x="73" y="80" part="top"/>
+    </image>
+    <image id="Mausoleum_Large_Alt_Construction_02" width="178" height="109" isometric="true">
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer src="Mausoleum_Large_Alt_Construction_02_Layer_10" y="19" part="top"/>
+        <layer src="Mausoleum_Large_Alt_Construction_02_Layer_11" x="3" y="46" part="top"/>
+        <layer src="Mausoleum_Large_Alt_Construction_02_Layer_12" x="1" part="top"/>
+    </image>
+    <image id="Mausoleum_Large_Alt_Construction_02_R" width="178" height="109" isometric="true">
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint" y="19" part="footprint"/>
+        <layer src="Mausoleum_Large_Alt_Construction_02_R_Layer_10" y="19" part="top"/>
+        <layer src="Mausoleum_Large_Alt_Construction_02_R_Layer_11" x="1" part="top"/>
+    </image>
+</assetlist>

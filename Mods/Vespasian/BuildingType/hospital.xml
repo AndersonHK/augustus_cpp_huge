@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="hospital">
     <identity name_key="main_strings.28.47" />
-    <model size="3" cost="300" />
+    <model cost="300" />
     <desirability>
         <value value="-2" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="health" order="40" icon="Health_Culture\Hospital" icon_image="Image_0000" text_key="main_strings.28.47" />
     <sound id="hospital" />
-    <event_data attr="hospital" />
     <culture_modules>
         <culture_module path="hospital" capacity="1500" count="active" />
     </culture_modules>
@@ -28,8 +27,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="surgeon">
-        <spawn mode="profiled_figure" spawn_figure="surgeon"
-            action_state="roaming" direction="top" figure_slot="primary"
-            init_roaming="true" profile="service" />
+        <spawn spawn_figure="surgeon" direction="top" figure_slot="primary" profile="service" />
     </spawn_group>
 </building>

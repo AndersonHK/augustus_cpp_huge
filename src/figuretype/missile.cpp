@@ -6,6 +6,7 @@
 #include "figure/movement.h"
 #include "figure/properties.h"
 #include "figure/sound.h"
+#include "figure/unit_type.h"
 #include "map/figure.h"
 #include "map/point.h"
 #include "sound/effect.h"
@@ -67,7 +68,7 @@ void figure_create_missile(int figure_id, int x, int y, int x_dst, int y_dst, fi
         } else {
             f->missile_height = 10;
         }
-        f->last_destination_id = figure_id;
+        f->set_last_destination_figure_id(static_cast<unsigned int>(figure_id));
         f->destination_x = static_cast<unsigned char>(x_dst);
         f->destination_y = static_cast<unsigned char>(y_dst);
         figure_movement_set_cross_country_direction(
@@ -133,25 +134,45 @@ void figure_explosion_cloud_action(Figure *f)
     }
 }
 
-static void missile_hit_target(Figure *f, int target_id, figure_type legionary_type)
+static int missile_damage(const Figure &missile)
+{
+    int damage = figure_properties_for_type(
+        static_cast<figure_type>(missile.type))->missile_attack_value;
+    const Figure *launcher = Figure::get(missile.last_destination_id);
+    const UnitType *launcher_unit = launcher ?
+        unit_type_registry_impl::find_unit_type(static_cast<figure_type>(launcher->type)) : nullptr;
+    const UnitRangedAbility *ranged = launcher_unit ? launcher_unit->ranged_ability() : nullptr;
+    if (ranged && launcher) {
+        const formation *launcher_formation = formation_get(launcher->formation_id);
+        const UnitRangedAbility::Projectile projectile =
+            ranged->projectile_for_enemy(launcher_formation->enemy_type);
+        if (projectile.type == static_cast<figure_type>(missile.type)) {
+            damage = projectile.damage;
+        }
+    }
+    return damage;
+}
+
+static void missile_hit_target(Figure *f, int target_id)
 {
     Figure *target = Figure::get(target_id);
-    const figure_properties *target_props = figure_properties_for_type(static_cast<figure_type>(target->type));
-    int max_damage = target_props->max_damage;
-    int damage_inflicted =
-        figure_properties_for_type(static_cast<figure_type>(f->type))->missile_attack_value -
-        target_props->missile_defense_value;
+    const figure_type target_type = static_cast<figure_type>(target->type);
+    int max_damage = figure_damage_limit_for_type(target_type);
+    int damage_inflicted = missile_damage(*f) - figure_missile_defense_for_type(target_type);
     formation *m = formation_get(target->formation_id);
-    // Archer and javelin defense bonus
-    if ((target->type == FIGURE_FORT_ARCHER || target->type == FIGURE_FORT_JAVELIN) &&
-        (m->layout == FORMATION_SINGLE_LINE_1 || m->layout == FORMATION_SINGLE_LINE_2)) {
-        damage_inflicted -= 4;
+    const UnitType *target_unit = unit_type_registry_impl::find_unit_type(target_type);
+    const UnitMeleeAbility *target_melee = target_unit ? target_unit->melee_ability() : nullptr;
+    if (target_melee &&
+        (m->uses_layout("single_line_1") || m->uses_layout("single_line_2"))) {
+        damage_inflicted -= target_melee->single_line_missile_defense_bonus;
     }
     if (damage_inflicted < 0) {
         damage_inflicted = 0;
     }
-    if (target->type == legionary_type && m->is_halted && m->layout == FORMATION_COLUMN) {
-        damage_inflicted = 1;
+    if (m->is_halted && m->uses_layout("column")) {
+        if (target_melee && target_melee->column_missile_damage > 0) {
+            damage_inflicted = target_melee->column_missile_damage;
+        }
     }
     int target_damage = damage_inflicted + target->damage;
     if (target_damage <= max_damage) {
@@ -179,7 +200,7 @@ void figure_arrow_action(Figure *f)
     int should_die = figure_movement_move_ticks_cross_country(f, 4);
     int target_id = get_citizen_on_tile(f->grid_offset);
     if (target_id) {
-        missile_hit_target(f, target_id, FIGURE_FORT_LEGIONARY);
+        missile_hit_target(f, target_id);
         sound_effect_play(SOUND_EFFECT_ARROW_HIT);
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;
@@ -198,7 +219,7 @@ void figure_spear_action(Figure *f)
     int should_die = figure_movement_move_ticks_cross_country(f, 4);
     int target_id = get_citizen_on_tile(f->grid_offset);
     if (target_id) {
-        missile_hit_target(f, target_id, FIGURE_FORT_LEGIONARY);
+        missile_hit_target(f, target_id);
         sound_effect_play(SOUND_EFFECT_JAVELIN);
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;
@@ -217,7 +238,7 @@ void figure_friendly_arrow_action(Figure *f)
     int should_die = figure_movement_move_ticks_cross_country(f, 4);
     int target_id = get_non_citizen_on_tile(f->grid_offset);
     if (target_id) {
-        missile_hit_target(f, target_id, FIGURE_ENEMY_CAESAR_LEGIONARY);
+        missile_hit_target(f, target_id);
         sound_effect_play(SOUND_EFFECT_ARROW_HIT);
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;
@@ -237,7 +258,7 @@ void figure_javelin_action(Figure *f)
     int should_die = figure_movement_move_ticks_cross_country(f, 4);
     int target_id = get_non_citizen_on_tile(f->grid_offset);
     if (target_id) {
-        missile_hit_target(f, target_id, FIGURE_ENEMY_CAESAR_LEGIONARY);
+        missile_hit_target(f, target_id);
         sound_effect_play(SOUND_EFFECT_JAVELIN);
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;
@@ -257,11 +278,9 @@ void figure_bolt_action(Figure *f)
     int target_id = get_non_citizen_on_tile(f->grid_offset);
     if (target_id) {
         Figure *target = Figure::get(target_id);
-        const figure_properties *target_props = figure_properties_for_type(static_cast<figure_type>(target->type));
-        int max_damage = target_props->max_damage;
-        int damage_inflicted =
-            figure_properties_for_type(static_cast<figure_type>(f->type))->missile_attack_value -
-            target_props->missile_defense_value;
+        const figure_type target_type = static_cast<figure_type>(target->type);
+        int max_damage = figure_damage_limit_for_type(target_type);
+        int damage_inflicted = missile_damage(*f) - figure_missile_defense_for_type(target_type);
         if (damage_inflicted < 0) {
             damage_inflicted = 0;
         }
@@ -295,7 +314,7 @@ void figure_catapult_missile_action(Figure *f)
     int should_die = figure_movement_move_ticks_cross_country(f, 4);
     int target_id = get_citizen_on_tile(f->grid_offset);
     if (target_id) {
-        missile_hit_target(f, target_id, FIGURE_NONE);
+        missile_hit_target(f, target_id);
         sound_effect_play(SOUND_EFFECT_BALLISTA_HIT_GROUND);
     } else if (should_die) {
         f->state = FIGURE_STATE_DEAD;

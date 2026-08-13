@@ -3,6 +3,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 
 namespace building_local_workforce {
@@ -45,7 +46,7 @@ void RuntimeBuildingLists::forEachPopulatedLaborSourceHouse(
     const std::function<void(Building &, building &)> &visitor)
 {
     forEachLaborSourceHouse([&visitor](Building &house_object, building &house) {
-        if (house.house_population > 0) {
+        if (house_object.Housing->state().population > 0) {
             visitor(house_object, house);
         }
     });
@@ -58,7 +59,8 @@ int RuntimeBuildingLists::buildingCountChanged() const
 
 int RuntimeBuildingLists::isLaborSourceHouse(const building *record) const
 {
-    return record && record->id && record->state == BUILDING_STATE_IN_USE && record->house_size;
+    const auto *definition = record ? building_type_registry_impl::definition_for_type(record->type) : nullptr;
+    return record && record->id && record->state == BUILDING_STATE_IN_USE && definition && definition->has_housing();
 }
 
 void RuntimeBuildingLists::ensureCurrent()
@@ -72,7 +74,7 @@ void RuntimeBuildingLists::rebuild()
 {
     labor_source_house_ids_.clear();
     building_count_snapshot_ = building_count();
-    Building::for_each({ .hasHousing = true }, [this](Building *building) {
+    Building::for_each(BuildingRuntimeList::Housing, [this](Building *building) {
         ::building *house = const_cast<::building *>(building->record());
         if (isLaborSourceHouse(house)) {
             labor_source_house_ids_.push_back(building->id);

@@ -26,18 +26,20 @@ their logical game size.
   pattern bridge rather than the building-style target/layer/policy model.
 - `src/figure/FigureGraphics.cpp` now owns cached default/action/corpse
   target bindings, legacy atlas image-id formulas, carried-resource cart
-  imagery, legacy image/stacked overlay layer construction, and legacy cart
-  overlay layers. `src/figure/figure_runtime_native.cpp` still uses
+  imagery, and XML-authored overlay layer construction. `src/figure/figure_runtime_native.cpp` still uses
   `GenericFigureGraphics` as the runtime bridge, but it now asks
   `FigureTypeDefinition` / `FigureGraphics` for cached bindings instead of
   rebuilding path strings per draw.
 - `src/widget/city_figure.cpp` has a native-slice fast path, then falls back to
   carts, horses, fort standards, map flags, enemy images, and `Image::from_id`.
   That keeps graphics policy split between runtime controllers and draw code.
-- `src/figure/image.cpp` owns corpse, direction, frame, missile launcher, and
-  cart offset tables. Some of this policy should become reusable figure graphics
-  data; some should move into XML; some remains temporary save-compatible
-  animation state.
+- `src/figure/image.cpp` still owns general direction and frame arithmetic. The
+  duplicate cart-attachment and corpse timing tables have been deleted. Migrated
+  overlay geometry lives in strict FigureType XML; corpse source/frame-count data
+  remains FigureType-owned, and `FigureGraphics` resolves the universal
+  death-lifecycle clock directly from its exact transition boundaries. Remaining
+  direction policy should become reusable figure graphics data or named
+  save-compatible animation state.
 - `runtime_texture_draw_request(...)` already accepts explicit logical width and
   height, but city figure drawing normally calls `runtime_texture_draw(...)`,
   which derives logical size from source pixel size.
@@ -49,8 +51,10 @@ their logical game size.
 - [x] Materialize cached default/action/corpse FigureType graphics bindings through `FigureGraphics`.
 - [x] Add structured FigureType graphics child-node parsing for default/action/corpse/cart targets.
 - [x] Move many legacy direction/frame/corpse formulas behind `FigureGraphics` helpers instead of local controller arithmetic.
+- [x] Delete the 128-entry corpse timing table and global corpse-offset API; preserve every legacy wait-tick transition through one bounded `FigureGraphics` lifecycle policy while keeping corpse source and frame count in FigureType data.
+- [x] Migrate stationary ballista direction/frame presentation as the first bounded general-direction family: strict idle/firing state layers own the atlas and view transform, the firing state consumes the authored missile-launcher schedule, and the behavior controller no longer selects images.
 - [x] Move figure info-window draw bodies onto `Figure`/figuretype child `draw(c)` methods, reducing one legacy central switch surface.
-- [~] Move cart/resource/flag/enemy overlay assembly behind `FigureGraphics`; raw `image_id`, `cart_image_id`, and flag bridges remain.
+- [~] Move cart/resource/flag/enemy overlay assembly behind `FigureGraphics`; the hardcoded cart-attachment table and overlay fallback are gone, while raw `image_id`, save-compatible resource `cart_image_id`, and flag bridges remain.
 - [~] Start using fixed logical-size draw requests for figures; final XML logical-size ownership is still blocked by the renderer seam plan.
 - [ ] Make converted FigureType graphics use real payload-managed file path references as the authored norm, such as nested `Walkers/<file>` paths.
 - [ ] Make city figure drawing ask the figure object for a complete draw request, with `city_figure.cpp` only handling placement/submission.
@@ -207,7 +211,7 @@ Figure graphics should read existing save-compatible fields at first:
 - `direction`
 - `previous_tile_direction`
 - `action_state`
-- `cart_image_id`
+- `cart_image_id` (resource-cart save bridge only)
 - `resource_id`
 - `loads_sold_or_carrying`
 
@@ -342,18 +346,20 @@ resolve legacy `image_group` graphics into draw requests without relying on
 - `EngineerServiceFigure`: simple service animation now delegates legacy
   image-state selection through `FigureGraphics::update_legacy_image_state`.
   Still needs animation cursor ownership moved out of the controller.
-- `PrefectServiceFigure`: default and corpse image-state selection now
-  delegates through the legacy `FigureGraphics` helper with the existing
-  direction/attack-direction choice preserved. Fire, bucket, and attack artwork
-  now use the `FigureGraphics` directional-frame helper, but still need named
-  action targets/layers.
+- `PrefectServiceFigure`: default and corpse image-state selection delegates
+  through the legacy `FigureGraphics` helper. Going-to-fire and at-fire bucket
+  artwork now uses strict named `<state>` layers with the exact legacy
+  movement/attack direction sources, two view adjustments, atlas rows, and frame
+  divisors; the controller no longer calculates or stores those bucket image ids.
+  Prefect attack artwork still needs a named action target.
 - `EntertainmentFigureBase`: plain default/corpse image-state rows now delegate
   through the legacy `FigureGraphics` helper where the current XML is plain
   `image_group` data. Charioteer corpse/attack, lion-tamer whip, and gladiator
   attack rows now use the `FigureGraphics` directional-frame helper, but still
-  need action targets represented in data. Legacy cart-overlay finalization now
-  goes through `FigureGraphics`, but the controller still chooses the cart/animal
-  base image and stores the final result in `cart_image_id`.
+  need action targets represented in data. The lion-tamer animal is now a strict
+  named `<overlay>` whose atlas group, direction/frame policy, cart-style offset,
+  draw order, and corpse suppression are owned by `FigureGraphics`; its
+  controllers no longer choose or store that animal in `cart_image_id`.
 
 ### Slice 5: Overlay And Cart Ownership
 
@@ -367,9 +373,11 @@ resolve legacy `image_group` graphics into draw requests without relying on
   completeness, cart layer offsets, and carried-resource slice selection now
   live on `FigureGraphics`; the remaining work is replacing the legacy
   `f->image_id` base-image bridge with direct old-`image_group` draw requests.
-- Map-flag base and flag image layers now resolve through `FigureGraphics`;
-  `city_figure.cpp` only keeps the flag number text overlay while
-  `cart_image_id` remains the temporary storage bridge.
+- Map-flag animation, category-icon selection, stacking, and one-based number
+  policy now come from strict FigureType `<map_flag>`/`<marker>` data.
+  `FigureGraphics` assembles both image layers and supplies the resolved number
+  and authored offset to the narrow text renderer; the controller no longer
+  calculates or stores `image_id`/`cart_image_id` graphics bridges.
 - Enemy-atlas figure drawing now resolves through a colorless
   `FigureGraphics` layer when no cart overlay is present; city draw no longer
   calls `Image::enemy(...)` directly, but enemy image-id selection still lives
@@ -396,11 +404,51 @@ resolve legacy `image_group` graphics into draw requests without relying on
 - Resource carts should resolve their resource payload through the same graphics
   request rather than mutate `cart_image_id`. Depot cart XML-owned
   resource-load completeness, layer offsets, and carried-resource cart slice
-  selection now live on `FigureGraphics`; the generic `cart_image_id` marker
-  bridge remains until resource payload layers are represented as graphics data.
-- Lion tamer animals, hippodrome horses, fort standards, map flags, prefect
-  buckets, missile launchers, and fishing-boat/dock-related overlays should each
-  become named graphics policies or layers.
+  selection live on `FigureGraphics`. The lighthouse supplier now completes one
+  exact generic-cart family: its graphics-only FigureType policy owns the empty
+  cart group, returning action, collecting-item resource source, fixed-one load,
+  all eight attachment offsets, draw order, corpse suppression, and the paired
+  food-lift threshold/shift fields. Its controller no longer mutates or finalizes
+  `cart_image_id`; resource identity remains in `collecting_item_id`. Production,
+  warehouse, and docker transitions publish their one-tick presentation through
+  owner-bound `FigureGraphicsState`, while `cart_image_id` is synthesized and
+  hydrated only at the existing save boundary.
+- Lion-tamer animals are named FigureType graphics layers. Roman fort standards
+  now author their moving/halted unit-banner frames and stacked legion badge in
+  `<standard>` data, eliminating their `cart_image_id` bridge while preserving
+  the existing auxiliary infantry/archer pole-only fallback. Prefect bucket
+  states and complete map-flag stacks are also authored layers. Hippodrome
+  horse/cart team imagery, direction transforms, cart attachment, draw order,
+  and all four wait-tick world-offset schedules now live in strict
+  `<hippodrome_race>` data. Missile-launcher pose schedules now live in strict
+  graphics-only FigureType `<missile_launcher>` definitions. Those definitions
+  select either the saved `attack_image_offset` cursor or transient
+  `wait_ticks_missile`, author the divisor, exact leading frames, and stable
+  after-frame, and are published only through `FigureGraphics` so they cannot
+  replace legacy runtime profiles. Fishing-boat ordinary/fishing rows and trade-ship dock-facing presentation now use generic strict `<directional>`/`<pose>` policy driven by saved action and direction fields; their controllers no longer calculate or clear images.
+
+- The legacy cart-attachment family has been deleted rather than hidden behind
+  another facade. Actor, gladiator, tourist, immigrant, emigrant, native-trader,
+  lion-tamer, and hippodrome overlays author exact eight-direction offsets;
+  ordinary overlays additionally author action visibility and optional
+  per-resource atlas stride. `FigureGraphics` consumes those definitions
+  directly, and no controller or renderer path calls the removed cart-offset
+  setter or cart-image finalizers. The saved cart offset bytes remain layout
+  compatibility fields but no longer drive these overlay layers.
+
+#### Graphics-only FigureType definitions
+
+`graphics_only="true"` is the narrow seam for figures whose presentation must
+be authored before their behavior is migrated to native FigureType profiles.
+Such a definition must contain graphics and must not contain profiles. It is
+layered and validated like an ordinary FigureType, but it is excluded from
+`definition_for(...)`; `FigureGraphics::for_type(...)` can still resolve it.
+This keeps action-dependent legacy pathing intact for figures such as tower
+sentries while removing controller-owned launcher tables. Missile-launcher
+definitions are policy-only: they intentionally have no default image source,
+because native-warrior and enemy-atlas code still owns the base sprite family.
+Projectile type, target, lifetime, and saved in-flight cursor fields are not
+part of this presentation contract and remain unchanged.
 
 ### Slice 6: Native File-Path Payload Ownership
 
@@ -438,7 +486,7 @@ resolve legacy `image_group` graphics into draw requests without relying on
 - Collapse `figure_runtime_has_native_graphics`, `figure_runtime_graphic_slice`,
   and `figure_runtime_graphic_sprite_offset` into the new object request API.
 - Delete local duplicate corpse/direction/cart tables once the policy graph owns
-  them.
+  them. Corpse timing and cart attachment are complete; general direction remains.
 - Keep only narrow compatibility readers for old saves and unconverted figures.
 
 ## Validation Plan

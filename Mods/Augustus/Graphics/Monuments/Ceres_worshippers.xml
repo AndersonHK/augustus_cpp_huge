@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Ceres_worshippers">
+    <image id="Ceres worshippers">
+        <layer src="Ceres_worshippers"/>
+    </image>
+    <image id="Ceres Complex On" width="418" height="234" isometric="true">
+        <layer src="Ceres_Complex_On_Layer_01" y="3" part="top"/>
+        <layer group="Health_Culture\Temple_Ceres" image="Image_0001" x="90" part="footprint"/>
+        <layer group="Health_Culture\Temple_Ceres" image="Image_0001" x="90" part="top"/>
+        <layer src="Ceres_Complex_On_Layer_04" x="59" y="87" part="top"/>
+        <animation speed="1" x="199" y="125">
+            <frame group="Monuments\Ceres_worshippers" image="Ceres worshippers"/>
+        </animation>
+    </image>
+</assetlist>

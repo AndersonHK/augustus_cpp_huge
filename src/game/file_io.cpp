@@ -1079,7 +1079,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->god_type_table,
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
-    formation_refresh_runtime_definitions();
+    if (!formation_refresh_runtime_definitions()) {
+        log_error("Loaded save contains invalid fort-formation ownership links", 0, 0);
+    }
     if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
         map_terrain_migrate_old_bridges();
     }
@@ -1573,13 +1575,14 @@ static int scenario_terrain_at(int grid_offset)
     return map_terrain_get_from_buffer_16(scenario_data.state.terrain, grid_offset);
 }
 
-static int scenario_tile_size_at(int grid_offset)
+static int scenario_legacy_tile_size_at(int grid_offset)
 {
+    // Scenario previews decode the source file directly: old files store this
+    // compatibility bitfield as bytes, while newer files store 16-bit values.
     if (scenario_data.version <= SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        return map_property_multi_tile_size_from_buffer_8(scenario_data.state.bitfields, grid_offset);
-    } else {
-        return map_property_multi_tile_size_from_buffer_16(scenario_data.state.bitfields, grid_offset);
+        return map_property_legacy_multi_tile_size_from_buffer_8(scenario_data.state.bitfields, grid_offset);
     }
+    return map_property_legacy_multi_tile_size_from_buffer_16(scenario_data.state.bitfields, grid_offset);
 }
 
 static int scenario_is_draw_tile_at(int grid_offset)
@@ -1653,7 +1656,7 @@ static int read_scenario_info(saved_game_info *info)
     minimap_data.functions.offset.is_draw_tile = scenario_is_draw_tile_at;
     minimap_data.functions.offset.random = scenario_random_at;
     minimap_data.functions.offset.terrain = scenario_terrain_at;
-    minimap_data.functions.offset.tile_size = scenario_tile_size_at;
+    minimap_data.functions.offset.tile_size = scenario_legacy_tile_size_at;
 
     city_view_set_custom_lookup(grid_start, minimap_data.city_width, minimap_data.city_height, grid_border_size);
     widget_minimap_update(&minimap_data.functions);

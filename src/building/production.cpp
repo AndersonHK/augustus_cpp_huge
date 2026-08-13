@@ -61,7 +61,8 @@ Production::Production(
     const building_type_registry_impl::ProductionMethod *method,
     size_t method_index)
     : building_(building)
-    , context_building_(building.main())
+    , context_building_(building.Composition && building.Composition->owner() ?
+        *building.Composition->owner() : building)
     , record_(const_cast<::building *>(building_.record()))
     , context_record_(const_cast<::building *>(context_building_.record()))
     , method_(method)

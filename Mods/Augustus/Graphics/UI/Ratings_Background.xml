@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Ratings_Background">
+    <image id="T Pillar BG R" width="10" height="235">
+        <layer group="UI\Ratings_Background" image="Image_0000" x="-510"/>
+    </image>
+    <image id="T Pillar BG L" width="9" height="235">
+        <layer group="UI\Ratings_Background" image="Image_0000"/>
+    </image>
+    <image id="Tourism Pillar BG" width="91" height="235">
+        <layer group="UI\Ratings_Background" image="Image_0000" x="-64"/>
+        <layer group="UI\Ratings_Background" image="T Pillar BG R" x="81"/>
+        <layer group="UI\Ratings_Background" image="T Pillar BG L"/>
+    </image>
+</assetlist>

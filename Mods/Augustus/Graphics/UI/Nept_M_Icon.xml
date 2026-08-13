@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Nept_M_Icon">
+    <image id="Nept M Icon">
+        <layer src="Nept_M_Icon"/>
+    </image>
+</assetlist>

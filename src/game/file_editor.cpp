@@ -44,6 +44,7 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
+#include "map/water_navigation.h"
 #include "scenario/custom_messages.h"
 #include "scenario/distant_battle.h"
 #include "scenario/editor.h"
@@ -124,6 +125,7 @@ static void create_blank_map(int size)
 
 static void prepare_map_for_editing(void)
 {
+    water_navigation::begin_world_load();
     image_load_climate(scenario_property_climate(), 1, 0, 0, 0);
 
     int empire_id = scenario_empire_id();
@@ -151,6 +153,7 @@ static void prepare_map_for_editing(void)
     widget_map_editor_custom_earthquake_request_refresh();
     map_natives_init_editor();
     Route::updateAllTerrain();
+    water_navigation::finish_world_load();
 
     scenario_editor_set_as_saved();
 

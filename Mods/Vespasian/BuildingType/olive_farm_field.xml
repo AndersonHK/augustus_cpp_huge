@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="olive_farm_field">
     <identity name_key="main_strings.28.103" />
-    <model size="1" />
-    <foundation policy="land" />
-    <event_data attr="olive_farm_field" />
+    <foundation path="meadow_1x1" />
     <flags fire_proof="1" />
     <labor>
         <employees count="1" />

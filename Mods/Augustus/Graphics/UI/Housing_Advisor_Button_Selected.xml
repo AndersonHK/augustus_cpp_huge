@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Housing_Advisor_Button_Selected">
+    <image id="Housing Advisor Button Selected" width="40" height="40">
+        <layer group="UI\Advisor_Icons" image="Image_0022"/>
+        <layer src="Housing_Advisor_Button_Selected_Layer_02" x="5" y="4"/>
+        <layer src="Housing_Advisor_Button_Selected_Layer_03" x="4" y="4"/>
+    </image>
+</assetlist>

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Cart_Depot_N_ON">
+    <image id="Cart Depot C OFF" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot C OFF"/>
+    <image id="Cart Depot N OFF" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot N OFF"/>
+    <image id="Cart Depot S OFF" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot S OFF"/>
+    <image id="Cart Depot N ON" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot N ON"/>
+    <image id="Cart Depot C ON" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot C ON"/>
+    <image id="Cart Depot S ON" isometric="true" group="Admin_Logistics\Cart_Depot_C_OFF" image="Cart Depot S ON"/>
+</assetlist>

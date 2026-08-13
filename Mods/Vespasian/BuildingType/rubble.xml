@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="rubble">
     <identity name_key="main_strings.140.0" />
-    <model size="1" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="-1" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <rubble kind="rubble" />
     <flags fire_proof="1" />
     <labor>

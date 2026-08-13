@@ -136,6 +136,7 @@ extern const PathingMode StandStill;
 extern const PathingMode TransientWander;
 extern const PathingMode DepotOrderRoute;
 extern const PathingMode WaterRoute;
+extern const PathingMode CrossCountry;
 
 struct PathingPolicy {
     const PathingMode *mode = &VanillaRoaming;

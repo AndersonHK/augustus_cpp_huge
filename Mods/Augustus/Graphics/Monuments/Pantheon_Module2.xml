@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Pantheon_Module2">
+    <image id="Pantheon Off" width="418" height="231" isometric="true" group="Monuments\Pantheon_Off" image="Pantheon Off"/>
+    <image id="Pantheon worshippers" group="Monuments\Pantheon_Off" image="Pantheon worshippers"/>
+    <image id="Pantheon On" width="418" height="231" isometric="true" group="Monuments\Pantheon_Off" image="Pantheon On"/>
+    <image id="Pantheon_Temple_Complex_Module_01" width="118" height="123" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_01"/>
+    <image id="Pantheon_Temple_Complex_Module_02" width="118" height="123" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_02"/>
+    <image id="Pantheon_Temple_Complex_Module_03" width="118" height="123" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module_03"/>
+    <image id="Pantheon Module" width="418" height="231" isometric="true" group="Monuments\Pantheon_Off" image="Pantheon Module"/>
+    <image id="Pantheon_Temple_Complex_Module2_01" width="145" height="72" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_01"/>
+    <image id="Pantheon_Temple_Complex_Module2_02" width="145" height="72" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_02"/>
+    <image id="Pantheon_Temple_Complex_Module2_03" width="145" height="72" group="Monuments\Pantheon_Off" image="Pantheon_Temple_Complex_Module2_03"/>
+    <image id="Pantheon Module2" width="418" height="231" isometric="true" group="Monuments\Pantheon_Off" image="Pantheon Module2"/>
+</assetlist>

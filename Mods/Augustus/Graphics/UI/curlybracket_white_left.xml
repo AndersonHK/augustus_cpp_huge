@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\curlybracket_white_left">
+    <image id="curlybracket_white_left" width="8" height="14">
+        <layer src="curlybracket_white_left" x="3"/>
+    </image>
+</assetlist>

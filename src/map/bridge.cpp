@@ -19,6 +19,7 @@
 #include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "map/water_navigation.h"
 #include "map/tiles.h"
 
 #define MAX_DISTANCE_BETWEEN_PILLARS 12
@@ -288,7 +289,7 @@ static int bridge_legacy_sprite_for_variant(const Building &building)
 {
     building_runtime *runtime = building.runtime_instance();
     const int variant = runtime ? runtime->graphics_variant() : building.Graphics().variant();
-    if (building.type && building.type->roadblock().is_ship_bridge()) {
+    if (building.type && building.type->bridge().is_ship_bridge()) {
         return 7 + variant;
     }
     return 1 + variant;
@@ -304,7 +305,7 @@ int map_bridge_legacy_section_at(int grid_offset)
 {
     if (map_building_exists_at(grid_offset)) {
         Building &bridge_piece = map_building_at(grid_offset);
-        if (bridge_piece.type && bridge_piece.type->roadblock().is_bridge()) {
+        if (bridge_piece.type && bridge_piece.type->bridge().is_bridge()) {
             return bridge_legacy_sprite_for_variant(bridge_piece);
         }
     }
@@ -313,9 +314,9 @@ int map_bridge_legacy_section_at(int grid_offset)
 
 static const building_type_registry_impl::BuildingType *bridge_definition(int is_ship_bridge)
 {
-    const building_type bridge_type = building_type_registry_impl::type_from_roadblock_bridge(is_ship_bridge ?
-        building_type_registry_impl::RoadblockBridgeType::Ship :
-        building_type_registry_impl::RoadblockBridgeType::Low);
+    const building_type bridge_type = building_type_registry_impl::type_from_bridge(is_ship_bridge ?
+        building_type_registry_impl::BridgeType::Ship :
+        building_type_registry_impl::BridgeType::Low);
     return bridge_type == BUILDING_NONE ? nullptr : building_type_registry_impl::definition_for_type(bridge_type);
 }
 
@@ -340,16 +341,36 @@ static void set_bridge_piece_graphics_variant(building *record, int variant)
 
 static void normalize_bridge_chain_tiles(Building &main)
 {
-    for (Building *part = &main; part; part = part->next()) {
+    for (Building *part = &main; part; part = part->dynamic_bridge_next()) {
         const building *record = part->record();
         if (!record) {
             break;
         }
         map_building_tiles_add_bridge(*part, record->x, record->y);
-        if (!part->next_part_id()) {
+        if (!part->has_dynamic_bridge_next()) {
             break;
         }
     }
+}
+
+static int restore_staged_bridge_chain_graphics(Building &main)
+{
+    int restored_every_piece = 1;
+    for (Building *part = &main; part; part = part->dynamic_bridge_next()) {
+        const building *record = part->record();
+        BuildingGraphicsState state;
+        building_runtime *runtime = record ?
+            building_runtime_impl::get_or_create_instance(const_cast<building *>(record)) : nullptr;
+        if (!record || !runtime || !building_runtime_loaded_graphics_state(record->id, &state)) {
+            restored_every_piece = 0;
+        } else {
+            runtime->restore_graphics_state(state);
+        }
+        if (!record || !part->has_dynamic_bridge_next()) {
+            break;
+        }
+    }
+    return restored_every_piece;
 }
 
 static Building *reuse_loaded_bridge_main(
@@ -359,7 +380,7 @@ static Building *reuse_loaded_bridge_main(
     if (!map_building_exists_at(start_grid_offset)) {
         return nullptr;
     }
-    Building &existing = map_building_at(start_grid_offset).main();
+    Building &existing = map_building_at(start_grid_offset).dynamic_bridge_owner();
     return building_is_bridge_type(existing, definition) ? &existing : nullptr;
 }
 
@@ -375,7 +396,10 @@ int map_bridge_create_native_chain(int start_grid_offset, int length, int direct
     }
 
     const building_type_registry_impl::BuildingType *definition = bridge_definition(is_ship_bridge);
-    if (!definition) {
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    if (!foundation || foundation->width() != 1 || foundation->height() != 1 ||
+        foundation->cells().size() != 1) {
         return 0;
     }
 
@@ -402,11 +426,12 @@ int map_bridge_create_native_chain(int start_grid_offset, int length, int direct
 
         record->type = definition->type();
         record->state = BUILDING_STATE_IN_USE;
-        record->size = 1;
         record->x = static_cast<unsigned char>(x);
         record->y = static_cast<unsigned char>(y);
         record->grid_offset = static_cast<short>(current);
         record->subtype.orientation = static_cast<short>(direction);
+        // Dynamic bridge segments deliberately retain a record-owned chain;
+        // fixed XML composition never publishes through these fields.
         record->prev_part_building_id = previous ? static_cast<short>(previous->id) : 0;
         record->next_part_building_id = 0;
         if (previous) {
@@ -440,7 +465,7 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
     }
 
     Route::updateLandTerrain();
-    Route::updateWaterTerrain();
+    water_navigation::invalidate_topology();
     map_tiles_update_region_water(
         x,
         y,
@@ -469,13 +494,13 @@ int map_bridge_find_start_and_direction(int grid_offset, int *axis, int *axis_di
         return -1;
     }
     Building &building = map_building_at(grid_offset);
-    Building &main = building.main();
+    Building &main = building.dynamic_bridge_owner();
     const ::building *main_record = main.record();
     if (!main_record) {
         return -1;
     }
 
-    if (main.type && main.type->roadblock().is_bridge() && main_record->next_part_building_id > 0) {
+    if (main.type && main.type->bridge().is_bridge() && main_record->next_part_building_id > 0) {
         const int direction = main_record->subtype.orientation;
         *axis = direction_axis(direction);
         *axis_direction = direction_axis_sign(direction);
@@ -524,7 +549,7 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
         return;
     }
 
-    Building &main = map_building_at(grid_offset).main();
+    Building &main = map_building_at(grid_offset).dynamic_bridge_owner();
     const int start = main.grid_offset();
     int bridge_x_start = map_grid_offset_to_x(start);
     int bridge_y_start = map_grid_offset_to_y(start);
@@ -532,8 +557,8 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
     int bridge_y_end = bridge_y_start;
 
     for (Building *piece = &main; piece;) {
-        Building *next_piece = piece->next();
-        const int had_next = piece->next_part_id();
+        Building *next_piece = piece->dynamic_bridge_next();
+        const int had_next = piece->has_dynamic_bridge_next();
         building *record = const_cast<building *>(piece->record());
         if (!record) {
             break;
@@ -564,6 +589,7 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
     }
 
     if (!mark_deleted) {
+        water_navigation::invalidate_topology();
         game_undo_disable();
         map_tiles_update_region_water(bridge_x_start, bridge_y_start, bridge_x_end, bridge_y_end);
         map_tiles_update_region_empty_land(bridge_x_start, bridge_y_start, bridge_x_end, bridge_y_end);
@@ -581,8 +607,8 @@ int map_bridge_has_figures(int grid_offset)
         return 0;
     }
 
-    Building &main = map_building_at(grid_offset).main();
-    for (Building *piece = &main; piece; piece = piece->next()) {
+    Building &main = map_building_at(grid_offset).dynamic_bridge_owner();
+    for (Building *piece = &main; piece; piece = piece->dynamic_bridge_next()) {
         const building *record = piece->record();
         if (!record) {
             break;
@@ -590,7 +616,7 @@ int map_bridge_has_figures(int grid_offset)
         if (map_has_figure_category_at(record->grid_offset, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE)) {
             return 1;
         }
-        if (!piece->next_part_id()) {
+        if (!piece->has_dynamic_bridge_next()) {
             break;
         }
     }
@@ -606,24 +632,24 @@ void map_bridge_update_after_rotate(int)
                 continue;
             }
             Building &piece = map_building_at(grid_offset);
-            if (!piece.is_main_part()) {
+            if (!piece.is_dynamic_bridge_owner()) {
                 continue;
             }
             const building *record = piece.record();
-            if (!record || !piece.type || !piece.type->roadblock().is_bridge()) {
+            if (!record) {
                 continue;
             }
 
             int length = 0;
-            for (Building *part = &piece; part; part = part->next()) {
+            for (Building *part = &piece; part; part = part->dynamic_bridge_next()) {
                 length++;
-                if (!part->next_part_id()) {
+                if (!part->has_dynamic_bridge_next()) {
                     break;
                 }
             }
             const int graphics_direction = view_relative_direction(record->subtype.orientation);
             int index = 0;
-            for (Building *part = &piece; part; part = part->next(), index++) {
+            for (Building *part = &piece; part; part = part->dynamic_bridge_next(), index++) {
                 building *part_record = const_cast<building *>(part->record());
                 if (!part_record) {
                     break;
@@ -634,8 +660,8 @@ void map_bridge_update_after_rotate(int)
                         index,
                         length,
                         graphics_direction,
-                        piece.type->roadblock().is_ship_bridge()));
-                if (!part->next_part_id()) {
+                        piece.type->bridge().is_ship_bridge()));
+                if (!part->has_dynamic_bridge_next()) {
                     break;
                 }
             }
@@ -707,25 +733,24 @@ static void migrate_loaded_bridge_at(int grid_offset)
 
     int is_ship_bridge = map_sprite_bridge_at(start) > 6 ? 1 : 0;
     if (!is_ship_bridge && map_building_exists_at(start)) {
-        Building &building = map_building_at(start).main();
-        is_ship_bridge = building.type && building.type->roadblock().is_ship_bridge();
-        if (building.type && building.type->roadblock().is_bridge() && building.next_part_id()) {
-            const ::building *record = building.record();
-            BuildingGraphicsState staged_state;
-            if (record && building_runtime_loaded_graphics_state(record->id, &staged_state)) {
+        Building &building = map_building_at(start).dynamic_bridge_owner();
+        is_ship_bridge = building.type && building.type->bridge().is_ship_bridge();
+        if (building.has_dynamic_bridge_next()) {
+            if (restore_staged_bridge_chain_graphics(building)) {
                 normalize_bridge_chain_tiles(building);
                 return;
             }
             const int graphics_direction = view_relative_direction(direction);
             int index = 0;
-            for (Building *part = &building; part; part = part->next(), index++) {
+            for (Building *part = &building; part; part = part->dynamic_bridge_next(), index++) {
                 set_bridge_piece_graphics_variant(
                     const_cast<::building *>(part->record()),
                     map_bridge_graphics_variant_for_piece(index, length, graphics_direction, is_ship_bridge));
-                if (!part->next_part_id()) {
+                if (!part->has_dynamic_bridge_next()) {
                     break;
                 }
             }
+            normalize_bridge_chain_tiles(building);
             return;
         }
     }
@@ -741,8 +766,12 @@ void map_bridge_migrate_loaded_native_bridges(void)
             if (!map_grid_is_valid_offset(grid_offset) || !map_is_bridge(grid_offset)) {
                 continue;
             }
-            if (map_building_exists_at(grid_offset) && !map_building_at(grid_offset).is_main_part()) {
-                continue;
+            if (map_building_exists_at(grid_offset)) {
+                Building &piece = map_building_at(grid_offset);
+                const building *record = piece.record();
+                if (record && record->prev_part_building_id != 0) {
+                    continue;
+                }
             }
             migrate_loaded_bridge_at(grid_offset);
         }

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Theatre_UP_ON_06">
+    <image id="Theatre_ON_01" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_01"/>
+    <image id="Theatre_ON_02" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_02"/>
+    <image id="Theatre_ON_03" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_03"/>
+    <image id="Theatre_ON_04" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_04"/>
+    <image id="Theatre_ON_05" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_05"/>
+    <image id="Theatre_ON_06" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_06"/>
+    <image id="Theatre_ON_07" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_07"/>
+    <image id="Theatre_ON_08" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_08"/>
+    <image id="Theatre_ON_09" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_09"/>
+    <image id="Theatre_ON_10" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_10"/>
+    <image id="Theatre_ON_11" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_11"/>
+    <image id="Theatre_ON_12" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_12"/>
+    <image id="Theatre_ON_13" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_13"/>
+    <image id="Theatre_ON_14" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_14"/>
+    <image id="Theatre_ON_15" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_15"/>
+    <image id="Theatre_ON_16" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_16"/>
+    <image id="Theatre_ON_17" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_17"/>
+    <image id="Theatre_ON_18" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_18"/>
+    <image id="Theatre_ON_19" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_19"/>
+    <image id="Theatre_ON_20" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_20"/>
+    <image id="Theatre_ON_21" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_ON_21"/>
+    <image id="Theatre ON" width="118" height="98" isometric="true" group="Health_Culture\Theatre_ON_01" image="Theatre ON"/>
+    <image id="Theatre_UP_ON_01" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_01"/>
+    <image id="Theatre_UP_ON_02" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_02"/>
+    <image id="Theatre_UP_ON_03" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_03"/>
+    <image id="Theatre_UP_ON_04" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_04"/>
+    <image id="Theatre_UP_ON_05" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_05"/>
+    <image id="Theatre_UP_ON_06" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_06"/>
+    <image id="Theatre_UP_ON_07" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_07"/>
+    <image id="Theatre_UP_ON_08" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_08"/>
+    <image id="Theatre_UP_ON_09" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_09"/>
+    <image id="Theatre_UP_ON_10" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_10"/>
+    <image id="Theatre_UP_ON_11" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_11"/>
+    <image id="Theatre_UP_ON_12" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_12"/>
+    <image id="Theatre_UP_ON_13" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_13"/>
+    <image id="Theatre_UP_ON_14" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_14"/>
+    <image id="Theatre_UP_ON_15" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_15"/>
+    <image id="Theatre_UP_ON_16" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_16"/>
+    <image id="Theatre_UP_ON_17" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_17"/>
+    <image id="Theatre_UP_ON_18" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_18"/>
+    <image id="Theatre_UP_ON_19" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_19"/>
+    <image id="Theatre_UP_ON_20" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_20"/>
+    <image id="Theatre_UP_ON_21" width="63" height="34" group="Health_Culture\Theatre_ON_01" image="Theatre_UP_ON_21"/>
+    <image id="Theatre Upgrade ON" width="118" height="101" isometric="true" group="Health_Culture\Theatre_ON_01" image="Theatre Upgrade ON"/>
+</assetlist>

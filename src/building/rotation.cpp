@@ -21,11 +21,24 @@ static struct {
     int rotation;
     int extra_rotation;
     int road_orientation;
+    building_type retained_type;
+    int retained_rotation;
+    int retained_preferred_rotation;
     uint8_t rotation_text[100];
-} data = { 0, 0, 1 };
+} data = { 0, 0, 1, BUILDING_NONE, 0, 0 };
+
+static void clear_retained_placement_rotation()
+{
+    data.retained_type = BUILDING_NONE;
+}
 
 static int get_num_rotations(building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (definition && definition->has_rotated_placement_geometry()) {
+        return 4;
+    }
     int variants = building_construction_type_num_cycles(type);
     if (variants > 1) {
         return variants;
@@ -48,31 +61,19 @@ static int get_num_rotations(building_type type)
     if (building_type_registry_impl::type_attr_is_any(type, temple_menus, 2)) {
         return 5;
     }
-    static const char *four_rotation_types[] = {
-        "fort_javelin",
-        "fort_legionaries",
-        "fort_mounted",
-        "fort_swords",
-        "fort_archers",
-        "warehouse"
-    };
-    if (building_type_registry_impl::type_attr_is_any(type, four_rotation_types, 6)) {
-        return 4;
-    }
-    static const char *two_rotation_types[] = { "hippodrome", "gatehouse", "triumphal_arch" };
-    return building_type_registry_impl::type_attr_is_any(type, two_rotation_types, 3) ? 2 : 0;
+    return 0;
 }
 
-static void update_rotation_message(void)
+static void update_rotation_message(building_type type)
 {
     uint8_t *cursor = data.rotation_text;
-    building_type type = building_construction_type();
-    if (!building_variant_has_variants(type) && !get_num_rotations(type)) {
+    const int rotations = get_num_rotations(type);
+    if (!building_variant_has_variants(type) && !rotations) {
         return; // only show for buildings with variants
     }
     cursor += string_from_int(cursor, data.extra_rotation + 1, 0);
     cursor = string_copy(string_from_ascii("/"), cursor, 100 - (int) (cursor - data.rotation_text));
-    cursor += string_from_int(cursor, get_num_rotations(type), 0);
+    cursor += string_from_int(cursor, rotations, 0);
     cursor = string_copy(string_from_ascii(" "), cursor, 100 - (int) (cursor - data.rotation_text));
     string_copy(lang_get_building_type_string(type), cursor, 100 - (int) (cursor - data.rotation_text));
 
@@ -81,31 +82,42 @@ static void update_rotation_message(void)
 
 static void rotate_forward(void)
 {
-    building_construction_cycle_forward();
+    clear_retained_placement_rotation();
+    building_type type = building_construction_type();
+    if (building_construction_type_can_cycle(type)) {
+        building_construction_cycle_forward();
+        type = building_construction_type();
+    }
     data.rotation += 1;
     data.extra_rotation += 1;
     if (data.rotation > MAX_ROTATION) {
         data.rotation = 0;
     }
-    building_type type = building_construction_type();
-    if (data.extra_rotation >= get_num_rotations(type)) {
+    const int rotations = get_num_rotations(type);
+    if (rotations <= 0 || data.extra_rotation >= rotations) {
         data.extra_rotation = 0;
     }
-    update_rotation_message();
+    update_rotation_message(type);
 }
 
 static void rotate_backward(void)
 {
-    building_construction_cycle_back();
+    clear_retained_placement_rotation();
+    building_type type = building_construction_type();
+    if (building_construction_type_can_cycle(type)) {
+        building_construction_cycle_back();
+        type = building_construction_type();
+    }
     data.rotation -= 1;
     data.extra_rotation -= 1;
     if (data.rotation < 0) {
         data.rotation = MAX_ROTATION;
     }
     if (data.extra_rotation < 0) {
-        data.extra_rotation = get_num_rotations(building_construction_type()) - 1;
+        const int rotations = get_num_rotations(type);
+        data.extra_rotation = rotations > 0 ? rotations - 1 : 0;
     }
-    update_rotation_message();
+    update_rotation_message(type);
 }
 
 int building_rotation_get_road_orientation(void)
@@ -113,22 +125,26 @@ int building_rotation_get_road_orientation(void)
     return data.road_orientation;
 }
 
-void building_rotation_force_two_orientations(void)
-{
-    // for composite buildings like hippodrome
-    if (data.rotation == 1) {
-        data.rotation = 3;
-        return;
-    }
-    if (data.rotation == 2) {
-        data.rotation = 0;
-        return;
-    }
-}
-
 int building_rotation_get_rotation(void)
 {
     return data.rotation;
+}
+
+int building_rotation_get_retained_placement_rotation(building_type type, int *rotation)
+{
+    if (!rotation || data.retained_type != type ||
+        data.retained_preferred_rotation != data.rotation) {
+        return 0;
+    }
+    *rotation = data.retained_rotation;
+    return 1;
+}
+
+void building_rotation_retain_placement_rotation(building_type type, int rotation)
+{
+    data.retained_type = type;
+    data.retained_rotation = (rotation % 4 + 4) % 4;
+    data.retained_preferred_rotation = data.rotation;
 }
 
 int building_rotation_get_rotation_with_limit(int limit)
@@ -154,6 +170,7 @@ void building_rotation_rotate_backward(void)
 
 void building_rotation_reset_rotation(void)
 {
+    clear_retained_placement_rotation();
     data.rotation = 0;
     data.extra_rotation = 0;
 }
@@ -165,7 +182,7 @@ void building_rotation_setup_rotation(int variant)
     for (int i = 0; i < variant; i++) {
         building_rotation_rotate_forward();
     }
-    update_rotation_message();
+    update_rotation_message(building_construction_type());
 }
 
 void building_rotation_remove_rotation(void)
@@ -244,6 +261,11 @@ static int menu_has_buildings_with_cycles(build_menu_group menu, building_type t
 
 int building_rotation_type_has_rotations(building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (definition && definition->has_rotated_placement_geometry()) {
+        return 1;
+    }
     if (building_variant_has_variants(type) || building_properties_for_type(type)->rotation_offset ||
         building_construction_type_can_cycle(type)) {
         return 1;
@@ -252,16 +274,5 @@ int building_rotation_type_has_rotations(building_type type)
     if (menu) {
         return menu_has_buildings_with_cycles(menu, type);
     }
-    static const char *rotating_types[] = {
-        "fort_javelin",
-        "fort_legionaries",
-        "fort_mounted",
-        "fort_swords",
-        "fort_archers",
-        "warehouse",
-        "hippodrome",
-        "gatehouse",
-        "triumphal_arch"
-    };
-    return building_type_registry_impl::type_attr_is_any(type, rotating_types, 9);
+    return 0;
 }

@@ -251,7 +251,7 @@ That final fan-out writes BuildingType data back into legacy systems:
 
 - `model_get_building(definition->type())` receives cost, desirability, and labor values.
 - `building_properties_apply_xml_model_size()` updates legacy footprint size fields.
-- `building_properties_apply_xml_event_attr()` updates legacy event attrs.
+- Building scenario/XML identity is the canonical root `type`; rare historical names are resolved from `<identity aliases="...">`. There is no `building_properties` event-identity copy.
 - `building_properties_apply_xml_sound_id()` updates city sound fields.
 - XML flags update legacy property fields such as fireproof, desirability-range drawing, and Venus bonus.
 

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\M_Hall_Portrait">
+    <image id="M Hall Portrait">
+        <layer group="UI\Big_People" image="Image_0014"/>
+        <layer src="M_Hall_Portrait_Layer_02" x="5" y="12"/>
+        <layer src="M_Hall_Portrait_Layer_03" x="17" y="13"/>
+    </image>
+</assetlist>

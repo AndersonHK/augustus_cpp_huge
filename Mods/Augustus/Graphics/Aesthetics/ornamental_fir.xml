@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\ornamental_fir">
+    <image id="ornamental fir" width="58" height="62" isometric="true">
+        <layer group="Terrain_Maps\Garden" image="Image_0002" y="30" part="footprint"/>
+        <layer group="Terrain_Maps\Garden" image="Image_0002" y="30" part="top"/>
+        <layer src="ornamental_fir_Layer_03" x="21" part="top"/>
+    </image>
+</assetlist>

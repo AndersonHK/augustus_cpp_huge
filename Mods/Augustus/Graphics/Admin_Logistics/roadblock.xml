@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\roadblock">
+    <image id="roadblock" isometric="true">
+        <layer src="roadblock" part="footprint"/>
+    </image>
+    <image id="roadblock_blue" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_blue_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_purple" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_purple_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_green" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_green_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_yellow" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_yellow_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_orange" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_orange_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_black" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_black_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_emerald" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_emerald_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_pink" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_pink_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_brown" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_brown_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_grey" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_grey_Layer_03" x="10" y="4" part="top"/>
+    </image>
+    <image id="roadblock_lime" isometric="true">
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="footprint"/>
+        <layer group="Admin_Logistics\roadblock" image="roadblock" part="top"/>
+        <layer src="roadblock_lime_Layer_03" x="10" y="4" part="top"/>
+    </image>
+</assetlist>

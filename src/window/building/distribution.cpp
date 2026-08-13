@@ -1208,7 +1208,11 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
 // ====================================================================================================================
 void window_building_draw_storage(building_info_context *c)
 {
-    Building &storage_building = c->building->main();
+    Building *storage_owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!storage_owner) {
+        return;
+    }
+    Building &storage_building = *storage_owner;
     building *b = const_cast<building *>(storage_building.record());
     if (!b || !storage_building.type) {
         return;
@@ -1250,7 +1254,7 @@ void window_building_draw_storage(building_info_context *c)
         int total_stored = 0;
         int x;
         int offset = 0;
-        int stored_types = building_storage_count_stored_resource_types(b->id);
+        int stored_types = building_storage_count_stored_resource_types(storage_building);
         if (!stored_types) {
             translation_key msg = type.is_granary() ? "TR_BUILDING_GRANARY_NO_FOOD" : "TR_BUILDING_WAREHOUSE_NO_GOODS";
             lang_text_draw_centered(msg, c->x_offset, c->y_offset + 56,
@@ -1376,7 +1380,11 @@ static void storage_buttons_init(building_info_context *c)
 
 void window_building_draw_storage_foreground(building_info_context *c)
 {
-    Building &storage_building = c->building->main();
+    Building *storage_owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!storage_owner) {
+        return;
+    }
+    Building &storage_building = *storage_owner;
     storage_buttons_init(c);
     draw_permissions_buttons(c->x_offset, data.y_permission_buttons, storage_building, c);
     // Special orders button
@@ -1412,7 +1420,11 @@ void window_building_draw_storage_foreground(building_info_context *c)
 
 void window_building_draw_storage_orders(building_info_context *c)
 {
-    Building &building = c->building->main();
+    Building *owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!owner) {
+        return;
+    }
+    Building &building = *owner;
     if (!building.id || !building.type) {
         return;
     }
@@ -1449,7 +1461,11 @@ void window_building_draw_storage_orders(building_info_context *c)
 
 void window_building_draw_storage_orders_foreground(building_info_context *c)
 {
-    Building &building = c->building->main();
+    Building *owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!owner) {
+        return;
+    }
+    Building &building = *owner;
     if (!building.id || !building.type) {
         return;
     }
@@ -1501,7 +1517,10 @@ int window_building_handle_mouse_storage(const mouse *m, building_info_context *
         storage_image_buttons[i].focused = 0;
     }
     data.image_button_focus_id = 0;
-    data.building = &c->building->main();
+    data.building = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!data.building) {
+        return 0;
+    }
 
     int result = 0;
     result += GenericButtonList(permission_buttons, active_permissions_count).handle_mouse(
@@ -1587,7 +1606,11 @@ void window_building_storage_get_tooltip_distribution_permissions(translation_ke
 
 int window_building_handle_mouse_storage_orders(const mouse *m, building_info_context *c)
 {
-    Building &building = c->building->main();
+    Building *owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!owner) {
+        return 0;
+    }
+    Building &building = *owner;
     if (!building.id || !building.type) {
         return 0;
     }

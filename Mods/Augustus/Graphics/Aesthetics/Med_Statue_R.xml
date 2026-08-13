@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\Med_Statue_R">
+    <image id="Med_Statue_R" width="118" height="79" isometric="true">
+        <layer group="Aesthetics\Statue" image="Image_0001" part="footprint" invert="horizontal"/>
+        <layer src="Med_Statue_R_Layer_02" x="10" part="top"/>
+    </image>
+</assetlist>

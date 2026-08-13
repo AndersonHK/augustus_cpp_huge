@@ -106,6 +106,8 @@ public:
     int show_duration() const;
     void add_venue_target(const EntertainmentVenueTarget &target);
     const std::vector<EntertainmentVenueTarget> &venue_targets() const;
+    void set_explicit_spawn_behavior(const ProfileSpawnBehavior &spawn_behavior);
+    bool has_explicit_spawn_behavior() const;
     int resolve_building_references(const char *figure_attr);
     ProfileSpawnBehavior spawn_behavior() const;
 
@@ -115,6 +117,8 @@ private:
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;
     PathingPolicy pathing_policy_;
+    ProfileSpawnBehavior explicit_spawn_behavior_;
+    bool has_explicit_spawn_behavior_ = false;
     int show_duration_ = 32;
     std::vector<EntertainmentVenueTarget> venue_targets_;
 };
@@ -179,6 +183,7 @@ extern std::string g_failure_reason;
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);
+const FigureGraphics *graphics_for(figure_type type);
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id);
 const FigureTypeProfile *default_profile_for(figure_type type);
 

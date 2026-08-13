@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="granary">
     <identity name_key="main_strings.28.71" />
-    <model size="3" cost="100" />
+    <model cost="100" />
     <desirability>
         <value value="-4" />
         <step value="1" />
         <step_size value="2" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="granary_3x3" />
   <button group="industry" order="400" text_key="main_strings.28.71" />
-    <event_data attr="granary" />
-    <roadblock kind="storage" />
+
     <labor>
         <employees count="6" />
         <labor_seeker>
@@ -19,6 +18,7 @@
         </labor_seeker>
     </labor>
     <graphics>
+        <status_icon x="83" y="-120" />
         <default animation="0">
             <path value="Industry\Granary" />
             <image value="Image_0000" />

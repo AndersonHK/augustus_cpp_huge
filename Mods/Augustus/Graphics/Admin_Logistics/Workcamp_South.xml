@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Workcamp_South">
+    <image id="Workcamp Central" isometric="true" group="Admin_Logistics\Workcamp_Central" image="Workcamp Central"/>
+    <image id="Workcamp North" width="178" height="113" isometric="true" group="Admin_Logistics\Workcamp_Central" image="Workcamp North"/>
+    <image id="Workcamp South" width="178" height="113" isometric="true" group="Admin_Logistics\Workcamp_Central" image="Workcamp South"/>
+</assetlist>

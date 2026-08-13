@@ -34,7 +34,7 @@
 #include "game/tick.h"
 
 #include "building/building.h"
-#include "building/dock.h"
+#include "building/water_access_runtime.h"
 #include "building/lighthouse.h"
 #include "city/god.h"
 
@@ -179,7 +179,7 @@ static void advance_tick(void)
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(19)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        building_dock_update_open_water_access();
+        water_access_runtime_update_open_water_access();
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(20)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_PRODUCTION);

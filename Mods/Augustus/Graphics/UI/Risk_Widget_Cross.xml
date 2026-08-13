@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Risk_Widget_Cross">
+    <image id="Risk_Widget_Cross" width="24" height="24">
+        <layer src="Risk_Widget_Cross" x="5" y="6"/>
+    </image>
+</assetlist>

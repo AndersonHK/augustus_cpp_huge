@@ -10,6 +10,7 @@ This note records the current resource ownership model after moving resource def
 - `ResourceGraphics : GraphicsDefinition` in `src/game/ResourceGraphics.h/.cpp` owns resource presentation icons only: panel icons, empire icons, and editor icons.
 - `BuildingGraphics : GraphicsDefinition` owns the resource storage-stack image refs parsed from resource `<storage>` nodes, because those images draw warehouse/building storage.
 - `FigureGraphics : GraphicsDefinition` owns the resource cart/load image refs parsed from resource `<cart>` nodes, because those images draw cartpusher-style figure overlays.
+- FigureType `<resource_cart>` policies own per-figure selection and attachment. The lighthouse supplier policy selects `collecting_item_id` only while returning and keeps that gameplay/resource field independent from the preserved legacy `cart_image_id` save slot.
 - Resources do not own production throughput, producers, industries, or warning templates. Producer lookup belongs to building/production code through `building_output_resource(...)` and `building_producer_for_resource(...)`, while warning selection belongs to gameplay triggers.
 - `ProductionMethod` owns base monthly throughput through the `<output production_per_month="...">` attribute. Scenario/save production-rate overrides mutate production methods, not resources.
 - `src/game/resource_id_bridge.cpp` owns save-local resource id tables and the legacy raw-id migration maps for old saves.

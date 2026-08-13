@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="elm_tree">
     <identity name_key="TR_BUILDING_ELM_TREE" />
-    <model size="1" cost="12" />
+    <model cost="12" />
     <desirability>
         <value value="3" />
         <step value="1" />
         <step_size value="-1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <tool kind="draggable_building" drag_terrain="land" rotation="none" />
     <button group="trees" order="40" text_key="TR_BUILDING_ELM_TREE" />
     <cycle group="ornamental_trees" order="20" steps="1" />
-    <event_data attr="elm_tree" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>

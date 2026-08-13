@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\WT_W_ON_01">
+    <image id="WT_W_ON_01" width="118" height="97">
+        <layer src="WT_W_ON_01_Layer_01" x="39" y="58"/>
+        <layer src="WT_W_ON_01_Layer_02" x="96" y="37"/>
+    </image>
+    <image id="WT_W_ON_02" width="118" height="97">
+        <layer src="WT_W_ON_02_Layer_01" x="39" y="58"/>
+        <layer src="WT_W_ON_02_Layer_02" x="96" y="37"/>
+    </image>
+    <image id="WT_W_ON_03" width="118" height="97">
+        <layer src="WT_W_ON_03_Layer_01" x="39" y="58"/>
+        <layer src="WT_W_ON_03_Layer_02" x="96" y="37"/>
+    </image>
+    <image id="WT_W_ON_04" width="118" height="97">
+        <layer src="WT_W_ON_04_Layer_01" x="39" y="58"/>
+        <layer src="WT_W_ON_04_Layer_02" x="96" y="37"/>
+    </image>
+    <image id="WT_W_ON_05" width="118" height="97">
+        <layer src="WT_W_ON_05_Layer_01" x="39" y="58"/>
+        <layer src="WT_W_ON_05_Layer_02" x="96" y="37"/>
+    </image>
+    <image id="Watchtower_W_C_OFF" width="118" height="97" isometric="true">
+        <layer src="Watchtower_W_C_OFF_Layer_01" y="52" part="footprint"/>
+        <layer src="Watchtower_W_C_OFF_Layer_02" x="30" y="67" part="top"/>
+        <layer src="Watchtower_W_C_OFF_Layer_03" x="60" y="52" part="top"/>
+        <layer src="Watchtower_W_C_OFF_Layer_04" part="top"/>
+    </image>
+    <image id="Watchtower_W_C_ON" width="118" height="97" isometric="true">
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_C_OFF" part="footprint"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_C_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_C_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_C_OFF" part="top"/>
+        <animation speed="8">
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_01"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_02"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_03"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_04"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_05"/>
+        </animation>
+    </image>
+    <image id="Watchtower_W_N_OFF" width="118" height="97" isometric="true">
+        <layer src="Watchtower_W_N_OFF_Layer_01" y="52" part="footprint"/>
+        <layer src="Watchtower_W_N_OFF_Layer_02" x="30" y="67" part="top"/>
+        <layer src="Watchtower_W_N_OFF_Layer_03" x="60" y="52" part="top"/>
+        <layer src="Watchtower_W_N_OFF_Layer_04" part="top"/>
+    </image>
+    <image id="Watchtower_W_N_ON" width="118" height="97" isometric="true">
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_N_OFF" part="footprint"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_N_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_N_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_N_OFF" part="top"/>
+        <animation speed="8">
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_01"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_02"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_03"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_04"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_05"/>
+        </animation>
+    </image>
+    <image id="Watchtower_W_S_OFF" width="118" height="97" isometric="true">
+        <layer src="Watchtower_W_S_OFF_Layer_01" y="52" part="footprint"/>
+        <layer src="Watchtower_W_S_OFF_Layer_02" x="30" y="67" part="top"/>
+        <layer src="Watchtower_W_S_OFF_Layer_03" x="60" y="52" part="top"/>
+        <layer src="Watchtower_W_S_OFF_Layer_04" part="top"/>
+    </image>
+    <image id="Watchtower_W_S_ON" width="118" height="97" isometric="true">
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_S_OFF" part="footprint"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_S_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_S_OFF" part="top"/>
+        <layer group="Military\WT_W_ON_01" image="Watchtower_W_S_OFF" part="top"/>
+        <animation speed="8">
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_01"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_02"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_03"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_04"/>
+            <frame group="Military\WT_W_ON_01" image="WT_W_ON_05"/>
+        </animation>
+    </image>
+</assetlist>

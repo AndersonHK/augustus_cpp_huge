@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Arena_OFF">
+    <image id="Arena OFF" width="178" height="152" isometric="true">
+        <layer src="Arena_OFF" y="2" part="footprint"/>
+    </image>
+    <image id="Arena_On_01" width="92" height="42">
+        <layer src="Arena_On_01_Layer_01"/>
+        <layer src="Arena_On_01_Layer_02" x="28" y="8"/>
+    </image>
+    <image id="Arena_On_02" width="92" height="42">
+        <layer src="Arena_On_02_Layer_01"/>
+        <layer src="Arena_On_02_Layer_02" x="29" y="7"/>
+    </image>
+    <image id="Arena_On_03" width="92" height="42">
+        <layer src="Arena_On_03_Layer_01"/>
+        <layer src="Arena_On_03_Layer_02" x="35" y="12"/>
+    </image>
+    <image id="Arena_On_04" width="92" height="42">
+        <layer src="Arena_On_04_Layer_01"/>
+        <layer src="Arena_On_04_Layer_02" x="35" y="11"/>
+    </image>
+    <image id="Arena_On_05" width="92" height="42">
+        <layer src="Arena_On_05_Layer_01"/>
+        <layer src="Arena_On_05_Layer_02" x="32" y="9"/>
+    </image>
+    <image id="Arena_On_06" width="92" height="42">
+        <layer src="Arena_On_06_Layer_01"/>
+        <layer src="Arena_On_06_Layer_02" x="27" y="8"/>
+    </image>
+    <image id="Arena ON" width="178" height="152" isometric="true">
+        <layer group="Health_Culture\Arena_OFF" image="Arena OFF" part="footprint"/>
+        <layer group="Health_Culture\Arena_OFF" image="Arena OFF" part="top"/>
+        <animation speed="9" x="44" y="29">
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_01"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_02"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_03"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_04"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_05"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_06"/>
+        </animation>
+    </image>
+    <image id="Arena Upgrade OFF" width="178" height="152" isometric="true">
+        <layer group="Health_Culture\Arena_OFF" image="Arena OFF" part="footprint"/>
+        <layer group="Health_Culture\Arena_OFF" image="Arena OFF" part="top"/>
+        <layer src="Arena_Upgrade_OFF_Layer_03" y="20" part="top"/>
+    </image>
+    <image id="Arena Upgrade ON" width="178" height="152" isometric="true">
+        <layer group="Health_Culture\Arena_OFF" image="Arena Upgrade OFF" part="footprint"/>
+        <layer group="Health_Culture\Arena_OFF" image="Arena Upgrade OFF" part="top"/>
+        <layer group="Health_Culture\Arena_OFF" image="Arena Upgrade OFF" part="top"/>
+        <animation speed="9" x="44" y="29">
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_01"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_02"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_03"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_04"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_05"/>
+            <frame group="Health_Culture\Arena_OFF" image="Arena_On_06"/>
+        </animation>
+    </image>
+</assetlist>

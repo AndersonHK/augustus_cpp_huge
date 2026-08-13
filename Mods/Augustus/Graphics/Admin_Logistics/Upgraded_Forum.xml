@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Upgraded_Forum">
+    <image id="Upgraded_Forum" width="118" height="114" isometric="true">
+        <layer group="Admin_Logistics\Forum" image="Image_0000" part="footprint"/>
+        <layer group="Admin_Logistics\Forum" image="Image_0000" part="top"/>
+        <layer src="Upgraded_Forum_Layer_03" x="1" y="27" part="top"/>
+    </image>
+</assetlist>

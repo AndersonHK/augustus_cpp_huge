@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Caravanserai_CN_On_01">
+    <image id="Caravanserai_CN_On_01" width="238" height="155">
+        <layer src="Caravanserai_CN_On_01_Layer_01" x="47" y="55"/>
+        <layer src="Caravanserai_CN_On_01_Layer_02" x="86" y="51"/>
+    </image>
+    <image id="Caravanserai_CN_On_02" width="238" height="155">
+        <layer src="Caravanserai_CN_On_02_Layer_01" x="47" y="55"/>
+        <layer src="Caravanserai_CN_On_02_Layer_02" x="86" y="50"/>
+    </image>
+    <image id="Caravanserai_CN_On_03" width="238" height="155">
+        <layer src="Caravanserai_CN_On_03_Layer_01" x="47" y="55"/>
+        <layer src="Caravanserai_CN_On_03_Layer_02" x="86" y="50"/>
+    </image>
+    <image id="Caravanserai_C_OFF" width="238" height="155" isometric="true">
+        <layer src="Caravanserai_C_OFF_Layer_01" y="12" part="footprint"/>
+        <layer src="Caravanserai_C_OFF_Layer_02" x="4" y="13" part="top"/>
+        <layer src="Caravanserai_C_OFF_Layer_03" x="18" y="7" part="top"/>
+    </image>
+    <image id="Caravanserai_N_OFF" width="238" height="155" isometric="true">
+        <layer src="Caravanserai_N_OFF_Layer_01" y="12" part="footprint"/>
+        <layer src="Caravanserai_N_OFF_Layer_02" x="4" y="13" part="top"/>
+        <layer src="Caravanserai_N_OFF_Layer_03" x="18" part="top"/>
+    </image>
+    <image id="Caravanserai_C_ON" width="238" height="155" isometric="true">
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_C_OFF" part="footprint"/>
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_C_OFF" part="top"/>
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_C_OFF" part="top"/>
+        <animation speed="8" reversible="true">
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_01"/>
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_02"/>
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_03"/>
+        </animation>
+    </image>
+    <image id="Caravanserai_N_ON" width="238" height="155" isometric="true">
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_N_OFF" part="footprint"/>
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_N_OFF" part="top"/>
+        <layer group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_N_OFF" part="top"/>
+        <animation speed="8" reversible="true">
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_01"/>
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_02"/>
+            <frame group="Monuments\Caravanserai_CN_On_01" image="Caravanserai_CN_On_03"/>
+        </animation>
+    </image>
+</assetlist>

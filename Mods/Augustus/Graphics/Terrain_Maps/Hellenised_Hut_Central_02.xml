@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Hellenised_Hut_Central_02">
+    <image id="Hellenised_Hut_Central_02" isometric="true">
+        <layer src="Hellenised_Hut_Central_02" part="footprint"/>
+    </image>
+    <image id="Hellenised_Hut_Northern_02" isometric="true">
+        <layer group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Central_02" part="footprint"/>
+        <layer group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Central_02" part="top"/>
+        <layer src="Hellenised_Hut_Northern_02_Layer_03" y="25" part="top"/>
+    </image>
+    <image id="Hellenised_Hut_Southern_02" isometric="true">
+        <layer group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Central_02" part="footprint"/>
+        <layer group="Terrain_Maps\Hellenised_Hut_Central_02" image="Hellenised_Hut_Central_02" part="top"/>
+        <layer src="Hellenised_Hut_Southern_02_Layer_03" y="25" part="top"/>
+    </image>
+</assetlist>

@@ -15,6 +15,7 @@
     <ClCompile Include="tools\augustus_graphics_extractor\extractor_shims.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c" />
     <ClCompile Include="src\assets\augustus_asset_extractor.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_abi.cpp" />
     <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
@@ -32,6 +33,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\assets\augustus_asset_extractor.h" />
+    <ClInclude Include="src\assets\graphics_extraction_abi.h" />
     <ClInclude Include="src\assets\augustus_julius_template_resolver.h" />
     <ClInclude Include="src\assets\graphics_extractor_common.h" />
   </ItemGroup>

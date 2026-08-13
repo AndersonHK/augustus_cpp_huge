@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mausoleum_Large_Construction_02">
+    <image id="Mausoleum_Large_Construction_02" isometric="true">
+        <layer src="Mausoleum_Large_Construction_02" part="footprint"/>
+    </image>
+</assetlist>

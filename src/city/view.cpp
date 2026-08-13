@@ -50,6 +50,7 @@ static struct {
     int screen_height;
     int sidebar_collapsed;
     int orientation;
+    std::uint64_t orientation_generation = 1;
     int scale;
     struct {
         view_tile tile;
@@ -314,9 +315,23 @@ int city_view_orientation(void)
     return data.orientation;
 }
 
+std::uint64_t city_view_orientation_generation(void)
+{
+    return data.orientation_generation;
+}
+
+static void advance_orientation_generation()
+{
+    ++data.orientation_generation;
+    if (data.orientation_generation == 0) {
+        data.orientation_generation = 1;
+    }
+}
+
 void city_view_reset_orientation(void)
 {
     data.orientation = static_cast<int>(DIR_0_TOP);
+    advance_orientation_generation();
     calculate_lookup();
 }
 
@@ -676,6 +691,7 @@ void city_view_rotate_left(void)
     if (data.orientation > static_cast<int>(DIR_6_LEFT)) {
         data.orientation = static_cast<int>(DIR_0_TOP);
     }
+    advance_orientation_generation();
     calculate_lookup();
     if (center_grid_offset >= 0) {
         int x, y;
@@ -694,6 +710,7 @@ void city_view_rotate_right(void)
     if (data.orientation < static_cast<int>(DIR_0_TOP)) {
         data.orientation = static_cast<int>(DIR_6_LEFT);
     }
+    advance_orientation_generation();
     calculate_lookup();
     if (center_grid_offset >= 0) {
         int x, y;
@@ -809,6 +826,7 @@ void city_view_load_state(buffer *orientation, buffer *camera)
     } else {
         data.orientation = static_cast<int>(DIR_0_TOP);
     }
+    advance_orientation_generation();
 }
 
 void city_view_save_scenario_state(buffer *camera)

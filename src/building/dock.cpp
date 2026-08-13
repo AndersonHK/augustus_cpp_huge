@@ -16,9 +16,8 @@
 #include "game/resource.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/routing_data.h"
 #include "map/terrain.h"
-#include "map/water.h"
+#include "map/water_navigation.h"
 
 #include <vector>
 
@@ -57,24 +56,6 @@ int building_dock_count_idle_dockers(const Building &dock)
         }
     }
     return num_idle;
-}
-
-void building_dock_update_open_water_access(void)
-{
-    for (Building b : Building::of_type(dock_type())) {
-        if (b.is_in_use() && !b.has_house_size()) {
-            if (map_water_is_connected_to_open_water(b.x(), b.y(), b.size())) {
-                b.set_has_water_access(1);
-            } else {
-                b.set_has_water_access(0);
-            }
-        }
-    }
-}
-
-int building_dock_is_connected_to_open_water(int x, int y)
-{
-    return map_water_is_connected_to_open_water(x, y, 3);
 }
 
 int building_dock_accepts_ship(Figure &ship, const Building &dock)
@@ -480,7 +461,7 @@ void building_dock_get_ship_request_tile(const Building &dock, ship_dock_request
                 default: dx = -2; dy = 2; break;
             }
             grid_offset = map_grid_offset(dock.x() + dx, dock.y() + dy);
-            if (!map_terrain_is(grid_offset, TERRAIN_WATER) || terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
+            if (!water_navigation::is_passable(grid_offset, WaterNavigationProfile::Boat)) {
                 // fallback 1
                 switch (dock.dock_orientation()) {
                     case 0: dx = 0; dy = -1; break;
@@ -490,7 +471,7 @@ void building_dock_get_ship_request_tile(const Building &dock, ship_dock_request
                 }
                 grid_offset = map_grid_offset(dock.x() + dx, dock.y() + dy);
             }
-            if (!map_terrain_is(grid_offset, TERRAIN_WATER) || terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
+            if (!water_navigation::is_passable(grid_offset, WaterNavigationProfile::Boat)) {
                 // fallback 2
                 switch (dock.dock_orientation()) {
                     case 0: dx = 1; dy = 0; break;
@@ -509,7 +490,7 @@ void building_dock_get_ship_request_tile(const Building &dock, ship_dock_request
                 default: dx = -3; dy = 2; break;
             }
             grid_offset = map_grid_offset(dock.x() + dx, dock.y() + dy);
-            if (!map_terrain_is(grid_offset, TERRAIN_WATER) || terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
+            if (!water_navigation::is_passable(grid_offset, WaterNavigationProfile::Boat)) {
                 // fallback 1
                 switch (dock.dock_orientation()) {
                     case 0: dx = 2; dy = -1; break;
@@ -519,7 +500,7 @@ void building_dock_get_ship_request_tile(const Building &dock, ship_dock_request
                 }
                 grid_offset = map_grid_offset(dock.x() + dx, dock.y() + dy);
             }
-            if (!map_terrain_is(grid_offset, TERRAIN_WATER) || terrain_water.items[grid_offset] == WATER_N1_BLOCKED) {
+            if (!water_navigation::is_passable(grid_offset, WaterNavigationProfile::Boat)) {
                 // fallback 2
                 switch (dock.dock_orientation()) {
                     case 0: dx = 0; dy = -3; break;

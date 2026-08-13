@@ -27,20 +27,6 @@
 
 namespace {
 
-Building *runtime_building_by_id(unsigned int id)
-{
-    if (!id) {
-        return nullptr;
-    }
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building->id == id) {
-            found = building;
-        }
-    });
-    return found;
-}
-
 int raw_material_consumer_can_receive(Building &building, resource_type raw_material, int road_network_id)
 {
     if (!building.is_in_use() || !building.has_cached_road_access() ||
@@ -53,9 +39,8 @@ int raw_material_consumer_can_receive(Building &building, resource_type raw_mate
 template<typename Visitor>
 int for_each_raw_material_consumer(resource_type raw_material, Visitor visitor)
 {
-    for (size_t index = 0; index < building_type_registry_impl::g_building_types.size(); index++) {
-        const std::unique_ptr<building_type_registry_impl::BuildingType> &definition =
-            building_type_registry_impl::g_building_types[index];
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
         if (!definition) {
             continue;
         }
@@ -69,14 +54,10 @@ int for_each_raw_material_consumer(resource_type raw_material, Visitor visitor)
         if (!has_input_storage) {
             continue;
         }
-        int found = 0;
-        Building::for_each({ .BuildingType = definition.get() }, [&](Building *building) {
-            if (visitor(*building)) {
-                found = 1;
+        for (Building &building : Building::of_type(definition->type())) {
+            if (visitor(building)) {
+                return 1;
             }
-        });
-        if (found) {
-            return 1;
         }
     }
     return 0;
@@ -177,7 +158,7 @@ static int random_industry_strikes(int num_strikes)
     int total_industries = building_list_large_size();
     if (num_strikes >= total_industries) {
         for (int i = 0; i < total_industries; i++) {
-            Building *industry = runtime_building_by_id(building_list_large_item(i));
+            Building *industry = Building::get(building_list_large_item(i));
             building *b = industry ? const_cast<::building *>(industry->record()) : nullptr;
             if (!b) {
                 continue;
@@ -195,14 +176,14 @@ static int random_industry_strikes(int num_strikes)
 
         // Prevent the same building from being selected twice
         int current = index + 1;
-        Building *industry = runtime_building_by_id(building_list_large_item(index));
+        Building *industry = Building::get(building_list_large_item(index));
         building *b = industry ? const_cast<::building *>(industry->record()) : nullptr;
         int checked = 0;
         while ((!b || b->strike_duration_days > 0) && checked < total_industries) {
             if (current == total_industries) {
                 current = 0;
             }
-            industry = runtime_building_by_id(building_list_large_item(current));
+            industry = Building::get(building_list_large_item(current));
             b = industry ? const_cast<::building *>(industry->record()) : nullptr;
             current++;
             checked++;
@@ -222,7 +203,7 @@ static int random_industry_strikes(int num_strikes)
 static void force_strike(int num_strikes)
 {
     building_list_large_clear();
-    Building::for_each({ .hasProductionMethod = true }, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         if (building->is_in_use() && building->record()->strike_duration_days == 0) {
             building_list_large_add(building->id);
@@ -255,7 +236,7 @@ void building_industry_update_production(int new_day)
 {
     int striking_buildings = 0;
 
-    Building::for_each({ .hasProductionMethod = true }, [&] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [&] (Building *building)
     {
         if (!building->is_in_use()) {
             return;
@@ -276,7 +257,7 @@ void building_industry_update_production(int new_day)
 
 void building_bless_farms(void)
 {
-    Building::for_each([] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
             building->bless_native_farm();
@@ -286,7 +267,7 @@ void building_bless_farms(void)
 
 void building_bless_industry(void)
 {
-    Building::for_each({ .hasProductionMethod = true }, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         if (building->is_in_use()) {
             building->bless_native_industry();
@@ -296,7 +277,7 @@ void building_bless_industry(void)
 
 void building_curse_farms(int big_curse)
 {
-    Building::for_each([big_curse] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [big_curse] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
             building->curse_native_farm(big_curse);
@@ -322,12 +303,12 @@ int building_get_required_raw_amount_for_production(
     return amount;
 }
 
-int building_workshop_add_raw_material(Building *b, int resource, int loads, unsigned int figure_id)
+int building_workshop_add_raw_material(Building *b, int resource, int loads, Figure &figure)
 {
     if (!b || !b->id || loads <= 0 || resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
-    return b->receive_input_storage_loads(static_cast<resource_type>(resource), loads, figure_id);
+    return b->receive_input_storage_loads(static_cast<resource_type>(resource), loads, figure);
 }
 
 int building_has_workshop_for_raw_material_with_room(int resource, int road_network_id)
@@ -367,7 +348,7 @@ Building *building_get_workshop_for_raw_material_with_room(int x, int y, int res
 
 void building_industry_advance_stats(void)
 {
-    Building::for_each({ .hasProductionMethod = true }, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         if (building->is_in_use() || building->is_mothballed()) {
             building->advance_native_production_stats();
@@ -389,7 +370,7 @@ void building_industry_start_strikes(void)
 
     building_list_large_clear();
 
-    Building::for_each({ .hasProductionMethod = true }, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
     {
         if (building->is_in_use() && building->record()->strike_duration_days == 0) {
             building_list_large_add(building->id);

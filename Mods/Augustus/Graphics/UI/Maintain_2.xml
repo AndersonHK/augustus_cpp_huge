@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Maintain_2">
+    <image id="Maintain_2">
+        <layer src="Maintain_2"/>
+    </image>
+</assetlist>

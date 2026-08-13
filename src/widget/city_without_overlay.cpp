@@ -102,7 +102,11 @@ static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_c
     if (config_get(CONFIG_UI_CV_CURSOR_SHADOW) && draw_context.cursor_tile && draw_context.cursor_tile->grid_offset &&
         !scroll_in_progress()) {
         if (map_building_exists_at(draw_context.cursor_tile->grid_offset)) {
-            draw_context.hovered_building_id = map_building_at(draw_context.cursor_tile->grid_offset).main().id;
+            Building &selected = map_building_at(draw_context.cursor_tile->grid_offset);
+            Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+                &selected.dynamic_bridge_owner() :
+                (selected.Composition ? selected.Composition->owner() : &selected);
+            draw_context.hovered_building_id = owner ? owner->id : 0;
 
         }
     }
@@ -149,7 +153,10 @@ static int is_building_selected(const Building &building)
     if (!config_get(CONFIG_UI_HIGHLIGHT_SELECTED_BUILDING)) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id;
+    Building *owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : const_cast<Building *>(&building));
+    const unsigned int main_part_id = owner ? owner->id : 0;
     return building.id == draw_context.selected_building_id || main_part_id == draw_context.selected_building_id;
 }
 
@@ -158,7 +165,10 @@ static int is_building_hovered(const Building &building)
     if (!draw_context.hovered_building_id) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id;
+    Building *owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : const_cast<Building *>(&building));
+    const unsigned int main_part_id = owner ? owner->id : 0;
     return building.id == draw_context.hovered_building_id || main_part_id == draw_context.hovered_building_id;
 }
 
@@ -242,9 +252,10 @@ static void draw_footprint(int x, int y, int grid_offset)
         map_image_set(grid_offset, image_id);
     }
     const int tile_visual_first = building && building->is_surface_terrain_tile();
-    const int bridge_visual = building && building->type && building->type->roadblock().is_bridge();
-    if (bridge_visual) {
-        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, draw_context.scale);
+    const int terrain_foundation = building && building->Graphics().uses_terrain_foundation();
+    if (terrain_foundation && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+        city_draw_terrain_foundation_footprint(
+            grid_offset, x, y, color_mask, draw_context.scale);
     }
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
@@ -267,13 +278,15 @@ static void draw_footprint(int x, int y, int grid_offset)
 
 static void draw_hippodrome_spectators(const Building &building, int x, int y, color_t color_mask)
 {
-    int building_part = 1;
-    if (!building.previous_part_id()) {
-        building_part = 0;
-    } else if (!building.next_part_id()) {
-        building_part = 2;
-    } else {
-        building_part = 1;
+    int building_part = 0;
+    if (building.Composition && building.Composition->is_child()) {
+        const building_type_registry_impl::CompositionChildDef *child =
+            building.Composition->child_definition();
+        if (child && child->role == "middle") {
+            building_part = 1;
+        } else if (child && child->role == "end") {
+            building_part = 2;
+        }
     }
     int orientation = building_rotation_get_building_orientation(building.orientation());
     int population = city_population();
@@ -324,8 +337,8 @@ static void draw_hippodrome_spectators(const Building &building, int x, int y, c
 
 static void draw_entertainment_spectators(const Building &building, int x, int y, color_t color_mask)
 {
-    Building owner = building.composition_owner();
-    if (owner.matches("hippodrome") && owner.worker_count() > 0
+    Building *owner = building.Composition ? building.Composition->owner() : const_cast<Building *>(&building);
+    if (owner && owner->matches("hippodrome") && owner->worker_count() > 0
         && city_entertainment_hippodrome_has_race()) {
         draw_hippodrome_spectators(building, x, y, color_mask);
     }
@@ -374,7 +387,7 @@ static void draw_workshop_raw_material_storage(const Building &building, int x, 
     }
 }
 
-static void draw_mothball_icon(const Building &building, int x, int y, int grid_offset)
+static void draw_mothball_icon(const Building &building, int x, int y)
 {
     const bool mothballed = building.is_mothballed();
     if (!building.industry_is_stockpiling() && !mothballed) {
@@ -387,7 +400,6 @@ static void draw_mothball_icon(const Building &building, int x, int y, int grid_
     int mothball_x = 0;
     int mothball_y = 0;
     if (!building.mothball_status_icon_offset(
-            grid_offset,
             placement_icon.width(),
             placement_icon.height(),
             &mothball_x,
@@ -461,7 +473,7 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     }
     if (building) {
         draw_senate_rating_flags(*building, x, y, color_mask);
-        draw_mothball_icon(*building, x, y, grid_offset);
+    draw_mothball_icon(*building, x, y);
         draw_entertainment_spectators(*building, x, y, color_mask);
         draw_workshop_raw_material_storage(*building, x, y, color_mask);
     }
@@ -528,7 +540,7 @@ static void draw_plague(Building &building, int x, int y, color_t color_mask)
     int y_pos = 0;
     int is_fumigating = building.is_being_fumigated();
 
-    if (building.type && building.type->has_housing()) {
+    if (building.Housing) {
         get_plague_icon_position_for_house(building, &x_pos, &y_pos, is_fumigating);
         if (x_pos || y_pos) {
             x_pos += x;
@@ -730,7 +742,8 @@ static void draw_elevated_figures_render_tile(const CityViewRenderTile &tile)
 
 static void draw_hippodrome_ornaments_for_building(Building *building, int x, int y, int grid_offset)
 {
-    if (!building || !map_property_is_draw_tile(grid_offset) || !building->composition_owner().matches("hippodrome")) {
+    Building *owner = building && building->Composition ? building->Composition->owner() : building;
+    if (!building || !owner || !map_property_is_draw_tile(grid_offset) || !owner->matches("hippodrome")) {
         return;
     }
 
@@ -793,9 +806,7 @@ static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
         return;
     }
     building_type type = static_cast<building_type>(building_construction_type());
-    if (building_connectable_gate_type(type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        type = static_cast<building_type>(building_connectable_gate_type(type));
-    }
+    type = building_connectable_preview_type(type, grid_offset);
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
     if (!definition) {
@@ -808,11 +819,9 @@ static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
     record.grid_offset = static_cast<short>(grid_offset);
     record.x = static_cast<unsigned char>(map_grid_offset_to_x(grid_offset));
     record.y = static_cast<unsigned char>(map_grid_offset_to_y(grid_offset));
-    record.size = static_cast<unsigned char>(definition->declared_model_size() > 0 ? definition->declared_model_size() : 1);
     if (building_rotation_type_has_rotations(type)) {
         record.subtype.orientation = static_cast<short>(building_rotation_get_rotation());
     }
-
     BuildingGraphicsState graphics_state;
     Building building(record, definition, graphics_state);
     int image_id = building_image_get(&building);

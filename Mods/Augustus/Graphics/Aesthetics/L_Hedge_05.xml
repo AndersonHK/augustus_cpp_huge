@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\L_Hedge_05">
+    <image id="L Hedge 05" isometric="true">
+        <layer src="L_Hedge_05" part="footprint"/>
+    </image>
+</assetlist>

@@ -37,6 +37,30 @@
 
 namespace building_type_registry_impl {
 
+int graphics_orientation_option_index(
+    int building_orientation,
+    int view_orientation,
+    int option_count)
+{
+    if (option_count <= 0) {
+        return 0;
+    }
+    const int orientation = (4 + building_orientation - view_orientation / 2) % 4;
+    return (orientation < 0 ? orientation + 4 : orientation) % option_count;
+}
+
+int graphics_overlay_summary_draws(
+    GraphicsOverlaySummaryPolicy policy,
+    int is_composed,
+    int is_owner,
+    int is_draw_tile)
+{
+    if (policy == GraphicsOverlaySummaryPolicy::CompositionOwner) {
+        return !is_composed || (is_owner && is_draw_tile);
+    }
+    return 1;
+}
+
 namespace {
 
 constexpr int RESOURCE_STORAGE_GRAPHICS_COUNT = RESOURCE_SLOT_COUNT;
@@ -78,7 +102,13 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
 #else
     const auto condition_state_for = [](const Building &building) {
         const ::building *record = building.record();
-        return record && record->id ? building.composition_owner() : building;
+        if (!record || !record->id) {
+            return building;
+        }
+        Building *owner = building.type && building.type->bridge().is_bridge() ?
+            &building.dynamic_bridge_owner() :
+            (building.Composition ? building.Composition->owner() : const_cast<Building *>(&building));
+        return owner ? *owner : building;
     };
     const Building state = condition_state_for(building);
     int matches = 0;
@@ -464,6 +494,19 @@ const std::vector<GraphicsLayer> &GraphicsTarget::layers() const
     return layers_;
 }
 
+int GraphicsTarget::has_layer_role(const char *role) const
+{
+    if (!role || !*role) {
+        return 0;
+    }
+    for (const GraphicsLayer &layer : layers_) {
+        if (layer.role_is(role)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
 {
     auto inherit_layer_paths = [](GraphicsTarget &target) {
@@ -520,6 +563,39 @@ int GraphicsVariant::matches(const Building &building) const
 GraphicsTarget &BuildingGraphicsDef::default_target()
 {
     return default_target_;
+}
+
+void BuildingGraphicsDef::set_status_icon_anchor(int x, int y)
+{
+    has_status_icon_anchor_ = 1;
+    status_icon_anchor_x_ = x;
+    status_icon_anchor_y_ = y;
+}
+
+void BuildingGraphicsDef::set_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy)
+{
+    overlay_summary_policy_ = policy;
+    has_overlay_summary_policy_ = 1;
+}
+
+GraphicsOverlaySummaryPolicy BuildingGraphicsDef::overlay_summary_policy() const
+{
+    return overlay_summary_policy_;
+}
+
+int BuildingGraphicsDef::has_overlay_summary_policy() const
+{
+    return has_overlay_summary_policy_;
+}
+
+int BuildingGraphicsDef::status_icon_anchor(int *x, int *y) const
+{
+    if (!has_status_icon_anchor_ || !x || !y) {
+        return 0;
+    }
+    *x = status_icon_anchor_x_;
+    *y = status_icon_anchor_y_;
+    return 1;
 }
 
 const GraphicsTarget &BuildingGraphicsDef::default_target() const
@@ -595,7 +671,13 @@ building_runtime *runtime_for_building(Building building, std::unique_ptr<buildi
         if (!building.record() || !building.record()->id) {
             return nullptr;
         }
-        owner = building.main();
+        Building *resolved_owner = building.type && building.type->bridge().is_bridge() ?
+            &building.dynamic_bridge_owner() :
+            (building.Composition ? building.Composition->owner() : &building);
+        if (!resolved_owner) {
+            return nullptr;
+        }
+        owner = *resolved_owner;
     }
     if (!owner.type) {
         return nullptr;
@@ -789,7 +871,8 @@ int BuildingGraphicsDef::gatehouse_overlay_draw_tile_matches(
     int grid_offset,
     int view_orientation) const
 {
-    if (!building.matches("gatehouse")) {
+    const GraphicsTarget *target = resolve_target(building);
+    if (!target || !target->has_layer_role("gatehouse_overlay")) {
         return 0;
     }
     const int gate_orientation = building.orientation();
@@ -826,12 +909,9 @@ int BuildingGraphicsDef::draw_gatehouse_overlay(
         ctx.scale);
 }
 
-int BuildingGraphicsDef::draws_mothball_status_at(Building building, int grid_offset) const
+int BuildingGraphicsDef::draws_mothball_status(Building building) const
 {
-    if (!building.is_main_part()) {
-        return 0;
-    }
-    if (building.type && building.type->is_farm() && map_property_multi_tile_size(grid_offset) == 1) {
+    if ((building.Composition && building.Composition->is_child()) || building.is_dynamic_bridge_segment()) {
         return 0;
     }
     return 1;
@@ -839,31 +919,16 @@ int BuildingGraphicsDef::draws_mothball_status_at(Building building, int grid_of
 
 int BuildingGraphicsDef::mothball_status_icon_offset(
     Building building,
-    int grid_offset,
     int icon_width,
     int icon_height,
     int *x,
     int *y) const
 {
-    if (!x || !y || !draws_mothball_status_at(building, grid_offset)) {
+    if (!x || !y || !draws_mothball_status(building)) {
         return 0;
     }
 
-    *x = 0;
-    *y = 0;
-    if (building.type && building.type->is_warehouse()) {
-        *x += 21;
-        *y -= 60;
-    } else if (building.type && building.type->is_granary()) {
-        *x += 83;
-        *y -= 120;
-    } else if (building.matches("fountain")) {
-        *x += 20;
-        *y -= 15;
-    } else if (building.type && building.type->is_farm()) {
-        *x += 50;
-        *y -= 50;
-    } else {
+    if (!status_icon_anchor(x, y)) {
         const Image &building_image = Image::from_id(building.image_id());
         *x = (building_image.width() - icon_width) / 2;
         *y = (-icon_height / 2) + 10;
@@ -891,26 +956,19 @@ int BuildingGraphicsDef::production_progress_option_count() const
 
 int BuildingGraphicsDef::draws_overlay_summary_at(Building building, int grid_offset, int view_orientation) const
 {
-    if (building.size() != 3 || !building.type || !building.type->is_farm()) {
-        return 1;
+    const BuildingGraphicsDef *policy_definition = this;
+    if (building.Composition && building.Composition->is_child()) {
+        Building *owner = building.Composition->owner();
+        if (owner && owner->type) {
+            policy_definition = &owner->type->graphics();
+        }
     }
-    if (!map_property_is_draw_tile(grid_offset)) {
-        return 0;
-    }
-
-    const int tile_position = map_property_multi_tile_xy(grid_offset);
-    switch (view_orientation) {
-        case DIR_0_TOP:
-            return tile_position == EDGE_X0Y2;
-        case DIR_2_RIGHT:
-            return tile_position == EDGE_X0Y0;
-        case DIR_4_BOTTOM:
-            return tile_position == EDGE_X2Y0;
-        case DIR_6_LEFT:
-            return tile_position == EDGE_X2Y2;
-        default:
-            return 0;
-    }
+    (void) view_orientation;
+    return graphics_overlay_summary_draws(
+        policy_definition->overlay_summary_policy(),
+        building.Composition && building.Composition->is_composed(),
+        building.Composition && building.Composition->is_owner(),
+        map_property_is_draw_tile(grid_offset));
 }
 
 #endif

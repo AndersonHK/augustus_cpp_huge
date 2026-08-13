@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Highway_Base_Start">
+    <image id="Highway_Base_Start" isometric="true">
+        <layer src="Highway_Base_Start" part="footprint"/>
+    </image>
+    <image id="Image_0000" isometric="true">
+        <layer src="Image_0000" part="footprint"/>
+    </image>
+    <image id="Image_0001" isometric="true">
+        <layer src="Image_0001" part="footprint"/>
+    </image>
+    <image id="Image_0002" isometric="true">
+        <layer src="Image_0002" part="footprint"/>
+    </image>
+    <image id="Image_0003" isometric="true">
+        <layer src="Image_0003" part="footprint"/>
+    </image>
+    <image id="Image_0004" isometric="true">
+        <layer src="Image_0004" part="footprint"/>
+    </image>
+    <image id="Image_0005" isometric="true">
+        <layer src="Image_0005" part="footprint"/>
+    </image>
+    <image id="Image_0006" isometric="true">
+        <layer src="Image_0006" part="footprint"/>
+    </image>
+    <image id="Image_0007" isometric="true">
+        <layer src="Image_0007" part="footprint"/>
+    </image>
+    <image id="Image_0008" isometric="true">
+        <layer src="Image_0008" part="footprint"/>
+    </image>
+    <image id="Image_0009" isometric="true">
+        <layer src="Image_0009" part="footprint"/>
+    </image>
+    <image id="Image_0010" isometric="true">
+        <layer src="Image_0010" part="footprint"/>
+    </image>
+    <image id="Image_0011" isometric="true">
+        <layer src="Image_0011" part="footprint"/>
+    </image>
+    <image id="Image_0012" isometric="true">
+        <layer src="Image_0012" part="footprint"/>
+    </image>
+    <image id="Image_0013" isometric="true">
+        <layer src="Image_0013" part="footprint"/>
+    </image>
+    <image id="Image_0014" isometric="true">
+        <layer src="Image_0014" part="footprint"/>
+    </image>
+</assetlist>

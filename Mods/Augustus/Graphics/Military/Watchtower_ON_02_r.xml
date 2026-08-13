@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Watchtower_ON_02_r">
+    <image id="Watchtower_ON_01_r" width="118" height="106" group="Military\Watchtower_ON_01_r" image="Watchtower_ON_01_r"/>
+    <image id="Watchtower_ON_02_r" width="118" height="106" group="Military\Watchtower_ON_01_r" image="Watchtower_ON_02_r"/>
+    <image id="Watchtower_ON_03_r" width="118" height="106" group="Military\Watchtower_ON_01_r" image="Watchtower_ON_03_r"/>
+    <image id="Watchtower_ON_04_r" width="118" height="106" group="Military\Watchtower_ON_01_r" image="Watchtower_ON_04_r"/>
+    <image id="Watchtower_ON_05_r" width="118" height="106" group="Military\Watchtower_ON_01_r" image="Watchtower_ON_05_r"/>
+    <image id="Watchtower C OFF R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower C OFF R"/>
+    <image id="Watchtower C ON R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower C ON R"/>
+    <image id="Watchtower N OFF R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower N OFF R"/>
+    <image id="Watchtower N ON R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower N ON R"/>
+    <image id="Watchtower S OFF R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower S OFF R"/>
+    <image id="Watchtower S ON R" isometric="true" group="Military\Watchtower_ON_01_r" image="Watchtower S ON R"/>
+</assetlist>

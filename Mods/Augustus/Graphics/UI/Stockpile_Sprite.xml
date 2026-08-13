@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Stockpile_Sprite">
+    <image id="Stockpile_Sprite">
+        <layer src="Stockpile_Sprite"/>
+    </image>
+</assetlist>

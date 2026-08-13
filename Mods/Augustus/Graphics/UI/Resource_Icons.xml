@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Resource_Icons">
+    <image id="Grand Festival Wine Disabled">
+        <layer group="UI\Resource_Icons" image="Image_0007" mask="grayscale"/>
+    </image>
+</assetlist>

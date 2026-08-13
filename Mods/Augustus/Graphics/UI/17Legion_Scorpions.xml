@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\17Legion_Scorpions">
+    <image id="17Legion_Scorpions" width="32" height="18">
+        <layer src="17Legion_Scorpions" x="5"/>
+    </image>
+</assetlist>

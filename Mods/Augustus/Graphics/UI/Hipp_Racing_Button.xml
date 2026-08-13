@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Hipp_Racing_Button">
+    <image id="Hipp_Racing_Button">
+        <layer src="Hipp_Racing_Button"/>
+    </image>
+</assetlist>

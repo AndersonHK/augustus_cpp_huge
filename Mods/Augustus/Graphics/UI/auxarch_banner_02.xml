@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\auxarch_banner_02">
+    <image id="auxarch_banner_02">
+        <layer src="auxarch_banner_02_Layer_01"/>
+        <layer src="auxarch_banner_02_Layer_02" x="4" y="3"/>
+    </image>
+</assetlist>

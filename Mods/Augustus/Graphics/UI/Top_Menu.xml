@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Top_Menu">
+    <image id="Top_UI_Panel" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014"/>
+    </image>
+    <image id="Alias_0002" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014" x="-20"/>
+    </image>
+    <image id="Alias_0003" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014" x="-40"/>
+    </image>
+    <image id="Alias_0004" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014" x="-60"/>
+    </image>
+    <image id="Alias_0005" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014" x="-80"/>
+    </image>
+    <image id="Alias_0006" width="20" height="24">
+        <layer group="UI\Top_Menu" image="Image_0014" x="-100"/>
+    </image>
+</assetlist>

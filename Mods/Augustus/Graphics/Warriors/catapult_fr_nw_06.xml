@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\catapult_fr_nw_06">
+    <image id="catapult_fr_nw_03" width="80" height="80" group="Warriors\catapult_fr_nw_03" image="catapult_fr_nw_03"/>
+    <image id="catapult_fr_nw_06" width="80" height="80" group="Warriors\catapult_fr_nw_03" image="catapult_fr_nw_06"/>
+</assetlist>

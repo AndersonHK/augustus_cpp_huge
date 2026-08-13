@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\marketbuyer_death_08">
+    <image id="marketbuyer_death_06" group="Walkers\Group_106" image="marketbuyer_death_06"/>
+    <image id="marketbuyer_death_07" group="Walkers\Group_106" image="marketbuyer_death_07"/>
+    <image id="marketbuyer_death_08" group="Walkers\Group_106" image="marketbuyer_death_08"/>
+</assetlist>

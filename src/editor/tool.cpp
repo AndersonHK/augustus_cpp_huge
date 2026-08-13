@@ -172,7 +172,7 @@ static int raise_land_tile(int, int, int grid_offset, int terrain)
     int elevation = map_elevation_at(grid_offset);
     if (elevation < 5 && elevation == data.start_elevation) {
         if (!(terrain & (TERRAIN_ACCESS_RAMP | TERRAIN_ELEVATION))) {
-            map_property_set_multi_tile_size(grid_offset, 1);
+            map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_elevation_set(grid_offset, elevation + 1);
             terrain &= ~(TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_GARDEN | TERRAIN_ROAD);
         }
@@ -185,7 +185,7 @@ static int lower_land_tile(int, int, int grid_offset, int terrain)
     if (terrain & TERRAIN_ACCESS_RAMP) {
         terrain |= TERRAIN_ELEVATION;
         terrain &= ~(TERRAIN_ACCESS_RAMP);
-        map_property_set_multi_tile_size(grid_offset, 1);
+        map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
     }
     int elevation = map_elevation_at(grid_offset);
@@ -210,7 +210,7 @@ static void add_terrain(const void *tile_data, int dx, int dy)
     int terrain = map_terrain_get(grid_offset);
     if (data.type != TOOL_EARTHQUAKE_CUSTOM && data.type != TOOL_EARTHQUAKE_CUSTOM_REMOVE) {
         if (terrain & TERRAIN_BUILDING) {
-            map_building_tiles_remove(nullptr, x, y);
+            map_legacy_building_tiles_remove(x, y);
             terrain = map_terrain_get(grid_offset);
         }
         if (!(terrain & (TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP))) {
@@ -415,42 +415,34 @@ static void place_flag_with_id(const map_tile *tile, void (*update)(int id, int 
 static void place_building(const map_tile *tile)
 {
     int image_id;
-    int size;
     building_type type = BUILDING_NONE;
     switch (data.type) {
         case TOOL_NATIVE_HUT:
             type = building_type_registry_impl::type_from_attr("native_hut");
             image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + (random_byte() & 1);
-            size = 1;
             break;
         case TOOL_NATIVE_HUT_ALT:
             type = building_type_registry_impl::type_from_attr("native_hut_alt");
             image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
-            size = 1;
             break;
         case TOOL_NATIVE_CENTER:
             type = building_type_registry_impl::type_from_attr("native_meeting");
             image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + 2;
-            size = 2;
             break;
         case TOOL_NATIVE_FIELD:
             type = building_type_registry_impl::type_from_attr("native_crops");
             image_id = image_group(GROUP_EDITOR_BUILDING_CROPS);
-            size = 1;
             break;
         case TOOL_NATIVE_DECORATION:
             type = building_type_registry_impl::type_from_attr("native_decor");
-            size = 1;
             image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_MONUMENT:
             type = building_type_registry_impl::type_from_attr("native_monument");
-            size = 4;
             image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_WATCHTOWER:
             type = building_type_registry_impl::type_from_attr("native_watchtower");
-            size = 1;
             image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         default:
@@ -460,14 +452,16 @@ static void place_building(const map_tile *tile)
         return;
     }
 
-    if (editor_tool_can_place_building(tile, size * size, 0)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (!definition) {
-            return;
-        }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    if (!foundation) {
+        return;
+    }
+    if (editor_tool_can_place_building(tile, *foundation, 0, nullptr)) {
         Building &building = city_building_runtime().create(*definition, tile->x, tile->y);
-        map_building_tiles_add(building, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
+        building.add_map_tiles(image_id);
         scenario_editor_set_as_unsaved();
     } else {
         city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);

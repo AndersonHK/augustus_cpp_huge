@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Circus_Banner">
+    <image id="Circus Banner">
+        <layer src="Circus_Banner"/>
+    </image>
+</assetlist>

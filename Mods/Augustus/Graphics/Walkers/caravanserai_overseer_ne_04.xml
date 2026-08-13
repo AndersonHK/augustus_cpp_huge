@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\caravanserai_overseer_ne_04">
+    <image id="caravanserai_overseer_ne_04">
+        <layer group="Walkers\Group_229" image="Image_0024"/>
+        <layer src="caravanserai_overseer_ne_04_Layer_02" x="16" y="2"/>
+    </image>
+</assetlist>

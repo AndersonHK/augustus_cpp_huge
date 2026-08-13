@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\Overgrown_Garden_01">
+    <image id="Overgrown_Garden_01" isometric="true">
+        <layer src="Overgrown_Garden_01" part="footprint"/>
+    </image>
+</assetlist>

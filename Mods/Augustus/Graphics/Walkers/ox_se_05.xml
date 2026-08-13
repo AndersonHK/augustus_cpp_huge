@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\ox_se_05">
+    <image id="ox_se_05" width="53" height="53">
+        <layer src="ox_se_05" x="10" y="13"/>
+    </image>
+</assetlist>

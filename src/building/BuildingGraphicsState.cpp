@@ -12,5 +12,19 @@ int BuildingGraphicsState::set_variant(int variant)
         return 0;
     }
     variant_ = value;
+    invalidate();
     return 1;
+}
+
+std::uint64_t BuildingGraphicsState::generation() const
+{
+    return generation_;
+}
+
+void BuildingGraphicsState::invalidate()
+{
+    ++generation_;
+    if (generation_ == 0) {
+        generation_ = 1;
+    }
 }

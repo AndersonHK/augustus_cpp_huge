@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Barracks_Priority_Legionaries_OFF">
+    <image id="Barracks_Priority_Legionaries_OFF" width="40" height="40">
+        <layer src="Barracks_Priority_Legionaries_OFF_Layer_01" x="5" y="4"/>
+        <layer group="Warriors\Group_126" image="Image_0008" x="4" y="6"/>
+        <layer src="Barracks_Priority_Legionaries_OFF_Layer_03"/>
+    </image>
+    <image id="Barracks_Priority_Legionaries_ON" width="40" height="40">
+        <layer group="UI\Barracks_Priority_Legionaries_OFF" image="Barracks_Priority_Legionaries_OFF"/>
+        <layer src="Barracks_Priority_Legionaries_ON_Layer_02"/>
+    </image>
+</assetlist>

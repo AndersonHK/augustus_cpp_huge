@@ -22,11 +22,6 @@ enum {
     NONCITIZEN_5_FORT = 5,
     NONCITIZEN_N1_BLOCKED = -1,
 
-    WATER_0_PASSABLE = 0,
-    WATER_N1_BLOCKED = -1,
-    WATER_N2_MAP_EDGE = -2,
-    WATER_N3_LOW_BRIDGE = -3,
-
     WALL_0_PASSABLE = 0,
     WALL_N1_BLOCKED = -1,
 
@@ -35,6 +30,5 @@ enum {
 
 extern grid_i8 terrain_land_citizen;
 extern grid_i8 terrain_land_noncitizen;
-extern grid_i8 terrain_water;
 extern grid_i8 terrain_walls;
 

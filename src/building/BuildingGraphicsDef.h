@@ -62,6 +62,16 @@ enum class GraphicsLayerStage {
     Animation
 };
 
+enum class GraphicsOverlaySummaryPolicy {
+    EveryDrawTile,
+    CompositionOwner
+};
+
+int graphics_orientation_option_index(
+    int building_orientation,
+    int view_orientation,
+    int option_count);
+
 struct GraphicsCondition {
     GraphicsConditionType type = GraphicsConditionType::None;
     GraphicComparison comparison = GraphicComparison::None;
@@ -154,6 +164,7 @@ struct GraphicsTarget {
     int option_count() const;
     const GraphicsTarget *option(int index) const;
     const std::vector<GraphicsLayer> &layers() const;
+    int has_layer_role(const char *role) const;
     GraphicsTarget resolved_option(unsigned char variant) const;
 
 private:
@@ -187,6 +198,11 @@ public:
     static const ImageGroupEntryRef &resource_storage_image(resource_type resource, int loads);
     static void reset_resource_storage_images();
 
+    void set_status_icon_anchor(int x, int y);
+    int status_icon_anchor(int *x, int *y) const;
+    void set_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy);
+    GraphicsOverlaySummaryPolicy overlay_summary_policy() const;
+    int has_overlay_summary_policy() const;
     void mark_default_node();
     GraphicsTarget &default_target();
     const GraphicsTarget &default_target() const;
@@ -205,7 +221,6 @@ public:
     int draw_gatehouse_overlay(Building building, const BuildingDrawContext &ctx, int view_orientation) const;
     int mothball_status_icon_offset(
         Building building,
-        int grid_offset,
         int icon_width,
         int icon_height,
         int *x,
@@ -218,11 +233,22 @@ private:
     const ImageGroupEntryRef &resource_storage_image_for(Building building) const;
     int draw_resource_storage(Building building, const BuildingDrawContext &ctx, GraphicsLayerStage stage) const;
     int gatehouse_overlay_draw_tile_matches(Building building, int grid_offset, int view_orientation) const;
-    int draws_mothball_status_at(Building building, int grid_offset) const;
+    int draws_mothball_status(Building building) const;
 
     GraphicsTarget default_target_;
     std::vector<GraphicsVariant> variants_;
+    int has_status_icon_anchor_ = 0;
+    int status_icon_anchor_x_ = 0;
+    int status_icon_anchor_y_ = 0;
+    GraphicsOverlaySummaryPolicy overlay_summary_policy_ = GraphicsOverlaySummaryPolicy::EveryDrawTile;
+    int has_overlay_summary_policy_ = 0;
     int has_default_node_ = 0;
 };
+
+int graphics_overlay_summary_draws(
+    GraphicsOverlaySummaryPolicy policy,
+    int is_composed,
+    int is_owner,
+    int is_draw_tile);
 
 }

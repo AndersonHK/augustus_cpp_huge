@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\T_Pillar_BG_L">
+    <image id="T Pillar BG R" width="10" height="235" group="UI\Ratings_Background" image="T Pillar BG R"/>
+    <image id="T Pillar BG L" width="9" height="235" group="UI\Ratings_Background" image="T Pillar BG L"/>
+    <image id="Tourism Pillar BG" width="91" height="235" group="UI\Ratings_Background" image="Tourism Pillar BG"/>
+</assetlist>

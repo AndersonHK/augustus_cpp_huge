@@ -1,2 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<unit key="archer"><figure type="fort_archer" /><combat><health value="70" /><attack value="6" /><defense value="3" /><morale value="60" /><armor value="1" /></combat><movement pathing="soldier_land" /><recruit type="archer" /><abilities><melee /><ranged range="8" projectile="arrow" cooldown="40" damage="10" /></abilities><graphics figure_type="archer" /></unit>
+<unit key="archer">
+    <figure type="fort_archer" />
+    <combat>
+        <health value="90" />
+        <attack value="6" />
+        <defense value="0" />
+        <morale value="60" />
+        <armor value="0" />
+    </combat>
+    <movement pathing="soldier_land" />
+    <recruit type="archer" />
+    <abilities>
+        <melee engages_adjacent="false" exposed_back_bonus="4"
+               single_line_missile_defense_bonus="4" />
+        <ranged range="12" cooldown="50" damage="10" launch_frame="1" projectile="friendly_arrow" />
+    </abilities>
+    <graphics figure_type="archer" />
+</unit>

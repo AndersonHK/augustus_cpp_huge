@@ -3,6 +3,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime.h"
 #include "building/distribution.h"
+#include "city/buildings.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "game/resource.h"
@@ -30,16 +31,7 @@ Building *MessHall::storage_destination()
         return nullptr;
     }
     auto destination_for_resource = [&](resource_type resource) -> Building * {
-        const unsigned int destination_id = info[resource].building_id;
-        if (!destination_id) {
-            return nullptr;
-        }
-        Building *destination = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!destination && building->id == destination_id) {
-                destination = building;
-            }
-        });
+        Building *destination = info[resource].source;
         if (destination) {
             set_fetch_inventory_id(resource);
         }
@@ -114,7 +106,7 @@ Figure *MessHall::create_fort_supplier(const map_point &road, Building &fort) co
     supplier->destination_y = static_cast<unsigned char>(fort.road_access_y());
     supplier->source_x = static_cast<unsigned char>(road.x);
     supplier->source_y = static_cast<unsigned char>(road.y);
-    supplier->destination_building = &fort;
+    supplier->set_destination_building(&fort);
     attach_figure(supplier);
     return supplier;
 }
@@ -123,7 +115,7 @@ void MessHall::attach_figure(Figure *figure) const
 {
     if (figure) {
         building_runtime *runtime = runtime_instance();
-        figure->building = runtime ? &runtime->building : nullptr;
+        figure->set_home_building(runtime ? &runtime->building : nullptr);
     }
 }
 
@@ -149,6 +141,15 @@ int MessHall::spawn_fort_supplier_to(Building &fort)
 
     fort_record->figure_id2 = supplier->id();
     return 1;
+}
+
+void MessHall::spawn_supplier_for_fort(Building &fort)
+{
+    const int mess_hall_id = city_buildings_get_mess_hall();
+    Building *mess_hall = mess_hall_id > 0 ? Building::get(static_cast<unsigned int>(mess_hall_id)) : nullptr;
+    if (mess_hall) {
+        MessHall(*mess_hall).spawn_fort_supplier_to(fort);
+    }
 }
 
 Building *building_mess_hall_get_storage_destination(Building mess_hall)

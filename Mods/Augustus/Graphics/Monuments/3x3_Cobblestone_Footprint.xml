@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\3x3_Cobblestone_Footprint">
+    <image id="3x3_Cobblestone_Footprint" width="178" height="90" isometric="true" group="Terrain_Maps\Road" image="3x3_Cobblestone_Footprint"/>
+    <image id="Nymphaeum_Construction_02" width="178" height="113" isometric="true" group="Terrain_Maps\Road" image="Nymphaeum_Construction_02"/>
+    <image id="Mausoleum_Large_Alt_Construction_02" width="178" height="109" isometric="true" group="Terrain_Maps\Road" image="Mausoleum_Large_Alt_Construction_02"/>
+    <image id="Mausoleum_Large_Alt_Construction_02_R" width="178" height="109" isometric="true" group="Terrain_Maps\Road" image="Mausoleum_Large_Alt_Construction_02_R"/>
+</assetlist>

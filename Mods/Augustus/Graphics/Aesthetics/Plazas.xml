@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\Plazas">
+    <image id="Plazas" isometric="true" group="Terrain_Maps\Plaza" image="Plazas"/>
+    <image id="Image_0008" isometric="true" group="Terrain_Maps\Plaza" image="Image_0008"/>
+    <image id="Image_0009" isometric="true" group="Terrain_Maps\Plaza" image="Image_0009"/>
+    <image id="Alias_0000" isometric="true" group="Terrain_Maps\Plaza" image="Alias_0000"/>
+    <image id="Image_0010" isometric="true" group="Terrain_Maps\Plaza" image="Image_0010"/>
+    <image id="Image_0011" isometric="true" group="Terrain_Maps\Plaza" image="Image_0011"/>
+    <image id="Alias_0001" isometric="true" group="Terrain_Maps\Plaza" image="Alias_0001"/>
+    <image id="Image_0012" isometric="true" group="Terrain_Maps\Plaza" image="Image_0012"/>
+    <image id="Image_0013" isometric="true" group="Terrain_Maps\Plaza" image="Image_0013"/>
+</assetlist>

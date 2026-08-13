@@ -4,8 +4,8 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
+#include "building/HousingProfileDef.h"
 #include "building/count.h"
-#include "building/house.h"
 #include "city/culture.h"
 #include "city/data_private.h"
 #include "city/games.h"
@@ -94,8 +94,10 @@ void city_ratings_peace_building_destroyed(const Building &building)
     if (definition && definition->is_well()) {
         return;
     }
-    int legacy_house_level = definition ? definition->housing_level() : -1;
-    if (legacy_house_level == HOUSE_SMALL_TENT || legacy_house_level == HOUSE_LARGE_TENT) {
+    const building_type_registry_impl::HousingProfileDef *housing_profile =
+        building.Housing ? building.Housing->definition().profile : nullptr;
+    const int compatibility_level = housing_profile ? housing_profile->compatibility_level : -1;
+    if (compatibility_level == HOUSE_SMALL_TENT || compatibility_level == HOUSE_LARGE_TENT) {
         return;
     }
     if (building_is_fort(type) || building_type_registry_impl::type_attr_is_any(
@@ -513,11 +515,11 @@ static void calculate_max_prosperity(void)
     int points = 0;
     int houses = 0;
 
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
         building *b = const_cast<building *>(house->record());
-        if (b->state && b->house_size) {
-            const model_house *house_model = building_house_get_model(*house);
-            points += house_model ? house_model->prosperity : 0;
+        if (b->state && house->Housing) {
+            const auto *profile = house->Housing->definition().profile;
+            points += profile ? profile->prosperity : 0;
             houses++;
         }
     });

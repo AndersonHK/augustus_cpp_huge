@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Construction_Banner_02">
+    <image id="Construction_Banner_02">
+        <layer src="Construction_Banner_02"/>
+    </image>
+</assetlist>

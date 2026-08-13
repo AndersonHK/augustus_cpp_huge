@@ -2,7 +2,8 @@
 <figure type="tax_collector">
     <profiles default="service">
         <profile id="service">
-            <native class="legacy_action" />
+        <native class="legacy_action" />
+        <spawn action_state="tax_collector_created" />
             <owner slot="primary" building="any" state="in_use" />
             <movement roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
             <pathing mode="vanilla_roaming" terrain="roads" />

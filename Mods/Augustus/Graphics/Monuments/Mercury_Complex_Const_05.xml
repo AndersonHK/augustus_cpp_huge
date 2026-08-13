@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Mercury_Complex_Const_05">
+    <image id="Construction_Footprint_01" isometric="true" group="Environment\Group_206" image="Construction_Footprint_01"/>
+    <image id="Construction_Footprint_02" isometric="true" group="Environment\Group_206" image="Construction_Footprint_02"/>
+    <image id="Construction_Footprint_03" isometric="true" group="Environment\Group_206" image="Construction_Footprint_03"/>
+    <image id="Construction_Footprint_04" isometric="true" group="Environment\Group_206" image="Construction_Footprint_04"/>
+    <image id="Construction_Footprint_05" isometric="true" group="Environment\Group_206" image="Construction_Footprint_05"/>
+    <image id="Construction_Footprint_06" isometric="true" group="Environment\Group_206" image="Construction_Footprint_06"/>
+    <image id="Construction_Footprint_07" isometric="true" group="Environment\Group_206" image="Construction_Footprint_07"/>
+    <image id="Construction_Footprint_08" isometric="true" group="Environment\Group_206" image="Construction_Footprint_08"/>
+    <image id="Construction_Footprint_09" isometric="true" group="Environment\Group_206" image="Construction_Footprint_09"/>
+    <image id="2x2_Construction_Footprint" width="118" height="60" isometric="true" group="Environment\Group_206" image="2x2_Construction_Footprint"/>
+    <image id="3x3_Construction_Footprint" width="178" height="90" isometric="true" group="Environment\Group_206" image="3x3_Construction_Footprint"/>
+    <image id="4x4_Construction_Footprint" width="238" height="120" isometric="true" group="Environment\Group_206" image="4x4_Construction_Footprint"/>
+    <image id="5x5_Construction_Footprint" width="298" height="150" isometric="true" group="Environment\Group_206" image="5x5_Construction_Footprint"/>
+    <image id="7x7_Construction_Footprint" width="418" height="210" isometric="true" group="Environment\Group_206" image="7x7_Construction_Footprint"/>
+    <image id="Construction_Part_TimberPad" isometric="true" group="Environment\Group_206" image="Construction_Part_TimberPad"/>
+    <image id="Construction_Part_Pillar" group="Environment\Group_206" image="Construction_Part_Pillar"/>
+    <image id="Construction_Part_Pillar_B" width="11" height="12" group="Environment\Group_206" image="Construction_Part_Pillar_B"/>
+    <image id="Construction_Part_Pillar_L" width="8" height="12" group="Environment\Group_206" image="Construction_Part_Pillar_L"/>
+    <image id="City_Mint_Construction_01" width="178" height="99" isometric="true" group="Environment\Group_206" image="City_Mint_Construction_01"/>
+    <image id="Circus NESW 01" width="298" height="159" isometric="true" group="Environment\Group_206" image="Circus NESW 01"/>
+    <image id="Circus NWSE 01" width="298" height="159" isometric="true" group="Environment\Group_206" image="Circus NWSE 01"/>
+    <image id="Circus NESW 02" isometric="true" group="Environment\Group_206" image="Circus NESW 02"/>
+    <image id="Circus NWSE 02" isometric="true" group="Environment\Group_206" image="Circus NWSE 02"/>
+    <image id="Circus NESW 03" isometric="true" group="Environment\Group_206" image="Circus NESW 03"/>
+    <image id="Circus NWSE 03" isometric="true" group="Environment\Group_206" image="Circus NWSE 03"/>
+    <image id="Colosseum_Construction_01" width="298" height="159" isometric="true" group="Environment\Group_206" image="Colosseum_Construction_01"/>
+    <image id="Caravanserai_Construction_01" width="238" height="129" isometric="true" group="Environment\Group_206" image="Caravanserai_Construction_01"/>
+    <image id="Lighthouse_Construction_01" width="178" height="99" isometric="true" group="Environment\Group_206" image="Lighthouse_Construction_01"/>
+    <image id="Grand_Temple_Construction_Base_01" width="418" height="219" isometric="true" group="Environment\Group_206" image="Grand_Temple_Construction_Base_01"/>
+    <image id="Grand_Temple_Construction_Base_02" width="418" height="219" isometric="true" group="Environment\Group_206" image="Grand_Temple_Construction_Base_02"/>
+    <image id="Ceres_LT_0" width="178" height="99" isometric="true" group="Environment\Group_206" image="Ceres_LT_0"/>
+    <image id="Ceres_LT_25" width="178" height="159" isometric="true" group="Environment\Group_206" image="Ceres_LT_25"/>
+    <image id="Ceres_LT_50" width="178" height="159" isometric="true" group="Environment\Group_206" image="Ceres_LT_50"/>
+    <image id="Ceres_LT_75" width="178" height="159" isometric="true" group="Environment\Group_206" image="Ceres_LT_75"/>
+    <image id="Ceres Complex Const 01" width="418" height="234" isometric="true" group="Environment\Group_206" image="Ceres Complex Const 01"/>
+    <image id="Ceres Complex Const 02" width="418" height="234" isometric="true" group="Environment\Group_206" image="Ceres Complex Const 02"/>
+    <image id="Ceres Complex Const 03" width="418" height="234" isometric="true" group="Environment\Group_206" image="Ceres Complex Const 03"/>
+    <image id="Ceres Complex Const 04" width="418" height="234" isometric="true" group="Environment\Group_206" image="Ceres Complex Const 04"/>
+    <image id="Ceres Complex Const 05" width="418" height="234" isometric="true" group="Environment\Group_206" image="Ceres Complex Const 05"/>
+    <image id="Mars_LT_0" width="178" height="99" isometric="true" group="Environment\Group_206" image="Mars_LT_0"/>
+    <image id="Mars_LT_25" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mars_LT_25"/>
+    <image id="Mars_LT_50" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mars_LT_50"/>
+    <image id="Mars_LT_75" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mars_LT_75"/>
+    <image id="Mars Complex Const 01" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mars Complex Const 01"/>
+    <image id="Mars Complex Const 02" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mars Complex Const 02"/>
+    <image id="Mars Complex Const 03" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mars Complex Const 03"/>
+    <image id="Mars Complex Const 04" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mars Complex Const 04"/>
+    <image id="Mars Complex Const 05" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mars Complex Const 05"/>
+    <image id="Mercury_LT_0" width="178" height="99" isometric="true" group="Environment\Group_206" image="Mercury_LT_0"/>
+    <image id="Mercury_LT_25" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mercury_LT_25"/>
+    <image id="Mercury_LT_50" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mercury_LT_50"/>
+    <image id="Mercury_LT_75" width="178" height="148" isometric="true" group="Environment\Group_206" image="Mercury_LT_75"/>
+    <image id="Mercury Complex Const 01" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mercury Complex Const 01"/>
+    <image id="Mercury Complex Const 02" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mercury Complex Const 02"/>
+    <image id="Mercury Complex Const 03" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mercury Complex Const 03"/>
+    <image id="Mercury Complex Const 04" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mercury Complex Const 04"/>
+    <image id="Mercury Complex Const 05" width="418" height="223" isometric="true" group="Environment\Group_206" image="Mercury Complex Const 05"/>
+    <image id="Neptune_LT_0" width="178" height="99" isometric="true" group="Environment\Group_206" image="Neptune_LT_0"/>
+    <image id="Neptune_LT_25" width="178" height="154" isometric="true" group="Environment\Group_206" image="Neptune_LT_25"/>
+    <image id="Neptune_LT_50" width="178" height="154" isometric="true" group="Environment\Group_206" image="Neptune_LT_50"/>
+    <image id="Neptune_LT_75" width="178" height="154" isometric="true" group="Environment\Group_206" image="Neptune_LT_75"/>
+    <image id="Neptune LTemple Off" width="178" height="154" group="Environment\Group_206" image="Neptune LTemple Off"/>
+    <image id="Neptune Complex Const 01" width="418" height="229" isometric="true" group="Environment\Group_206" image="Neptune Complex Const 01"/>
+    <image id="Neptune Complex Const 02" width="418" height="229" isometric="true" group="Environment\Group_206" image="Neptune Complex Const 02"/>
+    <image id="Neptune Complex Const 03" width="418" height="229" isometric="true" group="Environment\Group_206" image="Neptune Complex Const 03"/>
+    <image id="Neptune Complex Const 04" width="418" height="229" isometric="true" group="Environment\Group_206" image="Neptune Complex Const 04"/>
+    <image id="Neptune Complex Const 05" width="418" height="229" isometric="true" group="Environment\Group_206" image="Neptune Complex Const 05"/>
+    <image id="Neptune Complex Off" width="418" height="231" isometric="true" group="Environment\Group_206" image="Neptune Complex Off"/>
+    <image id="Neptune_Temple_Complex_Module2_01" width="125" height="80" group="Environment\Group_206" image="Neptune_Temple_Complex_Module2_01"/>
+    <image id="Neptune_Temple_Complex_Module2_02" width="125" height="80" group="Environment\Group_206" image="Neptune_Temple_Complex_Module2_02"/>
+    <image id="Neptune_Temple_Complex_Module2_03" width="125" height="80" group="Environment\Group_206" image="Neptune_Temple_Complex_Module2_03"/>
+    <image id="Neptune Complex Module" width="418" height="231" isometric="true" group="Environment\Group_206" image="Neptune Complex Module"/>
+    <image id="Neptune Complex Module2" width="418" height="231" isometric="true" group="Environment\Group_206" image="Neptune Complex Module2"/>
+    <image id="Neptune Complex Module 2 Off" width="418" height="231" isometric="true" group="Environment\Group_206" image="Neptune Complex Module 2 Off"/>
+    <image id="Pantheon_Const_00" width="178" height="99" isometric="true" group="Environment\Group_206" image="Pantheon_Const_00"/>
+    <image id="Pantheon Const 01" width="418" height="231" isometric="true" group="Environment\Group_206" image="Pantheon Const 01"/>
+    <image id="Pantheon Const 02" width="418" height="231" isometric="true" group="Environment\Group_206" image="Pantheon Const 02"/>
+    <image id="Pantheon Const 03" width="418" height="231" isometric="true" group="Environment\Group_206" image="Pantheon Const 03"/>
+    <image id="Pantheon Const 04" width="418" height="231" isometric="true" group="Environment\Group_206" image="Pantheon Const 04"/>
+    <image id="Pantheon Const 05" width="418" height="231" isometric="true" group="Environment\Group_206" image="Pantheon Const 05"/>
+    <image id="Venus_LT_0" width="178" height="99" isometric="true" group="Environment\Group_206" image="Venus_LT_0"/>
+    <image id="Venus_LT_25" width="178" height="142" isometric="true" group="Environment\Group_206" image="Venus_LT_25"/>
+    <image id="Venus_LT_50" width="178" height="142" isometric="true" group="Environment\Group_206" image="Venus_LT_50"/>
+    <image id="Venus_LT_75" width="178" height="142" isometric="true" group="Environment\Group_206" image="Venus_LT_75"/>
+    <image id="Venus Complex Const 01" width="418" height="219" isometric="true" group="Environment\Group_206" image="Venus Complex Const 01"/>
+    <image id="Venus Complex Const 02" width="418" height="219" isometric="true" group="Environment\Group_206" image="Venus Complex Const 02"/>
+    <image id="Venus Complex Const 03" width="418" height="219" isometric="true" group="Environment\Group_206" image="Venus Complex Const 03"/>
+    <image id="Venus Complex Const 04" width="418" height="219" isometric="true" group="Environment\Group_206" image="Venus Complex Const 04"/>
+    <image id="Venus Complex Const 05" width="418" height="219" isometric="true" group="Environment\Group_206" image="Venus Complex Const 05"/>
+    <image id="Oracle_Construction_01" width="118" height="69" isometric="true" group="Environment\Group_206" image="Oracle_Construction_01"/>
+    <image id="Mausoleum L Cons" width="178" height="99" isometric="true" group="Environment\Group_206" image="Mausoleum L Cons"/>
+    <image id="Mausoleum_Small_Construction_01" width="118" height="69" isometric="true" group="Environment\Group_206" image="Mausoleum_Small_Construction_01"/>
+    <image id="Mausoleum_Small_Construction_02" width="118" height="71" isometric="true" group="Environment\Group_206" image="Mausoleum_Small_Construction_02"/>
+    <image id="Mausoleum_Small_R_Construction_02" width="118" height="71" isometric="true" group="Environment\Group_206" image="Mausoleum_Small_R_Construction_02"/>
+    <image id="Triumphal_Arch_Construction_01" width="178" height="99" isometric="true" group="Environment\Group_206" image="Triumphal_Arch_Construction_01"/>
+    <image id="Triumphal_Arch_Construction_01_R" width="178" height="99" isometric="true" group="Environment\Group_206" image="Triumphal_Arch_Construction_01_R"/>
+</assetlist>

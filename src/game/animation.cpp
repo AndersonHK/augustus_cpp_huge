@@ -217,11 +217,13 @@ BuildingAnimation::BuildingAnimation(Building &building)
     , state_record_(building.record_)
     , state_definition_(building.type)
 {
-    Building &owner = building.composition_owner();
-    if (owner.id) {
-        state_building_ = &owner;
-        state_record_ = owner.record_;
-        state_definition_ = owner.type ? owner.type : definition_;
+    Building *owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : &building);
+    if (owner && owner->id) {
+        state_building_ = owner;
+        state_record_ = owner->record_;
+        state_definition_ = owner->type ? owner->type : definition_;
     }
 }
 

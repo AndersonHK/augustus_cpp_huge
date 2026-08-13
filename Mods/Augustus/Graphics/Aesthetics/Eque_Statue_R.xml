@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\Eque_Statue_R">
+    <image id="Eque Statue R" width="178" height="124" isometric="true">
+        <layer src="Eque_Statue_R" y="5" part="footprint"/>
+    </image>
+</assetlist>

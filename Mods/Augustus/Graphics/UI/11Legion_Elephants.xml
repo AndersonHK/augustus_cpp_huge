@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\11Legion_Elephants">
+    <image id="11Legion_Elephants">
+        <layer src="11Legion_Elephants"/>
+    </image>
+</assetlist>

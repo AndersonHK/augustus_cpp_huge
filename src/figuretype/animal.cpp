@@ -157,7 +157,7 @@ void figure_seagulls_action(Figure *f)
 static void herd_get_destination(int index, const formation *m, uint8_t *x, uint8_t *y)
 {
     const FormationLayoutPosition position =
-        formation_layout_position(FORMATION_HERD, index, m->declared_capacity());
+        formation_layout_position(m->layout_type(), index, m->declared_capacity());
     int destination_x = m->destination_x + position.x;
     int destination_y = m->destination_y + position.y;
     map_grid_bound(&destination_x, &destination_y);
@@ -562,22 +562,8 @@ void figure_hippodrome_horse_action(Figure *f)
             break;
     }
 
-    int dir = figure_image_direction(f);
-    if (f->resource_id == 0) {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_HIPPODROME_HORSE_1),
-            dir,
-            f->image_offset);
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_HIPPODROME_CART_1) + dir);
-    } else {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_HIPPODROME_HORSE_2),
-            dir,
-            f->image_offset);
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_HIPPODROME_CART_2) + dir);
-    }
-    int cart_dir = (dir + 4) % 8;
-    figure_image_set_cart_offset(f, cart_dir);
+    f->clear_legacy_image();
+    f->clear_legacy_cart_overlay_image();
 }
 
 void figure_hippodrome_horse_reroute(void)

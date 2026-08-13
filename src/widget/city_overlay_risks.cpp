@@ -11,8 +11,8 @@
 
 #include "translation/translation.h"
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
+#include "building/building_record.h"
 #include "figure/figure.h"
 
 #include "core/config.h"
@@ -42,7 +42,11 @@ static int is_problem_cartpusher(int figure_id)
 
 void city_overlay_problems_prepare_building(building *b)
 {
-    Building *building = b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
+    Building *building = nullptr;
+    if (b && map_building_exists_at(b->grid_offset)) {
+        Building &selected = map_building_at(b->grid_offset);
+        building = selected.Composition ? selected.Composition->owner() : &selected;
+    }
     if (!building) {
         return;
     }
@@ -88,8 +92,8 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     }
 
-    if (b->show_on_problem_overlay) {
-        building->for_each_part([](Building part) {
+    if (b->show_on_problem_overlay && building->Composition) {
+        building->Composition->for_each_member([](Building &part) {
             ::building *record = const_cast<::building *>(part.record());
             if (record) {
                 record->show_on_problem_overlay = 1;
@@ -215,11 +219,17 @@ static int get_column_height_damage(const building *b)
 
 static int get_crime_level(const building *b)
 {
-    if (b->house_size) {
-        int happiness = b->sentiment.house_happiness;
+    Building *building = nullptr;
+    if (b && map_building_exists_at(b->grid_offset)) {
+        Building &selected = map_building_at(b->grid_offset);
+        building = selected.Composition ? selected.Composition->owner() : &selected;
+    }
+    if (building && building->Housing) {
+        const HousingState &state = building->Housing->state();
+        int happiness = state.happiness;
         if (happiness <= 0) {
             return RAMPANT_CRIME;
-        } else if (happiness <= 10 || b->house_criminal_active) {
+        } else if (happiness <= 10 || state.criminal_active) {
             return LARGE_CRIME;
         } else if (happiness <= 20) {
             return MEDIUM_CRIME;
@@ -237,7 +247,7 @@ static int get_crime_level(const building *b)
 
 static int get_column_height_crime(const building *b)
 {
-    if (b->house_size) {
+    if (building_type_registry_impl::type_has_housing(b->type)) {
         int crime = get_crime_level(b);
         if (crime == RAMPANT_CRIME) {
             return 10;
@@ -319,7 +329,11 @@ static int get_tooltip_crime(tooltip_context *c, const building *b)
 
 static int get_tooltip_problems(tooltip_context *c, const building *b)
 {
-    Building *building = b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
+    Building *building = nullptr;
+    if (b && map_building_exists_at(b->grid_offset)) {
+        Building &selected = map_building_at(b->grid_offset);
+        building = selected.Composition ? selected.Composition->owner() : &selected;
+    }
     if (building) {
         if (const ::building *main_record = building->record()) {
             b = main_record;
@@ -503,7 +517,10 @@ static int draw_top_native(int x, int y, float scale, int grid_offset)
     if (map_terrain_is(grid_offset, terrain_on_native_overlay())) {
         if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_is_bridge(grid_offset)) {
             color_t color_mask = 0;
-            if (map_property_is_deleted(grid_offset) && map_property_multi_tile_size(grid_offset) == 1) {
+            const bool is_deleted = map_building_exists_at(grid_offset) ?
+                city_draw_building_as_deleted(map_building_at(grid_offset)) :
+                map_property_is_deleted(grid_offset) && map_property_legacy_multi_tile_size(grid_offset) == 1;
+            if (is_deleted) {
                 color_mask = COLOR_MASK_RED;
             }
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);

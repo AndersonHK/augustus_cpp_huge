@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Highway_Placement">
+    <image id="Highway_Placement" width="118" height="60" isometric="true">
+        <layer src="Highway_Placement_Layer_01" x="30" part="footprint"/>
+        <layer src="Highway_Placement_Layer_02" y="15" part="top"/>
+        <layer src="Highway_Placement_Layer_03" x="60" y="15" part="top"/>
+        <layer src="Highway_Placement_Layer_04" x="30" y="30" part="top"/>
+    </image>
+</assetlist>

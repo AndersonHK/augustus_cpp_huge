@@ -90,13 +90,7 @@ Building *Market::storage_destination()
     if (resource == RESOURCE_NONE) {
         return nullptr;
     }
-    Building *destination = nullptr;
-    const unsigned int destination_id = info[resource].building_id;
-    Building::for_each([&](Building *building) {
-        if (!destination && building->id == destination_id) {
-            destination = building;
-        }
-    });
+    Building *destination = info[resource].source;
     if (destination) {
         set_fetch_inventory_id(resource);
     }

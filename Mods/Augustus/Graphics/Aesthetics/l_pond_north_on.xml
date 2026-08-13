@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\l_pond_north_on">
+    <image id="l pond north off" width="178" height="96" isometric="true" group="Aesthetics\l_pond_north_off" image="l pond north off"/>
+    <image id="l pond north on" isometric="true" group="Aesthetics\l_pond_north_off" image="l pond north on"/>
+</assetlist>

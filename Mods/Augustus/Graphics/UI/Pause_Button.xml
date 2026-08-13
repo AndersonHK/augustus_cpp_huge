@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Pause_Button">
+    <image id="Pause Button">
+        <layer src="Pause_Button"/>
+    </image>
+    <image id="Alias_0001">
+        <layer group="UI\Pause_Button" image="Pause Button"/>
+    </image>
+    <image id="Image_0024">
+        <layer src="Image_0024"/>
+    </image>
+</assetlist>

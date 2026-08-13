@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="doctor">
     <identity name_key="main_strings.28.46" />
-    <model size="1" cost="30" />
+    <model cost="30" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <button group="health" order="30" icon="Health_Culture\Doctor" text_key="main_strings.28.46" />
     <sound id="clinic" />
-    <event_data attr="doctor" />
     <graphics>
         <default>
             <path value="Health_Culture\Doctor" />
@@ -26,7 +25,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="doctor">
-        <spawn mode="profiled_figure" spawn_figure="doctor"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" profile="service" />
+        <spawn spawn_figure="doctor" direction="top" figure_slot="primary" profile="service" />
     </spawn_group>
 </building>

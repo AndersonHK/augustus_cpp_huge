@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Aesthetics\l_statue_anim">
+    <image id="l statue anim" isometric="true">
+        <layer group="Aesthetics\Statue" image="Image_0002" part="footprint"/>
+        <layer group="Aesthetics\Statue" image="Image_0002" part="top"/>
+        <animation speed="7" x="69" y="43">
+            <frame src="l_statue_anim_Frame_01"/>
+            <frame src="l_statue_anim_Frame_02"/>
+            <frame src="l_statue_anim_Frame_03"/>
+            <frame src="l_statue_anim_Frame_04"/>
+            <frame src="l_statue_anim_Frame_05"/>
+        </animation>
+    </image>
+</assetlist>

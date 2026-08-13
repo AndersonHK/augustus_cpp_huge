@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Ships\Cargo_Boat_SW_01">
+    <image id="Cargo_Boat_SW_01">
+        <layer src="Cargo_Boat_SW_01"/>
+    </image>
+</assetlist>

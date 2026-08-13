@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Terrain_Maps\Garden">
+    <image id="garden path" isometric="true">
+        <layer group="Terrain_Maps\Garden" image="Image_0003" part="footprint"/>
+        <layer group="Terrain_Maps\Garden" image="Image_0003" part="top"/>
+    </image>
+</assetlist>

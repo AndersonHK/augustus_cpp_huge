@@ -18,11 +18,23 @@ const char *safe_text(const char *text)
 [[noreturn]] void report_missing_graphics_state(const Building *owner, const char *operation)
 {
     const building *record = owner ? owner->record() : nullptr;
+    int foundation_width = 0;
+    int foundation_height = 0;
+    int foundation_cells = 0;
+    if (owner && owner->Foundation) {
+        const auto &foundation = *owner->Foundation;
+        const int rotation = foundation.state().is_published()
+            ? foundation.state().rotation()
+            : (foundation.definition().rotates() ? owner->orientation() : 0);
+        foundation_width = foundation.width(rotation);
+        foundation_height = foundation.height(rotation);
+        foundation_cells = static_cast<int>(foundation.cells(rotation).size());
+    }
     char detail[800];
     std::snprintf(
         detail,
         sizeof(detail),
-        "operation=%s record=%p id=%u state=%d type=%s x=%d y=%d grid_offset=%d size=%d",
+        "operation=%s record=%p id=%u state=%d type=%s x=%d y=%d grid_offset=%d foundation=%dx%d cells=%d",
         safe_text(operation),
         static_cast<const void *>(record),
         record ? record->id : 0,
@@ -31,7 +43,9 @@ const char *safe_text(const char *text)
         record ? record->x : 0,
         record ? record->y : 0,
         record ? record->grid_offset : 0,
-        record ? record->size : 0);
+        foundation_width,
+        foundation_height,
+        foundation_cells);
 
     error_context_report_fatal_error_dialog(
         "Building runtime error",
@@ -159,14 +173,20 @@ int BuildingGraphics::draw_gatehouse_overlay(const BuildingDrawContext &ctx, int
     return is_bound() ? definition_->draw_gatehouse_overlay(*owner_, ctx, view_orientation) : 0;
 }
 
+int BuildingGraphics::uses_terrain_foundation() const
+{
+    building_runtime *runtime = runtime_instance();
+    return is_bound() && runtime && runtime->resolve_graphics_cache() &&
+        runtime->cached_graphics_uses_terrain_foundation();
+}
+
 int BuildingGraphics::mothball_status_icon_offset(
-    int grid_offset,
     int icon_width,
     int icon_height,
     int *x,
     int *y) const
 {
     return is_bound() ?
-        definition_->mothball_status_icon_offset(*owner_, grid_offset, icon_width, icon_height, x, y) :
+        definition_->mothball_status_icon_offset(*owner_, icon_width, icon_height, x, y) :
         0;
 }

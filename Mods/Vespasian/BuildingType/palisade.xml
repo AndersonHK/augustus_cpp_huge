@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="palisade">
     <identity name_key="TR_BUILDING_PALISADE" />
-    <model size="1" cost="6" hp="60" />
+    <model cost="6" hp="60" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <tool kind="draggable_building" drag_terrain="land_or_road" rotation="hedge" />
   <button group="security" order="10" text_key="TR_BUILDING_PALISADE" />
-    <event_data attr="palisade" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>
         <default>

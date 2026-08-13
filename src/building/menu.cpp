@@ -125,14 +125,6 @@ static void add_menu_entry(build_menu_group submenu, building_type type, int ord
     menu_entries[submenu].push_back({type, order, 0});
 }
 
-static building_type menu_tool_type_for_definition(building_type type)
-{
-    if (building_type_registry_impl::type_attr_is(type, "reservoir")) {
-        return building_type_registry_impl::type_from_attr("draggable_reservoir");
-    }
-    return type;
-}
-
 static void rebuild_menu_catalog(void)
 {
     for (std::vector<menu_entry> &entries : menu_entries) {
@@ -150,7 +142,7 @@ static void rebuild_menu_catalog(void)
             }
             build_menu_group submenu = button_group_from_string(button.group());
             int order = button.has_order() ? button.order() : 10000;
-            add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
+            add_menu_entry(submenu, definition->type(), order);
         }
     }
 
@@ -408,7 +400,7 @@ static void enable_tutorial2_start(int *enabled, building_type type)
 static void enable_tutorial2_up_to_250(int *enabled, building_type type)
 {
     enable_tutorial2_start(enabled, type);
-    enable_if_allowed(enabled, type, "draggable_reservoir");
+    enable_if_allowed(enabled, type, "reservoir");
     enable_if_allowed(enabled, type, "aqueduct");
     enable_if_allowed(enabled, type, "fountain");
 }

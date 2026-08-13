@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Admin_Logistics\Arch_Guild_ON">
+    <image id="Architects_Guild_On_01" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_01"/>
+    <image id="Architects_Guild_On_02" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_02"/>
+    <image id="Architects_Guild_On_03" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_03"/>
+    <image id="Architects_Guild_On_04" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_04"/>
+    <image id="Architects_Guild_On_05" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_05"/>
+    <image id="Architects_Guild_On_06" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_06"/>
+    <image id="Architects_Guild_On_07" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_07"/>
+    <image id="Architects_Guild_On_08" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_08"/>
+    <image id="Architects_Guild_On_09" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_09"/>
+    <image id="Architects_Guild_On_10" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_10"/>
+    <image id="Architects_Guild_On_11" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_11"/>
+    <image id="Architects_Guild_On_12" width="95" height="28" group="Admin_Logistics\Architects_Guild_On_01" image="Architects_Guild_On_12"/>
+    <image id="Arch Guild OFF" width="118" height="105" isometric="true" group="Admin_Logistics\Architects_Guild_On_01" image="Arch Guild OFF"/>
+    <image id="Arch Guild ON" width="118" height="105" isometric="true" group="Admin_Logistics\Architects_Guild_On_01" image="Arch Guild ON"/>
+</assetlist>

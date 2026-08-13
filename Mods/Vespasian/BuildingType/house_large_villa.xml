@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_large_villa">
     <identity name_key="TR_BUILDING_HOUSE_LARGE_VILLA" />
-    <model size="3" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="2" />
         <step value="2" />
         <step_size value="-2" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
     <sound id="house_good" />
-    <event_data attr="house_large_villa" />
     <graphics>
         <default>
             <path value="Aesthetics\House_Villa_2" />
@@ -27,8 +26,8 @@
             <image value="Image_0000" />
         </variant>
     </graphics>
-    <housing path="house_large_villa" capacity="90" evolve_to="house_grand_villa" devolve_to="house_medium_villa" />
+    <housing path="house_large_villa" capacity="90" evolve_to="house_grand_villa" devolve_to="house_medium_villa" goods_consumption_events_per_month="2" mars_offering_amount="3" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="profiled_figure" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
+        <spawn spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
     </spawn_group>
 </building>

@@ -1,4 +1,4 @@
-#include "game/mod_manager.h"
+#include "game/mod_definition_loader.h"
 #include "graphics/graphics.h"
 #include "graphics/runtime_texture.h"
 
@@ -1045,40 +1045,6 @@ int parse_font_pack(const std::string &pack_path, const std::string &base_dir, R
     return validate_runtime(runtime);
 }
 
-std::vector<std::pair<std::string, std::string>> candidate_pack_paths()
-{
-    std::vector<std::pair<std::string, std::string>> paths;
-    auto append_candidate = [&paths](const char *mod_path) {
-        if (!mod_path || !*mod_path) {
-            return;
-        }
-        const std::string base_dir = append_path_component(mod_path, "Fonts");
-        const std::string pack_path = append_path_component(base_dir, "fonts.xml");
-        for (const auto &existing : paths) {
-            if (existing.first == pack_path) {
-                return;
-            }
-        }
-        paths.emplace_back(pack_path, base_dir);
-    };
-
-    append_candidate(mod_manager::mod_path().c_str());
-
-    const auto &mod_names = mod_manager::mod_names();
-    const auto &mod_paths = mod_manager::mod_paths();
-    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
-        if (string_equals_case_insensitive(mod_names[i].c_str(), "Augustus")) {
-            append_candidate(mod_paths[i].c_str());
-        }
-    }
-    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
-        if (string_equals_case_insensitive(mod_names[i].c_str(), "Julius")) {
-            append_candidate(mod_paths[i].c_str());
-        }
-    }
-    return paths;
-}
-
 } // namespace
 
 bool font_vector_runtime_load_pack()
@@ -1086,36 +1052,40 @@ bool font_vector_runtime_load_pack()
     font_vector_runtime_reset();
     g_runtime.failure_reason.clear();
 
-    const std::vector<std::pair<std::string, std::string>> candidates = candidate_pack_paths();
-    for (const auto &candidate : candidates) {
-        if (!file_exists(candidate.first.c_str(), NOT_LOCALIZED)) {
-            continue;
-        }
+    std::vector<mod_definition::DefinitionLayer> layers;
+    if (!mod_definition::configured_layers(layers, &g_runtime.failure_reason)) {
+        return false;
+    }
 
-        RuntimeState parsed;
-        if (!parse_font_pack(candidate.first, candidate.second, parsed)) {
-            g_runtime.failure_reason = parsed.failure_reason.empty() ? g_runtime.failure_reason : parsed.failure_reason;
-            return false;
-        }
-
-        if (!ensure_ttf_initialized()) {
-            return false;
-        }
-
-        g_runtime.families = std::move(parsed.families);
-        g_runtime.surfaces = std::move(parsed.surfaces);
-        g_runtime.base_dir = parsed.base_dir;
-        g_runtime.loaded_pack_path = parsed.loaded_pack_path;
-        g_runtime.active = 1;
-        g_runtime.cached_ui_scale = screen_scale_percentage();
-
-        for (int i = 0; i < FONT_TYPES_MAX; ++i) {
-            g_runtime.surfaces[i].space_width = measure_space_for_surface(g_runtime.surfaces[i]);
-        }
-        release_font_cache();
+    mod_definition::LayeredFileSource pack;
+    std::string lookup_failure;
+    if (!mod_definition::find_nearest_file(layers, "Fonts/fonts.xml", &pack, &lookup_failure)) {
+        // Vector fonts are optional. An absent pack retains the legacy sprite fonts.
         return true;
     }
 
+    RuntimeState parsed;
+    const std::string base_dir = append_path_component(pack.mod_root, "Fonts");
+    if (!parse_font_pack(pack.full_path, base_dir, parsed)) {
+        g_runtime.failure_reason = parsed.failure_reason.empty() ? g_runtime.failure_reason : parsed.failure_reason;
+        return false;
+    }
+
+    if (!ensure_ttf_initialized()) {
+        return false;
+    }
+
+    g_runtime.families = std::move(parsed.families);
+    g_runtime.surfaces = std::move(parsed.surfaces);
+    g_runtime.base_dir = parsed.base_dir;
+    g_runtime.loaded_pack_path = parsed.loaded_pack_path;
+    g_runtime.active = 1;
+    g_runtime.cached_ui_scale = screen_scale_percentage();
+
+    for (int i = 0; i < FONT_TYPES_MAX; ++i) {
+        g_runtime.surfaces[i].space_width = measure_space_for_surface(g_runtime.surfaces[i]);
+    }
+    release_font_cache();
     return true;
 }
 

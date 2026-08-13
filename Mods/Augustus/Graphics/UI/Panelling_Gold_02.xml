@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Panelling_Gold_02">
+    <image id="Panelling_Gold_02">
+        <layer src="Panelling_Gold_02"/>
+    </image>
+</assetlist>

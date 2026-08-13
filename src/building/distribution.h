@@ -2,6 +2,7 @@
 
 #include "building/building_type.h"
 #include "building/storage.h"
+#include "game/mod_definition_loader.h"
 #include "game/resource.h"
 
 #define BASELINE_STOCK 50
@@ -73,6 +74,42 @@ int find_distribution_sources_for_figure(
     int max_distance);
 }
 
-const char *distribution_registry_get_distribution_path(void);
 int distribution_registry_load(void);
+int distribution_registry_load_layers(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    std::string *failure_reason = nullptr);
+const char *distribution_registry_get_failure_reason(void);
+const char *distribution_definition_source_path(const char *path);
+int distribution_definition_is_suppressed(const char *path);
+
+#ifdef STARTUP_PARSER_TEST
+struct distribution_layer_test_input {
+    const char *xml;
+    int layer_index;
+    const char *mod_name;
+    const char *definition_path;
+    const char *source_path;
+};
+
+struct distribution_layer_test_result {
+    int active_count;
+    int suppressed_count;
+    int queried_disabled;
+    int queried_source_layer;
+    int queried_resource_count;
+    int queried_wheat_priority;
+};
+
+int distribution_layered_definition_buffers_are_valid_for_test(
+    const distribution_layer_test_input *inputs,
+    int input_count,
+    const char *query_path,
+    distribution_layer_test_result *result);
+
+int distribution_layered_definition_files_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *query_path,
+    distribution_layer_test_result *result,
+    std::string *failure_reason = nullptr);
+#endif
 

@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="hippodrome">
     <identity name_key="main_strings.28.32" />
-    <model size="5" cost="3500" />
+    <model cost="3500" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_5x5" />
   <button group="entertainment" order="60" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
     <flags fire_proof="1" />
     <sound id="hippodrome" mute_on_enemies="true" />
-    <event_data attr="hippodrome" />
     <graphics>
         <default>
             <options selection="build_rotation">
@@ -87,18 +86,8 @@
             <amount value="50" />
         </labor_seeker>
     </labor>
-    <composed footprint_width="15" footprint_height="5">
-        <part type="hippodrome_middle" role="middle">
-            <offset rotation="0" x="5" y="0" />
-            <offset rotation="1" x="0" y="-5" />
-            <offset rotation="2" x="-5" y="0" />
-            <offset rotation="3" x="0" y="5" />
-        </part>
-        <part type="hippodrome_end" role="end">
-            <offset rotation="0" x="10" y="0" />
-            <offset rotation="1" x="0" y="-10" />
-            <offset rotation="2" x="-10" y="0" />
-            <offset rotation="3" x="0" y="10" />
-        </part>
-    </composed>
+    <composition>
+        <child type="hippodrome_middle" role="middle" x="5" y="0" orientation="inherit_owner" />
+        <child type="hippodrome_end" role="end" x="10" y="0" orientation="inherit_owner" />
+    </composition>
 </building>

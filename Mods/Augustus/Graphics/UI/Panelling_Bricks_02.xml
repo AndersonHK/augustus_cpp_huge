@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Panelling_Bricks_02">
+    <image id="Panelling_Bricks_02">
+        <layer src="Panelling_Bricks_02"/>
+    </image>
+</assetlist>

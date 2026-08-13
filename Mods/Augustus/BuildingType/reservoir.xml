@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="reservoir">
-    <identity name_key="main_strings.28.90" />
-    <model size="3" cost="80" />
+    <identity name_key="main_strings.28.90" aliases="draggable_reservoir" />
+    <model cost="80" />
     <desirability>
         <value value="-6" />
         <step value="1" />
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="custom">
-        <cell x="0" y="0" terrain="land_or_aqueduct" />
-        <cell x="1" y="0" terrain="land_or_aqueduct" />
-        <cell x="2" y="0" terrain="land_or_aqueduct" />
-        <cell x="0" y="1" terrain="land_or_aqueduct" />
-        <cell x="1" y="1" terrain="land_or_aqueduct" />
-        <cell x="2" y="1" terrain="land_or_aqueduct" />
-        <cell x="0" y="2" terrain="land_or_aqueduct" />
-        <cell x="1" y="2" terrain="land_or_aqueduct" />
-        <cell x="2" y="2" terrain="land_or_aqueduct" />
-    </foundation>
+    <foundation path="reservoir_3x3" replaces="aqueduct" />
+    <button group="water" order="5" text_key="main_strings.28.90" />
+    <tool kind="draggable_reservoir">
+        <mode context="route" modifier="any" type="aqueduct" />
+    </tool>
     <sound id="reservoir" />
-    <event_data attr="reservoir" />
     <flags fire_proof="1" />
     <water_access>
         <provides type="reservoir" range="10" origin="footprint" />

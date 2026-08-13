@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Gold_Mine_N_OFF">
+    <image id="Gold_Mine_N_OFF" width="118" height="67" isometric="true">
+        <layer src="Gold_Mine_N_OFF_Layer_01" part="footprint"/>
+        <layer src="Gold_Mine_N_OFF_Layer_02" y="22" part="top"/>
+    </image>
+    <image id="Gold_Mine_N_ON" width="118" height="67" isometric="true">
+        <layer group="Industry\Gold_Mine_N_OFF" image="Gold_Mine_N_OFF" part="footprint"/>
+        <layer group="Industry\Gold_Mine_N_OFF" image="Gold_Mine_N_OFF" part="top"/>
+        <animation speed="18" x="19" y="32">
+            <frame src="Gold_Mine_N_ON_Frame_01"/>
+            <frame src="Gold_Mine_N_ON_Frame_02"/>
+            <frame src="Gold_Mine_N_ON_Frame_03"/>
+            <frame src="Gold_Mine_N_ON_Frame_04"/>
+            <frame src="Gold_Mine_N_ON_Frame_05"/>
+        </animation>
+    </image>
+</assetlist>

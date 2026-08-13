@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_grand_insula">
     <identity name_key="TR_BUILDING_HOUSE_GRAND_INSULA" />
-    <model size="2" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <sound id="house_medium" />
-    <event_data attr="house_grand_insula" />
     <graphics>
         <default>
             <path value="Aesthetics\House_Insula_2" />
@@ -36,8 +35,8 @@
             </options>
         </variant>
     </graphics>
-    <housing path="house_grand_insula" capacity="84" evolve_to="house_small_villa" devolve_to="house_large_insula" />
+    <housing path="house_grand_insula" capacity="84" evolve_to="house_small_villa" devolve_to="house_large_insula" goods_consumption_events_per_month="2" mars_offering_amount="2" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="6774" />
+        <spawn spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="6774" />
     </spawn_group>
 </building>

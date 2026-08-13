@@ -1,6 +1,7 @@
 #include "random_event.h"
 
 #include "building/building.h"
+#include "building/count.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/monument.h"
@@ -118,7 +119,7 @@ static void destroy_iron_mine(void)
     if (scenario.random_events.iron_mine_collapse &&
         city_data.building.months_since_last_destroyed_iron_mine > difficulty_random_event_cooldown_months()) {
         if(config_get(CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY)) {
-            if(building_find(iron_mine)) {
+            if (building_count_active(iron_mine)) {
                 city_finance_process_sundry(250);
                 city_message_post(1, MESSAGE_IRON_MINE_COLLAPED, 0, 0);
             }
@@ -138,7 +139,7 @@ static void destroy_clay_pit(void)
     if (scenario.random_events.clay_pit_flooded &&
         city_data.building.months_since_last_flooded_clay_pit > difficulty_random_event_cooldown_months()) {
         if(config_get(CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY)) {
-            if(building_find(clay_pit)) {
+            if (building_count_active(clay_pit)) {
                 city_finance_process_sundry(250);
                 city_message_post(1, MESSAGE_CLAY_PIT_FLOODED, 0, 0);
             }

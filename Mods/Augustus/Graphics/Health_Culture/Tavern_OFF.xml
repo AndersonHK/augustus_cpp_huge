@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Health_Culture\Tavern_OFF">
+    <image id="Tavern OFF" isometric="true">
+        <layer src="Tavern_OFF" part="footprint"/>
+    </image>
+    <image id="Tavern Supp" isometric="true">
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="footprint"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="top"/>
+        <layer src="Tavern_Supp_Layer_03" x="9" y="33" part="top"/>
+    </image>
+    <image id="Tavern_ON_01" width="118" height="82">
+        <layer src="Tavern_ON_01_Layer_01" x="9" y="33"/>
+        <layer src="Tavern_ON_01_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_ON_02" width="118" height="82">
+        <layer src="Tavern_ON_02_Layer_01" x="9" y="33"/>
+        <layer src="Tavern_ON_02_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_ON_03" width="118" height="82">
+        <layer src="Tavern_ON_03_Layer_01" x="9" y="33"/>
+        <layer src="Tavern_ON_03_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_ON_04" width="118" height="82">
+        <layer src="Tavern_ON_04_Layer_01" x="9" y="33"/>
+        <layer src="Tavern_ON_04_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_ON_05" width="118" height="82">
+        <layer src="Tavern_ON_05_Layer_01" x="9" y="33"/>
+        <layer src="Tavern_ON_05_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern ON" isometric="true">
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="footprint"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="top"/>
+        <animation speed="8">
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_ON_01"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_ON_02"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_ON_03"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_ON_04"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_ON_05"/>
+        </animation>
+    </image>
+    <image id="Tavern Upgrade OFF" width="118" height="82" isometric="true">
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="footprint"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern OFF" part="top"/>
+        <layer src="Tavern_Upgrade_OFF_Layer_03" part="top"/>
+    </image>
+    <image id="Tavern Upgrade Supp" isometric="true">
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="footprint"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="top"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="top"/>
+        <layer src="Tavern_Upgrade_Supp_Layer_04" x="9" y="36" part="top"/>
+    </image>
+    <image id="Tavern_UG_ON_01" width="118" height="82">
+        <layer src="Tavern_UG_ON_01_Layer_01" x="9" y="36"/>
+        <layer src="Tavern_UG_ON_01_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_UG_ON_02" width="118" height="82">
+        <layer src="Tavern_UG_ON_02_Layer_01" x="9" y="36"/>
+        <layer src="Tavern_UG_ON_02_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_UG_ON_03" width="118" height="82">
+        <layer src="Tavern_UG_ON_03_Layer_01" x="9" y="36"/>
+        <layer src="Tavern_UG_ON_03_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_UG_ON_04" width="118" height="82">
+        <layer src="Tavern_UG_ON_04_Layer_01" x="9" y="36"/>
+        <layer src="Tavern_UG_ON_04_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern_UG_ON_05" width="118" height="82">
+        <layer src="Tavern_UG_ON_05_Layer_01" x="9" y="36"/>
+        <layer src="Tavern_UG_ON_05_Layer_02" x="14" y="30"/>
+    </image>
+    <image id="Tavern Upgrade ON" isometric="true">
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="footprint"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="top"/>
+        <layer group="Health_Culture\Tavern_OFF" image="Tavern Upgrade OFF" part="top"/>
+        <animation speed="8">
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_01"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_02"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_03"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_04"/>
+            <frame group="Health_Culture\Tavern_OFF" image="Tavern_UG_ON_05"/>
+        </animation>
+    </image>
+</assetlist>

@@ -6,7 +6,8 @@
 #include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/culture_module.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
+#include "building/housing_profile_registry.h"
 #include "building/monument.h"
 #include "city/data_private.h"
 #include "city/festival.h"
@@ -20,14 +21,8 @@
 
 static int house_tax_multiplier(const Building &house)
 {
-    const model_house *model = building_house_get_model(house);
-    return model ? difficulty_adjust_money(model->tax_multiplier) : 0;
-}
-
-static building *first_of_type(const char *text_id)
-{
-    building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
+    const auto *profile = house.Housing ? house.Housing->definition().profile : nullptr;
+    return profile ? difficulty_adjust_money(profile->tax_multiplier) : 0;
 }
 
 typedef struct {
@@ -264,14 +259,14 @@ void city_finance_estimate_taxes(void)
 {
     city_data.taxes.monthly.collected_plebs = 0;
     city_data.taxes.monthly.collected_patricians = 0;
-    Building::for_each({ .hasHousing = true }, [](Building *house) {
-        building *b = const_cast<building *>(house->record());
-        if (building_house_is_active(*house) && b->house_tax_coverage) {
+    Building::for_each(BuildingRuntimeList::Housing, [](Building *house) {
+        const HousingState &state = house->Housing->state();
+        if (house->is_in_use() && state.tax_coverage) {
             int trm = house_tax_multiplier(*house);
-            if (building_house_has_patrician_residents(*house)) {
-                city_data.taxes.monthly.collected_patricians += b->house_population * trm;
+            if (house->Housing->has_patrician_residents()) {
+                city_data.taxes.monthly.collected_patricians += state.population * trm;
             } else {
-                city_data.taxes.monthly.collected_plebs += b->house_population * trm;
+                city_data.taxes.monthly.collected_plebs += state.population * trm;
             }
         }
     });
@@ -299,28 +294,29 @@ static void collect_monthly_taxes(void)
     city_data.taxes.monthly.uncollected_patricians = 0;
     city_data.taxes.monthly.collected_patricians = 0;
 
-    const int housing_level_count = building_type_registry_impl::housing_type_level_count();
+    const int housing_level_count = building_type_registry_impl::housing_profile_compatibility_level_count();
     for (int i = 0; i < housing_level_count; i++) {
-        int level = building_type_registry_impl::housing_type_level_at(i);
+        int level = building_type_registry_impl::housing_profile_compatibility_level_at(i);
         if (level >= 0) {
             city_data.population.at_level[level] = 0;
         }
     }
-    Building::for_each({ .hasHousing = true }, [](Building *house) {
-        building *b = const_cast<building *>(house->record());
-        if (!building_house_is_active(*house)) {
+    Building::for_each(BuildingRuntimeList::Housing, [](Building *house) {
+        if (!house->is_in_use()) {
             return;
         }
+        HousingState &state = house->Housing->state();
 
-        int level = building_house_legacy_level(*house);
-        int is_patrician = building_house_has_patrician_residents(*house);
-        int population = b->house_population;
+        const auto *profile = house->Housing->definition().profile;
+        int level = profile ? profile->compatibility_level : -1;
+        int is_patrician = house->Housing->has_patrician_residents();
+        int population = state.population;
         int tax = population * house_tax_multiplier(*house);
         if (level >= 0) {
             city_data.population.at_level[level] += population;
         }
 
-        if (b->house_tax_coverage) {
+        if (state.tax_coverage) {
             if (is_patrician) {
                 city_data.taxes.taxed_patricians += population;
                 city_data.taxes.monthly.collected_patricians += tax;
@@ -328,7 +324,7 @@ static void collect_monthly_taxes(void)
                 city_data.taxes.taxed_plebs += population;
                 city_data.taxes.monthly.collected_plebs += tax;
             }
-            b->tax_income_or_storage += tax;
+            state.tax_income += tax;
         } else {
             if (is_patrician) {
                 city_data.taxes.untaxed_patricians += population;
@@ -398,8 +394,10 @@ static void pay_monthly_building_levies(void)
 {
     int levies = 0;
     for (int i = 0; building_levies[i].type_id; i++) {
-        for (building *b = first_of_type(building_levies[i].type_id); b; b = b->next_of_type) {
-            b->monthly_levy = static_cast<signed char>(building_levies[i].amount);
+        const building_type type = building_type_registry_impl::type_from_attr(building_levies[i].type_id);
+        for (Building &building : Building::of_type(type)) {
+            ::building *b = const_cast<::building *>(building.record());
+            b->levy_amount = static_cast<signed char>(building_levies[i].amount);
             int levy = building_get_levy(b);
             levies += levy;
         }
@@ -471,10 +469,9 @@ static void reset_taxes(void)
     city_data.taxes.yearly.uncollected_plebs = 0;
     city_data.taxes.yearly.uncollected_patricians = 0;
 
-    Building::for_each({ .hasHousing = true }, [](Building *house) {
-        building *b = const_cast<building *>(house->record());
-        if (building_house_is_active(*house)) {
-            b->tax_income_or_storage = 0;
+    Building::for_each(BuildingRuntimeList::Housing, [](Building *house) {
+        if (house->is_in_use()) {
+            house->Housing->state().tax_income = 0;
         }
     });
 }

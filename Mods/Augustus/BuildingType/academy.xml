@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="academy">
     <identity name_key="main_strings.28.52" />
-    <model size="3" cost="100" />
+    <model cost="100" />
     <desirability>
         <value value="4" />
         <step value="1" />
         <step_size value="1" />
         <range value="4" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="education" order="20" icon="Health_Culture\Academy_Fix" text_key="main_strings.28.52" />
     <sound id="academy" />
-    <event_data attr="academy" />
     <culture_modules>
         <culture_module path="academy" capacity="100" upgrade_bonus="50" count="active" />
     </culture_modules>
@@ -32,8 +31,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="teacher">
-        <spawn mode="profiled_figure" spawn_figure="teacher"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="teacher" direction="top" figure_slot="primary"
             graphic_timing="before_delay_check" profile="service" />
     </spawn_group>
 </building>

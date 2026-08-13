@@ -5,6 +5,10 @@
 
 #include <cstdio>
 
+namespace figure_type_registry_impl {
+class FigureGraphicsState;
+}
+
 void figure_runtime_reset();
 void figure_runtime_initialize_city();
 void figure_runtime_on_created(Figure *f);
@@ -37,6 +41,14 @@ int figure_runtime_execute(Figure *f);
 
 // Updates legacy-action figures from their XML graphics policy.
 int figure_runtime_update_graphics(Figure *f);
+
+// Runtime-owned semantic presentation for XML-authored figure graphics.
+// cart_image_id is maintained only as the existing save/load bridge.
+void figure_runtime_graphics_begin_update(Figure *f);
+void figure_runtime_graphics_show_empty_cart(Figure *f);
+void figure_runtime_graphics_show_resource_cart(Figure *f);
+void figure_runtime_graphics_hide_cart(Figure *f);
+const figure_type_registry_impl::FigureGraphicsState *figure_runtime_graphics_state(Figure *f);
 
 // Lets XML pathing policies override a vanilla roaming direction at intersections.
 int figure_runtime_choose_roaming_direction(

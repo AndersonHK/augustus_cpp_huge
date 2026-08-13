@@ -68,11 +68,13 @@ The combat system should consume resolved `UnitType` definitions and ability obj
 A target formation XML could look like:
 
 ```xml
-<formation key="vespasian_legion_cohort">
+<formation key="vespasian_legion_cohort" recruit_capacity="16">
   <grid width="8" height="8" />
   <slot fill="all" unit="legionary" />
 </formation>
 ```
+
+`recruit_capacity` is an optional positive balance limit no larger than the grid capacity. When omitted, recruitment may fill the complete formation. Vespasian currently authors 16 explicitly so its 8x8 definitions remain ready for the larger-formation gates without coupling barracks behavior to the legacy save-prefix length.
 
 Mixed formations should support explicit rows, rectangular regions, or slot lists:
 
@@ -136,25 +138,39 @@ This also creates the right place for composed state: the fort owns the formatio
 - [x] Runtime `formation` objects bind to their owning fort's resolved `FormationType` at creation/load refresh time, and live figure slots can grow to the declared formation capacity.
 - [x] The old C++ fort-type-to-soldier table was removed from building counts; fort counting now enumerates BuildingType definitions with military data and derives the soldier figure from the resolved formation.
 - [x] UnitType XML now declares the transitional barracks recruit category and weapon requirement; formation recruitment and barracks weapon consumption ask the resolved `FormationType`/`UnitType` instead of remapping fort soldier figure enums.
+- [x] All live combat actors now own their exact legacy-live combat policy in identical Julius/Augustus/Vespasian UnitType XML: Roman forts, seven city actors, standard invasion/Caesar families 43-57, enemy catapults, wolves, the five-member crime family, the armed mess-hall supplier, and city ballistae. Combat, difficulty overrides, launcher damage, missile dispatch, formation modifiers, health accounting, and tower/watch fire consume resolved definitions; duplicate figure ownership and invalid projectile/difficulty metadata fail parser tests. Wolf, crime, and supplier compatibility state remains in its owning runtime/save systems. Projectile figures remain deliberately separate so movement, collision, sounds, and saved in-flight fallback retain stable ids and behavior.
 - [x] Fort-bound legion initialization, declared recruit selection, overflow ejection, and non-combat movement setup now route through `formation` methods instead of duplicating slot scans at legion call sites.
 - [x] Herd animal movement and enemy formation-wide combat/city predicates now route through `formation` methods, further concentrating legacy figure-id iteration behind the runtime formation object.
 - [x] Formation layout callers now ask `formation` for live grid offsets derived from the resolved `FormationType` footprint; the lower helper preserves legacy 16-position output without modulo wrapping slot indices.
 - [x] Save/load now routes the fixed 16 roster slot serialization through `formation` methods, naming the legacy storage bridge without changing the old save prefix.
 - [x] Formation save data now keeps the legacy 16-slot prefix for old-version compatibility and appends an extended roster section for larger XML-declared formations.
 - [x] Formation live storage is now a dynamically sized roster owned by `formation`, with direct external `figures[]` access removed from runtime callers.
-- [x] Barracks recruitment and recruit-overflow ejection are temporarily capped to the 16-soldier fort recruitment capacity while Vespasian 8x8 definitions remain declared data; this prevents the Part6 17th-soldier respawn loop without changing normal declared formation storage/counting.
-- [ ] Layout still carries a 16-position legacy compatibility table for existing formation layouts; larger formations need adaptive spacing or data-driven slot coordinates before >16 live slots can render correctly.
-- [ ] Add real fort-owned `Formation` object links so forts hold pointers/ids to live formations, and each live formation holds its `FormationType` pointer plus per-slot unit state.
+- [x] Barracks recruitment and recruit-overflow ejection use `FormationType.recruit_capacity`; Vespasian explicitly authors 16 while its 8x8 definitions remain behind the larger-formation gates. This prevents the Part6 17th-soldier respawn loop without deriving runtime balance from legacy save storage.
+- [x] Existing tactical layouts are layered `FormationLayoutDef` XML with 16 authored compatibility positions, stable legacy ids, and per-orientation enemy-army offsets; the tactical-position table, enemy-army spacing table, and runtime layout enum are deleted. Layouts may explicitly reuse another definition's army offsets when the old behavior was identical. Slots beyond the authored tactical positions use the declared formation footprint fallback pending denser authored/adaptive layouts.
+- [x] Fort runtime objects now hold a validated direct `Formation*`; composition children resolve through their owner, while the saved `formation_id` remains only the compatibility bridge. Formation storage has stable addresses, and creation/load hydration rejects inactive, non-legion, unresolved-type, and conflicting-id links.
 - [ ] Add adaptive slot spacing for larger formations inside the current fort mustering-ground footprint.
-- [ ] Migrate enemy, barbarian, wolf/animal, and other combat figure archetypes into `UnitType`.
-- [ ] Move legacy vanilla formation numeric-id translation into the save/load compatibility bridge; bridge entries should store the old numeric id as data, keep old enum names only as same-line XML comments, and build string-id to runtime-id tables from loaded `FormationType` definitions.
+- [x] Migrate combat figure archetypes into `UnitType`; standard invasion and Caesar families 43-57, enemy catapults, wolves, protesters/criminals/rioters/robbers/looters, the only armed supplier, and city ballistae are complete. Ordinary supplier variants are noncombat walkers. Wolf herd behavior, crime lifecycle/city state, and supplier missions remain their owning runtime behavior. Standalone projectiles are not units: their handlers and legacy numeric fallback stay outside UnitType to preserve saved in-flight figures, including the otherwise unused catapult missile.
+- [x] Move legacy tactical-layout numeric translation into save/scenario compatibility bridges. Runtime formations and enemy armies bind resolved `FormationLayoutDef` objects, UI/combat use string identities, invalid saved ids normalize once to `column`, and `FormationType` remains focused on unit composition.
 
 ### Next Gates
 
 - Larger Vespasian formations should not be visually validated until figure logical-size ownership is complete enough to author half-size figures.
 - Adaptive spacing must fit the current fortress mustering-ground footprint; do not assume a larger formation can simply occupy a larger world footprint.
-- The bridge should preserve the legacy 16-slot prefix only as save compatibility. Runtime storage can keep the dynamic roster, but barracks recruitment should stay at 16 until adaptive spacing and half-size figure ownership make larger formations testable.
+- The bridge should preserve the legacy 16-slot prefix only as save compatibility. Runtime storage can keep the dynamic roster, but Vespasian should continue authoring `recruit_capacity="16"` until adaptive spacing and half-size figure ownership make larger formations testable.
 - Unit coverage should include every combat actor family, not only Roman fort soldiers.
+
+### Remaining Fixed Formation Constants
+
+The remaining values of 16 are compatibility boundaries, not runtime formation iteration limits:
+
+- `LEGACY_FORMATION_SAVE_SLOT_COUNT = 16` is private to `formation.cpp` and used only by the fixed prefix in old formation save records. Barracks recruitment is independently authored through `FormationType.recruit_capacity`.
+- Each `FormationLayoutDef` currently authors 16 compatibility positions in XML. Runtime rosters may be larger, and slots beyond those authored positions use a footprint-derived fallback until richer adaptive layouts are implemented.
+- The 16-entry loops in `write_legacy_figure_slots()` and `read_legacy_figure_slots()` serialize that old prefix and must remain exact for save compatibility. Normal legion behavior iterates the `formation` object's declared roster instead.
+- `EXTENDED_FORMATION_ROSTER_SAVE_SLOTS = 256` is the bounded capacity of the appended keyed-era roster payload, not a gameplay formation size.
+
+Legion healing no longer scans every city figure looking for soldiers; it iterates each live legion's owned roster. Explosion-cloud counts, eight-direction wrap scans, building-render footprints, and empire-map highlight samples are unrelated uses of 16 and are outside this migration.
+
+The stable tactical-layout numbers now live only in the explicitly named `formation_layout_legacy` save/scenario namespace. Runtime layout identity and authored positions belong to layered `FormationLayoutDef` objects.
 
 ## Runtime Boundaries
 

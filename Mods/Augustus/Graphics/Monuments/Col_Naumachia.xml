@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Col_Naumachia">
+    <image id="Coloseum ON" width="298" height="213" isometric="true" group="Health_Culture\Colosseum" image="Coloseum ON"/>
+    <image id="Col Glad Fight" width="298" height="213" isometric="true" group="Health_Culture\Colosseum" image="Col Glad Fight"/>
+    <image id="Col Naumachia" width="298" height="213" isometric="true" group="Health_Culture\Colosseum" image="Col Naumachia"/>
+    <image id="Imperial_Games_01" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_01"/>
+    <image id="Imperial_Games_02" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_02"/>
+    <image id="Imperial_Games_03" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_03"/>
+    <image id="Imperial_Games_04" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_04"/>
+    <image id="Imperial_Games_05" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_05"/>
+    <image id="Imperial_Games_06" width="110" height="67" group="Health_Culture\Colosseum" image="Imperial_Games_06"/>
+    <image id="Col Imp Games" width="298" height="213" isometric="true" group="Health_Culture\Colosseum" image="Col Imp Games"/>
+    <image id="Executions_01" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_01"/>
+    <image id="Executions_02" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_02"/>
+    <image id="Executions_03" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_03"/>
+    <image id="Executions_04" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_04"/>
+    <image id="Executions_05" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_05"/>
+    <image id="Executions_06" width="102" height="60" group="Health_Culture\Colosseum" image="Executions_06"/>
+    <image id="Col Exec" width="298" height="213" isometric="true" group="Health_Culture\Colosseum" image="Col Exec"/>
+</assetlist>

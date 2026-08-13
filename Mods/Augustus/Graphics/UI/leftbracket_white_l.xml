@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\leftbracket_white_l">
+    <image id="leftbracket_white_l" width="8" height="14">
+        <layer src="leftbracket_white_l" x="3"/>
+    </image>
+</assetlist>

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Pal_Wall_S_20">
+    <image id="Pal Wall S 20" width="58" height="40" isometric="true">
+        <layer src="Pal_Wall_S_20_Layer_01" y="10" part="footprint"/>
+        <layer src="Pal_Wall_S_20_Layer_02" x="7" part="top"/>
+    </image>
+</assetlist>

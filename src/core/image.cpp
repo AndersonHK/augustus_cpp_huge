@@ -1,4 +1,4 @@
-#include "assets/augustus_asset_extractor.h"
+#include "assets/graphics_extraction_abi.h"
 #include "building/building.h"
 #include "building/image.h"
 #ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
@@ -6,7 +6,6 @@
 #endif
 #include "graphics/image.h"
 #include "graphics/runtime_overlay_images.h"
-#include "map/building_tiles.h"
 #include "map/image.h"
 
 #include "core/file.h"
@@ -757,15 +756,19 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     const char *source_name,
     const image_atlas_data *atlas_data)
 {
-    using namespace vespasian::graphics::extraction;
-    LegacyClimateAtlas climate(images, image_count, group_image_ids, group_count, source_name, atlas_data);
-#ifdef JULIUS_GRAPHICS_EXTRACTOR
-    JuliusExtractor extractor;
-    return extractor.extract(climate).succeeded() ? 1 : 0;
-#else
-    RuntimeGraphicsExtractionService service;
-    return service.bootstrapAfterClimateLoad(climate, ExtractorOptions(false, true)).succeeded() ? 1 : 0;
-#endif
+    graphics_extraction_climate_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = GRAPHICS_EXTRACTION_ABI_VERSION;
+    request.flags = GRAPHICS_EXTRACTION_WRITE_STAMP;
+    request.images = images;
+    request.image_count = image_count;
+    request.group_image_ids = group_image_ids;
+    request.group_count = group_count;
+    request.source_name = source_name;
+    request.atlas_data = atlas_data;
+    graphics_extraction_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    return graphics_extraction_bootstrap_climate_v1(&request, &result) == GRAPHICS_EXTRACTION_STATUS_SUCCEEDED;
 }
 
 static void update_native_images(int old_climate, int new_climate)
@@ -790,13 +793,7 @@ static void update_native_images(int old_climate, int new_climate)
             continue;
         }
         for (Building building : Building::of_type(type)) {
-            map_building_tiles_add(
-                building,
-                building.x(),
-                building.y(),
-                building.size(),
-                building.image_id(),
-                TERRAIN_BUILDING);
+            building.add_map_tiles(building.image_id());
         }
     }
 #endif

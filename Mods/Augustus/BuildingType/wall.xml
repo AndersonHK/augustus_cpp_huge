@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wall">
     <identity name_key="main_strings.28.6" />
-    <model size="1" cost="12" hp="150" />
+    <model cost="12" hp="150" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="wall_1x1" />
     <tool kind="wall" />
     <button group="security" order="40" text_key="main_strings.28.6" />
-    <event_data attr="wall" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>
         <default>

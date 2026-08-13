@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Fort_Cav_Flag_South">
+    <image id="Fort_Cav_Flag_South">
+        <layer group="Military\Fort" image="Image_0003"/>
+        <layer src="Fort_Cav_Flag_South_Layer_02" x="22" y="30"/>
+    </image>
+</assetlist>

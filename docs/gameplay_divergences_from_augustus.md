@@ -65,6 +65,25 @@ Primary references:
 - `src/building/building_runtime_spawn.cpp`
 - `docs/walker_pathing_runtime.md`
 
+## Farm Sites
+
+### Per-Field Meadow Requirement
+
+Label: `Vespasian-only`
+
+Bundled Julius and Augustus preserve the original farm rule: the 2-by-2 farmhouse owner requires at least one meadow tile within three tiles of its origin, while its five declared field children may occupy ordinary land. This is represented by a `meadow_2x2` owner foundation with a site-level meadow requirement and `land_1x1` child foundations.
+
+Vespasian deliberately uses a stricter, more literal composition rule. Its 2-by-2 farmhouse owner requires only land, but each of the five 1-by-1 field children must be placed directly on meadow. The generic composition placement plan validates all six member foundations as one transaction.
+
+Primary references:
+
+- `Mods/Julius/Foundations/meadow_2x2.xml`
+- `Mods/Augustus/Foundations/meadow_2x2.xml`
+- `Mods/Vespasian/Foundations/meadow_1x1.xml`
+- `Mods/Vespasian/BuildingType/*_farm.xml`
+- `Mods/Vespasian/BuildingType/*_farm_field.xml`
+- `src/building/construction_plan.cpp`
+
 ## Time And Walker Range
 
 ### Vespasian Calendar Cadence
@@ -126,6 +145,6 @@ These are likely places to check before claiming the divergence list is complete
 - Building costs, labor counts, and footprint changes in `Mods/Vespasian/BuildingType`.
 - Production rates and resource costs in `Mods/Vespasian/ProductionMethod`.
 - Housing capacity in `Mods/Vespasian/BuildingType`.
-- Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingType`.
+- Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingProfile`.
 - Service and walker lifetime values after each new FigureType migration.
 - Any future upstream Augustus commits that add slow beggar repositioning or other residential walker changes.

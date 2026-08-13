@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Barracks_Priority_Tower_OFF">
+    <image id="Legion_Banner_Base" width="32" height="29" group="UI\Legion_Banner_Base" image="Legion_Banner_Base"/>
+    <image id="auxinf_banner_0" width="32" height="29" group="UI\Legion_Banner_Base" image="auxinf_banner_0"/>
+    <image id="auxarch_banner_0" width="32" height="29" group="UI\Legion_Banner_Base" image="auxarch_banner_0"/>
+    <image id="tower_banner_0" width="32" height="29" group="UI\Legion_Banner_Base" image="tower_banner_0"/>
+    <image id="watchtower_banner_0" width="32" height="29" group="UI\Legion_Banner_Base" image="watchtower_banner_0"/>
+    <image id="Barracks_Priority_Auxinf_OFF" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Auxinf_OFF"/>
+    <image id="Barracks_Priority_Auxinf_ON" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Auxinf_ON"/>
+    <image id="Barracks_Priority_Auxarch_OFF" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Auxarch_OFF"/>
+    <image id="Barracks_Priority_Auxarch_ON" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Auxarch_ON"/>
+    <image id="Barracks_Priority_Tower_OFF" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Tower_OFF"/>
+    <image id="Barracks_Priority_Tower_ON" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Tower_ON"/>
+    <image id="Barracks_Priority_Watchtower_OFF" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Watchtower_OFF"/>
+    <image id="Barracks_Priority_Watchtower_ON" width="40" height="40" group="UI\Legion_Banner_Base" image="Barracks_Priority_Watchtower_ON"/>
+</assetlist>

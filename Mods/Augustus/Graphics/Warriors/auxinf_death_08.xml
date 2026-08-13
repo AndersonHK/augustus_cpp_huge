@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\auxinf_death_08">
+    <image id="auxinf_death_06" group="UI\Group_113" image="auxinf_death_06"/>
+    <image id="auxinf_death_07" group="UI\Group_113" image="auxinf_death_07"/>
+    <image id="auxinf_death_08" group="UI\Group_113" image="auxinf_death_08"/>
+</assetlist>

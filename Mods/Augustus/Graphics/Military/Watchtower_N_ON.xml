@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\Watchtower_N_ON">
+    <image id="Watchtower_ON_01" width="118" height="106" group="Military\Watchtower_ON_01" image="Watchtower_ON_01"/>
+    <image id="Watchtower_ON_02" width="118" height="106" group="Military\Watchtower_ON_01" image="Watchtower_ON_02"/>
+    <image id="Watchtower_ON_03" width="118" height="106" group="Military\Watchtower_ON_01" image="Watchtower_ON_03"/>
+    <image id="Watchtower_ON_04" width="118" height="106" group="Military\Watchtower_ON_01" image="Watchtower_ON_04"/>
+    <image id="Watchtower_ON_05" width="118" height="106" group="Military\Watchtower_ON_01" image="Watchtower_ON_05"/>
+    <image id="Watchtower C OFF" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower C OFF"/>
+    <image id="Watchtower C ON" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower C ON"/>
+    <image id="Watchtower N OFF" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower N OFF"/>
+    <image id="Watchtower N ON" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower N ON"/>
+    <image id="Watchtower S OFF" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower S OFF"/>
+    <image id="Watchtower S ON" isometric="true" group="Military\Watchtower_ON_01" image="Watchtower S ON"/>
+</assetlist>

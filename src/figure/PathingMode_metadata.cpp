@@ -40,7 +40,7 @@ const PathingMode FollowLeader(
     PathingMode::VenueTargetRequirement::NoVenueTargets);
 const PathingMode StandStill(
     "stand_still",
-    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::RoadRequirement::AllowsNonRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
 const PathingMode TransientWander(
@@ -55,6 +55,11 @@ const PathingMode DepotOrderRoute(
     PathingMode::VenueTargetRequirement::NoVenueTargets);
 const PathingMode WaterRoute(
     "water_route",
+    PathingMode::RoadRequirement::AllowsNonRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode CrossCountry(
+    "cross_country",
     PathingMode::RoadRequirement::AllowsNonRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
@@ -146,7 +151,8 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &StandStill,
         &TransientWander,
         &DepotOrderRoute,
-        &WaterRoute
+        &WaterRoute,
+        &CrossCountry
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

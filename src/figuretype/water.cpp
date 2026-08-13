@@ -213,7 +213,7 @@ void figure_sink_all_ships(void)
         } else {
             continue;
         }
-        f->building = nullptr;
+    f->set_home_building(nullptr);
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }
@@ -254,7 +254,7 @@ void figure_sink_half_ships(void)
         } else {
             continue;
         }
-        f->building = nullptr;
+    f->set_home_building(nullptr);
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }

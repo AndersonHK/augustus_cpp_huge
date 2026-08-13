@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Context_Icons">
+    <image id="Maintain_Goods_Icon" width="27" height="16">
+        <layer group="UI\Context_Icons" image="Image_0008" x="-1" y="-2"/>
+    </image>
+    <image id="Maintain_Goods_Icon_2" width="27" height="16">
+        <layer group="UI\Context_Icons" image="Image_0009" x="-1" y="-2"/>
+    </image>
+</assetlist>

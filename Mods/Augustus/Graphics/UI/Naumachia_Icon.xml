@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Naumachia_Icon">
+    <image id="Naumachia Icon">
+        <layer src="Naumachia_Icon"/>
+    </image>
+    <image id="Image_0018">
+        <layer src="Image_0018"/>
+    </image>
+    <image id="Image_0019">
+        <layer src="Image_0019"/>
+    </image>
+</assetlist>

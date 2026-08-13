@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Sand_Pit_S_ON">
+    <image id="Sand_Pit_C_OFF" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_C_OFF"/>
+    <image id="Sand_Pit_N_OFF" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_N_OFF"/>
+    <image id="Sand_Pit_S_OFF" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_S_OFF"/>
+    <image id="Sand_Pit_C_ON" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_C_ON"/>
+    <image id="Sand_Pit_N_ON" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_N_ON"/>
+    <image id="Sand_Pit_S_ON" width="118" height="60" isometric="true" group="Industry\Sand_Pit_C_OFF" image="Sand_Pit_S_ON"/>
+</assetlist>

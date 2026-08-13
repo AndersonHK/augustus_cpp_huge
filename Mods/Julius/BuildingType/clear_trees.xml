@@ -9,7 +9,6 @@
         <range value="0" />
     </desirability>
     <tool kind="clear_trees" />
-    <event_data attr="clear_trees" />
     <labor>
         <employees count="0" />
     </labor>

@@ -6,20 +6,37 @@
 
 #include "building/properties.h"
 
+#include <string>
+
+namespace {
+
+std::string selected_building_type_path()
+{
+    return mod_manager::mod_path() + "BuildingType/";
+}
+
+std::string g_selected_building_type_path;
+
+} // namespace
+
 const char *building_type_startup_bridge_get_building_type_path(void)
 {
-    building_type_registry_impl::refresh_building_type_path();
-    return building_type_registry_impl::g_building_type_path.c_str();
+    g_selected_building_type_path = selected_building_type_path();
+    return g_selected_building_type_path.c_str();
 }
 
 int building_type_startup_bridge_validate_mod(void)
 {
-    building_type_registry_impl::refresh_building_type_path();
-    return static_cast<int>(
-        static_cast<bool>(mod_manager::validate_mod_path()) &&
-        static_cast<bool>(
-            xml_definition::directory_exists(
-                building_type_registry_impl::g_building_type_path.c_str())));
+    if (!mod_manager::validate_mod_path()) {
+        return 0;
+    }
+    for (const std::string &mod_path : mod_manager::mod_paths()) {
+        const std::string building_type_path = mod_path + "BuildingType/";
+        if (xml_definition::directory_exists(building_type_path.c_str())) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 void building_type_startup_bridge_apply_model_overrides(void)
@@ -37,9 +54,6 @@ void building_type_startup_bridge_apply_model_overrides(void)
         }
         if (definition->has_model()) {
             const BuildModelDefinition &xml_model = definition->model();
-            if (xml_model.has_size()) {
-                building_properties_apply_xml_model_size(definition->type(), xml_model.size());
-            }
             if (xml_model.has_cost()) {
                 model->cost = xml_model.cost();
             }
@@ -58,9 +72,6 @@ void building_type_startup_bridge_apply_model_overrides(void)
         }
         if (definition->has_labor() && definition->labor().has_employee_count()) {
             model->laborers = definition->labor().employee_count();
-        }
-        if (definition->has_event_data() && definition->event_data().has_attr()) {
-            building_properties_apply_xml_event_attr(definition->type(), definition->event_data().attr());
         }
         if (definition->has_sound() && definition->sound().has_city_sound()) {
             building_properties_apply_xml_sound_id(definition->type(), definition->sound().city_sound());

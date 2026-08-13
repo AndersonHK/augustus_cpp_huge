@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Military\WT_W_ON_04_r">
+    <image id="WT_W_ON_01_r" width="118" height="97" group="Military\WT_W_ON_01_r" image="WT_W_ON_01_r"/>
+    <image id="WT_W_ON_02_r" width="118" height="97" group="Military\WT_W_ON_01_r" image="WT_W_ON_02_r"/>
+    <image id="WT_W_ON_03_r" width="118" height="97" group="Military\WT_W_ON_01_r" image="WT_W_ON_03_r"/>
+    <image id="WT_W_ON_04_r" width="118" height="97" group="Military\WT_W_ON_01_r" image="WT_W_ON_04_r"/>
+    <image id="WT_W_ON_05_r" width="118" height="97" group="Military\WT_W_ON_01_r" image="WT_W_ON_05_r"/>
+    <image id="Watchtower_W_C_OFF_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_C_OFF_R"/>
+    <image id="Watchtower_W_C_ON_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_C_ON_R"/>
+    <image id="Watchtower_W_N_OFF_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_N_OFF_R"/>
+    <image id="Watchtower_W_N_ON_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_N_ON_R"/>
+    <image id="Watchtower_W_S_OFF_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_S_OFF_R"/>
+    <image id="Watchtower_W_S_ON_R" width="118" height="97" isometric="true" group="Military\WT_W_ON_01_r" image="Watchtower_W_S_ON_R"/>
+</assetlist>

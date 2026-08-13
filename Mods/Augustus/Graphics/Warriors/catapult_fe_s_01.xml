@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\catapult_fe_s_01">
+    <image id="catapult_fe_s_01" width="80" height="80">
+        <layer src="catapult_fe_s_01" x="20" y="14"/>
+    </image>
+</assetlist>

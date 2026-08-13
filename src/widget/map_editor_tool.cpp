@@ -16,6 +16,8 @@
 #include "map/terrain.h"
 #include "scenario/property.h"
 
+#include <vector>
+
 #define MAX_TILES 16
 
 static const int X_VIEW_OFFSETS[MAX_TILES] = { 0, -30, 30, 0, -60, 60, -30, 30, 0, -90, 90, -60, 60, -30, 30, 0 };
@@ -54,6 +56,12 @@ static void draw_partially_blocked(int x, int y, int num_tiles, int *blocked_til
     }
 }
 
+static void draw_foundation_blocked(
+    int x,
+    int y,
+    const std::vector<building_type_registry_impl::RotatedFoundationCell> &cells,
+    const std::vector<int> &blocked_tiles);
+
 static void draw_building_image(int image_id, int x, int y)
 {
     Image::from_id(image_id).draw_isometric_footprint(x, y, COLOR_MASK_GREEN, scale);
@@ -63,19 +71,28 @@ static void draw_building_image(int image_id, int x, int y)
 static void draw_building(const map_tile *tile, int x_view, int y_view, building_type type)
 {
     const building_properties *props = building_properties_for_type(type);
-
-    int num_tiles = props->size * props->size;
-    int blocked_tiles[MAX_TILES];
-    int blocked = !editor_tool_can_place_building(tile, num_tiles, blocked_tiles);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    if (!foundation) {
+        return;
+    }
+    const std::vector<building_type_registry_impl::RotatedFoundationCell> cells =
+        foundation->rotated_cells(0);
+    std::vector<int> blocked_tiles;
+    int blocked = !editor_tool_can_place_building(tile, *foundation, 0, &blocked_tiles);
 
     if (blocked) {
-        draw_partially_blocked(x_view, y_view, num_tiles, blocked_tiles);
+        draw_foundation_blocked(x_view, y_view, cells, blocked_tiles);
     } else if (editor_tool_is_in_use()) {
         int image_id = Image::group(GROUP_TERRAIN_OVERLAY);
-        for (int i = 0; i < num_tiles; i++) {
-            int x_offset = x_view + X_VIEW_OFFSETS[i];
-            int y_offset = y_view + Y_VIEW_OFFSETS[i];
-            Image::from_id(image_id).draw_isometric_footprint(x_offset, y_offset, 0, scale);
+        for (const building_type_registry_impl::RotatedFoundationCell &cell : cells) {
+            int view_dx = 0;
+            int view_dy = 0;
+            offset_to_view_offset(cell.x, cell.y, &view_dx, &view_dy);
+            Image::from_id(image_id).draw_isometric_footprint(
+                x_view + view_dx, y_view + view_dy, 0, scale);
         }
     } else {
         int image_id;
@@ -94,9 +111,9 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
             };
         } else if (building_type_registry_impl::type_attr_is_any(
             type, {"native_decor", "native_monument", "native_watchtower"})) {
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
+            image_id = building_image_get_for_type(definition);
         } else if (props->image_group <= 0) {
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
+            image_id = building_image_get_for_type(definition);
         } else {
             image_id = Image::group(props->image_group) + props->image_offset;
         }
@@ -192,6 +209,23 @@ static void draw_brush(const map_tile *tile, int x, int y)
 
     brush_draw_data bd = { x, y, editor_tool_type(), editor_tool_brush_size() };
     editor_tool_foreach_brush_tile(draw_brush_tile, &bd);
+}
+
+static void draw_foundation_blocked(
+    int x,
+    int y,
+    const std::vector<building_type_registry_impl::RotatedFoundationCell> &cells,
+    const std::vector<int> &blocked_tiles)
+{
+    for (int i = 0; i < static_cast<int>(cells.size()); ++i) {
+        int view_dx = 0;
+        int view_dy = 0;
+        offset_to_view_offset(cells[i].x, cells[i].y, &view_dx, &view_dy);
+        draw_flat_tile(
+            x + view_dx,
+            y + view_dy,
+            blocked_tiles[i] ? COLOR_MASK_RED : COLOR_MASK_GREEN);
+    }
 }
 
 static void draw_access_ramp(const map_tile *tile, int x, int y)

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\legionary_fr_e_03">
+    <image id="legionary_fr_e_03" width="39" height="39">
+        <layer src="legionary_fr_e_03" x="1" y="8"/>
+    </image>
+    <image id="caesar_legionary_fr_e_03">
+        <layer group="Warriors\legionary_fr_e_03" image="legionary_fr_e_03"/>
+        <layer src="caesar_legionary_fr_e_03_Layer_02" x="11" y="8"/>
+    </image>
+</assetlist>

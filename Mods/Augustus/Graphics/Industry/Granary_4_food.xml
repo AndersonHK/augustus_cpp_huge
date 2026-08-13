@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Granary_4_food">
+    <image id="Granary_4_food" width="22" height="34" group="Industry\Granary" image="Granary_4_food"/>
+    <image id="Granary_8_food" width="31" height="25" group="Industry\Granary" image="Granary_8_food"/>
+    <image id="Granary_12_food" width="34" height="29" group="Industry\Granary" image="Granary_12_food"/>
+    <image id="Granary_16_food" width="33" height="22" group="Industry\Granary" image="Granary_16_food"/>
+    <image id="Granary_20_food" width="33" height="31" group="Industry\Granary" image="Granary_20_food"/>
+    <image id="Granary_24_food" width="33" height="22" group="Industry\Granary" image="Granary_24_food"/>
+    <image id="Granary_28_food" width="30" height="34" group="Industry\Granary" image="Granary_28_food"/>
+    <image id="Granary_32_food" width="19" height="21" group="Industry\Granary" image="Granary_32_food"/>
+</assetlist>

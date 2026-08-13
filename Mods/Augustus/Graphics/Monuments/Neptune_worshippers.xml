@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Monuments\Neptune_worshippers">
+    <image id="Neptune worshippers">
+        <layer src="Neptune_worshippers_Layer_01"/>
+        <layer src="Neptune_worshippers_Layer_02" x="2" y="5"/>
+    </image>
+    <image id="Neptune Complex On" width="418" height="231" isometric="true">
+        <layer src="Neptune_Complex_On_Layer_01" part="top"/>
+        <layer group="Health_Culture\Temple_Neptune" image="Image_0001" x="150" y="2" part="footprint"/>
+        <layer group="Health_Culture\Temple_Neptune" image="Image_0001" x="150" y="2" part="top"/>
+        <layer src="Neptune_Complex_On_Layer_04" x="189" y="84" part="top" invert="horizontal"/>
+        <animation speed="1" x="135" y="117">
+            <frame group="Monuments\Neptune_worshippers" image="Neptune worshippers"/>
+        </animation>
+    </image>
+</assetlist>

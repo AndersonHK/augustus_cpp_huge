@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Ceres_M_Icon">
+    <image id="Ceres M Icon">
+        <layer src="Ceres_M_Icon"/>
+    </image>
+</assetlist>

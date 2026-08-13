@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Large_Banner_Border">
+    <image id="Large_Banner_Border">
+        <layer src="Large_Banner_Border"/>
+    </image>
+    <image id="Image_0027">
+        <layer src="Image_0027"/>
+    </image>
+    <image id="Image_0028">
+        <layer src="Image_0028"/>
+    </image>
+    <image id="Image_0029">
+        <layer src="Image_0029"/>
+    </image>
+</assetlist>
