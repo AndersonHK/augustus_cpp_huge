@@ -10,7 +10,6 @@
 #include "building/construction_routed.h"
 #include "building/construction_warning.h"
 #include "building/count.h"
-#include "building/image.h"
 #include "building/rotation.h"
 #include "building/tool_mode.h"
 #include "building/variant.h"
@@ -564,7 +563,8 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                     map_tiles_set_wall(x, y);
                 } else {
                     Building &wall = city_building_runtime().create(*definition, x, y);
-                    wall.add_map_tiles(building_image_get(&wall));
+                    wall.add_map_tiles();
+                    wall.refresh_graphic();
                     map_tiles_set_wall(x, y);
                     map_property_clear_multi_tile_xy(grid_offset);
                     construction_requirements_remove(construction);
@@ -651,7 +651,8 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                     b->subtype.orientation = static_cast<short>(rotation);
                 }
                 game_undo_add_building(b);
-                building_obj.add_map_tiles(building_image_get(&building_obj));
+                building_obj.add_map_tiles();
+                building_obj.refresh_graphic();
             } else if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR_EXCEPT_ROAD)) {
                 if (gate_definition) {
                     items_placed++;
@@ -665,7 +666,8 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                         b->subtype.orientation = static_cast<short>(rotation);
                     }
                     game_undo_add_building(b);
-                    building_obj.add_map_tiles(building_image_get(&building_obj));
+                    building_obj.add_map_tiles();
+                    building_obj.refresh_graphic();
                     map_terrain_add(grid_offset, TERRAIN_ROAD);
                 }
             }

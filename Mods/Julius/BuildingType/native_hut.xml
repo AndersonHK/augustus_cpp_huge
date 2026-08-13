@@ -14,7 +14,10 @@
     <graphics>
         <default>
             <path value="Aesthetics\Native" />
-            <image value="Image_0000" />
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+            </options>
         </default>
     </graphics>
 </building>

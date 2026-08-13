@@ -292,13 +292,7 @@ void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, in
         if (is_building_selected(building)) {
             color_mask = get_building_color_mask(building);
         }
-        if (building.draw_footprint({ x, y, grid_offset, color_mask, scale })) {
-            return;
-        }
-        if (!map_property_is_draw_tile(grid_offset)) {
-            return;
-        }
-        Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+        building.draw_footprint({ x, y, grid_offset, color_mask, scale });
     } else {
         if (building_draws_overlay_summary_at(building, grid_offset)) {
             draw_flattened_building_footprint(building, grid_offset, x, y, image_offset, color_mask);
@@ -426,13 +420,7 @@ static void draw_building_top(Building &building, int x, int y, int grid_offset)
         city_draw_depot_resource(building, x, y, scale);
     }
 
-    if (building.draw_top({ x, y, grid_offset, color_mask, scale })) {
-        return;
-    }
-    if (!map_property_is_draw_tile(grid_offset)) {
-        return;
-    }
-    Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
+    building.draw_top({ x, y, grid_offset, color_mask, scale });
 }
 
 static void city_with_overlay_draw_building_top_for_building(Building *building, int x, int y, int grid_offset)
@@ -532,23 +520,7 @@ static void draw_animation_for_building(Building *building, int x, int y, int gr
     }
 
     color_t color_mask = building_top_color_mask(*building);
-    if (building->draw_animation({ x, y, grid_offset, color_mask, scale })) {
-        return;
-    }
-
-    int image_id = map_image_at(grid_offset);
-    const image *img = image_get(image_id);
-    if (!img->animation) {
-        return;
-    }
-    int frame_offset = building->animate().offset_for(Image::from_id(image_id), grid_offset);
-    if (frame_offset > 0) {
-        if (frame_offset > img->animation->num_sprites) {
-            frame_offset = img->animation->num_sprites;
-        }
-        int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
-        Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, color_mask, scale);
-    }
+    building->draw_animation({ x, y, grid_offset, color_mask, scale });
 }
 
 static void draw_animation_render_tile(const CityViewRenderTile &tile)

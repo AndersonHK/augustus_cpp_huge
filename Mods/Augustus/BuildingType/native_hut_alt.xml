@@ -13,18 +13,24 @@
     <flags fire_proof="1" />
     <graphics>
         <default>
-            <path value="Terrain_Maps\Native_Hut_Central_01" />
-            <image value="Native_Hut_Central_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Central_01" image="Native_Hut_Central_01" />
+                <option path="Terrain_Maps\Native_Hut_Central_02" image="Native_Hut_Central_02" />
+            </options>
         </default>
         <variant>
             <condition type="climate" value="northern" />
-            <path value="Terrain_Maps\Native_Hut_Northern_01" />
-            <image value="Native_Hut_Northern_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Northern_01" image="Native_Hut_Northern_01" />
+                <option path="Terrain_Maps\Native_Hut_Northern_02" image="Native_Hut_Northern_02" />
+            </options>
         </variant>
         <variant>
             <condition type="climate" value="desert" />
-            <path value="Terrain_Maps\Native_Hut_Southern_01" />
-            <image value="Native_Hut_Southern_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Southern_01" image="Native_Hut_Southern_01" />
+                <option path="Terrain_Maps\Native_Hut_Southern_02" image="Native_Hut_Southern_02" />
+            </options>
         </variant>
     </graphics>
     <labor>

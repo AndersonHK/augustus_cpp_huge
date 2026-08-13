@@ -3,7 +3,6 @@
 #include "building/construction_warning.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
@@ -273,9 +272,8 @@ static void add_building(building *b)
         !b->monument.phase) {
         b->monument.phase = MONUMENT_FINISHED;
     }
-    if (!building_obj.refresh_graphic_if_native()) {
-        building_obj.add_map_tiles(building_image_get(&building_obj));
-    }
+    building_obj.add_map_tiles();
+    building_obj.refresh_graphic();
 }
 
 static void refresh_placed_tile_regions(const building_construction::ConstructionPlacementPlan &placement)

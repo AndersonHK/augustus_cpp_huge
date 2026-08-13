@@ -5,7 +5,6 @@
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
-#include "building/image.h"
 #include "building/roadblock.h"
 #include "city/buildings.h"
 #include "city/military.h"
@@ -138,90 +137,57 @@ static void determine_meeting_center(const native_types &types)
 
 struct native_tile_match {
     building_type type = BUILDING_NONE;
-    int image_id = 0;
-    int covers_meeting_tiles = 0;
+    int graphics_variant = 0;
 };
 
 struct native_tile_context {
     native_types types;
-    int native_image = 0;
-    int crops_image = 0;
-    int alt_hut_image = 0;
-    int decor_image = 0;
-    int monument_image = 0;
-    int watchtower_image = 0;
 };
 
-static native_tile_context make_native_tile_context(int native_image, int crops_image)
+static native_tile_context make_native_tile_context()
 {
     native_tile_context context;
     context.types = resolve_native_types();
-    context.native_image = native_image;
-    context.crops_image = crops_image;
-    context.alt_hut_image = building_image_get_for_type(
-        building_type_registry_impl::definition_for_type(context.types.alt_hut));
-    context.decor_image = building_image_get_for_type(
-        building_type_registry_impl::definition_for_type(context.types.decor));
-    context.monument_image = building_image_get_for_type(
-        building_type_registry_impl::definition_for_type(context.types.monument));
-    context.watchtower_image = building_image_get_for_type(
-        building_type_registry_impl::definition_for_type(context.types.watchtower));
     return context;
 }
 
 static native_tile_match native_tile_match_for_image(
     int source_image_id,
-    int random_bit,
     const native_tile_context &context)
 {
     if (source_image_id == scenario.native_images.hut) {
-        return { context.types.hut, context.native_image, 0 };
+        return { context.types.hut, 0 };
     }
     if (source_image_id == scenario.native_images.hut + 1) {
-        return { context.types.hut, context.native_image + 1, 0 };
+        return { context.types.hut, 1 };
     }
     if (scenario.native_images.alt_hut != 0 && source_image_id == scenario.native_images.alt_hut) {
-        return { context.types.alt_hut, context.alt_hut_image, 0 };
+        return { context.types.alt_hut, 0 };
     }
     if (scenario.native_images.alt_hut != 0 && source_image_id == scenario.native_images.alt_hut + 1) {
-        return { context.types.alt_hut, context.alt_hut_image, 0 };
+        return { context.types.alt_hut, 1 };
     }
     if (scenario.native_images.decoration != 0 && source_image_id == scenario.native_images.decoration) {
-        return { context.types.decor, context.decor_image, 0 };
+        return { context.types.decor };
     }
     if (scenario.native_images.monument != 0 && source_image_id == scenario.native_images.monument) {
-        return { context.types.monument, context.monument_image, 0 };
+        return { context.types.monument };
     }
     if (scenario.native_images.watchtower != 0 && source_image_id == scenario.native_images.watchtower) {
-        return { context.types.watchtower, context.watchtower_image, 0 };
+        return { context.types.watchtower };
     }
     if (source_image_id == scenario.native_images.meeting) {
-        return { context.types.meeting, context.native_image + 2, 1 };
+        return { context.types.meeting };
     }
     if (source_image_id == scenario.native_images.crops) {
-        return { context.types.crops, context.crops_image + random_bit, 0 };
+        return { context.types.crops };
     }
     return {};
 }
 
-static void set_native_tile_image(int grid_offset, const native_tile_match &match)
-{
-    if (!match.type) {
-        return;
-    }
-    map_image_set(grid_offset, match.image_id);
-    if (match.covers_meeting_tiles) {
-        map_image_set(grid_offset + map_grid_delta(1, 0), match.image_id);
-        map_image_set(grid_offset + map_grid_delta(0, 1), match.image_id);
-        map_image_set(grid_offset + map_grid_delta(1, 1), match.image_id);
-    }
-}
-
 void map_natives_init(void)
 {
-    const native_tile_context context = make_native_tile_context(
-        image_group(GROUP_BUILDING_NATIVE),
-        image_group(GROUP_BUILDING_FARM_CROPS));
+    const native_tile_context context = make_native_tile_context();
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
@@ -232,7 +198,6 @@ void map_natives_init(void)
             int random_bit = map_random_get(grid_offset) & 1;
             native_tile_match match = native_tile_match_for_image(
                 map_image_at(grid_offset),
-                random_bit,
                 context);
             building_type type = match.type;
             if (type == BUILDING_NONE) {
@@ -244,18 +209,13 @@ void map_natives_init(void)
             if (!definition) {
                 continue;
             }
-            set_native_tile_image(grid_offset, match);
             Building &building_obj = city_building_runtime().create(*definition, x, y);
             building *b = const_cast<building *>(building_obj.record());
-            map_building_set(grid_offset, building_obj);
             b->state = BUILDING_STATE_IN_USE;
             if (type == context.types.crops) {
                 b->data.industry.progress = static_cast<short>(random_bit);
             } else if (type == context.types.meeting) {
                 b->native_anger = 100;
-                map_building_set(grid_offset + map_grid_delta(1, 0), building_obj);
-                map_building_set(grid_offset + map_grid_delta(0, 1), building_obj);
-                map_building_set(grid_offset + map_grid_delta(1, 1), building_obj);
                 mark_native_land(b->x, b->y, 2, 6);
             } else {
                 if (type == context.types.hut || type == context.types.alt_hut ||
@@ -263,10 +223,11 @@ void map_natives_init(void)
                     b->native_anger = 100;
                     b->figure_spawn_delay = static_cast<unsigned char>(random_bit);
                     mark_native_land(b->x, b->y, 1, 3);
-                } else if (type == context.types.monument) {
-                    building_obj.add_map_tiles(building_image_get(&building_obj));
                 }
             }
+            building_obj.add_map_tiles();
+            building_obj.Graphics().set_variant(match.graphics_variant);
+            building_obj.refresh_graphic();
         }
     }
 
@@ -275,9 +236,7 @@ void map_natives_init(void)
 
 void map_natives_init_editor(void)
 {
-    const native_tile_context context = make_native_tile_context(
-        image_group(GROUP_EDITOR_BUILDING_NATIVE),
-        image_group(GROUP_EDITOR_BUILDING_CROPS));
+    const native_tile_context context = make_native_tile_context();
 
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
@@ -288,7 +247,6 @@ void map_natives_init_editor(void)
 
             native_tile_match match = native_tile_match_for_image(
                 map_image_at(grid_offset),
-                0,
                 context);
             building_type type = match.type;
             if (type == BUILDING_NONE) {
@@ -300,19 +258,12 @@ void map_natives_init_editor(void)
             if (!definition) {
                 continue;
             }
-            set_native_tile_image(grid_offset, match);
             Building &building_obj = city_building_runtime().create(*definition, x, y);
             building *b = const_cast<building *>(building_obj.record());
             b->state = BUILDING_STATE_IN_USE;
-            map_building_set(grid_offset, building_obj);
-            if (type == context.types.meeting) {
-                map_building_set(grid_offset + map_grid_delta(1, 0), building_obj);
-                map_building_set(grid_offset + map_grid_delta(0, 1), building_obj);
-                map_building_set(grid_offset + map_grid_delta(1, 1), building_obj);
-            }
-            if (type == context.types.monument) {
-                building_obj.add_map_tiles(building_image_get(&building_obj));
-            }
+            building_obj.add_map_tiles();
+            building_obj.Graphics().set_variant(match.graphics_variant);
+            building_obj.refresh_graphic();
         }
     }
 }

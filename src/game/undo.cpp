@@ -334,9 +334,8 @@ static Building *add_building_to_terrain(building *b)
     if (!runtime) {
         return nullptr;
     }
-    if (!runtime->building.refresh_graphic_if_native()) {
-        runtime->building.add_map_tiles(0);
-    }
+    runtime->building.add_map_tiles();
+    runtime->building.refresh_graphic();
     if (building_type_registry_impl::type_attr_is(b->type, "wharf")) {
         b->data.industry.fishing_boat_id = 0;
         b->data.industry.second_fishing_boat_id = 0;

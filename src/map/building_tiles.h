@@ -9,7 +9,7 @@ void map_terrain_tiles_add(int x, int y, int size, int image_id, int terrain);
 // Building/Foundation materialization. Live buildings remove their Foundation.
 void map_legacy_building_tiles_remove(int x, int y);
 
-void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id);
+void map_building_tiles_add_rubble(Building &building, int x, int y);
 
 void map_building_tiles_add_bridge(Building &building, int x, int y);
 

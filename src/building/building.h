@@ -198,11 +198,9 @@ public:
     int draw_footprint(const BuildingDrawContext &ctx);
     int draw_top(const BuildingDrawContext &ctx);
     int draw_animation(const BuildingDrawContext &ctx);
-    int draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation);
     int mothball_status_icon_offset(int icon_width, int icon_height, int *x, int *y) const;
     void invalidate_graphic();
     void refresh_graphic();
-    int refresh_graphic_if_native();
     void spawn_figure();
     int worker_count() const;
     int employment_worker_count() const;
@@ -250,8 +248,7 @@ public:
     int max_distance_to(const Building &other) const;
     int orientation() const;
     void set_orientation(int orientation);
-    int image_id() const;
-    void add_map_tiles(int image_id);
+    void add_map_tiles();
     void remove_map_tiles();
     int is_surface_terrain_tile() const;
     void set_storage_id(int new_storage_id);
@@ -348,8 +345,6 @@ unsigned char building_distribution_demand(const building *b, resource_type reso
 void building_set_distribution_demand(building *b, resource_type resource, unsigned char demand);
 unsigned char building_accepted_good_save_value(const building *b, resource_type resource);
 void building_load_accepted_good(building *b, resource_type resource, unsigned char value);
-
-int building_was_tent(const building *b);
 
 void building_clear_related_data(building *b);
 

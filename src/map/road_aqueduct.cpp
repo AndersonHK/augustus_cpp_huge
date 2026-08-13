@@ -1,8 +1,8 @@
 #include "road_aqueduct.h"
 
 #include "building/building.h"
-#include "building/image.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
 #include "city/view.h"
 #include "core/direction.h"
@@ -57,9 +57,8 @@ road_preview_graphic map_road_preview_graphic_at(int grid_offset)
 
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
         figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
-        // Gate graphics come from the projected gate BuildingType's native
-        // graphics definition; the road preview only asks for the result.
-        preview.image_id = building_image_get_garden_gate_image(grid_offset);
+        const building_type source_type = map_building_type_at(grid_offset);
+        preview.building = static_cast<building_type>(building_connectable_gate_type(source_type));
         return preview;
     }
 

@@ -1,6 +1,5 @@
 #include "assets/graphics_extraction_abi.h"
 #include "building/building.h"
-#include "building/image.h"
 #ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
 #include "building/building_type_registry_internal.h"
 #endif
@@ -783,7 +782,7 @@ static void update_native_images(int old_climate, int new_climate)
     }
     const building_type native_hut_alt = building_type_registry_impl::type_from_attr("native_hut_alt");
     for (Building building : Building::of_type(native_hut_alt)) {
-        map_image_set(building.grid_offset(), building.image_id());
+        building.refresh_graphic();
     }
 
     static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
@@ -793,7 +792,7 @@ static void update_native_images(int old_climate, int new_climate)
             continue;
         }
         for (Building building : Building::of_type(type)) {
-            building.add_map_tiles(building.image_id());
+            building.refresh_graphic();
         }
     }
 #endif

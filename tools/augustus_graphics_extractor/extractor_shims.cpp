@@ -353,12 +353,6 @@ building_type building_type_registry_runtime_id_from_text(const char *text_id)
     return BUILDING_NONE;
 }
 
-int building_image_get_for_type(building_type type)
-{
-    (void) type;
-    return 0;
-}
-
 unsigned int map_image_at(int grid_offset)
 {
     (void) grid_offset;

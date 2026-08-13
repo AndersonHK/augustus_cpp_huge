@@ -849,7 +849,6 @@ public:
     int placement_height(int orientation) const;
     figure_type preview_figure_type() const;
     int required_workers() const;
-    int has_data_only_graphics() const;
     int is_temple(
         std::optional<god_type> god = std::nullopt,
         ReligionTier tier = ReligionTier::None) const;
@@ -874,7 +873,7 @@ public:
     const ProductionMethod *farm_panel_production_method() const;
     int has_farm_panel() const;
     int production_is_enabled() const;
-    static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
+    static const GraphicsTarget *resolve_graphics_target(const BuildingType *definition, const Building &building);
     int has_identity() const;
     int has_model() const;
     int has_button() const;

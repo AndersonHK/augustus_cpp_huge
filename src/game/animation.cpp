@@ -7,7 +7,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -446,12 +445,6 @@ int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
     if (legacy_gate_offset(animation_cursor, &offset)) {
         return offset;
     }
-    if (definition_ && definition_->attr_is("colosseum")) {
-        // The colosseum uses the terrain image as part of the animated facade, so
-        // the legacy cursor is also the map grid offset that must be rewritten.
-        map_image_set(animation_cursor, building_image_get(building_));
-    }
-
     if (!img.animation) {
         return 0;
     }

@@ -11,4 +11,10 @@
     <foundation path="land_1x1" />
     <housing path="house_small_tent" capacity="5" goods_consumption_events_per_month="1" mars_offering_amount="1" />
     <vacant_lot fill_to="house_small_tent" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\House_Vacant_Lot" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

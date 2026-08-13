@@ -1,7 +1,10 @@
 #pragma once
 
+#include "building/building_type.h"
+
 struct road_preview_graphic {
     int image_id = 0;
+    building_type building = BUILDING_NONE;
     int blocked = 0;
 };
 

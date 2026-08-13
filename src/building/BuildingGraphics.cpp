@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_runtime.h"
+#include "building/building_type.h"
 #include "core/crash_context.h"
 
 #include <cstdio>
@@ -15,7 +16,7 @@ const char *safe_text(const char *text)
     return text && *text ? text : "<none>";
 }
 
-[[noreturn]] void report_missing_graphics_state(const Building *owner, const char *operation)
+[[noreturn]] void report_invalid_graphics_binding(const Building *owner, const char *operation)
 {
     const building *record = owner ? owner->record() : nullptr;
     int foundation_width = 0;
@@ -49,7 +50,7 @@ const char *safe_text(const char *text)
 
     error_context_report_fatal_error_dialog(
         "Building runtime error",
-        "BuildingGraphics operation was requested without a BuildingGraphicsState.",
+        "BuildingGraphics was used without its owner, definition, or instance state.",
         detail);
     std::terminate();
 }
@@ -112,7 +113,7 @@ int BuildingGraphics::is_bound() const
 unsigned char BuildingGraphics::variant() const
 {
     if (!state_) {
-        report_missing_graphics_state(owner_, "variant");
+        report_invalid_graphics_binding(owner_, "variant");
     }
     return state_->variant();
 }
@@ -120,7 +121,7 @@ unsigned char BuildingGraphics::variant() const
 int BuildingGraphics::rotation() const
 {
     if (!state_) {
-        report_missing_graphics_state(owner_, "rotation");
+        report_invalid_graphics_binding(owner_, "rotation");
     }
     if (definition_ && definition_->has_variants()) {
         return state_->variant();
@@ -131,7 +132,7 @@ int BuildingGraphics::rotation() const
 int BuildingGraphics::set_variant(int variant)
 {
     if (!state_) {
-        report_missing_graphics_state(owner_, "set_variant");
+        report_invalid_graphics_binding(owner_, "set_variant");
     }
     if (building_runtime *runtime = runtime_instance(); state_is_runtime_state(runtime)) {
         const unsigned char before = runtime->graphics_variant();
@@ -145,32 +146,36 @@ void BuildingGraphics::assign_variant(int force_reseed)
 {
     if (building_runtime *runtime = runtime_instance()) {
         if (!state_is_runtime_state(runtime)) {
-            report_missing_graphics_state(owner_, "assign_variant");
+            report_invalid_graphics_binding(owner_, "assign_variant");
         }
         runtime->assign_graphic_variant(force_reseed);
         return;
     }
-    report_missing_graphics_state(owner_, "assign_variant");
+    report_invalid_graphics_binding(owner_, "assign_variant");
 }
 
 int BuildingGraphics::draw_footprint(const BuildingDrawContext &ctx) const
 {
-    return is_bound() ? definition_->draw_footprint(*owner_, ctx) : 0;
+    if (!is_bound()) {
+        report_invalid_graphics_binding(owner_, "draw_footprint");
+    }
+    return definition_->draw_footprint(*owner_, ctx);
 }
 
 int BuildingGraphics::draw_top(const BuildingDrawContext &ctx) const
 {
-    return is_bound() ? definition_->draw_top(*owner_, ctx) : 0;
+    if (!is_bound()) {
+        report_invalid_graphics_binding(owner_, "draw_top");
+    }
+    return definition_->draw_top(*owner_, ctx);
 }
 
 int BuildingGraphics::draw_animation(const BuildingDrawContext &ctx) const
 {
-    return is_bound() ? definition_->draw_animation(*owner_, ctx) : 0;
-}
-
-int BuildingGraphics::draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation) const
-{
-    return is_bound() ? definition_->draw_gatehouse_overlay(*owner_, ctx, view_orientation) : 0;
+    if (!is_bound()) {
+        report_invalid_graphics_binding(owner_, "draw_animation");
+    }
+    return definition_->draw_animation(*owner_, ctx);
 }
 
 int BuildingGraphics::uses_terrain_foundation() const

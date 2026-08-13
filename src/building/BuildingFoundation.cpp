@@ -6,7 +6,6 @@
 #include "map/aqueduct.h"
 #include "map/building.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
@@ -86,7 +85,7 @@ void refresh_removed_foundation_region(
 
 } // namespace
 
-int BuildingFoundation::publish(int origin_x, int origin_y, int rotation, int image_id)
+int BuildingFoundation::publish(int origin_x, int origin_y, int rotation)
 {
     const int normalized_rotation = (rotation % 4 + 4) % 4;
     if (!owner_ || !definition_ || !state_) {
@@ -94,7 +93,7 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation, int im
     }
     if (state_->is_published()) {
         return state_->origin_x() == origin_x && state_->origin_y() == origin_y &&
-            state_->rotation() == normalized_rotation ? refresh(image_id) : 0;
+            state_->rotation() == normalized_rotation ? refresh() : 0;
     }
     const std::vector<RotatedFoundationCell> rotated = definition_->rotated_cells(rotation);
     if (rotated.empty()) {
@@ -135,9 +134,6 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation, int im
             map_property_set_multi_tile_xy(
                 grid_offset, cell.x, cell.y,
                 draw_cell.valid && cell.x == draw_cell.x && cell.y == draw_cell.y);
-            if (image_id >= 0) {
-                map_image_set(grid_offset, image_id);
-            }
         }
         map_property_clear_constructing(grid_offset);
         state_->record_delta(mutation.delta);
@@ -147,7 +143,7 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation, int im
     return 1;
 }
 
-int BuildingFoundation::refresh(int image_id)
+int BuildingFoundation::refresh()
 {
     if (!owner_ || !definition_ || !state_ || !state_->is_published()) {
         return 0;
@@ -183,9 +179,6 @@ int BuildingFoundation::refresh(int image_id)
             map_property_set_multi_tile_xy(
                 grid_offset, cell.x, cell.y,
                 draw_cell.valid && cell.x == draw_cell.x && cell.y == draw_cell.y);
-            if (image_id >= 0) {
-                map_image_set(grid_offset, image_id);
-            }
         }
         map_property_clear_constructing(grid_offset);
     }
@@ -228,7 +221,6 @@ int BuildingFoundation::remove()
             map_sprite_clear_tile(delta.grid_offset);
         }
         if (delta.bound_building) {
-            map_image_set(delta.grid_offset, 0);
             map_property_set_legacy_multi_tile_size(delta.grid_offset, 1);
             map_property_clear_multi_tile_xy(delta.grid_offset);
             map_property_mark_draw_tile(delta.grid_offset);
@@ -253,7 +245,6 @@ int BuildingFoundation::remove()
                 map_property_set_legacy_multi_tile_size(grid_offset, 1);
                 map_property_clear_multi_tile_xy(grid_offset);
                 map_property_mark_draw_tile(grid_offset);
-                map_image_set(grid_offset, 0);
             }
         }
     }

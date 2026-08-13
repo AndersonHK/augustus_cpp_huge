@@ -10,7 +10,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -32,6 +31,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdio>
+#include <exception>
 #include <memory>
 #include <utility>
 
@@ -711,7 +711,7 @@ int production_progress_options_in_target(const GraphicsTarget &target)
     return 0;
 }
 
-void log_missing_runtime_stage_slice(const char *stage, const Building &building)
+[[noreturn]] void report_missing_runtime_stage_slice(const char *stage, const Building &building)
 {
     char detail[256];
     if (building.type) {
@@ -726,14 +726,18 @@ void log_missing_runtime_stage_slice(const char *stage, const Building &building
         snprintf(detail, sizeof(detail), "building=null stage=%s", stage ? stage : "");
     }
 
-    error_context_report_error("Native building draw stage had no drawable slice. Falling back to legacy rendering.", detail);
+    error_context_report_fatal_error_dialog(
+        "Building graphics invariant violated",
+        "Native building draw stage had no drawable slice.",
+        detail);
+    std::terminate();
 }
 
 }
 
 int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Footprint);
         }
@@ -742,7 +746,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("footprint_cache", building);
     }
 
     if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
@@ -752,8 +756,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
         if (!runtime->cached_graphics_uses_terrain_foundation()) {
             const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
             if (!footprint) {
-                log_missing_runtime_stage_slice("footprint", building);
-                return 0;
+                report_missing_runtime_stage_slice("footprint", building);
             }
             runtime_texture_draw(
                 *footprint,
@@ -771,7 +774,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
 
 int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Top);
         }
@@ -780,7 +783,7 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("top_cache", building);
     }
 
     if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
@@ -811,7 +814,7 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
 
 int BuildingGraphicsDef::draw_animation(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Animation);
         }
@@ -820,7 +823,7 @@ int BuildingGraphicsDef::draw_animation(Building building, const BuildingDrawCon
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("animation_cache", building);
     }
 
     if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
@@ -866,49 +869,6 @@ int BuildingGraphicsDef::draw_resource_storage(Building building, const Building
     return 1;
 }
 
-int BuildingGraphicsDef::gatehouse_overlay_draw_tile_matches(
-    Building building,
-    int grid_offset,
-    int view_orientation) const
-{
-    const GraphicsTarget *target = resolve_target(building);
-    if (!target || !target->has_layer_role("gatehouse_overlay")) {
-        return 0;
-    }
-    const int gate_orientation = building.orientation();
-    if (gate_orientation != 1 && gate_orientation != 2) {
-        return 0;
-    }
-    const int gatehouse_draw_tile_by_orientation[] = { EDGE_X1Y1, EDGE_X0Y1, EDGE_X0Y0, EDGE_X1Y0 };
-    if (view_orientation < DIR_0_TOP || view_orientation > DIR_6_LEFT || view_orientation % 2) {
-        return 0;
-    }
-    return map_property_multi_tile_xy(grid_offset) == gatehouse_draw_tile_by_orientation[view_orientation / 2];
-}
-
-int BuildingGraphicsDef::draw_gatehouse_overlay(
-    Building building,
-    const BuildingDrawContext &ctx,
-    int view_orientation) const
-{
-    if (!gatehouse_overlay_draw_tile_matches(building, ctx.grid_offset, view_orientation)) {
-        return 0;
-    }
-
-    std::unique_ptr<building_runtime> temporary_runtime;
-    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
-    if (!runtime) {
-        return 0;
-    }
-    return runtime->draw_cached_graphic_layer_role(
-        "gatehouse_overlay",
-        ctx.grid_offset,
-        ctx.x,
-        ctx.y,
-        ctx.color_mask,
-        ctx.scale);
-}
-
 int BuildingGraphicsDef::draws_mothball_status(Building building) const
 {
     if ((building.Composition && building.Composition->is_child()) || building.is_dynamic_bridge_segment()) {
@@ -928,15 +888,18 @@ int BuildingGraphicsDef::mothball_status_icon_offset(
         return 0;
     }
 
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime || !runtime->resolve_graphics_cache()) {
+        report_missing_runtime_stage_slice("status_icon_cache", building);
+    }
     if (!status_icon_anchor(x, y)) {
-        const Image &building_image = Image::from_id(building.image_id());
-        *x = (building_image.width() - icon_width) / 2;
+        const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
+        *x = ((footprint ? footprint->width : 0) - icon_width) / 2;
         *y = (-icon_height / 2) + 10;
     }
-
-    const Image &building_image = Image::from_id(building.image_id());
-    if (const Image *top = building_image.top()) {
-        *y -= top->original_height();
+    if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
+        *y -= top->height;
     }
     return 1;
 }

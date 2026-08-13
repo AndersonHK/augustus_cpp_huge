@@ -2,7 +2,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "graphics/menu.h"
-#include "map/image.h"
+#include "map/terrain.h"
 #include "widget/minimap.h"
 #include "widget/sidebar/common.h"
 
@@ -84,6 +84,11 @@ static Building *building_for_render_tile(int grid_offset)
         return nullptr;
     }
     return &map_building_at(grid_offset);
+}
+
+static int is_renderable_map_tile(int grid_offset)
+{
+    return grid_offset >= 0 && map_terrain_get(grid_offset) != TERRAIN_MAP_EDGE;
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>
@@ -240,7 +245,7 @@ static void calculate_lookup(void)
         int y_view = y_view_start;
         for (int x = 0; x < GRID_SIZE; x++) {
             int grid_offset = x + GRID_SIZE * y;
-            if (map_image_at(grid_offset) < 6) {
+            if (!is_renderable_map_tile(grid_offset)) {
                 view_to_grid_offset_lookup[x_view/2][y_view] = -1;
             } else {
                 view_to_grid_offset_lookup[x_view/2][y_view] = grid_offset;
@@ -903,7 +908,7 @@ void city_view_foreach_valid_render_tile_row(const CityViewRenderPhase *phases, 
 
 static void do_valid_callback(int view_x, int view_y, int grid_offset, map_callback *callback)
 {
-    if (grid_offset >= 0 && map_image_at(grid_offset) >= 6) {
+    if (is_renderable_map_tile(grid_offset)) {
         callback(view_x, view_y, grid_offset);
     }
 }

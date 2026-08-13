@@ -1,6 +1,5 @@
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "figure/action.h"
 #include "map/building.h"

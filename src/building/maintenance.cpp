@@ -5,7 +5,6 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
-#include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
 #include "city/buildings.h"
@@ -74,7 +73,8 @@ void building_maintenance_update_burning_ruins(void)
             b->fire_duration = 0;
             b->state = BUILDING_STATE_RUBBLE;
             if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                map_building_tiles_add_rubble(runtime->building, b->x, b->y, building_image_get(&runtime->building));
+                map_building_tiles_add_rubble(runtime->building, b->x, b->y);
+                runtime->building.refresh_graphic();
             }
             recalculate_terrain = 1;
             return;

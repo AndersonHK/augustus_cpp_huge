@@ -100,7 +100,6 @@
     <ClCompile Include="src\building\house_evolution.cpp" />
     <ClCompile Include="src\building\house_population.cpp" />
     <ClCompile Include="src\building\house_service.cpp" />
-    <ClCompile Include="src\building\image.cpp" />
     <ClCompile Include="src\building\industry.cpp" />
     <ClCompile Include="src\building\lighthouse.cpp" />
     <ClCompile Include="src\building\list.cpp" />
@@ -666,7 +665,6 @@
     <ClInclude Include="src\building\house_evolution.h" />
     <ClInclude Include="src\building\house_population.h" />
     <ClInclude Include="src\building\house_service.h" />
-    <ClInclude Include="src\building\image.h" />
     <ClInclude Include="src\building\industry.h" />
     <ClInclude Include="src\building\lighthouse.h" />
     <ClInclude Include="src\building\list.h" />

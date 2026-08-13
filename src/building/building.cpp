@@ -5,7 +5,6 @@
 #include "building/construction_building.h"
 #include "building/construction_clear.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
 #include "building/roadblock.h"
@@ -604,6 +603,36 @@ Building &Building::dynamic_bridge_owner() const
     std::terminate();
 }
 
+[[noreturn]] static void report_missing_building_graphics_definition(
+    const Building &building,
+    const std::source_location &location)
+{
+    const ::building *record = building.record();
+    char detail[1200];
+    std::snprintf(
+        detail,
+        sizeof(detail),
+        "caller=%s:%u function=%s record=%p id=%u state=%d runtime_type=%d definition=%s "
+        "x=%d y=%d grid_offset=%d surface_terrain=%d",
+        safe_text(location.file_name()),
+        static_cast<unsigned>(location.line()),
+        safe_text(location.function_name()),
+        static_cast<const void *>(record),
+        record ? record->id : 0,
+        record ? record->state : BUILDING_STATE_UNUSED,
+        record ? static_cast<int>(record->type) : static_cast<int>(BUILDING_NONE),
+        building.type ? safe_text(building.type->attr()) : "<none>",
+        record ? record->x : 0,
+        record ? record->y : 0,
+        record ? record->grid_offset : 0,
+        building.is_surface_terrain_tile());
+    error_context_report_fatal_error_dialog(
+        "Building graphics invariant violated",
+        "A world building has no native graphics definition.",
+        detail);
+    std::terminate();
+}
+
 Building *Building::dynamic_bridge_next() const
 {
     if (building_runtime *runtime = building_runtime_impl::get_ephemeral_next_instance(record_)) {
@@ -871,22 +900,35 @@ building_type_registry_impl::BuildingAnimation Building::animate()
 
 int Building::draw_footprint(const BuildingDrawContext &ctx)
 {
-    return building_record_requires_type_definition(record_) && type ? Graphics().draw_footprint(ctx) : 0;
+    if (!building_record_requires_type_definition(record_)) {
+        return 0;
+    }
+    if (!type || (!type->has_graphic() && !is_surface_terrain_tile())) {
+        report_missing_building_graphics_definition(*this, std::source_location::current());
+    }
+    return type->has_graphic() ? Graphics().draw_footprint(ctx) : 0;
 }
 
 int Building::draw_top(const BuildingDrawContext &ctx)
 {
-    return building_record_requires_type_definition(record_) && type ? Graphics().draw_top(ctx) : 0;
+    if (!building_record_requires_type_definition(record_)) {
+        return 0;
+    }
+    if (!type || (!type->has_graphic() && !is_surface_terrain_tile())) {
+        report_missing_building_graphics_definition(*this, std::source_location::current());
+    }
+    return type->has_graphic() ? Graphics().draw_top(ctx) : 0;
 }
 
 int Building::draw_animation(const BuildingDrawContext &ctx)
 {
-    return building_record_requires_type_definition(record_) && type ? Graphics().draw_animation(ctx) : 0;
-}
-
-int Building::draw_gatehouse_overlay(const BuildingDrawContext &ctx, int view_orientation)
-{
-    return building_record_requires_type_definition(record_) && type ? Graphics().draw_gatehouse_overlay(ctx, view_orientation) : 0;
+    if (!building_record_requires_type_definition(record_)) {
+        return 0;
+    }
+    if (!type || (!type->has_graphic() && !is_surface_terrain_tile())) {
+        report_missing_building_graphics_definition(*this, std::source_location::current());
+    }
+    return type->has_graphic() ? Graphics().draw_animation(ctx) : 0;
 }
 
 int Building::mothball_status_icon_offset(int icon_width, int icon_height, int *x, int *y) const
@@ -898,28 +940,15 @@ int Building::mothball_status_icon_offset(int icon_width, int icon_height, int *
 
 void Building::refresh_graphic()
 {
-    if (record_) {
-        if (building_runtime *instance = building_runtime_impl::get_or_create_instance(record_)) {
-            instance->set_building_graphic();
-        }
+    if (!building_record_requires_type_definition(record_)) {
+        return;
     }
-}
-
-int Building::refresh_graphic_if_native()
-{
-    if (!record_) {
-        return 0;
+    if (!type || (!type->has_graphic() && !is_surface_terrain_tile())) {
+        report_missing_building_graphics_definition(*this, std::source_location::current());
     }
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(record_)) {
-        if (instance->uses_new_graphics() &&
-            (record_->state == BUILDING_STATE_CREATED ||
-                record_->state == BUILDING_STATE_IN_USE ||
-                record_->state == BUILDING_STATE_MOTHBALLED)) {
-            instance->set_building_graphic();
-            return 1;
-        }
+    if (type->has_graphic()) {
+        building_runtime_impl::get_or_create_instance(record_)->set_building_graphic();
     }
-    return 0;
 }
 
 void Building::spawn_figure()
@@ -1456,11 +1485,6 @@ void Building::set_orientation(int orientation)
     }
 }
 
-int Building::image_id() const
-{
-    return record_ ? building_image_get(this) : 0;
-}
-
 int Building::is_surface_terrain_tile() const
 {
     if (!type) {
@@ -1475,11 +1499,11 @@ int Building::is_surface_terrain_tile() const
         type->tool().is_aqueduct();
 }
 
-void Building::add_map_tiles(int image_id)
+void Building::add_map_tiles()
 {
     if (record_ && Foundation) {
         const int rotation = Foundation->definition().rotates() ? orientation() : 0;
-        if (!Foundation->publish(record_->x, record_->y, rotation, image_id)) {
+        if (!Foundation->publish(record_->x, record_->y, rotation)) {
             return;
         }
         Building *owner = type && type->bridge().is_bridge() ?
@@ -2162,9 +2186,8 @@ static void publish_loaded_composed_record(building *record)
     if (!building_object) {
         return;
     }
-    if (!building_object->refresh_graphic_if_native()) {
-        building_object->add_map_tiles(building_image_get(building_object));
-    }
+    building_object->add_map_tiles();
+    building_object->refresh_graphic();
 }
 
 static std::vector<building_type_registry_impl::LoadedCompositionCandidate>
@@ -2760,19 +2783,6 @@ void building_trim(void)
     trim_buildings();
 }
 
-int building_was_tent(const building *b)
-{
-    if (!b) {
-        return 0;
-    }
-    Building *building_object = runtime_building_for_record(const_cast<building *>(b));
-    const building_type_registry_impl::BuildingType *definition =
-        building_object && building_object->Rubble ? building_object->Rubble->original_type() : nullptr;
-    const auto *profile = definition ? definition->housing_def().profile : nullptr;
-    int level = profile ? profile->compatibility_level : -1;
-    return level >= HOUSE_SMALL_TENT && level <= HOUSE_LARGE_TENT;
-}
-
 static int rubble_type_can_be_repaired(const building_type_registry_impl::BuildingType *type)
 {
     return type &&
@@ -2878,7 +2888,8 @@ int Building::yield_rubble_to_repair(const RubbleState &origin)
 
 void Building::restore_rubble_after_failed_repair()
 {
-    map_building_tiles_add_rubble(*this, x(), y(), building_image_get(this));
+    map_building_tiles_add_rubble(*this, x(), y());
+    refresh_graphic();
 }
 
 void Building::retire_rubble_after_repair()
@@ -3736,8 +3747,7 @@ static bool definition_is_surface_terrain_tile(
         return false;
     }
     const building_type_registry_impl::TileKind tile_kind = definition->tile().kind();
-    return tile_kind == building_type_registry_impl::TileKind::Garden ||
-        tile_kind == building_type_registry_impl::TileKind::Plaza ||
+    return tile_kind != building_type_registry_impl::TileKind::None ||
         definition->tool().is_road() ||
         definition->tool().is_highway() ||
         definition->tool().is_aqueduct();

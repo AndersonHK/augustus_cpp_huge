@@ -1,10 +1,10 @@
 #include "file_editor.h"
 
+#include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_registry_internal.h"
 #include "building/construction.h"
-#include "building/image.h"
 #include "building/menu.h"
 #include "building/storage.h"
 #include "city/data.h"
@@ -57,10 +57,22 @@
 #include "sound/music.h"
 #include "widget/map_editor.h"
 
-static int building_image_for_text_id(const char *text_id)
+#include <cstdio>
+
+static int legacy_scenario_native_image(
+    const char *central,
+    const char *northern,
+    const char *southern)
 {
-    const building_type type = building_type_id_bridge_runtime_from_text(text_id);
-    return building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
+    const char *image = central;
+    if (scenario_property_climate() == CLIMATE_NORTHERN) {
+        image = northern;
+    } else if (scenario_property_climate() == CLIMATE_DESERT) {
+        image = southern;
+    }
+    char path[128];
+    snprintf(path, sizeof(path), "Terrain_Maps\\%s", image);
+    return assets_get_image_id(path, image);
 }
 
 void game_file_editor_clear_data(void)
@@ -184,10 +196,16 @@ int game_file_editor_load_scenario(const char *scenario_file)
 
 int game_file_editor_write_scenario(const char *scenario_file)
 {
-    int image_alt_hut = building_image_for_text_id("native_hut_alt");
-    int image_native_decoration = building_image_for_text_id("native_decoration");
-    int image_native_monument = building_image_for_text_id("native_monument");
-    int image_native_watchtower = building_image_for_text_id("native_watchtower");
+    // These numeric values belong only to the legacy scenario file format.
+    // Runtime rendering is owned by each native BuildingType's graphics definition.
+    int image_alt_hut = legacy_scenario_native_image(
+        "Native_Hut_Central_01", "Native_Hut_Northern_01", "Native_Hut_Southern_01");
+    int image_native_decoration = legacy_scenario_native_image(
+        "Native_Decoration_Central_01", "Native_Decoration_Northern_01", "Native_Decoration_Southern_01");
+    int image_native_monument = legacy_scenario_native_image(
+        "Native_L_Monument_Central_01", "Native_L_Monument_Northern_01", "Native_L_Monument_Southern_01");
+    int image_native_watchtower = legacy_scenario_native_image(
+        "Native_Watchtower_Central_01", "Native_Watchtower_Northern_01", "Native_Watchtower_Southern_01");
 
     scenario_editor_set_native_images(
         image_alt_hut,

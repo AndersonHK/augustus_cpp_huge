@@ -3,7 +3,6 @@
 
 #include "assets/assets.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/monument.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type.h"
@@ -72,7 +71,8 @@ static void set_lighthouse_graphic(Building lighthouse)
     if (lighthouse.type && lighthouse.type->has_phased_construction()) {
         lighthouse.refresh_graphic();
     } else if (lighthouse.Foundation) {
-        lighthouse.Foundation->refresh(lighthouse.image_id());
+        lighthouse.Foundation->refresh();
+        lighthouse.refresh_graphic();
     }
 }
 

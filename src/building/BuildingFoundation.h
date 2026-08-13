@@ -55,8 +55,8 @@ public:
     int width(int rotation) const;
     int height(int rotation) const;
     std::vector<RotatedFoundationCell> cells(int rotation) const;
-    int publish(int origin_x, int origin_y, int rotation, int image_id);
-    int refresh(int image_id);
+    int publish(int origin_x, int origin_y, int rotation);
+    int refresh();
     int remove();
     int rebind(int origin_x, int origin_y, int rotation);
     int draw_grid_offset(int view_orientation) const;

@@ -1733,11 +1733,6 @@ int BuildingType::required_workers() const
     return model ? model->laborers : 0;
 }
 
-int BuildingType::has_data_only_graphics() const
-{
-    return 0;
-}
-
 int BuildingType::is_temple(std::optional<god_type> god, ReligionTier tier) const
 {
     const Religion *religion = religion_;
@@ -1825,7 +1820,7 @@ int BuildingType::is_armoury() const
     return attr_ == "armoury";
 }
 
-const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const Building &building)
+const GraphicsTarget *BuildingType::resolve_graphics_target(const BuildingType *definition, const Building &building)
 {
     if (!definition || !definition->has_graphic()) {
         return nullptr;

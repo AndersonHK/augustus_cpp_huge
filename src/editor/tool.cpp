@@ -3,7 +3,6 @@
 #include "building/building.h"
 #include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
-#include "building/image.h"
 #include "building/construction_routed.h"
 #include "core/image.h"
 #include "core/image_group_editor.h"
@@ -414,36 +413,28 @@ static void place_flag_with_id(const map_tile *tile, void (*update)(int id, int 
 
 static void place_building(const map_tile *tile)
 {
-    int image_id;
     building_type type = BUILDING_NONE;
     switch (data.type) {
         case TOOL_NATIVE_HUT:
             type = building_type_registry_impl::type_from_attr("native_hut");
-            image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + (random_byte() & 1);
             break;
         case TOOL_NATIVE_HUT_ALT:
             type = building_type_registry_impl::type_from_attr("native_hut_alt");
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_CENTER:
             type = building_type_registry_impl::type_from_attr("native_meeting");
-            image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + 2;
             break;
         case TOOL_NATIVE_FIELD:
             type = building_type_registry_impl::type_from_attr("native_crops");
-            image_id = image_group(GROUP_EDITOR_BUILDING_CROPS);
             break;
         case TOOL_NATIVE_DECORATION:
             type = building_type_registry_impl::type_from_attr("native_decor");
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_MONUMENT:
             type = building_type_registry_impl::type_from_attr("native_monument");
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         case TOOL_NATIVE_WATCHTOWER:
             type = building_type_registry_impl::type_from_attr("native_watchtower");
-            image_id = building_image_get_for_type(building_type_registry_impl::definition_for_type(type));
             break;
         default:
             return;
@@ -461,7 +452,8 @@ static void place_building(const map_tile *tile)
     }
     if (editor_tool_can_place_building(tile, *foundation, 0, nullptr)) {
         Building &building = city_building_runtime().create(*definition, tile->x, tile->y);
-        building.add_map_tiles(image_id);
+        building.add_map_tiles();
+        building.refresh_graphic();
         scenario_editor_set_as_unsaved();
     } else {
         city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);

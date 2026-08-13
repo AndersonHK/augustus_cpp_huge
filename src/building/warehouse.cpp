@@ -424,7 +424,7 @@ void building_warehouse_remove_resource_curse(Building &warehouse, int amount)
 
 static void refresh_warehouse_space_graphic(Building &space)
 {
-    space.refresh_graphic_if_native();
+        space.refresh_graphic();
 }
 
 int building_warehouse_add_import(Building &warehouse, resource_type resource, int amount, int trader_type)

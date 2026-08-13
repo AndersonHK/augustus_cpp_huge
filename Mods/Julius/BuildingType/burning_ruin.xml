@@ -11,6 +11,17 @@
     <foundation path="land_1x1" />
     <rubble kind="burning_ruin" burn_days="32" decays_to="rubble" />
     <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <options selection="rubble">
+                <option path="Terrain_Maps\Rubble_Tent" image="Image_0000" />
+                <option path="Terrain_Maps\Rubble_General" image="Image_0000" />
+                <option path="Terrain_Maps\Rubble_General" image="Image_0009" />
+                <option path="Terrain_Maps\Rubble_General" image="Image_0018" />
+                <option path="Terrain_Maps\Rubble_General" image="Image_0027" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

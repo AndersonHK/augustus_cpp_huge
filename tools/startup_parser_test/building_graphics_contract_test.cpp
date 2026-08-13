@@ -91,6 +91,111 @@ bool validate_native_gatehouse_bridge_graphics_contract(std::ostream &errors)
     return true;
 }
 
+bool validate_authoritative_building_graphics_contract(std::ostream &errors)
+{
+    using namespace building_type_registry_impl;
+
+    struct DirectTarget {
+        const char *type;
+        const char *path;
+        const char *image;
+    };
+    static const DirectTarget direct_targets[] = {
+        { "tower", "Military\\Tower", "Image_0000" },
+        { "vacant_lot", "Aesthetics\\House_Vacant_Lot", "Image_0000" },
+    };
+    for (const DirectTarget &expected : direct_targets) {
+        const BuildingType *definition = definition_for_type(type_from_attr(expected.type));
+        const GraphicsTarget &target = definition ? definition->graphics().default_target() : GraphicsTarget{};
+        if (!definition || target.has_options() || !target.has_path() || !target.has_image() ||
+            std::strcmp(target.path(), expected.path) != 0 ||
+            std::strcmp(target.image(), expected.image) != 0 ||
+            !target_entry_has_footprint(target, errors, expected.type)) {
+            errors << "Building does not own its direct native graphics: " << expected.type << ".\n";
+            return false;
+        }
+    }
+
+    const BuildingType *arch = definition_for_type(type_from_attr("triumphal_arch"));
+    const GraphicsTarget &arch_target = arch ? arch->graphics().default_target() : GraphicsTarget{};
+    static const char *arch_images[] = { "Image_0002", "Image_0000", "Image_0002", "Image_0000" };
+    if (!arch || arch_target.option_selection() != GraphicsOptionSelection::Orientation ||
+        arch_target.option_count() != 4) {
+        errors << "Triumphal arch does not own its four-way orientation graphics.\n";
+        return false;
+    }
+    for (int option = 0; option < 4; ++option) {
+        const GraphicsTarget resolved = arch_target.resolved_option(option);
+        if (!resolved.has_path() || !resolved.has_image() ||
+            std::strcmp(resolved.path(), "Monuments\\Triumphal_Arch") != 0 ||
+            std::strcmp(resolved.image(), arch_images[option]) != 0 ||
+            !target_entry_has_footprint(resolved, errors, "triumphal_arch")) {
+            errors << "Triumphal arch orientation target is incomplete.\n";
+            return false;
+        }
+    }
+
+    struct RubbleTarget {
+        const char *type;
+        int options;
+    };
+    static const RubbleTarget rubble_targets[] = {
+        { "rubble", 8 },
+        { "burning_ruin", 5 },
+    };
+    for (const RubbleTarget &expected : rubble_targets) {
+        const BuildingType *definition = definition_for_type(type_from_attr(expected.type));
+        const GraphicsTarget &target = definition ? definition->graphics().default_target() : GraphicsTarget{};
+        if (!definition || target.option_selection() != GraphicsOptionSelection::Rubble ||
+            target.option_count() != expected.options) {
+            errors << "Rubble building does not own its native variants: " << expected.type << ".\n";
+            return false;
+        }
+        for (int option = 0; option < target.option_count(); ++option) {
+            if (!target_entry_has_footprint(target.resolved_option(option), errors, expected.type)) {
+                return false;
+            }
+        }
+    }
+
+    static const char *fort_types[] = {
+        "fort_archers", "fort_javelin", "fort_legionaries", "fort_mounted", "fort_swords"
+    };
+    for (const char *type : fort_types) {
+        const BuildingType *definition = definition_for_type(type_from_attr(type));
+        const GraphicsTarget &target = definition ? definition->graphics().default_target() : GraphicsTarget{};
+        if (!definition || !definition->has_graphic()) {
+            errors << "Fort does not own native graphics: " << type << ".\n";
+            return false;
+        }
+        if (target.has_options()) {
+            for (int option = 0; option < target.option_count(); ++option) {
+                if (!target_entry_has_footprint(target.resolved_option(option), errors, type)) {
+                    return false;
+                }
+            }
+        } else if (!target_entry_has_footprint(target, errors, type)) {
+            return false;
+        }
+    }
+    bool all_world_graphics_valid = true;
+    for (int runtime_type = BUILDING_NONE + 1; runtime_type < BUILDING_TYPE_MAX; ++runtime_type) {
+        const BuildingType *definition = definition_for_type(static_cast<building_type>(runtime_type));
+        if (!definition || !definition->foundation_def() || definition->has_graphic()) {
+            continue;
+        }
+        const ConstructionToolDefinition &tool = definition->tool();
+        const bool terrain_owned = definition->has_tile() || tool.is_road() ||
+            tool.is_highway() || tool.is_aqueduct();
+        if (!terrain_owned) {
+            errors << "World BuildingType has no authoritative graphics definition: "
+                << definition->attr() << ".\n";
+            all_world_graphics_valid = false;
+        }
+    }
+    return all_world_graphics_valid;
+}
+
 bool validate_native_statue_orientation_graphics_contract(std::ostream &errors)
 {
     using namespace building_type_registry_impl;

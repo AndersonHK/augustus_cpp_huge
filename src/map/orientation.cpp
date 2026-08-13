@@ -1,5 +1,4 @@
 #include "building/connectable.h"
-#include "building/image.h"
 #include "building/variant.h"
 #include "figuretype/animal.h"
 #include "figuretype/wall.h"
@@ -277,11 +276,9 @@ void map_orientation_update_buildings(void)
             b->state == BUILDING_STATE_RUBBLE) {
             return;
         }
-        if (current->refresh_graphic_if_native()) {
-            return;
-        }
         if (current->Foundation) {
-            current->Foundation->refresh(building_image_get(current));
+            current->Foundation->refresh();
         }
+        current->refresh_graphic();
     });
 }

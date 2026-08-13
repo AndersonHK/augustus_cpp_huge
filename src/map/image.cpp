@@ -59,15 +59,6 @@ void map_image_init_edges(void)
     images.items[map_grid_offset(width, height)] = 5;
 }
 
-static int building_is_drawn_by_terrain_tiles(const Building &building)
-{
-    if (!building.type || building.type->has_graphic()) {
-        return 0;
-    }
-    const building_type_registry_impl::ConstructionToolDefinition &tool = building.type->tool();
-    return tool.is_road() || tool.is_highway() || tool.is_aqueduct() || building.type->has_tile();
-}
-
 void map_image_update_all(void)
 {
     map_tiles_update_all();
@@ -78,25 +69,13 @@ void map_image_update_all(void)
 
         Building &b = *building;
         if (b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED &&
-            b.state_id() != BUILDING_STATE_CREATED) {
+            b.state_id() != BUILDING_STATE_CREATED && b.state_id() != BUILDING_STATE_RUBBLE) {
             return;
         }
-    if ((b.type && b.type->bridge().is_bridge()) || b.matches("wall")) {
-            return; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
-        }
-        if (building_is_drawn_by_terrain_tiles(b)) {
+        if (b.is_surface_terrain_tile()) {
             return;
         }
-        if (b.refresh_graphic_if_native()) {
-            return;
-        }
-        int image_id = b.image_id();
-
-        const building_type_registry_impl::BuildingGeometry geometry =
-            building_type_registry_impl::BuildingGeometry::query(b);
-        for (const building_type_registry_impl::BuildingGeometryCell &cell : geometry.cells()) {
-            map_image_set(map_grid_offset(cell.x, cell.y), image_id);
-        }
+        b.refresh_graphic();
     });
 }
 

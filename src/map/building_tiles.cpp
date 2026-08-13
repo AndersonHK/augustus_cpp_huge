@@ -120,7 +120,7 @@ void map_legacy_building_tiles_remove(int x, int y)
 }
 
 
-void map_building_tiles_add_rubble(Building &building, int x, int y, int image_id)
+void map_building_tiles_add_rubble(Building &building, int x, int y)
 {
     if (!map_grid_is_inside(x, y, 1)) {
         return;
@@ -144,7 +144,6 @@ void map_building_tiles_add_rubble(Building &building, int x, int y, int image_i
     map_terrain_add(grid_offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
     map_building_set(grid_offset, building);
     map_building_set_rubble_grid_building_id(grid_offset, building.id, 1);
-    map_image_set(grid_offset, image_id ? image_id : image_group(GROUP_TERRAIN_RUBBLE) + (map_random_get(grid_offset) & 7));
 }
 
 void map_building_tiles_add_bridge(Building &building, int x, int y)

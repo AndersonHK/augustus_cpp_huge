@@ -14,6 +14,12 @@
     <military>
         <formation key="legacy_legion_4x4" />
     </military>
+    <graphics>
+        <default>
+            <path value="Military\Fort" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

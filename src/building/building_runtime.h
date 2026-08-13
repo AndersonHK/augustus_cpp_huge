@@ -76,7 +76,7 @@ public:
     BuildingGraphicsState graphics_state_snapshot() const;
     void restore_graphics_state(const BuildingGraphicsState &state);
     void spawn_figure();
-    int uses_new_graphics() const;
+    int has_native_graphics_definition() const;
     const RuntimeDrawSlice *graphic_footprint();
     const RuntimeDrawSlice *graphic_top();
     const RuntimeDrawSlice *graphic_animation(int animation_cursor);
@@ -90,13 +90,6 @@ public:
     void advance_cached_graphic_animation(int animation_cursor);
     void draw_cached_graphic_layers(
         building_type_registry_impl::GraphicsLayerStage stage,
-        int animation_cursor,
-        int x,
-        int y,
-        color_t color,
-        float scale);
-    int draw_cached_graphic_layer_role(
-        const char *role,
         int animation_cursor,
         int x,
         int y,

@@ -11,6 +11,21 @@
     <foundation path="land_1x1" />
     <rubble kind="rubble" />
     <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Terrain_Maps\Rubble" />
+            <options selection="rubble">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

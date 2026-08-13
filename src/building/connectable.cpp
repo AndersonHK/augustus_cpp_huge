@@ -5,7 +5,6 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/construction.h"
-#include "building/image.h"
 #include "building/rotation.h"
 #include "building/water_access_type.h"
 #include "city/view.h"
@@ -24,12 +23,12 @@
 
 typedef struct {
     const unsigned char tiles[MAX_TILES];
-    const unsigned char offset_for_orientation[4];
+    const unsigned char option_for_orientation[4];
     const int rotation;
     const unsigned char terrain_tiles[MAX_TILES];
     const int use_terrain;
     const int max_random;
-} building_image_context;
+} connectable_graphics_pattern;
 
 static constexpr std::string_view connectable_buildings[] = {
     "hedge_dark",
@@ -65,7 +64,7 @@ static constexpr std::string_view connectable_buildings[] = {
 // For rotation
 // -1 any, otherwise shown value
 
-static const  building_image_context building_images_hedges[18] = {
+static const connectable_graphics_pattern hedge_patterns[18] = {
     { { 1, 2, 1, 2, 0, 2, 0, 2 }, {  4,  5,  2,  3 }, -1 },
     { { 0, 2, 1, 2, 1, 2, 0, 2 }, {  3,  4,  5,  2 }, -1 },
     { { 0, 2, 0, 2, 1, 2, 1, 2 }, {  2,  3,  4,  5 }, -1 },
@@ -86,7 +85,7 @@ static const  building_image_context building_images_hedges[18] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 10, 10, 10, 10 }, -1 },
 };
 
-static const building_image_context building_images_path_intersection[9] = {
+static const connectable_graphics_pattern path_intersection_patterns[9] = {
     { { 1, 2, 1, 2, 0, 2, 0, 2 }, { 2, 3, 0, 1 }, -1 },
     { { 0, 2, 1, 2, 1, 2, 0, 2 }, { 1, 2, 3, 0 }, -1 },
     { { 0, 2, 0, 2, 1, 2, 1, 2 }, { 0, 1, 2, 3 }, -1 },
@@ -98,7 +97,7 @@ static const building_image_context building_images_path_intersection[9] = {
     { { 1, 2, 1, 2, 1, 2, 1, 2 }, { 8, 8, 8, 8 }, -1 },
 };
 
-static const building_image_context building_images_tree_path[8] = {
+static const connectable_graphics_pattern tree_path_patterns[8] = {
     { { 1, 2, 0, 2, 1, 2, 0, 2 }, {  0, 68,  0, 68 }, -1 },
     { { 0, 2, 1, 2, 0, 2, 1, 2 }, { 68,  0, 68,  0 }, -1 },
     { { 1, 2, 0, 2, 0, 2, 0, 2 }, {  0, 68,  0, 68 }, -1 },
@@ -109,7 +108,7 @@ static const building_image_context building_images_tree_path[8] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 68,  0, 68,  0 }, -1 },
 };
 
-static const building_image_context building_images_treeless_path[8] = {
+static const connectable_graphics_pattern treeless_path_patterns[8] = {
     { { 1, 2, 0, 2, 1, 2, 0, 2 }, { 140, 0,  140,  0 }, -1 },
     { { 0, 2, 1, 2, 0, 2, 1, 2 }, {  0, 140,  0, 140 }, -1 },
     { { 1, 2, 0, 2, 0, 2, 0, 2 }, { 140, 0,  140,  0 }, -1 },
@@ -120,7 +119,7 @@ static const building_image_context building_images_treeless_path[8] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, {  0, 140,  0, 140 }, -1 },
 };
 
-static const building_image_context building_images_garden_gate[14] = {
+static const connectable_graphics_pattern garden_gate_patterns[14] = {
     { { 1, 2, 0, 2, 1, 2, 0, 2 }, { 2, 0, 2, 0 }, -1,},
     { { 0, 2, 1, 2, 0, 2, 1, 2 }, { 0, 2, 0, 2 }, -1,},
     { { 1, 2, 0, 2, 0, 2, 0, 2 }, { 2, 0, 2, 0 }, -1 },
@@ -137,7 +136,7 @@ static const building_image_context building_images_garden_gate[14] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 0, 2, 0, 2 }, -1 },
 };
 
-static const  building_image_context building_images_palisades[18] = {
+static const connectable_graphics_pattern palisade_patterns[18] = {
     { { 1, 2, 1, 2, 0, 2, 0, 2 }, {  15,  14,  13,  12 }, -1, { 0 }, 0, 0 },
     { { 0, 2, 1, 2, 1, 2, 0, 2 }, {  12,  15,  14,  13 }, -1, { 0 }, 0, 0 },
     { { 0, 2, 0, 2, 1, 2, 1, 2 }, {  13,  12,  15,  14 }, -1, { 0 }, 0, 0 },
@@ -158,7 +157,7 @@ static const  building_image_context building_images_palisades[18] = {
     { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 20, 20, 20, 20 }, -1, { 0 }, 0, 0 },
 };
 
-static const building_image_context building_images_aqueduct[16] = {
+static const connectable_graphics_pattern aqueduct_patterns[16] = {
     { { 1, 2, 1, 2, 0, 2, 0, 2 }, {  4,  7,  6,  5 }, -1 },
     { { 0, 2, 1, 2, 1, 2, 0, 2 }, {  5,  4,  7,  6 }, -1 },
     { { 0, 2, 0, 2, 1, 2, 1, 2 }, {  6,  5,  4,  7 }, -1 },
@@ -178,18 +177,18 @@ static const building_image_context building_images_aqueduct[16] = {
 };
 
 static struct {
-    const building_image_context *context;
+    const connectable_graphics_pattern *patterns;
     int size;
-} context_pointers[] = {
-    { building_images_hedges, 18 },
-    { building_images_hedges, 18 },
-    { building_images_tree_path, 8 },
-    { building_images_path_intersection, 9 },
-    { building_images_treeless_path, 8 },
-    { building_images_hedges, 18 },
-    { building_images_garden_gate, 14},
-    { building_images_palisades, 18 },
-    { building_images_aqueduct, 16 },
+} pattern_sets[] = {
+    { hedge_patterns, 18 },
+    { hedge_patterns, 18 },
+    { tree_path_patterns, 8 },
+    { path_intersection_patterns, 9 },
+    { treeless_path_patterns, 8 },
+    { hedge_patterns, 18 },
+    { garden_gate_patterns, 14},
+    { palisade_patterns, 18 },
+    { aqueduct_patterns, 16 },
 };
 
 static const int *aqueduct_preview_grid_offsets = nullptr;
@@ -239,34 +238,34 @@ building_type building_connectable_preview_type(building_type type, int grid_off
     return gate_type != BUILDING_NONE && map_terrain_is(grid_offset, TERRAIN_ROAD) ? gate_type : type;
 }
 
-static int context_matches_tiles(const building_image_context *context,
+static int pattern_matches_neighbors(const connectable_graphics_pattern *pattern,
     const int tiles[MAX_TILES], int rotation, int terrain_tiles[MAX_TILES])
 {
     for (int i = 0; i < MAX_TILES; i++) {
-        if (context->use_terrain) {
-            if (context->terrain_tiles[i] != 2 && terrain_tiles[i] != context->terrain_tiles[i]) {
+        if (pattern->use_terrain) {
+            if (pattern->terrain_tiles[i] != 2 && terrain_tiles[i] != pattern->terrain_tiles[i]) {
                 return 0;
             }
         }
-        if (context->tiles[i] != 2 && tiles[i] != context->tiles[i]) {
+        if (pattern->tiles[i] != 2 && tiles[i] != pattern->tiles[i]) {
             return 0;
         }
     }
 
-    return context->rotation == -1 || context->rotation == rotation;
+    return pattern->rotation == -1 || pattern->rotation == rotation;
 }
 
-static int get_image_offset(int group, int tiles[MAX_TILES], int rotation, int terrain_tiles[MAX_TILES], int grid_offset)
+static int select_graphics_option(int group, int tiles[MAX_TILES], int rotation, int terrain_tiles[MAX_TILES], int grid_offset)
 {
-    const building_image_context *context = context_pointers[group].context;
-    int size = context_pointers[group].size;
+    const connectable_graphics_pattern *patterns = pattern_sets[group].patterns;
+    int size = pattern_sets[group].size;
     for (int i = 0; i < size; i++) {
-        if (context_matches_tiles(&context[i], tiles, rotation, terrain_tiles)) {
-            int offset = context[i].offset_for_orientation[city_view_orientation() / 2];
-            if (context[i].max_random) {
-                offset += map_random_get(grid_offset) % context[i].max_random;
+        if (pattern_matches_neighbors(&patterns[i], tiles, rotation, terrain_tiles)) {
+            int option = patterns[i].option_for_orientation[city_view_orientation() / 2];
+            if (patterns[i].max_random) {
+                option += map_random_get(grid_offset) % patterns[i].max_random;
             }
-            return offset;
+            return option;
         }
     }
     return -1;
@@ -319,7 +318,7 @@ int building_connectable_get_hedge_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-    return get_image_offset(CONTEXT_HEDGES, tiles, rotation, 0, grid_offset);
+    return select_graphics_option(CONTEXT_HEDGES, tiles, rotation, 0, grid_offset);
 }
 
 int building_connectable_get_hedge_gate_offset(int grid_offset)
@@ -343,7 +342,7 @@ int building_connectable_get_hedge_gate_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-    return get_image_offset(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
+    return select_graphics_option(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
 }
 
 int building_connectable_get_colonnade_offset(int grid_offset)
@@ -362,7 +361,7 @@ int building_connectable_get_colonnade_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-    return get_image_offset(CONTEXT_COLONNADE, tiles, rotation, 0, grid_offset);
+    return select_graphics_option(CONTEXT_COLONNADE, tiles, rotation, 0, grid_offset);
 }
 
 static int is_garden_path(building_type type)
@@ -415,7 +414,7 @@ int building_connectable_get_garden_wall_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-    return get_image_offset(CONTEXT_GARDEN_WALLS, tiles, rotation, 0, grid_offset);
+    return select_graphics_option(CONTEXT_GARDEN_WALLS, tiles, rotation, 0, grid_offset);
 }
 
 int building_connectable_get_garden_path_offset(int grid_offset, int context)
@@ -432,7 +431,7 @@ int building_connectable_get_garden_path_offset(int grid_offset, int context)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-    return get_image_offset(context, tiles, rotation, 0, grid_offset);
+    return select_graphics_option(context, tiles, rotation, 0, grid_offset);
 }
 
 int building_connectable_get_garden_gate_offset(int grid_offset)
@@ -456,7 +455,7 @@ int building_connectable_get_garden_gate_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-    return get_image_offset(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
+    return select_graphics_option(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
 }
 
 static int is_palisade_wall_or_gate(building_type type)
@@ -484,7 +483,7 @@ int building_connectable_get_palisade_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-    return get_image_offset(CONTEXT_PALISADES, tiles, rotation, 0, grid_offset);
+    return select_graphics_option(CONTEXT_PALISADES, tiles, rotation, 0, grid_offset);
 }
 
 int building_connectable_get_palisade_gate_offset(int grid_offset)
@@ -508,7 +507,7 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
         }
     }
     int rotation = map_runtime_building_rotation_or_default(grid_offset, BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-    return get_image_offset(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
+    return select_graphics_option(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
 }
 
 static int building_has_aqueduct_connection_node_at(const Building &building, int aqueduct_grid_offset)
@@ -562,17 +561,17 @@ int building_connectable_get_aqueduct_offset(int grid_offset)
             tiles[i] = 1;
         }
     }
-    return get_image_offset(CONTEXT_AQUEDUCT, tiles, 0, 0, grid_offset);
+    return select_graphics_option(CONTEXT_AQUEDUCT, tiles, 0, 0, grid_offset);
 }
 
-static int dense_gate_graphics_option(int legacy_offset)
+static int dense_gate_graphics_option(int selected_option)
 {
-    return legacy_offset <= 0 ? 0 : 1;
+    return selected_option <= 0 ? 0 : 1;
 }
 
-static int dense_path_graphics_option(int legacy_offset)
+static int dense_path_graphics_option(int selected_option)
 {
-    return legacy_offset == 0 ? 9 : 10;
+    return selected_option == 0 ? 9 : 10;
 }
 
 int building_connectable_graphics_option(const Building &building_obj)
@@ -675,10 +674,7 @@ void building_connectable_update_connections_for_type(building_type type)
             map_building_at(b->grid_offset).id != runtime_building->id) {
             continue;
         }
-        if (runtime_building->refresh_graphic_if_native()) {
-            continue;
-        }
-        map_image_set(b->grid_offset, building_image_get(runtime_building));
+        runtime_building->refresh_graphic();
     }
 }
 

@@ -940,6 +940,25 @@ static void draw_road(const map_tile *tile, int x, int y)
     const road_preview_graphic preview = map_road_preview_graphic_at(tile->grid_offset);
     if (preview.blocked || city_finance_out_of_money()) {
         Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
+    } else if (preview.building != BUILDING_NONE) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(preview.building);
+        if (!definition) {
+            return;
+        }
+        building record = {};
+        record.type = preview.building;
+        record.state = BUILDING_STATE_IN_USE;
+        record.grid_offset = static_cast<short>(tile->grid_offset);
+        record.x = static_cast<unsigned char>(tile->x);
+        record.y = static_cast<unsigned char>(tile->y);
+        BuildingGraphicsState graphics_state;
+        Building building(record, definition, graphics_state);
+        const BuildingDrawContext context = {
+            x, y, tile->grid_offset, COLOR_MASK_BUILDING_GHOST, data.scale, 1
+        };
+        building.draw_footprint(context);
+        building.draw_top(context);
     } else {
         draw_building(preview.image_id, x, y, COLOR_MASK_BUILDING_GHOST);
     }

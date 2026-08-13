@@ -52,7 +52,8 @@ enum class GraphicsOptionSelection {
     ProductionProgress,
     StoragePermission,
     GatehouseOrientation,
-    RoadCrossing
+    RoadCrossing,
+    Rubble
 };
 
 enum class GraphicsLayerStage {
@@ -218,7 +219,6 @@ public:
     int draw_footprint(Building building, const BuildingDrawContext &ctx) const;
     int draw_top(Building building, const BuildingDrawContext &ctx) const;
     int draw_animation(Building building, const BuildingDrawContext &ctx) const;
-    int draw_gatehouse_overlay(Building building, const BuildingDrawContext &ctx, int view_orientation) const;
     int mothball_status_icon_offset(
         Building building,
         int icon_width,
@@ -232,7 +232,6 @@ public:
 private:
     const ImageGroupEntryRef &resource_storage_image_for(Building building) const;
     int draw_resource_storage(Building building, const BuildingDrawContext &ctx, GraphicsLayerStage stage) const;
-    int gatehouse_overlay_draw_tile_matches(Building building, int grid_offset, int view_orientation) const;
     int draws_mothball_status(Building building) const;
 
     GraphicsTarget default_target_;

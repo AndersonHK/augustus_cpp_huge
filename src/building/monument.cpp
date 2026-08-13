@@ -1,4 +1,3 @@
-#include "building/image.h"
 #include "map/orientation.h"
 #include "monument.h"
 
@@ -354,7 +353,8 @@ int building_monument_access_point(building *b, map_point *dst)
 static void refresh_monument_map_graphic(Building &monument)
 {
     if (monument.Foundation) {
-        monument.Foundation->refresh(building_image_get(&monument));
+        monument.Foundation->refresh();
+        monument.refresh_graphic();
     }
 }
 

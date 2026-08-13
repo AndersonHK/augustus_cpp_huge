@@ -1,5 +1,4 @@
 #include "building/count.h"
-#include "building/image.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
 #include "map/image.h"
@@ -757,11 +756,7 @@ void refresh_water_graphic(Building *building, const BuildingType *definition)
             !definition->water_access().requires_open_water())) {
         return;
     }
-    if (!building->refresh_graphic_if_native()) {
-        if (building->Foundation) {
-            building->Foundation->refresh(building_image_get(building));
-        }
-    }
+    building->refresh_graphic();
 }
 
 void project_building_state(const SimulationResult &result)

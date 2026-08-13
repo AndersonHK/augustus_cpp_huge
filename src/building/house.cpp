@@ -1,4 +1,3 @@
-#include "building/image.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/image.h"
@@ -67,9 +66,8 @@ static void add_house_tiles(Building &house_object)
     if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
         runtime->assign_graphic_variant(0);
     }
-    const int image_id = building_image_get(runtime_house);
-    runtime_house->add_map_tiles(image_id);
-    runtime_house->refresh_graphic_if_native();
+    runtime_house->add_map_tiles();
+    runtime_house->refresh_graphic();
 }
 
 static const building_type_registry_impl::HousingDef *housing_definition_for_type(building_type type)

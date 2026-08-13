@@ -356,7 +356,7 @@ static void remove_tiles_for_unsupported_building(const building *b)
     map_legacy_building_tiles_remove(x, y);
 }
 
-static int detach_unsupported_surface_record(const building *b)
+static int detach_unsupported_plaza_surface_record(const building *b)
 {
     if (!b) {
         return 0;
@@ -373,7 +373,8 @@ static int detach_unsupported_surface_record(const building *b)
     if (map_building_loaded_id_at(grid_offset) != b->id) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) ||
+        !map_terrain_is_superset(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
         return 0;
     }
 
@@ -393,7 +394,7 @@ static void quarantine_loaded_building_type_problem(
     log_loaded_building_type_problem(b, saved_type, reason);
     if (!for_preview) {
         b->type = BUILDING_NONE;
-        if (!detach_unsupported_surface_record(b)) {
+        if (!detach_unsupported_plaza_surface_record(b)) {
             remove_tiles_for_unsupported_building(b);
         }
     }

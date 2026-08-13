@@ -1,4 +1,6 @@
-#include "building/image.h"
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/BuildingGraphicsState.h"
 #include "building/building_type_registry_internal.h"
 #include "editor/tool.h"
 #include "editor/tool_restriction.h"
@@ -70,7 +72,6 @@ static void draw_building_image(int image_id, int x, int y)
 
 static void draw_building(const map_tile *tile, int x_view, int y_view, building_type type)
 {
-    const building_properties *props = building_properties_for_type(type);
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
     const building_type_registry_impl::FoundationDef *foundation =
@@ -95,29 +96,19 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
                 x_view + view_dx, y_view + view_dy, 0, scale);
         }
     } else {
-        int image_id;
-        if (building_type_registry_impl::type_attr_is(type, "native_crops")) {
-            image_id = Image::group(GROUP_EDITOR_BUILDING_CROPS);
-        } else if (building_type_registry_impl::type_attr_is(type, "native_hut_alt")) {
-            switch (scenario_property_climate()) {
-                case CLIMATE_NORTHERN:
-                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-                    break;
-                case CLIMATE_DESERT:
-                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-                    break;
-                default:
-                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-            };
-        } else if (building_type_registry_impl::type_attr_is_any(
-            type, {"native_decor", "native_monument", "native_watchtower"})) {
-            image_id = building_image_get_for_type(definition);
-        } else if (props->image_group <= 0) {
-            image_id = building_image_get_for_type(definition);
-        } else {
-            image_id = Image::group(props->image_group) + props->image_offset;
-        }
-        draw_building_image(image_id, x_view, y_view);
+        building record = {};
+        record.type = type;
+        record.state = BUILDING_STATE_IN_USE;
+        record.grid_offset = static_cast<short>(tile->grid_offset);
+        record.x = static_cast<unsigned char>(tile->x);
+        record.y = static_cast<unsigned char>(tile->y);
+        BuildingGraphicsState graphics_state;
+        Building preview(record, definition, graphics_state);
+        const BuildingDrawContext context = {
+            x_view, y_view, tile->grid_offset, COLOR_MASK_GREEN, scale, 1
+        };
+        preview.draw_footprint(context);
+        preview.draw_top(context);
     }
 }
 

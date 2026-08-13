@@ -915,6 +915,10 @@ int main(int argc, char **argv)
     if (!validate_native_gatehouse_bridge_graphics_contract(std::cerr)) {
         return 1;
     }
+    if (!validate_authoritative_building_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    std::cout << "Validated authoritative native graphics for forts, towers, arches, vacant lots, and rubble.\n";
     if (!validate_native_statue_orientation_graphics_contract(std::cerr)) {
         return 1;
     }

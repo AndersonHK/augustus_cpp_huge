@@ -2475,6 +2475,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::GatehouseOrientation;
     } else if (compare_text(selection, "road_crossing") == 0) {
         option_selection = GraphicsOptionSelection::RoadCrossing;
+    } else if (compare_text(selection, "rubble") == 0) {
+        option_selection = GraphicsOptionSelection::Rubble;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;

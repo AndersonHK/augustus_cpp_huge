@@ -1,4 +1,3 @@
-#include "building/image.h"
 #include "building/local_workforce.h"
 #include "building/connectable.h"
 #include "figuretype/wall.h"
@@ -258,7 +257,8 @@ static int create_rubble_pieces(
     for (const RubbleTile &tile : tiles) {
         Building &rubble = city_building_runtime().create(*definition, tile.x, tile.y);
         rubble.initialize_destruction_rubble(origin, burning != 0, plagued != 0);
-        map_building_tiles_add_rubble(rubble, tile.x, tile.y, building_image_get(&rubble));
+        map_building_tiles_add_rubble(rubble, tile.x, tile.y);
+        rubble.refresh_graphic();
         created++;
     }
     return created;

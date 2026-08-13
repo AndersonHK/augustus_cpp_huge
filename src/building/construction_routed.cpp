@@ -11,7 +11,6 @@
 #include "building/construction.h"
 #include "building/construction_building.h"
 #include "building/construction_plan.h"
-#include "building/image.h"
 #include "building/properties.h"
 #include "building/roadblock.h"
 #include "figure/PathingMode.h"

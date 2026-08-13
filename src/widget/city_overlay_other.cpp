@@ -74,11 +74,6 @@ static Building &building_from_record(const building *b)
     std::terminate();
 }
 
-static int animation_offset(Building &building, int image_id, int grid_offset)
-{
-    return building.animate().offset_for(Image::from_id(image_id), grid_offset);
-}
-
 static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *message)
 {
     static uint8_t text[TOOLTIP_WITH_PREFIX_MAX_LENGTH];
@@ -183,17 +178,8 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!building.type || !building.type->attr_is("triumphal_arch")) {
         return 0;
     }
-    int image_id = map_image_at(grid_offset);
-    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_NONE, scale);
-    const image *img = image_get(image_id);
-    int frame_offset = animation_offset(building, image_id, grid_offset);
-    if (frame_offset > 0) {
-        int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
-        if (frame_offset > img->animation->num_sprites) {
-            frame_offset = img->animation->num_sprites;
-        }
-        Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
-    }
+    building.draw_top({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+    building.draw_animation({ x, y, grid_offset, COLOR_MASK_NONE, scale });
     return 1;
 }
 
@@ -310,7 +296,7 @@ static int show_figure_none(const Figure *f)
 
 static int get_column_height_religion(const building *b)
 {
-    const Building &building = building_from_record(b);
+    Building &building = building_from_record(b);
     const int gods = building.Housing ? building.Housing->state().services.num_gods : 0;
     return gods ? gods * 18 / 10 : NO_COLUMN;
 }
@@ -327,7 +313,7 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const Building &building = building_from_record(b);
+    Building &building = building_from_record(b);
     const auto *profile = building.Housing ? building.Housing->definition().profile : nullptr;
     if (profile && profile->requirements.food_types) {
         int pop = building.Housing->state().population;
@@ -940,7 +926,7 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
     if (!b || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
         return 0;
     }
-    const Building &building = building_from_record(b);
+    Building &building = building_from_record(b);
     if (!building.Housing) {
         return 0;
     }
@@ -949,9 +935,8 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
         return 0;
     }
     if (map_property_is_draw_tile(grid_offset)) {
-        city_with_overlay_draw_building_top(x, y, grid_offset);
         color_t color = get_color_for_percentage(state.happiness);
-        Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, color, scale);
+        building.draw_top({ x, y, grid_offset, color, scale });
     }
     return 1;
 }
@@ -1013,8 +998,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
         if (map_property_is_draw_tile(grid_offset)) {
             color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(building_record->desirability) * 10);
             blend_color_to_footprint(x, y, *runtime_building, desirability_color, scale);
-            city_with_overlay_draw_building_top(x, y, grid_offset);
-            Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, desirability_color, scale);
+            runtime_building->draw_top({ x, y, grid_offset, desirability_color, scale });
         }
     } else {
         int desirability = building_record ? building_record->desirability : map_desirability_get(grid_offset);

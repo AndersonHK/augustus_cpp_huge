@@ -872,7 +872,8 @@ static void set_wall_image(int x, int y, int grid_offset)
     }
     if (map_building_exists_at(grid_offset)) {
         Building wall = map_building_at(grid_offset);
-        if (wall.matches("wall") && wall.refresh_graphic_if_native()) {
+        if (wall.matches("wall") && wall.type && wall.type->has_graphic()) {
+            wall.refresh_graphic();
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
             return;

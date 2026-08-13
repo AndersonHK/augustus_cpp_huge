@@ -3,7 +3,6 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
-#include "building/image.h"
 #include "city/population.h"
 #include "core/image.h"
 #include "city/figures.h"
@@ -77,11 +76,7 @@ void NativeBuildingSpawner::spawn_hut_resident()
     if (!b) {
         return;
     }
-    if (owner_.matches("native_hut")) {
-        map_image_set(b->grid_offset, image_group(GROUP_BUILDING_NATIVE) + (map_random_get(b->grid_offset) & 1));
-    } else {
-        map_image_set(b->grid_offset, building_image_get(&owner_));
-    }
+    owner_.refresh_graphic();
     if (has_primary_figure(FIGURE_INDIGENOUS_NATIVE)) {
         return;
     }
@@ -103,7 +98,8 @@ void NativeBuildingSpawner::spawn_meeting_trader()
     if (!b) {
         return;
     }
-    owner_.add_map_tiles(building_image_get(&owner_));
+    owner_.add_map_tiles();
+    owner_.refresh_graphic();
     if (b->native_anger >= 100 || has_primary_figure(FIGURE_NATIVE_TRADER)) {
         return;
     }
@@ -145,7 +141,7 @@ void NativeBuildingSpawner::advance_crop_graphics()
     if (b->data.industry.progress >= option_count) {
         b->data.industry.progress = 0;
     }
-    owner_.refresh_graphic_if_native();
+    owner_.refresh_graphic();
 }
 
 void figure_indigenous_native_action(Figure *f)

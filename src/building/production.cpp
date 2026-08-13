@@ -119,7 +119,7 @@ int Production::decrement_strike_if_needed(int new_day, int *out_is_striking)
 void Production::refresh_images()
 {
     if (record_ && method_ && method_->is_farm()) {
-        building_.refresh_graphic_if_native();
+    building_.refresh_graphic();
     }
 }
 
