@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="main_menu" base_width="640" base_height="480" escape_action="hotkey.escape" load_file_action="game.load">
+    <widget type="image" id="background" phase="background" coordinate_space="screen" fullscreen="true" x="0" y="0" assetlist="UI\Main_Menu_Background" image="Main Menu Background" />
+    <widget type="panel" id="menu_panel" phase="background" visible_when="main_menu" style="outer_panel" x="162" y="32" width_blocks="20" height_blocks="22" />
+    <widget type="image" id="title" phase="background" visible_when="main_menu" x="176" y="50" width="284" height="51" assetlist="UI\Main_Menu_Banner" image="Main Menu Banner" />
+
+    <widget type="text_button" id="select_campaign" action="campaign.select" style="large_label" label_type="0" x="192" y="130" width="256" height="25" text_offset_y="7" text_alignment="center" translation="TR_MAIN_MENU_SELECT_CAMPAIGN" font="normal_green" />
+    <widget type="text_button" id="load_game" action="game.load" style="large_label" label_type="0" x="192" y="170" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.2" font="normal_green" />
+    <widget type="text_button" id="construction_kit" action="construction_kit.open" style="large_label" label_type="0" x="192" y="210" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.3" font="normal_green" />
+    <widget type="text_button" id="assignment_editor" action="assignment_editor.open" style="large_label" label_type="0" x="192" y="250" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.9.8" font="normal_green" />
+    <widget type="text_button" id="options" action="options.open" style="large_label" label_type="0" x="192" y="290" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.2.0" font="normal_green" />
+    <widget type="text_button" id="exit" action="application.exit" style="large_label" label_type="0" x="192" y="330" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.5" font="normal_green" />
+
+    <widget type="panel" id="version_panel" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" style="inner_panel" x="20" y="426" height_blocks="2" width_from_text="version" width_adjust="20" width_round_up_to="16" />
+    <widget type="label" id="version" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" binding="system.version" text="Vespasian v" x="20" y="437" height="16" width_from_text="version" width_adjust="20" width_round_up_to="16" text_alignment="center" font="normal_green" />
+</window>

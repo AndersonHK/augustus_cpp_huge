@@ -165,6 +165,7 @@
     <ClCompile Include="src\window\labor_priority.cpp" />
     <ClCompile Include="src\window\logo.cpp" />
     <ClCompile Include="src\window\main_menu.cpp" />
+    <ClCompile Include="src\window\new_career.cpp" />
     <ClCompile Include="src\window\message_dialog.cpp" />
     <ClCompile Include="src\window\message_list.cpp" />
     <ClCompile Include="src\window\military_menu.cpp" />
@@ -723,6 +724,7 @@
     <ClInclude Include="src\window\mission_end.h" />
     <ClInclude Include="src\window\mission_list.h" />
     <ClInclude Include="src\window\mission_selection.h" />
+    <ClInclude Include="src\window\new_career.h" />
     <ClInclude Include="src\window\numeric_input.h" />
     <ClInclude Include="src\window\option_popup.h" />
     <ClInclude Include="src\window\overlay_menu.h" />

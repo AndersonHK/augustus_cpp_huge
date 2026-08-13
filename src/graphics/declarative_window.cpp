@@ -18,11 +18,15 @@
 #include "core/file.h"
 #include "core/xml_parser.h"
 #include "game/mod_definition_loader.h"
+#include "graphics/image.h"
+#include "window/main_menu.h"
 
 namespace {
 
 constexpr const char *kMissionBriefingWindowId = "mission_briefing";
 constexpr const char *kMissionBriefingPath = "UI/windows/mission_briefing.xml";
+constexpr const char *kMainMenuWindowId = "main_menu";
+constexpr const char *kMainMenuPath = "UI/windows/main_menu.xml";
 
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindowDefinition>> g_windows;
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindow>> g_constructed_windows;
@@ -84,6 +88,9 @@ DeclarativeWidgetType parse_widget_type(const char *value)
     if (xml_value::equals(value, "panel")) {
         return DeclarativeWidgetType::Panel;
     }
+    if (xml_value::equals(value, "image")) {
+        return DeclarativeWidgetType::Image;
+    }
     if (xml_value::equals(value, "label")) {
         return DeclarativeWidgetType::Label;
     }
@@ -100,6 +107,74 @@ DeclarativeWidgetType parse_widget_type(const char *value)
         return DeclarativeWidgetType::ImageButton;
     }
     return DeclarativeWidgetType::Unknown;
+}
+
+int attribute_is_one_of(const char *attribute, const char *first, const char *second = nullptr,
+    const char *third = nullptr, const char *fourth = nullptr, const char *fifth = nullptr)
+{
+    if (!xml_parser_has_attribute(attribute)) {
+        return 1;
+    }
+    const char *value = xml_parser_get_attribute_string(attribute);
+    return xml_value::equals(value, first) ||
+        (second && xml_value::equals(value, second)) ||
+        (third && xml_value::equals(value, third)) ||
+        (fourth && xml_value::equals(value, fourth)) ||
+        (fifth && xml_value::equals(value, fifth));
+}
+
+DeclarativeDrawPhase parse_draw_phase(const char *value)
+{
+    return xml_value::equals(value, "background") ?
+        DeclarativeDrawPhase::Background : DeclarativeDrawPhase::Foreground;
+}
+
+DeclarativeCoordinateSpace parse_coordinate_space(const char *value)
+{
+    return xml_value::equals(value, "screen") ?
+        DeclarativeCoordinateSpace::Screen : DeclarativeCoordinateSpace::Dialog;
+}
+
+DeclarativeWidgetStyle parse_widget_style(const char *value)
+{
+    if (xml_value::equals(value, "outer_panel")) {
+        return DeclarativeWidgetStyle::OuterPanel;
+    }
+    if (xml_value::equals(value, "inner_panel")) {
+        return DeclarativeWidgetStyle::InnerPanel;
+    }
+    if (xml_value::equals(value, "solid")) {
+        return DeclarativeWidgetStyle::Solid;
+    }
+    if (xml_value::equals(value, "label")) {
+        return DeclarativeWidgetStyle::Label;
+    }
+    if (xml_value::equals(value, "large_label")) {
+        return DeclarativeWidgetStyle::LargeLabel;
+    }
+    return DeclarativeWidgetStyle::None;
+}
+
+DeclarativeTextAlignment parse_text_alignment(const char *value)
+{
+    if (xml_value::equals(value, "center")) {
+        return DeclarativeTextAlignment::Center;
+    }
+    if (xml_value::equals(value, "right")) {
+        return DeclarativeTextAlignment::Right;
+    }
+    return DeclarativeTextAlignment::Left;
+}
+
+DeclarativeVisibility parse_visibility(const char *value)
+{
+    if (xml_value::equals(value, "main_menu")) {
+        return DeclarativeVisibility::MainMenu;
+    }
+    if (xml_value::equals(value, "not_file_dialog")) {
+        return DeclarativeVisibility::NotFileDialog;
+    }
+    return DeclarativeVisibility::Always;
 }
 
 DeclarativeAnchor parse_anchor(const char *value)
@@ -155,6 +230,12 @@ color_t parse_color(const char *value, color_t default_color)
     if (xml_value::equals(value, "green")) {
         return COLOR_BORDER_GREEN;
     }
+    if (xml_value::equals(value, "black")) {
+        return COLOR_BLACK;
+    }
+    if (xml_value::equals(value, "white")) {
+        return COLOR_WHITE;
+    }
     return default_color;
 }
 
@@ -193,6 +274,9 @@ int parse_window_node(void)
         parse_optional_int("min_blocks_height", 30),
         parse_optional_int("margin_x_blocks", 40),
         parse_optional_int("margin_y_blocks", 10));
+    g_parse_state.definition->set_input_actions(
+        parse_optional_string("escape_action"),
+        parse_optional_string("load_file_action"));
     g_parse_state.saw_root = 1;
     return 1;
 }
@@ -233,8 +317,13 @@ int parse_widget_node(void)
     widget.font_size_delta = parse_optional_int("font_size_delta", 0);
     widget.font = parse_font(xml_parser_get_attribute_string("font"), FONT_NORMAL_BLACK);
     widget.color = parse_color(xml_parser_get_attribute_string("color"), COLOR_MASK_NONE);
+    widget.color_declared = xml_parser_has_attribute("color");
+    widget.text = parse_optional_string("text");
+    widget.translation = parse_optional_string("translation");
     widget.binding = parse_optional_string("binding");
     widget.action = parse_optional_string("action");
+    widget.width_from_text = parse_optional_string("width_from_text");
+    widget.visible_if_side_margin_lt_text = parse_optional_string("visible_if_side_margin_lt_text");
     widget.stretch_to_widget = parse_optional_string("stretch_to_widget");
     widget.assetlist_name = parse_optional_string("assetlist");
     widget.image_name = parse_optional_string("image");
@@ -244,12 +333,34 @@ int parse_widget_node(void)
     widget.stretch_margin_y = parse_optional_int("stretch_margin_y", widget.stretch_margin_y);
     widget.stretch_width = xml_parser_get_attribute_bool("stretch_width");
     widget.stretch_height = xml_parser_get_attribute_bool("stretch_height");
+    widget.fullscreen = xml_parser_get_attribute_bool("fullscreen");
+    widget.text_offset_x = parse_optional_int("text_offset_x", 0);
+    widget.text_offset_y = parse_optional_int("text_offset_y", 0);
+    widget.width_adjust = parse_optional_int("width_adjust", 0);
+    widget.width_round_up_to = parse_optional_int("width_round_up_to", 0);
+    widget.max_screen_height = parse_optional_int("max_screen_height", -1);
+    widget.side_margin_text_padding = parse_optional_int("side_margin_text_padding", 0);
+    widget.invert_visibility_condition = xml_parser_get_attribute_bool("invert_visibility_condition");
+    widget.draw_phase = parse_draw_phase(xml_parser_get_attribute_string("phase"));
+    widget.coordinate_space = parse_coordinate_space(xml_parser_get_attribute_string("coordinate_space"));
+    widget.style = parse_widget_style(xml_parser_get_attribute_string("style"));
+    widget.text_alignment = parse_text_alignment(xml_parser_get_attribute_string("text_alignment"));
+    widget.visibility = parse_visibility(xml_parser_get_attribute_string("visible_when"));
     widget.anchor_x = parse_anchor(xml_parser_get_attribute_string("anchor_x"));
     widget.anchor_y = parse_anchor(xml_parser_get_attribute_string("anchor_y"));
 
+    if (!attribute_is_one_of("phase", "background", "foreground") ||
+        !attribute_is_one_of("coordinate_space", "dialog", "screen") ||
+        !attribute_is_one_of("style", "outer_panel", "inner_panel", "solid", "label", "large_label") ||
+        !attribute_is_one_of("text_alignment", "left", "center", "right") ||
+        !attribute_is_one_of("visible_when", "main_menu", "not_file_dialog")) {
+        set_failure_reason("Declarative widget contains an unsupported main-menu attribute value.", widget.id.c_str());
+        return 0;
+    }
+
     if ((widget.type == DeclarativeWidgetType::Panel || widget.type == DeclarativeWidgetType::Label ||
         widget.type == DeclarativeWidgetType::RichText || widget.type == DeclarativeWidgetType::TextButton) &&
-        widget.width <= 0 && widget.width_blocks <= 0) {
+        widget.width <= 0 && widget.width_blocks <= 0 && widget.width_from_text.empty()) {
         set_failure_reason("Declarative widget is missing width.", widget.id.c_str());
         return 0;
     }
@@ -385,13 +496,118 @@ int validate_mission_briefing()
     return 1;
 }
 
+int validate_main_menu()
+{
+    const DeclarativeWindowDefinition *definition = declarative_window_definition(kMainMenuWindowId);
+    if (!definition) {
+        set_failure_reason("Required declarative window was not loaded.", kMainMenuWindowId);
+        return 0;
+    }
+    if ((!definition->escape_action().empty() &&
+            !window_main_menu_action_is_supported(definition->escape_action())) ||
+        (!definition->load_file_action().empty() &&
+            !window_main_menu_action_is_supported(definition->load_file_action()))) {
+        set_failure_reason("Main menu declarative window uses an unsupported input action.", kMainMenuWindowId);
+        return 0;
+    }
+
+    for (const DeclarativeWidgetDefinition &widget : definition->widgets()) {
+        if (widget.type != DeclarativeWidgetType::Image &&
+            widget.type != DeclarativeWidgetType::Panel &&
+            widget.type != DeclarativeWidgetType::Label &&
+            widget.type != DeclarativeWidgetType::TextButton &&
+            widget.type != DeclarativeWidgetType::ImageButton) {
+            set_failure_reason("Main menu contains a widget type that its interpreter does not support.", widget.id.c_str());
+            return 0;
+        }
+        if (widget.type == DeclarativeWidgetType::Image || widget.type == DeclarativeWidgetType::ImageButton) {
+            const int has_named_image = !widget.assetlist_name.empty() && !widget.image_name.empty();
+            const int has_legacy_image = widget.image_collection > 0;
+            if (has_named_image == has_legacy_image) {
+                set_failure_reason("Main menu image must declare exactly one image source.", widget.id.c_str());
+                return 0;
+            }
+            if (has_named_image &&
+                !ImageGroupEntryRef::from_group(widget.assetlist_name, widget.image_name).runtime_slice().is_valid()) {
+                set_failure_reason("Main menu image source does not resolve to a loaded asset.", widget.id.c_str());
+                return 0;
+            }
+            if (has_legacy_image) {
+                if (widget.image_collection >= IMAGE_MAX_GROUPS) {
+                    set_failure_reason("Main menu legacy image group is outside the supported range.", widget.id.c_str());
+                    return 0;
+                }
+                const image *legacy_image = image_get(image_group(widget.image_collection) + widget.image_offset);
+                if (!legacy_image || legacy_image->width <= 0 || legacy_image->height <= 0) {
+                    set_failure_reason("Main menu legacy image source does not resolve to a loaded image.", widget.id.c_str());
+                    return 0;
+                }
+            }
+        }
+        if (widget.type == DeclarativeWidgetType::Panel && widget.style == DeclarativeWidgetStyle::None) {
+            set_failure_reason("Main menu panel is missing a style.", widget.id.c_str());
+            return 0;
+        }
+        if (widget.style == DeclarativeWidgetStyle::Solid && !widget.color_declared) {
+            set_failure_reason("Main menu solid widget is missing a color.", widget.id.c_str());
+            return 0;
+        }
+        if (widget.type == DeclarativeWidgetType::TextButton || widget.type == DeclarativeWidgetType::ImageButton) {
+            if (widget.action.empty()) {
+                set_failure_reason("Main menu button is missing an action.", widget.id.c_str());
+                return 0;
+            }
+            if (widget.type == DeclarativeWidgetType::TextButton &&
+                (widget.style == DeclarativeWidgetStyle::None ||
+                    (widget.translation.empty() && widget.text.empty() && widget.binding.empty()))) {
+                set_failure_reason("Main menu text button is missing a style or text.", widget.id.c_str());
+                return 0;
+            }
+            if (widget.type == DeclarativeWidgetType::ImageButton &&
+                (widget.width <= 0 || widget.height <= 0)) {
+                set_failure_reason("Main menu image button is missing hit-test dimensions.", widget.id.c_str());
+                return 0;
+            }
+            if (!window_main_menu_action_is_supported(widget.action)) {
+                set_failure_reason("Main menu text button uses an unsupported action.", widget.id.c_str());
+                return 0;
+            }
+        }
+        if (widget.type == DeclarativeWidgetType::Label && widget.translation.empty() &&
+            widget.text.empty() && widget.binding.empty()) {
+            set_failure_reason("Main menu label is missing text or a binding.", widget.id.c_str());
+            return 0;
+        }
+        if (!widget.binding.empty() && widget.binding != "system.version") {
+            set_failure_reason("Main menu widget uses an unsupported binding.", widget.id.c_str());
+            return 0;
+        }
+        if (!widget.width_from_text.empty() && !definition->has_widget(widget.width_from_text)) {
+            set_failure_reason("Main menu widget sizes itself from an unknown text widget.", widget.id.c_str());
+            return 0;
+        }
+        if (!widget.visible_if_side_margin_lt_text.empty() &&
+            !definition->has_widget(widget.visible_if_side_margin_lt_text)) {
+            set_failure_reason("Main menu widget visibility references an unknown text widget.", widget.id.c_str());
+            return 0;
+        }
+        if (widget.invert_visibility_condition && widget.max_screen_height < 0 &&
+            widget.visible_if_side_margin_lt_text.empty()) {
+            set_failure_reason("Main menu widget inverts an empty visibility condition.", widget.id.c_str());
+            return 0;
+        }
+    }
+    return 1;
+}
+
 } // namespace
 
 int DeclarativeWidgetDefinition::resolved_x(int window_width, int base_width) const
 {
     const int resolved = resolved_width(window_width, base_width);
+    const int base = width > 0 ? width : width_blocks * BLOCK_SIZE;
     if (anchor_x == DeclarativeAnchor::Far) {
-        return window_width - (base_width - x - width) - resolved;
+        return window_width - (base_width - x - base) - resolved;
     }
     return x;
 }
@@ -399,7 +615,8 @@ int DeclarativeWidgetDefinition::resolved_x(int window_width, int base_width) co
 int DeclarativeWidgetDefinition::resolved_y(int window_height, int base_height) const
 {
     const int resolved = resolved_height(window_height, base_height);
-    return anchor_y == DeclarativeAnchor::Far ? window_height - (base_height - y - height) - resolved : y;
+    const int base = height > 0 ? height : height_blocks * BLOCK_SIZE;
+    return anchor_y == DeclarativeAnchor::Far ? window_height - (base_height - y - base) - resolved : y;
 }
 
 int DeclarativeWidgetDefinition::resolved_width(int window_width, int base_width) const
@@ -480,6 +697,16 @@ int DeclarativeWindowDefinition::margin_y_blocks() const
     return margin_y_blocks_;
 }
 
+const std::string &DeclarativeWindowDefinition::escape_action() const
+{
+    return escape_action_;
+}
+
+const std::string &DeclarativeWindowDefinition::load_file_action() const
+{
+    return load_file_action_;
+}
+
 void DeclarativeWindowDefinition::set_base_size(int width, int height)
 {
     base_width_ = width;
@@ -492,6 +719,12 @@ void DeclarativeWindowDefinition::set_block_layout(int min_width, int min_height
     min_blocks_height_ = min_height;
     margin_x_blocks_ = margin_x;
     margin_y_blocks_ = margin_y;
+}
+
+void DeclarativeWindowDefinition::set_input_actions(std::string escape_action, std::string load_file_action)
+{
+    escape_action_ = std::move(escape_action);
+    load_file_action_ = std::move(load_file_action);
 }
 
 void DeclarativeWindowDefinition::add_widget(DeclarativeWidgetDefinition widget)
@@ -542,6 +775,8 @@ int declarative_window_registry_load(void)
     g_constructed_windows.clear();
     g_failure_reason.clear();
 
+    // Each UI document is inherited as a complete nearest-mod file. Neither
+    // required screen is synthesized or merged with a compiled fallback.
     mod_definition::LayeredFileSource source;
     if (!mod_definition::find_nearest_configured_file(kMissionBriefingPath, &source, &g_failure_reason)) {
         return 0;
@@ -549,7 +784,16 @@ int declarative_window_registry_load(void)
     if (!parse_definition_file(source.full_path.c_str())) {
         return 0;
     }
+    if (!mod_definition::find_nearest_configured_file(kMainMenuPath, &source, &g_failure_reason)) {
+        return 0;
+    }
+    if (!parse_definition_file(source.full_path.c_str())) {
+        return 0;
+    }
     if (!validate_mission_briefing()) {
+        return 0;
+    }
+    if (!validate_main_menu()) {
         return 0;
     }
 

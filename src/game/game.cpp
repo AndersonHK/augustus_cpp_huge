@@ -179,8 +179,12 @@ int game_init(void)
         return 0;
     }
     if (!declarative_window_registry_load()) {
-        set_init_failure_message("Failed to load UI window definitions.", declarative_window_registry_get_failure_reason());
+        const char *failure_reason = declarative_window_registry_get_failure_reason();
+        set_init_failure_message("Failed to load UI window definitions.", failure_reason);
         errlog("unable to load UI window definitions");
+        if (failure_reason && *failure_reason) {
+            errlog(failure_reason);
+        }
         return 0;
     }
 
