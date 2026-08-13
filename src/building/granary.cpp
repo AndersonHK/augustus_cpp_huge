@@ -709,9 +709,9 @@ void building_granary_warehouse_curse(int big)
             max_building = &b;
         }
     }
-    for (Building *b = building_warehouse_first(); b; b = b->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *b) {
         if (!b->is_in_use() || b->has_plague()) {
-            continue;
+            return;
         }
         int total_stored = 0;
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -724,7 +724,7 @@ void building_granary_warehouse_curse(int big)
             max_stored = total_stored;
             max_building = b;
         }
-    }
+    });
     if (!max_building) {
         return;
     }

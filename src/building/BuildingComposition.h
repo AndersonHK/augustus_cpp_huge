@@ -23,6 +23,7 @@ public:
         const std::vector<BuildingComposition *> &children,
         std::string *error = nullptr);
     bool complete(std::string *error = nullptr) const;
+    void require_complete(const char *operation) const;
 
     bool is_composed() const;
     bool is_owner() const;
@@ -35,8 +36,8 @@ public:
     std::size_t definition_index() const;
     const std::vector<BuildingComposition *> &children() const;
 
-    // Visits a standalone building or a complete owner/child graph. Incomplete
-    // fixed compositions are rejected before the visitor observes any member.
+    // Visits a standalone building or a complete owner/child graph. A published
+    // incomplete composition is an invariant violation, never an empty result.
     void for_each_member(const std::function<void(Building &)> &visitor) const;
 
 private:

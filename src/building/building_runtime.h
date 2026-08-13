@@ -45,6 +45,7 @@ void building_runtime_for_each(const std::function<void(Building *)> &visitor);
 void building_runtime_for_each(
     BuildingRuntimeList list,
     const std::function<void(Building *)> &visitor);
+void building_runtime_unregister_from_indexes(Building &building);
 unsigned int building_runtime_debug_known_building_id(const Building *building);
 void building_runtime_debug_dump(FILE *file);
 

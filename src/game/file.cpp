@@ -164,7 +164,6 @@ static void clear_scenario_data(void)
 
     map_image_context_init();
     map_random_init();
-    building_runtime_reset();
 }
 
 void game_file_clear_scenario_data_for_save_load(void)
@@ -322,7 +321,6 @@ static void initialize_saved_game(void)
 
     map_image_context_init();
     map_image_clear();
-    building_hydrate_loaded_compositions();
     map_image_update_all();
 
     scenario_map_init();

@@ -64,22 +64,6 @@ static void clear_empty_or_invalid_warehouse_space_assignment(Building &space)
     }
 }
 
-static Building *warehouse_first()
-{
-    Building *first = nullptr;
-    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
-        if (!first) {
-            first = warehouse;
-        }
-    });
-    return first;
-}
-
-Building *building_warehouse_first()
-{
-    return warehouse_first();
-}
-
 static Building *warehouse_main_for_storage(Building &building)
 {
     if (building.type && building.type->is_warehouse()) {
@@ -100,13 +84,13 @@ static const Building *warehouse_main_for_storage(const Building &building)
 static const std::vector<BuildingComposition *> *warehouse_space_modules(const Building &warehouse)
 {
     const Building *main = warehouse_main_for_storage(warehouse);
-    if (!main || !main->Composition || !main->Composition->is_owner() ||
-        !main->Composition->complete()) {
+    if (!main || !main->Composition || !main->Composition->is_owner()) {
         return nullptr;
     }
 
+    main->Composition->require_complete("warehouse inventory access");
     const std::vector<BuildingComposition *> &spaces = main->Composition->children();
-    return spaces.size() == WAREHOUSE_SPACE_COUNT ? &spaces : nullptr;
+    return &spaces;
 }
 
 int building_warehouse_get_space_info(const Building &warehouse)

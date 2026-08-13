@@ -71,15 +71,15 @@ int city_resource_count_warehouses_amount(resource_type resource)
     }
 
     int total = 0;
-    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
         if (!warehouse->is_in_use()) {
-            continue;
+            return;
         }
         if (!warehouse->has_cached_road_access() && !map_has_road_access_building(warehouse->x(), warehouse->y(), 0)) {
-            continue;
+            return;
         }
         total += building_warehouse_get_amount(*warehouse, resource);
-    }
+    });
     return total;
 }
 
@@ -157,12 +157,12 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
 int city_resource_get_available_empty_space_warehouses(resource_type resource)
 {
     int available_storage = 0;
-    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
         if (!warehouse->is_in_use()) {
-            continue;
+            return;
         }
         available_storage += building_warehouse_maximum_receptible_amount(*warehouse, resource);
-    }
+    });
 
     return available_storage;
 }

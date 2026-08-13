@@ -32,7 +32,7 @@ void window_building_draw_terrain(building_info_context *c)
         window_building_draw_rubble(c);
     } else if (c->terrain_type == TERRAIN_INFO_WALL) {
         window_building_draw_wall(c);
-    } else if (c->terrain_type == TERRAIN_INFO_GARDEN) {
+    } else if (c->terrain_type == TERRAIN_INFO_GARDEN && c->figure.count <= 0) {
         window_building_draw_garden(c);
     } else if (c->terrain_type == TERRAIN_INFO_PLAZA && c->figure.count <= 0) {
         window_building_draw_plaza(c);

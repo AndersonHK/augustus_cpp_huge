@@ -57,7 +57,8 @@
 #include <vector>
 
 namespace {
-void invalidate_runtime_building_index();
+void register_runtime_building(Building *building);
+void unregister_runtime_building(Building *building);
 }
 
 static const RubbleDef *runtime_rubble_definition_for_record(
@@ -140,6 +141,7 @@ void building_runtime::bind_native_modules()
 
 void building_runtime::rebind_definition(const building_type_registry_impl::BuildingType *definition)
 {
+    unregister_runtime_building(&building_);
     definition_ = definition;
     building_.type = definition;
     const RubbleDef *rubble_definition = runtime_rubble_definition_for_record(record_, definition_);
@@ -154,7 +156,7 @@ void building_runtime::rebind_definition(const building_type_registry_impl::Buil
     building_.bind_rubble(rubble_definition, rubble_state_.get());
     bind_native_modules();
     invalidate_graphics_cache();
-    invalidate_runtime_building_index();
+    register_runtime_building(&building_);
 }
 
 unsigned int building_runtime::runtime_id() const
@@ -239,9 +241,6 @@ struct RuntimeBuildingIndex {
     std::vector<Building *> warehouses;
     std::vector<Building *> storage;
     std::vector<Building *> plague_targets;
-    uint64_t revision = 1;
-    uint64_t built_revision = 0;
-
     static bool contains(
         BuildingRuntimeList list,
         const building_type_registry_impl::BuildingType *definition)
@@ -275,9 +274,39 @@ struct RuntimeBuildingIndex {
         std::terminate();
     }
 
-    void invalidate()
+    void add(Building *building)
     {
-        ++revision;
+        if (!building || building->state_id() == BUILDING_STATE_UNUSED) {
+            return;
+        }
+        for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
+            if (!contains(list, building->type)) {
+                continue;
+            }
+            std::vector<Building *> &list_entries = entries(list);
+            const auto position = std::lower_bound(list_entries.begin(), list_entries.end(), building,
+                [](const Building *left, const Building *right) {
+                    const building_type left_type = left && left->type ? left->type->type() : BUILDING_NONE;
+                    const building_type right_type = right && right->type ? right->type->type() : BUILDING_NONE;
+                    return left_type != right_type ? left_type < right_type : left->id < right->id;
+                });
+            if (position == list_entries.end() || *position != building) {
+                list_entries.insert(position, building);
+            }
+        }
+    }
+
+    void remove(Building *building)
+    {
+        if (!building) {
+            return;
+        }
+        for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
+            std::vector<Building *> &list_entries = entries(list);
+            list_entries.erase(
+                std::remove(list_entries.begin(), list_entries.end(), building),
+                list_entries.end());
+        }
     }
 
     void clear()
@@ -285,42 +314,6 @@ struct RuntimeBuildingIndex {
         for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
             entries(list).clear();
         }
-        revision = 1;
-        built_revision = 0;
-    }
-
-    void ensure_current()
-    {
-        if (built_revision == revision) {
-            return;
-        }
-        for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
-            entries(list).clear();
-        }
-        for (const std::unique_ptr<building_runtime> &runtime : g_runtime_instances) {
-            if (!runtime) {
-                continue;
-            }
-            Building *building = &runtime->building;
-            const building_type_registry_impl::BuildingType *definition = building->type;
-            for (BuildingRuntimeList list : INDEXED_BUILDING_LISTS) {
-                if (contains(list, definition)) {
-                    entries(list).push_back(building);
-                }
-            }
-        }
-        const auto type_then_id = [](const Building *left, const Building *right) {
-            const building_type left_type = left && left->type ? left->type->type() : BUILDING_NONE;
-            const building_type right_type = right && right->type ? right->type->type() : BUILDING_NONE;
-            return left_type != right_type ? left_type < right_type : left->id < right->id;
-        };
-        std::sort(granaries.begin(), granaries.end(), type_then_id);
-        std::sort(warehouses.begin(), warehouses.end(), type_then_id);
-        std::sort(storage.begin(), storage.end(), type_then_id);
-        std::sort(plague_targets.begin(), plague_targets.end(), [](const Building *left, const Building *right) {
-            return left->id < right->id;
-        });
-        built_revision = revision;
     }
 };
 
@@ -558,7 +551,7 @@ building_runtime *get_or_create_instance(::building *building_data)
             slot->building.Rubble->definition() == rubble_definition);
     if (!slot) {
         slot = std::make_unique<building_runtime>(building_data, definition);
-        g_runtime_building_index.invalidate();
+        g_runtime_building_index.add(&slot->building);
     } else if (&slot->data != building_data) {
         // Runtime indexes and owner modules publish stable pointers. Loading a
         // different record array must reset the runtime first, never replace a
@@ -571,13 +564,50 @@ building_runtime *get_or_create_instance(::building *building_data)
     return slot.get();
 }
 
+void discard_instance_for_reused_record(::building *building_data)
+{
+    if (!building_data || !building_data->id ||
+        building_data->id >= g_runtime_instances.size()) {
+        return;
+    }
+
+    std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
+    if (!slot) {
+        return;
+    }
+    if (&slot->data != building_data) {
+        log_error("Building runtime id is already bound to a different record", 0, building_data->id);
+        std::terminate();
+    }
+
+    // A free record slot is a new object identity. Its former runtime modules
+    // must not survive into the replacement object: FoundationState includes
+    // publication coordinates and roadblock permissions, while housing and
+    // graphics carry other per-instance state.
+    g_runtime_building_index.remove(&slot->building);
+    if (slot->building.Composition) {
+        slot->building.Composition->clear();
+    }
+    slot.reset();
+}
+
 }
 
 namespace {
-void invalidate_runtime_building_index()
+void register_runtime_building(Building *building)
 {
-    building_runtime_impl::g_runtime_building_index.invalidate();
+    building_runtime_impl::g_runtime_building_index.add(building);
 }
+
+void unregister_runtime_building(Building *building)
+{
+    building_runtime_impl::g_runtime_building_index.remove(building);
+}
+}
+
+void building_runtime_unregister_from_indexes(Building &building)
+{
+    unregister_runtime_building(&building);
 }
 
 void building_runtime_for_each(const std::function<void(Building *)> &visitor)
@@ -618,7 +648,6 @@ void building_runtime_for_each(
         visitor(building);
     };
 
-    building_runtime_impl::g_runtime_building_index.ensure_current();
     std::vector<Building *> &indexed = building_runtime_impl::g_runtime_building_index.entries(list);
     const size_t initial_count = indexed.size();
     for (size_t i = 0; i < initial_count; ++i) {
@@ -1086,82 +1115,14 @@ void building_runtime_restore_graphics_state(void)
     }
 }
 
-struct NativeCompositionRuntimeSnapshot {
-    unsigned int owner_id = 0;
-    std::vector<unsigned int> child_ids;
-};
-
-static std::vector<NativeCompositionRuntimeSnapshot> snapshot_native_compositions()
-{
-    std::vector<NativeCompositionRuntimeSnapshot> snapshots;
-    for (const std::unique_ptr<building_runtime> &runtime : building_runtime_impl::g_runtime_instances) {
-        BuildingComposition *composition = runtime ? runtime->building.Composition : nullptr;
-        if (!composition || !composition->is_owner() || !composition->complete()) {
-            continue;
-        }
-        NativeCompositionRuntimeSnapshot snapshot;
-        snapshot.owner_id = runtime->building.id;
-        for (BuildingComposition *child : composition->children()) {
-            if (child && child->building()) {
-                snapshot.child_ids.push_back(child->building()->id);
-            }
-        }
-        snapshots.push_back(std::move(snapshot));
-    }
-    return snapshots;
-}
-
-static int restore_native_composition_snapshots(
-    const std::vector<NativeCompositionRuntimeSnapshot> &snapshots)
-{
-    for (const NativeCompositionRuntimeSnapshot &snapshot : snapshots) {
-        Building *owner = Building::get(snapshot.owner_id);
-        BuildingComposition *composition = owner ? owner->Composition : nullptr;
-        if (!composition || !composition->is_owner() ||
-            composition->children().size() != snapshot.child_ids.size()) {
-            return 0;
-        }
-        std::vector<BuildingComposition *> children;
-        children.reserve(snapshot.child_ids.size());
-        for (unsigned int child_id : snapshot.child_ids) {
-            Building *child = Building::get(child_id);
-            if (!child || !child->Composition) {
-                return 0;
-            }
-            children.push_back(child->Composition);
-        }
-        std::string error;
-        if (!composition->attach_children(children, &error)) {
-            log_error("Unable to restore native composition snapshot", error.c_str(), snapshot.owner_id);
-            return 0;
-        }
-    }
-    for (const NativeCompositionRuntimeSnapshot &snapshot : snapshots) {
-        if (Building *owner = Building::get(snapshot.owner_id)) {
-            if (building *record = const_cast<building *>(owner->record())) {
-                record->prev_part_building_id = 0;
-                record->next_part_building_id = 0;
-            }
-        }
-        for (unsigned int child_id : snapshot.child_ids) {
-            if (Building *child = Building::get(child_id)) {
-                if (building *record = const_cast<building *>(child->record())) {
-                    record->prev_part_building_id = 0;
-                    record->next_part_building_id = 0;
-                }
-            }
-        }
-    }
-    return 1;
-}
-
 // After save load/new city init, bind each live building instance to its runtime wrapper, rebuild native storage/production instances,
 // and precompute cached image-group bindings.
 void building_runtime_initialize_city_graphics_cache(void)
 {
-    const std::vector<NativeCompositionRuntimeSnapshot> composition_snapshots =
-        snapshot_native_compositions();
-    building_runtime_impl::reset_live_runtime_modules();
+    // building_runtime_reset() runs before records are loaded. The one-time
+    // composition bridge has already established owner/child object identity;
+    // resetting modules here would destroy that authoritative graph and force a
+    // second reconstruction during the same load.
     map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
 
@@ -1213,15 +1174,6 @@ void building_runtime_initialize_city_graphics_cache(void)
             }
         }
     });
-
-    // Load initialization has already consumed legacy fixed-composition chains
-    // through building_hydrate_loaded_compositions(). Preserve that owner-bound
-    // graph across the runtime-module reset instead of interpreting record ids
-    // a second time. Dynamic bridge chains remain on their legacy path.
-    if (!composition_snapshots.empty() &&
-        !restore_native_composition_snapshots(composition_snapshots)) {
-        log_error("Unable to restore native composition runtime snapshots", 0, 0);
-    }
 
     storage_runtime_impl::initialize_city();
     production_runtime_impl::initialize_city();

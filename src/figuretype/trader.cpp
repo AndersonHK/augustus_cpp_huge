@@ -668,9 +668,9 @@ static Building *get_closest_storage(const Figure *f, int, int, int city_id, map
     for (Building *building = building_granary_first(); building; building = building->next_of_type()) {
         consider_storage(building, 1);
     }
-    for (Building *building = building_warehouse_first(); building; building = building->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *building) {
         consider_storage(building, 0);
-    }
+    });
     // 5. Return result 
     if (best_building) {
         Building *best = best_building;

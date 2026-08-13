@@ -39,6 +39,7 @@ private:
 
 building_runtime *get_city_building(::building *building_data);
 building_runtime *get_or_create_instance(::building *building_data);
+void discard_instance_for_reused_record(::building *building_data);
 building_runtime *get_ephemeral_instance(::building *building_data);
 building_runtime *get_ephemeral_instance(unsigned int runtime_id);
 building_runtime *get_ephemeral_main_instance(::building *building_data);

@@ -30,7 +30,6 @@ enum {
 };
 
 int building_warehouse_get_space_info(const Building &warehouse);
-Building *building_warehouse_first();
 int building_warehouse_get_main_grid_offset(const Building &warehouse);
 int building_warehouse_get_tower_grid_offset(const Building &warehouse);
 int building_warehouse_get_amount(const Building &warehouse, resource_type resource);

@@ -1,8 +1,11 @@
 #include "building/BuildingComposition.h"
 
 #include "building/building.h"
+#include "core/crash_context.h"
 #include "core/log.h"
 
+#include <cstdio>
+#include <exception>
 #include <set>
 
 void BuildingComposition::bind_standalone(Building *building)
@@ -118,6 +121,12 @@ bool BuildingComposition::complete(std::string *error) const
         }
         return false;
     }
+    if (children_.size() != definition_->children().size()) {
+        if (error) {
+            *error = "composition child count does not match its definition";
+        }
+        return false;
+    }
     for (std::size_t index = 0; index < children_.size(); ++index) {
         const BuildingComposition *child = children_[index];
         if (!child || child->owner_ != this || child->definition_index_ != index) {
@@ -141,6 +150,29 @@ bool BuildingComposition::complete(std::string *error) const
         }
     }
     return true;
+}
+
+void BuildingComposition::require_complete(const char *operation) const
+{
+    std::string error;
+    if (complete(&error)) {
+        return;
+    }
+
+    const Building *owner = owner_ ? owner_->building_ : building_;
+    char detail[800];
+    std::snprintf(detail, sizeof(detail),
+        "operation=%s owner_id=%u owner_type=%s reason=%s",
+        operation ? operation : "<unknown>",
+        owner ? static_cast<unsigned int>(owner->id) : 0,
+        owner && owner->type ? owner->type->attr() : "<none>",
+        error.c_str());
+    log_error("BuildingComposition invariant violation", detail, owner ? owner->id : 0);
+    error_context_report_fatal_error_dialog(
+        "Building composition error",
+        "A live building composition is incomplete. The game has stopped to prevent corrupted state from continuing.",
+        detail);
+    std::terminate();
 }
 
 bool BuildingComposition::is_composed() const
@@ -204,11 +236,7 @@ void BuildingComposition::for_each_member(const std::function<void(Building &)> 
         return;
     }
     if (composition->is_owner()) {
-        std::string error;
-        if (!composition->complete(&error)) {
-            log_error("Cannot iterate incomplete BuildingComposition", error.c_str(), composition->building_->id);
-            return;
-        }
+        composition->require_complete("BuildingComposition::for_each_member");
     }
     visitor(*composition->building_);
     for (BuildingComposition *child : composition->children_) {

@@ -155,6 +155,7 @@ static struct {
 
 static void initialize_building_slot(building &record, unsigned int id)
 {
+    building_runtime_impl::discard_instance_for_reused_record(&record);
     record = {};
     record.id = id;
 }
@@ -2200,6 +2201,29 @@ loaded_native_composition_chain(const building *main_record)
     return result;
 }
 
+[[noreturn]] static void report_loaded_composition_failure(
+    const building *owner,
+    const building_type_registry_impl::BuildingType *definition,
+    const char *reason)
+{
+    char detail[900];
+    std::snprintf(detail, sizeof(detail),
+        "owner_id=%u owner_type=%s x=%d y=%d saved_prev=%d saved_next=%d reason=%s",
+        owner ? owner->id : 0,
+        definition ? definition->attr() : "<none>",
+        owner ? owner->x : 0,
+        owner ? owner->y : 0,
+        owner ? owner->prev_part_building_id : 0,
+        owner ? owner->next_part_building_id : 0,
+        reason ? reason : "<none>");
+    log_error("Unable to establish a complete loaded BuildingComposition", detail, owner ? owner->id : 0);
+    error_context_report_fatal_error_dialog(
+        "Savegame building composition error",
+        "A saved composed building could not be converted to the native runtime graph. The game has stopped rather than continue with orphaned buildings.",
+        detail);
+    std::terminate();
+}
+
 static void initialize_loaded_native_composed_child(
     building *main_record,
     building *child,
@@ -2401,24 +2425,61 @@ static int hydrate_loaded_native_composition(
     return 1;
 }
 
-static void hydrate_loaded_composition_owner(building *main_record)
-{
-    if (!composed_record_is_live(main_record)) {
-        return;
-    }
-
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(main_record->type);
-    if (!definition || !definition->has_composition()) {
-        return;
-    }
-    hydrate_loaded_native_composition(main_record, *definition);
-}
-
 void building_hydrate_loaded_compositions(void)
 {
     for (size_t i = 1; i < data.buildings.size(); i++) {
-        hydrate_loaded_composition_owner(&data.buildings[i]);
+        building *record = &data.buildings[i];
+        if (!composed_record_is_live(record)) {
+            continue;
+        }
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(record->type);
+        if (definition && definition->has_composition() &&
+            !hydrate_loaded_native_composition(record, *definition)) {
+            report_loaded_composition_failure(record, definition, "load hydration failed");
+        }
+    }
+
+    // The bridge ends here. From this point onward every composition owner and
+    // every composition-only child must have native ownership; runtime systems
+    // are not allowed to repair or reinterpret this state.
+    for (size_t i = 1; i < data.buildings.size(); i++) {
+        building *record = &data.buildings[i];
+        if (!composed_record_is_live(record)) {
+            continue;
+        }
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(record->type);
+        Building *object = runtime_building_for_record(record);
+        if (definition && definition->has_composition()) {
+            if (!object || !object->Composition || !object->Composition->is_owner()) {
+                report_loaded_composition_failure(record, definition, "owner module is missing");
+            }
+            object->Composition->require_complete("save load composition bridge");
+            continue;
+        }
+
+        bool is_declared_child_type = false;
+        for (const std::unique_ptr<building_type_registry_impl::BuildingType> &owner_definition :
+            building_type_registry_impl::g_building_types) {
+            if (!owner_definition || !owner_definition->has_composition()) {
+                continue;
+            }
+            for (const building_type_registry_impl::CompositionChildDef &child :
+                owner_definition->composition().children()) {
+                if (definition && child.type == definition) {
+                    is_declared_child_type = true;
+                    break;
+                }
+            }
+            if (is_declared_child_type) {
+                break;
+            }
+        }
+        if (is_declared_child_type &&
+            (!object || !object->Composition || !object->Composition->is_child())) {
+            report_loaded_composition_failure(record, definition, "orphaned composition child record");
+        }
     }
 }
 
@@ -2625,9 +2686,12 @@ static void building_delete(building *b)
 {
     city_culture_remove_building_module_capacity(b);
     building_clear_related_data(b);
-    if (Building *building_object = runtime_building_for_record(b);
-        building_object && building_object->Composition) {
+    Building *building_object = runtime_building_for_record(b);
+    if (building_object && building_object->Composition) {
         building_object->Composition->clear();
+    }
+    if (building_object) {
+        building_runtime_unregister_from_indexes(*building_object);
     }
     remove_adjacent_types(b);
     int id = b->id;
@@ -3278,6 +3342,7 @@ int building_get_laborers(building_type type)
 
 void building_clear_all(void)
 {
+    building_runtime_reset();
     city_culture_clear_module_capacity_cache();
     memset(data.first_of_type, 0, sizeof(data.first_of_type));
     memset(data.last_of_type, 0, sizeof(data.last_of_type));

@@ -1086,10 +1086,14 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         map_terrain_migrate_old_bridges();
     }
     map_building_remove_invalid_references();
-    Figure::resolve_loaded_building_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         building_resource_state_load(state->building_resource_state);
     }
+    // Complete the one-time legacy-record bridge before any figure or other
+    // runtime subsystem traverses a composed building. Warehouse recounting
+    // must also happen after keyed resources have restored each bay by id.
+    building_hydrate_loaded_compositions();
+    Figure::resolve_loaded_building_references();
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
     random_load_state(state->random_iv);

@@ -263,10 +263,10 @@ static void set_required_terrain(building_type type)
     data.required_terrain.wall = foundation && foundation->requires_terrain(TERRAIN_WALL);
 }
 
-static void sync_construction_type(void)
+static void sync_construction_type(int construction_in_progress)
 {
     building_type old_type = data.tool.type;
-    if (!data.tool.sync_type(hotkey_get_modifiers(), data.in_progress)) {
+    if (!data.tool.sync_type(hotkey_get_modifiers(), construction_in_progress)) {
         return;
     }
     if (data.tool.type != old_type) {
@@ -869,7 +869,7 @@ void building_construction_clear_type(void)
 
 building_type building_construction_type(void)
 {
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     return data.tool.type;
 }
 
@@ -887,7 +887,7 @@ void building_construction_set_hover_tile(int x, int y, int grid_offset)
         return;
     }
     data.tool.set_raw_start(x, y, grid_offset);
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     data.tool.sync_drag_points(hotkey_get_modifiers());
     data.can_place = 1;
 }
@@ -938,7 +938,10 @@ void building_construction_start(int x, int y, int grid_offset)
 {
     clear_reservoir_aqueduct_preview_route();
     data.tool.set_raw_start(x, y, grid_offset);
-    sync_construction_type();
+    // Mouse-down begins the construction session. Preserve an already
+    // resolved single-target mode (roadblock/bridge) while fixing its start
+    // tile, just as subsequent drag updates do.
+    sync_construction_type(1);
     data.tool.sync_drag_points(hotkey_get_modifiers());
 
     if (game_undo_start_build(data.tool.type)) {
@@ -1023,7 +1026,7 @@ void building_construction_update(int x, int y, int grid_offset)
         y = data.tool.raw_end.grid_offset ? data.tool.raw_end.y : data.tool.raw_start.y;
         grid_offset = data.tool.raw_end.grid_offset ? data.tool.raw_end.grid_offset : data.tool.raw_start.grid_offset;
     }
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     data.tool.sync_drag_points(hotkey_get_modifiers());
     x = data.tool.end.x;
     y = data.tool.end.y;

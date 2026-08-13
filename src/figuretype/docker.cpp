@@ -134,15 +134,14 @@ Building *Docker::closest_import_storage_for_resource(int x, int y, const Buildi
 {
     int min_distance = INFINITE;
     Building *closest_storage = nullptr;
-    for (Building *storage = building_warehouse_first(); storage; storage = storage->next_of_type()) {
-
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *storage) {
         if (is_invalid_destination(storage, dock) ||
             !building_warehouse_maximum_receptible_amount(*storage, resource)) {
-            continue;
+            return;
         }
         const int distance_penalty = 32 - 2 * building_warehouse_maximum_receptible_amount(*storage, resource);
         if (distance_penalty == 32) {
-            continue;
+            return;
         }
         int distance = storage->max_distance_to(x, y);
         // prefer emptier warehouse
@@ -151,7 +150,7 @@ Building *Docker::closest_import_storage_for_resource(int x, int y, const Buildi
             min_distance = distance;
             closest_storage = storage;
         }
-    }
+    });
     if (resource_is_food(resource)) {
         for (Building *storage = building_granary_first(); storage; storage = storage->next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
@@ -211,13 +210,13 @@ Building *Docker::closest_export_storage_for_resource(int x, int y, const Buildi
 {
     int min_distance = INFINITE;
     Building *closest_storage = nullptr;
-    for (Building *storage = building_warehouse_first(); storage; storage = storage->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *storage) {
         if (is_invalid_destination(storage, dock)) {
-            continue;
+            return;
         }
         const int distance_penalty = 32 - 2 * building_warehouse_get_available_amount(*storage, resource);
         if (distance_penalty == 32) {
-            continue;
+            return;
         }
         int distance = storage->max_distance_to(x, y);
         // prefer fuller warehouse
@@ -226,7 +225,7 @@ Building *Docker::closest_export_storage_for_resource(int x, int y, const Buildi
             min_distance = distance;
             closest_storage = storage;
         }
-    }
+    });
     if (resource_is_food(resource) && config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
         for (Building *storage = building_granary_first(); storage; storage = storage->next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
