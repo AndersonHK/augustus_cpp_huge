@@ -526,6 +526,9 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     // Options are authored as partial targets. Materialize one effective target so
     // the renderer and validator can keep using the normal path/image lookup path.
     GraphicsTarget resolved = options_[variant % options_.size()];
+    if (!resolved.terrain_foundation_) {
+        resolved.terrain_foundation_ = terrain_foundation_;
+    }
     if (resolved.no_draw()) {
         resolved.layers_.clear();
         return resolved;
@@ -535,9 +538,6 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     }
     if (resolved.layers_.empty()) {
         resolved.layers_ = layers_;
-    }
-    if (!resolved.terrain_foundation_) {
-        resolved.terrain_foundation_ = terrain_foundation_;
     }
     inherit_layer_paths(resolved);
     if (!animation_enabled_) {

@@ -3797,6 +3797,30 @@ static bool loaded_record_owns_unbound_foundation(const building &record)
     return has_owned_delta;
 }
 
+static bool bind_loaded_unbound_foundation(const building &record)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    if (!foundation) {
+        return false;
+    }
+
+    const int rotation = record_foundation_rotation(record, *foundation);
+    for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+        const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
+        const unsigned int existing_id = map_building_loaded_id_at(grid_offset);
+        if (existing_id && existing_id != record.id && existing_id < data.buildings.size() &&
+            data.buildings[existing_id].state != BUILDING_STATE_UNUSED) {
+            return false;
+        }
+    }
+    for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+        map_building_set_loaded_id(map_grid_offset(record.x + cell.x, record.y + cell.y), record.id);
+    }
+    return true;
+}
+
 static int legacy_tile_has_blocking_loaded_record(int grid_offset)
 {
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
@@ -3887,18 +3911,18 @@ static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTi
             }
         }
     }
+    if (types.plaza != BUILDING_NONE) {
+        if (map_terrain_is_superset(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
+            if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
+                return types.plaza;
+            }
+        }
+    }
     if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
         if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
             return types.overgrown_gardens;
         }
         return types.gardens;
-    }
-    if (types.plaza != BUILDING_NONE) {
-        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-            if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-                return types.plaza;
-            }
-        }
     }
     if (types.road != BUILDING_NONE) {
         if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
@@ -4070,7 +4094,9 @@ static void normalize_loaded_surface_records()
                 }
             }
         }
-        has_map_presence = has_map_presence || loaded_record_owns_unbound_foundation(record);
+        if (!has_map_presence && loaded_record_owns_unbound_foundation(record)) {
+            has_map_presence = bind_loaded_unbound_foundation(record);
+        }
         if (!has_map_presence) {
             discard_loaded_record(record);
             discarded++;

@@ -20,7 +20,9 @@
 #include "building/monument.h"
 #include "core/log.h"
 #include "game/save_version.h"
+#include "map/building.h"
 #include "map/grid.h"
+#include "map/terrain.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -354,6 +356,31 @@ static void remove_tiles_for_unsupported_building(const building *b)
     map_legacy_building_tiles_remove(x, y);
 }
 
+static int detach_unsupported_surface_record(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+
+    int grid_offset = b->grid_offset;
+    if (!map_grid_is_valid_offset(grid_offset) && map_grid_is_inside(b->x, b->y, 1)) {
+        grid_offset = map_grid_offset(b->x, b->y);
+    }
+    if (!map_grid_is_valid_offset(grid_offset)) {
+        return 0;
+    }
+
+    if (map_building_loaded_id_at(grid_offset) != b->id) {
+        return 1;
+    }
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        return 0;
+    }
+
+    map_building_set_loaded_id(grid_offset, 0);
+    return 1;
+}
+
 static void quarantine_loaded_building_type_problem(
     building *b,
     uint16_t saved_type,
@@ -366,7 +393,9 @@ static void quarantine_loaded_building_type_problem(
     log_loaded_building_type_problem(b, saved_type, reason);
     if (!for_preview) {
         b->type = BUILDING_NONE;
-        remove_tiles_for_unsupported_building(b);
+        if (!detach_unsupported_surface_record(b)) {
+            remove_tiles_for_unsupported_building(b);
+        }
     }
     const unsigned int id = b->id;
     memset(b, 0, sizeof(building));

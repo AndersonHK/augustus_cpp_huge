@@ -79,8 +79,8 @@ bool validate_native_gatehouse_bridge_graphics_contract(std::ostream &errors)
         for (int option = 0; option < target.option_count(); ++option) {
             const GraphicsTarget resolved = target.resolved_option(option);
             if (option == expected.no_draw_option) {
-                if (!resolved.no_draw()) {
-                    errors << "Ship bridge lost its authored no-draw option.\n";
+                if (!resolved.no_draw() || !resolved.uses_terrain_foundation()) {
+                    errors << "Ship bridge no-draw option lost its terrain foundation.\n";
                     return false;
                 }
             } else if (!target_entry_has_footprint(resolved, errors, expected.type)) {

@@ -804,6 +804,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
     building_type_registry_impl::GraphicsTarget resolved_target =
         target->resolved_option(
             static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target, graphics_variant())));
+    graphics_cache_.terrain_foundation = resolved_target.uses_terrain_foundation();
     if (resolved_target.no_draw()) {
         graphics_cache_.owns_graphics = 1;
         graphics_cache_.no_draw = 1;
@@ -825,7 +826,6 @@ void building_runtime::rebuild_cached_graphics_bindings()
 
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
-    graphics_cache_.terrain_foundation = resolved_target.uses_terrain_foundation();
     if (resolved_target.animation_enabled() && animation_owner_is_working && entry->has_animation()) {
         graphics_cache_.animation_payload = payload;
         graphics_cache_.animation_entry = entry;
