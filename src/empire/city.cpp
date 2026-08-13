@@ -410,8 +410,19 @@ static int generate_trader(int city_id, empire_city *city)
     // Check that we have space to trade
     int trade_potential = 0;
     for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-        if (city->buys_resource[r] || city->sells_resource[r]) {
-            trade_potential += trade_route_limit(city->route_id, r, city->buys_resource[r]);
+        if (city->sells_resource[r]) {
+            int remaining = trade_route_limit(city->route_id, r, 0) -
+                trade_route_traded(city->route_id, r, 0);
+            if (remaining > 0) {
+                trade_potential += remaining;
+            }
+        }
+        if (city->buys_resource[r]) {
+            int remaining = trade_route_limit(city->route_id, r, 1) -
+                trade_route_traded(city->route_id, r, 1);
+            if (remaining > 0) {
+                trade_potential += remaining;
+            }
         }
     }
     if (trade_potential <= 0) {

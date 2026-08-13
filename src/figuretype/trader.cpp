@@ -678,7 +678,7 @@ static Building *get_closest_storage(const Figure *f, int, int, int city_id, map
             // go to center of granary
             map_point_store_result(best->x() + 1, best->y() + 1, dst);
         } else if (best->matches("warehouse") && best->has_cached_road_access()) {
-            map_point_store_result(best->x(), best->y(), dst);
+            best->cached_road_access_point(dst);
         } else if (!map_has_road_access_building(best->x(), best->y(), dst)) {
             resource_multiplier_reset();
             return nullptr; // No road access found

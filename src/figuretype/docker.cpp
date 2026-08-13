@@ -111,7 +111,7 @@ int Docker::store_destination_map_point(const Building *destination, map_point *
         // go to center of granary
         map_point_store_result(destination->x() + 1, destination->y() + 1, dst);
     } else if (destination->has_cached_road_access() == 1) {
-        map_point_store_result(destination->x(), destination->y(), dst);
+        destination->cached_road_access_point(dst);
     } else if (!map_has_road_access_building(destination->x(), destination->y(), dst)) {
         return 0;
     }
