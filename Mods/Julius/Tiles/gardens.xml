@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation path="garden_1x1" />
-    <button group="engineering" order="10" text_key="main_strings.28.39" />
+    <button group="administration" order="0" text_key="main_strings.28.39" />
     <cycle group="gardens" order="10" steps="1" />
     <tile kind="garden" refresh="garden" placement="garden" />
     <graphics>

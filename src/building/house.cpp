@@ -675,6 +675,13 @@ static int split_blocking_houses(
                 if (already_seen != blockers.end()) {
                     continue;
                 }
+                const auto other_cells = housing_foundation_cells(other_object);
+                if (other_cells.empty()) {
+                    return 0;
+                }
+                if (other_cells.size() == 1) {
+                    continue;
+                }
                 if (!expansion_contains_house_footprint(x, y, target_cells, other_object)) {
                     return 0;
                 }
