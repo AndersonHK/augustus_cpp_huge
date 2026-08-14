@@ -4127,6 +4127,48 @@ static void normalize_loaded_surface_records()
     }
 }
 
+static void clear_loaded_unbound_foundation_bindings()
+{
+    // The load bridge uses the serialized map-building grid to deduplicate
+    // surface records before runtime Foundation ownership exists. Unbound
+    // cells (roads, plazas, highways, and similar overlays) must not survive
+    // that bridge as bound occupants: normal construction never binds them,
+    // and leaving the temporary id here makes later overlays pass preview but
+    // fail when their bound Foundation is published.
+    int cleared = 0;
+    for (const building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        const building_type_registry_impl::FoundationDef *foundation =
+            definition ? definition->foundation_def() : nullptr;
+        if (!foundation) {
+            continue;
+        }
+        const int rotation = record_foundation_rotation(record, *foundation);
+        for (const building_type_registry_impl::RotatedFoundationCell &cell :
+            foundation->rotated_cells(rotation)) {
+            if (!cell.definition || cell.definition->binds_building) {
+                continue;
+            }
+            const int x = record.x + cell.x;
+            const int y = record.y + cell.y;
+            if (!map_grid_is_inside(x, y, 1)) {
+                continue;
+            }
+            const int grid_offset = map_grid_offset(x, y);
+            if (map_building_loaded_id_at(grid_offset) == record.id) {
+                map_building_set_loaded_id(grid_offset, 0);
+                cleared++;
+            }
+        }
+    }
+    if (cleared) {
+        log_info("Cleared temporary unbound surface bindings", 0, cleared);
+    }
+}
+
 static void normalize_loaded_rubble_records()
 {
     const building_type rubble_type = type_from_attr("rubble");
@@ -4284,5 +4326,6 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
     normalize_loaded_surface_records();
     building_promote_legacy_tile_buildings_after_load();
+    clear_loaded_unbound_foundation_bindings();
     normalize_loaded_rubble_records();
 }

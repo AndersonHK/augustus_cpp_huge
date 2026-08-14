@@ -827,7 +827,7 @@ bool project_building_state_one(Building &building_object, const MaskSet &masks)
 
     bool changed = false;
     BuildingGeometry geometry;
-    if (building_object.Housing || definition->water_access().has_requirements()) {
+    if (building_object.Housing) {
         geometry = BuildingGeometry::query(building_object);
     }
     if (building_object.Housing) {
@@ -845,12 +845,8 @@ bool project_building_state_one(Building &building_object, const MaskSet &masks)
     const WaterAccessDefinition &water = definition->water_access();
     if (water.has_requirements() || water.requires_open_water()) {
         int has_access = building_has_required_workers(&building_object);
-        if (has_access && water.has_requirements()) {
-            has_access = requirements_are_satisfied(
-                water, geometry, building_object.x(), building_object.y(), masks);
-        }
-        if (has_access && water.requires_open_water()) {
-            has_access = water_access_runtime_building_has_open_water_access(&building_object);
+        if (has_access) {
+            has_access = water_access_runtime_building_has_required_access(&building_object);
         }
         changed |= record->has_water_access != static_cast<unsigned char>(has_access);
         building_object.set_has_water_access(has_access);
@@ -905,6 +901,14 @@ bool provider_can_participate(const ProviderSnapshot &provider)
 
 void set_provider_active(ProviderSnapshot &provider, bool active)
 {
+    // Reservoir wet/dry state is the result of the component solver itself.
+    // Publish that result directly so simulation state and native animation
+    // state cannot diverge while access-mask contributions are being updated.
+    if (provider_is_reservoir(provider)) {
+        if (Building *building = Building::get(provider.building_id)) {
+            building->set_has_water_access(active);
+        }
+    }
     if (provider.active == static_cast<int>(active)) {
         return;
     }
@@ -1638,6 +1642,10 @@ int water_access_runtime_building_has_required_access(const Building *building)
     const WaterAccessDefinition &water = definition->water_access();
     if (!water.has_requirements() && !water.requires_open_water()) {
         return 0;
+    }
+    if (definition->attr_is("reservoir")) {
+        const auto found = g_state.providers.find(building->id);
+        return found != g_state.providers.end() && found->second.active;
     }
     if (water.has_requirements() && !requirements_are_satisfied(water,
             BuildingGeometry::query(*building), building->x(), building->y(), g_state.masks)) {

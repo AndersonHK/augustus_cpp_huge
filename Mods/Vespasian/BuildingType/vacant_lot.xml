@@ -16,5 +16,15 @@
             <path value="Aesthetics\House_Vacant_Lot" />
             <image value="Image_0000" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Vacant_Lot_Northern" />
+            <image value="Image_0000" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Vacant_Lot_Desert" />
+            <image value="Image_0000" />
+        </variant>
     </graphics>
 </building>
