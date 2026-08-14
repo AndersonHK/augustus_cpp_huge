@@ -20,7 +20,6 @@
 #include "map/orientation.h"
 #include "map/road_aqueduct.h"
 #include "map/tiles.h"
-#include "map/water_supply.h"
 #include "widget/city.h"
 #include "widget/city_water_ghost.h"
 
@@ -381,7 +380,9 @@ static void draw_grand_temple_neptune_context_overlay(
         return;
     }
     data.reservoir_range.blocked = blocked;
-    int radius = map_water_supply_reservoir_radius();
+    int radius = water_access_runtime_range_for_building(
+        building_type_registry_impl::definition_for_type(
+            building_type_registry_impl::type_from_attr("reservoir")));
     if (!grand_temple_for_god(GOD_NEPTUNE, true)) {
         radius += 2;
     }

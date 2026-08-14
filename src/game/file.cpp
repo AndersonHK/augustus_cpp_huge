@@ -12,6 +12,7 @@
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/storage.h"
+#include "building/water_access_runtime.h"
 #include "city/data.h"
 #include "city/emperor.h"
 #include "city/map.h"
@@ -174,6 +175,7 @@ void game_file_clear_scenario_data_for_save_load(void)
 static void initialize_scenario_data(const uint8_t *scenario_name)
 {
     water_navigation::begin_world_load();
+    water_access_runtime_begin_world_load();
     scenario_set_name(scenario_name);
     scenario_map_init();
 
@@ -313,6 +315,7 @@ static void check_backward_compatibility(void)
 static void initialize_saved_game(void)
 {
     water_navigation::begin_world_load();
+    water_access_runtime_begin_world_load();
     load_empire_data(!game_campaign_is_original(), scenario_empire_id());
     if (resource_id_bridge_mapping_joins_meat_and_fish()) {
         empire_city_update_our_fish_and_meat_production();

@@ -14,6 +14,7 @@
 #include "building/HousingTransitionPlanner.h"
 #include "building/HousingProfileDef.h"
 #include "building/local_workforce.h"
+#include "building/water_access_runtime.h"
 
 #include "core/config.h"
 #include "core/image.h"
@@ -67,6 +68,7 @@ static void add_house_tiles(Building &house_object)
         runtime->assign_graphic_variant(0);
     }
     runtime_house->add_map_tiles();
+    water_access_runtime_refresh_building(runtime_house);
     runtime_house->refresh_graphic();
 }
 

@@ -913,6 +913,7 @@ void building_runtime::release_all_legacy_storage_reservations()
 
 void building_runtime_reset(void)
 {
+    water_access_runtime_reset();
     building_runtime_impl::reset_live_runtime_modules();
     building_runtime_impl::clear_loaded_runtime_state();
 }
@@ -1169,6 +1170,18 @@ void building_runtime_initialize_city_graphics_cache(void)
                         }
                     }
                 }
+            }
+        }
+    });
+
+    // Every Foundation and Composition must be authoritative before any
+    // graphics condition can query the retained water-access cache.
+    water_access_runtime_finish_world_load();
+
+    building_for_each_loaded_record([](building *b) {
+        if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+            if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
+                b->state == BUILDING_STATE_CREATED) {
                 instance->set_building_graphic();
             }
         }

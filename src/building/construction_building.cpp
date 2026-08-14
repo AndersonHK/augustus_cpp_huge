@@ -17,7 +17,7 @@
 #include "map/tiles.h"
 #include "map/water.h"
 #include "map/water_navigation.h"
-#include "map/water_supply.h"
+#include "building/water_access_runtime.h"
 
 #include "construction_building.h"
 
@@ -1057,7 +1057,7 @@ static int building_construction_place_building_internal(building_type type, int
     supersession.commit();
     game_undo_add_building(b);
     instant_building_remove_required_resources(type);
-    map_water_supply_refresh_building(&building_obj);
+    water_access_runtime_refresh_building(&building_obj);
     if (definition.attr_is("dock")) {
         water_navigation::invalidate_dock_endpoints();
     }
@@ -1213,7 +1213,7 @@ static void finalize_repaired_plan(
 {
     game_undo_add_building(const_cast<::building *>(building_object.record()));
     instant_building_remove_required_resources(definition.type());
-    map_water_supply_refresh_building(&building_object);
+    water_access_runtime_refresh_building(&building_object);
 }
 
 static void rollback_repaired_plans(const std::vector<Building *> &placed)

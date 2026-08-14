@@ -5,6 +5,7 @@
 #include "building/BuildingGeometry.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
+#include "building/water_access_runtime.h"
 #include "city/map.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -104,33 +105,41 @@ int map_terrain_get_from_buffer_32(buffer *buf, int grid_offset)
 
 void map_terrain_set(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
     const bool water_changed =
-        (terrain_grid.items[grid_offset] & static_cast<uint32_t>(TERRAIN_WATER)) !=
+        (old_terrain & static_cast<uint32_t>(TERRAIN_WATER)) !=
         (static_cast<uint32_t>(terrain) & static_cast<uint32_t>(TERRAIN_WATER));
     terrain_grid.items[grid_offset] = terrain;
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
+    water_access_runtime_terrain_changed(grid_offset, static_cast<int>(old_terrain), terrain);
 }
 
 void map_terrain_add(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
     const bool water_changed =
-        (terrain & TERRAIN_WATER) && !(terrain_grid.items[grid_offset] & TERRAIN_WATER);
+        (terrain & TERRAIN_WATER) && !(old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] |= terrain;
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
+    water_access_runtime_terrain_changed(
+        grid_offset, static_cast<int>(old_terrain), static_cast<int>(terrain_grid.items[grid_offset]));
 }
 
 void map_terrain_remove(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
     const bool water_changed =
-        (terrain & TERRAIN_WATER) && (terrain_grid.items[grid_offset] & TERRAIN_WATER);
+        (terrain & TERRAIN_WATER) && (old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] &= ~terrain;
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
+    water_access_runtime_terrain_changed(
+        grid_offset, static_cast<int>(old_terrain), static_cast<int>(terrain_grid.items[grid_offset]));
 }
 
 void map_terrain_add_with_radius(int x, int y, int size, int radius, int terrain)

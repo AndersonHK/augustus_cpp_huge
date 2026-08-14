@@ -1,6 +1,6 @@
 # Water Access Runtime
 
-Snapshot: 2026-05-11
+Snapshot: 2026-08-13
 
 This document records the current water access architecture after the rule refactor. The short version: water access is now defined by XML water access types and BuildingType rules, while runtime simulation stores compact `uint8_t` masks. Old `has_*_access` building fields still exist as compatibility mirrors, but they are no longer the source of truth for new gameplay or graphics decisions.
 
@@ -128,28 +128,22 @@ Primary files:
 
 Old callers should go through the C facade in `water_access_runtime.h`. New C++ code inside the building runtime can use the stored BuildingType water definitions directly when it already owns the relevant object.
 
-## Simulation Chain
+## Retained Runtime Cache
 
-Full refresh:
+`water_access_runtime_refresh()` runs once after a city is loaded. It seeds provider snapshots, aqueduct topology, per-tile contribution counts, and the typed access/provider masks. Normal simulation never rebuilds those masks from the whole map.
 
-```text
-water_access_runtime_refresh()
-  build_water_masks()
-    mark_neptune_bonus()
-    mark_live_building_providers()
-    mark_planned_providers()
-    mark_aqueduct_tile_providers()
-    repeat until access/provider/wet-aqueduct masks stop changing
-  project_aqueduct_state()
-  project_terrain_ranges()
-  project_building_state()
-```
+Runtime mutations update the retained state directly:
 
-Important fixed-point rule:
+- building creation, deletion, replacement, mothballing, and labor changes update one provider snapshot
+- a provider adds or subtracts only its own footprint/range contribution
+- contribution reference counts preserve overlapping providers without rescanning them
+- changed access tiles queue only buildings occupying those tiles for compatibility-state projection
+- house merge, split, expansion, shrink, and type-change publication projects the new footprint directly from the retained masks
+- aqueduct edits seed only the connected network components touching the edited tile
+- reservoir labor, source-water, or connector changes seed only that reservoir and its connected components
+- repeated dirty notifications coalesce in tile, reservoir, provider, and building queues
 
-- each pass evaluates providers against the previous pass and writes to a fresh next mask
-- this prevents range-0 node providers from satisfying their own requirements immediately
-- it also removes scan-order propagation from aqueduct/reservoir network behavior
+The daily update drains these queues. With no mutations it performs no map scan, network traversal, range reconstruction, or building projection.
 
 Provider activity:
 
@@ -178,7 +172,7 @@ Aqueduct tiles are also modeled as a BuildingType provider/consumer:
 - provide `aqueduct` access at range `0` to the four cardinal neighbor tiles
 - are evaluated in the fixed-point pass so two dry adjacent aqueducts do not make each other wet from nothing
 
-The terrain aqueduct image still has legacy wet/dry projection code. That projection is now an output of typed access simulation, not the source of the network truth.
+The terrain aqueduct image still has legacy wet/dry projection code. That projection is an output of the retained network cache, not the source of network truth. Adding or removing one aqueduct traverses the affected component; it does not recalculate unrelated networks.
 
 ## Ghosts And Overlays
 
@@ -226,5 +220,6 @@ Current building records still persist compatibility mirrors, but gameplay check
 - Prefer `any` requirements for "well or fountain" style logic.
 - Prefer multiple provider rules when one building emits more than one access type.
 - Use nodes when the exact connection points matter; use footprint when any tile under the building should count.
-- Keep aqueduct/reservoir network changes in the fixed-point simulation unless there is a strong reason to split them.
+- Register every provider lifecycle or activity mutation with `water_access_runtime`; do not add periodic repair scans.
+- Keep aqueduct/reservoir invalidation component-local and keep provider range changes contribution-local.
 - Do not add new `WATER_ACCESS_RUNTIME_TYPE_*` defines or provider-type switch branches.

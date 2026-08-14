@@ -12,6 +12,7 @@
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
+#include "sound/system.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -155,7 +156,7 @@ static int load_av1(std::string_view filename)
         easyav1_settings settings = easyav1_default_settings();
         settings.close_handle_on_destroy = EASYAV1_TRUE;
 
-        if (!config_get(CONFIG_GENERAL_ENABLE_VIDEO_SOUND)) {
+        if (sound_system_is_disabled() || !config_get(CONFIG_GENERAL_ENABLE_VIDEO_SOUND)) {
             settings.enable_audio = EASYAV1_FALSE;
         }
         data.easyav1 = easyav1_init_from_file(av1.get(), &settings);

@@ -24,7 +24,6 @@
 #include "graphics/weather.h"
 #include "map/natives.h"
 #include "map/tiles.h"
-#include "map/water_supply.h"
 #include "scenario/earthquake.h"
 #include "scenario/random_event.h"
 #include "widget/minimap.h"
@@ -198,11 +197,7 @@ static void advance_tick(void)
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(27)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        map_water_supply_update_reservoir_fountain();
-    }
-    if (current_tick == game_time_scale_legacy_day_tick_index(28)) {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        map_water_supply_update_buildings();
+        water_access_runtime_update();
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(29)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FORMATION);

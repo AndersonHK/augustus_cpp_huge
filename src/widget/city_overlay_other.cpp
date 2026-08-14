@@ -769,9 +769,26 @@ static int terrain_on_water_overlay(void)
         TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE | TERRAIN_HIGHWAY;
 }
 
+static int is_native_water_overlay_surface(const Building *building)
+{
+    if (!building || !building->type) {
+        return 0;
+    }
+    const building_type_registry_impl::TileKind kind = building->type->tile().kind();
+    return kind == building_type_registry_impl::TileKind::Garden ||
+        kind == building_type_registry_impl::TileKind::Plaza;
+}
+
 static int draw_footprint_water(int x, int y, float scale, int grid_offset)
 {
     if (!map_property_is_draw_tile(grid_offset)) {
+        return 1;
+    }
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (is_native_water_overlay_surface(building)) {
+        if (!city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale)) {
+            building->draw_footprint({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+        }
         return 1;
     }
     if (map_is_bridge(grid_offset)) {
@@ -838,7 +855,14 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, terrain_on_water_overlay())) {
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (is_native_water_overlay_surface(building)) {
+        if (!city_draw_runtime_tile_top(grid_offset, x, y, COLOR_MASK_NONE, scale)) {
+            building->draw_top({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+        }
+    } else if (building) {
+        city_with_overlay_draw_building_top(x, y, grid_offset);
+    } else if (map_terrain_is(grid_offset, terrain_on_water_overlay())) {
         if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
             color_t color_mask = 0;
             const bool is_deleted = map_building_exists_at(grid_offset) ?
@@ -849,8 +873,6 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
             }
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
-    } else if (map_building_exists_at(grid_offset)) {
-        city_with_overlay_draw_building_top(x, y, grid_offset);
     }
     return 1;
 }

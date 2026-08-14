@@ -8,8 +8,14 @@ class BuildingType;
 }
 
 void water_access_runtime_reset(void);
+void water_access_runtime_begin_world_load(void);
+void water_access_runtime_finish_world_load(void);
 void water_access_runtime_refresh(void);
+void water_access_runtime_update(void);
 void water_access_runtime_refresh_building(Building *building);
+void water_access_runtime_building_changed(Building *building);
+void water_access_runtime_remove_building(Building *building);
+void water_access_runtime_terrain_changed(int grid_offset, int old_terrain, int new_terrain);
 
 int water_access_runtime_range_for_building(const building_type_registry_impl::BuildingType *definition);
 const char *water_access_runtime_primary_provider_access_text(const building_type_registry_impl::BuildingType *definition);

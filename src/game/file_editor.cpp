@@ -7,6 +7,7 @@
 #include "building/construction.h"
 #include "building/menu.h"
 #include "building/storage.h"
+#include "building/water_access_runtime.h"
 #include "city/data.h"
 #include "city/message.h"
 #include "city/victory.h"
@@ -138,6 +139,7 @@ static void create_blank_map(int size)
 static void prepare_map_for_editing(void)
 {
     water_navigation::begin_world_load();
+    water_access_runtime_begin_world_load();
     image_load_climate(scenario_property_climate(), 1, 0, 0, 0);
 
     int empire_id = scenario_empire_id();
@@ -165,6 +167,7 @@ static void prepare_map_for_editing(void)
     widget_map_editor_custom_earthquake_request_refresh();
     map_natives_init_editor();
     Route::updateAllTerrain();
+    water_access_runtime_finish_world_load();
     water_navigation::finish_world_load();
 
     scenario_editor_set_as_saved();

@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
+#include "building/water_access_runtime.h"
 #include "city/culture.h"
 #include "city/god.h"
 
@@ -175,6 +176,12 @@ static void set_building_workers(building *b, int workers)
     city_culture_add_building_module_capacity(b);
     if (Building *building_object = Building::get(b->id)) {
         building_object->invalidate_graphic();
+        const building_type_registry_impl::BuildingType *definition = building_object->type;
+        if (definition && (definition->water_access().has_provider() ||
+                definition->water_access().has_requirements() ||
+                definition->water_access().requires_open_water())) {
+            water_access_runtime_building_changed(building_object);
+        }
     }
 }
 

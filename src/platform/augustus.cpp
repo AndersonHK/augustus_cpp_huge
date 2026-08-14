@@ -34,6 +34,7 @@
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
 #include "platform/vita/vita.h"
+#include "sound/system.h"
 
 #include "SDL.h"
 
@@ -762,7 +763,7 @@ static void main_loop(void)
     }
 }
 
-static int init_sdl(int enable_joysticks)
+static int init_sdl(int enable_joysticks, int disable_audio)
 {
     SDL_Log("Initializing SDL");
 
@@ -775,9 +776,10 @@ static int init_sdl(int enable_joysticks)
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "0");
 #endif
 
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
+    const Uint32 audio_flags = disable_audio ? 0 : SDL_INIT_AUDIO;
+    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
         // Try starting SDL without joystick support
-        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0) {
+        if (SDL_Init(audio_flags | SDL_INIT_VIDEO) != 0) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
             return 0;
         } else {
@@ -939,7 +941,7 @@ static void setup(const augustus_args *args)
         SDL_Log("Running on: %s", system_OS());
     }
 
-    if (!init_sdl(args->enable_joysticks)) {
+    if (!init_sdl(args->enable_joysticks, args->disable_audio)) {
         SDL_Log("Exiting: SDL init failed");
         exit_with_status(-1);
     }
@@ -1005,6 +1007,10 @@ static void setup(const augustus_args *args)
     }
     if (args->cursor_scale_percentage) {
         config_set(CONFIG_SCREEN_CURSOR_SCALE, args->cursor_scale_percentage);
+    }
+    if (args->disable_audio) {
+        sound_system_disable();
+        SDL_Log("Audio disabled by --no-audio");
     }
 
     char title[100];

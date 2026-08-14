@@ -28,6 +28,7 @@
 #include "building/BuildingGraphics.h"
 #include "building/BuildingGraphicsState.h"
 #include "building/BuildingGeometry.h"
+#include "building/water_access_runtime.h"
 #include "building/CompositionHydration.h"
 #include "building/CompositionTypeReplacement.h"
 #include "building/building_record.h"
@@ -2701,6 +2702,7 @@ int building_change_type(building *b, building_type type)
     city_culture_add_building_module_capacity(b);
     if (runtime) {
         runtime->rebind_definition(target_definition);
+        water_access_runtime_refresh_building(&runtime->building);
     }
     return 1;
 }
@@ -2710,6 +2712,7 @@ static void building_delete(building *b)
     city_culture_remove_building_module_capacity(b);
     building_clear_related_data(b);
     Building *building_object = runtime_building_for_record(b);
+    water_access_runtime_remove_building(building_object);
     if (building_object && building_object->Composition) {
         building_object->Composition->clear();
     }
@@ -3017,7 +3020,7 @@ void building_update_state(void)
         if (b->state == BUILDING_STATE_CREATED) {
             b->state = BUILDING_STATE_IN_USE;
             if (Building *building_obj = runtime_building_for_record(b)) {
-                map_water_supply_refresh_building(building_obj);
+                water_access_runtime_refresh_building(building_obj);
                 // When a created building becomes live, rebuild its cached native image-group bindings immediately.
                 building_obj->refresh_graphic();
             }
@@ -3145,6 +3148,9 @@ void building_update_desirability(void)
             record.desirability = value;
             if (Building *building_object = runtime_building_for_record(&record)) {
                 building_object->invalidate_graphic();
+                if (building_object->type && building_object->type->attr_is("fountain")) {
+                    water_access_runtime_building_changed(building_object);
+                }
             }
         }
     }
@@ -3262,6 +3268,7 @@ static int set_composition_mothballed(building *record, int mothball)
             return;
         }
         set_record_mothballed(member_record, mothball);
+        water_access_runtime_refresh_building(&member);
     });
     return owner->record() ? owner->record()->state : record->state;
 }

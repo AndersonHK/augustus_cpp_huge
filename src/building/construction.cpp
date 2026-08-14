@@ -23,7 +23,7 @@
 #include "map/image.h"
 #include "map/tiles.h"
 #include "map/water.h"
-#include "map/water_supply.h"
+#include "building/water_access_runtime.h"
 
 #include "building/construction_session.h"
 #include "figure/figure.h"
@@ -1380,7 +1380,7 @@ void building_construction_place(void)
                 }
                 if (!map_terrain_exists_tile_in_area_with_type(start_reservoir.origin_x - 1, start_reservoir.origin_y - 1, 5, TERRAIN_WATER)
                     && info.place_reservoir_at_start == PLACE_RESERVOIR_NO &&
-                    !map_water_supply_has_aqueduct_access(end_reservoir.origin_grid_offset)) {
+            !water_access_runtime_reservoir_has_network_access(end_reservoir.origin_grid_offset)) {
                     building_construction_warning_check_reservoir(reservoir_type);
                 }
             }

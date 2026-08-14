@@ -12,6 +12,7 @@ typedef struct {
     int force_fullscreen;
     int display_id;
     int debug;
+    int disable_audio;
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);

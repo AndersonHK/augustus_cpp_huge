@@ -10,26 +10,6 @@
 #include "map/grid.h"
 #include "map/terrain.h"
 
-void map_water_supply_update_buildings(void)
-{
-    water_access_runtime_refresh();
-}
-
-void map_water_supply_update_reservoir_fountain(void)
-{
-    water_access_runtime_refresh();
-}
-
-int map_water_supply_has_aqueduct_access(int grid_offset)
-{
-    return water_access_runtime_reservoir_has_network_access(grid_offset);
-}
-
-void map_water_supply_refresh_building(Building *building)
-{
-    water_access_runtime_refresh_building(building);
-}
-
 int map_water_supply_is_building_unnecessary(Building *building, int radius)
 {
     if (!building) {
@@ -56,28 +36,4 @@ int map_water_supply_is_building_unnecessary(Building *building, int radius)
         }
     }
     return num_houses ? BUILDING_UNNECESSARY_FOUNTAIN : BUILDING_UNNECESSARY_NO_HOUSES;
-}
-
-int map_water_supply_fountain_radius(void)
-{
-    return water_access_runtime_range_for_building(
-        building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("fountain")));
-}
-
-int map_water_supply_reservoir_radius(void)
-{
-    return water_access_runtime_range_for_building(
-        building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("reservoir")));
-}
-
-int map_water_supply_well_radius(void)
-{
-    return water_access_runtime_range_for_building(
-        building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("well")));
-}
-
-int map_water_supply_latrines_radius(void)
-{
-    return water_access_runtime_range_for_building(
-        building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("latrines")));
 }

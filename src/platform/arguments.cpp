@@ -77,6 +77,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->force_fullscreen = 0;
     output_args->display_id = 0;
     output_args->debug = 0;
+    output_args->disable_audio = 0;
 
     for (int i = 1; i < argc; i++) {
         // we ignore "-psn" arguments, this is needed to launch the app
@@ -141,6 +142,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
             output_args->force_fullscreen = 1;
         } else if (SDL_strcmp(argv[i], "--debug") == 0) {
             output_args->debug = 1;
+        } else if (SDL_strcmp(argv[i], "--no-audio") == 0) {
+            output_args->disable_audio = 1;
         } else if (SDL_strcmp(argv[i], "--help") == 0) {
             add_blank_line = 0;
             ok = 0;
@@ -174,6 +177,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log("          Forces the game to start on the specified display, numbered from 0");
         print_log("--debug");
         print_log("          Enables verbose startup/debug logging");
+        print_log("--no-audio");
+        print_log("          Disables audio initialization and playback");
         print_log("--mod NAME");
         print_log("          Loads data from Mods/NAME, relative to the active Caesar 3 directory");
         print_log("--asset-previewer");
