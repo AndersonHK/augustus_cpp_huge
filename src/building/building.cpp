@@ -841,7 +841,10 @@ int Building::cached_road_access_point(map_point *road) const
     return 1;
 }
 
-int Building::access_area_touches_same_road_network(const map_point &source_road, int radius) const
+int Building::access_area_touches_same_road_network(
+    const map_point &source_road,
+    int radius,
+    bool allow_highways) const
 {
     if (radius <= 0) {
         return 0;
@@ -853,7 +856,7 @@ int Building::access_area_touches_same_road_network(const map_point &source_road
     }
 
     const int source_network_id =
-        figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(source_grid_offset);
+        figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(source_grid_offset, allow_highways);
     if (source_network_id <= 0) {
         return 0;
     }
@@ -873,7 +876,8 @@ int Building::access_area_touches_same_road_network(const map_point &source_road
         y_min,
         x_max,
         y_max,
-        source_network_id);
+        source_network_id,
+        allow_highways);
 }
 
 building_runtime *Building::runtime_instance() const

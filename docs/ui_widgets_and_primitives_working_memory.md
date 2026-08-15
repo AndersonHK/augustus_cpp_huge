@@ -92,6 +92,10 @@ The pass intentionally left custom rows with complex conditional text/data layou
 
 ## Migration Guidance For Future UI Tasks
 
+The building-info declarative migration and dynamic element plan is documented in
+`docs/declarative_building_info_windows.md`. New building-info work should preserve
+the single screen-selection boundary introduced there.
+
 - Start by inspecting existing widget classes and primitives before proposing new classes.
 - Prefer small widget extensions when the visual/control contract is already represented by an existing widget.
 - Add a new widget only when the target control has a distinct reusable behavior/layout contract, not merely because one caller has unusual coordinates.

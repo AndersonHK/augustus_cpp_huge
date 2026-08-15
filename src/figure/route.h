@@ -38,6 +38,10 @@ public:
             const map_point &road,
             std::optional<roadblock_permission> permission = std::nullopt,
             performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+        static DistanceQuery fromRoad(
+            const map_point &road,
+            const RoutePolicy &policy,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
         static DistanceQuery fromPoint(
             const map_point &point,
             std::optional<roadblock_permission> permission = std::nullopt,
@@ -63,7 +67,7 @@ public:
         public:
             void seed(
                 const map_point &source,
-                const std::optional<roadblock_permission> &permission,
+                const RoutePolicy &policy,
                 performance_tracker_route_purpose purpose);
             int distanceAt(int gridOffset) const;
             int reachableDistanceAt(int gridOffset, int maxDistance = 0) const;
@@ -75,7 +79,7 @@ public:
         DistanceQuery(
             const map_point &source,
             int sourceNetwork,
-            std::optional<roadblock_permission> permission,
+            RoutePolicy policy,
             performance_tracker_route_purpose purpose,
             bool valid);
 
@@ -97,7 +101,7 @@ public:
 
         map_point source_ = { 0, 0 };
         int sourceNetwork_ = 0;
-        std::optional<roadblock_permission> permission_;
+        RoutePolicy policy_;
         performance_tracker_route_purpose purpose_ = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY;
         bool valid_ = false;
         mutable CostMapHandle costMap_;
@@ -190,7 +194,7 @@ public:
     bool seedConstructionField(const RoutePolicy &policy, const map_point &source) const;
     void seedCitizenDistanceField(
         const map_point &source,
-        const std::optional<roadblock_permission> &permission) const;
+        const RoutePolicy &policy) const;
 };
 
 } // namespace route_internal

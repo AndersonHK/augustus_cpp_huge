@@ -311,6 +311,15 @@ static int callback_calc_distance_road_garden(int next_offset, int dist, int dir
     return 1;
 }
 
+static int callback_calc_distance_road_garden_highway(int next_offset, int dist, int direction)
+{
+    (void) direction;
+    if (can_enter_citizen_road_garden_highway_surface(next_offset)) {
+        enqueue(next_offset, dist);
+    }
+    return 1;
+}
+
 void map_routing_calculate_distances(int x, int y)
 {
     ++stats.total_routes_calculated;
@@ -322,6 +331,16 @@ void map_routing_calculate_distances_road_garden(int x, int y, roadblock_permiss
     state.roadblock_permission = permission;
     ++stats.total_routes_calculated;
     route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance_road_garden);
+}
+
+void map_routing_calculate_distances_road_garden_highway(int x, int y, roadblock_permission permission)
+{
+    state.roadblock_permission = permission;
+    ++stats.total_routes_calculated;
+    route_queue_all_from(
+        map_grid_offset(x, y),
+        DIRECTIONS_NO_DIAGONALS,
+        callback_calc_distance_road_garden_highway);
 }
 
 static int callback_calc_distance_build_wall(int next_offset, int dist, int direction)

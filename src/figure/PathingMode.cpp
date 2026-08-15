@@ -23,17 +23,18 @@ int PathingMode::citizenIsRoadLike(int grid_offset)
     return citizenIsRoad(grid_offset) || map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP);
 }
 
-int PathingMode::citizenRoadNetworkAt(int grid_offset)
+int PathingMode::citizenRoadNetworkAt(int grid_offset, bool allow_highways)
 {
-    if (!map_grid_is_valid_offset(grid_offset) || !citizenIsRoadLike(grid_offset)) {
+    if (!map_grid_is_valid_offset(grid_offset) ||
+        (!citizenIsRoadLike(grid_offset) && !(allow_highways && citizenIsHighway(grid_offset)))) {
         return 0;
     }
     return map_road_network_get(grid_offset);
 }
 
-bool PathingMode::citizenIsInRoadNetwork(int grid_offset, int road_network)
+bool PathingMode::citizenIsInRoadNetwork(int grid_offset, int road_network, bool allow_highways)
 {
-    return road_network > 0 && citizenRoadNetworkAt(grid_offset) == road_network;
+    return road_network > 0 && citizenRoadNetworkAt(grid_offset, allow_highways) == road_network;
 }
 
 bool PathingMode::citizenAreaTouchesRoadNetwork(
@@ -41,14 +42,15 @@ bool PathingMode::citizenAreaTouchesRoadNetwork(
     int y_min,
     int x_max,
     int y_max,
-    int road_network)
+    int road_network,
+    bool allow_highways)
 {
     if (road_network <= 0) {
         return false;
     }
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
-            if (citizenIsInRoadNetwork(map_grid_offset(x, y), road_network)) {
+            if (citizenIsInRoadNetwork(map_grid_offset(x, y), road_network, allow_highways)) {
                 return true;
             }
         }

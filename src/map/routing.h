@@ -17,6 +17,7 @@ int map_routing_distance_generation(void);
 
 void map_routing_calculate_distances(int x, int y);
 void map_routing_calculate_distances_road_garden(int x, int y, roadblock_permission permission);
+void map_routing_calculate_distances_road_garden_highway(int x, int y, roadblock_permission permission);
 int map_routing_calculate_distances_for_building(routed_building_type type, int x, int y);
 
 void map_routing_delete_first_wall_or_aqueduct(int x, int y);

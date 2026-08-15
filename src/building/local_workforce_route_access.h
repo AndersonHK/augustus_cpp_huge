@@ -21,6 +21,7 @@ public:
     static RouteAccessSelector fromRoad(
         const map_point &source_road,
         int max_distance,
+        const RoutePolicy &route_policy,
         RouteAccessSelectorContext &context);
 
     explicit operator bool() const;
@@ -33,6 +34,7 @@ private:
     RouteAccessSelector(
         const map_point &source_road,
         int max_distance,
+        bool allow_highways,
         Route::DistanceQuery route_query,
         RouteAccessSelectorContext &context);
 
@@ -48,6 +50,7 @@ private:
     RouteAccessSelectorContext *context_ = nullptr;
     map_point source_ = { 0, 0 };
     int max_distance_ = 0;
+    bool allow_highways_ = false;
     Route::DistanceQuery route_query_;
 };
 

@@ -24,14 +24,16 @@ const map_point &HouseRouteSelection::road() const
 RouteAccessSelector RouteAccessSelector::fromRoad(
     const map_point &source_road,
     int max_distance,
+    const RoutePolicy &route_policy,
     RouteAccessSelectorContext &context)
 {
     return RouteAccessSelector(
         source_road,
         max_distance,
+        route_policy.isCitizenRoadGardenHighway(),
         Route::DistanceQuery::fromRoad(
             source_road,
-            PERMISSION_LABOR_SEEKER,
+            route_policy,
             PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE),
         context);
 }
@@ -44,17 +46,19 @@ RouteAccessSelector::operator bool() const
 RouteAccessSelector::RouteAccessSelector(
     const map_point &source_road,
     int max_distance,
+    bool allow_highways,
     Route::DistanceQuery route_query,
     RouteAccessSelectorContext &context)
     : context_(&context),
       source_(source_road),
       max_distance_(max_distance),
+      allow_highways_(allow_highways),
       route_query_(route_query)
 {}
 
 int RouteAccessSelector::houseAccessAreaTouchesSourceNetwork(const Building &house) const
 {
-    return house.access_area_touches_same_road_network(source_, kHouseAccessRadius);
+    return house.access_area_touches_same_road_network(source_, kHouseAccessRadius, allow_highways_);
 }
 
 int RouteAccessSelector::houseRecordIsLiveLaborSource(const building *house) const

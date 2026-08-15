@@ -38,6 +38,26 @@ constexpr const char *kLaborSeekerValidateProfile = "validation";
 building_local_workforce::LocalWorkforceRuntimeState g_runtime_state;
 void refresh_house_unemployed(Building &house);
 
+const figure_type_registry_impl::FigureTypeProfile *labor_seeker_profile(const char *profile_id)
+{
+    const figure_type_registry_impl::FigureTypeProfile *profile =
+        figure_type_registry_impl::profile_for(FIGURE_LABOR_SEEKER, profile_id);
+    return profile ? profile : figure_type_registry_impl::default_profile_for(FIGURE_LABOR_SEEKER);
+}
+
+RoutePolicy labor_seeker_route_policy(const char *profile_id)
+{
+    const figure_type_registry_impl::FigureTypeProfile *profile = labor_seeker_profile(profile_id);
+    if (!profile) {
+        RoutePolicy fallback = RoutePolicy::fromKind(RoutePolicyKind::CitizenRoadGarden);
+        fallback.permission = PERMISSION_LABOR_SEEKER;
+        return fallback;
+    }
+    return profile->pathing_policy()
+        .routePolicySelection(PERMISSION_LABOR_SEEKER, RouteNeighborhood::FourWay)
+        .policy;
+}
+
 } // namespace
 
 namespace building_local_workforce {
@@ -298,10 +318,7 @@ int required_workers(const Building &building)
 int labor_seeker_max_roam_length()
 {
     const figure_type_registry_impl::FigureTypeProfile *profile =
-        figure_type_registry_impl::profile_for(FIGURE_LABOR_SEEKER, kLaborSeekerAcquireProfile);
-    if (!profile) {
-        profile = figure_type_registry_impl::default_profile_for(FIGURE_LABOR_SEEKER);
-    }
+        labor_seeker_profile(kLaborSeekerAcquireProfile);
     if (!profile) {
         return kDefaultLaborSeekerMaxRoamLength;
     }
@@ -628,8 +645,14 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
 
     const map_point source_road = { f->x, f->y };
     building_local_workforce::LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
+    const figure_type_registry_impl::PathingMode::RoutePolicySelection route_selection =
+        figure_runtime_route_policy_selection(f, RouteNeighborhood::FourWay);
     const building_local_workforce::RouteAccessSelector selector =
-        building_local_workforce::RouteAccessSelector::fromRoad(source_road, max_distance, context);
+        building_local_workforce::RouteAccessSelector::fromRoad(
+            source_road,
+            max_distance,
+            route_selection.policy,
+            context);
     const building_local_workforce::HouseRouteSelection target = selector.nearestUnemployedHouse();
     if (!target) {
         return 0;
@@ -1106,7 +1129,11 @@ int spawn_acquisition(Building &workplace, const map_point *road)
 
     LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
     const RouteAccessSelector selector =
-        RouteAccessSelector::fromRoad(*road, labor_seeker_max_roam_length(), context);
+        RouteAccessSelector::fromRoad(
+            *road,
+            labor_seeker_max_roam_length(),
+            labor_seeker_route_policy(kLaborSeekerAcquireProfile),
+            context);
     const HouseRouteSelection target = selector.nearestUnemployedHouse();
     if (!target) {
         return 0;
@@ -1136,7 +1163,11 @@ int spawn_validation(Building &workplace, const map_point *road)
 
     LocalWorkforceRouteAccessContext context = g_runtime_state.routeAccessContext();
     const RouteAccessSelector selector =
-        RouteAccessSelector::fromRoad(*road, labor_seeker_max_roam_length(), context);
+        RouteAccessSelector::fromRoad(
+            *road,
+            labor_seeker_max_roam_length(),
+            labor_seeker_route_policy(kLaborSeekerValidateProfile),
+            context);
     const HouseRouteSelection target = selector.nearestAssignedSourceReleasingUnreachable(workplace);
     if (!target) {
         return 0;

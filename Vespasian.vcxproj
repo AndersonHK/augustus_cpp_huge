@@ -498,6 +498,7 @@
     <ClCompile Include="src\window\building\terrain.cpp" />
     <ClCompile Include="src\window\building\utility.cpp" />
     <ClCompile Include="src\window\building_info.cpp" />
+    <ClCompile Include="src\window\building_info_screen.cpp" />
     <ClCompile Include="src\window\build_menu.cpp" />
     <ClCompile Include="src\window\cck_selection.cpp" />
     <ClCompile Include="src\window\city.cpp" />
@@ -1072,6 +1073,7 @@
     <ClInclude Include="src\window\building\terrain.h" />
     <ClInclude Include="src\window\building\utility.h" />
     <ClInclude Include="src\window\building_info.h" />
+    <ClInclude Include="src\window\building_info_screen.h" />
     <ClInclude Include="src\window\build_menu.h" />
     <ClInclude Include="src\window\cck_selection.h" />
     <ClInclude Include="src\window\city.h" />

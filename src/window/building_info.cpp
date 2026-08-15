@@ -5,6 +5,7 @@
 #include "building/roadblock.h"
 
 #include "building_info.h"
+#include "window/building_info_screen.h"
 
 #include "assets/assets.h"
 #include "building/culture.h"
@@ -618,6 +619,8 @@ static void draw_background(void)
             return;
         }
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
         if (current_building.Housing) {
@@ -666,11 +669,10 @@ static void draw_background(void)
             } else {
                 window_building_draw_mess_hall(&context);
             }
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
                 window_building_draw_roadblock_orders(&context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_STORAGE ||
-                     context.show_special_orders == SPECIAL_ORDERS_GENERIC) {
+            } else if (screen.id() == BuildingInfoScreenId::StorageOrders) {
                 window_building_draw_storage_orders(&context);
             } else {
                 window_building_draw_storage(&context);
@@ -883,6 +885,8 @@ static void draw_foreground(void)
     if (context.type == BUILDING_INFO_BUILDING && b && current_building_ptr && current_building_ptr->type) {
         const Building &current_building = *current_building_ptr;
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
@@ -893,11 +897,10 @@ static void draw_foreground(void)
 
         if (type_definition.is_lighthouse() && b->monument.phase == MONUMENT_FINISHED) {
             window_building_draw_lighthouse_foreground(&context);
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
                 window_building_draw_roadblock_orders_foreground(&context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_STORAGE ||
-                     context.show_special_orders == SPECIAL_ORDERS_GENERIC) {
+            } else if (screen.id() == BuildingInfoScreenId::StorageOrders) {
                 window_building_draw_storage_orders_foreground(&context);
             } else {
                 window_building_draw_storage_foreground(&context);
@@ -1035,6 +1038,8 @@ static int handle_specific_building_info_mouse(const mouse *m)
             return 0;
         }
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
@@ -1049,12 +1054,18 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 }
                 return window_building_handle_mouse_distributor(m, &context);
             }
-        } else if (Roadblock(current_building).kind() == ROADBLOCK_FOUNDATION) {
-            if (context.show_special_orders) {
-                return window_building_handle_mouse_roadblock_orders(m, &context);
-            } else {
-                return window_building_handle_mouse_roadblock_button(m, &context);
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageOrders) {
+                return window_building_handle_mouse_storage_orders(m, &context);
             }
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
+                return window_building_handle_mouse_roadblock_orders(m, &context);
+            }
+            return window_building_handle_mouse_storage(m, &context);
+        } else if (screen.isFoundationRoadblockFamily()) {
+            return screen.id() == BuildingInfoScreenId::FoundationRoadblockOrders ?
+                window_building_handle_mouse_roadblock_orders(m, &context) :
+                window_building_handle_mouse_roadblock_button(m, &context);
         } else if (is_dock) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_distributor_orders(m, &context);
@@ -1069,15 +1080,6 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 return window_building_handle_mouse_grand_temple_mars(m, &context, temple);
             }
             return window_building_handle_mouse_grand_temple(m, &context, temple);
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_GENERIC ||
-                context.show_special_orders == SPECIAL_ORDERS_STORAGE) {
-                return window_building_handle_mouse_storage_orders(m, &context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
-                return window_building_handle_mouse_roadblock_orders(m, &context);
-            } else {
-                return window_building_handle_mouse_storage(m, &context);
-            }
         } else if (building_type_registry_impl::type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2) {
                 window_building_handle_mouse_depot_select_source(m, &context);

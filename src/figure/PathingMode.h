@@ -112,14 +112,15 @@ public:
     static int citizenIsPassable(int grid_offset);
     static int citizenIsRoad(int grid_offset);
     static int citizenIsRoadLike(int grid_offset);
-    static int citizenRoadNetworkAt(int grid_offset);
-    static bool citizenIsInRoadNetwork(int grid_offset, int road_network);
+    static int citizenRoadNetworkAt(int grid_offset, bool allow_highways = false);
+    static bool citizenIsInRoadNetwork(int grid_offset, int road_network, bool allow_highways = false);
     static bool citizenAreaTouchesRoadNetwork(
         int x_min,
         int y_min,
         int x_max,
         int y_max,
-        int road_network);
+        int road_network,
+        bool allow_highways = false);
     static int citizenIsHighway(int grid_offset);
     static int citizenIsPassableTerrain(int grid_offset);
     static int gateIsTransformable(int grid_offset);

@@ -191,7 +191,10 @@ public:
     void apply_plague_treatment();
     int has_cached_road_access() const;
     int cached_road_access_point(map_point *road) const;
-    int access_area_touches_same_road_network(const map_point &source_road, int radius) const;
+    int access_area_touches_same_road_network(
+        const map_point &source_road,
+        int radius,
+        bool allow_highways = false) const;
     building_runtime *runtime_instance() const;
     BuildingGraphics &Graphics(const std::source_location &location = std::source_location::current()) const;
     building_type_registry_impl::BuildingAnimation animate();
