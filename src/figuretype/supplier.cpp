@@ -293,9 +293,13 @@ static int recalculate_market_supplier_destination(Figure *f)
 
 void figure_supplier_action(Figure *f)
 {
-    f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    f->use_cross_country = 0;
-    f->max_roam_length = 800;
+    if (f->type == FIGURE_MESS_HALL_SUPPLIER) {
+        figure_runtime_apply_profile_movement(f);
+    } else {
+        f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
+        f->use_cross_country = 0;
+        f->max_roam_length = 800;
+    }
 
     Building *source = f->building;
     building *source_record = source ? const_cast<building *>(source->record()) : nullptr;

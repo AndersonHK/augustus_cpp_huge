@@ -4,6 +4,8 @@
 #include "building/storage.h"
 #include "game/mod_definition_loader.h"
 #include "game/resource.h"
+#include "figure/route_policy.h"
+#include "map/point.h"
 
 #define BASELINE_STOCK 50
 
@@ -43,6 +45,12 @@ public:
         resource_storage_info info[RESOURCE_SLOT_COUNT],
         const Building &start,
         int max_distance) const;
+    int find_sources_for_building_by_road(
+        resource_storage_info info[RESOURCE_SLOT_COUNT],
+        const Building &start,
+        const map_point &source_road,
+        const RoutePolicy &route_policy,
+        int max_distance) const;
     int find_sources_for_figure(
         resource_storage_info info[RESOURCE_SLOT_COUNT],
         building_type type,
@@ -65,6 +73,12 @@ const Distribution *find_distribution_definition(const char *path);
 int find_distribution_sources_for_building(
     resource_storage_info info[RESOURCE_SLOT_COUNT],
     const Building &start,
+    int max_distance);
+int find_distribution_sources_for_building_by_road(
+    resource_storage_info info[RESOURCE_SLOT_COUNT],
+    const Building &start,
+    const map_point &source_road,
+    const RoutePolicy &route_policy,
     int max_distance);
 int find_distribution_sources_for_figure(
     resource_storage_info info[RESOURCE_SLOT_COUNT],

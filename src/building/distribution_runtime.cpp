@@ -6,6 +6,8 @@
 #include "building/warehouse.h"
 #include "city/resource.h"
 #include "figure/figure.h"
+#include "figure/route.h"
+#include "game/performance_tracker.h"
 
 #include <climits>
 
@@ -36,7 +38,7 @@ int invalid_distribution_source(Building &source, building_storage_permission_st
     return !source.is_in_use() ||
         !source.has_cached_road_access() ||
         source.distance_from_entry() <= 0 ||
-        source.road_network_id() != road_network ||
+        (road_network > 0 && source.road_network_id() != road_network) ||
         !building_storage_get_permission(permission, source);
 }
 
@@ -58,16 +60,17 @@ int distance_between_buildings(const BuildingGeometry &target, const Building &s
     return distance >= 0 ? distance : INT_MAX;
 }
 
+template <typename DistanceToSource>
 int find_distribution_sources(
     resource_storage_info info[RESOURCE_SLOT_COUNT],
     building_type type,
     int road_network,
-    const BuildingGeometry &target,
-    int max_distance)
+    int initial_min_distance,
+    DistanceToSource distance_to_source)
 {
     for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
         resource = static_cast<resource_type>(resource + 1)) {
-        info[resource].min_distance = max_distance;
+        info[resource].min_distance = initial_min_distance;
         info[resource].source = nullptr;
     }
 
@@ -77,7 +80,7 @@ int find_distribution_sources(
             if (type && invalid_distribution_source(*source, permission, road_network)) {
                 return;
             }
-            int distance = distance_between_buildings(target, *source);
+            const int distance = distance_to_source(*source);
             for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
                 resource = static_cast<resource_type>(resource + 1)) {
                 if (info[resource].needed && resource_is_food(resource)) {
@@ -91,7 +94,7 @@ int find_distribution_sources(
         if (type && invalid_distribution_source(*source, permission, road_network)) {
             return;
         }
-        int distance = distance_between_buildings(target, *source);
+        const int distance = distance_to_source(*source);
         for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT;
             resource = static_cast<resource_type>(resource + 1)) {
             if (info[resource].needed && resource_is_storable(resource)) {
@@ -156,6 +159,21 @@ int Distribution::find_sources_for_building(
     int max_distance) const
 {
     return find_distribution_sources_for_building(info, start, max_distance);
+}
+
+int Distribution::find_sources_for_building_by_road(
+    resource_storage_info info[RESOURCE_SLOT_COUNT],
+    const Building &start,
+    const map_point &source_road,
+    const RoutePolicy &route_policy,
+    int max_distance) const
+{
+    return find_distribution_sources_for_building_by_road(
+        info,
+        start,
+        source_road,
+        route_policy,
+        max_distance);
 }
 
 int Distribution::find_sources_for_figure(
@@ -223,12 +241,49 @@ int find_distribution_sources_for_building(
     int max_distance)
 {
     const building_type type = start.type ? start.type->type() : BUILDING_NONE;
+    const BuildingGeometry target = BuildingGeometry::query(start);
     return find_distribution_sources(
         info,
         type,
         start.road_network_id(),
-        BuildingGeometry::query(start),
-        max_distance);
+        max_distance,
+        [&target](Building &source) { return distance_between_buildings(target, source); });
+}
+
+int find_distribution_sources_for_building_by_road(
+    resource_storage_info info[RESOURCE_SLOT_COUNT],
+    const Building &start,
+    const map_point &source_road,
+    const RoutePolicy &route_policy,
+    int max_distance)
+{
+    if (max_distance <= 0) {
+        return 0;
+    }
+
+    const Route::DistanceQuery route_query = Route::DistanceQuery::fromRoad(
+        source_road,
+        route_policy,
+        PERFORMANCE_TRACKER_ROUTE_PURPOSE_STORAGE);
+    if (!route_query) {
+        return 0;
+    }
+
+    const building_type type = start.type ? start.type->type() : BUILDING_NONE;
+    const int initial_min_distance = max_distance < INT_MAX ? max_distance + 1 : INT_MAX;
+    return find_distribution_sources(
+        info,
+        type,
+        0,
+        initial_min_distance,
+        [&route_query, max_distance](Building &source) {
+            map_point destination_road;
+            if (!source.storage_destination_road_access_point(&destination_road)) {
+                return INT_MAX;
+            }
+            const Route::RoadResult result = route_query.findRoad(destination_road, max_distance);
+            return result ? result.distance : INT_MAX;
+        });
 }
 
 int find_distribution_sources_for_figure(
@@ -244,7 +299,12 @@ int find_distribution_sources_for_figure(
     const BuildingGeometry target = BuildingGeometry::from_world_cells({
         { start->x, start->y }
     });
-    return find_distribution_sources(info, type, road_network, target, max_distance);
+    return find_distribution_sources(
+        info,
+        type,
+        road_network,
+        max_distance,
+        [&target](Building &source) { return distance_between_buildings(target, source); });
 }
 
 } // namespace building_type_registry_impl

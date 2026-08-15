@@ -10,7 +10,7 @@ public:
     using Building::Building;
     explicit MessHall(Building building) : Building(building) {}
 
-    Building *storage_destination();
+    Building *storage_destination(const map_point &source_road);
     int spawn_fort_supplier_to(Building &fort);
     static void spawn_supplier_for_fort(Building &fort);
 
@@ -24,4 +24,4 @@ private:
     void attach_figure(Figure *figure) const;
 };
 
-Building *building_mess_hall_get_storage_destination(Building mess_hall);
+Building *building_mess_hall_get_storage_destination(Building mess_hall, const map_point &source_road);

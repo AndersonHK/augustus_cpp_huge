@@ -64,6 +64,15 @@ int placement_part_checks_figures(const BuildingType &definition, int active_cel
     return 1;
 }
 
+bool tile_has_bound_aqueduct_occupancy(int grid_offset)
+{
+    if (!map_building_exists_at(grid_offset)) {
+        return false;
+    }
+    const Building &occupant = map_building_at(grid_offset);
+    return occupant.matches("aqueduct") && map_terrain_is(grid_offset, TERRAIN_AQUEDUCT);
+}
+
 int placement_extent(const BuildingType &definition, int rotation)
 {
     if (definition.has_composition()) {
@@ -502,15 +511,23 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
 
     const unsigned int permitted = cell->permitted_blocking_terrain;
     const unsigned int generated_transport = cell->added_terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_AQUEDUCT);
-    if ((effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
-        (generated_transport & TERRAIN_ROAD) && !map_can_place_road_under_aqueduct(tile.grid_offset)) {
+    const bool places_road_under_aqueduct =
+        (effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
+        (generated_transport & TERRAIN_ROAD);
+    const bool places_highway_under_aqueduct =
+        (effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
+        (generated_transport & TERRAIN_HIGHWAY);
+    const bool valid_road_aqueduct_crossing =
+        places_road_under_aqueduct && map_can_place_road_under_aqueduct(tile.grid_offset);
+    const bool valid_highway_aqueduct_crossing =
+        places_highway_under_aqueduct && map_can_place_highway_under_aqueduct(tile.grid_offset, 0);
+    if (places_road_under_aqueduct && !valid_road_aqueduct_crossing) {
         if (failure_reason_ == PlacementFailureReason::None) {
             failure_reason_ = PlacementFailureReason::Terrain;
         }
         return PlacementTileState::Forbidden;
     }
-    if ((effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
-        (generated_transport & TERRAIN_HIGHWAY) && !map_can_place_highway_under_aqueduct(tile.grid_offset, 0)) {
+    if (places_highway_under_aqueduct && !valid_highway_aqueduct_crossing) {
         if (failure_reason_ == PlacementFailureReason::None) {
             failure_reason_ = PlacementFailureReason::Terrain;
         }
@@ -531,7 +548,17 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         return PlacementTileState::Forbidden;
     }
 
-    const int blocked_terrain = static_cast<int>(effective_terrain) & TERRAIN_NOT_CLEAR & ~static_cast<int>(permitted);
+    unsigned int blocking_terrain = effective_terrain;
+    if ((valid_road_aqueduct_crossing || valid_highway_aqueduct_crossing) &&
+        tile_has_bound_aqueduct_occupancy(tile.grid_offset)) {
+        // Aqueducts are real bound buildings, but their BUILDING bit describes
+        // the same crossing occupancy as TERRAIN_AQUEDUCT. A valid transport
+        // crossing may share that occupancy without granting roads permission
+        // to pass through unrelated buildings.
+        blocking_terrain &= ~static_cast<unsigned int>(TERRAIN_BUILDING);
+    }
+    const int blocked_terrain = static_cast<int>(blocking_terrain) &
+        TERRAIN_NOT_CLEAR & ~static_cast<int>(permitted);
     PlacementTileState result = blocked_terrain ? PlacementTileState::Forbidden : PlacementTileState::Allowed;
 
     if (result == PlacementTileState::Forbidden && force_place_ && force_place_can_clear_terrain(blocked_terrain)) {

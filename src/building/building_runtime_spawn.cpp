@@ -521,7 +521,7 @@ int building_runtime::spawn_primary_mess_hall_supplier(const map_point &road)
         return 0;
     }
 
-    Building *destination = building_mess_hall_get_storage_destination(building);
+    Building *destination = building_mess_hall_get_storage_destination(building, road);
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Primary,
         FIGURE_MESS_HALL_SUPPLIER,
@@ -538,7 +538,7 @@ int building_runtime::spawn_secondary_mess_hall_supplier(const map_point &road)
         return 0;
     }
 
-    Building *destination = building_mess_hall_get_storage_destination(building);
+    Building *destination = building_mess_hall_get_storage_destination(building, road);
     return spawn_supplier_to_destination(
         building_type_registry_impl::FigureSlot::Quaternary,
         FIGURE_MESS_HALL_SUPPLIER,
