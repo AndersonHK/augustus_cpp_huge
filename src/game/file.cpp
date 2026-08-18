@@ -68,6 +68,7 @@
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "map/tile_runtime_api.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
 #include "platform/file_manager.h"
@@ -148,6 +149,11 @@ static void clear_scenario_data(void)
     custom_messages_clear_all();
 
     game_time_init(2098);
+
+    // Runtime tile graphics are scoped to the loaded world, just like the map grids.
+    // Clear them before loading a new scenario so authored surface graphics cannot
+    // survive at grid offsets that are ordinary terrain in the next world.
+    tile_runtime_reset();
 
     // clear grids
     map_image_clear();

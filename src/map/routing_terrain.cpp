@@ -88,7 +88,11 @@ static int get_land_type_citizen_building(int grid_offset)
     building *b = const_cast<::building *>(current.record());
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
+    if ((terrain & TERRAIN_RUBBLE) && current.Rubble && current.Rubble->is_rubble()) {
+        // Runtime-backed rubble also carries TERRAIN_BUILDING so that each piece can
+        // retain its origin and burning state. It remains citizen-passable terrain.
+        type = CITIZEN_2_PASSABLE_TERRAIN;
+    } else if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
         // The road/highway surface below an aqueduct remains traversable.
         type = CITIZEN_1_HIGHWAY;
     } else if ((terrain & TERRAIN_AQUEDUCT) && is_road_surface(terrain)) {
