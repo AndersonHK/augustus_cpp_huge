@@ -44,6 +44,20 @@ inline road_aqueduct_axis road_aqueduct_axis_from_connectable_option(int option,
     return axis;
 }
 
+inline int road_aqueduct_tile_allows_crossing(road_aqueduct_axis aqueduct_axis, int connection_count)
+{
+    return aqueduct_axis != road_aqueduct_axis::none && connection_count <= 2;
+}
+
+inline int road_aqueduct_axes_allow_crossing(
+    road_aqueduct_axis aqueduct_axis,
+    road_aqueduct_axis road_axis,
+    int connection_count)
+{
+    return road_aqueduct_tile_allows_crossing(aqueduct_axis, connection_count) &&
+        road_axis != road_aqueduct_axis::none && road_axis != aqueduct_axis;
+}
+
 inline int road_aqueduct_crossing_option(int road_runs_y, int paved_road)
 {
     return (paved_road ? 0 : 2) + (road_runs_y ? 1 : 0);

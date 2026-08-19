@@ -6,11 +6,14 @@
 #include "building/building_type.h"
 #include "building/religion.h"
 #include "city/view.h"
+#include "core/image.h"
 #include "map/building.h"
 #include "map/elevation.h"
 #include "map/grid.h"
+#include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
 
 #define MAX_TILES 8
 
@@ -431,7 +434,7 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
                 }
             }
         } else if (map_terrain_is(offset, TERRAIN_ACCESS_RAMP)) {
-            tiles[i] = 1;
+            tiles[i] = map_tiles_access_ramp_allows_road_edge(grid_offset, offset);
         } else if (map_terrain_is(offset, TERRAIN_BUILDING)) {
             // The below part is responsible for connecting buildings to roads, without making them passable or roads
             // Any buildings that should visually connect to the road due to passability or other interactions should 

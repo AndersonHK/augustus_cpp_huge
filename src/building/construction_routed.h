@@ -2,8 +2,6 @@
 
 #include "building/building_type.h"
 #include "map/grid.h"
-#include "map/routing.h"
-
 
 int building_construction_place_road(
     int measure_only, int x_start, int y_start, int x_end, int y_end,

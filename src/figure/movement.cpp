@@ -23,6 +23,7 @@
 #include "map/random.h"
 #include "map/routing.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
 #include "map/water_navigation.h"
 
 static void advance_tick(Figure *f)
@@ -183,6 +184,8 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         if (!Route::wallIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
         }
+    } else if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+        f->direction = DIR_FIGURE_REROUTE;
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
         if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
             Building &building_obj = map_building_at(target_grid_offset);
@@ -314,20 +317,27 @@ static bool terrain_is_path_for_roaming_figure(const Figure *f, int grid_offset)
     return map_terrain_is(grid_offset, terrain_mask) != 0;
 }
 
-static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadblock_permission permission)
+static bool is_valid_road_for_roaming(
+    const Figure *f,
+    int source_grid_offset,
+    int target_grid_offset,
+    roadblock_permission permission)
 {
-    const bool is_path = terrain_is_path_for_roaming_figure(f, grid_offset);
-    if (!is_path && !map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!map_tiles_access_ramp_allows_road_edge(source_grid_offset, target_grid_offset)) {
         return false;
     }
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    const bool is_path = terrain_is_path_for_roaming_figure(f, target_grid_offset);
+    if (!is_path && !map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+        return false;
+    }
+    if (!map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
         return true;
     }
 
-    if (!map_building_exists_at(grid_offset)) {
+    if (!map_building_exists_at(target_grid_offset)) {
         return false;
     }
-    Building &building_obj = map_building_at(grid_offset);
+    Building &building_obj = map_building_at(target_grid_offset);
     building *b = const_cast<::building *>(building_obj.record());
     if (!b) {
         return false;
@@ -335,7 +345,7 @@ static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadbloc
 
     Roadblock roadblock(building_obj);
     if (roadblock.kind() != ROADBLOCK_NONE) {
-        return is_path && roadblock.allows_at(grid_offset, permission);
+        return is_path && roadblock.allows_at(target_grid_offset, permission);
     }
 
     return false;
@@ -349,10 +359,10 @@ static int get_adjacent_road_tiles_for_roaming(
 {
     road_tiles[1] = road_tiles[3] = road_tiles[5] = road_tiles[7] = 0;
 
-    road_tiles[0] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, -1), permission) ? 1 : 0;
-    road_tiles[2] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 0), permission) ? 1 : 0;
-    road_tiles[4] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, 1), permission) ? 1 : 0;
-    road_tiles[6] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 0), permission) ? 1 : 0;
+    road_tiles[0] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(0, -1), permission) ? 1 : 0;
+    road_tiles[2] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, 0), permission) ? 1 : 0;
+    road_tiles[4] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(0, 1), permission) ? 1 : 0;
+    road_tiles[6] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, 0), permission) ? 1 : 0;
 
     return road_tiles[0] + road_tiles[2] + road_tiles[4] + road_tiles[6];
 }
@@ -363,10 +373,10 @@ static int get_diagonal_road_tiles_for_roaming(
     int *road_tiles,
     roadblock_permission permission)
 {
-    road_tiles[1] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, -1), permission) ? 1 : 0;
-    road_tiles[3] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 1), permission) ? 1 : 0;
-    road_tiles[5] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 1), permission) ? 1 : 0;
-    road_tiles[7] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, -1), permission) ? 1 : 0;
+    road_tiles[1] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, -1), permission) ? 1 : 0;
+    road_tiles[3] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, 1), permission) ? 1 : 0;
+    road_tiles[5] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, 1), permission) ? 1 : 0;
+    road_tiles[7] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, -1), permission) ? 1 : 0;
 
     int max_stretch = 0;
     int stretch = 0;
@@ -393,7 +403,8 @@ static void roam_set_direction(Figure *f, roadblock_permission permission)
     int road_offset_dir1 = 0;
     int road_dir1 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(
+                f, grid_offset, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir1 = dir;
             break;
         }
@@ -406,7 +417,8 @@ static void roam_set_direction(Figure *f, roadblock_permission permission)
     int road_offset_dir2 = 0;
     int road_dir2 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(
+                f, grid_offset, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir2 = dir;
             break;
         }
@@ -481,6 +493,12 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
             if (f->direction >= 8) {
                 break;
             }
+            const int target_grid_offset =
+                f->grid_offset + map_grid_direction_delta(f->direction);
+            if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+                f->direction = DIR_FIGURE_REROUTE;
+                break;
+            }
             f->previous_tile_direction = f->direction;
             f->progress_on_tile = 0;
             move_to_next_tile(f);
@@ -520,6 +538,12 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
             f->direction = static_cast<signed char>(calc_general_direction(f->x, f->y,
                 leader->previous_tile_x, leader->previous_tile_y));
             if (f->direction >= 8) {
+                break;
+            }
+            const int target_grid_offset =
+                f->grid_offset + map_grid_direction_delta(f->direction);
+            if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+                f->direction = DIR_FIGURE_REROUTE;
                 break;
             }
             f->previous_tile_direction = f->direction;

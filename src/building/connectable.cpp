@@ -512,9 +512,8 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
 
 static int building_has_aqueduct_connection_node_at(const Building &building, int aqueduct_grid_offset)
 {
-    Building *owner = building.Composition ? building.Composition->owner() : const_cast<Building *>(&building);
-    const ::building *record = owner ? owner->record() : nullptr;
-    if (!record || !owner || !owner->type) {
+    const Building *owner = building.Composition ? building.Composition->owner() : &building;
+    if (!owner || !owner->type) {
         return 0;
     }
 
@@ -528,7 +527,7 @@ static int building_has_aqueduct_connection_node_at(const Building &building, in
             continue;
         }
         for (const building_type_registry_impl::WaterAccessNode &node : water.provider_nodes()) {
-            if (record->x + node.x == aqueduct_x && record->y + node.y == aqueduct_y) {
+            if (owner->x() + node.x == aqueduct_x && owner->y() + node.y == aqueduct_y) {
                 return 1;
             }
         }
@@ -550,6 +549,15 @@ static int aqueduct_connects_to_tile(int grid_offset, int offset)
     }
     return map_building_exists_at(offset) &&
         building_has_aqueduct_connection_node_at(map_building_at(offset), grid_offset);
+}
+
+int building_connectable_count_aqueduct_connections(int grid_offset)
+{
+    int count = 0;
+    for (int i = 0; i < MAX_TILES; i += 2) {
+        count += aqueduct_connects_to_tile(grid_offset, grid_offset + map_grid_direction_delta(i));
+    }
+    return count;
 }
 
 int building_connectable_get_aqueduct_offset(int grid_offset)
@@ -658,23 +666,15 @@ int building_connectable_num_variants(building_type type)
 
 void building_connectable_update_connections_for_type(building_type type)
 {
-    for (Building *runtime_building = Building::first_of_type(type);
-         runtime_building;
-         runtime_building = runtime_building->next_of_type()) {
-        building *b = const_cast<::building *>(runtime_building->record());
-        if (!b) {
+    for (Building &building : Building::of_type(type)) {
+        if (!building.is_created() && !building.is_in_use() && !building.is_mothballed()) {
             continue;
         }
-        if (b->state != BUILDING_STATE_CREATED &&
-            b->state != BUILDING_STATE_IN_USE &&
-            b->state != BUILDING_STATE_MOTHBALLED) {
+        if (!map_building_exists_at(building.grid_offset()) ||
+            map_building_at(building.grid_offset()).id != building.id) {
             continue;
         }
-        if (!map_building_exists_at(b->grid_offset) ||
-            map_building_at(b->grid_offset).id != runtime_building->id) {
-            continue;
-        }
-        runtime_building->refresh_graphic();
+        building.refresh_graphic();
     }
 }
 

@@ -13,7 +13,7 @@ void game_undo_add_replaced_building(building *b);
 
 void game_undo_adjust_building(building *b);
 
-void game_undo_record_building_type(building *b);
+void game_undo_record_building_type(Building &building);
 
 void game_undo_restore_building_types(void);
 

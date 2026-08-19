@@ -38,19 +38,16 @@ static const int ROUTE_DIRECTION_INDICES[8][4] = {
     {4, 6, 2, 0}, {4, 6, 2, 0}, {6, 0, 4, 2}, {6, 0, 4, 2}
 };
 
-int trace_routed_offsets(int x_start, int y_start, int x_end, int y_end, std::vector<int> *offsets)
+int trace_routed_offsets(int x_start, int y_start, int x_end, int y_end, std::vector<int> &offsets)
 {
-    if (!offsets) {
-        return 0;
-    }
-    offsets->clear();
+    offsets.clear();
     int grid_offset = map_grid_offset(x_end, y_end);
     for (int guard = 0; guard < 400; ++guard) {
         const int distance = Route::constructionDistanceTo(grid_offset);
         if (distance <= 0) {
             return 0;
         }
-        offsets->push_back(grid_offset);
+        offsets.push_back(grid_offset);
         const int direction = calc_general_direction(x_end, y_end, x_start, y_start);
         if (direction == DIR_8_NONE) {
             return 1;
@@ -74,6 +71,49 @@ int trace_routed_offsets(int x_start, int y_start, int x_end, int y_end, std::ve
     return 0;
 }
 
+int routed_road_offsets_are_valid(const std::vector<int> &offsets)
+{
+    for (std::size_t i = 0; i < offsets.size(); ++i) {
+        const int grid_offset = offsets[i];
+        if (i > 0 &&
+            !map_tiles_access_ramp_allows_road_edge(offsets[i - 1], grid_offset)) {
+            return 0;
+        }
+        if (!map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            continue;
+        }
+        if (!map_can_place_road_under_aqueduct(grid_offset)) {
+            return 0;
+        }
+        if (i > 0 && !map_can_route_road_under_aqueduct(grid_offset, offsets[i - 1])) {
+            return 0;
+        }
+        if (i + 1 < offsets.size() && !map_can_route_road_under_aqueduct(grid_offset, offsets[i + 1])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void preview_routed_road(const std::vector<int> &offsets)
+{
+    for (int grid_offset : offsets) {
+        if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+            continue;
+        }
+        map_tiles_set_road(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset));
+    }
+}
+
+void publish_routed_road_crossings(const std::vector<int> &offsets)
+{
+    for (int grid_offset : offsets) {
+        if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            map_tiles_set_road(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset));
+        }
+    }
+}
+
 const building_type_registry_impl::BuildingType *routed_surface_definition(
     building_type_registry_impl::ConstructionToolKind kind)
 {
@@ -88,20 +128,29 @@ int build_routed_surface_plans(
     const building_type_registry_impl::BuildingType &definition,
     const std::vector<int> &offsets,
     int skip_transformable_gates,
-    std::vector<building_construction::ConstructionPlacementPlan> *placements,
-    std::vector<int> *gate_offsets,
-    int *items)
+    std::vector<building_construction::ConstructionPlacementPlan> &placements,
+    std::vector<int> &gate_offsets,
+    int &items)
 {
-    if (!placements || !gate_offsets || !items) {
-        return 0;
-    }
-    placements->clear();
-    gate_offsets->clear();
-    *items = 0;
+    placements.clear();
+    gate_offsets.clear();
+    items = 0;
     std::set<int> charged_cells;
     for (int grid_offset : offsets) {
+        if (definition.tool().kind() == building_type_registry_impl::ConstructionToolKind::Road) {
+            if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+                continue;
+            }
+            if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+                if (!map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+                    charged_cells.insert(grid_offset).second) {
+                    ++items;
+                }
+                continue;
+            }
+        }
         if (skip_transformable_gates && figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
-            gate_offsets->push_back(grid_offset);
+            gate_offsets.push_back(grid_offset);
             continue;
         }
         building_construction::ConstructionPlacementPlan placement(
@@ -130,12 +179,12 @@ int build_routed_surface_plans(
                     ? !(terrain & TERRAIN_HIGHWAY)
                     : ((transport & TERRAIN_ROAD) && !(terrain & TERRAIN_ROAD));
                 if (is_new_transport && charged_cells.insert(tile.grid_offset).second) {
-                    ++*items;
+                    ++items;
                 }
             }
         }
         if (changes_terrain) {
-            placements->push_back(std::move(placement));
+            placements.push_back(std::move(placement));
         }
     }
     return 1;
@@ -148,13 +197,12 @@ void transform_routed_gates(const std::vector<int> &gate_offsets)
             continue;
         }
         Building &gate = map_building_at(grid_offset);
-        building *gate_record = const_cast<::building *>(gate.record());
         const building_type gate_type = static_cast<building_type>(
             building_connectable_gate_type(gate.type ? gate.type->type() : BUILDING_NONE));
-        if (!gate_record || gate_type == BUILDING_NONE) {
+        if (gate_type == BUILDING_NONE) {
             continue;
         }
-        game_undo_record_building_type(gate_record);
+        game_undo_record_building_type(gate);
         gate.change_type(gate_type);
         Roadblock roadblock(gate);
         if (config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
@@ -194,9 +242,9 @@ static int place_aqueduct_tile(building_type aqueduct_type, int x, int y)
 }
 
 static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
-    routed_building_type type, building_type building_type_to_place, int *items, grid_slice *route = nullptr)
+    routed_building_type type, building_type building_type_to_place, int &items, grid_slice *route = nullptr)
 {
-    *items = 0;
+    items = 0;
     int grid_offset = map_grid_offset(x_end, y_end);
     int distance = 0;
     int guard = 0;
@@ -213,19 +261,17 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
             route->grid_offsets[route->size++] = grid_offset;
         }
         switch (type) {
-            default:
-            case ROUTED_BUILDING_ROAD:
-                *items += map_tiles_set_road(x_end, y_end);
-                break;
             case ROUTED_BUILDING_AQUEDUCT:
-                *items += place_aqueduct_tile(building_type_to_place, x_end, y_end);
+                items += place_aqueduct_tile(building_type_to_place, x_end, y_end);
                 break;
             case ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC:
-                *items += 1;
+                items += 1;
                 break;
             case ROUTED_BUILDING_HIGHWAY:
-                *items += map_tiles_set_highway(x_end, y_end);
+                items += map_tiles_set_highway(x_end, y_end);
                 break;
+            default:
+                return 0;
         }
         int direction = calc_general_direction(x_end, y_end, x_start, y_start);
         if (direction == DIR_8_NONE) {
@@ -275,23 +321,30 @@ int building_construction_place_road(
     }
 
     int items_placed = 0;
+    int placed = 0;
     if (Route::calculateConstructionDistances(RoutePolicyKind::ConstructionRoad, { x_start, y_start })) {
-        int placed = 0;
-        if (measure_only) {
-            placed = place_routed_building(x_start, y_start, x_end, y_end,
-                ROUTED_BUILDING_ROAD, BUILDING_NONE, &items_placed);
-        } else {
-            std::vector<int> offsets;
-            std::vector<int> gate_offsets;
-            std::vector<building_construction::ConstructionPlacementPlan> placements;
-            const building_type_registry_impl::BuildingType *definition = road_type == BUILDING_NONE
-                ? routed_surface_definition(building_type_registry_impl::ConstructionToolKind::Road)
-                : building_type_registry_impl::definition_for_type(road_type);
-            placed = definition && trace_routed_offsets(x_start, y_start, x_end, y_end, &offsets) &&
-                build_routed_surface_plans(
-                    *definition, offsets, 1, &placements, &gate_offsets, &items_placed) &&
-                building_construction_publish_placement_batch(placements);
-            if (placed) {
+        std::vector<int> offsets;
+        std::vector<int> gate_offsets;
+        std::vector<building_construction::ConstructionPlacementPlan> placements;
+        const building_type_registry_impl::BuildingType *definition = road_type == BUILDING_NONE
+            ? routed_surface_definition(building_type_registry_impl::ConstructionToolKind::Road)
+            : building_type_registry_impl::definition_for_type(road_type);
+        placed = definition && trace_routed_offsets(x_start, y_start, x_end, y_end, offsets) &&
+            routed_road_offsets_are_valid(offsets);
+        if (placed) {
+            placed = build_routed_surface_plans(
+                *definition, offsets, 1, placements, gate_offsets, items_placed);
+        }
+        if (placed) {
+            if (measure_only) {
+                preview_routed_road(offsets);
+            } else {
+                placed = building_construction_publish_placement_batch(placements);
+                if (placed) {
+                    publish_routed_road_crossings(offsets);
+                }
+            }
+            if (placed && !measure_only) {
                 transform_routed_gates(gate_offsets);
                 map_tiles_update_all_roads();
                 map_tiles_update_all_highways();
@@ -307,7 +360,7 @@ int building_construction_place_road(
             }
         }
     }
-    return items_placed;
+    return placed ? items_placed : 0;
 }
 
 int building_construction_place_highway(
@@ -334,7 +387,7 @@ int building_construction_place_highway(
         int placed = 0;
         if (measure_only) {
             placed = place_routed_building(x_start, y_start, x_end, y_end,
-                ROUTED_BUILDING_HIGHWAY, BUILDING_NONE, &items_placed);
+                ROUTED_BUILDING_HIGHWAY, BUILDING_NONE, items_placed);
         } else {
             std::vector<int> offsets;
             std::vector<int> gate_offsets;
@@ -342,9 +395,9 @@ int building_construction_place_highway(
             const building_type_registry_impl::BuildingType *definition = highway_type == BUILDING_NONE
                 ? routed_surface_definition(building_type_registry_impl::ConstructionToolKind::Highway)
                 : building_type_registry_impl::definition_for_type(highway_type);
-            placed = definition && trace_routed_offsets(x_start, y_start, x_end, y_end, &offsets) &&
+            placed = definition && trace_routed_offsets(x_start, y_start, x_end, y_end, offsets) &&
                 build_routed_surface_plans(
-                    *definition, offsets, 0, &placements, &gate_offsets, &items_placed) &&
+                    *definition, offsets, 0, placements, gate_offsets, items_placed) &&
                 building_construction_publish_placement_batch(placements);
             if (placed) {
                 map_tiles_update_all_highways();
@@ -411,7 +464,7 @@ int building_construction_place_aqueduct(
     const routed_building_type route_type =
         measure_only ? ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC : ROUTED_BUILDING_AQUEDUCT;
     place_routed_building(x_start, y_start, x_end, y_end,
-        route_type, aqueduct_type, &num_items);
+        route_type, aqueduct_type, num_items);
     *cost = item_cost * num_items;
     return 1;
 }
@@ -446,7 +499,7 @@ int building_construction_preview_aqueduct_route(
             y_end,
             ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC,
             aqueduct_type,
-            &num_items,
+            num_items,
             route)) {
         route->size = 0;
         return 0;
@@ -469,7 +522,7 @@ int building_construction_place_aqueduct_for_reservoir(
         route->size = 0;
     }
     routed_building_type type = measure_only ? ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC : ROUTED_BUILDING_AQUEDUCT;
-    const int placed = place_routed_building(x_start, y_start, x_end, y_end, type, aqueduct_type, items, route);
+    const int placed = place_routed_building(x_start, y_start, x_end, y_end, type, aqueduct_type, *items, route);
     if (!placed && route) {
         route->size = 0;
     }

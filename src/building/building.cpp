@@ -737,6 +737,11 @@ int Building::is_deleted() const
     return record_->is_deleted;
 }
 
+int Building::is_created() const
+{
+    return record_->state == BUILDING_STATE_CREATED;
+}
+
 int Building::is_in_use() const
 {
     return record_->state == BUILDING_STATE_IN_USE;

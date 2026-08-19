@@ -280,8 +280,9 @@ static void route_queue_all_from(int source, max_directions directions,
 
 static int callback_calc_distance(int next_offset, int dist, int direction)
 {
-    (void) direction;
-    if (terrain_land_citizen.items[next_offset] >= CITIZEN_0_ROAD) {
+    const int current_offset = next_offset - ROUTE_OFFSETS[direction];
+    if (terrain_land_citizen.items[next_offset] >= CITIZEN_0_ROAD &&
+        map_tiles_access_ramp_allows_road_edge(current_offset, next_offset)) {
         enqueue(next_offset, dist);
     }
     return 1;
@@ -304,8 +305,9 @@ static int can_enter_citizen_road_garden_highway_surface(int grid_offset)
 
 static int callback_calc_distance_road_garden(int next_offset, int dist, int direction)
 {
-    (void) direction;
-    if (can_enter_citizen_road_garden_surface(next_offset)) {
+    const int current_offset = next_offset - ROUTE_OFFSETS[direction];
+    if (can_enter_citizen_road_garden_surface(next_offset) &&
+        map_tiles_access_ramp_allows_road_edge(current_offset, next_offset)) {
         enqueue(next_offset, dist);
     }
     return 1;
@@ -313,8 +315,9 @@ static int callback_calc_distance_road_garden(int next_offset, int dist, int dir
 
 static int callback_calc_distance_road_garden_highway(int next_offset, int dist, int direction)
 {
-    (void) direction;
-    if (can_enter_citizen_road_garden_highway_surface(next_offset)) {
+    const int current_offset = next_offset - ROUTE_OFFSETS[direction];
+    if (can_enter_citizen_road_garden_highway_surface(next_offset) &&
+        map_tiles_access_ramp_allows_road_edge(current_offset, next_offset)) {
         enqueue(next_offset, dist);
     }
     return 1;
@@ -382,17 +385,30 @@ static int callback_calc_distance_build_highway(int next_offset, int dist, int d
 
 static int callback_calc_distance_build_road(int next_offset, int dist, int direction)
 {
-    (void) direction;
     int blocked = 0;
+    const int current_offset = next_offset - ROUTE_OFFSETS[direction];
+    if (!map_tiles_access_ramp_allows_road_edge(current_offset, next_offset) ||
+        (map_terrain_is(current_offset, TERRAIN_AQUEDUCT) &&
+            !map_can_route_road_under_aqueduct(current_offset, next_offset)) ||
+        (map_terrain_is(next_offset, TERRAIN_AQUEDUCT) &&
+            !map_can_route_road_under_aqueduct(next_offset, current_offset))) {
+        distance.determined.items[next_offset] = -1;
+        blocked = 1;
+    }
+    if (blocked) {
+        return 1;
+    }
+    if (map_terrain_is(next_offset, TERRAIN_AQUEDUCT)) {
+        // Runtime aqueducts are buildings and therefore have blocked citizen
+        // terrain. Their crossing validity was established above.
+        enqueue(next_offset, dist);
+        return 1;
+    }
     switch (terrain_land_citizen.items[next_offset]) {
         case GATE_0_TRANSFORMABLE:
             // can be transformed to gate, so not blocked for road building
             break;
         case CITIZEN_N3_AQUEDUCT:
-            if (!map_can_place_road_under_aqueduct(next_offset)) {
-                distance.determined.items[next_offset] = -1;
-                blocked = 1;
-            }
             break;
         case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden
         case CITIZEN_N1_BLOCKED: // non-empty land
@@ -453,11 +469,11 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
         // not open land, can only if:
         // - aqueduct should be placed, and:
         // - land is a reservoir building OR an aqueduct
+        if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            return is_aqueduct || map_can_place_road_under_aqueduct(grid_offset);
+        }
         if (!is_aqueduct) {
             return 0;
-        }
-        if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-            return 1;
         }
         if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
             if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("reservoir")) {
@@ -598,9 +614,9 @@ static int citizen_can_enter_roadblock(int grid_offset)
 
 static int callback_travel_citizen_land(int offset, int next_offset, int direction)
 {
-    (void) offset;
     (void) direction;
     if (terrain_land_citizen.items[next_offset] >= 0 &&
+        map_tiles_access_ramp_allows_road_edge(offset, next_offset) &&
         citizen_can_enter_roadblock(next_offset) &&
         !has_fighting_friendly(next_offset)) {
         return 1;
@@ -619,9 +635,9 @@ int map_routing_citizen_can_travel_over_land(
 
 static int callback_travel_citizen_road_garden(int offset, int next_offset, int direction)
 {
-    (void) offset;
     (void) direction;
-    return can_enter_citizen_road_garden_surface(next_offset);
+    return can_enter_citizen_road_garden_surface(next_offset) &&
+        map_tiles_access_ramp_allows_road_edge(offset, next_offset);
 }
 
 int map_routing_citizen_can_travel_over_road_garden(
@@ -639,9 +655,9 @@ int map_routing_citizen_can_travel_over_road_garden(
 
 static int callback_travel_citizen_road_garden_highway(int offset, int next_offset, int direction)
 {
-    (void) offset;
     (void) direction;
-    return can_enter_citizen_road_garden_highway_surface(next_offset);
+    return can_enter_citizen_road_garden_highway_surface(next_offset) &&
+        map_tiles_access_ramp_allows_road_edge(offset, next_offset);
 }
 
 int map_routing_citizen_can_travel_over_road_garden_highway(

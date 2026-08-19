@@ -6,6 +6,7 @@
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/type.h"
+#include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
 #include "building_graphics_contract_test.h"
@@ -396,6 +397,12 @@ bool validate_road_aqueduct_crossing_rules()
         road_aqueduct_axis_from_connectable_option(2, 1) != x ||
         road_aqueduct_axis_from_connectable_option(3, 1) != y ||
         road_aqueduct_axis_from_connectable_option(4, 0) != none ||
+        !road_aqueduct_tile_allows_crossing(x, 2) ||
+        road_aqueduct_tile_allows_crossing(x, 3) ||
+        road_aqueduct_tile_allows_crossing(none, 2) ||
+        !road_aqueduct_axes_allow_crossing(x, y, 2) ||
+        road_aqueduct_axes_allow_crossing(x, x, 2) ||
+        road_aqueduct_axes_allow_crossing(x, y, 3) ||
         road_aqueduct_crossing_option(0, 1) != 0 ||
         road_aqueduct_crossing_option(1, 1) != 1 ||
         road_aqueduct_crossing_option(0, 0) != 2 ||
@@ -435,6 +442,31 @@ bool validate_road_aqueduct_crossing_rules()
     }
 
     std::cout << "Validated road/aqueduct topology and XML-owned native crossing graphics.\n";
+    return true;
+}
+
+bool validate_access_ramp_road_connection_rules()
+{
+    for (int view = 0; view < 8; view += 2) {
+        for (int image_orientation = 0; image_orientation < 4; ++image_orientation) {
+            const int world_orientation = (image_orientation + view / 2) % 4;
+            const int along_axis = (world_orientation & 1) ? 2 : 0;
+            const int across_axis = (world_orientation & 1) ? 0 : 2;
+            if (!access_ramp_connects_to_road_direction(image_orientation, view, along_axis) ||
+                !access_ramp_connects_to_road_direction(image_orientation, view, along_axis + 4) ||
+                access_ramp_connects_to_road_direction(image_orientation, view, across_axis) ||
+                access_ramp_connects_to_road_direction(image_orientation, view, across_axis + 4) ||
+                !access_ramp_edge_allows_road_direction(image_orientation, -1, view, along_axis) ||
+                access_ramp_edge_allows_road_direction(image_orientation, -1, view, across_axis) ||
+                access_ramp_edge_allows_road_direction(-1, image_orientation, view, across_axis) ||
+                access_ramp_edge_allows_road_direction(
+                    image_orientation, image_orientation, view, across_axis)) {
+                std::cerr << "Access-ramp road connection contract failed: a stair connected across its rails.\n";
+                return false;
+            }
+        }
+    }
+    std::cout << "Validated access-ramp graphics and citizen movement edges across every map rotation.\n";
     return true;
 }
 
@@ -907,6 +939,9 @@ int main(int argc, char **argv)
         return 1;
     }
     if (!validate_road_aqueduct_crossing_rules()) {
+        return 1;
+    }
+    if (!validate_access_ramp_road_connection_rules()) {
         return 1;
     }
     if (!validate_gate_terrain_foundation_contract()) {

@@ -171,6 +171,7 @@ public:
     void set_formation_id(int formation_id);
     formation *formation_object() const;
     int is_deleted() const;
+    int is_created() const;
     int is_in_use() const;
     int is_mothballed() const;
     int is_fire_proof() const;

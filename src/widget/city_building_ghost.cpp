@@ -939,7 +939,8 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
 static void draw_road(const map_tile *tile, int x, int y)
 {
     const road_preview_graphic preview = map_road_preview_graphic_at(tile->grid_offset);
-    if (preview.blocked || city_finance_out_of_money()) {
+    if (preview.blocked || city_finance_out_of_money() ||
+        (building_construction_in_progress() && !building_construction_can_place())) {
         Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
     } else if (preview.building != BUILDING_NONE) {
         const building_type_registry_impl::BuildingType *definition =

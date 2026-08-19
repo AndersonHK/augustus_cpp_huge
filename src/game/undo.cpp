@@ -194,19 +194,21 @@ static void restore_replaced_buildings()
     data.replaced_buildings.clear();
 }
 
-void game_undo_record_building_type(building *b)
+void game_undo_record_building_type(Building &building)
 {
-    if (!b || b->id <= 0 || data.type_changes.num >= MAX_UNDO_TYPE_CHANGES) {
+    const building_type original_type = building.type ? building.type->type() : BUILDING_NONE;
+    if (building.id <= 0 || original_type == BUILDING_NONE ||
+        data.type_changes.num >= MAX_UNDO_TYPE_CHANGES) {
         return;
     }
     // Only record the first snapshot (before any change this build action)
     for (int i = 0; i < data.type_changes.num; i++) {
-        if (data.type_changes.items[i].building_id == b->id) {
+        if (data.type_changes.items[i].building_id == building.id) {
             return;
         }
     }
-    data.type_changes.items[data.type_changes.num].building_id = b->id;
-    data.type_changes.items[data.type_changes.num].original_type = b->type;
+    data.type_changes.items[data.type_changes.num].building_id = building.id;
+    data.type_changes.items[data.type_changes.num].original_type = original_type;
     data.type_changes.num++;
 }
 

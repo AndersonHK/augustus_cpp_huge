@@ -906,6 +906,9 @@ int building_construction_force_place_clear_cost(void)
 
 int building_construction_can_place(void)
 {
+    if (construction_tool_for_type(data.tool.type).is_road()) {
+        return data.can_place;
+    }
     return building_construction_is_land_work_type(data.tool.type) || data.can_place;
 }
 
@@ -1070,6 +1073,7 @@ void building_construction_update(int x, int y, int grid_offset)
     } else if (tool.is_road()) {
         int items_placed = building_construction_place_road(
             1, data.tool.start.x, data.tool.start.y, x, y, data.tool.type);
+        data.can_place = items_placed > 0;
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }

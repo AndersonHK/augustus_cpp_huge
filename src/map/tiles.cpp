@@ -3,6 +3,7 @@
 #include "figure/figure.h"
 #include "building/building_record.h"
 #include "map/aqueduct.h"
+#include "map/access_ramp_rules.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -1047,10 +1048,41 @@ int map_tiles_road_surface_image_id(int grid_offset)
     return image_group(GROUP_TERRAIN_ROAD) + img->group_offset + img->item_offset + 49;
 }
 
+int map_tiles_access_ramp_allows_road_edge(int source_grid_offset, int target_grid_offset)
+{
+    if (!map_grid_is_valid_offset(source_grid_offset) ||
+        !map_grid_is_valid_offset(target_grid_offset)) {
+        return 0;
+    }
+    int direction = -1;
+    for (int candidate = 0; candidate < 8; ++candidate) {
+        if (target_grid_offset == source_grid_offset + map_grid_direction_delta(candidate)) {
+            direction = candidate;
+            break;
+        }
+    }
+    if (direction < 0) {
+        return 0;
+    }
+    const auto ramp_orientation = [](int grid_offset) {
+        return map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)
+            ? map_image_at(grid_offset) - image_group(GROUP_TERRAIN_ACCESS_RAMP)
+            : -1;
+    };
+    return access_ramp_edge_allows_road_direction(
+        ramp_orientation(source_grid_offset),
+        ramp_orientation(target_grid_offset),
+        city_view_orientation(),
+        direction);
+}
+
 static void set_road_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
+    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+        return;
+    }
     const int building_uses_terrain_foundation =
         map_building_exists_at(grid_offset) &&
         map_building_at(grid_offset).Graphics().uses_terrain_foundation();
@@ -1120,7 +1152,7 @@ static void update_internal_passage_roads(int x, int y)
 int map_tiles_set_road(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
         return 0;
     }
     int tile_set = 0;

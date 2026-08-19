@@ -17,6 +17,38 @@
 
 static road_aqueduct_axis straight_road_axis_for_aqueduct(int grid_offset);
 
+static road_aqueduct_axis aqueduct_axis_at(int grid_offset)
+{
+    const int view_swaps_axes =
+        city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT;
+    return road_aqueduct_axis_from_connectable_option(
+        building_connectable_get_aqueduct_offset(grid_offset), view_swaps_axes);
+}
+
+static road_aqueduct_axis axis_between_adjacent_tiles(int grid_offset, int adjacent_grid_offset)
+{
+    if (adjacent_grid_offset == grid_offset + map_grid_delta(1, 0) ||
+        adjacent_grid_offset == grid_offset + map_grid_delta(-1, 0)) {
+        return road_aqueduct_axis::x;
+    }
+    if (adjacent_grid_offset == grid_offset + map_grid_delta(0, 1) ||
+        adjacent_grid_offset == grid_offset + map_grid_delta(0, -1)) {
+        return road_aqueduct_axis::y;
+    }
+    return road_aqueduct_axis::none;
+}
+
+static int axis_has_existing_road_conflict(int grid_offset, road_aqueduct_axis axis)
+{
+    const int dx = axis == road_aqueduct_axis::x ? 1 : 0;
+    const int dy = axis == road_aqueduct_axis::y ? 1 : 0;
+    if (!dx && !dy) {
+        return 1;
+    }
+    return map_terrain_is(grid_offset + map_grid_delta(-dx, -dy), TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ||
+        map_terrain_is(grid_offset + map_grid_delta(dx, dy), TERRAIN_ROAD | TERRAIN_ACCESS_RAMP);
+}
+
 static int axis_has_construction_conflict(int grid_offset, road_aqueduct_axis axis, int include_existing_roads)
 {
     const int dx = axis == road_aqueduct_axis::x ? 1 : 0;
@@ -35,11 +67,21 @@ static int axis_has_construction_conflict(int grid_offset, road_aqueduct_axis ax
 
 int map_can_place_road_under_aqueduct(int grid_offset)
 {
-    const int view_swaps_axes =
-        city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT;
-    const road_aqueduct_axis aqueduct_axis = road_aqueduct_axis_from_connectable_option(
-        building_connectable_get_aqueduct_offset(grid_offset), view_swaps_axes);
-    return !axis_has_construction_conflict(grid_offset, aqueduct_axis, 1);
+    const road_aqueduct_axis aqueduct_axis = aqueduct_axis_at(grid_offset);
+    return road_aqueduct_tile_allows_crossing(
+            aqueduct_axis,
+            building_connectable_count_aqueduct_connections(grid_offset)) &&
+        !axis_has_existing_road_conflict(grid_offset, aqueduct_axis);
+}
+
+int map_can_route_road_under_aqueduct(int grid_offset, int adjacent_grid_offset)
+{
+    const road_aqueduct_axis aqueduct_axis = aqueduct_axis_at(grid_offset);
+    return map_can_place_road_under_aqueduct(grid_offset) &&
+        road_aqueduct_axes_allow_crossing(
+            aqueduct_axis,
+            axis_between_adjacent_tiles(grid_offset, adjacent_grid_offset),
+            building_connectable_count_aqueduct_connections(grid_offset));
 }
 
 road_preview_graphic map_road_preview_graphic_at(int grid_offset)

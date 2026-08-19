@@ -11,6 +11,7 @@
 #include "map/road_access.h"
 #include "map/routing.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
 #include "map/water_navigation.h"
 
 #include <algorithm>
@@ -456,7 +457,11 @@ static int next_is_better(
     return direction % 2 == 1 && next_direction % 2 == 0;
 }
 
-static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
+static BuiltPath build_land_path(
+    int dst_x,
+    int dst_y,
+    int num_directions,
+    bool enforce_access_ramp_edges)
 {
     BuiltPath result;
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
@@ -482,6 +487,10 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
+            if (enforce_access_ramp_edges &&
+                !map_tiles_access_ramp_allows_road_edge(grid_offset, next_offset)) {
+                continue;
+            }
             const int next_distance = route_distance_at(next_offset);
             const int next_is_highway = map_terrain_is(next_offset, TERRAIN_HIGHWAY);
             if (next_distance && next_is_better(
@@ -557,17 +566,23 @@ static BuiltPath build_seeded_land_path(
     int path_direction_limit,
     int fallback_direction_limit = 0)
 {
+    const bool enforce_access_ramp_edges =
+        !request.policy.isNonCitizenLand() &&
+        !request.policy.isWalls() &&
+        !request.policy.isConstruction();
     BuiltPath built_path = build_land_path(
         request.destination.x,
         request.destination.y,
-        path_direction_limit);
+        path_direction_limit,
+        enforce_access_ramp_edges);
     if (!built_path &&
         fallback_direction_limit > 0 &&
         fallback_direction_limit != path_direction_limit) {
         built_path = build_land_path(
             request.destination.x,
             request.destination.y,
-            fallback_direction_limit);
+            fallback_direction_limit,
+            enforce_access_ramp_edges);
     }
     return built_path;
 }
