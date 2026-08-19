@@ -382,13 +382,15 @@ static void set_destination(
             f->release_destination_reservations();
         }
         Route::remove(f);
-    f->set_destination_building(const_cast<Building *>(&destination));
+        f->set_destination_building(const_cast<Building *>(&destination));
         f->destination_x = static_cast<unsigned char>(x_dst);
         f->destination_y = static_cast<unsigned char>(y_dst);
-        reserve_legacy_storage_destination(f);
     } else {
         validate_action_for_old_destination(f, destination);
     }
+    // Reservation search ignores this figure's existing claim. Reassert it here
+    // even when a retry keeps the same destination (for example after a reload).
+    reserve_legacy_storage_destination(f);
 }
 
 static void set_destination_to_building(
@@ -427,7 +429,7 @@ static void determine_cartpusher_destination(Figure *f, Building &source, int ro
     // priority 1: warehouse if resource is on stockpile
     if (is_storable && (city_resource_is_stockpiled(source_output) || source.industry_is_stockpiling())) {
         destination = building_warehouse_for_storing(0, f->x, f->y,
-            source_output, road_network_id, &understaffed_storages, &dst);
+            source_output, road_network_id, &understaffed_storages, &dst, f->id());
     }
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE,
@@ -436,7 +438,7 @@ static void determine_cartpusher_destination(Figure *f, Building &source, int ro
     }
     // priority 2: accepting granary for food
     destination = building_granary_for_storing(f->x, f->y,
-        source_output, road_network_id, 0, &understaffed_storages, &dst);
+        source_output, road_network_id, 0, &understaffed_storages, &dst, f->id());
     if (destination && config_get(CONFIG_GP_CH_FARMS_DELIVER_CLOSE)) {
         int dist = 0;
         if (is_close_delivery_food_source(source)) {
@@ -473,7 +475,7 @@ static void determine_cartpusher_destination(Figure *f, Building &source, int ro
     }
     // priority 4: warehouse
     destination = building_warehouse_for_storing(0, f->x, f->y,
-        source_output, road_network_id, &understaffed_storages, &dst);
+        source_output, road_network_id, &understaffed_storages, &dst, f->id());
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE,
             source, destination, dst.x, dst.y);
@@ -481,7 +483,7 @@ static void determine_cartpusher_destination(Figure *f, Building &source, int ro
     }
     // priority 5: granary forced when on stockpile
     destination = building_granary_for_storing(f->x, f->y,
-        source_output, road_network_id, 1, &understaffed_storages, &dst);
+        source_output, road_network_id, 1, &understaffed_storages, &dst, f->id());
     if (destination && config_get(CONFIG_GP_CH_FARMS_DELIVER_CLOSE)) {
         int dist = 0;
         if (is_close_delivery_food_source(source)) {
@@ -832,7 +834,7 @@ static void determine_granaryman_destination(Figure *f, Building &granary, int r
     // delivering resource
     // priority 1: another granary
     destination = building_granary_for_storing(
-        f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 0, 0, &dst);
+        f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 0, 0, &dst, f->id());
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             granary, destination, dst.x, dst.y);
@@ -850,7 +852,7 @@ static void determine_granaryman_destination(Figure *f, Building &granary, int r
     }
     // priority 2: warehouse
     destination = building_warehouse_for_storing(
-        0, f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 0, &dst);
+        0, f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 0, &dst, f->id());
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             granary, destination, dst.x, dst.y);
@@ -868,7 +870,7 @@ static void determine_granaryman_destination(Figure *f, Building &granary, int r
     }
     // priority 3: granary even though resource is on stockpile
     destination = building_granary_for_storing(
-        f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 1, 0, &dst);
+        f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, 1, 0, &dst, f->id());
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             granary, destination, dst.x, dst.y);
@@ -992,7 +994,7 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     }
     // priority 3: food to granary
     destination = building_granary_for_storing(f->x, f->y, static_cast<resource_type>(f->resource_id),
-        road_network_id, 0, 0, &dst);
+        road_network_id, 0, 0, &dst, f->id());
     if (destination) {
         set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             warehouse, destination, dst.x, dst.y);
@@ -1026,7 +1028,7 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     // priority 5: another warehouse to empty this one
     if (building_storage_get(warehouse.storage_id)->empty_all) {
         destination = building_warehouse_for_storing(
-            warehouse.id, f->x, f->y, static_cast<resource_type>(f->resource_id), -1, 0, &dst);
+            warehouse.id, f->x, f->y, static_cast<resource_type>(f->resource_id), -1, 0, &dst, f->id());
 
         // deliver to another warehouse because this one is being emptied
         if (destination) {

@@ -725,7 +725,7 @@ int building_warehouse_accepts_storage(Building &warehouse, resource_type resour
 }
 
 Building *building_warehouse_for_storing(int src_building_id, int x, int y, resource_type resource, int road_network_id,
-    int *understaffed, map_point *dst)
+    int *understaffed, map_point *dst, unsigned int reservation_owner_figure_id)
 {
     int min_dist = INFINITE;
     Building *nearest_warehouse = nullptr;
@@ -733,7 +733,8 @@ Building *building_warehouse_for_storing(int src_building_id, int x, int y, reso
         if (warehouse->id == (unsigned int) src_building_id ||
             (road_network_id != -1 && warehouse->road_network_id() != road_network_id) ||
             !building_warehouse_accepts_storage(*warehouse, resource, understaffed) ||
-            (building_warehouse_maximum_receptible_amount(*warehouse, resource) <= 0)) {
+            (building_warehouse_maximum_receptible_amount(
+                *warehouse, resource, reservation_owner_figure_id) <= 0)) {
             return;
         }
         int dist = warehouse->max_distance_to(x, y);

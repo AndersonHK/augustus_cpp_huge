@@ -453,7 +453,8 @@ void building_granaries_calculate_stocks(void)
     }
 }
 
-int building_granary_accepts_storage(const Building &b, resource_type resource, int *understaffed)
+int building_granary_accepts_storage(
+    const Building &b, resource_type resource, int *understaffed, unsigned int ignore_figure_id)
 {
     if (!b.is_in_use() || !is_granary_building(b) ||
         !b.has_cached_road_access() || b.distance_from_entry() <= 0 || b.has_plague()) {
@@ -466,7 +467,7 @@ int building_granary_accepts_storage(const Building &b, resource_type resource, 
         }
         return 0;
     }
-    if (!building_granary_maximum_receptible_amount(b, resource)) {
+    if (!building_granary_maximum_receptible_amount(b, resource, ignore_figure_id)) {
         return 0;
     }
 
@@ -501,7 +502,7 @@ Building *building_granary_get_granary_needing_food(const Building &source, reso
 }
 
 Building *building_granary_for_storing(int x, int y, resource_type resource, int road_network_id,
-    int force_on_stockpile, int *understaffed, map_point *dst)
+    int force_on_stockpile, int *understaffed, map_point *dst, unsigned int reservation_owner_figure_id)
 {
     if (scenario_property_rome_supplies_wheat()) {
         return nullptr;
@@ -517,7 +518,7 @@ Building *building_granary_for_storing(int x, int y, resource_type resource, int
     map_point min_access = { 0, 0 };
     for (Building &b : Building::of_type(granary_type())) {
         if (b.road_network_id() != road_network_id ||
-            !building_granary_accepts_storage(b, resource, understaffed)) {
+            !building_granary_accepts_storage(b, resource, understaffed, reservation_owner_figure_id)) {
             continue;
         }
         map_point access = { 0, 0 };
