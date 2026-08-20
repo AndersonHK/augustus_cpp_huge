@@ -237,6 +237,7 @@ static void clear_garden_image(int x, int y, int grid_offset)
         !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
         map_image_set(grid_offset, 0);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
+        map_property_clear_multi_tile_xy(grid_offset);
         map_property_mark_draw_tile(grid_offset);
         tile_runtime_clear(grid_offset);
     }
@@ -524,8 +525,9 @@ static void update_region_tile_refresh_behavior(
 {
     switch (behavior) {
         case building_type_registry_impl::TileRefreshBehavior::Garden:
-            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, clear_garden_image);
-            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, set_garden_image);
+            // A bounded clear can split a 2x2 garden just beyond the region border,
+            // leaving half of the old footprint bound to its runtime graphic.
+            map_tiles_update_all_gardens();
             break;
         case building_type_registry_impl::TileRefreshBehavior::Plaza:
             foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, remove_plaza_below_building);
@@ -581,8 +583,7 @@ void map_tiles_update_area_placement_tile(
 {
     switch (tile.refresh_behavior()) {
         case building_type_registry_impl::TileRefreshBehavior::Garden:
-            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, clear_garden_image);
-            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, set_garden_image);
+            map_tiles_update_all_gardens();
             break;
         default:
             update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
