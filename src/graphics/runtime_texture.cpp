@@ -1,6 +1,19 @@
 #include "graphics/runtime_texture.h"
 
+#include <math.h>
+
 namespace {
+
+render_logical_size scaled_logical_size(render_logical_size size, float scale)
+{
+    if (size.width <= 0 || size.height <= 0) {
+        return {};
+    }
+    if (scale <= 0.0f) {
+        return size;
+    }
+    return { static_cast<render_logical_unit>(roundf(size.width / scale)), static_cast<render_logical_unit>(roundf(size.height / scale)) };
+}
 
 managed_image_request make_managed_request(const RuntimeTextureDrawRequest &draw_request)
 {
@@ -50,6 +63,7 @@ void runtime_texture_draw(
     request.y = scale ? y / scale : static_cast<float>(y);
     request.logical_width = scale ? slice.width / scale : static_cast<float>(slice.width);
     request.logical_height = scale ? slice.height / scale : static_cast<float>(slice.height);
+    request.fixed_logical_size = scaled_logical_size(slice.fixed_logical_size, scale);
     request.color = color;
     request.domain = domain;
     request.scaling_policy = is_pixel_domain ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;

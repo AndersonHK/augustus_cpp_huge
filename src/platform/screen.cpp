@@ -133,7 +133,7 @@ static void set_window_icon(void)
 }
 #endif
 
-int platform_screen_create(const char *title, int display_scale_percentage, int display_id)
+int platform_screen_create(const char *title, int display_scale_percentage, int display_id, int hidden)
 {
 #ifdef __ANDROID__
     scale.screen_density = android_get_screen_density();
@@ -190,6 +190,7 @@ int platform_screen_create(const char *title, int display_scale_percentage, int 
     if (!platform_renderer_init(SDL.window)) {
         return 0;
     }
+    if (hidden) SDL_HideWindow(SDL.window);
 
     get_window_pixel_size(&width, &height);
     update_window_grab();

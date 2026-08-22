@@ -12,6 +12,7 @@
 namespace figure_type_registry_impl {
 
 class FigureTypeDefinition;
+int action_state_from_xml_name(const char *name);
 
 enum class NativeClassId {
     None,
@@ -142,16 +143,8 @@ public:
     void set_graphics(const FigureGraphics &graphics);
     const FigureGraphics &graphics() const;
     int cache_graphics_bindings();
-    const GraphicsTargetBinding *graphics_binding(
-        GraphicsTargetRole role,
-        int direction_index,
-        int frame) const;
-    const GraphicsTargetBinding *graphics_binding_for_state(
-        int figure_action_state,
-        int wait_ticks,
-        int image_offset,
-        int corpse_frame_offset,
-        int direction_index) const;
+    const GraphicsTargetBinding *graphics_binding(GraphicsTargetRole role, int direction_index, int frame) const;
+    const GraphicsTargetBinding *graphics_binding_for_state(int figure_action_state, int wait_ticks, int image_offset, int corpse_frame_offset, int direction_index) const;
 
     void set_pathing_policy(const PathingPolicy &pathing_policy);
     const PathingPolicy &pathing_policy() const;
@@ -171,7 +164,7 @@ private:
     NativeClassId native_class_id_ = NativeClassId::None;
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;
-    FigureGraphics graphics_;
+    std::shared_ptr<const FigureGraphics> graphics_;
     PathingPolicy pathing_policy_;
     std::string default_profile_id_;
     std::vector<FigureTypeProfile> profiles_;

@@ -86,6 +86,7 @@ enum {
 #include "game/resource.h"
 #include "map/point.h"
 
+#include <memory>
 #include <string>
 #include <cstdint>
 #include <cstddef>
@@ -674,7 +675,6 @@ struct ConstructionRequirement {
 
 struct ConstructionPhase {
     int index = 0;
-    GraphicsTarget graphics;
     std::vector<ConstructionRequirement> requirements;
 };
 
@@ -778,14 +778,7 @@ public:
     void add_water_access_node(WaterAccessNode node);
     void add_water_access_provider_node(WaterAccessNode node);
     void add_water_access_requirement_node(WaterAccessNode node);
-    void set_graphics_status_icon_anchor(int x, int y);
-    void set_graphics_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy);
-    void mark_graphics_default_node();
-    void clear_graphics();
-    GraphicsTarget &default_graphics_target();
-    GraphicsVariant &add_graphics_variant();
-    GraphicsVariant *last_graphics_variant();
-    void add_graphics_variant_condition(GraphicsCondition condition);
+    void set_graphics(BuildingGraphicsDef graphics);
     void set_construction_mode(ConstructionMode mode);
     void set_construction_road_update_radius(int radius);
     void set_construction_free_when_broke_limit(int limit);
@@ -873,7 +866,6 @@ public:
     const ProductionMethod *farm_panel_production_method() const;
     int has_farm_panel() const;
     int production_is_enabled() const;
-    static const GraphicsTarget *resolve_graphics_target(const BuildingType *definition, const Building &building);
     int has_identity() const;
     int has_model() const;
     int has_button() const;
@@ -936,7 +928,7 @@ private:
     BuildingFlagsDefinition flags_;
     MilitaryDefinition military_;
     WaterAccessDefinition water_access_;
-    BuildingGraphicsDef graphics_;
+    std::shared_ptr<const BuildingGraphicsDef> graphics_;
     ConstructionDefinition construction_;
     bool has_construction_ = false;
     CompositionDef composition_;

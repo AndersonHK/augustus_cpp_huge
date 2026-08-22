@@ -3,7 +3,7 @@
     <profiles default="legacy">
         <profile id="legacy">
             <native class="legacy_action" />
-            <owner slot="secondary" building="any" state="in_use" />
+            <owner slot="none" building="mess_hall" state="in_use" />
             <movement roam_ticks="1" max_roam_length="1200" return_mode="none" />
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>

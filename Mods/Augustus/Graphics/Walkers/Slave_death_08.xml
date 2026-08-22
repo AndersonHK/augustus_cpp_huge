@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\Slave_death_08">
-    <image id="Slave death 08" width="39" height="39">
-        <layer src="Slave_death_08" y="16"/>
-    </image>
-</assetlist>

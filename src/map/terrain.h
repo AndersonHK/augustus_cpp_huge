@@ -166,6 +166,7 @@ void map_terrain_save_state_legacy(buffer *buf);
 void map_terrain_migrate_old_bridges(void);
 
 void map_terrain_migrate_old_walls(void);
+int map_terrain_validate_loaded_walls(void);
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer);
 

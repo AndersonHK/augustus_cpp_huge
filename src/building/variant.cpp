@@ -104,7 +104,7 @@ int building_variant_get_graphics_option(const Building &building_obj, int force
     }
 
     const building_type_registry_impl::GraphicsTarget *target =
-        building_type_registry_impl::BuildingType::resolve_graphics_target(definition, building_obj);
+        definition ? definition->graphics().resolve_target(building_obj) : nullptr;
     if (!target || !target->has_options()) {
         return -1;
     }

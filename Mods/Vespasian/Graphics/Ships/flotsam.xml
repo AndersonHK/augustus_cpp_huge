@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE assetlist>
+<assetlist name="Ships\flotsam">
+    <figure_graphics runtime_selected_image="true" runtime_selected_empty_is_hidden="true" runtime_selected_source="Ships\Group_153" />
+    <image id="flotsam_0" group="Ships\Group_153" image="Image_0000" />
+    <image id="flotsam_1" group="Ships\Group_154" image="Image_0000" />
+    <image id="flotsam_2" group="Ships\Group_155" image="Image_0000" />
+    <image id="flotsam_3" group="Ships\Group_156" image="Image_0000" />
+    <image id="flotsam_sheep" group="Ships\Group_242" image="Image_0000" />
+</assetlist>

@@ -101,6 +101,21 @@ int ImageGroupEntryRef::height() const
     return runtime_slice().height;
 }
 
+int ImageGroupEntryRef::source_pixel_width() const
+{
+    return runtime_slice().width;
+}
+
+int ImageGroupEntryRef::source_pixel_height() const
+{
+    return runtime_slice().height;
+}
+
+render_logical_size ImageGroupEntryRef::fixed_logical_size() const
+{
+    return runtime_slice().fixed_logical_size;
+}
+
 void ImageGroupEntryRef::draw(int x, int y, color_t color, float scale) const
 {
     const RuntimeDrawSlice slice = runtime_slice();

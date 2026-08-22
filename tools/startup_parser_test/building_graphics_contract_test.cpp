@@ -60,8 +60,8 @@ bool validate_native_gatehouse_bridge_graphics_contract(std::ostream &errors)
         int no_draw_option;
     };
     static const ExpectedBridgeTarget bridges[] = {
-        { "low_bridge", "Mod_Authored\\Bridge_Low", 6, -1 },
-        { "ship_bridge", "Mod_Authored\\Bridge_Ship", 9, 6 },
+        { "low_bridge", "Terrain\\low_bridge_images", 6, -1 },
+        { "ship_bridge", "Terrain\\ship_bridge_images", 9, 6 },
     };
     for (const ExpectedBridgeTarget &expected : bridges) {
         const BuildingType *bridge = definition_for_type(type_from_attr(expected.type));
@@ -341,14 +341,13 @@ bool validate_native_hippodrome_graphics_contract(std::ostream &errors)
         }
         for (int phase_index = 1; phase_index <= 4; ++phase_index) {
             const ConstructionPhase *phase = definition->construction().phase(phase_index);
-            if (!phase || phase->graphics.option_selection() != GraphicsOptionSelection::BuildRotation ||
-                phase->graphics.option_count() != 4) {
+            const GraphicsTarget *phase_graphics = definition->graphics().construction_phase(phase_index);
+            if (!phase || !phase_graphics || phase_graphics->option_selection() != GraphicsOptionSelection::BuildRotation || phase_graphics->option_count() != 4) {
                 errors << "Hippodrome construction phase lacks four native rotation targets.\n";
                 return false;
             }
             for (int option = 0; option < 4; ++option) {
-                if (!target_entry_has_footprint(
-                        phase->graphics.resolved_option(option), errors, definition->attr())) {
+                if (!target_entry_has_footprint(phase_graphics->resolved_option(option), errors, definition->attr())) {
                     return false;
                 }
             }

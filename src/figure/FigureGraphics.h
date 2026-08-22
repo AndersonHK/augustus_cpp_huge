@@ -79,6 +79,8 @@ enum class FigureResourceCartPresentation {
 struct FigureResourceCartGraphics {
     int enabled = 0;
     int empty_image_group = 0;
+    std::string empty_path;
+    const ImageGroupPayload *empty_payload = nullptr;
     FigureResourceCartSource resource_source = FigureResourceCartSource::None;
     int resource_action = 0;
     FigureResourceCartLoadMode load_mode = FigureResourceCartLoadMode::FixedOne;
@@ -137,6 +139,8 @@ struct FigureDirectionalPoseGraphics {
 struct FigureDirectionalGraphics {
     int enabled = 0;
     int image_group = 0;
+    std::string path;
+    const ImageGroupPayload *payload = nullptr;
     int default_base_image_offset = 0;
     int view_adjustments = 1;
     int frame_divisor = 1;
@@ -155,6 +159,8 @@ struct FigureGraphicsStateLayer {
     std::string role;
     int action_state = 0;
     int image_group = 0;
+    std::string path;
+    const ImageGroupPayload *payload = nullptr;
     int base_image_offset = 0;
     FigureStateDirection direction = FigureStateDirection::Movement;
     int view_adjustments = 1;
@@ -168,6 +174,8 @@ struct FigureGraphicsStateLayer {
 struct FigureGraphicsOverlay {
     std::string role;
     int image_group = 0;
+    std::string path;
+    const ImageGroupPayload *payload = nullptr;
     FigureOverlayDirection direction = FigureOverlayDirection::Static;
     FigureOverlayFrame frame = FigureOverlayFrame::Static;
     int direction_frame_stride = 8;
@@ -187,6 +195,7 @@ struct GraphicsTargetBinding {
     std::string path;
     std::string image;
     int frame = 0;
+    int frame_selects_entry = 0;
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
     const Animation *animation = nullptr;
@@ -218,6 +227,8 @@ struct FigureGraphicsLayerSet {
 struct FigureStandardFlagGraphics {
     figure_type unit_type = FIGURE_NONE;
     int image_group = 0;
+    std::string path;
+    const ImageGroupPayload *payload = nullptr;
     int moving_base_offset = 0;
     int halted_frame_offset = 0;
 };
@@ -225,6 +236,9 @@ struct FigureStandardFlagGraphics {
 struct FigureStandardGraphics {
     int enabled = 0;
     int moving_frame_divisor = 0;
+    int moving_frame_count = 0;
+    std::string icon_path;
+    const ImageGroupPayload *icon_payload = nullptr;
     std::vector<FigureStandardFlagGraphics> flags;
 
     const FigureStandardFlagGraphics *flag_for(figure_type unit_type) const;
@@ -235,6 +249,8 @@ struct FigureMapFlagMarkerGraphics {
     int resource_min = 0;
     int resource_max_exclusive = 0;
     int image_group = 0;
+    std::string path;
+    const ImageGroupPayload *payload = nullptr;
     int image_offset = 0;
     int number_base = 0;
 };
@@ -261,6 +277,10 @@ struct FigureHippodromeTeamGraphics {
     int resource_max_exclusive = 0;
     int horse_image_group = 0;
     int cart_image_group = 0;
+    std::string horse_path;
+    std::string cart_path;
+    const ImageGroupPayload *horse_payload = nullptr;
+    const ImageGroupPayload *cart_payload = nullptr;
 };
 
 struct FigureHippodromeOffsetSchedule {
@@ -343,14 +363,10 @@ public:
     const FigureGraphicsStateLayer *state_layer_for_action(int requested_action_state) const;
     int legacy_state_layer_image_id(const Figure &figure) const;
     FigureGraphicsLayerSet legacy_state_layers(const Figure &figure) const;
-    int configure_standard(int moving_frame_divisor);
+    int configure_standard(int moving_frame_divisor, int moving_frame_count, std::string icon_path = {});
     int add_standard_flag(FigureStandardFlagGraphics flag);
     const FigureStandardGraphics &standard() const;
-    FigureGraphicsLayerSet legacy_standard_layers(
-        const Figure &figure,
-        figure_type unit_type,
-        int halted,
-        int legion_flag_image_id) const;
+    FigureGraphicsLayerSet legacy_standard_layers(const Figure &figure, figure_type unit_type, int halted, int legion_flag_image_id, int pole_frame) const;
     int configure_map_flag(
         int resource_min,
         int resource_max_exclusive,
@@ -394,24 +410,29 @@ public:
     int add_directional_pose(FigureDirectionalPoseGraphics pose);
     const FigureDirectionalGraphics &directional() const;
     int directional_image_id(const Figure &figure) const;
+    FigureGraphicsLayer directional_layer(const Figure &figure) const;
+    GraphicsPoint directional_sprite_offset(const Figure &figure) const;
 
     int image_group = 0;
     asset_id image_asset = ASSET_MAX_KEY;
+    std::string assetlist_path;
+    int runtime_selected_image = 0;
+    int runtime_selected_empty_is_hidden = 0;
+    std::string runtime_selected_source;
+    const ImageGroupPayload *runtime_selected_payload = nullptr;
     std::string path_pattern;
     std::string image_pattern;
-    int has_sprite_offset = 0;
-    int sprite_offset_x = 0;
-    int sprite_offset_y = 0;
-    render_logical_size fixed_logical_size = {};
-    render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
     int action_state = 0;
+    int action_frame_count = 0;
     int action_min_wait_ticks = 0;
+    int action_min_missile_wait_ticks = 0;
     int action_image_group = 0;
     int action_image_group_offset = 0;
     std::string action_path_pattern;
     std::string action_image_pattern;
     int image_group_offset = 0;
     int max_image_offset = 12;
+    int payload_frame_count = 0;
     int direction_frame_stride = 8;
     int static_frame_count = 0;
     int corpse_image_group = 0;
@@ -431,12 +452,14 @@ public:
     int action_source_count() const;
     int corpse_source_count() const;
     int has_native_payload() const;
+    int uses_runtime_selected_image() const;
+    int runtime_selected_image_may_be_hidden() const;
     int has_action_native_payload() const;
     int has_corpse_native_payload() const;
-    int action_graphics_matches(int figure_action_state, int wait_ticks) const;
-    int has_fixed_logical_size() const;
+    int action_graphics_matches(int figure_action_state, int wait_ticks, int missile_wait_ticks = 0) const;
     int has_legacy_default_source() const;
     int has_legacy_resource_cart_graphics() const;
+    int has_resource_cart_graphics() const;
     GraphicsPoint legacy_resource_cart_layer_offset(int cart_direction, int carried_loads) const;
     RuntimeDrawSlice legacy_resource_cart_slice(resource_type resource, int carried_loads, int cart_direction) const;
     FigureGraphicsLayer legacy_resource_cart_layer(resource_type resource, int carried_loads, int cart_direction) const;
@@ -461,19 +484,14 @@ public:
     int apply_legacy_image_state(Figure &figure) const;
     void apply_legacy_prefect_service_image_state(Figure &figure, int direction) const;
     void apply_legacy_entertainment_image_state(Figure &figure, int direction) const;
-    GraphicsTargetRole target_role_for_action_state(int figure_action_state, int wait_ticks) const;
+    GraphicsTargetRole target_role_for_action_state(int figure_action_state, int wait_ticks, int missile_wait_ticks = 0) const;
     int target_frame_count(GraphicsTargetRole role) const;
     GraphicsTargetBinding target_binding(GraphicsTargetRole role, int direction_index, int frame) const;
     const GraphicsTargetBinding *cached_target_binding(
         GraphicsTargetRole role,
         int direction_index,
         int frame) const;
-    const GraphicsTargetBinding *cached_target_binding_for_state(
-        int figure_action_state,
-        int wait_ticks,
-        int image_offset,
-        int corpse_frame_offset,
-        int direction_index) const;
+    const GraphicsTargetBinding *cached_target_binding_for_state(int figure_action_state, int wait_ticks, int image_offset, int corpse_frame_offset, int direction_index, int missile_wait_ticks = 0) const;
     const GraphicsTargetBinding *cached_target_binding_for_figure(const Figure &figure) const;
     const GraphicsTargetBinding *cached_target_binding_for_figure_direction(
         const Figure &figure,

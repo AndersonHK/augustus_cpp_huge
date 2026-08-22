@@ -1,4 +1,5 @@
 #include "platform/render_2d_pipeline.h"
+#include "platform/render_destination_geometry.h"
 
 #include "core/config.h"
 
@@ -119,16 +120,7 @@ render_destination_rect Render2DPipeline::shared_city_tile_destination_rect(
 
 render_destination_rect Render2DPipeline::round_shared_edges(const render_destination_rect &rect) const
 {
-    float left = roundf(rect.x);
-    float top = roundf(rect.y);
-    float right = roundf(rect.x + rect.width);
-    float bottom = roundf(rect.y + rect.height);
-    return {
-        left,
-        top,
-        right - left,
-        bottom - top
-    };
+    return render_shared_city_tile_destination(rect);
 }
 
 render_domain Render2DPipeline::tooltip_domain_for(render_domain domain) const

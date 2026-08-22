@@ -44,7 +44,7 @@ void figure_editor_flag_action(Figure *f)
     f->y = static_cast<unsigned char>(point.y);
 
     f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
-    f->cross_country_x = static_cast<short>(figure_movement_tile_center_cross_country(f->x));
-    f->cross_country_y = static_cast<short>(figure_movement_tile_center_cross_country(f->y));
+    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
+    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
     map_figure_add(f);
 }

@@ -2,11 +2,16 @@
 #include "core/log.h"
 #include "translation/translation.h"
 #include "game/game.h"
+#include "game/file.h"
+#include "game/Animation.h"
+#include "game/tick.h"
 #include "game/mod_manager.h"
 #include "game/performance_tracker.h"
+#include "figure/figure_runtime_native.h"
 #include "platform/cursor.h"
 #include "platform/joystick.h"
 #include "window/asset_previewer.h"
+#include "window/city.h"
 
 #include "core/file.h"
 #include "game/settings.h"
@@ -47,6 +52,7 @@
 #include <string.h>
 
 #ifdef _MSC_VER
+#include <crtdbg.h>
 #include <windows.h>
 #endif
 
@@ -73,7 +79,22 @@ static struct {
         uint64_t last_update_time;
     } fps;
     FILE *log_file;
+    int startup_test;
+    int warning_count;
+    int error_count;
 } data = { 1 };
+
+static void show_startup_error(const char *title, const char *message)
+{
+    const char *safe_title = title && *title ? title : "Startup error";
+    const char *safe_message = message && *message ? message : "Unknown startup failure.";
+    if (data.startup_test) {
+        fprintf(stderr, "%s: %s\n", safe_title, safe_message);
+        fflush(stderr);
+        return;
+    }
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, safe_title, safe_message, NULL);
+}
 
 static const char *AUGUSTUS_GRAPHICS_BOOTSTRAP_STAMP_PREFIX = "renderer_resource_bootstrap_v2:";
 
@@ -360,7 +381,13 @@ static void write_log(void *userdata, int category, SDL_LogPriority priority, co
     (void) userdata;
     (void) category;
     char log_text[300] = { 0 };
-    snprintf(log_text, 300, "%s %s\n", priority == SDL_LOG_PRIORITY_ERROR ? "ERROR: " : "INFO: ", message);
+    const char *prefix = priority >= SDL_LOG_PRIORITY_ERROR ? "ERROR: " : priority == SDL_LOG_PRIORITY_WARN ? "WARNING: " : "INFO: ";
+    if (priority >= SDL_LOG_PRIORITY_ERROR) {
+        data.error_count++;
+    } else if (priority == SDL_LOG_PRIORITY_WARN) {
+        data.warning_count++;
+    }
+    snprintf(log_text, 300, "%s %s\n", prefix, message);
     if (data.log_file) {
         write_to_output(data.log_file, log_text);
     }
@@ -370,6 +397,24 @@ static void write_log(void *userdata, int category, SDL_LogPriority priority, co
 #else
     write_to_output(stdout, log_text);
 #endif
+}
+
+static void reset_test_diagnostics(void)
+{
+    data.warning_count = 0;
+    data.error_count = 0;
+}
+
+static void run_save_soak_frames(int frame_count)
+{
+    window_city_show();
+    figure_graphics_validate_loaded_core_soldiers();
+    for (int frame = 0; frame < frame_count; frame++) {
+        Animation::update_timers();
+        game_tick_run();
+        game_draw();
+        platform_renderer_render();
+    }
 }
 
 static void backup_log(const char *filename, const char *filename_old)
@@ -860,11 +905,7 @@ static int pre_init(const char *custom_data_dir)
         SDL_Log("Loading game from %s", custom_data_dir);
         if (!platform_file_manager_set_base_path(custom_data_dir)) {
             SDL_Log("%s: directory not found", custom_data_dir);
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                "Error",
-                "Vespasian requires the original files from Caesar 3.\n\n"
-                "Please enter the proper directory or copy the files to the selected directory.",
-                NULL);
+            show_startup_error("Error", "Vespasian requires the original files from Caesar 3.\n\nPlease enter the proper directory or copy the files to the selected directory.");
             return 0;
         }
         return pre_init_with_current_base_path();
@@ -921,11 +962,7 @@ static int pre_init(const char *custom_data_dir)
         user_dir = ask_for_data_dir(1);
     }
 #else
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-        "Vespasian requires the original files from Caesar 3 to run.",
-        "Move the Vespasian executable to the directory containing an existing "
-        "Caesar 3 installation, or run:\nVespasian path-to-c3-directory",
-        NULL);
+    show_startup_error("Vespasian requires the original files from Caesar 3 to run.", "Move the Vespasian executable to the directory containing an existing Caesar 3 installation, or run:\nVespasian path-to-c3-directory");
 #endif
 
     return 0;
@@ -933,6 +970,7 @@ static int pre_init(const char *custom_data_dir)
 
 static void setup(const augustus_args *args)
 {
+    data.startup_test = args->startup_test || args->load_save_test;
     system_setup_crash_handler();
     setup_logging();
 
@@ -962,11 +1000,7 @@ static void setup(const augustus_args *args)
         platform_user_path_create_subdirectories();
         if (!mod_manager::load_mod_list()) {
             const char *failure_reason = mod_manager::failure_reason().c_str();
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_ERROR,
-                "Startup error",
-                failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.",
-                NULL);
+            show_startup_error("Startup error", failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.");
             SDL_Log("Failed to load mod list");
             exit_with_status(3);
         }
@@ -976,7 +1010,7 @@ static void setup(const augustus_args *args)
         snprintf(message, sizeof(message),
             "Unable to find the selected mod data.\n\nExpected folder:\n%s",
             building_type_startup_bridge_get_building_type_path());
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing mod", message, NULL);
+        show_startup_error("Missing mod", message);
         SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
         exit_with_status(4);
     }
@@ -1010,12 +1044,12 @@ static void setup(const augustus_args *args)
     }
     if (args->disable_audio) {
         sound_system_disable();
-        SDL_Log("Audio disabled by --no-audio");
+        SDL_Log("Audio disabled for this process");
     }
 
     char title[100];
     encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
-    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id)) {
+    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id, args->startup_test || args->load_save_test)) {
         SDL_Log("Exiting: SDL create window failed");
         exit_with_status(-2);
     }
@@ -1038,7 +1072,7 @@ static void setup(const augustus_args *args)
     if (!result) {
         const char *failure_message = game_get_init_failure_message();
         if (failure_message && *failure_message) {
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Startup error", failure_message, NULL);
+            show_startup_error("Startup error", failure_message);
         }
         SDL_Log("Exiting: game init failed");
         exit_with_status(2);
@@ -1060,7 +1094,65 @@ int main(int argc, char **argv)
 
     log_set_debug_enabled(args.debug);
 
+#ifdef _MSC_VER
+    if (args.startup_test || args.load_save_test) {
+        _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    }
+#endif
+
     setup(&args);
+
+    if (args.load_save_test) {
+        reset_test_diagnostics();
+        int result = game_file_load_saved_game(args.load_save_test);
+        if (result != FILE_LOAD_SUCCESS) {
+            fprintf(stderr, "Vespasian executable save-load test failed: result=%d file=%s\n", result, args.load_save_test);
+            fflush(stderr);
+            teardown();
+            return 4;
+        }
+        if (args.save_roundtrip_test) {
+            const int migration_warnings = data.warning_count;
+            if (data.error_count || !game_file_write_saved_game(args.save_roundtrip_test)) {
+                fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, args.load_save_test, args.save_roundtrip_test);
+                fflush(stderr);
+                teardown();
+                return 6;
+            }
+            reset_test_diagnostics();
+            result = game_file_load_saved_game(args.save_roundtrip_test);
+            if (result != FILE_LOAD_SUCCESS) {
+                fprintf(stderr, "Vespasian executable strict roundtrip reload failed: result=%d file=%s\n", result, args.save_roundtrip_test);
+                fflush(stderr);
+                teardown();
+                return 7;
+            }
+            fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, args.save_roundtrip_test);
+            fflush(stdout);
+        }
+        if (args.save_soak_frames) {
+            run_save_soak_frames(args.save_soak_frames);
+            log_repeated_messages();
+        }
+        if (data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable save-soak test failed: warnings=%d errors=%d frames=%d file=%s\n", data.warning_count, data.error_count, args.save_soak_frames, args.load_save_test);
+            fflush(stderr);
+            teardown();
+            return 5;
+        }
+        fprintf(stdout, "Vespasian executable save-load test passed: frames=%d file=%s\n", args.save_soak_frames, args.load_save_test);
+        fflush(stdout);
+        teardown();
+        return 0;
+    }
+
+    if (args.startup_test) {
+        fprintf(stdout, "Vespasian executable startup test passed.\n");
+        fflush(stdout);
+        teardown();
+        return 0;
+    }
 
 
 

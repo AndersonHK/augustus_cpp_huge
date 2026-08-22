@@ -12,8 +12,6 @@
 #include "map/grid.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-#include "platform/screen.h"
-
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -228,88 +226,27 @@ void map_building_rebind_runtime_references(void)
     }
 }
 
-static void clear_single_invalid_building_reference(int grid_offset)
-{
-    map_building_clear_at(grid_offset);
-    map_building_damage_clear(grid_offset);
-    map_sprite_clear_tile(grid_offset);
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        map_terrain_remove(grid_offset, TERRAIN_BUILDING);
-    }
-}
-
-static void report_malformed_terrain_building_tiles_after_load(int count, int first_grid_offset)
-{
-    if (count <= 0) {
-        return;
-    }
-
-    char detail[256];
-    snprintf(detail, sizeof(detail),
-        "tiles=%d first_grid_offset=%d first_x=%d first_y=%d action=removed TERRAIN_BUILDING",
-        count,
-        first_grid_offset,
-        map_grid_offset_to_x(first_grid_offset),
-        map_grid_offset_to_y(first_grid_offset));
-
-    ErrorContextScope scope("Save load building map normalization", detail);
-    error_context_report_error(
-        "Save load found TERRAIN_BUILDING tiles without live building records.",
-        detail);
-
-    char message[512];
-    snprintf(message, sizeof(message),
-        "This save contained %d tile%s marked as a building without a valid building record.\n\n"
-        "Vespasian repaired the map by removing the invalid building terrain flag and continued loading.\n\n"
-        "%s\n\nMore details were written to vespasian-log.txt.",
-        count,
-        count == 1 ? "" : "s",
-        detail);
-    platform_screen_show_error_message_box("Vespasian Save Load Error", message);
-}
-
-void map_building_remove_invalid_references(void)
+bool map_building_validate_loaded_references(void)
 {
     map_building_rebind_runtime_references();
 
-    int removed = 0;
-    int malformed_terrain_building_tiles = 0;
-    int first_malformed_terrain_building_offset = 0;
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         Building *building = building_objects_grid[grid_offset];
-        if (map_building_reference_is_live(building)) {
-            continue;
-        }
+        const unsigned int saved_building_id = buildings_grid.items[grid_offset];
         const int has_terrain_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
-        if (!building) {
-            if (has_terrain_building) {
-                if (!malformed_terrain_building_tiles) {
-                    first_malformed_terrain_building_offset = grid_offset;
-                }
-                malformed_terrain_building_tiles++;
-                clear_single_invalid_building_reference(grid_offset);
-                removed++;
-            } else if (buildings_grid.items[grid_offset]) {
-                clear_single_invalid_building_reference(grid_offset);
-                removed++;
-            }
+        if (map_building_reference_is_live(building) || (!saved_building_id && !has_terrain_building)) {
             continue;
         }
-        if (has_terrain_building) {
-            if (!malformed_terrain_building_tiles) {
-                first_malformed_terrain_building_offset = grid_offset;
-            }
-            malformed_terrain_building_tiles++;
-        }
-        clear_single_invalid_building_reference(grid_offset);
-        removed++;
+        char detail[256];
+        snprintf(detail, sizeof(detail), "grid_offset=%d x=%d y=%d saved_building_id=%u terrain_building=%d",
+            grid_offset, map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), saved_building_id,
+            has_terrain_building);
+        ErrorContextScope scope("Strict save-load building map validation", detail);
+        error_context_report_error("Save contains a building tile without a matching live building record.", detail);
+        log_error("Loaded save failed building map reference validation", detail, grid_offset);
+        return false;
     }
-    report_malformed_terrain_building_tiles_after_load(
-        malformed_terrain_building_tiles,
-        first_malformed_terrain_building_offset);
-    if (removed) {
-        log_warning("Removed invalid building references from map grid after save load", 0, removed);
-    }
+    return true;
 }
 
 int map_building_is_reservoir(int x, int y)

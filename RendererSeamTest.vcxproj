@@ -12,11 +12,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tools\renderer_seam_test\main.cpp" />
+    <ClCompile Include="tools\renderer_seam_test\renderer_seam_asset_fixture.cpp" />
     <ClCompile Include="tools\renderer_seam_test\renderer_seam_geometry_fixture.cpp" />
     <ClCompile Include="tools\renderer_seam_test\renderer_seam_report_writer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tools\renderer_seam_test\renderer_seam_geometry_fixture.h" />
+    <ClInclude Include="tools\renderer_seam_test\renderer_seam_asset_fixture.h" />
     <ClInclude Include="tools\renderer_seam_test\renderer_seam_report_writer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -62,9 +64,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>RENDERER_SEAM_TEST;SDL_MAIN_HANDLED;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RENDERER_SEAM_TEST;SDL_MAIN_HANDLED;NOMINMAX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)vendor\SDL2-2.32.10\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor\SDL2-2.32.10\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -72,7 +74,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2-2.32.10\lib\$(SDLPlatformDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;windowscodecs.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation Condition="'$(Configuration)'=='Debug'">true</GenerateDebugInformation>
       <GenerateDebugInformation Condition="'$(Configuration)'=='Release'">false</GenerateDebugInformation>
     </Link>

@@ -5,6 +5,7 @@
 #include "building/roadblock.h"
 #include "figure/PathingMode.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/movement.h"
 #include "game/save_version.h"
 #include "game/performance_tracker.h"
 #include "map/grid.h"
@@ -326,7 +327,9 @@ static int route_distance_at(int grid_offset)
 static int reachable_route_distance_at(int grid_offset, int max_distance = 0)
 {
     const int distance = route_distance_at(grid_offset);
-    if (distance <= 0 || (max_distance > 0 && distance > max_distance)) {
+    const int normal_route_cost = (FIGURE_TILE_PROGRESS_MAX + FIGURE_NORMAL_MOVEMENT_SPEED - 1) / FIGURE_NORMAL_MOVEMENT_SPEED;
+    const int max_route_cost = max_distance > 0 ? max_distance * normal_route_cost : 0;
+    if (distance <= 0 || (max_route_cost > 0 && distance > max_route_cost)) {
         return 0;
     }
     return distance;

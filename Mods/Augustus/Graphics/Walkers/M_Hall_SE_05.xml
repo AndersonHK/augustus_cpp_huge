@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\M_Hall_SE_05">
-    <image id="M Hall SE 05" width="39" height="39">
-        <layer src="M_Hall_SE_05_Layer_01" x="14" y="4"/>
-        <layer src="M_Hall_SE_05_Layer_02" x="15" y="6"/>
-    </image>
-</assetlist>

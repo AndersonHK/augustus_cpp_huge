@@ -20,6 +20,7 @@ enum class GraphicsParseTargetScope {
 
 struct ParseState {
     std::unique_ptr<BuildingType> definition;
+    BuildingGraphicsDef graphics_definition;
     int disabled = 0;
     int saw_root = 0;
     int saw_root_text = 0;

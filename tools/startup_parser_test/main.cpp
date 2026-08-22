@@ -30,17 +30,30 @@
 #include "formation_type_registry_layering_test.h"
 #include "figure_type_registry_layering_test.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <set>
 #include <vector>
 #include <string>
 #include <system_error>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace {
 
 struct Options {
     std::filesystem::path game_root;
+    bool dump_building_graphics_metadata = false;
+    int save_soak_count = 3;
+    int save_soak_frames = 3000;
 };
 
 struct StartupEnvironmentSnapshot {
@@ -111,8 +124,17 @@ bool validate_building_graphics_generation_contract()
 void print_usage()
 {
     std::cout
-        << "StartupParserTest [--game-root <path>]\n\n"
-        << "Runs the headless startup XML/registry parse sequence from the installed game folder.\n";
+        << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-frames <count>] [--dump-building-graphics-metadata]\n\n"
+        << "Runs the headless startup XML/registry parse sequence and representative save soaks from the installed game folder.\n";
+}
+
+bool parse_positive_count(const char *text, int &value)
+{
+    char *end = nullptr;
+    const long parsed = text ? std::strtol(text, &end, 10) : 0;
+    if (!text || !*text || !end || *end || parsed <= 0 || parsed > 1000000) return false;
+    value = static_cast<int>(parsed);
+    return true;
 }
 
 int parse_options(int argc, char **argv, Options &options)
@@ -129,6 +151,22 @@ int parse_options(int argc, char **argv, Options &options)
                 return -1;
             }
             options.game_root = argv[++i];
+            continue;
+        }
+        if (arg == "--dump-building-graphics-metadata") {
+            options.dump_building_graphics_metadata = true;
+            continue;
+        }
+        if (arg == "--save-soak-count" || arg == "--save-soak-frames") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for " << arg << ".\n";
+                return -1;
+            }
+            int &target = arg == "--save-soak-count" ? options.save_soak_count : options.save_soak_frames;
+            if (!parse_positive_count(argv[++i], target)) {
+                std::cerr << "Invalid positive count for " << arg << ".\n";
+                return -1;
+            }
             continue;
         }
         std::cerr << "Unsupported argument: " << arg << "\n";
@@ -151,10 +189,10 @@ void print_step(void *, const startup_parser_step_v1 *step)
         if (*detail) {
             std::cout << " (" << detail << ")";
         }
-        std::cout << "\n";
+        std::cout << "\n" << std::flush;
         return;
     }
-    std::cout << "failed\n";
+    std::cout << "failed\n" << std::flush;
     if (*detail) {
         std::cerr << detail << "\n";
     }
@@ -706,7 +744,7 @@ bool validate_figure_owner_contracts()
         std::cerr << "Figure owner contract failed: prefect service requires its owning building.\n";
         return false;
     }
-    std::cout << "Validated ownerless and required-owner FigureType profile contracts.\n";
+    std::cout << "Validated ownerless and required-owner FigureType profile contracts.\n" << std::flush;
     return true;
 }
 
@@ -732,30 +770,60 @@ bool validate_entertainer_graphics_contract()
     return true;
 }
 
-bool validate_native_soldier_corpse_graphics()
+bool validate_native_soldier_frame(const char *name)
 {
+    char group[96];
+    std::snprintf(group, sizeof(group), "Warriors\\%s", name);
+    if (!image_group_payload_load(group)) {
+        std::cerr << "Native soldier graphics contract failed: could not load " << group << ".\n";
+        return false;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(group);
+    const ImageGroupEntry *entry = payload ? payload->entry_for(name) : nullptr;
+    const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
+    if (!slice || !slice->is_valid() || slice->width > 64 || slice->height > 64) {
+        std::cerr << "Native soldier graphics contract failed: " << group << " did not materialize a valid figure-sized footprint.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_native_auxiliary_soldier_graphics()
+{
+    static const char *const directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
     static const char *const prefixes[] = { "auxinf", "auxarch" };
     for (const char *prefix : prefixes) {
-        for (int frame = 1; frame <= 8; frame++) {
-            char group[64];
-            char image[32];
-            std::snprintf(image, sizeof(image), "%s_death_%02d", prefix, frame);
-            std::snprintf(group, sizeof(group), "Warriors\\%s", image);
-            if (!image_group_payload_load(group)) {
-                std::cerr << "Soldier corpse graphics contract failed: could not load " << group << ".\n";
-                return false;
+        for (const char *direction : directions) {
+            for (int frame = 1; frame <= 12; frame++) {
+                char name[64];
+                std::snprintf(name, sizeof(name), "%s_%s_%02d", prefix, direction, frame);
+                if (!validate_native_soldier_frame(name)) {
+                    return false;
+                }
             }
-            const ImageGroupPayload *payload = image_group_payload_get(group);
-            const ImageGroupEntry *entry = payload ? payload->entry_for(image) : nullptr;
-            const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
-            if (!slice || !slice->is_valid() || slice->width > 64 || slice->height > 64) {
-                std::cerr << "Soldier corpse graphics contract failed: " << group
-                    << " did not materialize a valid figure-sized footprint.\n";
+            for (int frame = 1; frame <= 5; frame++) {
+                char name[64];
+                std::snprintf(name, sizeof(name), "%s_f%s_%s_%02d", prefix, prefix == prefixes[0] ? "" : "m", direction, frame);
+                if (!validate_native_soldier_frame(name)) {
+                    return false;
+                }
+                if (prefix == prefixes[1]) {
+                    std::snprintf(name, sizeof(name), "%s_fr_%s_%02d", prefix, direction, frame);
+                    if (!validate_native_soldier_frame(name)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        for (int frame = 1; frame <= 8; frame++) {
+            char name[64];
+            std::snprintf(name, sizeof(name), "%s_death_%02d", prefix, frame);
+            if (!validate_native_soldier_frame(name)) {
                 return false;
             }
         }
     }
-    std::cout << "Validated every native auxiliary soldier corpse frame.\n";
+    std::cout << "Validated every live, attack, ranged, and corpse frame for native auxiliary soldiers.\n" << std::flush;
     return true;
 }
 
@@ -779,6 +847,138 @@ std::filesystem::path executable_directory(const char *argv0)
 std::string quoted(const std::filesystem::path &path)
 {
     return "\"" + path.string() + "\"";
+}
+
+#if defined(_WIN32)
+int run_hidden_process(const std::filesystem::path &executable, const std::wstring &command_line)
+{
+    std::vector<wchar_t> mutable_command_line(command_line.begin(), command_line.end());
+    mutable_command_line.push_back(L'\0');
+    STARTUPINFOW startup_info = {};
+    startup_info.cb = sizeof(startup_info);
+    startup_info.dwFlags = STARTF_USESHOWWINDOW;
+    startup_info.wShowWindow = SW_HIDE;
+    PROCESS_INFORMATION process_info = {};
+    if (!CreateProcessW(executable.wstring().c_str(), mutable_command_line.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup_info, &process_info)) return -static_cast<int>(GetLastError());
+    WaitForSingleObject(process_info.hProcess, INFINITE);
+    DWORD child_exit_code = 1;
+    GetExitCodeProcess(process_info.hProcess, &child_exit_code);
+    CloseHandle(process_info.hThread);
+    CloseHandle(process_info.hProcess);
+    return static_cast<int>(child_exit_code);
+}
+#endif
+
+bool run_executable_startup_test(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory)
+{
+#if defined(_WIN32)
+    const std::filesystem::path executable = tool_directory / "Vespasian.exe";
+#else
+    const std::filesystem::path executable = tool_directory / "Vespasian";
+#endif
+    if (!std::filesystem::is_regular_file(executable)) {
+        std::cerr << "Executable startup test requires: " << executable << "\n";
+        return false;
+    }
+
+    std::cout << "Running executable startup test: " << executable << "\n" << std::flush;
+#if defined(_WIN32)
+    const std::wstring executable_arg = executable.wstring();
+    const std::wstring game_root_arg = game_root.wstring();
+    const std::wstring command_line = L"\"" + executable_arg + L"\" --startup-test --no-audio --mod Vespasian \"" + game_root_arg + L"\"";
+    const int result = run_hidden_process(executable, command_line);
+#else
+    const std::string command = quoted(executable) + " --startup-test --no-audio --mod Vespasian " + quoted(game_root);
+    const int result = std::system(command.c_str());
+#endif
+    if (result != 0) {
+        std::cerr << "Executable startup test failed with exit code " << result << ".\n";
+        return false;
+    }
+    std::cout << "Executable startup test passed.\n";
+    return true;
+}
+
+struct SaveSoakCandidate {
+    std::filesystem::path path;
+    std::filesystem::file_time_type modified;
+    std::string extension;
+};
+
+std::vector<std::filesystem::path> discover_save_soak_files(const std::filesystem::path &game_root, int requested_count)
+{
+    const std::filesystem::path save_directory = game_root / "savegames";
+    std::error_code error;
+    std::vector<SaveSoakCandidate> candidates;
+    std::filesystem::recursive_directory_iterator iterator(save_directory, std::filesystem::directory_options::skip_permission_denied, error);
+    const std::filesystem::recursive_directory_iterator end;
+    while (!error && iterator != end) {
+        if (iterator->is_regular_file(error)) {
+            std::string extension = iterator->path().extension().string();
+            std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
+            if (extension == ".svv" || extension == ".sav") candidates.push_back({ std::filesystem::absolute(iterator->path()), iterator->last_write_time(error), extension });
+        }
+        iterator.increment(error);
+    }
+    std::sort(candidates.begin(), candidates.end(), [](const SaveSoakCandidate &left, const SaveSoakCandidate &right) {
+        if (left.modified != right.modified) return left.modified > right.modified;
+        return left.path.string() < right.path.string();
+    });
+
+    std::vector<std::filesystem::path> selected;
+    if (candidates.empty()) return selected;
+    selected.push_back(candidates.front().path);
+    for (const SaveSoakCandidate &candidate : candidates) {
+        if (static_cast<int>(selected.size()) >= requested_count) break;
+        if (candidate.extension != candidates.front().extension) {
+            selected.push_back(candidate.path);
+            break;
+        }
+    }
+    for (const SaveSoakCandidate &candidate : candidates) {
+        if (static_cast<int>(selected.size()) >= requested_count) break;
+        if (std::find(selected.begin(), selected.end(), candidate.path) == selected.end()) selected.push_back(candidate.path);
+    }
+    return selected;
+}
+
+bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int frame_count)
+{
+#if defined(_WIN32)
+    const std::filesystem::path executable = tool_directory / "Vespasian.exe";
+#else
+    const std::filesystem::path executable = tool_directory / "Vespasian";
+#endif
+    const std::vector<std::filesystem::path> saves = discover_save_soak_files(game_root, save_count);
+    if (saves.empty()) {
+        std::cerr << "Save-soak test requires at least one .svv or .sav file under " << (game_root / "savegames") << ".\n";
+        return false;
+    }
+    std::cout << "Running " << saves.size() << " representative save soak(s) for " << frame_count << " frames each.\n" << std::flush;
+    bool passed = true;
+    const std::filesystem::path roundtrip_save = std::filesystem::temp_directory_path() / "Vespasian-StartupParserTest-roundtrip.svv";
+    for (const std::filesystem::path &save : saves) {
+        std::cout << "Save soak: " << save << "\n" << std::flush;
+        std::error_code remove_error;
+        std::filesystem::remove(roundtrip_save, remove_error);
+#if defined(_WIN32)
+        const std::wstring command_line = L"\"" + executable.wstring() + L"\" --load-save-test \"" + save.wstring() + L"\" --save-roundtrip-test \"" + roundtrip_save.wstring() + L"\" --save-soak-frames " + std::to_wstring(frame_count) + L" --no-audio --mod Vespasian \"" + game_root.wstring() + L"\"";
+        const int result = run_hidden_process(executable, command_line);
+#else
+        const std::string command = quoted(executable) + " --load-save-test " + quoted(save) + " --save-roundtrip-test " + quoted(roundtrip_save) + " --save-soak-frames " + std::to_string(frame_count) + " --no-audio --mod Vespasian " + quoted(game_root);
+        const int result = std::system(command.c_str());
+#endif
+        if (result != 0) {
+            std::cerr << "Save soak failed with exit code " << result << ": " << save << "\n";
+            std::cerr << "Roundtrip output preserved for diagnosis: " << roundtrip_save << "\n";
+            passed = false;
+        } else {
+            std::filesystem::remove(roundtrip_save, remove_error);
+        }
+    }
+    if (!passed) return false;
+    std::cout << "Representative save soaks passed with zero warnings and errors.\n";
+    return true;
 }
 
 bool check_extraction_prerequisites(
@@ -825,9 +1025,51 @@ bool check_extraction_prerequisites(
     return false;
 }
 
+void dump_graphics_source_metadata(const building_type_registry_impl::GraphicsTarget &target, std::set<std::string> &emitted)
+{
+    using namespace building_type_registry_impl;
+    const int option_count = target.has_options() ? target.option_count() : 1;
+    for (int option_index = 0; option_index < option_count; option_index++) {
+        const GraphicsTarget resolved = target.has_options() ? target.resolved_option(static_cast<unsigned char>(option_index)) : target;
+        if (resolved.no_draw() || !resolved.has_path() || !image_group_payload_load(resolved.path())) continue;
+        const ImageGroupPayload *payload = image_group_payload_get(resolved.path());
+        const ImageGroupEntry *entry = payload ? (resolved.has_image() ? payload->entry_for(resolved.image()) : payload->default_entry()) : nullptr;
+        if (!entry) continue;
+        const std::string image_id = resolved.has_image() ? resolved.image() : payload->default_image_id();
+        const std::string key = std::string(resolved.path()) + "\t" + image_id;
+        if (emitted.insert(key).second) {
+            const render_logical_size logical = entry->fixed_logical_size();
+            std::cout << "GRAPHICS_METADATA\t" << resolved.path() << "\t" << image_id << "\t" << entry->source_pixel_width() << "\t" << entry->source_pixel_height() << "\t" << logical.width << "\t" << logical.height << "\t" << (entry->footprint() ? 1 : 0) << "\t" << entry->has_top() << "\t" << entry->has_animation() << "\t" << (entry->has_sprite_offset() ? entry->sprite_offset_x() : 0) << "\t" << (entry->has_sprite_offset() ? entry->sprite_offset_y() : 0) << "\n";
+        }
+        for (const GraphicsLayer &layer : resolved.layers()) {
+            const int layer_option_count = layer.has_options() ? layer.option_count() : 1;
+            for (int layer_option = 0; layer_option < layer_option_count; layer_option++) {
+                const GraphicsLayer resolved_layer = layer.has_options() ? layer.resolved_option(static_cast<unsigned char>(layer_option)) : layer;
+                if (!resolved_layer.has_path() || !resolved_layer.has_image()) continue;
+                GraphicsTarget layer_target;
+                layer_target.set_path(resolved_layer.path());
+                layer_target.set_image(resolved_layer.image());
+                dump_graphics_source_metadata(layer_target, emitted);
+            }
+        }
+    }
+}
+
+void dump_building_graphics_metadata()
+{
+    using namespace building_type_registry_impl;
+    std::set<std::string> emitted;
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition) continue;
+        dump_graphics_source_metadata(definition->graphics().default_target(), emitted);
+        for (const GraphicsVariant &variant : definition->graphics().variants()) dump_graphics_source_metadata(variant.target, emitted);
+        for (const ConstructionPhaseGraphics &phase : definition->graphics().construction_phases()) dump_graphics_source_metadata(phase.target, emitted);
+    }
+}
+
 } // namespace
 
-int main(int argc, char **argv)
+int run_startup_parser_test(int argc, char **argv)
 {
     Options options;
     const int parse_result = parse_options(argc, argv, options);
@@ -851,7 +1093,10 @@ int main(int argc, char **argv)
     }
 
     const std::filesystem::path game_root = std::filesystem::current_path();
-    if (!check_extraction_prerequisites(game_root, executable_directory(argv[0]))) {
+    const std::filesystem::path tool_directory = executable_directory(argv[0]);
+    if (!check_extraction_prerequisites(game_root, tool_directory) ||
+        !run_executable_startup_test(game_root, tool_directory) ||
+        !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_frames)) {
         return 1;
     }
 
@@ -865,7 +1110,7 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < mods.size(); ++i) {
         std::cout << (i ? " -> " : "") << mods[i];
     }
-    std::cout << "\nSelected mod path: " << environment.mod_path << "\n";
+    std::cout << "\nSelected mod path: " << environment.mod_path << "\n" << std::flush;
 
     // These fixture loaders intentionally publish temporary registries. Run
     // them before startup so the ordinary parse replaces them before any
@@ -878,7 +1123,32 @@ int main(int argc, char **argv)
         std::cerr << "Startup parser test failed.\n";
         return 1;
     }
+    if (options.dump_building_graphics_metadata) {
+        dump_building_graphics_metadata();
+        return 0;
+    }
     if (!validate_entertainer_graphics_contract()) {
+        return 1;
+    }
+    // Validate configured-stack contracts before layering fixtures replace the
+    // live registries with deliberately incomplete definitions.
+    if (!validate_building_identity_contract() ||
+        !validate_parsed_composition_contracts(std::cerr) ||
+        !validate_gate_terrain_foundation_contract() ||
+        !validate_native_gatehouse_bridge_graphics_contract(std::cerr) ||
+        !validate_authoritative_building_graphics_contract(std::cerr)) {
+        return 1;
+    }
+    std::cout << "Validated authoritative native graphics for forts, towers, arches, vacant lots, and rubble.\n";
+    if (!validate_native_statue_orientation_graphics_contract(std::cerr) ||
+        !validate_native_hippodrome_graphics_contract(std::cerr) ||
+        !validate_native_overlay_summary_graphics_contract(std::cerr) ||
+        !validate_dock_native_orientation_contract() ||
+        !validate_simple_native_building_graphics_contract() ||
+        !validate_native_storage_and_fort_base_graphics_contract() ||
+        !validate_colosseum_graphics_contract() ||
+        !validate_figure_owner_contracts() ||
+        !validate_native_auxiliary_soldier_graphics()) {
         return 1;
     }
     if (!validate_building_type_registry_layering_contract(std::cerr)) {
@@ -920,15 +1190,11 @@ int main(int argc, char **argv)
     if (!validate_figure_type_registry_layering_contract(std::cerr)) {
         return 1;
     }
-    if (!validate_building_identity_contract()) {
-        return 1;
-    }
     if (!validate_plague_runtime_contract(std::cerr)) {
         return 1;
     }
     if (!validate_foundation_rotation_contract() ||
         !validate_composition_rotation_contracts(std::cerr) ||
-        !validate_parsed_composition_contracts(std::cerr) ||
         !validate_housing_transition_planner_contract()) {
         return 1;
     }
@@ -944,44 +1210,37 @@ int main(int argc, char **argv)
     if (!validate_access_ramp_road_connection_rules()) {
         return 1;
     }
-    if (!validate_gate_terrain_foundation_contract()) {
-        return 1;
-    }
-    if (!validate_native_gatehouse_bridge_graphics_contract(std::cerr)) {
-        return 1;
-    }
-    if (!validate_authoritative_building_graphics_contract(std::cerr)) {
-        return 1;
-    }
-    std::cout << "Validated authoritative native graphics for forts, towers, arches, vacant lots, and rubble.\n";
-    if (!validate_native_statue_orientation_graphics_contract(std::cerr)) {
-        return 1;
-    }
-    if (!validate_native_hippodrome_graphics_contract(std::cerr)) {
-        return 1;
-    }
-    if (!validate_native_overlay_summary_graphics_contract(std::cerr)) {
-        return 1;
-    }
-    if (!validate_dock_native_orientation_contract()) {
-        return 1;
-    }
-    if (!validate_simple_native_building_graphics_contract()) {
-        return 1;
-    }
-    if (!validate_native_storage_and_fort_base_graphics_contract()) {
-        return 1;
-    }
-    if (!validate_colosseum_graphics_contract()) {
-        return 1;
-    }
-    if (!validate_figure_owner_contracts()) {
-        return 1;
-    }
-    if (!validate_native_soldier_corpse_graphics()) {
-        return 1;
-    }
-
     std::cout << "Startup parser test passed.\n";
     return 0;
+}
+
+#if defined(_WIN32)
+static LONG WINAPI report_cli_exception(EXCEPTION_POINTERS *exception)
+{
+    const EXCEPTION_RECORD *record = exception ? exception->ExceptionRecord : nullptr;
+    const unsigned long code = record ? record->ExceptionCode : 0;
+    const void *address = record ? record->ExceptionAddress : nullptr;
+    const auto module_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    const auto exception_address = reinterpret_cast<uintptr_t>(address);
+    const auto relative_address = exception_address >= module_base ? exception_address - module_base : 0;
+    std::fprintf(stderr, "StartupParserTest terminated after Windows exception 0x%08lX at %p (RVA 0x%llX).\n", code, address, static_cast<unsigned long long>(relative_address));
+    std::fflush(stderr);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+int main(int argc, char **argv)
+{
+#if defined(_WIN32)
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    SetUnhandledExceptionFilter(report_cli_exception);
+    __try {
+        return run_startup_parser_test(argc, argv);
+    } __except (report_cli_exception(GetExceptionInformation())) {
+        return 3;
+    }
+#else
+    return run_startup_parser_test(argc, argv);
+#endif
 }

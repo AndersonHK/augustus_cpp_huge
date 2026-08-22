@@ -1,5 +1,6 @@
 #include "figure_type_registry_layering_test.h"
 
+#include "assets/image_group_entry.h"
 #include "figure/FigureGraphics.h"
 #include "figure/figure_type_registry.h"
 #include "core/image_group.h"
@@ -165,6 +166,50 @@ bool directional_definition_is_valid(
 
 bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 {
+    RuntimeDrawSlice footprint = {};
+    footprint.handle = 1;
+    footprint.width = 10;
+    footprint.height = 12;
+    footprint.draw_offset_x = 3;
+    footprint.draw_offset_y = 4;
+    RuntimeDrawSlice animation_frame = footprint;
+    animation_frame.draw_offset_x = 7;
+    animation_frame.draw_offset_y = 9;
+    Animation animation;
+    animation.set_sprite_offset(20, 28);
+    animation.add_frame(animation_frame);
+    ImageGroupEntry entry("walker");
+    entry.set_base_slice(footprint, 0, 0);
+    entry.set_sprite_offset(20, 28);
+    entry.set_animation(animation);
+    figure_type_registry_impl::GraphicsTargetBinding animated_binding;
+    animated_binding.entry = &entry;
+    animated_binding.animation = &entry.animation();
+    animated_binding.frame = 1;
+    const RuntimeDrawSlice resolved_animation_frame = animated_binding.resolved_slice();
+    if (resolved_animation_frame.draw_offset_x != 7 || resolved_animation_frame.draw_offset_y != 9) {
+        errors << "Figure graphics applied the placement anchor twice to an animation frame.\n";
+        return false;
+    }
+    animated_binding.frame_selects_entry = 1;
+    const RuntimeDrawSlice resolved_discrete_frame = animated_binding.resolved_slice();
+    if (animated_binding.uses_animation() || resolved_discrete_frame.draw_offset_x != 3 || resolved_discrete_frame.draw_offset_y != 4) {
+        errors << "Figure graphics treated a discrete per-frame image entry as a nested animation.\n";
+        return false;
+    }
+    figure_type_registry_impl::FigureGraphics pattern_graphics;
+    pattern_graphics.path_pattern = "Walkers\\Group_107";
+    pattern_graphics.image_pattern = "{legacy_entry}";
+    if (!pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry) {
+        errors << "Figure graphics did not recognize a legacy per-frame entry pattern.\n";
+        return false;
+    }
+    pattern_graphics.image_pattern = "walker_{dir}";
+    if (pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry) {
+        errors << "Figure graphics disabled a consolidated directional animation.\n";
+        return false;
+    }
+
     struct CorpseFrameCase {
         int wait_ticks;
         int expected_frame;
@@ -199,6 +244,28 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     if (!valid(inherited_only, 1, "homeless", &result) ||
         result.queried_max_roam_length != 800 || result.queried_source_layer != 0) {
         errors << "FigureType lower definition was not inherited when the upper layer was absent.\n";
+        return false;
+    }
+
+    constexpr const char *PROPORTIONAL_LOGICAL_SIZE_XML =
+        "<figure type=\"homeless\"><profiles default=\"legacy\"><profile id=\"legacy\"><native class=\"legacy_action\"/><owner slot=\"none\" building=\"any\" state=\"any\"/><movement roam_ticks=\"1\" max_roam_length=\"800\" return_mode=\"none\"/><pathing mode=\"vanilla_roaming\" terrain=\"roads_highway\"/></profile></profiles><graphics image_group=\"beggar\" max_image_offset=\"12\" logical_units_per_source_pixel=\"60\"></graphics></figure>";
+    const figure_type_layer_test_input proportional_logical_size[] = { input(PROPORTIONAL_LOGICAL_SIZE_XML, 0, "Vespasian", "Vespasian/FigureType/homeless.xml") };
+    if (valid(proportional_logical_size, 1, "homeless")) {
+        errors << "FigureType accepted asset-owned proportional logical sizing.\n";
+        return false;
+    }
+    constexpr const char *FIXED_LOGICAL_SIZE_XML =
+        "<figure type=\"homeless\"><profiles default=\"legacy\"><profile id=\"legacy\"><native class=\"legacy_action\"/><owner slot=\"none\" building=\"any\" state=\"any\"/><movement roam_ticks=\"1\" max_roam_length=\"800\" return_mode=\"none\"/><pathing mode=\"vanilla_roaming\" terrain=\"roads_highway\"/></profile></profiles><graphics image_group=\"beggar\" max_image_offset=\"12\" logical_width=\"120\" logical_height=\"120\"></graphics></figure>";
+    const figure_type_layer_test_input fixed_logical_size[] = { input(FIXED_LOGICAL_SIZE_XML, 0, "Vespasian", "Vespasian/FigureType/homeless.xml") };
+    if (valid(fixed_logical_size, 1, "homeless")) {
+        errors << "FigureType accepted asset-owned fixed logical dimensions.\n";
+        return false;
+    }
+    constexpr const char *SPRITE_OFFSET_XML =
+        "<figure type=\"homeless\"><profiles default=\"legacy\"><profile id=\"legacy\"><native class=\"legacy_action\"/><owner slot=\"none\" building=\"any\" state=\"any\"/><movement roam_ticks=\"1\" max_roam_length=\"800\" return_mode=\"none\"/><pathing mode=\"vanilla_roaming\" terrain=\"roads_highway\"/></profile></profiles><graphics image_group=\"beggar\" max_image_offset=\"12\" sprite_offset_x=\"26\" sprite_offset_y=\"29\"></graphics></figure>";
+    const figure_type_layer_test_input sprite_offset[] = { input(SPRITE_OFFSET_XML, 0, "Vespasian", "Vespasian/FigureType/homeless.xml") };
+    if (valid(sprite_offset, 1, "homeless")) {
+        errors << "FigureType accepted asset-owned sprite offsets.\n";
         return false;
     }
 

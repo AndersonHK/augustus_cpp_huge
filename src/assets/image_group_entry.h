@@ -23,6 +23,9 @@ public:
     int sprite_offset_y() const;
     int is_isometric() const;
     int tile_span() const;
+    int source_pixel_width() const;
+    int source_pixel_height() const;
+    render_logical_size fixed_logical_size() const;
     const std::vector<color_t> &split_pixels() const;
     int split_width() const;
     int split_height() const;

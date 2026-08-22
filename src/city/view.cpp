@@ -9,6 +9,7 @@
 #include "editor/editor.h"
 #include "city/view.h"
 #include "city/view_render.h"
+#include "figure/figure.h"
 
 #include "map/building.h"
 #include "core/calc.h"
@@ -17,6 +18,7 @@
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "map/grid.h"
+#include "map/figure.h"
 
 #define TILE_WIDTH_PIXELS 60
 #define TILE_HEIGHT_PIXELS 30
@@ -84,6 +86,12 @@ static Building *building_for_render_tile(int grid_offset)
         return nullptr;
     }
     return &map_building_at(grid_offset);
+}
+
+static Figure *first_figure_for_render_tile(int grid_offset)
+{
+    const unsigned int figure_id = map_figure_at(grid_offset);
+    return figure_id ? Figure::get(figure_id) : nullptr;
 }
 
 static int is_renderable_map_tile(int grid_offset)
@@ -876,34 +884,45 @@ void city_view_foreach_valid_map_tile_row(map_callback *callback1, map_callback 
         });
 }
 
-void city_view_foreach_valid_render_tile_row(const CityViewRenderPhase *phases, int phase_count)
+void CityViewRenderCommandBuffer::build()
+{
+    commands_.clear();
+    row_ends_.clear();
+    commands_.reserve(static_cast<std::size_t>(data.viewport.height_tiles + 21) * static_cast<std::size_t>(data.viewport.width_tiles + 9));
+    row_ends_.reserve(static_cast<std::size_t>(data.viewport.height_tiles + 21));
+    foreach_valid_view_tile_row<CityDrawTileCommand>(
+        [](int x, int y, int grid_offset) {
+            return CityDrawTileCommand{ x, y, grid_offset, building_for_render_tile(grid_offset), first_figure_for_render_tile(grid_offset) };
+        },
+        [this](const CityDrawTileCommand *row_commands, int row_count) {
+            if (row_count > 0) {
+                performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILE_ROWS, 1);
+                performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILES, static_cast<uint64_t>(row_count));
+            }
+            commands_.insert(commands_.end(), row_commands, row_commands + row_count);
+            row_ends_.push_back(commands_.size());
+        });
+}
+
+void CityViewRenderCommandBuffer::execute(const CityViewRenderPhase *phases, int phase_count) const
 {
     if (!phases || phase_count <= 0) {
         return;
     }
-
-    foreach_valid_view_tile_row<CityViewRenderTile>(
-        [](int x, int y, int grid_offset) {
-            return CityViewRenderTile{ x, y, grid_offset, building_for_render_tile(grid_offset) };
-        },
-        [phases, phase_count](const CityViewRenderTile *row_tiles, int row_count) {
-            if (row_count > 0) {
-                performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILE_ROWS, 1);
-                performance_tracker_record_render_metric(
-                    PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILES,
-                    static_cast<uint64_t>(row_count));
+    std::size_t row_start = 0;
+    for (std::size_t row_end : row_ends_) {
+        for (int phase_index = 0; phase_index < phase_count; phase_index++) {
+            const CityViewRenderPhase &phase = phases[phase_index];
+            if (!phase.callback) {
+                continue;
             }
-            for (int phase_index = 0; phase_index < phase_count; phase_index++) {
-                const CityViewRenderPhase &phase = phases[phase_index];
-                if (!phase.callback) {
-                    continue;
-                }
-                PerformanceTrackerScope scope(phase.bucket);
-                for (int i = 0; i < row_count; i++) {
-                    phase.callback(row_tiles[i]);
-                }
+            PerformanceTrackerScope scope(phase.bucket);
+            for (std::size_t command_index = row_start; command_index < row_end; command_index++) {
+                phase.callback(commands_[command_index]);
             }
-        });
+        }
+        row_start = row_end;
+    }
 }
 
 static void do_valid_callback(int view_x, int view_y, int grid_offset, map_callback *callback)

@@ -9,5 +9,5 @@
             <pathing mode="smart_service" terrain="roads" effect="doctor" />
         </profile>
     </profiles>
-    <graphics image_group="doctor" max_image_offset="12" />
+    <graphics path_pattern="Walkers\Group_228" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

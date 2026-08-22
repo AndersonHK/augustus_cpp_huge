@@ -9,7 +9,7 @@
         </profile>
     </profiles>
     <graphics max_image_offset="12">
-        <directional image_group="ship" default_base_offset="8" view_adjustments="1" frame_divisor="1" frame_stride="0">
+        <directional path="Ships\Group_165" default_base_offset="8" view_adjustments="1" frame_divisor="1" frame_stride="0">
             <pose role="fishing" action="fishing_boat_fishing" base_offset="16" />
         </directional>
     </graphics>

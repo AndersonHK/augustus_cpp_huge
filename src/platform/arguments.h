@@ -13,6 +13,10 @@ typedef struct {
     int display_id;
     int debug;
     int disable_audio;
+    int startup_test;
+    const char *load_save_test;
+    const char *save_roundtrip_test;
+    int save_soak_frames;
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);

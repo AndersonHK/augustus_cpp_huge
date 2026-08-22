@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\M_Hall_death_03">
-    <image id="M Hall death 03" width="39" height="39">
-        <layer src="M_Hall_death_03_Layer_01" y="6"/>
-        <layer src="M_Hall_death_03_Layer_02" y="6"/>
-    </image>
-</assetlist>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE assetlist>
+<assetlist name="Environment\fish_gulls">
+    <figure_graphics runtime_selected_image="true" runtime_selected_source="Environment\Group_206" />
+    <image id="runtime_selected_source" group="Environment\Group_206" image="Image_0000" />
+</assetlist>

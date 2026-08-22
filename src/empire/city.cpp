@@ -673,18 +673,19 @@ static void set_new_monument_elements_production(int empire_id, empire_city *cit
     }
 }
 
-void empire_city_update_our_fish_and_meat_production(void)
+void empire_city_migrate_legacy_fishing_production(void)
 {
+    if (!scenario_map_has_fishing_points()) return;
+    const building_type wharf = building_type_registry_impl::type_from_attr("wharf");
+    const building_type_registry_impl::BuildingType *wharf_definition = building_type_registry_impl::definition_for_type(wharf);
+    if (!wharf_definition || !scenario_allowed_building(wharf_definition)) return;
+    const resource_type fish = resource_fish();
+    if (fish <= RESOURCE_NONE || fish >= RESOURCE_SLOT_COUNT) return;
     for (empire_city &city : cities) {
-        if (city.type != EMPIRE_CITY_OURS) {
-            continue;
-        }
-        if (city.sells_resource[resource_fish()]) {
-            empire_city_change_selling_of_resource(&city, resource_meat(), !NOT_SELLING);
-        } else {
-            if (city.sells_resource[resource_meat()]) {
-                empire_city_change_selling_of_resource(&city, resource_fish(), !NOT_SELLING);
-            }
+        if (city.type != EMPIRE_CITY_OURS) continue;
+        if (!city.sells_resource[fish]) {
+            city.sells_resource[fish] = 1;
+            log_info("Migrated legacy scenario fishing production for the player city", 0, 0);
         }
         return;
     }

@@ -63,7 +63,7 @@ unsigned int map_building_loaded_id_at(int grid_offset);
 void map_building_set_loaded_id(int grid_offset, unsigned int building_id);
 
 void map_building_rebind_runtime_references(void);
-void map_building_remove_invalid_references(void);
+bool map_building_validate_loaded_references(void);
 
 int map_building_is_reservoir(int x, int y);
 

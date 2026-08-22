@@ -4,6 +4,7 @@
 #include "core/log.h"
 #include "game/mod_manager.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -206,7 +207,15 @@ int xml_resolve_image_path(char *full_path, const char *assetlist_key, const cha
     if (!assetlist_key || !*assetlist_key || !image_file_name || !*image_file_name) {
         return 0;
     }
-    if (snprintf(relative_path, FILE_NAME_MAX, "%s/%s.png", assetlist_key, image_file_name) >= FILE_NAME_MAX) {
+    std::string normalized_image_path = image_file_name;
+    std::replace(normalized_image_path.begin(), normalized_image_path.end(), '\\', '/');
+    const bool graphics_root_relative = normalized_image_path.find('/') != std::string::npos;
+    if (normalized_image_path.front() == '/' || normalized_image_path.find(':') != std::string::npos || normalized_image_path == ".." || normalized_image_path.rfind("../", 0) == 0 || normalized_image_path.find("/../") != std::string::npos || (normalized_image_path.size() >= 3 && normalized_image_path.compare(normalized_image_path.size() - 3, 3, "/..") == 0)) {
+        log_error("Image path must remain below the graphics root", image_file_name, 0);
+        return 0;
+    }
+    const int path_length = graphics_root_relative ? snprintf(relative_path, FILE_NAME_MAX, "%s.png", normalized_image_path.c_str()) : snprintf(relative_path, FILE_NAME_MAX, "%s/%s.png", assetlist_key, normalized_image_path.c_str());
+    if (path_length >= FILE_NAME_MAX) {
         log_error("Image path too long", image_file_name, 0);
         return 0;
     }

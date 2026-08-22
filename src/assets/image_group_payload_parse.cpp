@@ -5,6 +5,7 @@
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
+#include "core/xml_value.h"
 
 #include <utility>
 
@@ -85,6 +86,56 @@ int xml_start_assetlist(void)
     return 1;
 }
 
+int xml_start_figure_graphics(void)
+{
+    if (!g_parse_state.doc || g_parse_state.doc->figure_graphics_contract.present) {
+        crash_context_report_error("ImageGroup contains duplicate or misplaced figure_graphics metadata", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    ImageGroupFigureGraphicsContract &contract = g_parse_state.doc->figure_graphics_contract;
+    const char *default_image = xml_parser_get_attribute_string("default");
+    const char *corpse_image = xml_parser_get_attribute_string("corpse");
+    const char *action_image = xml_parser_get_attribute_string("action");
+    const char *action_state = xml_parser_get_attribute_string("action_state");
+    const char *runtime_selected_source = xml_parser_get_attribute_string("runtime_selected_source");
+    contract.present = 1;
+    if (xml_parser_has_attribute("runtime_selected_image") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("runtime_selected_image"), &contract.runtime_selected_image)) {
+        crash_context_report_error("ImageGroup figure_graphics runtime_selected_image is invalid", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (xml_parser_has_attribute("runtime_selected_empty_is_hidden") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("runtime_selected_empty_is_hidden"), &contract.runtime_selected_empty_is_hidden)) {
+        crash_context_report_error("ImageGroup figure_graphics runtime_selected_empty_is_hidden is invalid", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    contract.runtime_selected_source = runtime_selected_source ? runtime_selected_source : "";
+    contract.default_image_pattern = default_image ? default_image : "";
+    contract.default_frame_count = xml_parser_get_attribute_int("frames");
+    contract.corpse_image_pattern = corpse_image ? corpse_image : "";
+    contract.corpse_frame_count = xml_parser_get_attribute_int("corpse_frames");
+    contract.action_image_pattern = action_image ? action_image : "";
+    contract.action_state = action_state ? action_state : "";
+    contract.action_frame_count = xml_parser_get_attribute_int("action_frames");
+    contract.action_min_wait_ticks = xml_parser_get_attribute_int("action_min_wait_ticks");
+    const bool has_action = !contract.action_image_pattern.empty();
+    const bool runtime_selected_is_complete = contract.runtime_selected_image && !contract.runtime_selected_source.empty() &&
+        contract.default_image_pattern.empty() && contract.default_frame_count <= 0 && contract.corpse_image_pattern.empty() &&
+        contract.corpse_frame_count <= 0 && !has_action && contract.action_state.empty() && contract.action_frame_count <= 0;
+    const bool frame_contract_is_complete = !contract.runtime_selected_image && !contract.runtime_selected_empty_is_hidden && !contract.default_image_pattern.empty() &&
+        contract.default_frame_count > 0 && contract.corpse_image_pattern.empty() == (contract.corpse_frame_count <= 0) &&
+        has_action == !contract.action_state.empty() && has_action == (contract.action_frame_count > 0);
+    if ((!runtime_selected_is_complete && !frame_contract_is_complete) || contract.action_min_wait_ticks < 0) {
+        crash_context_report_error("ImageGroup figure_graphics metadata is incomplete or invalid", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
 // Input: parser state positioned on a <layer> or <frame> tag plus default part/mask fallbacks.
 // Output: a raw symbolic layer definition with all XML attributes captured but no raster work performed.
 RawLayerDef parse_raw_layer(layer_isometric_part default_part, layer_mask default_mask)
@@ -148,6 +199,22 @@ int xml_start_image(void)
     entry.local_order = static_cast<int>(g_parse_state.doc->ordered_ids.size());
     entry.width = xml_parser_get_attribute_int("width");
     entry.height = xml_parser_get_attribute_int("height");
+    const int has_logical_width = xml_parser_has_attribute("logical_width");
+    const int has_logical_height = xml_parser_has_attribute("logical_height");
+    if (has_logical_width != has_logical_height) {
+        crash_context_report_error("ImageGroup logical size requires both logical_width and logical_height", entry.id.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_logical_width) {
+        entry.fixed_logical_size.width = xml_parser_get_attribute_int("logical_width");
+        entry.fixed_logical_size.height = xml_parser_get_attribute_int("logical_height");
+        if (entry.fixed_logical_size.width <= 0 || entry.fixed_logical_size.height <= 0) {
+            crash_context_report_error("ImageGroup logical size requires positive fixed-point logical units", entry.id.c_str());
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
     entry.draw_offset_x = xml_parser_get_attribute_int("x");
     entry.draw_offset_y = xml_parser_get_attribute_int("y");
     entry.is_isometric = xml_parser_get_attribute_bool("isometric");
@@ -218,6 +285,7 @@ int xml_start_frame(void)
 
 static const xml_parser_element kXmlElements[] = {
     { "assetlist", xml_start_assetlist, nullptr },
+    { "figure_graphics", xml_start_figure_graphics, nullptr, "assetlist" },
     { "image", xml_start_image, nullptr, "assetlist" },
     { "layer", xml_start_layer, nullptr, "image" },
     { "animation", xml_start_animation, nullptr, "image" },

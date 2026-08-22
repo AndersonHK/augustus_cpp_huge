@@ -80,10 +80,12 @@
 #include "scenario/price_change.h"
 #include "scenario/request.h"
 #include "sound/city.h"
+#include "platform/file_manager.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 #define COMPRESS_BUFFER_INITIAL_SIZE 1000000
 #define MAX_DYNAMIC_PIECE_SIZE (256 * 1024 * 1024)
@@ -925,7 +927,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     if (version > SCENARIO_LAST_UNVERSIONED) {
         empire_object_load(file->empire, version);
         if (resource_id_bridge_mapping_joins_meat_and_fish()) {
-            empire_city_update_our_fish_and_meat_production();
+            empire_city_migrate_legacy_fishing_production();
         }
         empire_city_update_trading_data(scenario_empire_id());
     }
@@ -998,11 +1000,11 @@ static scenario_version_t save_version_to_scenario_version(savegame_version_t sa
     return static_cast<scenario_version_t>(buffer_read_i32(buf));
 }
 
-static void savegame_load_from_state(savegame_state *state, savegame_version_t version)
+static int savegame_load_from_state(savegame_state *state, savegame_version_t version)
 {
     if (!state) {
         log_error("Unable to load savegame state: state is null", 0, 0);
-        return;
+        return 0;
     }
 
     scenario_version_t scenario_version = save_version_to_scenario_version(version, state->scenario_version);
@@ -1078,22 +1080,28 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     god_id_bridge_save_table_load_state(
         state->god_type_table,
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
-    building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
-    if (!formation_refresh_runtime_definitions()) {
-        log_error("Loaded save contains invalid fort-formation ownership links", 0, 0);
-    }
+    if (!building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version)) return 0;
     if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
         map_terrain_migrate_old_bridges();
     }
-    map_building_remove_invalid_references();
+    if (!map_building_validate_loaded_references()) {
+        return 0;
+    }
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         building_resource_state_load(state->building_resource_state);
     }
     // Complete the one-time legacy-record bridge before any figure or other
     // runtime subsystem traverses a composed building. Warehouse recounting
     // must also happen after keyed resources have restored each bay by id.
-    building_hydrate_loaded_compositions();
-    Figure::resolve_loaded_building_references();
+    if (!building_hydrate_loaded_compositions(version)) return 0;
+    if (!formation_refresh_runtime_definitions()) {
+        log_error("Loaded save contains invalid fort-formation ownership links", 0, 0);
+        return 0;
+    }
+    if (!Figure::resolve_loaded_building_references(version)) {
+        log_error("Loaded save failed figure/building reference validation", 0, 0);
+        return 0;
+    }
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
     random_load_state(state->random_iv);
@@ -1129,6 +1137,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         empire_load_custom_map(state->empire_map);
     }
     empire_city_load_state(state->empire_cities, version);
+    if (resource_id_bridge_mapping_joins_meat_and_fish() || version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
+        empire_city_migrate_legacy_fishing_production();
+    }
     trade_prices_load_state(state->trade_prices);
     figure_name_load_state(state->figure_names);
     city_culture_load_state(state->culture_coverage);
@@ -1170,7 +1181,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     if (version > SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
         empire_object_load(state->custom_empire, scenario_version);
         if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE && resource_id_bridge_mapping_joins_meat_and_fish()) {
-            empire_city_update_our_fish_and_meat_production();
+            empire_city_migrate_legacy_fishing_production();
         }
     }
     if (version <= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO) {
@@ -1178,9 +1189,12 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     } else {
         figure_visited_buildings_load_state(state->visited_buildings);
     }
-    map_bridge_migrate_loaded_native_bridges();
-
-    map_terrain_migrate_old_walls();
+    if (version <= SAVE_GAME_LAST_NO_STRICT_NATIVE_BRIDGE_WALL_RECORDS) {
+        map_bridge_migrate_loaded_native_bridges();
+        map_terrain_migrate_old_walls();
+    } else if (!map_bridge_validate_loaded_native_bridges() || !map_terrain_validate_loaded_walls()) {
+        return 0;
+    }
 
     if (version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         scenario_events_migrate_to_formulas();
@@ -1192,6 +1206,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     if (version <= SAVE_GAME_LAST_NO_EMPIRE_EDITOR) {
         scenario_events_migrate_to_buys_sells();
     }
+    return 1;
 }
 
 static void savegame_save_to_state(savegame_state *state)
@@ -1825,6 +1840,8 @@ static void savegame_write_to_file(FILE *fp, memory_block *compress_buffer)
     }
 }
 
+static int saved_game_file_has_valid_structure(const char *filename);
+
 static int get_savegame_versions_from_buffer(buffer *buf, savegame_version_t *save_version,
     resource_version_t *resource_version)
 {
@@ -1889,7 +1906,10 @@ int game_file_io_read_save_game_from_buffer(buffer *buf)
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
-    savegame_load_from_state(&savegame_data.state, save_version);
+    if (!savegame_load_from_state(&savegame_data.state, save_version)) {
+        clear_savegame_context();
+        return FILE_LOAD_VALIDATION_FAILED;
+    }
     clear_savegame_context();
     return FILE_LOAD_SUCCESS;
 }
@@ -1928,7 +1948,10 @@ int game_file_io_read_saved_game(const char *filename, int offset)
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
-    savegame_load_from_state(&savegame_data.state, save_version);
+    if (!savegame_load_from_state(&savegame_data.state, save_version)) {
+        clear_savegame_context();
+        return FILE_LOAD_VALIDATION_FAILED;
+    }
     clear_savegame_context();
     return 1;
 }
@@ -2081,7 +2104,9 @@ int game_file_io_write_saved_game(const char *filename)
     log_info("Saving game", filename, 0);
     savegame_save_to_state(&savegame_data.state);
 
-    FILE *fp = file_open(filename, "wb");
+    const std::string temporary_filename = std::string(filename) + ".tmp";
+    platform_file_manager_remove_file(temporary_filename.c_str());
+    FILE *fp = file_open(temporary_filename.c_str(), "wb");
     if (!fp) {
         clear_savegame_context();
         log_error("Unable to save game", 0, 0);
@@ -2091,9 +2116,39 @@ int game_file_io_write_saved_game(const char *filename)
     core_memory_block_init(&compress_buffer, COMPRESS_BUFFER_INITIAL_SIZE);
     savegame_write_to_file(fp, &compress_buffer);
     core_memory_block_free(&compress_buffer);
+    const int write_result = !ferror(fp) && platform_file_manager_flush_file(fp);
+    const int close_result = file_close(fp);
     clear_savegame_context();
-    file_close(fp);
+    if (!write_result || !close_result || !saved_game_file_has_valid_structure(temporary_filename.c_str())) {
+        platform_file_manager_remove_file(temporary_filename.c_str());
+        log_error("Unable to validate temporary save game", filename, 0);
+        return 0;
+    }
+    if (!platform_file_manager_replace_file(temporary_filename.c_str(), filename)) {
+        platform_file_manager_remove_file(temporary_filename.c_str());
+        log_error("Unable to commit temporary save game", filename, 0);
+        return 0;
+    }
     return 1;
+}
+
+static int saved_game_file_has_valid_structure(const char *filename)
+{
+    FILE *fp = file_open(filename, "rb");
+    if (!fp) {
+        return 0;
+    }
+    savegame_version_t save_version;
+    resource_version_t resource_version;
+    if (!get_savegame_versions(fp, &save_version, &resource_version) || save_version != SAVE_GAME_CURRENT_VERSION || resource_version != resource_id_bridge_current_version()) {
+        file_close(fp);
+        return 0;
+    }
+    init_savegame_data(save_version);
+    const int result = savegame_read_from_file(fp, save_version);
+    const int close_result = file_close(fp);
+    clear_savegame_context();
+    return result && close_result;
 }
 
 int game_file_io_delete_saved_game(const char *filename)

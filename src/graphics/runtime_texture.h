@@ -11,6 +11,7 @@ struct RuntimeDrawSlice {
     int draw_offset_x = 0;
     int draw_offset_y = 0;
     int is_isometric = 0;
+    render_logical_size fixed_logical_size = {};
 
     int is_valid() const
     {

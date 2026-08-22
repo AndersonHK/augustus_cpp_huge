@@ -17,5 +17,5 @@
             <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_hippodrome" />
         </profile>
     </profiles>
-    <graphics image_group="charioteer" max_image_offset="12" />
+    <graphics path_pattern="Walkers\Group_215" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

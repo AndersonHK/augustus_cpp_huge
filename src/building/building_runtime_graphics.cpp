@@ -68,12 +68,7 @@ void log_building_scope_state(void *userdata)
         return;
     }
 
-    const building_type_registry_impl::GraphicsTarget *target =
-        definition && runtime ?
-            building_type_registry_impl::BuildingType::resolve_graphics_target(
-                definition,
-                runtime->building) :
-            nullptr;
+    const building_type_registry_impl::GraphicsTarget *target = definition && runtime ? definition->graphics().resolve_target(runtime->building) : nullptr;
 
     char details[256];
     const building_type_registry_impl::BuildingGeometry geometry =
@@ -340,7 +335,7 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     if (!has_native_graphics_definition()) {
         return nullptr;
     }
-    return building_type_registry_impl::BuildingType::resolve_graphics_target(&type(), building);
+    return type().graphics().resolve_target(building);
 }
 
 void building_runtime::assign_graphic_variant(int force_reseed)

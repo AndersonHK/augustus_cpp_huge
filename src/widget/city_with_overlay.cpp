@@ -317,8 +317,11 @@ static void draw_roamer_frequency(int x, int y, int grid_offset)
     }
 }
 
-static void draw_footprint(int x, int y, int grid_offset)
+static void draw_footprint_render_tile(const CityDrawTileCommand &command)
 {
+    const int x = command.x;
+    const int y = command.y;
+    const int grid_offset = command.grid_offset;
     building_construction_record_view_position(x, y, grid_offset);
     if (grid_offset < 0) {
         return;
@@ -330,7 +333,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         if (terrain & TERRAIN_HIGHWAY && !(terrain & TERRAIN_GATEHOUSE)) {
             city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
         } else {
-            Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+            Building *building = command.building;
             if (building && building->Graphics().uses_terrain_foundation()) {
                 city_draw_terrain_foundation_footprint(
                     grid_offset, x, y, COLOR_MASK_NONE, scale);
@@ -477,10 +480,10 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     }
 }
 
-static void draw_top_render_tile(const CityViewRenderTile &tile)
+static void draw_top_render_tile(const CityDrawTileCommand &command)
 {
-    if (tile.building) {
-        draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (command.building) {
+        draw_top_for_building(command.building, command.x, command.y, command.grid_offset);
     }
 }
 
@@ -523,35 +526,35 @@ static void draw_animation_for_building(Building *building, int x, int y, int gr
     building->draw_animation({ x, y, grid_offset, color_mask, scale });
 }
 
-static void draw_animation_render_tile(const CityViewRenderTile &tile)
+static void draw_animation_render_tile(const CityDrawTileCommand &command)
 {
-    if (tile.building) {
-        draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (command.building) {
+        draw_animation_for_building(command.building, command.x, command.y, command.grid_offset);
     }
 }
 
-static void draw_figures(int x, int y, int grid_offset)
+static void draw_figures(Figure *first_figure, int x, int y)
 {
-    int figure_id = map_figure_at(grid_offset);
-    while (figure_id) {
-        Figure *f = Figure::get(figure_id);
-        if (!f->is_ghost && overlay->show_figure(f)) {
+    Figure *f = first_figure;
+    while (f) {
+        const bool elevated = (f->use_cross_country && !f->dont_draw_elevated) || f->height_adjusted_ticks;
+        if (!elevated && !f->is_ghost && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
         }
-        figure_id = f->next_figure_id_on_same_tile;
+        const unsigned int next_figure_id = f->next_figure_id_on_same_tile;
+        f = next_figure_id ? Figure::get(next_figure_id) : nullptr;
     }
 }
 
-static void draw_figures_render_tile(const CityViewRenderTile &tile)
+static void draw_figures_render_tile(const CityDrawTileCommand &command)
 {
-    draw_figures(tile.x, tile.y, tile.grid_offset);
+    draw_figures(command.first_figure, command.x, command.y);
 }
 
-static void draw_elevated_figures(int x, int y, int grid_offset)
+static void draw_elevated_figures(Figure *first_figure, int x, int y)
 {
-    int figure_id = map_figure_at(grid_offset);
-    while (figure_id > 0) {
-        Figure *f = Figure::get(figure_id);
+    Figure *f = first_figure;
+    while (f) {
         if (((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
         } else if (f->building && f->building->id == city_roamer_preview_selected_building_id) { //figure from selected building
@@ -564,32 +567,38 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
             }
 
         }
-        figure_id = f->next_figure_id_on_same_tile;
+        const unsigned int next_figure_id = f->next_figure_id_on_same_tile;
+        f = next_figure_id ? Figure::get(next_figure_id) : nullptr;
     }
 }
 
-static void deletion_draw_terrain_top(int x, int y, int grid_offset)
+static void draw_elevated_figures_render_tile(const CityDrawTileCommand &command)
 {
-    if (city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
+    draw_elevated_figures(command.first_figure, command.x, command.y);
+}
+
+static void deletion_draw_terrain_top_render_tile(const CityDrawTileCommand &command)
+{
+    if (city_draw_should_draw_top_before_deletion(command.grid_offset)) {
+        draw_top_for_building(command.building, command.x, command.y, command.grid_offset);
     }
 }
 
-static void deletion_draw_animations(int x, int y, int grid_offset)
+static void deletion_draw_animations_render_tile(const CityDrawTileCommand &command)
 {
-    Building *building = runtime_building_for_draw_at(grid_offset);
-    if (map_property_is_deleted(grid_offset) || (building && city_draw_building_as_deleted(*building))) {
-        Image::blend_footprint_color(x, y, building_construction_clear_color(), scale);
+    Building *building = command.building;
+    if (map_property_is_deleted(command.grid_offset) || (building && city_draw_building_as_deleted(*building))) {
+        Image::blend_footprint_color(command.x, command.y, building_construction_clear_color(), scale);
     }
-    if (!city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(building, x, y, grid_offset);
+    if (!city_draw_should_draw_top_before_deletion(command.grid_offset)) {
+        draw_top_for_building(building, command.x, command.y, command.grid_offset);
     }
-    draw_animation_for_building(building, x, y, grid_offset);
+    draw_animation_for_building(building, command.x, command.y, command.grid_offset);
 }
 
-static void draw_custom_layer(int x, int y, int grid_offset)
+static void draw_custom_layer_render_tile(const CityDrawTileCommand &command)
 {
-    overlay->draw_custom_layer(x, y, scale, grid_offset);
+    overlay->draw_custom_layer(command.x, command.y, scale, command.grid_offset);
 }
 
 void city_with_overlay_draw(const map_tile *tile, unsigned int roamer_preview_building_id)
@@ -605,45 +614,42 @@ void city_with_overlay_draw(const map_tile *tile, unsigned int roamer_preview_bu
     city_view_get_viewport(&x, &y, &width, &height);
     graphics_fill_rect(x, y, width, height, COLOR_BLACK);
     int should_mark_deleting = city_building_ghost_mark_deleting(tile);
-    {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT);
-        city_view_foreach_valid_map_tile(draw_footprint);
-    }
+    CityViewRenderCommandBuffer render_commands;
+    city_draw_prepare_render_tile_rows(render_commands);
+    const CityViewRenderPhase footprint_phase[] = { { draw_footprint_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT } };
+    city_draw_render_tile_rows(render_commands, footprint_phase, 1);
     if (!should_mark_deleting) {
-        city_draw_main_render_tile_row(
-            draw_figures_render_tile,
-            draw_top_render_tile,
-            draw_animation_render_tile,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION);
+        const CityViewRenderPhase phases[] = {
+            { draw_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES },
+            { draw_top_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP },
+            { draw_animation_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION },
+        };
+        city_draw_render_tile_rows(render_commands, phases, 3);
         {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
             city_building_ghost_draw(tile);
         }
-        {
-            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
-            city_view_foreach_valid_map_tile(draw_elevated_figures);
-        }
+        const CityViewRenderPhase elevated_phases[] = {
+            { draw_elevated_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED },
+        };
+        city_draw_render_tile_rows(render_commands, elevated_phases, 1);
     } else {
-        {
-            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION);
-            city_view_foreach_valid_map_tile(draw_figures);
-            city_view_foreach_valid_map_tile(deletion_draw_terrain_top);
-            city_view_foreach_valid_map_tile(deletion_draw_animations);
-        }
+        const CityViewRenderPhase figures_phase[] = { { draw_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        const CityViewRenderPhase terrain_phase[] = { { deletion_draw_terrain_top_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        const CityViewRenderPhase animation_phase[] = { { deletion_draw_animations_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        city_draw_render_tile_rows(render_commands, figures_phase, 1);
+        city_draw_render_tile_rows(render_commands, terrain_phase, 1);
+        city_draw_render_tile_rows(render_commands, animation_phase, 1);
         {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
             city_building_ghost_draw(tile);
         }
-        {
-            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
-            city_view_foreach_valid_map_tile(draw_elevated_figures);
-        }
+        const CityViewRenderPhase elevated_phase[] = { { draw_elevated_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED } };
+        city_draw_render_tile_rows(render_commands, elevated_phase, 1);
     }
     if (overlay->draw_custom_layer) {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_OVERLAY);
-        city_view_foreach_valid_map_tile(draw_custom_layer);
+        const CityViewRenderPhase custom_layer_phase[] = { { draw_custom_layer_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_OVERLAY } };
+        city_draw_render_tile_rows(render_commands, custom_layer_phase, 1);
     }
     {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_WEATHER);

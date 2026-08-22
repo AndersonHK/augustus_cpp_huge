@@ -59,7 +59,7 @@ typedef enum {
 typedef int32_t render_logical_unit;
 
 enum {
-    RENDER_LOGICAL_UNITS_PER_PIXEL = 6
+    RENDER_LOGICAL_UNITS_PER_PIXEL = 120
 };
 
 typedef struct {
@@ -111,6 +111,54 @@ typedef struct {
     int disable_coord_scaling;
 } managed_image_request;
 
+typedef enum {
+    RENDER_COMMAND_CLEAR,
+    RENDER_COMMAND_SET_VIEWPORT,
+    RENDER_COMMAND_RESET_VIEWPORT,
+    RENDER_COMMAND_SET_CLIP_RECTANGLE,
+    RENDER_COMMAND_RESET_CLIP_RECTANGLE,
+    RENDER_COMMAND_DRAW_LINE,
+    RENDER_COMMAND_DRAW_RECT,
+    RENDER_COMMAND_FILL_RECT,
+    RENDER_COMMAND_SET_OUTPUT_SCALE,
+    RENDER_COMMAND_SET_RENDER_DOMAIN,
+    RENDER_COMMAND_PUSH_STATE,
+    RENDER_COMMAND_POP_STATE,
+    RENDER_COMMAND_DRAW_IMAGE,
+    RENDER_COMMAND_DRAW_MANAGED_IMAGE,
+    RENDER_COMMAND_DRAW_CUSTOM_IMAGE,
+    RENDER_COMMAND_DRAW_SAVED_IMAGE
+} renderer_command_kind;
+
+typedef struct {
+    renderer_command_kind kind;
+    int x;
+    int y;
+    int width;
+    int height;
+    color_t color;
+    float scale;
+    render_domain domain;
+    custom_image_type custom_image;
+    int texture_id;
+    int disable_filtering;
+    render_2d_request image;
+    struct image source_image;
+    managed_image_request managed_image;
+} renderer_command;
+
+typedef struct {
+    uint64_t revision;
+    uint64_t resource_revision;
+    const renderer_command *commands;
+    int command_count;
+} renderer_command_snapshot;
+
+typedef struct {
+    renderer_command_snapshot snapshot;
+    void *ownership;
+} renderer_command_snapshot_handle;
+
 typedef struct {
     atlas_type type;
     int num_images;
@@ -143,6 +191,12 @@ typedef struct {
     void (*draw_image_advanced)(const image *img, float x, float y, color_t color,
         float scale_x, float scale_y, double angle, int disable_coord_scaling);
     void (*draw_silhouette)(const image *img, int x, int y, color_t color, float scale);
+    void (*begin_command_recording)(void);
+    void (*end_command_recording)(void);
+    renderer_command_snapshot (*command_snapshot)(void);
+    renderer_command_snapshot_handle (*acquire_command_snapshot)(void);
+    void (*release_command_snapshot)(renderer_command_snapshot_handle *snapshot);
+    void (*replay_recorded_commands)(void);
 
     void (*create_custom_image)(custom_image_type type, int width, int height, int is_yuv);
     int (*has_custom_image)(custom_image_type type);
@@ -191,5 +245,11 @@ typedef struct {
 const graphics_renderer_interface *graphics_renderer(void);
 
 void graphics_renderer_set_interface(const graphics_renderer_interface *new_renderer);
+void graphics_renderer_begin_command_recording(void);
+void graphics_renderer_end_command_recording(void);
+renderer_command_snapshot graphics_renderer_command_snapshot(void);
+renderer_command_snapshot_handle graphics_renderer_acquire_command_snapshot(void);
+void graphics_renderer_release_command_snapshot(renderer_command_snapshot_handle *snapshot);
+void graphics_renderer_replay_recorded_commands(void);
 
 

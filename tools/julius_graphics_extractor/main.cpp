@@ -1,6 +1,8 @@
 #include "core/image.h"
 #include "scenario/property.h"
+#include "tools/graphics_extraction_output_policy.h"
 
+#include <array>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -43,6 +45,11 @@ public:
             output_graphics_ = append_path(game_root_, "Mods\\Julius\\Graphics");
         }
         output_graphics_ = absolute_path(output_graphics_);
+        std::string failure_reason;
+        if (!graphics_extraction_output_policy::validate(output_graphics_, failure_reason)) {
+            std::cerr << failure_reason << "\n";
+            return false;
+        }
         return true;
     }
 
@@ -87,10 +94,32 @@ private:
     bool show_help_ = false;
 };
 
-bool extract_climate(int climate_id, const char *label)
+bool snapshot_renderer_seam_assets(const std::filesystem::path &graphics_root, const char *label)
+{
+    const std::filesystem::path snapshot_root = graphics_root / "Renderer_Seam_Climate" / label / "Terrain_Maps";
+    const std::array<const char *, 3> groups = { "Flat_Tile", "Grass_1", "Water" };
+    std::error_code error;
+    for (const char *group : groups) {
+        const std::filesystem::path source = graphics_root / "Terrain_Maps" / group;
+        const std::filesystem::path destination = snapshot_root / group;
+        std::filesystem::create_directories(destination, error);
+        if (error) {
+            std::cerr << "Unable to create renderer seam snapshot folder " << destination.string() << ": " << error.message() << "\n";
+            return false;
+        }
+        std::filesystem::copy(source, destination, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing, error);
+        if (error) {
+            std::cerr << "Unable to snapshot renderer seam group " << source.string() << ": " << error.message() << "\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool extract_climate(int climate_id, const char *label, const std::filesystem::path &graphics_root)
 {
     std::cout << "Extracting Julius " << label << " graphics.\n";
-    if (image_load_climate(climate_id, 0, 1, 1, 1)) {
+    if (image_load_climate(climate_id, 0, 1, 1, 1) && snapshot_renderer_seam_assets(graphics_root, label)) {
         return true;
     }
 
@@ -117,7 +146,7 @@ int main(int argc, char **argv)
     augustus_graphics_extractor_shims_set_julius_graphics_path(cli.output_graphics().c_str());
     augustus_graphics_extractor_shims_install_renderer();
 
-    return extract_climate(CLIMATE_CENTRAL, "central") &&
-            extract_climate(CLIMATE_NORTHERN, "northern") &&
-            extract_climate(CLIMATE_DESERT, "desert") ? 0 : 1;
+    return extract_climate(CLIMATE_CENTRAL, "central", cli.output_graphics()) &&
+            extract_climate(CLIMATE_NORTHERN, "northern", cli.output_graphics()) &&
+            extract_climate(CLIMATE_DESERT, "desert", cli.output_graphics()) ? 0 : 1;
 }

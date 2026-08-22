@@ -27,7 +27,13 @@
 #include <string>
 #include <string_view>
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <io.h>
+#include <windows.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -729,6 +735,20 @@ int platform_file_manager_close_file(FILE *stream)
     return result == 0;
 }
 
+int platform_file_manager_flush_file(FILE *stream)
+{
+    if (!stream || fflush(stream) != 0) {
+        return 0;
+    }
+#if defined(_WIN32)
+    return _commit(_fileno(stream)) == 0;
+#elif defined(__EMSCRIPTEN__)
+    return 1;
+#else
+    return fsync(fileno(stream)) == 0;
+#endif
+}
+
 int platform_file_manager_create_directory(const char *name, const char *location, int overwrite)
 {
     std::string local_name = name ? name : "";
@@ -816,6 +836,36 @@ int platform_file_manager_copy_file(const char *src, const char *dst)
 
     preserve_timestamps(src, dst);
     return 1;
+}
+
+int platform_file_manager_replace_file(const char *src, const char *dst)
+{
+    if (!src || !*src || !dst || !*dst) {
+        return 0;
+    }
+    int result = 0;
+#if defined(_WIN32)
+    const std::wstring source_path = make_path(src).wstring();
+    const std::wstring destination_path = make_path(dst).wstring();
+    result = MoveFileExW(source_path.c_str(), destination_path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 1 : 0;
+#else
+    std::error_code ec;
+    fs::rename(make_path(src), make_path(dst), ec);
+    if (ec) {
+        return 0;
+    }
+#if defined(__EMSCRIPTEN__)
+    EM_ASM(Module.syncFS(););
+#endif
+    result = 1;
+#endif
+#ifdef USE_FILE_CACHE
+    if (result) {
+        platform_file_manager_cache_delete_file_info(src);
+        platform_file_manager_cache_update_file_info(dst);
+    }
+#endif
+    return result;
 }
 
 int platform_file_manager_copy_directory(const char *src, const char *dst, int overwrite_files)

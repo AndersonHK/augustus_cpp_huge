@@ -15,6 +15,19 @@ namespace image_group_payload_internal {
 
 namespace {
 
+render_logical_size logical_size_for_slice(const ImageEntryDef &entry, int source_canvas_width, int source_canvas_height, const RuntimeDrawSlice &slice)
+{
+    if (slice.width <= 0 || slice.height <= 0) {
+        return {};
+    }
+    if (entry.fixed_logical_size.width <= 0 || entry.fixed_logical_size.height <= 0 || source_canvas_width <= 0 || source_canvas_height <= 0) {
+        return { slice.width * RENDER_LOGICAL_UNITS_PER_PIXEL, slice.height * RENDER_LOGICAL_UNITS_PER_PIXEL };
+    }
+    int64_t width = static_cast<int64_t>(entry.fixed_logical_size.width) * slice.width;
+    int64_t height = static_cast<int64_t>(entry.fixed_logical_size.height) * slice.height;
+    return { static_cast<render_logical_unit>((width + source_canvas_width / 2) / source_canvas_width), static_cast<render_logical_unit>((height + source_canvas_height / 2) / source_canvas_height) };
+}
+
 // Input: one uploaded payload object plus one logical slice template.
 // Output: a runtime slice populated from the payload's actual renderer handle and logical dimensions.
 int populate_slice_from_image(const Image *image, int is_isometric, RuntimeDrawSlice &out_slice)
@@ -281,6 +294,8 @@ int finalize_surface_to_resolved_entry(
     ResolvedImageEntry &out_entry)
 {
     out_entry.is_isometric = entry.is_isometric;
+    const int source_canvas_width = composed_surface.width;
+    const int source_canvas_height = composed_surface.height;
 
     RasterSurface split_surface;
     int top_height = 0;
@@ -311,6 +326,10 @@ int finalize_surface_to_resolved_entry(
     if (top_height > 0) {
         out_entry.has_top = 1;
         out_entry.top.slice.draw_offset_y = -top_height + FOOTPRINT_HALF_HEIGHT;
+    }
+    out_entry.footprint.slice.fixed_logical_size = logical_size_for_slice(entry, source_canvas_width, source_canvas_height, out_entry.footprint.slice);
+    if (out_entry.top.slice.is_valid()) {
+        out_entry.top.slice.fixed_logical_size = logical_size_for_slice(entry, source_canvas_width, source_canvas_height, out_entry.top.slice);
     }
     out_entry.footprint.slice.draw_offset_x += entry.draw_offset_x;
     out_entry.footprint.slice.draw_offset_y += entry.draw_offset_y;
@@ -395,17 +414,25 @@ int materialize_explicit_frame(
                 out_frame_slice)) {
             return 0;
         }
+        const RuntimeDrawSlice *source_slice = resolved->footprint.slice.is_valid() ? &resolved->footprint.slice : nullptr;
+        if (source_slice) {
+            out_frame_slice.draw_offset_x = source_slice->draw_offset_x;
+            out_frame_slice.draw_offset_y = source_slice->draw_offset_y;
+            out_frame_slice.fixed_logical_size = source_slice->fixed_logical_size;
+        }
         return 1;
     }
 
     PreparedLayer frame_layer;
     if (!prepare_layer(doc, frame_def, frame_layer)) {
+        crash_context_report_error("Unable to prepare explicit image group animation frame", entry.id.c_str());
         return 0;
     }
 
     const int frame_width = transformed_layer_width(frame_layer) + std::max(0, frame_layer.x_offset);
     const int frame_height = transformed_layer_height(frame_layer) + std::max(0, frame_layer.y_offset);
     if (frame_width <= 0 || frame_height <= 0) {
+        crash_context_report_error("Explicit image group animation frame has invalid dimensions", entry.id.c_str());
         return 0;
     }
 
@@ -416,7 +443,7 @@ int materialize_explicit_frame(
     memset(frame_surface.pixels.data(), 0, sizeof(color_t) * frame_surface.pixels.size());
     compose_prepared_layer(frame_surface, frame_layer, frame_layer.mask == LAYER_MASK_ALPHA);
 
-    return materialize_animation_frame_surface(
+    const int materialized = materialize_animation_frame_surface(
         doc,
         entry,
         frame_index,
@@ -424,6 +451,8 @@ int materialize_explicit_frame(
         "frame",
         out_frame_key,
         out_frame_slice);
+    if (!materialized) crash_context_report_error("Unable to upload explicit image group animation frame", entry.id.c_str());
+    return materialized;
 }
 
 // Input: one fully resolved base entry plus an optional inherited full-image reference.
@@ -1119,6 +1148,7 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
 
     if (ok) {
         ok = resolve_animation(*doc, entry, referenced_entry, resolved_entry);
+        if (!ok) crash_context_report_error("Unable to materialize image group animation", selector_key.c_str());
     }
 
     g_loading_resolved_entries.erase(selector_key);

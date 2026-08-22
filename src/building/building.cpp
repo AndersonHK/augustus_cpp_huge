@@ -2234,7 +2234,7 @@ loaded_native_composition_chain(const building *main_record)
     return result;
 }
 
-[[noreturn]] static void report_loaded_composition_failure(
+static bool report_loaded_composition_failure(
     const building *owner,
     const building_type_registry_impl::BuildingType *definition,
     const char *reason)
@@ -2250,11 +2250,8 @@ loaded_native_composition_chain(const building *main_record)
         owner ? owner->next_part_building_id : 0,
         reason ? reason : "<none>");
     log_error("Unable to establish a complete loaded BuildingComposition", detail, owner ? owner->id : 0);
-    error_context_report_fatal_error_dialog(
-        "Savegame building composition error",
-        "A saved composed building could not be converted to the native runtime graph. The game has stopped rather than continue with orphaned buildings.",
-        detail);
-    std::terminate();
+    error_context_report_error("Savegame building composition validation failed.", detail);
+    return false;
 }
 
 static void initialize_loaded_native_composed_child(
@@ -2307,9 +2304,7 @@ static void initialize_loaded_native_composed_child(
     }
 }
 
-static int hydrate_loaded_native_composition(
-    building *main_record,
-    const building_type_registry_impl::BuildingType &definition)
+static int hydrate_loaded_native_composition(building *main_record, const building_type_registry_impl::BuildingType &definition, bool allow_legacy_repair)
 {
     const int rotation = infer_loaded_composed_rotation(main_record, definition);
     const building_type_registry_impl::CompositionLayoutResult layout =
@@ -2327,6 +2322,37 @@ static int hydrate_loaded_native_composition(
     if (!hydration.valid()) {
         log_error("Unable to hydrate loaded native composition", hydration.detail.c_str(), 0);
         return 0;
+    }
+
+    const bool owner_stores_orientation = definition.is_warehouse() || std::any_of(definition.composition().children().begin(), definition.composition().children().end(), [](const building_type_registry_impl::CompositionChildDef &child) { return child.orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner; });
+
+    if (!allow_legacy_repair) {
+        if (!hydration.unrelated_tail_ids.empty() || hydration.actions.size() + 1 != layout.members.size() || saved_chain.size() != hydration.actions.size() || (owner_stores_orientation && !building_is_fort(main_record->type) && main_record->subtype.orientation != static_cast<short>(rotation)) || (definition.is_warehouse() && !main_record->storage_id)) {
+            log_error("Current save composition chain does not exactly match its declared layout", definition.attr(), main_record->id);
+            return 0;
+        }
+        unsigned int expected_previous_id = main_record->id;
+        for (size_t index = 0; index < hydration.actions.size(); ++index) {
+            const building_type_registry_impl::CompositionHydrationAction &action = hydration.actions[index];
+            const unsigned int expected_next_id = index + 1 < hydration.actions.size() ? hydration.actions[index + 1].existing_id : 0;
+            building *child = action.kind == building_type_registry_impl::CompositionHydrationActionKind::AdoptExisting ? building_slot(action.existing_id) : nullptr;
+            if (!child || !composed_record_is_live(child) || !action.expected.type || child->type != action.expected.type->type() || child->x != action.expected.x || child->y != action.expected.y || static_cast<unsigned int>(child->prev_part_building_id) != expected_previous_id || static_cast<unsigned int>(child->next_part_building_id) != expected_next_id) {
+                log_error("Current save composition requires child synthesis, relocation, or link repair", definition.attr(), main_record->id);
+                return 0;
+            }
+            const std::vector<building_type_registry_impl::CompositionChildDef> &child_definitions = definition.composition().children();
+            const int inherits_owner_orientation = action.expected.definition_index < child_definitions.size() && child_definitions[action.expected.definition_index].orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner;
+            if (inherits_owner_orientation && child->subtype.orientation != static_cast<short>(action.expected.building_orientation)) {
+                log_error("Current save composition child has an invalid serialized orientation", definition.attr(), child->id);
+                return 0;
+            }
+            expected_previous_id = child->id;
+        }
+        const unsigned int expected_first_id = hydration.actions.empty() ? 0 : hydration.actions.front().existing_id;
+        if (main_record->prev_part_building_id != 0 || static_cast<unsigned int>(main_record->next_part_building_id) != expected_first_id) {
+            log_error("Current save composition owner links do not exactly match its child chain", definition.attr(), main_record->id);
+            return 0;
+        }
     }
 
     struct LoadedChild {
@@ -2348,7 +2374,7 @@ static int hydrate_loaded_native_composition(
             child_record = building_slot(action.existing_id);
             building_runtime *runtime = building_runtime_impl::get_or_create_instance(child_record);
             child_object = runtime ? &runtime->building : nullptr;
-        } else if (action.expected.type) {
+        } else if (allow_legacy_repair && action.expected.type) {
             child_object = &city_building_runtime().create(
                 *action.expected.type, action.expected.x, action.expected.y);
             child_record = const_cast<building *>(child_object->record());
@@ -2383,17 +2409,11 @@ static int hydrate_loaded_native_composition(
         return 0;
     }
 
-    const bool owner_stores_orientation = definition.is_warehouse() || std::any_of(
-        definition.composition().children().begin(),
-        definition.composition().children().end(),
-        [](const building_type_registry_impl::CompositionChildDef &child) {
-            return child.orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner;
-        });
-    if (owner_stores_orientation && !building_is_fort(main_record->type)) {
+    if (allow_legacy_repair && owner_stores_orientation && !building_is_fort(main_record->type)) {
         main_record->subtype.orientation = static_cast<short>(rotation);
     }
-    main_record->output_resource_id = static_cast<unsigned char>(building_output_resource(&definition));
-    if (definition.is_warehouse() && !main_record->storage_id) {
+    if (allow_legacy_repair) main_record->output_resource_id = static_cast<unsigned char>(building_output_resource(&definition));
+    if (allow_legacy_repair && definition.is_warehouse() && !main_record->storage_id) {
         main_record->storage_id = static_cast<unsigned char>(building_storage_create(main_record->id));
     }
 
@@ -2414,27 +2434,17 @@ static int hydrate_loaded_native_composition(
             }
             child.object->remove_map_tiles();
         }
-        child.record->x = static_cast<unsigned char>(child.action.expected.x);
-        child.record->y = static_cast<unsigned char>(child.action.expected.y);
-        child.record->grid_offset = static_cast<short>(map_grid_offset(child.record->x, child.record->y));
-        child.record->output_resource_id = static_cast<unsigned char>(
-            building_output_resource(child.action.expected.type));
-        if (child.created || !composed_record_is_live(child.record)) {
-            child.record->state = main_record->state;
-        }
         member_ids.push_back(child.record->id);
-        const std::vector<building_type_registry_impl::CompositionChildDef> &child_definitions =
-            definition.composition().children();
-        const int inherits_owner_orientation =
-            child.action.expected.definition_index < child_definitions.size() &&
-            child_definitions[child.action.expected.definition_index].orientation ==
-                building_type_registry_impl::CompositionChildOrientation::InheritOwner;
-        initialize_loaded_native_composed_child(
-            main_record,
-            child.record,
-            child.action.expected,
-            inherits_owner_orientation,
-            child.created);
+        const std::vector<building_type_registry_impl::CompositionChildDef> &child_definitions = definition.composition().children();
+        const int inherits_owner_orientation = child.action.expected.definition_index < child_definitions.size() && child_definitions[child.action.expected.definition_index].orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner;
+        if (allow_legacy_repair) {
+            child.record->x = static_cast<unsigned char>(child.action.expected.x);
+            child.record->y = static_cast<unsigned char>(child.action.expected.y);
+            child.record->grid_offset = static_cast<short>(map_grid_offset(child.record->x, child.record->y));
+            child.record->output_resource_id = static_cast<unsigned char>(building_output_resource(child.action.expected.type));
+            if (child.created || !composed_record_is_live(child.record)) child.record->state = main_record->state;
+            initialize_loaded_native_composed_child(main_record, child.record, child.action.expected, inherits_owner_orientation, child.created);
+        }
     }
 
     for (unsigned int unrelated_id : hydration.unrelated_tail_ids) {
@@ -2458,8 +2468,9 @@ static int hydrate_loaded_native_composition(
     return 1;
 }
 
-void building_hydrate_loaded_compositions(void)
+int building_hydrate_loaded_compositions(int save_version)
 {
+    const bool allow_legacy_repair = save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS;
     for (size_t i = 1; i < data.buildings.size(); i++) {
         building *record = &data.buildings[i];
         if (!composed_record_is_live(record)) {
@@ -2468,8 +2479,8 @@ void building_hydrate_loaded_compositions(void)
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(record->type);
         if (definition && definition->has_composition() &&
-            !hydrate_loaded_native_composition(record, *definition)) {
-            report_loaded_composition_failure(record, definition, "load hydration failed");
+            !hydrate_loaded_native_composition(record, *definition, allow_legacy_repair)) {
+            return report_loaded_composition_failure(record, definition, "load hydration failed");
         }
     }
 
@@ -2486,9 +2497,12 @@ void building_hydrate_loaded_compositions(void)
         Building *object = runtime_building_for_record(record);
         if (definition && definition->has_composition()) {
             if (!object || !object->Composition || !object->Composition->is_owner()) {
-                report_loaded_composition_failure(record, definition, "owner module is missing");
+                return report_loaded_composition_failure(record, definition, "owner module is missing");
             }
-            object->Composition->require_complete("save load composition bridge");
+            std::string completeness_error;
+            if (!object->Composition->complete(&completeness_error)) {
+                return report_loaded_composition_failure(record, definition, completeness_error.c_str());
+            }
             continue;
         }
 
@@ -2511,9 +2525,10 @@ void building_hydrate_loaded_compositions(void)
         }
         if (is_declared_child_type &&
             (!object || !object->Composition || !object->Composition->is_child())) {
-            report_loaded_composition_failure(record, definition, "orphaned composition child record");
+            return report_loaded_composition_failure(record, definition, "orphaned composition child record");
         }
     }
+    return 1;
 }
 
 static void fill_adjacent_types(building *b)
@@ -3823,6 +3838,8 @@ static bool loaded_record_owns_unbound_foundation(const building &record)
     return has_owned_delta;
 }
 
+static void stage_legacy_tile_foundation_state(const building &record);
+
 static bool bind_loaded_unbound_foundation(const building &record)
 {
     const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
@@ -3834,13 +3851,21 @@ static bool bind_loaded_unbound_foundation(const building &record)
 
     const int rotation = record_foundation_rotation(record, *foundation);
     for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+        if (!cell.definition || !map_grid_is_inside(record.x + cell.x, record.y + cell.y, 1)) {
+            return false;
+        }
         const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
+        const uint32_t terrain = static_cast<uint32_t>(map_terrain_get(grid_offset));
+        if (cell.definition->added_terrain && (terrain & cell.definition->added_terrain) != cell.definition->added_terrain) {
+            return false;
+        }
         const unsigned int existing_id = map_building_loaded_id_at(grid_offset);
         if (existing_id && existing_id != record.id && existing_id < data.buildings.size() &&
             data.buildings[existing_id].state != BUILDING_STATE_UNUSED) {
             return false;
         }
     }
+    stage_legacy_tile_foundation_state(record);
     for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
         map_building_set_loaded_id(map_grid_offset(record.x + cell.x, record.y + cell.y), record.id);
     }
@@ -4087,6 +4112,36 @@ static void rebuild_loaded_record_type_links()
     }
 }
 
+static void stage_legacy_tile_foundation_state(const building &record)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+    const building_type_registry_impl::FoundationDef *foundation = definition ? definition->foundation_def() : nullptr;
+    if (!foundation || foundation->cells().empty() || foundation->cells().size() > building_type_registry_impl::FOUNDATION_SAVE_CELL_LIMIT) {
+        return;
+    }
+
+    building_type_registry_impl::FoundationTerrainSaveState saved;
+    saved.published = 1;
+    const int rotation = record_foundation_rotation(record, *foundation);
+    const std::vector<building_type_registry_impl::FoundationCellDefinition> &canonical = foundation->cells();
+    for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+        if (!cell.definition || !map_grid_is_inside(record.x + cell.x, record.y + cell.y, 1)) {
+            saved.published = 0;
+            break;
+        }
+        const int cell_index = static_cast<int>(cell.definition - canonical.data());
+        if (cell_index < 0 || cell_index >= building_type_registry_impl::FOUNDATION_SAVE_CELL_LIMIT) {
+            saved.published = 0;
+            break;
+        }
+        const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
+        saved.added[cell_index] = static_cast<uint32_t>(map_terrain_get(grid_offset)) & cell.definition->added_terrain;
+    }
+    if (saved.published) {
+        building_runtime_stage_loaded_foundation_state(record.id, saved);
+    }
+}
+
 static void discard_loaded_record(building &record)
 {
     const unsigned int id = record.id;
@@ -4094,7 +4149,7 @@ static void discard_loaded_record(building &record)
     record.id = id;
 }
 
-static void normalize_loaded_surface_records()
+static void normalize_loaded_surface_records(int allow_unverified_foundation_recovery)
 {
     int discarded = 0;
     for (building &record : data.buildings) {
@@ -4120,10 +4175,13 @@ static void normalize_loaded_surface_records()
                 }
             }
         }
-        if (!has_map_presence && loaded_record_owns_unbound_foundation(record)) {
+        if (!has_map_presence && (loaded_record_owns_unbound_foundation(record) || allow_unverified_foundation_recovery)) {
             has_map_presence = bind_loaded_unbound_foundation(record);
         }
         if (!has_map_presence) {
+            char detail[160];
+            snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
+            log_warning("Repairing surface building record with no serialized terrain ownership", detail, 0);
             discard_loaded_record(record);
             discarded++;
         }
@@ -4132,8 +4190,37 @@ static void normalize_loaded_surface_records()
     if (discarded) {
         trim_buildings();
         rebuild_loaded_record_type_links();
-        log_info("Discarded unbound duplicate surface building records", 0, discarded);
+        log_warning("Repaired surface building records with no serialized terrain ownership", 0, discarded);
     }
+}
+
+static bool validate_loaded_surface_records()
+{
+    for (const building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED || !definition_is_surface_terrain_tile(definition_for_record(&record))) continue;
+
+        bool has_map_presence = false;
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        const building_type_registry_impl::FoundationDef *foundation = definition ? definition->foundation_def() : nullptr;
+        if (foundation) {
+            const int rotation = record_foundation_rotation(record, *foundation);
+            for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+                const int x = record.x + cell.x;
+                const int y = record.y + cell.y;
+                if (map_grid_is_inside(x, y, 1) && map_building_loaded_id_at(map_grid_offset(x, y)) == record.id) {
+                    has_map_presence = true;
+                    break;
+                }
+            }
+        }
+        if (!has_map_presence && !loaded_record_owns_unbound_foundation(record)) {
+            char detail[160];
+            snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
+            error_context_report_error("Current save contains an unowned surface building record.", detail);
+            return false;
+        }
+    }
+    return true;
 }
 
 static void clear_loaded_unbound_foundation_bindings()
@@ -4178,6 +4265,31 @@ static void clear_loaded_unbound_foundation_bindings()
     }
 }
 
+static bool validate_loaded_unbound_foundation_bindings()
+{
+    for (const building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED) continue;
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        const building_type_registry_impl::FoundationDef *foundation = definition ? definition->foundation_def() : nullptr;
+        if (!foundation) continue;
+
+        const int rotation = record_foundation_rotation(record, *foundation);
+        for (const building_type_registry_impl::RotatedFoundationCell &cell : foundation->rotated_cells(rotation)) {
+            if (!cell.definition || cell.definition->binds_building) continue;
+            const int x = record.x + cell.x;
+            const int y = record.y + cell.y;
+            if (!map_grid_is_inside(x, y, 1)) continue;
+            if (map_building_loaded_id_at(map_grid_offset(x, y)) == record.id) {
+                char detail[160];
+                snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, x, y);
+                error_context_report_error("Current save binds a building id to a non-binding foundation cell.", detail);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static void normalize_loaded_rubble_records()
 {
     const building_type rubble_type = type_from_attr("rubble");
@@ -4216,6 +4328,24 @@ static void normalize_loaded_rubble_records()
     }
 }
 
+static bool validate_loaded_rubble_records()
+{
+    for (const building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED) continue;
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        const bool has_rubble_definition = definition && definition->has_rubble();
+        const bool has_burning_definition = has_rubble_definition && definition->rubble().is_burning();
+        const RubbleRecordDisposition disposition = rubble_record_disposition(record.state, has_rubble_definition, has_burning_definition, rubble_record_has_map_presence(&record));
+        if (disposition != RubbleRecordDisposition::Keep) {
+            char detail[192];
+            snprintf(detail, sizeof(detail), "building_id=%u type=%d state=%d disposition=%d", record.id, record.type, record.state, static_cast<int>(disposition));
+            error_context_report_error("Current save contains a rubble record that requires runtime repair.", detail);
+            return false;
+        }
+    }
+    return true;
+}
+
 static int building_promote_legacy_tile_buildings_after_load()
 {
     const LegacyTilePromotionTypes types = legacy_tile_promotion_types();
@@ -4250,6 +4380,7 @@ static int building_promote_legacy_tile_buildings_after_load()
             continue;
         }
         bind_legacy_tile_building_record_to_map(record, types);
+        stage_legacy_tile_foundation_state(*record);
         if (rubble_source_id && rubble_source_id < data.buildings.size() &&
             data.buildings[rubble_source_id].state == BUILDING_STATE_RUBBLE) {
             data.buildings[rubble_source_id].state = BUILDING_STATE_DELETED_BY_GAME;
@@ -4291,7 +4422,7 @@ static int building_promote_legacy_tile_buildings_after_load()
     return promoted;
 }
 
-void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version)
+int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version)
 {
     int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
     size_t buf_size = buf->size;
@@ -4321,10 +4452,14 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
         }
     }
 
-    // Fix messy old hack that assigned gardens to building 0
     building *b = first_building_slot();
     if (b->state == BUILDING_STATE_UNUSED && type_attr_is(b->type, "gardens")) {
-        b->type = BUILDING_NONE;
+        if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
+            b->type = BUILDING_NONE;
+        } else {
+            error_context_report_error("Current save assigns a garden type to reserved building slot zero.", "building_id=0");
+            return 0;
+        }
     }
 
     resize_buildings(highest_id_in_use + 1);
@@ -4333,8 +4468,17 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
-    normalize_loaded_surface_records();
-    building_promote_legacy_tile_buildings_after_load();
-    clear_loaded_unbound_foundation_bindings();
-    normalize_loaded_rubble_records();
+    if (save_version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
+        normalize_loaded_surface_records(1);
+    }
+    if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
+        building_promote_legacy_tile_buildings_after_load();
+    }
+    if (save_version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
+        clear_loaded_unbound_foundation_bindings();
+    }
+    if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
+        normalize_loaded_rubble_records();
+    }
+    return validate_loaded_surface_records() && validate_loaded_unbound_foundation_bindings() && validate_loaded_rubble_records();
 }

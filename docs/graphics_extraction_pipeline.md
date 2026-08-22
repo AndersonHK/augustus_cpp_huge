@@ -4,7 +4,7 @@ This document is the current handoff for the generated graphics pipeline. It cov
 
 ## Current Shape
 
-Vespasian does not currently ship its own generated graphics. A clean generated output should have:
+Vespasian does not currently ship its own generated graphics. In an installed game folder, a clean generated output should have:
 
 - `Mods/Julius/Graphics`
 - `Mods/Augustus/Graphics`
@@ -18,7 +18,7 @@ Runtime extraction assumes `Vespasian.exe` is running from the Caesar 3 game fol
 assets\Graphics
 ```
 
-The runtime writes generated graphics into:
+The runtime writes generated graphics into the installed game's generated mod paths:
 
 ```text
 Mods\Julius\Graphics
@@ -46,8 +46,8 @@ The current full clean-run command used for validation is:
 ```powershell
 .\x64\Release\AugustusGraphicsExtractor.exe `
     --game-root 'D:\Games\GOG Games\Caesar 3' `
-    --julius-graphics 'x64\Release\Mods\Julius\Graphics' `
-    --output 'x64\Release\Mods\Augustus\Graphics' `
+    --julius-graphics 'extracted_graphics_sample\Julius\Graphics' `
+    --output 'extracted_graphics_sample\Augustus\Graphics' `
     --extract-julius-first
 ```
 
@@ -63,9 +63,10 @@ CLI options:
 --stamp                     Write/check the Augustus extraction stamp.
 ```
 
-Harness defaults are intentionally test-friendly:
+Harness output rules:
 
-- `--output` and `--julius-graphics` may point into the repo Release tree.
+- Repository-side extraction output belongs only under `extracted_graphics_sample`; an installed game may use its own runtime `Mods` output tree.
+- Extractors must never write generated files into this checkout's authored `Mods` tree or a build-output copy of it.
 - Augustus extraction is forced by default.
 - The harness does not write an Augustus stamp unless `--stamp` or `--extract-julius-first` is passed.
 - `--extract-julius-first` calls `image_load_climate()` for the central, northern, and desert main graphics packages. The explicit configured Augustus call becomes a stamped freshness/source-path check, so the normal clean-run output has three Julius summaries and one Augustus summary.
@@ -229,7 +230,7 @@ The BuildingType graphics reference validator currently sees:
 graphics_groups=3457 graphics_refs=890 button_icon_refs=209 checked_refs=1099 missing=0
 ```
 
-`graphics_refs` above counts explicit BuildingType path/image references and stable-option image ids across Julius, Augustus, and Vespasian source BuildingType XML against the freshly extracted Release graphics stack. `button_icon_refs` counts `<button icon="..." icon_image="...">` references; `icon` is a generated graphics group key and `icon_image` is optional, falling back to the group's default image when omitted.
+`graphics_refs` above counts explicit BuildingType path/image references and stable-option image ids across Julius, Augustus, and Vespasian source BuildingType XML against `extracted_graphics_sample`. `button_icon_refs` counts `<button icon="..." icon_image="...">` references; `icon` is a generated graphics group key and `icon_image` is optional, falling back to the group's default image when omitted.
 
 The broad generated graphics XML cross-reference scan currently reports 28 unresolved references across 7 target groups. Those are not BuildingType misses and are not tent-related. Known buckets include:
 
@@ -247,62 +248,61 @@ The timber pad and catapult rock misses are known Augustus upstream issues from 
 From the repo root, after building Release:
 
 ```powershell
-$releaseRoot = (Resolve-Path 'x64\Release').Path
+$extractRoot = (Resolve-Path 'extracted_graphics_sample').Path
 $targets = @()
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics')
-$targets += (Join-Path $releaseRoot 'Mods\Augustus\Graphics')
-$targets += (Join-Path $releaseRoot 'Mods\Vespasian\Graphics')
+$targets += (Join-Path $extractRoot 'Julius\Graphics')
+$targets += (Join-Path $extractRoot 'Augustus\Graphics')
 foreach ($target in $targets) {
     $parent = Split-Path -Parent $target
     if (-not (Test-Path -LiteralPath $parent)) { continue }
     $resolvedParent = (Resolve-Path -LiteralPath $parent).Path
-    if (-not $resolvedParent.StartsWith($releaseRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to delete outside Release: $target"
+    if (-not $resolvedParent.StartsWith($extractRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to delete outside extracted_graphics_sample: $target"
     }
     if (Test-Path -LiteralPath $target) {
         $resolvedTarget = (Resolve-Path -LiteralPath $target).Path
-        if (-not $resolvedTarget.StartsWith($releaseRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to delete outside Release: $resolvedTarget"
+        if (-not $resolvedTarget.StartsWith($extractRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to delete outside extracted_graphics_sample: $resolvedTarget"
         }
         Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
     }
 }
 $targets = @()
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract.stamp')
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract.manifest')
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract_northern.stamp')
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract_northern.manifest')
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract_desert.stamp')
-$targets += (Join-Path $releaseRoot 'Mods\Julius\Graphics.legacy_extract_desert.manifest')
-$targets += (Join-Path $releaseRoot 'Mods\Augustus\Graphics.graphics_extract.stamp')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract.stamp')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract.manifest')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract_northern.stamp')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract_northern.manifest')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract_desert.stamp')
+$targets += (Join-Path $extractRoot 'Julius\Graphics.legacy_extract_desert.manifest')
+$targets += (Join-Path $extractRoot 'Augustus\Graphics.graphics_extract.stamp')
 foreach ($target in $targets) {
     if (-not (Test-Path -LiteralPath $target)) { continue }
     $resolvedTarget = (Resolve-Path -LiteralPath $target).Path
-    if (-not $resolvedTarget.StartsWith($releaseRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to delete outside Release: $resolvedTarget"
+    if (-not $resolvedTarget.StartsWith($extractRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to delete outside extracted_graphics_sample: $resolvedTarget"
     }
     Remove-Item -LiteralPath $resolvedTarget -Force
 }
 
 .\x64\Release\AugustusGraphicsExtractor.exe `
     --game-root 'D:\Games\GOG Games\Caesar 3' `
-    --julius-graphics 'x64\Release\Mods\Julius\Graphics' `
-    --output 'x64\Release\Mods\Augustus\Graphics' `
+    --julius-graphics 'extracted_graphics_sample\Julius\Graphics' `
+    --output 'extracted_graphics_sample\Augustus\Graphics' `
     --extract-julius-first
 ```
 
 Then check:
 
 ```powershell
-Get-Content 'x64\Release\Mods\Julius\Graphics\Aesthetics\House_Tent.xml'
-Test-Path 'x64\Release\Mods\Vespasian\Graphics'
-Test-Path 'x64\Release\Mods\Julius\Graphics\UI\Group_018.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Aesthetics\House_Tent_Variants.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Aesthetics\House_Tent_Northern.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Aesthetics\House_Tent_Variants_Northern.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Aesthetics\House_Tent_Desert.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Admin_Logistics\Reservoir_Northern.xml'
-Test-Path 'x64\Release\Mods\Julius\Graphics\Admin_Logistics\Reservoir_Desert.xml'
+Get-Content 'extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent.xml'
+Test-Path 'extracted_graphics_sample\Vespasian\Graphics'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\UI\Group_018.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent_Variants.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent_Northern.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent_Variants_Northern.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent_Desert.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Admin_Logistics\Reservoir_Northern.xml'
+Test-Path 'extracted_graphics_sample\Julius\Graphics\Admin_Logistics\Reservoir_Desert.xml'
 git diff --check
 ```
 
@@ -319,14 +319,14 @@ Admin_Logistics\Reservoir_Northern.xml: True
 Admin_Logistics\Reservoir_Desert.xml: True
 ```
 
-Validate source BuildingType graphics and button icons against the freshly extracted Release graphics stack:
+Validate source BuildingType graphics and button icons against the dedicated extraction sample:
 
 ```powershell
-$release = (Resolve-Path 'x64\Release').Path
+$extract = (Resolve-Path 'extracted_graphics_sample').Path
 $sourceRoot = (Resolve-Path '.').Path
 $groups = @{}
-foreach ($mod in @('Julius', 'Augustus', 'Vespasian')) {
-    $graphicsRoot = Join-Path $release "Mods\$mod\Graphics"
+foreach ($mod in @('Julius', 'Augustus')) {
+    $graphicsRoot = Join-Path $extract "$mod\Graphics"
     if (-not (Test-Path $graphicsRoot)) { continue }
     foreach ($file in Get-ChildItem $graphicsRoot -Recurse -Filter *.xml) {
         $key = $file.FullName.Substring($graphicsRoot.Length + 1, $file.FullName.Length - $graphicsRoot.Length - 5).Replace('/', '\')

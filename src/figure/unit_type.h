@@ -87,9 +87,6 @@ public:
     void set_pathing_key(std::string key);
     const char *pathing_key() const;
 
-    void set_graphics_figure_type(std::string figure_type);
-    const char *graphics_figure_type() const;
-
     bool set_recruit_type_from_key(const char *key);
     int recruit_type() const;
 
@@ -112,7 +109,6 @@ private:
     UnitCombatStats combat_stats_;
     bool has_morale_ = false;
     std::string pathing_key_;
-    std::string graphics_figure_type_;
     int recruit_type_ = LEGION_RECRUIT_NONE;
     bool requires_weapon_ = false;
     bool has_melee_ = false;

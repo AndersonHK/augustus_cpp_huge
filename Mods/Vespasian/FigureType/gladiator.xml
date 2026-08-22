@@ -31,5 +31,5 @@
             <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_colosseum_gladiator" />
         </profile>
     </profiles>
-    <graphics image_group="gladiator" max_image_offset="12" />
+    <graphics path_pattern="Warriors\Group_111" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

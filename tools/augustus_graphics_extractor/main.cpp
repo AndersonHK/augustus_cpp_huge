@@ -1,6 +1,7 @@
 #include "assets/graphics_extraction_abi.h"
 #include "core/image.h"
 #include "scenario/property.h"
+#include "tools/graphics_extraction_output_policy.h"
 
 #include <filesystem>
 #include <iostream>
@@ -68,6 +69,11 @@ public:
         source_graphics_ = absolute_path(source_graphics_);
         output_graphics_ = absolute_path(output_graphics_);
         julius_graphics_ = absolute_path(julius_graphics_);
+        std::string failure_reason;
+        if (!graphics_extraction_output_policy::validate(output_graphics_, failure_reason) || !graphics_extraction_output_policy::validate(julius_graphics_, failure_reason)) {
+            std::cerr << failure_reason << "\n";
+            return false;
+        }
         return true;
     }
 

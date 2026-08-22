@@ -624,6 +624,30 @@ const GraphicsVariant *BuildingGraphicsDef::last_variant() const
     return variants_.empty() ? nullptr : &variants_.back();
 }
 
+GraphicsTarget &BuildingGraphicsDef::add_construction_phase(int phase)
+{
+    construction_phases_.push_back({ phase, {} });
+    return construction_phases_.back().target;
+}
+
+GraphicsTarget *BuildingGraphicsDef::last_construction_phase()
+{
+    return construction_phases_.empty() ? nullptr : &construction_phases_.back().target;
+}
+
+const GraphicsTarget *BuildingGraphicsDef::construction_phase(int phase) const
+{
+    for (const ConstructionPhaseGraphics &phase_graphics : construction_phases_) {
+        if (phase_graphics.phase == phase) return &phase_graphics.target;
+    }
+    return nullptr;
+}
+
+const std::vector<ConstructionPhaseGraphics> &BuildingGraphicsDef::construction_phases() const
+{
+    return construction_phases_;
+}
+
 int BuildingGraphicsDef::has_path() const
 {
     return default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage();
@@ -646,6 +670,11 @@ const std::vector<GraphicsVariant> &BuildingGraphicsDef::variants() const
 
 const GraphicsTarget *BuildingGraphicsDef::resolve_target(const Building &building) const
 {
+#ifndef STARTUP_PARSER_TEST
+    if (building.monument_phase() != MONUMENT_FINISHED && building.monument_phase() >= MONUMENT_START) {
+        if (const GraphicsTarget *phase = construction_phase(building.monument_phase())) return phase;
+    }
+#endif
     for (const GraphicsVariant &variant : variants_) {
         if (!variant.role.empty()) {
             continue;
@@ -737,7 +766,7 @@ int production_progress_options_in_target(const GraphicsTarget &target)
 
 int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Footprint);
         }
@@ -774,7 +803,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
 
 int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Top);
         }
@@ -814,7 +843,7 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
 
 int BuildingGraphicsDef::draw_animation(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Animation);
         }

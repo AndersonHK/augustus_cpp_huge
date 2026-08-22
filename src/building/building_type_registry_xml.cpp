@@ -1874,6 +1874,12 @@ static int parse_graphics()
         g_parse_state.has_current_graphics_variant = 0;
         g_parse_state.current_graphics_variant_index = 0;
         g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::ConstructionPhase;
+        const ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+        if (!phase) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.graphics_definition.add_construction_phase(phase->index);
         return 1;
     }
     if (g_parse_state.saw_graphic) {
@@ -1908,18 +1914,17 @@ static void finish_graphics()
     }
 
     if (g_parse_state.current_graphics_target_scope == GraphicsParseTargetScope::ConstructionPhase) {
-        ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
-        if (!phase || (!phase->graphics.has_path() && !phase->graphics.has_options() &&
-            !phase->graphics.is_resource_storage())) {
+        const GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
+        if (!phase || (!phase->has_path() && !phase->has_options() && !phase->is_resource_storage())) {
             log_error("BuildingType construction phase graphics is missing required child node 'path'", 0, 0);
             g_parse_state.error = 1;
         }
-    } else if (!g_parse_state.definition->graphics().has_default_node()) {
+    } else if (!g_parse_state.graphics_definition.has_default_node()) {
         log_error("BuildingType graphics is missing required child node 'default'", 0, 0);
         g_parse_state.error = 1;
-    } else if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options() &&
-        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
+    } else if (!g_parse_state.graphics_definition.default_target().has_path() &&
+        !g_parse_state.graphics_definition.default_target().has_options() &&
+        !g_parse_state.graphics_definition.default_target().is_resource_storage()) {
         log_error("BuildingType graphics is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2090,7 +2095,7 @@ static int parse_graphics_overlay_summary()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.definition->graphics().has_overlay_summary_policy()) {
+    if (g_parse_state.graphics_definition.has_overlay_summary_policy()) {
         log_error("BuildingType graphics contains duplicate overlay_summary nodes",
             g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
@@ -2104,7 +2109,7 @@ static int parse_graphics_overlay_summary()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->set_graphics_overlay_summary_policy(policy);
+    g_parse_state.graphics_definition.set_overlay_summary_policy(policy);
     return 1;
 }
 
@@ -2120,7 +2125,7 @@ static int parse_graphics_status_icon()
 
     int existing_x = 0;
     int existing_y = 0;
-    if (g_parse_state.definition->graphics().status_icon_anchor(&existing_x, &existing_y)) {
+    if (g_parse_state.graphics_definition.status_icon_anchor(&existing_x, &existing_y)) {
         log_error("BuildingType graphics contains duplicate status_icon nodes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
@@ -2135,7 +2140,7 @@ static int parse_graphics_status_icon()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->set_graphics_status_icon_anchor(x, y);
+    g_parse_state.graphics_definition.set_status_icon_anchor(x, y);
     return 1;
 }
 
@@ -2189,10 +2194,9 @@ static void finish_construction_phase()
     if (!g_parse_state.parsing_construction_phase) {
         return;
     }
-    ConstructionPhase *phase = g_parse_state.definition ? g_parse_state.definition->last_construction_phase() : nullptr;
-    if (!g_parse_state.saw_construction_phase_graphics || !phase ||
-        (!phase->graphics.has_path() && !phase->graphics.has_options() &&
-            !phase->graphics.is_resource_storage())) {
+    const GraphicsTarget *phase_graphics = g_parse_state.graphics_definition.last_construction_phase();
+    if (!g_parse_state.saw_construction_phase_graphics || !phase_graphics ||
+        (!phase_graphics->has_path() && !phase_graphics->has_options() && !phase_graphics->is_resource_storage())) {
         log_error("BuildingType construction phase is missing required graphics", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2255,15 +2259,15 @@ static int parse_graphics_default()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.definition->graphics().has_default_node()) {
+    if (g_parse_state.graphics_definition.has_default_node()) {
         log_error("BuildingType graphics contains duplicate default nodes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    g_parse_state.definition->mark_graphics_default_node();
+    g_parse_state.graphics_definition.mark_default_node();
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Default;
-    GraphicsTarget &target = g_parse_state.definition->default_graphics_target();
+    GraphicsTarget &target = g_parse_state.graphics_definition.default_target();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2294,15 +2298,13 @@ static GraphicsTarget *current_graphics_target()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            return &g_parse_state.definition->default_graphics_target();
+            return &g_parse_state.graphics_definition.default_target();
         case GraphicsParseTargetScope::Variant:
-            return g_parse_state.definition->last_graphics_variant() ?
-                &g_parse_state.definition->last_graphics_variant()->target :
+            return g_parse_state.graphics_definition.last_variant() ?
+                &g_parse_state.graphics_definition.last_variant()->target :
                 nullptr;
         case GraphicsParseTargetScope::ConstructionPhase:
-            return g_parse_state.definition->last_construction_phase() ?
-                &g_parse_state.definition->last_construction_phase()->graphics :
-                nullptr;
+            return g_parse_state.graphics_definition.last_construction_phase();
         case GraphicsParseTargetScope::None:
         default:
             return nullptr;
@@ -2649,9 +2651,9 @@ static void finish_graphics_default()
     if (!g_parse_state.parsing_graphics) {
         return;
     }
-    if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options() &&
-        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
+    if (!g_parse_state.graphics_definition.default_target().has_path() &&
+        !g_parse_state.graphics_definition.default_target().has_options() &&
+        !g_parse_state.graphics_definition.default_target().is_resource_storage()) {
         log_error("BuildingType graphics default is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2665,7 +2667,7 @@ static int parse_graphics_variant()
         g_parse_state.error = 1;
         return 0;
     }
-    GraphicsVariant &variant = g_parse_state.definition->add_graphics_variant();
+    GraphicsVariant &variant = g_parse_state.graphics_definition.add_variant();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2695,7 +2697,7 @@ static int parse_graphics_variant()
         variant.role = std::move(role);
     }
     g_parse_state.has_current_graphics_variant = 1;
-    g_parse_state.current_graphics_variant_index = g_parse_state.definition->graphics().variants().size() - 1;
+    g_parse_state.current_graphics_variant_index = g_parse_state.graphics_definition.variants().size() - 1;
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Variant;
     return 1;
 }
@@ -2706,7 +2708,7 @@ static void finish_graphics_variant()
         return;
     }
 
-    GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+    GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
     if (!variant || (!variant->target.has_path() && !variant->target.has_options() &&
         !variant->target.is_resource_storage())) {
         log_error("BuildingType graphics variant is missing required child node 'path'", 0, 0);
@@ -2739,11 +2741,11 @@ static int parse_graphics_path()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            g_parse_state.definition->default_graphics_target().set_path(std::move(normalized_path));
+            g_parse_state.graphics_definition.default_target().set_path(std::move(normalized_path));
             break;
         case GraphicsParseTargetScope::Variant:
         {
-            GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+            GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
             if (!variant) {
                 log_error("Encountered graphics path without an active variant", 0, 0);
                 g_parse_state.error = 1;
@@ -2754,13 +2756,13 @@ static int parse_graphics_path()
         }
         case GraphicsParseTargetScope::ConstructionPhase:
         {
-            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
             if (!phase) {
                 log_error("Encountered construction phase graphics path without an active phase", 0, 0);
                 g_parse_state.error = 1;
                 return 0;
             }
-            phase->graphics.set_path(std::move(normalized_path));
+            phase->set_path(std::move(normalized_path));
             break;
         }
         case GraphicsParseTargetScope::None:
@@ -2794,11 +2796,11 @@ static int parse_graphics_image()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            g_parse_state.definition->default_graphics_target().set_image(std::move(image_id));
+            g_parse_state.graphics_definition.default_target().set_image(std::move(image_id));
             break;
         case GraphicsParseTargetScope::Variant:
         {
-            GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+            GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
             if (!variant) {
                 log_error("Encountered graphics image without an active variant", 0, 0);
                 g_parse_state.error = 1;
@@ -2809,13 +2811,13 @@ static int parse_graphics_image()
         }
         case GraphicsParseTargetScope::ConstructionPhase:
         {
-            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
             if (!phase) {
                 log_error("Encountered construction phase graphics image without an active phase", 0, 0);
                 g_parse_state.error = 1;
                 return 0;
             }
-            phase->graphics.set_image(std::move(image_id));
+            phase->set_image(std::move(image_id));
             break;
         }
         case GraphicsParseTargetScope::None:
@@ -3064,7 +3066,8 @@ static int parse_graphics_condition()
         g_parse_state.current_graphics_layer->add_condition(condition);
         return 1;
     }
-    g_parse_state.definition->add_graphics_variant_condition(condition);
+    GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
+    if (variant) variant->conditions.push_back(std::move(condition));
     return 1;
 }
 
@@ -4488,39 +4491,27 @@ static int validate_graphics_target_entry(
     return 1;
 }
 
-// Input: one parsed BuildingType definition that may contain native runtime graphics targets.
-// Output: true when all required targets resolve; invalid top-level graphics are cleared so runtime rendering falls back safely.
-static int validate_runtime_graphics_or_clear(BuildingType &definition)
+// Input: one parsed BuildingType definition with module-owned native graphics targets.
+// Output: true only when every target resolves. Invalid authored graphics reject startup.
+static int validate_runtime_graphics(const BuildingType &definition)
 {
-    int valid = 1;
     if (definition.has_graphic()) {
-        valid = validate_graphics_target_entry(definition, definition.graphics().default_target(), "default");
-
-        if (valid) {
-            const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
-            for (size_t i = 0; i < variants.size(); i++) {
-                char scope[64];
-                snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
-                if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
-                    valid = 0;
-                    break;
-                }
+        if (!validate_graphics_target_entry(definition, definition.graphics().default_target(), "default")) return 0;
+        const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
+        for (size_t i = 0; i < variants.size(); i++) {
+            char scope[64];
+            snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
+            if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
+                return 0;
             }
-        }
-
-        if (!valid) {
-            definition.clear_graphics();
         }
     }
 
-    if (definition.has_phased_construction()) {
-        const std::vector<ConstructionPhase> &phases = definition.construction().phases();
-        for (const ConstructionPhase &phase : phases) {
-            char scope[64];
-            snprintf(scope, sizeof(scope), "construction.phase[%d]", phase.index);
-            if (!validate_graphics_target_entry(definition, phase.graphics, scope)) {
-                return 0;
-            }
+    for (const ConstructionPhaseGraphics &phase : definition.graphics().construction_phases()) {
+        char scope[64];
+        snprintf(scope, sizeof(scope), "construction.phase[%d]", phase.phase);
+        if (!validate_graphics_target_entry(definition, phase.target, scope)) {
+            return 0;
         }
     }
 
@@ -4720,6 +4711,7 @@ static int parse_definition_buffer(
         }
         return 0;
     }
+    g_parse_state.definition->set_graphics(std::move(g_parse_state.graphics_definition));
     result.definition = std::move(g_parse_state.definition);
     result.disabled = g_parse_state.disabled;
     return 1;
@@ -5230,7 +5222,7 @@ static int validate_final_winner_definitions(
         }
         const mod_definition::DefinitionOverlayEntry *source = staged.overlays.find(definition->attr());
         const char *filename = source ? source->source.full_path.c_str() : definition->attr();
-        if (!validate_runtime_graphics_or_clear(*definition) ||
+        if (!validate_runtime_graphics(*definition) ||
             !resolve_runtime_references(*definition, filename) ||
             !validate_runtime_class_nodes(*definition)) {
             if (failure_reason && failure_reason->empty()) {

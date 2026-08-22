@@ -9,6 +9,7 @@
 #include "city/map.h"
 #include "core/direction.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"
@@ -738,6 +739,37 @@ void map_terrain_migrate_old_walls(void)
             }
         }
     }
+}
+
+int map_terrain_validate_loaded_walls(void)
+{
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; ++grid_offset) {
+        if (!map_grid_is_valid_offset(grid_offset) || !map_terrain_is(grid_offset, TERRAIN_WALL)) {
+            continue;
+        }
+        if (!map_building_exists_at(grid_offset)) {
+            log_error("Current save wall terrain has no building record", 0, grid_offset);
+            return 0;
+        }
+        Building &wall = map_building_at(grid_offset);
+        const building *record = wall.record();
+        if (!record || !record->id || !wall.matches("wall") || record->grid_offset != grid_offset || record->x != map_grid_offset_to_x(grid_offset) || record->y != map_grid_offset_to_y(grid_offset)) {
+            log_error("Current save wall terrain does not exactly match its wall building record", 0, grid_offset);
+            return 0;
+        }
+    }
+    int valid = 1;
+    Building::for_each([&valid](Building *candidate) {
+        if (!valid || !candidate || !candidate->matches("wall")) {
+            return;
+        }
+        const building *record = candidate->record();
+        if (!record || !map_grid_is_valid_offset(record->grid_offset) || !map_terrain_is(record->grid_offset, TERRAIN_WALL) || !map_building_exists_at(record->grid_offset) || map_building_at(record->grid_offset).record() != record) {
+            log_error("Current save contains an orphaned wall building record", 0, record ? record->id : 0);
+            valid = 0;
+        }
+    });
+    return valid;
 }
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer)

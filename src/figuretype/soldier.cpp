@@ -63,8 +63,8 @@ void figure_military_standard_action(Figure *f)
         f->y = static_cast<unsigned char>(m->standard_y);
     }
     f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
-    f->cross_country_x = static_cast<short>(figure_movement_tile_center_cross_country(f->x));
-    f->cross_country_y = static_cast<short>(figure_movement_tile_center_cross_country(f->y));
+    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
+    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
     map_figure_add(f);
 
     int pole_offset = 20 - m->morale / 5;

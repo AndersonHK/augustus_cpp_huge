@@ -5,14 +5,16 @@
 #include "core/direction.h"
 #include "figure/action.h"
 #include "figure/properties.h"
+#include "figure/runtime_profile_identity.h"
 #include "figure/type.h"
 #include "translation/translation.h"
 
 #include <cstdio>
+#include <array>
+#include <cstdint>
 #include <vector>
 
 constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
-
 class Figure;
 struct FigureGraphicDrawRequest;
 struct building_info_context;
@@ -45,7 +47,7 @@ public:
     static void kill_all();
     static void save_state(buffer *list, buffer *seq);
     static void load_state(buffer *list, buffer *seq, int version);
-    static void resolve_loaded_building_references();
+    static bool resolve_loaded_building_references(int save_version);
     static std::vector<unsigned int> ids_referencing_building(const Building &building);
     static std::vector<unsigned int> ids_directly_referencing_building(const Building &building);
 
@@ -62,6 +64,8 @@ public:
     unsigned int home_building_id() const;
     unsigned int immigrant_building_id() const;
     unsigned int destination_building_id() const;
+    const char *runtime_profile_id() const;
+    bool set_runtime_profile_id(const char *profile_id);
     bool references_building(const Building &building) const;
     int is_dead() const;
     int is_enemy() const;
@@ -163,13 +167,13 @@ public:
     unsigned char roam_random_counter;
     signed char roam_turn_direction;
     signed char roam_ticks_until_next_turn;
-    short cross_country_x; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * x + tile offset
-    short cross_country_y; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * y + tile offset
-    short cc_destination_x;
-    short cc_destination_y;
-    short cc_delta_x;
-    short cc_delta_y;
-    short cc_delta_xy;
+    int32_t cross_country_x; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * x + tile offset
+    int32_t cross_country_y; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * y + tile offset
+    int32_t cc_destination_x;
+    int32_t cc_destination_y;
+    int32_t cc_delta_x;
+    int32_t cc_delta_y;
+    int32_t cc_delta_xy;
     unsigned char cc_direction; // 1 = x, 2 = y
     unsigned char speed_multiplier;
     Building *building = nullptr;
@@ -232,6 +236,7 @@ private:
     unsigned int immigrant_building_id_ = 0;
     unsigned int destination_building_id_ = 0;
     unsigned int last_destination_building_id_ = 0;
+    std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> runtime_profile_id_ = {};
 };
 
 void figure_debug_dump(FILE *file);

@@ -8,5 +8,5 @@
             <pathing mode="storage_fetch" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics image_group="market_supplier" max_image_offset="12" />
+    <graphics path_pattern="Walkers\Group_106" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

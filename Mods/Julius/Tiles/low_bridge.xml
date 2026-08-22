@@ -13,14 +13,14 @@
     <flags fire_proof="1" />
     <graphics>
         <default use_terrain_as_foundation="1">
-            <path value="Mod_Authored\Bridge_Low" />
+            <path value="Terrain\low_bridge_images" />
             <options selection="stable_variant">
-                <option image="Image_0005" />
-                <option image="Image_0000" />
-                <option image="Image_0003" />
-                <option image="Image_0002" />
-                <option image="Image_0004" />
-                <option image="Image_0001" />
+                <option image="ramp_top" />
+                <option image="ramp_right" />
+                <option image="ramp_bottom" />
+                <option image="ramp_left" />
+                <option image="deck_vertical" />
+                <option image="deck_horizontal" />
             </options>
         </default>
     </graphics>

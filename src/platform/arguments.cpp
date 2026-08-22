@@ -9,6 +9,9 @@
 #define WINDOWED_AND_FULLSCREEN_ERROR_MESSAGE "Option --windowed and --fullscreen cannot both be specified"
 #define DISPLAY_ID_ERROR_MESSAGE "Option --display must be followed by a number indicating the display, starting from 0"
 #define MOD_NAME_ERROR_MESSAGE "Option --mod must be followed by a mod name"
+#define LOAD_SAVE_TEST_ERROR_MESSAGE "Option --load-save-test must be followed by a save file path"
+#define SAVE_ROUNDTRIP_TEST_ERROR_MESSAGE "Option --save-roundtrip-test must be followed by an output save file path"
+#define SAVE_SOAK_FRAMES_ERROR_MESSAGE "Option --save-soak-frames must be followed by a positive frame count"
 #define UNKNOWN_OPTION_ERROR_MESSAGE "Option %s not recognized"
 
 static void print_log(const char *message)
@@ -78,6 +81,10 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->display_id = 0;
     output_args->debug = 0;
     output_args->disable_audio = 0;
+    output_args->startup_test = 0;
+    output_args->load_save_test = 0;
+    output_args->save_roundtrip_test = 0;
+    output_args->save_soak_frames = 0;
 
     for (int i = 1; i < argc; i++) {
         // we ignore "-psn" arguments, this is needed to launch the app
@@ -144,6 +151,33 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
             output_args->debug = 1;
         } else if (SDL_strcmp(argv[i], "--no-audio") == 0) {
             output_args->disable_audio = 1;
+        } else if (SDL_strcmp(argv[i], "--startup-test") == 0) {
+            output_args->startup_test = 1;
+        } else if (SDL_strcmp(argv[i], "--load-save-test") == 0) {
+            if (i + 1 < argc) {
+                output_args->load_save_test = argv[++i];
+            } else {
+                print_log(LOAD_SAVE_TEST_ERROR_MESSAGE);
+                ok = 0;
+            }
+        } else if (SDL_strcmp(argv[i], "--save-roundtrip-test") == 0) {
+            if (i + 1 < argc) {
+                output_args->save_roundtrip_test = argv[++i];
+            } else {
+                print_log(SAVE_ROUNDTRIP_TEST_ERROR_MESSAGE);
+                ok = 0;
+            }
+        } else if (SDL_strcmp(argv[i], "--save-soak-frames") == 0) {
+            if (i + 1 < argc) {
+                output_args->save_soak_frames = (int) SDL_strtol(argv[++i], 0, 10);
+                if (output_args->save_soak_frames <= 0) {
+                    print_log(SAVE_SOAK_FRAMES_ERROR_MESSAGE);
+                    ok = 0;
+                }
+            } else {
+                print_log(SAVE_SOAK_FRAMES_ERROR_MESSAGE);
+                ok = 0;
+            }
         } else if (SDL_strcmp(argv[i], "--help") == 0) {
             add_blank_line = 0;
             ok = 0;
@@ -158,6 +192,15 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log(WINDOWED_AND_FULLSCREEN_ERROR_MESSAGE);
         ok = 0;
     }
+    if (output_args->save_soak_frames && !output_args->load_save_test) {
+        print_log("Option --save-soak-frames requires --load-save-test");
+        ok = 0;
+    }
+    if (output_args->save_roundtrip_test && !output_args->load_save_test) {
+        print_log("Option --save-roundtrip-test requires --load-save-test");
+        ok = 0;
+    }
+    if (output_args->startup_test || output_args->load_save_test) output_args->disable_audio = 1;
 
     if (!ok) {
         if (add_blank_line) {
@@ -179,6 +222,14 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log("          Enables verbose startup/debug logging");
         print_log("--no-audio");
         print_log("          Disables audio initialization and playback");
+        print_log("--startup-test");
+        print_log("          Runs the real executable startup path with a hidden window and exits before the game loop");
+        print_log("--load-save-test FILE");
+        print_log("          Runs startup and loads FILE through the real save loader with no visible window or dialogs");
+        print_log("--save-roundtrip-test FILE");
+        print_log("          Saves a loaded legacy file in the current format, reloads it strictly, and writes it to FILE");
+        print_log("--save-soak-frames NUMBER");
+        print_log("          Advances and renders a loaded save for NUMBER headless frames; warnings and errors fail the test");
         print_log("--mod NAME");
         print_log("          Loads data from Mods/NAME, relative to the active Caesar 3 directory");
         print_log("--asset-previewer");

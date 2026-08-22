@@ -1318,47 +1318,9 @@ void BuildingType::add_water_access_requirement_node(WaterAccessNode node)
     water_access_.add_requirement_node(std::move(node));
 }
 
-void BuildingType::set_graphics_status_icon_anchor(int x, int y)
+void BuildingType::set_graphics(BuildingGraphicsDef graphics)
 {
-    graphics_.set_status_icon_anchor(x, y);
-}
-
-void BuildingType::set_graphics_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy)
-{
-    graphics_.set_overlay_summary_policy(policy);
-}
-
-void BuildingType::mark_graphics_default_node()
-{
-    graphics_.mark_default_node();
-}
-
-void BuildingType::clear_graphics()
-{
-    graphics_ = BuildingGraphicsDef();
-}
-
-GraphicsTarget &BuildingType::default_graphics_target()
-{
-    return graphics_.default_target();
-}
-
-GraphicsVariant &BuildingType::add_graphics_variant()
-{
-    return graphics_.add_variant();
-}
-
-GraphicsVariant *BuildingType::last_graphics_variant()
-{
-    return graphics_.last_variant();
-}
-
-void BuildingType::add_graphics_variant_condition(GraphicsCondition condition)
-{
-    GraphicsVariant *variant = graphics_.last_variant();
-    if (variant) {
-        variant->conditions.push_back(std::move(condition));
-    }
+    graphics_ = std::make_shared<const BuildingGraphicsDef>(std::move(graphics));
 }
 
 void BuildingType::set_construction_mode(ConstructionMode mode)
@@ -1657,7 +1619,8 @@ const WaterAccessDefinition &BuildingType::water_access() const
 
 const BuildingGraphicsDef &BuildingType::graphics() const
 {
-    return graphics_;
+    static const BuildingGraphicsDef empty_graphics;
+    return graphics_ ? *graphics_ : empty_graphics;
 }
 
 const ConstructionDefinition &BuildingType::construction() const
@@ -1820,29 +1783,6 @@ int BuildingType::is_armoury() const
     return attr_ == "armoury";
 }
 
-const GraphicsTarget *BuildingType::resolve_graphics_target(const BuildingType *definition, const Building &building)
-{
-    if (!definition || !definition->has_graphic()) {
-        return nullptr;
-    }
-
-#ifndef STARTUP_PARSER_TEST
-    if (definition->has_phased_construction() &&
-        building.monument_phase() != MONUMENT_FINISHED &&
-        building.monument_phase() >= MONUMENT_START) {
-        const ConstructionPhase *construction_phase = definition->construction_.phase(building.monument_phase());
-        if (construction_phase && (
-                construction_phase->graphics.has_path() ||
-                construction_phase->graphics.has_options() ||
-                construction_phase->graphics.is_resource_storage())) {
-            return &construction_phase->graphics;
-        }
-    }
-#endif
-
-    return definition->graphics_.resolve_target(building);
-}
-
 int BuildingType::has_identity() const
 {
     return identity_.has_name_key();
@@ -1910,7 +1850,7 @@ int BuildingType::has_water_access_provider() const
 
 int BuildingType::has_graphic() const
 {
-    return graphics_.has_path();
+    return graphics_ && graphics_->has_path();
 }
 
 int BuildingType::has_construction() const
@@ -2103,7 +2043,7 @@ int BuildingType::is_vacant_lot() const
 
 unsigned char BuildingType::upgrade_level_for(const Building &building) const
 {
-    return graphics_.upgrade_level_for(building);
+    return graphics().upgrade_level_for(building);
 }
 
 } // namespace building_type_registry_impl

@@ -44,8 +44,8 @@ void figure_create_explosion_cloud(int x, int y, int size, int alt_sound)
         Figure *f = Figure::create(FIGURE_EXPLOSION,
             x + tile_offset, y + tile_offset, DIR_0_TOP);
         if (f->id()) {
-            f->cross_country_x = static_cast<short>(f->cross_country_x + cc_offset);
-            f->cross_country_y = static_cast<short>(f->cross_country_y + cc_offset);
+    f->cross_country_x += cc_offset;
+    f->cross_country_y += cc_offset;
             f->destination_x = static_cast<unsigned char>(f->destination_x + CLOUD_DIRECTION[i].x);
             f->destination_y = static_cast<unsigned char>(f->destination_y + CLOUD_DIRECTION[i].y);
             figure_movement_set_cross_country_direction(f,

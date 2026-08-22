@@ -78,6 +78,7 @@ struct ImageEntryDef {
     int local_order = 0;
     int width = 0;
     int height = 0;
+    render_logical_size fixed_logical_size = {};
     int draw_offset_x = 0;
     int draw_offset_y = 0;
     int is_isometric = 0;
@@ -93,6 +94,7 @@ struct ImageGroupDoc {
     xml_asset_source source = XML_ASSET_SOURCE_AUTO;
     std::vector<std::string> ordered_ids;
     std::unordered_map<std::string, ImageEntryDef> entries;
+    ImageGroupFigureGraphicsContract figure_graphics_contract;
 };
 
 struct MergedImageGroup {

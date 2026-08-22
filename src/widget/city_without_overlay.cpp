@@ -74,11 +74,6 @@ static struct {
     float scale;
 } draw_context;
 
-static Building *runtime_building_for_draw_at(int grid_offset)
-{
-    return map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
-}
-
 static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_coord, int highlighted_formation)
 {
     draw_context.advance_water_animation = 0;
@@ -191,15 +186,18 @@ static color_t building_draw_color_mask(const Building &building, int grid_offse
     return building_draw_color_mask(building);
 }
 
-static void draw_footprint(int x, int y, int grid_offset)
+static void draw_footprint_render_tile(const CityDrawTileCommand &command)
 {
+    const int x = command.x;
+    const int y = command.y;
+    const int grid_offset = command.grid_offset;
     sound_city_progress_ambient();
     building_construction_record_view_position(x, y, grid_offset);
     if (grid_offset < 0 || !map_property_is_draw_tile(grid_offset)) {
         return;
     }
     // Valid grid_offset and leftmost tile -> draw
-    Building *building = runtime_building_for_draw_at(grid_offset);
+    Building *building = command.building;
     int building_id = building ? building->id : 0;
     color_t color_mask = 0;
     int is_cursor_tile = (draw_context.cursor_tile && grid_offset == draw_context.cursor_tile->grid_offset);
@@ -263,7 +261,7 @@ static void draw_footprint(int x, int y, int grid_offset)
     } else if (city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
         // Terrain-owned runtime tiles remain a separate provisional path.
     } else {
-        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
     }
     if (!building_id && config_get(CONFIG_UI_SHOW_GRID)) {
         city_draw_grid_overlay(x, y, draw_context.scale);
@@ -473,31 +471,32 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
 
 }
 
-static void draw_top_render_tile(const CityViewRenderTile &tile)
+static void draw_top_render_tile(const CityDrawTileCommand &command)
 {
-    draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    draw_top_for_building(command.building, command.x, command.y, command.grid_offset);
 }
 
-static void draw_figures(int x, int y, int grid_offset)
+static void draw_figures(Figure *first_figure, int x, int y)
 {
-    unsigned int figure_id = map_figure_at(grid_offset);
-    while (figure_id) {
-        Figure *f = Figure::get(figure_id);
-        if (figure_id == draw_context.selected_figure_id) {
+    Figure *f = first_figure;
+    while (f) {
+        const bool elevated = (f->use_cross_country && !f->dont_draw_elevated) || f->height_adjusted_ticks;
+        if (!elevated && f->id() == draw_context.selected_figure_id) {
             if (!f->is_ghost || f->height_adjusted_ticks) {
                 city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
             }
-        } else if (!f->is_ghost) {
+        } else if (!elevated && !f->is_ghost) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
             city_draw_figure(f, x, y, draw_context.scale, highlight);
         }
-        figure_id = f->next_figure_id_on_same_tile;
+        const unsigned int next_figure_id = f->next_figure_id_on_same_tile;
+        f = next_figure_id ? Figure::get(next_figure_id) : nullptr;
     }
 }
 
-static void draw_figures_render_tile(const CityViewRenderTile &tile)
+static void draw_figures_render_tile(const CityDrawTileCommand &command)
 {
-    draw_figures(tile.x, tile.y, tile.grid_offset);
+    draw_figures(command.first_figure, command.x, command.y);
 }
 
 static void draw_fumigation(Building &building, int x, int y, color_t color_mask)
@@ -570,24 +569,21 @@ static void draw_animation_for_building(Building *building, int x, int y, int gr
     }
 }
 
-static void draw_animation_render_tile(const CityViewRenderTile &tile)
+static void draw_animation_render_tile(const CityDrawTileCommand &command)
 {
-    if (tile.building) {
-        draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+    if (command.building) {
+        draw_animation_for_building(command.building, command.x, command.y, command.grid_offset);
     }
 }
 
-static void draw_elevated_figures(int x, int y, int grid_offset)
+static void draw_elevated_figures(Figure *first_figure, int x, int y)
 {
-    int figure_id = map_figure_at(grid_offset);
-
-
-    while (figure_id > 0) {
-        Figure *f = Figure::get(figure_id);
-
+    Figure *f = first_figure;
+    while (f) {
         if ((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
-            city_draw_figure(f, x, y, draw_context.scale, highlight);
+            if (f->id() == draw_context.selected_figure_id) city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
+            else city_draw_figure(f, x, y, draw_context.scale, highlight);
         } else if (f->building && f->building->id == draw_context.selected_building_id) { //figure originates from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
@@ -598,50 +594,54 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
             }
 
         }
-        figure_id = f->next_figure_id_on_same_tile;
+        const unsigned int next_figure_id = f->next_figure_id_on_same_tile;
+        f = next_figure_id ? Figure::get(next_figure_id) : nullptr;
     }
 }
 
-static void draw_elevated_figures_render_tile(const CityViewRenderTile &tile)
+static void draw_elevated_figures_render_tile(const CityDrawTileCommand &command)
 {
-    draw_elevated_figures(tile.x, tile.y, tile.grid_offset);
+    draw_elevated_figures(command.first_figure, command.x, command.y);
 }
 
-static void deletion_draw_terrain_top(int x, int y, int grid_offset)
+static void deletion_draw_terrain_top_render_tile(const CityDrawTileCommand &command)
 {
-    if (map_property_is_draw_tile(grid_offset) && city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(runtime_building_for_draw_at(grid_offset), x, y, grid_offset);
+    if (map_property_is_draw_tile(command.grid_offset) && city_draw_should_draw_top_before_deletion(command.grid_offset)) {
+        draw_top_for_building(command.building, command.x, command.y, command.grid_offset);
     }
 }
 
-static void deletion_draw_figures_animations(int x, int y, int grid_offset)
+static void deletion_draw_figures_animations_render_tile(const CityDrawTileCommand &command)
 {
-    Building *building = runtime_building_for_draw_at(grid_offset);
-    if (map_property_is_deleted(grid_offset) || (building && city_draw_building_as_deleted(*building))) {
+    Building *building = command.building;
+    if (map_property_is_deleted(command.grid_offset) || (building && city_draw_building_as_deleted(*building))) {
         color_t color = building_construction_clear_color();
         if (color == COLOR_MASK_RED || color == COLOR_MASK_GREEN) {
-            Image::blend_footprint_color(x, y, color, draw_context.scale);
+            Image::blend_footprint_color(command.x, command.y, color, draw_context.scale);
             // blending mode only work in standard RED or GREEN, any other colors have to be drawn flat.
             // passing a different color will just draw the red blending by default
         } else {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(x, y, color, draw_context.scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(command.x, command.y, color, draw_context.scale);
             // no blending, just draw the flat tile
         }
     }
-    if (map_property_is_draw_tile(grid_offset) && !city_draw_should_draw_top_before_deletion(grid_offset)) {
-        draw_top_for_building(building, x, y, grid_offset);
+    if (map_property_is_draw_tile(command.grid_offset) && !city_draw_should_draw_top_before_deletion(command.grid_offset)) {
+        draw_top_for_building(building, command.x, command.y, command.grid_offset);
     }
-    draw_figures(x, y, grid_offset);
-    draw_animation_for_building(building, x, y, grid_offset);
+    draw_figures(command.first_figure, command.x, command.y);
+    draw_animation_for_building(building, command.x, command.y, command.grid_offset);
 }
 
-static void deletion_draw_remaining(int x, int y, int grid_offset)
+static void deletion_draw_remaining_render_tile(const CityDrawTileCommand &command)
 {
-    draw_elevated_figures(x, y, grid_offset);
+    draw_elevated_figures(command.first_figure, command.x, command.y);
 }
 
-static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
+static void draw_connectable_construction_ghost_render_tile(const CityDrawTileCommand &command)
 {
+    const int x = command.x;
+    const int y = command.y;
+    const int grid_offset = command.grid_offset;
     if (!map_property_is_constructing(grid_offset)) {
         return;
     }
@@ -723,37 +723,36 @@ void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_
     city_view_get_viewport(&x, &y, &width, &height);
     graphics_fill_rect(x, y, width, height, COLOR_BLACK);
     int should_mark_deleting = city_building_ghost_mark_deleting(tile);
-    {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT);
-        city_view_foreach_valid_map_tile(draw_footprint);
-    }
+    CityViewRenderCommandBuffer render_commands;
+    city_draw_prepare_render_tile_rows(render_commands);
+    const CityViewRenderPhase footprint_phase[] = { { draw_footprint_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT } };
+    city_draw_render_tile_rows(render_commands, footprint_phase, 1);
     if (!should_mark_deleting) {
-        city_draw_main_render_tile_row(
-            draw_top_render_tile,
-            draw_figures_render_tile,
-            draw_animation_render_tile,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES,
-            PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION);
+        const CityViewRenderPhase phases[] = {
+            { draw_top_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP },
+            { draw_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES },
+            { draw_animation_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION },
+        };
+        city_draw_render_tile_rows(render_commands, phases, 3);
         if (!selected_figure_id) {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
             if (building_is_connectable(building_construction_type())) {
-                city_view_foreach_valid_map_tile(draw_connectable_construction_ghost);
+                const CityViewRenderPhase connectable_phase[] = { { draw_connectable_construction_ghost_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST } };
+                city_draw_render_tile_rows(render_commands, connectable_phase, 1);
             }
             city_building_ghost_draw(tile);
         }
-        {
-            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
-            const CityViewRenderPhase phases[] = {
-                { draw_elevated_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_MAX },
-            };
-            city_view_foreach_valid_render_tile_row(phases, 1);
-        }
+        const CityViewRenderPhase elevated_phases[] = {
+            { draw_elevated_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED },
+        };
+        city_draw_render_tile_rows(render_commands, elevated_phases, 1);
     } else {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION);
-        city_view_foreach_valid_map_tile(deletion_draw_terrain_top);
-        city_view_foreach_valid_map_tile(deletion_draw_figures_animations);
-        city_view_foreach_valid_map_tile(deletion_draw_remaining);
+        const CityViewRenderPhase terrain_phase[] = { { deletion_draw_terrain_top_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        const CityViewRenderPhase figures_phase[] = { { deletion_draw_figures_animations_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        const CityViewRenderPhase remaining_phase[] = { { deletion_draw_remaining_render_tile, PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION } };
+        city_draw_render_tile_rows(render_commands, terrain_phase, 1);
+        city_draw_render_tile_rows(render_commands, figures_phase, 1);
+        city_draw_render_tile_rows(render_commands, remaining_phase, 1);
     }
     {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_CLOUDS);

@@ -188,6 +188,11 @@ struct GraphicsVariant {
     int matches(const Building &building) const;
 };
 
+struct ConstructionPhaseGraphics {
+    int phase = 0;
+    GraphicsTarget target;
+};
+
 class BuildingGraphicsDef : public ::GraphicsDefinition {
 public:
     BuildingGraphicsDef()
@@ -210,6 +215,10 @@ public:
     GraphicsVariant &add_variant();
     GraphicsVariant *last_variant();
     const GraphicsVariant *last_variant() const;
+    GraphicsTarget &add_construction_phase(int phase);
+    GraphicsTarget *last_construction_phase();
+    const GraphicsTarget *construction_phase(int phase) const;
+    const std::vector<ConstructionPhaseGraphics> &construction_phases() const;
 
     int has_path() const;
     int has_default_node() const;
@@ -236,6 +245,7 @@ private:
 
     GraphicsTarget default_target_;
     std::vector<GraphicsVariant> variants_;
+    std::vector<ConstructionPhaseGraphics> construction_phases_;
     int has_status_icon_anchor_ = 0;
     int status_icon_anchor_x_ = 0;
     int status_icon_anchor_y_ = 0;

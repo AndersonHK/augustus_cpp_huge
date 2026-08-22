@@ -351,15 +351,13 @@ int parse_ranged_projectile()
     return 1;
 }
 
-int parse_graphics()
+int parse_legacy_graphics()
 {
     if (!parse_enabled_content("graphics") || !g_parse_state.definition || !xml_parser_has_attribute("figure_type")) {
-        log_error("UnitType graphics node is missing required figure_type", 0, 0);
+        log_error("Legacy UnitType graphics node is missing required figure_type", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
-    g_parse_state.definition->set_graphics_figure_type(
-        xml_value::trim_copy(xml_parser_get_attribute_string("figure_type")));
     return 1;
 }
 
@@ -384,7 +382,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "melee", parse_melee, nullptr, "abilities", nullptr },
     { "ranged", parse_ranged, nullptr, "abilities", nullptr },
     { "projectile", parse_ranged_projectile, nullptr, "ranged", nullptr },
-    { "graphics", parse_graphics, nullptr, "unit", nullptr }
+    { "graphics", parse_legacy_graphics, nullptr, "unit", nullptr }
 };
 
 bool validate_definition(const UnitType &definition, const char *filename)
@@ -621,16 +619,6 @@ void UnitType::set_pathing_key(std::string key)
 const char *UnitType::pathing_key() const
 {
     return pathing_key_.c_str();
-}
-
-void UnitType::set_graphics_figure_type(std::string figure_type)
-{
-    graphics_figure_type_ = std::move(figure_type);
-}
-
-const char *UnitType::graphics_figure_type() const
-{
-    return graphics_figure_type_.c_str();
 }
 
 bool UnitType::set_recruit_type_from_key(const char *key)

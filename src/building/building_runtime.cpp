@@ -331,6 +331,9 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
         std::unique_ptr<building_runtime> runtime =
             std::make_unique<building_runtime>(binding.record, binding.definition, binding.runtime_id, 1);
         runtime->restore_graphics_state(binding.graphics_state);
+        if (binding.definition->has_composition() && runtime->building.Composition) {
+            runtime->building.Composition->bind_standalone(&runtime->building);
+        }
 
         building_runtime *runtime_ptr = runtime.get();
         runtime_id_by_record_[binding.record] = binding.runtime_id;
@@ -343,11 +346,18 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
     // Placement ghosts use the same object-owned composition graph as live
     // buildings. main_runtime_id is scoped preview metadata, not a building
     // record chain.
+    bool complete = true;
     for (const std::unique_ptr<building_runtime> &owner_runtime : runtimes_) {
-        BuildingComposition *composition = owner_runtime ? owner_runtime->building.Composition : nullptr;
-        if (!composition || !composition->is_owner()) {
+        if (!owner_runtime || !owner_runtime->definition() || !owner_runtime->definition()->has_composition()) {
             continue;
         }
+        BuildingComposition *composition = owner_runtime->building.Composition;
+        if (!composition) {
+            complete = false;
+            log_error("Unable to create ephemeral building composition", "owner composition module is missing", owner_runtime->runtime_id());
+            continue;
+        }
+        composition->bind_owner(&owner_runtime->building, &owner_runtime->definition()->composition());
         std::vector<BuildingComposition *> children;
         for (const std::unique_ptr<building_runtime> &candidate : runtimes_) {
             if (!candidate || candidate.get() == owner_runtime.get()) {
@@ -360,16 +370,30 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
         }
         std::string error;
         if (!composition->attach_children(children, &error)) {
+            complete = false;
             log_error("Unable to bind ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
+            continue;
+        }
+        if (!composition->complete(&error)) {
+            complete = false;
+            log_error("Unable to validate ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
         }
     }
 
-    g_ephemeral_runtime_context = this;
+    if (complete) {
+        valid_ = true;
+        g_ephemeral_runtime_context = this;
+    }
 }
 
 ScopedEphemeralBuildingRuntime::~ScopedEphemeralBuildingRuntime()
 {
     g_ephemeral_runtime_context = previous_;
+}
+
+bool ScopedEphemeralBuildingRuntime::valid() const
+{
+    return valid_;
 }
 
 building_runtime *ScopedEphemeralBuildingRuntime::runtime_for_record(::building *record) const

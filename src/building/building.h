@@ -387,11 +387,11 @@ int building_is_close_to_water(const building *b);
 void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_ever,
                          buffer *sequence, buffer *corrupt_houses);
 
-void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
+int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
 
 // Load/new-scenario boundary: hydrate fixed composition object graphs from
 // legacy record chains before normal runtime initialization.
-void building_hydrate_loaded_compositions(void);
+int building_hydrate_loaded_compositions(int save_version);
 
 void building_resource_state_save(buffer *buf);
 

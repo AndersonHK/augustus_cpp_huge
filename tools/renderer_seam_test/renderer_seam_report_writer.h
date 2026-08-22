@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iosfwd>
 #include <string>
@@ -31,7 +32,12 @@ struct RendererSeamMatrixCaseResult {
     int coverage_no_background = 0;
     int no_black_gap = 0;
     int same_surface_delta = 0;
+    int grid_overlay_only = 0;
+    int no_grid_side_effect_gap = 0;
+    int backend_parity = 0;
     int sampled_pixels = 0;
+    uint64_t seam_signature = 0;
+    uint64_t interior_signature = 0;
     std::string failure_detail;
 
     static RendererSeamMatrixCaseResult expected_skip(

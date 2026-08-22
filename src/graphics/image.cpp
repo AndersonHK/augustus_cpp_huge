@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "core/crash_context.h"
+#include "core/log.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
@@ -63,7 +64,7 @@ render_scaling_policy scaling_policy_for_domain(render_domain domain)
         RENDER_SCALING_POLICY_AUTO;
 }
 
-render_2d_request make_request(const image &img, int x, int y, color_t color, float scale, int silhouette)
+render_2d_request make_request(const image &img, int x, int y, color_t color, float scale, int silhouette, render_destination_geometry_policy destination_geometry_policy = RENDER_DESTINATION_GEOMETRY_DEFAULT)
 {
     render_domain domain = graphics_renderer()->get_render_domain();
     render_2d_request request = {};
@@ -76,6 +77,7 @@ render_2d_request make_request(const image &img, int x, int y, color_t color, fl
     request.color = color;
     request.domain = domain;
     request.scaling_policy = scaling_policy_for_domain(domain);
+    request.destination_geometry_policy = destination_geometry_policy;
     request.use_silhouette = silhouette;
     return request;
 }
@@ -506,12 +508,13 @@ void Image::draw_isometric_footprint(int x, int y, color_t color_mask, float sca
     graphics_renderer()->draw_image(&legacy_image_, x, y, color_mask, scale);
 }
 
-void Image::draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask, float scale) const
+void Image::draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask, float scale, render_destination_geometry_policy destination_geometry_policy) const
 {
     ensure_ready_to_draw();
     int num_tiles = (width() + 2) / (FOOTPRINT_WIDTH + 2);
     y -= FOOTPRINT_HALF_HEIGHT * (num_tiles - 1);
-    graphics_renderer()->draw_image(&legacy_image_, x, y, color_mask, scale);
+    render_2d_request request = make_request(legacy_image_, x, y, color_mask, scale, 0, destination_geometry_policy);
+    graphics_renderer()->draw_image_request(&request);
 }
 
 void Image::draw_isometric_top(int x, int y, color_t color_mask, float scale) const
@@ -731,6 +734,7 @@ Image *ImageManager::load_png(std::string_view path_key, const char *file_path)
 Image *ImageManager::load_pixels(std::string_view path_key, const image &metadata, const color_t *pixels, int width, int height)
 {
     if (path_key.empty() || !pixels || width <= 0 || height <= 0) {
+        log_error("Unable to load managed image pixels", "invalid request", width * height);
         return nullptr;
     }
     if (Image *existing = find(path_key)) {
@@ -740,6 +744,7 @@ Image *ImageManager::load_pixels(std::string_view path_key, const image &metadat
 
     const graphics_renderer_interface *renderer = graphics_renderer();
     if (!renderer || !renderer->upload_image_resource) {
+        log_error("Unable to load managed image pixels", !renderer ? "renderer interface unavailable" : "renderer upload callback unavailable", 0);
         return nullptr;
     }
 
@@ -751,6 +756,7 @@ Image *ImageManager::load_pixels(std::string_view path_key, const image &metadat
     uploaded_image.animation = nullptr;
     renderer->upload_image_resource(&uploaded_image, pixels, width, height);
     if (uploaded_image.resource_handle <= 0) {
+        log_error("Managed image pixel upload returned no handle", "renderer upload callback", uploaded_image.resource_handle);
         return nullptr;
     }
 

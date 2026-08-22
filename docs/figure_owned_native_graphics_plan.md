@@ -55,11 +55,11 @@ their logical game size.
 - [x] Migrate stationary ballista direction/frame presentation as the first bounded general-direction family: strict idle/firing state layers own the atlas and view transform, the firing state consumes the authored missile-launcher schedule, and the behavior controller no longer selects images.
 - [x] Move figure info-window draw bodies onto `Figure`/figuretype child `draw(c)` methods, reducing one legacy central switch surface.
 - [~] Move cart/resource/flag/enemy overlay assembly behind `FigureGraphics`; the hardcoded cart-attachment table and overlay fallback are gone, while raw `image_id`, save-compatible resource `cart_image_id`, and flag bridges remain.
-- [~] Start using fixed logical-size draw requests for figures; final XML logical-size ownership is still blocked by the renderer seam plan.
-- [ ] Make converted FigureType graphics use real payload-managed file path references as the authored norm, such as nested `Walkers/<file>` paths.
-- [ ] Make city figure drawing ask the figure object for a complete draw request, with `city_figure.cpp` only handling placement/submission.
+- [x] Make figure draw requests consume each payload slice's assetlist-owned fixed logical size and offsets, including independently sized auxiliary layers. FigureType logical-dimension and sprite-offset attributes are rejected; the shared 26,29 walker anchor is stored on the 428 referenced animation, action, and death assetlists, while portrait assetlists remain unanchored.
+- [~] Make converted FigureType graphics use real payload-managed file path references as the authored norm, such as nested `Walkers/<file>` paths. All active Vespasian FigureTypes now have zero legacy source attributes, and the 35 shared definitions touched by the Augustus conversion carry matching graphics blocks without changing Vespasian profiles or behavior. Lower-layer extracted `Group_*` paths still need replacement by sensible authored assetlists containing only asset facts.
+- [x] Make city figure drawing ask the figure object for a complete draw request, with `city_figure.cpp` only handling placement/submission and no image-id fallback.
 - [ ] Delete controller-owned image mutation and direct `f->image_id` authority for converted figures.
-- [ ] Add Vespasian half-size FigureType XML only after payload ownership and every renderer seam prerequisite are complete.
+- [ ] Add Vespasian half-size FigureType XML only after correctly scoped authored assetlist ownership and every renderer seam prerequisite are complete. The rejected wrapper/module pass has been removed.
 
 ## Target Shape
 

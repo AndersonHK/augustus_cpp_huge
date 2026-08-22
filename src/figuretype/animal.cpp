@@ -409,8 +409,8 @@ static void set_horse_destination(Figure *f, int state)
         }
         f->x = f->destination_x;
         f->y = f->destination_y;
-        f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(f->x));
-        f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(f->y));
+    f->cross_country_x = figure_movement_tile_to_cross_country(f->x);
+    f->cross_country_y = figure_movement_tile_to_cross_country(f->y);
         f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
         map_figure_add(f);
     } else if (state == HORSE_RACING) {

@@ -1170,9 +1170,10 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
         (is_dock || type_has_distribution(b->type))) {
         migrate_accepted_goods(b, legacy.housing_level_or_subtype);
-    } else if (saved_building_type == LEGACY_SAVE_TYPE_MENU_FORT) { // Forts used to use a generic type for the main building
+    } else if (save_version <= SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE && saved_building_type == LEGACY_SAVE_TYPE_MENU_FORT) { // Forts used to use a generic type for the main building
         b->subtype.fort_figure_type = legacy.housing_level_or_subtype;
         b->type = get_fort_type(b); // get the correct fort type to ensure compatibility
+        missing_building_type = b->type == BUILDING_NONE || !definition_for_type(b->type);
     } else {
         const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
         if (!definition || !definition->has_housing()) {

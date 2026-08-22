@@ -21,22 +21,23 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - `Render2DPipeline` owns `scale_filter` config interpretation for both per-request city draw filtering and renderer texture quality hints.
 - Managed runtime texture requests pass the fixed logical-size fields through to the renderer request bridge.
 - Figure drawing has started passing fixed logical-size requests, but broad XML/image metadata ownership is not migrated.
-- `RENDER_LOGICAL_UNITS_PER_PIXEL = 6` is a compatibility seam, not the final authoring grain for city graphics.
-- Atlas fallback, the remaining atlas source-edge crop, and exact shared-edge city tile geometry remain open seam risks.
+- `RENDER_LOGICAL_UNITS_PER_PIXEL = 120` is the selected integer authoring grain. It represents halves, thirds, sixths, twentieths/0.15 scale, and six-times scaling without authored floats.
+- `ATLAS_MAIN` fallback now has one-pixel duplicated-edge gutters and no longer uses the old source-edge crop. Exact shared-edge city tile geometry is selected by mesh-critical footprint submissions; near edges floor and far edges ceil so fractional draws close rather than expose the target clear color.
+- `JuliusGraphicsExtractor` preserves the real 58x30 flat-tile, grass, and water pixels after each climate pass. `RendererSeamTest` decodes those snapshots and requires the 4,608-case climate/backend/filter/scale/grid/orientation/scene matrix to pass with zero skips. The current Release result is 4,608/4,608.
 
 ## Progress Checkpoint
 
 - [x] Rename the config concept to global `scale_filter` and route it through `Render2DPipeline`.
 - [x] Add a fixed logical-size bridge to render requests.
 - [~] Start passing fixed logical-size requests from figure drawing.
-- [ ] Choose the final fine-grained integer logical-size unit for city-view XML.
-- [ ] Add automated terrain/water seam pixel checks.
-- [ ] Remove grid rendering tile-size mutation.
-- [ ] Add exact shared-edge city tile destination geometry.
-- [ ] Add atlas edge padding while atlas fallback remains.
-- [ ] Migrate terrain, water, and climate images into managed native resources.
+- [x] Choose the final fine-grained integer logical-size unit for city-view XML: 120 units per logical pixel.
+- [x] Add automated terrain/water seam pixel checks.
+- [x] Remove grid rendering tile-size mutation.
+- [x] Add exact shared-edge city tile destination geometry.
+- [x] Add atlas edge padding while atlas fallback remains.
+- [x] Migrate terrain, water, and climate images into managed native resources.
 - [ ] Remove atlas fallback from city draw after native coverage is complete.
-- [ ] Author Vespasian half-size FigureType XML only after figure-owned native graphics and every seam item above are complete.
+- [ ] Author Vespasian half-size graphics only after figure-owned native graphics and every seam item above are complete. Active Vespasian FigureTypes are path-backed, but half-size logical dimensions must be authored on clean graphics assetlists rather than on FigureType XML.
 
 ## Prescription
 

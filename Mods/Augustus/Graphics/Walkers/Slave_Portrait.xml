@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\Slave_Portrait">
-    <image id="Slave Portrait">
-        <layer group="UI\Big_People" image="Image_0014"/>
-        <layer src="Slave_Portrait_Layer_02" x="5" y="12"/>
-    </image>
-</assetlist>

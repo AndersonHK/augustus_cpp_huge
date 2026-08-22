@@ -8,5 +8,5 @@
             <pathing mode="smart_service" terrain="roads" effect="library" />
         </profile>
     </profiles>
-    <graphics image_group="teacher_librarian" max_image_offset="12" />
+    <graphics path_pattern="Walkers\Group_231" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

@@ -8,6 +8,7 @@
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
+#include "core/log.h"
 #include "figure/figure.h"
 #include "game/undo.h"
 #include "map/building.h"
@@ -776,4 +777,87 @@ void map_bridge_migrate_loaded_native_bridges(void)
             migrate_loaded_bridge_at(grid_offset);
         }
     }
+}
+
+static int report_loaded_bridge_validation_failure(const char *reason, int grid_offset, unsigned int building_id)
+{
+    char detail[192];
+    snprintf(detail, sizeof(detail), "grid_offset=%d building_id=%u reason=%s", grid_offset, building_id, reason ? reason : "<none>");
+    log_error("Current save contains an invalid native bridge chain", detail, 0);
+    return 0;
+}
+
+static int validate_loaded_bridge_piece_at(int grid_offset)
+{
+    if (!map_building_exists_at(grid_offset)) {
+        return report_loaded_bridge_validation_failure("bridge terrain has no building record", grid_offset, 0);
+    }
+    Building &piece = map_building_at(grid_offset);
+    const building *record = piece.record();
+    if (!record || !record->id || !piece.type || !piece.type->bridge().is_bridge() || record->grid_offset != grid_offset || record->x != map_grid_offset_to_x(grid_offset) || record->y != map_grid_offset_to_y(grid_offset)) {
+        return report_loaded_bridge_validation_failure("bridge record identity, type, or coordinates do not match its map cell", grid_offset, record ? record->id : 0);
+    }
+    const int delta = direction_delta(record->subtype.orientation);
+    if (!delta) {
+        return report_loaded_bridge_validation_failure("bridge record has an invalid chain orientation", grid_offset, record->id);
+    }
+    if (record->prev_part_building_id > 0) {
+        const int previous_offset = grid_offset - delta;
+        if (!map_grid_is_valid_offset(previous_offset) || !map_building_exists_at(previous_offset)) {
+            return report_loaded_bridge_validation_failure("bridge predecessor map cell is missing", grid_offset, record->id);
+        }
+        const building *previous = map_building_at(previous_offset).record();
+        if (!previous || previous->id != static_cast<unsigned int>(record->prev_part_building_id) || previous->next_part_building_id != static_cast<short>(record->id) || previous->type != record->type || previous->subtype.orientation != record->subtype.orientation) {
+            return report_loaded_bridge_validation_failure("bridge predecessor link is not reciprocal and type-stable", grid_offset, record->id);
+        }
+    }
+    if (record->next_part_building_id > 0) {
+        const int next_offset = grid_offset + delta;
+        if (!map_grid_is_valid_offset(next_offset) || !map_building_exists_at(next_offset)) {
+            return report_loaded_bridge_validation_failure("bridge successor map cell is missing", grid_offset, record->id);
+        }
+        const building *next = map_building_at(next_offset).record();
+        if (!next || next->id != static_cast<unsigned int>(record->next_part_building_id) || next->prev_part_building_id != static_cast<short>(record->id) || next->type != record->type || next->subtype.orientation != record->subtype.orientation) {
+            return report_loaded_bridge_validation_failure("bridge successor link is not reciprocal and type-stable", grid_offset, record->id);
+        }
+    }
+    int owner_offset = grid_offset;
+    for (int guard = 0; guard < 64; ++guard) {
+        const building *owner_candidate = map_building_at(owner_offset).record();
+        if (!owner_candidate) {
+            return report_loaded_bridge_validation_failure("bridge chain lost its owner record", grid_offset, record->id);
+        }
+        if (owner_candidate->prev_part_building_id == 0) {
+            return 1;
+        }
+        owner_offset -= delta;
+        if (!map_grid_is_valid_offset(owner_offset) || !map_building_exists_at(owner_offset)) {
+            return report_loaded_bridge_validation_failure("bridge chain cannot reach a serialized owner", grid_offset, record->id);
+        }
+    }
+    return report_loaded_bridge_validation_failure("bridge chain exceeds the supported 64-piece bound or is cyclic", grid_offset, record->id);
+}
+
+int map_bridge_validate_loaded_native_bridges(void)
+{
+    for (int y = 0; y < GRID_SIZE; ++y) {
+        for (int x = 0; x < GRID_SIZE; ++x) {
+            const int grid_offset = map_grid_offset(x, y);
+            if (map_grid_is_valid_offset(grid_offset) && map_is_bridge(grid_offset) && !validate_loaded_bridge_piece_at(grid_offset)) {
+                return 0;
+            }
+        }
+    }
+    int valid = 1;
+    Building::for_each([&valid](Building *candidate) {
+        if (!valid || !candidate || !candidate->type || !candidate->type->bridge().is_bridge()) {
+            return;
+        }
+        const building *record = candidate->record();
+        if (!record || !map_grid_is_valid_offset(record->grid_offset) || !map_is_bridge(record->grid_offset) || !map_building_exists_at(record->grid_offset) || map_building_at(record->grid_offset).record() != record) {
+            report_loaded_bridge_validation_failure("serialized bridge building is orphaned from bridge terrain", record ? record->grid_offset : -1, record ? record->id : 0);
+            valid = 0;
+        }
+    });
+    return valid;
 }

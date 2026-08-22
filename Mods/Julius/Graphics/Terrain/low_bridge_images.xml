@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="Terrain\low_bridge_images">
+    <image id="ramp_top" width="50" height="52" logical_width="6000" logical_height="6240" isometric="false" y="-20">
+        <layer src="Admin_Logistics\Bridge\Image_0005" part="top" />
+    </image>
+    <image id="ramp_right" width="54" height="32" logical_width="6480" logical_height="3840" isometric="false" x="-1" y="-8">
+        <layer src="Admin_Logistics\Bridge\Image_0000" part="top" />
+    </image>
+    <image id="ramp_bottom" width="54" height="33" logical_width="6480" logical_height="3960" isometric="false" y="-8">
+        <layer src="Admin_Logistics\Bridge\Image_0003" part="top" />
+    </image>
+    <image id="ramp_left" width="46" height="50" logical_width="5520" logical_height="6000" isometric="false" x="7" y="-20">
+        <layer src="Admin_Logistics\Bridge\Image_0002" part="top" />
+    </image>
+    <image id="deck_vertical" width="53" height="45" logical_width="6360" logical_height="5400" isometric="false" y="-21">
+        <layer src="Admin_Logistics\Bridge\Image_0004" part="top" />
+    </image>
+    <image id="deck_horizontal" width="52" height="46" logical_width="6240" logical_height="5520" isometric="false" x="5" y="-21">
+        <layer src="Admin_Logistics\Bridge\Image_0001" part="top" />
+    </image>
+</assetlist>

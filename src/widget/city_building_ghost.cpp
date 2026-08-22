@@ -581,6 +581,10 @@ static void draw_default(
     std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> ghost_bindings;
     build_plan_ghost_runtime(plan, definition, ghost_records, ghost_bindings);
     building_runtime_impl::ScopedEphemeralBuildingRuntime ghost_runtime(ghost_bindings);
+    if (!ghost_runtime.valid()) {
+        building_construction_set_can_place(0);
+        return;
+    }
     const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
     for (size_t i = 0; i < parts.size() && i < ghost_records.size(); i++) {
         building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[i]);
@@ -648,6 +652,9 @@ static void draw_native_network_preview(
     }
 
     building_runtime_impl::ScopedEphemeralBuildingRuntime runtime_scope(bindings);
+    if (!runtime_scope.valid()) {
+        return;
+    }
     auto draw_part = [&](size_t index) {
         building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&records[index]);
         if (!runtime) {

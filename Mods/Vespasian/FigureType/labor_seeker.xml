@@ -14,5 +14,5 @@
             <pathing mode="nearest_unemployed" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics image_group="labor_seeker" max_image_offset="12" />
+    <graphics path_pattern="Walkers\Group_057" image_pattern="{legacy_entry}" max_image_offset="12" />
 </figure>

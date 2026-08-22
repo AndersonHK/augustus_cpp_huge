@@ -235,7 +235,7 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
     }
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -463,7 +463,7 @@ void figure_movement_move_ticks_tower_sentry(Figure *f, int num_ticks)
 {
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -483,7 +483,7 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
     }
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -530,7 +530,7 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
 
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -574,7 +574,7 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
     // no destination: walk to end of tile and pick a direction
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -697,14 +697,14 @@ void figure_movement_advance_attack(Figure *f)
 void figure_movement_set_cross_country_direction(Figure *f, int x_src, int y_src, int x_dst, int y_dst, int is_missile)
 {
     // all x/y are in FIGURE_CROSS_COUNTRY_TILE_UNITS per tile
-    f->cc_destination_x = static_cast<short>(x_dst);
-    f->cc_destination_y = static_cast<short>(y_dst);
-    f->cc_delta_x = static_cast<short>((x_src > x_dst) ? (x_src - x_dst) : (x_dst - x_src));
-    f->cc_delta_y = static_cast<short>((y_src > y_dst) ? (y_src - y_dst) : (y_dst - y_src));
+    f->cc_destination_x = x_dst;
+    f->cc_destination_y = y_dst;
+    f->cc_delta_x = (x_src > x_dst) ? (x_src - x_dst) : (x_dst - x_src);
+    f->cc_delta_y = (y_src > y_dst) ? (y_src - y_dst) : (y_dst - y_src);
     if (f->cc_delta_x < f->cc_delta_y) {
-        f->cc_delta_xy = static_cast<short>(2 * f->cc_delta_x - f->cc_delta_y);
+        f->cc_delta_xy = 2 * f->cc_delta_x - f->cc_delta_y;
     } else if (f->cc_delta_y < f->cc_delta_x) {
-        f->cc_delta_xy = static_cast<short>(2 * f->cc_delta_y - f->cc_delta_x);
+        f->cc_delta_xy = 2 * f->cc_delta_y - f->cc_delta_x;
     } else { // equal
         f->cc_delta_xy = 0;
     }
@@ -736,9 +736,7 @@ void figure_movement_set_cross_country_destination(Figure *f, int x_dst, int y_d
 {
     f->destination_x = static_cast<unsigned char>(x_dst);
     f->destination_y = static_cast<unsigned char>(y_dst);
-    figure_movement_set_cross_country_direction(
-        f, f->cross_country_x, f->cross_country_y,
-        figure_movement_tile_to_cross_country(x_dst), figure_movement_tile_to_cross_country(y_dst), 0);
+    figure_movement_set_cross_country_direction(f, f->cross_country_x, f->cross_country_y, figure_movement_tile_to_cross_country(x_dst), figure_movement_tile_to_cross_country(y_dst), 0);
 }
 
 static void cross_country_update_delta(Figure *f)
@@ -800,6 +798,7 @@ int figure_movement_move_ticks_cross_country(Figure *f, int num_ticks)
 {
     map_figure_delete(f);
     bool is_at_destination = false;
+    num_ticks = figure_movement_legacy_ticks_to_runtime(num_ticks);
     while (num_ticks > 0) {
         num_ticks--;
         if (f->missile_height > 0) {
@@ -829,8 +828,8 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
 {
     int height = 0;
     Figure *f = Figure::get(0); // abuse unused figure 0 as scratch
-    f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(x_src));
-    f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(y_src));
+    f->cross_country_x = figure_movement_tile_to_cross_country(x_src);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y_src);
     const int source_grid_offset = map_grid_offset(x_src, y_src);
     Building *source_building = map_building_exists_at(source_grid_offset) ?
         &map_building_at(source_grid_offset) :

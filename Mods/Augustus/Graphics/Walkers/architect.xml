@@ -1,0 +1,607 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\architect">
+    <figure_graphics default="architect_{dir}" frames="12" corpse="architect_death" corpse_frames="5" action="Architect" action_state="work_camp_architect_working" action_frames="12" action_min_wait_ticks="2" />
+    <image id="architect_ne" group="Walkers\architect_ne_01" image="architect_ne_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_ne_01" image="architect_ne_01" />
+            <frame group="Walkers\architect_ne_02" image="architect_ne_02" />
+            <frame group="Walkers\architect_ne_03" image="architect_ne_03" />
+            <frame group="Walkers\architect_ne_04" image="architect_ne_04" />
+            <frame group="Walkers\architect_ne_05" image="architect_ne_05" />
+            <frame group="Walkers\architect_ne_06" image="architect_ne_06" />
+            <frame group="Walkers\architect_ne_07" image="architect_ne_07" />
+            <frame group="Walkers\architect_ne_08" image="architect_ne_08" />
+            <frame group="Walkers\architect_ne_09" image="architect_ne_09" />
+            <frame group="Walkers\architect_ne_10" image="architect_ne_10" />
+            <frame group="Walkers\architect_ne_11" image="architect_ne_11" />
+            <frame group="Walkers\architect_ne_12" image="architect_ne_12" />
+        </animation>
+    </image>
+    <image id="architect_e" group="Walkers\architect_e_01" image="architect_e_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_e_01" image="architect_e_01" />
+            <frame group="Walkers\architect_e_02" image="architect_e_02" />
+            <frame group="Walkers\architect_e_03" image="architect_e_03" />
+            <frame group="Walkers\architect_e_04" image="architect_e_04" />
+            <frame group="Walkers\architect_e_05" image="architect_e_05" />
+            <frame group="Walkers\architect_e_06" image="architect_e_06" />
+            <frame group="Walkers\architect_e_07" image="architect_e_07" />
+            <frame group="Walkers\architect_e_08" image="architect_e_08" />
+            <frame group="Walkers\architect_e_09" image="architect_e_09" />
+            <frame group="Walkers\architect_e_10" image="architect_e_10" />
+            <frame group="Walkers\architect_e_11" image="architect_e_11" />
+            <frame group="Walkers\architect_e_12" image="architect_e_12" />
+        </animation>
+    </image>
+    <image id="architect_se" group="Walkers\architect_se_01" image="architect_se_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_se_01" image="architect_se_01" />
+            <frame group="Walkers\architect_se_02" image="architect_se_02" />
+            <frame group="Walkers\architect_se_03" image="architect_se_03" />
+            <frame group="Walkers\architect_se_04" image="architect_se_04" />
+            <frame group="Walkers\architect_se_05" image="architect_se_05" />
+            <frame group="Walkers\architect_se_06" image="architect_se_06" />
+            <frame group="Walkers\architect_se_07" image="architect_se_07" />
+            <frame group="Walkers\architect_se_08" image="architect_se_08" />
+            <frame group="Walkers\architect_se_09" image="architect_se_09" />
+            <frame group="Walkers\architect_se_10" image="architect_se_10" />
+            <frame group="Walkers\architect_se_11" image="architect_se_11" />
+            <frame group="Walkers\architect_se_12" image="architect_se_12" />
+        </animation>
+    </image>
+    <image id="architect_s" group="Walkers\architect_s_01" image="architect_s_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_s_01" image="architect_s_01" />
+            <frame group="Walkers\architect_s_02" image="architect_s_02" />
+            <frame group="Walkers\architect_s_03" image="architect_s_03" />
+            <frame group="Walkers\architect_s_04" image="architect_s_04" />
+            <frame group="Walkers\architect_s_05" image="architect_s_05" />
+            <frame group="Walkers\architect_s_06" image="architect_s_06" />
+            <frame group="Walkers\architect_s_07" image="architect_s_07" />
+            <frame group="Walkers\architect_s_08" image="architect_s_08" />
+            <frame group="Walkers\architect_s_09" image="architect_s_09" />
+            <frame group="Walkers\architect_s_10" image="architect_s_10" />
+            <frame group="Walkers\architect_s_11" image="architect_s_11" />
+            <frame group="Walkers\architect_s_12" image="architect_s_12" />
+        </animation>
+    </image>
+    <image id="architect_sw" group="Walkers\architect_sw_01" image="architect_sw_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_sw_01" image="architect_sw_01" />
+            <frame group="Walkers\architect_sw_02" image="architect_sw_02" />
+            <frame group="Walkers\architect_sw_03" image="architect_sw_03" />
+            <frame group="Walkers\architect_sw_04" image="architect_sw_04" />
+            <frame group="Walkers\architect_sw_05" image="architect_sw_05" />
+            <frame group="Walkers\architect_sw_06" image="architect_sw_06" />
+            <frame group="Walkers\architect_sw_07" image="architect_sw_07" />
+            <frame group="Walkers\architect_sw_08" image="architect_sw_08" />
+            <frame group="Walkers\architect_sw_09" image="architect_sw_09" />
+            <frame group="Walkers\architect_sw_10" image="architect_sw_10" />
+            <frame group="Walkers\architect_sw_11" image="architect_sw_11" />
+            <frame group="Walkers\architect_sw_12" image="architect_sw_12" />
+        </animation>
+    </image>
+    <image id="architect_w" group="Walkers\architect_w_01" image="architect_w_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_w_01" image="architect_w_01" />
+            <frame group="Walkers\architect_w_02" image="architect_w_02" />
+            <frame group="Walkers\architect_w_03" image="architect_w_03" />
+            <frame group="Walkers\architect_w_04" image="architect_w_04" />
+            <frame group="Walkers\architect_w_05" image="architect_w_05" />
+            <frame group="Walkers\architect_w_06" image="architect_w_06" />
+            <frame group="Walkers\architect_w_07" image="architect_w_07" />
+            <frame group="Walkers\architect_w_08" image="architect_w_08" />
+            <frame group="Walkers\architect_w_09" image="architect_w_09" />
+            <frame group="Walkers\architect_w_10" image="architect_w_10" />
+            <frame group="Walkers\architect_w_11" image="architect_w_11" />
+            <frame group="Walkers\architect_w_12" image="architect_w_12" />
+        </animation>
+    </image>
+    <image id="architect_nw" group="Walkers\architect_nw_01" image="architect_nw_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_nw_01" image="architect_nw_01" />
+            <frame group="Walkers\architect_nw_02" image="architect_nw_02" />
+            <frame group="Walkers\architect_nw_03" image="architect_nw_03" />
+            <frame group="Walkers\architect_nw_04" image="architect_nw_04" />
+            <frame group="Walkers\architect_nw_05" image="architect_nw_05" />
+            <frame group="Walkers\architect_nw_06" image="architect_nw_06" />
+            <frame group="Walkers\architect_nw_07" image="architect_nw_07" />
+            <frame group="Walkers\architect_nw_08" image="architect_nw_08" />
+            <frame group="Walkers\architect_nw_09" image="architect_nw_09" />
+            <frame group="Walkers\architect_nw_10" image="architect_nw_10" />
+            <frame group="Walkers\architect_nw_11" image="architect_nw_11" />
+            <frame group="Walkers\architect_nw_12" image="architect_nw_12" />
+        </animation>
+    </image>
+    <image id="architect_n" group="Walkers\architect_n_01" image="architect_n_01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_n_01" image="architect_n_01" />
+            <frame group="Walkers\architect_n_02" image="architect_n_02" />
+            <frame group="Walkers\architect_n_03" image="architect_n_03" />
+            <frame group="Walkers\architect_n_04" image="architect_n_04" />
+            <frame group="Walkers\architect_n_05" image="architect_n_05" />
+            <frame group="Walkers\architect_n_06" image="architect_n_06" />
+            <frame group="Walkers\architect_n_07" image="architect_n_07" />
+            <frame group="Walkers\architect_n_08" image="architect_n_08" />
+            <frame group="Walkers\architect_n_09" image="architect_n_09" />
+            <frame group="Walkers\architect_n_10" image="architect_n_10" />
+            <frame group="Walkers\architect_n_11" image="architect_n_11" />
+            <frame group="Walkers\architect_n_12" image="architect_n_12" />
+        </animation>
+    </image>
+    <image id="architect_death" group="Walkers\architect_death_01" image="architect_death_01">
+        <animation frames="8" reversible="true" x="26" y="29">
+            <frame group="Walkers\architect_death_01" image="architect_death_01" />
+            <frame group="Walkers\architect_death_02" image="architect_death_02" />
+            <frame group="Walkers\architect_death_03" image="architect_death_03" />
+            <frame group="Walkers\architect_death_04" image="architect_death_04" />
+            <frame group="Walkers\architect_death_05" image="architect_death_05" />
+            <frame group="Walkers\architect_death_06" image="architect_death_06" />
+            <frame group="Walkers\architect_death_07" image="architect_death_07" />
+            <frame group="Walkers\architect_death_08" image="architect_death_08" />
+        </animation>
+    </image>
+    <image id="Architect" group="Walkers\Architect_01" image="Architect 01">
+        <animation frames="12" reversible="true" x="26" y="29">
+            <frame group="Walkers\Architect_01" image="Architect 01" />
+            <frame group="Walkers\Architect_02" image="Architect 02" />
+            <frame group="Walkers\Architect_03" image="Architect 03" />
+            <frame group="Walkers\Architect_04" image="Architect 04" />
+            <frame group="Walkers\Architect_05" image="Architect 05" />
+            <frame group="Walkers\Architect_06" image="Architect 06" />
+            <frame group="Walkers\Architect_07" image="Architect 07" />
+            <frame group="Walkers\Architect_08" image="Architect 08" />
+            <frame group="Walkers\Architect_09" image="Architect 09" />
+            <frame group="Walkers\Architect_10" image="Architect 10" />
+            <frame group="Walkers\Architect_11" image="Architect 11" />
+            <frame group="Walkers\Architect_12" image="Architect 12" />
+        </animation>
+    </image>
+    <image id="Architect 01" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_01/Architect_01" x="10" y="10" />
+    </image>
+    <image id="Architect 02" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_02/Architect_02" x="10" y="10" />
+    </image>
+    <image id="Architect 03" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_03/Architect_03" x="11" y="10" />
+    </image>
+    <image id="Architect 04" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_04/Architect_04" x="11" y="10" />
+    </image>
+    <image id="Architect 05" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_05/Architect_05" x="11" y="10" />
+    </image>
+    <image id="Architect 06" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_06/Architect_06" x="11" y="10" />
+    </image>
+    <image id="Architect 07" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_07/Architect_07" x="11" y="10" />
+    </image>
+    <image id="Architect 08" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_08/Architect_08" x="10" y="10" />
+    </image>
+    <image id="Architect 09" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_09/Architect_09" x="10" y="10" />
+    </image>
+    <image id="Architect 10" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_10/Architect_10" x="10" y="10" />
+    </image>
+    <image id="Architect 11" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_11/Architect_11" x="9" y="10" />
+    </image>
+    <image id="Architect 12" width="39" height="39" x="26" y="29">
+        <layer src="Walkers/Architect_12/Architect_12" x="9" y="10" />
+    </image>
+    <image id="architect_death_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0096" />
+        <layer src="Walkers/architect_death_01/architect_death_01_Layer_02" x="13" y="6" />
+    </image>
+    <image id="architect_death_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0097" />
+        <layer src="Walkers/architect_death_02/architect_death_02_Layer_02" x="14" y="8" />
+    </image>
+    <image id="architect_death_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0098" />
+        <layer src="Walkers/architect_death_03/architect_death_03_Layer_02" x="15" y="10" />
+    </image>
+    <image id="architect_death_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0099" />
+        <layer src="Walkers/architect_death_04/architect_death_04_Layer_02" x="11" y="17" />
+    </image>
+    <image id="architect_death_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0100" />
+        <layer src="Walkers/architect_death_05/architect_death_05_Layer_02" x="13" y="16" />
+    </image>
+    <image id="architect_death_06" group="Walkers\Group_110" image="architect_death_06" x="26" y="29" />
+    <image id="architect_death_07" group="Walkers\Group_110" image="architect_death_07" x="26" y="29" />
+    <image id="architect_death_08" group="Walkers\Group_110" image="architect_death_08" x="26" y="29" />
+    <image id="architect_e_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0001" />
+        <layer src="Walkers/architect_e_01/architect_e_01_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_e_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0009" />
+        <layer src="Walkers/architect_e_02/architect_e_02_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_e_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0017" />
+        <layer src="Walkers/architect_e_03/architect_e_03_Layer_02" x="14" y="7" />
+    </image>
+    <image id="architect_e_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0025" />
+        <layer src="Walkers/architect_e_04/architect_e_04_Layer_02" x="15" y="7" />
+    </image>
+    <image id="architect_e_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0033" />
+        <layer src="Walkers/architect_e_05/architect_e_05_Layer_02" x="15" y="8" />
+    </image>
+    <image id="architect_e_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0041" />
+        <layer src="Walkers/architect_e_06/architect_e_06_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_e_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0049" />
+        <layer src="Walkers/architect_e_07/architect_e_07_Layer_02" x="11" y="12" />
+    </image>
+    <image id="architect_e_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0057" />
+        <layer src="Walkers/architect_e_08/architect_e_08_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_e_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0065" />
+        <layer src="Walkers/architect_e_09/architect_e_09_Layer_02" x="13" y="6" />
+    </image>
+    <image id="architect_e_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0073" />
+        <layer src="Walkers/architect_e_10/architect_e_10_Layer_02" x="15" y="11" />
+    </image>
+    <image id="architect_e_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0081" />
+        <layer src="Walkers/architect_e_11/architect_e_11_Layer_02" x="15" y="8" />
+    </image>
+    <image id="architect_e_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0089" />
+        <layer src="Walkers/architect_e_12/architect_e_12_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_n_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0007" />
+        <layer src="Walkers/architect_n_01/architect_n_01_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0015" />
+        <layer src="Walkers/architect_n_02/architect_n_02_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_n_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0023" />
+        <layer src="Walkers/architect_n_03/architect_n_03_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0031" />
+        <layer src="Walkers/architect_n_04/architect_n_04_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0039" />
+        <layer src="Walkers/architect_n_05/architect_n_05_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0047" />
+        <layer src="Walkers/architect_n_06/architect_n_06_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0055" />
+        <layer src="Walkers/architect_n_07/architect_n_07_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0063" />
+        <layer src="Walkers/architect_n_08/architect_n_08_Layer_02" x="14" y="9" />
+    </image>
+    <image id="architect_n_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0071" />
+        <layer src="Walkers/architect_n_09/architect_n_09_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_n_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0079" />
+        <layer src="Walkers/architect_n_10/architect_n_10_Layer_02" x="14" y="7" />
+    </image>
+    <image id="architect_n_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0087" />
+        <layer src="Walkers/architect_n_11/architect_n_11_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_n_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0095" />
+        <layer src="Walkers/architect_n_12/architect_n_12_Layer_02" x="14" y="8" />
+    </image>
+    <image id="architect_ne_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0000" />
+        <layer src="Walkers/architect_ne_01/architect_ne_01_Layer_02" x="15" y="8" />
+    </image>
+    <image id="architect_ne_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0008" />
+        <layer src="Walkers/architect_ne_02/architect_ne_02_Layer_02" x="15" y="8" />
+    </image>
+    <image id="architect_ne_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0016" />
+        <layer src="Walkers/architect_ne_03/architect_ne_03_Layer_02" x="15" y="10" />
+    </image>
+    <image id="architect_ne_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0024" />
+        <layer src="Walkers/architect_ne_04/architect_ne_04_Layer_02" x="15" y="7" />
+    </image>
+    <image id="architect_ne_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0032" />
+        <layer src="Walkers/architect_ne_05/architect_ne_05_Layer_02" x="15" y="10" />
+    </image>
+    <image id="architect_ne_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0040" />
+        <layer src="Walkers/architect_ne_06/architect_ne_06_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_ne_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0048" />
+        <layer src="Walkers/architect_ne_07/architect_ne_07_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_ne_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0056" />
+        <layer src="Walkers/architect_ne_08/architect_ne_08_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_ne_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0064" />
+        <layer src="Walkers/architect_ne_09/architect_ne_09_Layer_02" x="15" y="7" />
+    </image>
+    <image id="architect_ne_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0072" />
+        <layer src="Walkers/architect_ne_10/architect_ne_10_Layer_02" x="16" y="10" />
+    </image>
+    <image id="architect_ne_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0080" />
+        <layer src="Walkers/architect_ne_11/architect_ne_11_Layer_02" x="15" y="10" />
+    </image>
+    <image id="architect_ne_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0088" />
+        <layer src="Walkers/architect_ne_12/architect_ne_12_Layer_02" x="15" y="10" />
+    </image>
+    <image id="architect_nw_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0006" />
+        <layer src="Walkers/architect_nw_01/architect_nw_01_Layer_02" x="14" y="12" />
+    </image>
+    <image id="architect_nw_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0014" />
+        <layer src="Walkers/architect_nw_02/architect_nw_02_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_nw_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0022" />
+        <layer src="Walkers/architect_nw_03/architect_nw_03_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_nw_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0030" />
+        <layer src="Walkers/architect_nw_04/architect_nw_04_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_nw_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0038" />
+        <layer src="Walkers/architect_nw_05/architect_nw_05_Layer_02" x="12" y="12" />
+    </image>
+    <image id="architect_nw_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0046" />
+        <layer src="Walkers/architect_nw_06/architect_nw_06_Layer_02" x="11" y="12" />
+    </image>
+    <image id="architect_nw_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0054" />
+        <layer src="Walkers/architect_nw_07/architect_nw_07_Layer_02" x="11" y="12" />
+    </image>
+    <image id="architect_nw_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0062" />
+        <layer src="Walkers/architect_nw_08/architect_nw_08_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_nw_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0070" />
+        <layer src="Walkers/architect_nw_09/architect_nw_09_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_nw_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0078" />
+        <layer src="Walkers/architect_nw_10/architect_nw_10_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_nw_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0086" />
+        <layer src="Walkers/architect_nw_11/architect_nw_11_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_nw_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0094" />
+        <layer src="Walkers/architect_nw_12/architect_nw_12_Layer_02" x="14" y="11" />
+    </image>
+    <image id="architect_s_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0003" />
+        <layer src="Walkers/architect_s_01/architect_s_01_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_s_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0011" />
+        <layer src="Walkers/architect_s_02/architect_s_02_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_s_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0019" />
+        <layer src="Walkers/architect_s_03/architect_s_03_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_s_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0027" />
+        <layer src="Walkers/architect_s_04/architect_s_04_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_s_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0035" />
+        <layer src="Walkers/architect_s_05/architect_s_05_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_s_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0043" />
+        <layer src="Walkers/architect_s_06/architect_s_06_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_s_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0051" />
+        <layer src="Walkers/architect_s_07/architect_s_07_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_s_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0059" />
+        <layer src="Walkers/architect_s_08/architect_s_08_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_s_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0067" />
+        <layer src="Walkers/architect_s_09/architect_s_09_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_s_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0075" />
+        <layer src="Walkers/architect_s_10/architect_s_10_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_s_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0083" />
+        <layer src="Walkers/architect_s_11/architect_s_11_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_s_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0091" />
+        <layer src="Walkers/architect_s_12/architect_s_12_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_se_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0002" />
+        <layer src="Walkers/architect_se_01/architect_se_01_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_se_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0010" />
+        <layer src="Walkers/architect_se_02/architect_se_02_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_se_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0018" />
+        <layer src="Walkers/architect_se_03/architect_se_03_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_se_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0026" />
+        <layer src="Walkers/architect_se_04/architect_se_04_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_se_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0034" />
+        <layer src="Walkers/architect_se_05/architect_se_05_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_se_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0042" />
+        <layer src="Walkers/architect_se_06/architect_se_06_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_se_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0050" />
+        <layer src="Walkers/architect_se_07/architect_se_07_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_se_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0058" />
+        <layer src="Walkers/architect_se_08/architect_se_08_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_se_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0066" />
+        <layer src="Walkers/architect_se_09/architect_se_09_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_se_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0074" />
+        <layer src="Walkers/architect_se_10/architect_se_10_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_se_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0082" />
+        <layer src="Walkers/architect_se_11/architect_se_11_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_se_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0090" />
+        <layer src="Walkers/architect_se_12/architect_se_12_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_sw_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0004" />
+        <layer src="Walkers/architect_sw_01/architect_sw_01_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_sw_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0012" />
+        <layer src="Walkers/architect_sw_02/architect_sw_02_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_sw_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0020" />
+        <layer src="Walkers/architect_sw_03/architect_sw_03_Layer_02" x="12" y="10" />
+    </image>
+    <image id="architect_sw_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0028" />
+        <layer src="Walkers/architect_sw_04/architect_sw_04_Layer_02" x="11" y="10" />
+    </image>
+    <image id="architect_sw_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0036" />
+        <layer src="Walkers/architect_sw_05/architect_sw_05_Layer_02" x="11" y="10" />
+    </image>
+    <image id="architect_sw_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0044" />
+        <layer src="Walkers/architect_sw_06/architect_sw_06_Layer_02" x="12" y="11" />
+    </image>
+    <image id="architect_sw_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0052" />
+        <layer src="Walkers/architect_sw_07/architect_sw_07_Layer_02" x="14" y="10" />
+    </image>
+    <image id="architect_sw_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0060" />
+        <layer src="Walkers/architect_sw_08/architect_sw_08_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_sw_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0068" />
+        <layer src="Walkers/architect_sw_09/architect_sw_09_Layer_02" x="12" y="10" />
+    </image>
+    <image id="architect_sw_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0076" />
+        <layer src="Walkers/architect_sw_10/architect_sw_10_Layer_02" x="9" y="10" />
+    </image>
+    <image id="architect_sw_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0084" />
+        <layer src="Walkers/architect_sw_11/architect_sw_11_Layer_02" x="12" y="10" />
+    </image>
+    <image id="architect_sw_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0092" />
+        <layer src="Walkers/architect_sw_12/architect_sw_12_Layer_02" x="13" y="10" />
+    </image>
+    <image id="architect_w_01" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0005" />
+        <layer src="Walkers/architect_w_01/architect_w_01_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_02" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0013" />
+        <layer src="Walkers/architect_w_02/architect_w_02_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_03" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0021" />
+        <layer src="Walkers/architect_w_03/architect_w_03_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_04" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0029" />
+        <layer src="Walkers/architect_w_04/architect_w_04_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_05" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0037" />
+        <layer src="Walkers/architect_w_05/architect_w_05_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_06" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0045" />
+        <layer src="Walkers/architect_w_06/architect_w_06_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_07" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0053" />
+        <layer src="Walkers/architect_w_07/architect_w_07_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_08" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0061" />
+        <layer src="Walkers/architect_w_08/architect_w_08_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_09" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0069" />
+        <layer src="Walkers/architect_w_09/architect_w_09_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_10" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0077" />
+        <layer src="Walkers/architect_w_10/architect_w_10_Layer_02" x="13" y="11" />
+    </image>
+    <image id="architect_w_11" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0085" />
+        <layer src="Walkers/architect_w_11/architect_w_11_Layer_02" x="13" y="12" />
+    </image>
+    <image id="architect_w_12" x="26" y="29">
+        <layer group="Walkers\Group_110" image="Image_0093" />
+        <layer src="Walkers/architect_w_12/architect_w_12_Layer_02" x="13" y="11" />
+    </image>
+</assetlist>
+
+
+
