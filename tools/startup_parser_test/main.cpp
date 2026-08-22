@@ -715,16 +715,21 @@ bool validate_colosseum_graphics_contract()
 
 bool validate_figure_owner_contracts()
 {
-    const figure_type_registry_impl::FigureTypeProfile *beggar =
-        figure_type_registry_impl::profile_for(FIGURE_BEGGAR, "unemployment_wanderer");
-    const figure_type_registry_impl::FigureTypeProfile *homeless =
-        figure_type_registry_impl::profile_for(FIGURE_HOMELESS, "legacy");
-    const figure_type_registry_impl::FigureTypeProfile *fishing_boat =
-        figure_type_registry_impl::profile_for(FIGURE_FISHING_BOAT, "fish_fetch");
-    const figure_type_registry_impl::FigureTypeProfile *prefect =
-        figure_type_registry_impl::profile_for(FIGURE_PREFECT, "service");
-    if (!beggar || beggar->requires_owner()) {
-        std::cerr << "Figure owner contract failed: beggars must be ownerless after spawning.\n";
+    const figure_type_registry_impl::FigureTypeProfile *beggar = figure_type_registry_impl::profile_for(FIGURE_BEGGAR, "unemployment_wanderer");
+    const figure_type_registry_impl::FigureTypeProfile *caravanserai_supplier = figure_type_registry_impl::profile_for(FIGURE_CARAVANSERAI_SUPPLIER, "legacy");
+    const figure_type_registry_impl::FigureTypeProfile *homeless = figure_type_registry_impl::profile_for(FIGURE_HOMELESS, "legacy");
+    const figure_type_registry_impl::FigureTypeProfile *fishing_boat = figure_type_registry_impl::profile_for(FIGURE_FISHING_BOAT, "fish_fetch");
+    const figure_type_registry_impl::FigureTypeProfile *prefect = figure_type_registry_impl::profile_for(FIGURE_PREFECT, "service");
+    if (!beggar || !beggar->requires_owner() ||
+        beggar->owner_binding().slot != figure_type_registry_impl::FigureSlot::Quaternary ||
+        beggar->owner_binding().required_owner_state != figure_type_registry_impl::OwnerStateRequirement::InUse) {
+        std::cerr << "Figure owner contract failed: beggars must remain owned by their spawning house through its quaternary slot.\n";
+        return false;
+    }
+    if (!caravanserai_supplier || !caravanserai_supplier->requires_owner() ||
+        caravanserai_supplier->owner_binding().slot != figure_type_registry_impl::FigureSlot::Primary ||
+        caravanserai_supplier->owner_binding().required_owner_state != figure_type_registry_impl::OwnerStateRequirement::InUse) {
+        std::cerr << "Figure owner contract failed: caravanserai suppliers must remain owned through the caravanserai primary slot.\n";
         return false;
     }
     if (!fishing_boat || !fishing_boat->requires_owner() ||

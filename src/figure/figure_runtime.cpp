@@ -369,7 +369,7 @@ void figure_runtime_reset()
     g_runtime_entries.clear();
 }
 
-bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, Building **resolved_owner)
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, Building **resolved_owner)
 {
     if (resolved_owner) {
         *resolved_owner = nullptr;
@@ -405,6 +405,29 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
     } else if (profile_id && *profile_id) {
         log_loaded_owner_error("Figure serialized a profile identity without a runtime profile definition", *f, nullptr, saved_owner_id);
         return false;
+    }
+
+    if (profile && profile->requires_owner() && !owner && allow_delayed_owner_binding_bridge) {
+        Building *slot_owner = nullptr;
+        bool ambiguous = false;
+        Building::for_each([&](Building *candidate) {
+            if (!candidate || !candidate->record() ||
+                !figure_runtime_native_impl::owner_binding_matches(f, candidate->record(), profile->owner_binding())) {
+                return;
+            }
+            if (slot_owner) {
+                ambiguous = true;
+                return;
+            }
+            slot_owner = candidate;
+        });
+        if (slot_owner && !ambiguous) {
+            owner = slot_owner;
+            saved_owner_id = static_cast<unsigned int>(slot_owner->id);
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Migrating delayed figure owner binding from its exact building slot", detail, 0);
+        }
     }
 
     if (profile && !profile->requires_owner()) {

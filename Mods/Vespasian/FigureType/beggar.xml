@@ -3,7 +3,7 @@
     <profiles default="unemployment_wanderer">
         <profile id="unemployment_wanderer">
             <native class="transient_wanderer" />
-            <owner slot="none" building="any" state="any" />
+            <owner slot="quaternary" building="any" state="in_use" />
             <movement roam_ticks="1" max_roam_length="1200" return_mode="die_at_limit" />
             <pathing mode="stand_still" terrain="roads_highway" />
         </profile>

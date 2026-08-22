@@ -1638,12 +1638,13 @@ bool Figure::resolve_loaded_building_references(int save_version)
         }
         FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
         Building *owner = nullptr;
-        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, &owner) ||
+        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, &owner) ||
             !f->set_home_building(owner)) {
             log_error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
             return false;
         }
-        if (!owner && save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES) refs.building_id = 0;
+        if (owner) refs.building_id = static_cast<unsigned int>(owner->id);
+        else if (save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES) refs.building_id = 0;
         Building *immigrant = nullptr;
         Building *destination = nullptr;
         if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", &immigrant) ||

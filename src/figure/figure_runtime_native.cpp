@@ -2745,6 +2745,7 @@ private:
         Building *venue = nullptr;
         map_point road = { 0, 0 };
         int route_distance = 0;
+        int priority_distance = 0;
         int show_days = 0;
         int score = 0;
     };
@@ -2801,10 +2802,12 @@ private:
                 candidate.venue = &venue;
                 candidate.road = route.road;
                 candidate.route_distance = route.distance;
+                candidate.priority_distance = calc_maximum_distance(f->x, f->y, venue_record->x, venue_record->y);
                 candidate.show_days = show_days(venue_record, target.show_slot);
-                // Match the legacy weighting, but use route distance so the score
-                // reflects the path walkers actually take through the road network.
-                candidate.score = 2 * candidate.show_days + candidate.route_distance;
+                // The show-day weight is calibrated to legacy tile distance. Full
+                // route cost remains the reachability test and tie-breaker, but
+                // mixing it into this score can permanently starve empty venues.
+                candidate.score = 2 * candidate.show_days + candidate.priority_distance;
                 if (candidate_is_better(candidate, best)) {
                     best = candidate;
                 }
@@ -2815,7 +2818,7 @@ private:
             return false;
         }
 
-    f->set_destination_building(best.venue);
+        f->set_destination_building(best.venue);
         f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
         f->destination_x = static_cast<unsigned char>(best.road.x);
         f->destination_y = static_cast<unsigned char>(best.road.y);

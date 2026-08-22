@@ -803,6 +803,10 @@ void building_runtime_debug_dump(FILE *file)
         fprintf(file, "      \"immigrant_figure_id\": %u,\n",
             building.Housing ? building.Housing->state().immigrant_figure_id : 0);
         fprintf(file, "      \"figure_id4\": %u,\n", record ? record->figure_id4 : 0);
+        fprintf(file, "      \"num_workers\": %d,\n", record ? record->num_workers : 0);
+        fprintf(file, "      \"figure_spawn_delay\": %u,\n", record ? record->figure_spawn_delay : 0);
+        fprintf(file, "      \"entertainment_days1\": %u,\n", record ? record->data.entertainment.days1 : 0);
+        fprintf(file, "      \"entertainment_days2\": %u,\n", record ? record->data.entertainment.days2 : 0);
         fprintf(file, "      \"house\": {\n");
         fprintf(file, "        \"has_module\": %d,\n", building.Housing ? 1 : 0);
         fprintf(file, "        \"population\": %d,\n",
