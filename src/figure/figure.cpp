@@ -12,6 +12,7 @@
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
+#include "figure/combat.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_runtime_native.h"
@@ -25,6 +26,7 @@
 #include "figuretype/cartpusher.h"
 #include "figuretype/depot.h"
 #include "figuretype/enemy.h"
+#include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
 #include "figuretype/trader.h"
 #include "figuretype/water.h"
@@ -143,7 +145,7 @@ struct FigureStore {
         unsigned int destination_building_id = 0;
     };
     std::vector<PendingBuildingRefs> pending_building_refs;
-    std::vector<std::vector<unsigned int>> building_referrers;
+    int loaded_save_version = SAVE_GAME_CURRENT_VERSION;
 };
 
 FigureStore data;
@@ -161,7 +163,7 @@ Building *loaded_building_ref(unsigned int id)
     return Building::get(id);
 }
 
-bool loaded_optional_building_ref(const Figure &figure, unsigned int id, const char *relation, Building **out)
+bool loaded_optional_building_ref(const Figure &figure, unsigned int &id, const char *relation, Building **out)
 {
     *out = nullptr;
     Building *building = loaded_building_ref(id);
@@ -172,6 +174,11 @@ bool loaded_optional_building_ref(const Figure &figure, unsigned int id, const c
             static_cast<unsigned int>(figure.type),
             relation ? relation : "<unknown>",
             id);
+        if (data.loaded_save_version < SAVE_GAME_CURRENT_VERSION) {
+            log_warning("Clearing invalid legacy figure building reference", detail, 0);
+            id = 0;
+            return true;
+        }
         log_error("Loaded save contains an invalid figure building reference", detail, 0);
         return false;
     }
@@ -405,6 +412,52 @@ bool validate_loaded_migrant_house_refs()
         }
     });
     return valid;
+}
+
+bool repair_loaded_migrant_house_refs(int save_version)
+{
+    if (save_version >= SAVE_GAME_CURRENT_VERSION) {
+        return true;
+    }
+
+    bool repaired = true;
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        if (!repaired || !house || !house->Housing) {
+            return;
+        }
+        const unsigned int migrant_id = house->Housing->state().immigrant_figure_id;
+        if (!migrant_id) {
+            return;
+        }
+        Figure *figure = Figure::get(migrant_id);
+        if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE ||
+            (figure->type != FIGURE_IMMIGRANT && figure->type != FIGURE_HOMELESS) ||
+            migrant_id >= data.pending_building_refs.size()) {
+            char detail[192];
+            snprintf(detail, sizeof(detail), "house_id=%u saved_figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
+            log_warning("Clearing unrecoverable legacy housing immigrant reference", detail, 0);
+            house->Housing->clear_immigrant_reference();
+            return;
+        }
+
+        if (figure->immigrant_building == house && figure->destination_building == house &&
+            figure->last_destination_id == static_cast<int>(house->id)) {
+            return;
+        }
+
+        FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[migrant_id];
+        refs.immigrant_building_id = static_cast<unsigned int>(house->id);
+        refs.destination_building_id = static_cast<unsigned int>(house->id);
+        if (!figure->set_immigrant_building(house) || !figure->set_destination_building(house) ||
+            !figure->set_last_destination_building(house)) {
+            repaired = false;
+            return;
+        }
+        char detail[256];
+        snprintf(detail, sizeof(detail), "house_id=%u figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
+        log_warning("Repairing legacy migrant and housing relationship", detail, 0);
+    });
+    return repaired;
 }
 
 void trim_dead_tail()
@@ -690,42 +743,44 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
 
 } // namespace
 
+FigureRelation::FigureRelation(Figure *owner, const char *role) : owner_(owner), relationship_(role) {}
+
+FigureRelation &FigureRelation::operator=(const FigureRelation &)
+{
+    if (owner_) {
+        relationship_.clear(*owner_, RelationshipDisconnectReason::EndpointReassigned);
+    }
+    return *this;
+}
+
 Figure &FigureRelation::get()
 {
-    return *figure_;
+    return relationship_.get();
 }
 
 const Figure &FigureRelation::get() const
 {
-    return *figure_;
+    return relationship_.get();
 }
 
 void FigureRelation::retarget(Figure &figure)
 {
-    figure_ = &figure;
+    relationship_.retarget(*owner_, &figure);
 }
 
 void FigureRelation::clear()
 {
-    figure_ = nullptr;
+    relationship_.clear(*owner_);
 }
 
 unsigned int FigureRelation::save_id() const
 {
-    return figure_ ? figure_->id() : 0;
+    return relationship_ ? relationship_->id() : 0;
 }
 
 unsigned int FigureRelation::debug_known_id() const
 {
-    if (!figure_) {
-        return 0;
-    }
-    for (size_t i = 0; i < data.figures.size(); ++i) {
-        if (data.figures[i].get() == figure_) {
-            return data.figures[i]->id();
-        }
-    }
-    return 0;
+    return save_id();
 }
 
 Figure::Figure(unsigned int slot)
@@ -758,50 +813,19 @@ unsigned int Figure::count()
     return static_cast<unsigned int>(data.figures.size());
 }
 
-bool Figure::set_building_reference(
-    Building *&relation,
-    unsigned int &relation_id,
-    Building *target)
+bool Figure::set_building_reference(ObjectRelationship<Figure, Building> &relationship, Building *target)
 {
-    const unsigned int target_id = target ? target->id : 0;
-    if (target && (!id() || !target_id)) {
+    if (target && (!id() || !target->id || Building::get(target->id) != target)) {
         return false;
     }
-
-    relation = target;
-    return set_indexed_building_id(relation_id, target_id);
-}
-
-bool Figure::set_indexed_building_id(unsigned int &relation_id, unsigned int target_id)
-{
-    const unsigned int previous_id = relation_id;
-    relation_id = target_id;
-    if (previous_id == target_id) {
-        return true;
-    }
-
-    if (previous_id && previous_id < data.building_referrers.size() &&
-        home_building_id_ != previous_id && immigrant_building_id_ != previous_id &&
-        destination_building_id_ != previous_id && last_destination_building_id_ != previous_id) {
-        std::vector<unsigned int> &referrers = data.building_referrers[previous_id];
-        referrers.erase(std::remove(referrers.begin(), referrers.end(), id()), referrers.end());
-    }
-    if (target_id) {
-        if (data.building_referrers.size() <= target_id) {
-            data.building_referrers.resize(target_id + 1);
-        }
-        std::vector<unsigned int> &referrers = data.building_referrers[target_id];
-        if (std::find(referrers.begin(), referrers.end(), id()) == referrers.end()) {
-            referrers.push_back(id());
-        }
-    }
+    relationship.retarget(*this, target);
     return true;
 }
 
 bool Figure::set_home_building(Building *owner)
 {
     Building *previous = building;
-    if (!set_building_reference(building, home_building_id_, owner)) {
+    if (!set_building_reference(building, owner)) {
         return false;
     }
     if (previous && previous != owner) {
@@ -817,33 +841,32 @@ bool Figure::set_immigrant_building(Building *house)
             house->Housing->state().immigrant_figure_id != id()))) {
         return false;
     }
-    return set_building_reference(immigrant_building, immigrant_building_id_, house);
+    return set_building_reference(immigrant_building, house);
 }
 
 bool Figure::set_destination_building(Building *destination)
 {
-    return set_building_reference(destination_building, destination_building_id_, destination);
+    return set_building_reference(destination_building, destination);
 }
 
 bool Figure::set_last_destination_building(Building *destination)
 {
-    const unsigned int destination_id = destination ? destination->id : 0;
-    if (destination && (!id() || !destination_id)) {
+    if (!set_building_reference(last_destination_building_, destination)) {
         return false;
     }
-    last_destination_id = static_cast<int>(destination_id);
-    return set_indexed_building_id(last_destination_building_id_, destination_id);
+    last_destination_id = destination ? static_cast<int>(destination->id) : 0;
+    return true;
 }
 
 void Figure::set_last_destination_figure_id(unsigned int figure_id)
 {
-    set_indexed_building_id(last_destination_building_id_, 0);
+    last_destination_building_.clear(*this);
     last_destination_id = static_cast<int>(figure_id);
 }
 
 bool Figure::clear_last_destination_building_if_matches(const Building &target)
 {
-    if (last_destination_building_id_ != static_cast<unsigned int>(target.id)) {
+    if (last_destination_building_.get_ptr() != &target) {
         return false;
     }
     set_last_destination_building(nullptr);
@@ -852,17 +875,17 @@ bool Figure::clear_last_destination_building_if_matches(const Building &target)
 
 unsigned int Figure::home_building_id() const
 {
-    return home_building_id_;
+    return building ? static_cast<unsigned int>(building->id) : 0;
 }
 
 unsigned int Figure::immigrant_building_id() const
 {
-    return immigrant_building_id_;
+    return immigrant_building ? static_cast<unsigned int>(immigrant_building->id) : 0;
 }
 
 unsigned int Figure::destination_building_id() const
 {
-    return destination_building_id_;
+    return destination_building ? static_cast<unsigned int>(destination_building->id) : 0;
 }
 
 const char *Figure::runtime_profile_id() const
@@ -886,9 +909,8 @@ bool Figure::set_runtime_profile_id(const char *profile_id)
 
 bool Figure::references_building(const Building &target) const
 {
-    const unsigned int target_id = target.id;
-    return target_id && (home_building_id_ == target_id || immigrant_building_id_ == target_id ||
-        destination_building_id_ == target_id || last_destination_building_id_ == target_id);
+    return building.get_ptr() == &target || immigrant_building.get_ptr() == &target ||
+        destination_building.get_ptr() == &target || last_destination_building_.get_ptr() == &target;
 }
 
 void Figure::clear_building_references()
@@ -899,35 +921,71 @@ void Figure::clear_building_references()
     set_last_destination_building(nullptr);
 }
 
-std::vector<unsigned int> Figure::ids_referencing_building(const Building &building)
+void Figure::on_relationship_event(const RelationshipEvent &event)
 {
-    const unsigned int building_id = building.id;
-    if (!building_id || building_id >= data.building_referrers.size()) {
-        return {};
+    if (event.type != RelationshipEventType::Disconnected || event.reason != RelationshipDisconnectReason::EndpointRemoved || !state) {
+        return;
+    }
+    if (Figure *removed = dynamic_cast<Figure *>(event.other)) {
+        if (&event.relationship == &opponent.relationship_ || &event.relationship == &attacker1.relationship_ ||
+            &event.relationship == &attacker2.relationship_) {
+            figure_combat_relationship_removed(this, removed);
+        } else if (&event.relationship == &target_figure.relationship_) {
+            Route::remove(this);
+            direction = DIR_FIGURE_REROUTE;
+        }
+        return;
+    }
+    if (&event.relationship == &building) {
+        if (type == FIGURE_FISHING_BOAT) {
+            FishingBoat::from(*this).sink();
+        } else {
+            remove();
+        }
+        return;
+    }
+    if (&event.relationship == &immigrant_building) {
+        remove();
+        return;
+    }
+    if (&event.relationship != &destination_building) {
+        return;
     }
 
-    std::vector<unsigned int> &referrers = data.building_referrers[building_id];
-    referrers.erase(std::remove_if(referrers.begin(), referrers.end(), [building_id](unsigned int figure_id) {
-        Figure *figure = Figure::get(figure_id);
-        return !figure || figure->id() != figure_id || !figure->state ||
-            (figure->home_building_id_ != building_id &&
-                figure->immigrant_building_id_ != building_id &&
-                figure->destination_building_id_ != building_id &&
-                figure->last_destination_building_id_ != building_id);
-    }), referrers.end());
-    return referrers;
+    Route::remove(this);
+    wait_ticks = 0;
+    if (type == FIGURE_LABOR_SEEKER) {
+        building_local_workforce::labor_seeker_failed(this);
+    } else if (type == FIGURE_TRADE_SHIP) {
+        figure_trade_ship_destination_removed(this);
+    } else if (type == FIGURE_WAREHOUSEMAN) {
+        action_state = FIGURE_ACTION_233_WAREHOUSEMAN_RECONSIDER_TARGET;
+    } else if (type == FIGURE_CART_PUSHER) {
+        action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
+    } else {
+        direction = DIR_FIGURE_REROUTE;
+    }
 }
 
-std::vector<unsigned int> Figure::ids_directly_referencing_building(const Building &building)
+std::vector<Figure *> Figure::figures_referencing_building(const Building &building)
 {
-    const unsigned int building_id = building.id;
-    std::vector<unsigned int> direct;
-    for (unsigned int figure_id : ids_referencing_building(building)) {
-        Figure *figure = Figure::get(figure_id);
-        if (figure && (figure->home_building_id_ == building_id ||
-            figure->immigrant_building_id_ == building_id ||
-            figure->destination_building_id_ == building_id)) {
-            direct.push_back(figure_id);
+    std::vector<Figure *> figures;
+    for (Relationship *relationship : building.relationships()) {
+        Figure *figure = dynamic_cast<Figure *>(relationship->other_endpoint(building));
+        if (figure && figure->state && std::find(figures.begin(), figures.end(), figure) == figures.end()) {
+            figures.push_back(figure);
+        }
+    }
+    return figures;
+}
+
+std::vector<Figure *> Figure::figures_directly_referencing_building(const Building &building)
+{
+    std::vector<Figure *> direct;
+    for (Figure *figure : figures_referencing_building(building)) {
+        if (figure->building.get_ptr() == &building || figure->immigrant_building.get_ptr() == &building ||
+            figure->destination_building.get_ptr() == &building) {
+            direct.push_back(figure);
         }
     }
     return direct;
@@ -1150,6 +1208,7 @@ void Figure::remove()
             break;
     }
     clear_building_references();
+    disconnect_relationships(RelationshipDisconnectReason::EndpointRemoved);
     if (empire_city_id) {
         empire_city_remove_trader(empire_city_id, id());
     }
@@ -1203,7 +1262,7 @@ int Figure::retarget_building(Building &from, Building &to)
         changed = 1;
         destination_changed = 1;
     }
-    if (last_destination_building_id_ == from_id) {
+    if (last_destination_building_.get_ptr() == &from) {
         set_last_destination_building(&to);
         changed = 1;
     }
@@ -1547,7 +1606,7 @@ void Figure::init_scenario()
     map_road_service_history_clear();
     data.figures.clear();
     data.pending_building_refs.clear();
-    data.building_referrers.clear();
+    data.loaded_save_version = SAVE_GAME_CURRENT_VERSION;
     data.figures.reserve(kFigureArraySizeStep);
     data.figures.push_back(std::make_unique<Figure>(0));
     data.created_sequence = 0;
@@ -1590,6 +1649,7 @@ void Figure::save_state(buffer *list, buffer *seq)
 void Figure::load_state(buffer *list, buffer *seq, int version)
 {
     figure_runtime_reset();
+    data.loaded_save_version = version;
     data.created_sequence = buffer_read_i32(seq);
 
     int figure_buf_size = kFigureOriginalBufferSize;
@@ -1602,7 +1662,6 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
     const int figures_to_load = static_cast<int>(buf_size / figure_buf_size);
     data.figures.clear();
     data.pending_building_refs.clear();
-    data.building_referrers.clear();
     data.figures.reserve(figures_to_load > 0 ? figures_to_load : 1);
     data.pending_building_refs.resize(figures_to_load > 0 ? figures_to_load : 1);
     for (int i = 0; i < figures_to_load; i++) {
@@ -1620,6 +1679,13 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
             highest_id_in_use = i;
         }
     }
+    if (version <= SAVE_GAME_LAST_UNNOTIFIED_RUNTIME_RELATIONSHIPS) {
+        for (const std::unique_ptr<Figure> &figure : data.figures) {
+            if (figure && figure->state) {
+                figure_combat_migrate_legacy_relationships(figure.get());
+            }
+        }
+    }
     data.figures.resize(highest_id_in_use + 1);
     if (data.pending_building_refs.size() > data.figures.size()) {
         data.pending_building_refs.resize(data.figures.size());
@@ -1631,7 +1697,7 @@ bool Figure::resolve_loaded_building_references(int save_version)
 {
     const size_t count = data.pending_building_refs.size() < data.figures.size() ?
         data.pending_building_refs.size() : data.figures.size();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count && i < data.figures.size(); i++) {
         Figure *f = data.figures[i].get();
         if (!f) {
             continue;
@@ -1643,24 +1709,53 @@ bool Figure::resolve_loaded_building_references(int save_version)
             log_error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
             return false;
         }
+        if (!f->state) {
+            refs = {};
+            continue;
+        }
         if (owner) refs.building_id = static_cast<unsigned int>(owner->id);
         else if (save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES) refs.building_id = 0;
         Building *immigrant = nullptr;
         Building *destination = nullptr;
         if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", &immigrant) ||
-            !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", &destination) ||
-            !f->set_immigrant_building(immigrant) || !f->set_destination_building(destination)) {
+            !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", &destination)) {
             log_error("Loaded save failed strict optional figure building reference validation", 0, static_cast<int>(i));
+            return false;
+        }
+        if (!f->set_immigrant_building(immigrant)) {
+            if (data.loaded_save_version >= SAVE_GAME_CURRENT_VERSION) {
+                log_error("Loaded save failed strict immigrant building relationship validation", 0, static_cast<int>(i));
+                return false;
+            }
+            char detail[192];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), refs.immigrant_building_id);
+            log_warning("Clearing conflicting legacy immigrant building relationship", detail, 0);
+            refs.immigrant_building_id = 0;
+            f->set_immigrant_building(nullptr);
+        }
+        if (!f->set_destination_building(destination)) {
+            log_error("Loaded save failed strict destination building relationship validation", 0, static_cast<int>(i));
             return false;
         }
         if (f->last_destination_id > 0 &&
             !last_destination_is_figure_id(static_cast<figure_type>(f->type))) {
             Building *last_destination = loaded_building_ref(static_cast<unsigned int>(f->last_destination_id));
             if (!last_destination || !f->set_last_destination_building(last_destination)) {
+                if (data.loaded_save_version < SAVE_GAME_CURRENT_VERSION) {
+                    char detail[192];
+                    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), static_cast<unsigned int>(f->last_destination_id));
+                    log_warning("Clearing invalid legacy last-destination building reference", detail, 0);
+                    f->set_last_destination_building(nullptr);
+                    continue;
+                }
                 log_error("Loaded save contains an invalid last-destination building reference", 0, f->last_destination_id);
                 return false;
             }
         }
+    }
+    if (!repair_loaded_migrant_house_refs(data.loaded_save_version)) {
+        log_error("Loaded save failed legacy migrant and housing relationship repair", 0, 0);
+        return false;
     }
     repair_loaded_building_figure_slots();
     return validate_loaded_migrant_house_refs() && validate_loaded_building_figure_slots();

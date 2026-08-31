@@ -43,6 +43,7 @@ Building *building_granary_for_getting(const Building &src, map_point *dst, int 
 int building_granary_remove_for_getting_deliveryman(Building &src, Building &dst, int *resource);
 int building_granary_determine_worker_task(const Building &granary);
 void building_granaries_calculate_stocks(void);
+void building_granaries_invalidate_cached_stocks(void);
 void building_granary_update_built_granaries_capacity(void);
 int building_granaries_send_resources_to_rome(resource_type resource, int amount);
 void building_granary_bless(void);

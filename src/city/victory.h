@@ -17,6 +17,8 @@ int city_victory_state(void);
 
 void city_victory_check(void);
 
+void city_victory_suppress_checks(int suppress);
+
 void city_victory_update_months_to_govern(void);
 
 void city_victory_continue_governing(int months);

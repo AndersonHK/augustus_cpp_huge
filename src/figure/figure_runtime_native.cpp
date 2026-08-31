@@ -579,7 +579,20 @@ private:
         if (!logged.insert(key).second) {
             return;
         }
-        error_context_report_error(message, detail.c_str());
+        char diagnostic[768];
+        snprintf(
+            diagnostic,
+            sizeof(diagnostic),
+            "figure_id=%u figure_type=%u action_state=%u image_offset=%u direction=%d image_id=%u path=%s detail=%s",
+            f ? f->id() : 0,
+            f ? static_cast<unsigned int>(f->type) : 0,
+            f ? static_cast<unsigned int>(f->action_state) : 0,
+            f ? static_cast<unsigned int>(f->image_offset) : 0,
+            f ? static_cast<int>(f->direction) : 0,
+            f ? f->image_id : 0,
+            path.c_str(),
+            detail.c_str());
+        error_context_report_error(message, diagnostic);
     }
 
     figure_type type_ = FIGURE_NONE;
@@ -748,6 +761,12 @@ static int authored_runtime_selected_graphic_draw_request_for_figure(const Figur
     reset_draw_request(request);
     if (!f || !graphics || !request || !graphics->uses_runtime_selected_image()) return 0;
     if (!f->image_id) return graphics->runtime_selected_image_may_be_hidden();
+    if (graphics->runtime_selected_image_group) {
+        const figure_type_registry_impl::FigureGraphicsLayer layer = graphics->runtime_selected_layer(f->image_id);
+        if (!layer.is_valid()) return 0;
+        request->base_slice = layer.slice;
+        return 1;
+    }
     return set_legacy_base_draw_request_image(*request, f->image_id);
 }
 

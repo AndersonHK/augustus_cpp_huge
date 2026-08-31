@@ -224,6 +224,9 @@ void ensure_runtime_table()
             continue;
         }
         register_attr_tokens(definition->type(), definition->attr());
+        for (const std::string &alias : definition->identity().aliases()) {
+            register_text_id(definition->type(), alias);
+        }
     }
 
     g_bridge.runtime_ready = true;

@@ -41,7 +41,6 @@
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
 #include "figure/PathingMode.h"
-#include "figuretype/fishing_boat.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -460,6 +459,7 @@ Building &Building::operator=(const Building &other)
     if (this == &other) {
         return *this;
     }
+    RelationshipEndpoint::operator=(other);
     type = other.type;
     Rubble = nullptr;
     Foundation = other.Foundation;
@@ -1953,19 +1953,15 @@ void Building::cleanup_figure_references_for_removal()
         return;
     }
 
+    if (type && type->is_granary()) {
+        building_granaries_invalidate_cached_stocks();
+    }
+
     if (Housing) {
         Housing->remove_immigrant();
     }
 
-    // Snapshot before callbacks remove or retarget figures and mutate the ledger.
-    const std::vector<unsigned int> figure_ids = Figure::ids_directly_referencing_building(*this);
-    for (unsigned int figure_id : Figure::ids_referencing_building(*this)) {
-        if (std::find(figure_ids.begin(), figure_ids.end(), figure_id) == figure_ids.end()) {
-            if (Figure *figure = Figure::get(figure_id); figure && figure->id() == figure_id) {
-                figure->clear_last_destination_building_if_matches(*this);
-            }
-        }
-    }
+    disconnect_relationships(RelationshipDisconnectReason::EndpointRemoved);
 
     record_->figure_id = 0;
     record_->figure_id2 = 0;
@@ -1976,16 +1972,26 @@ void Building::cleanup_figure_references_for_removal()
     record_->data.industry.fishing_boat_id = 0;
     record_->data.industry.second_fishing_boat_id = 0;
 
-    for (unsigned int figure_id : figure_ids) {
-        Figure *figure = Figure::get(figure_id);
-        if (!figure || figure->id() != figure_id || !figure->state) {
-            continue;
+}
+
+void Building::on_relationship_event(const RelationshipEvent &event)
+{
+    if (event.type != RelationshipEventType::Disconnected) {
+        return;
+    }
+    Figure *figure = dynamic_cast<Figure *>(event.other);
+    if (!figure) {
+        return;
+    }
+    if (strcmp(event.relationship.role(), "figure.home_building") == 0) {
+        clear_figure_slot_if_matches(figure->id());
+    } else if (strcmp(event.relationship.role(), "figure.immigrant_building") == 0) {
+        if (Housing) {
+            Housing->clear_immigrant_if_matches(*figure);
         }
-        if (figure->type == FIGURE_FISHING_BOAT) {
-            FishingBoat::from(*figure).sink();
-        } else {
-            figure->remove();
-        }
+    } else if (strcmp(event.relationship.role(), "figure.destination_building") == 0) {
+        release_input_storage_reservation(*figure);
+        release_legacy_storage_reservation(*figure);
     }
 }
 
@@ -4178,6 +4184,17 @@ static void normalize_loaded_surface_records(int allow_unverified_foundation_rec
         if (!has_map_presence && (loaded_record_owns_unbound_foundation(record) || allow_unverified_foundation_recovery)) {
             has_map_presence = bind_loaded_unbound_foundation(record);
         }
+        const bool has_unbound_only_foundation = foundation && !foundation->cells().empty() &&
+            std::none_of(foundation->cells().begin(), foundation->cells().end(),
+                [](const building_type_registry_impl::FoundationCellDefinition &cell) {
+                    return cell.binds_building != 0;
+                });
+        if (has_map_presence && has_unbound_only_foundation && !loaded_record_owns_unbound_foundation(record)) {
+            stage_legacy_tile_foundation_state(record);
+            char detail[160];
+            snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
+            log_warning("Repairing missing serialized unbound surface ownership", detail, 0);
+        }
         if (!has_map_presence) {
             char detail[160];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
@@ -4468,13 +4485,18 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
-    if (save_version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
+    if (save_version < SAVE_GAME_CURRENT_VERSION) {
         normalize_loaded_surface_records(1);
     }
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         building_promote_legacy_tile_buildings_after_load();
+        // Old producers could persist a partial set of surface records even
+        // though this format predates authoritative native surface records.
+        // Promotion may expose additional orphaned records, so normalize the
+        // completed legacy bridge once more before publishing runtime state.
+        normalize_loaded_surface_records(1);
     }
-    if (save_version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
+    if (save_version < SAVE_GAME_CURRENT_VERSION) {
         clear_loaded_unbound_foundation_bindings();
     }
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {

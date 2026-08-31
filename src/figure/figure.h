@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "core/buffer.h"
 #include "core/direction.h"
+#include "core/relationship.h"
 #include "figure/action.h"
 #include "figure/properties.h"
 #include "figure/runtime_profile_identity.h"
@@ -20,7 +21,12 @@ struct FigureGraphicDrawRequest;
 struct building_info_context;
 
 class FigureRelation {
+    friend class Figure;
+
 public:
+    FigureRelation(Figure *owner, const char *role);
+    FigureRelation(const FigureRelation &other) = delete;
+    FigureRelation &operator=(const FigureRelation &other);
     Figure &get();
     const Figure &get() const;
     void retarget(Figure &figure);
@@ -29,10 +35,11 @@ public:
     unsigned int debug_known_id() const;
 
 private:
-    Figure *figure_ = nullptr;
+    Figure *owner_ = nullptr;
+    ObjectRelationship<Figure, Figure> relationship_;
 };
 
-class Figure {
+class Figure : public RelationshipEndpoint {
 public:
     Figure() = default;
     explicit Figure(unsigned int slot);
@@ -48,8 +55,8 @@ public:
     static void save_state(buffer *list, buffer *seq);
     static void load_state(buffer *list, buffer *seq, int version);
     static bool resolve_loaded_building_references(int save_version);
-    static std::vector<unsigned int> ids_referencing_building(const Building &building);
-    static std::vector<unsigned int> ids_directly_referencing_building(const Building &building);
+    static std::vector<Figure *> figures_referencing_building(const Building &building);
+    static std::vector<Figure *> figures_directly_referencing_building(const Building &building);
 
     void remove();
     void release_destination_reservations();
@@ -176,9 +183,9 @@ public:
     int32_t cc_delta_xy;
     unsigned char cc_direction; // 1 = x, 2 = y
     unsigned char speed_multiplier;
-    Building *building = nullptr;
-    Building *immigrant_building = nullptr;
-    Building *destination_building = nullptr;
+    ObjectRelationship<Figure, Building> building{ "figure.home_building" };
+    ObjectRelationship<Figure, Building> immigrant_building{ "figure.immigrant_building" };
+    ObjectRelationship<Figure, Building> destination_building{ "figure.destination_building" };
     unsigned int formation_id;
     unsigned char index_in_formation;
     unsigned char formation_at_rest;
@@ -208,15 +215,15 @@ public:
     unsigned char trader_id;
     unsigned char wait_ticks_next_target; // used for retargeting fighting figures and destinations for pushers
     unsigned char dont_draw_elevated;
-    FigureRelation target_figure;
-    FigureRelation targeted_by_figure;
+    FigureRelation target_figure{ this, "figure.target" };
+    FigureRelation targeted_by_figure{ this, "figure.targeted_by" };
     unsigned short created_sequence;
     unsigned short target_figure_created_sequence;
     unsigned char figures_on_same_tile_index;
     unsigned char num_attackers;
-    FigureRelation attacker1;
-    FigureRelation attacker2;
-    FigureRelation opponent;
+    FigureRelation attacker1{ this, "figure.attacker1" };
+    FigureRelation attacker2{ this, "figure.attacker2" };
+    FigureRelation opponent{ this, "figure.opponent" };
     short last_visited_index; // can only be used if figure goes through initialization process
     int last_destination_id; // legacy save/debug slot until each meaning is split
     unsigned int legacy_visited_dock_mask;
@@ -228,14 +235,12 @@ public:
     } tourist;
 
 private:
-    bool set_building_reference(Building *&relation, unsigned int &relation_id, Building *building);
-    bool set_indexed_building_id(unsigned int &relation_id, unsigned int building_id);
+    Figure &operator=(const Figure &) = default;
+    bool set_building_reference(ObjectRelationship<Figure, Building> &relationship, Building *building);
+    void on_relationship_event(const RelationshipEvent &event) override;
 
     unsigned int slot_ = 0;
-    unsigned int home_building_id_ = 0;
-    unsigned int immigrant_building_id_ = 0;
-    unsigned int destination_building_id_ = 0;
-    unsigned int last_destination_building_id_ = 0;
+    ObjectRelationship<Figure, Building> last_destination_building_{ "figure.last_destination_building" };
     std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> runtime_profile_id_ = {};
 };
 

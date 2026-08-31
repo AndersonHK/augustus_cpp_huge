@@ -1036,6 +1036,32 @@ static int record_dock(Figure *ship, const Building &dock)
     return 1;
 }
 
+void figure_trade_ship_destination_removed(Figure *f)
+{
+    if (!f || !f->state || f->action_state == FIGURE_ACTION_115_TRADE_SHIP_LEAVING) {
+        return;
+    }
+    Route::remove(f);
+    f->wait_ticks = 0;
+    map_point destination;
+    if (Building *dock = building_dock_get_destination(*f, nullptr, &destination)) {
+        f->set_destination_building(dock);
+        f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
+        f->destination_x = static_cast<unsigned char>(destination.x);
+        f->destination_y = static_cast<unsigned char>(destination.y);
+        f->direction = DIR_FIGURE_REROUTE;
+        return;
+    }
+
+    destination = scenario_map_has_river_exit() ? scenario_map_river_exit() : scenario_map_river_entry();
+    f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
+    f->destination_x = static_cast<unsigned char>(destination.x);
+    f->destination_y = static_cast<unsigned char>(destination.y);
+    f->direction = DIR_FIGURE_REROUTE;
+    f->image_offset = 0;
+    city_message_reset_category_count(MESSAGE_CAT_BLOCKED_DOCK);
+}
+
 void figure_trade_ship_action(Figure *f)
 {
     int move_speed = sea_trader_bonus_speed();

@@ -418,6 +418,7 @@ public:
     std::string assetlist_path;
     int runtime_selected_image = 0;
     int runtime_selected_empty_is_hidden = 0;
+    int runtime_selected_image_group = 0;
     std::string runtime_selected_source;
     const ImageGroupPayload *runtime_selected_payload = nullptr;
     std::string path_pattern;
@@ -454,6 +455,7 @@ public:
     int has_native_payload() const;
     int uses_runtime_selected_image() const;
     int runtime_selected_image_may_be_hidden() const;
+    FigureGraphicsLayer runtime_selected_layer(int legacy_image_id) const;
     int has_action_native_payload() const;
     int has_corpse_native_payload() const;
     int action_graphics_matches(int figure_action_state, int wait_ticks, int missile_wait_ticks = 0) const;

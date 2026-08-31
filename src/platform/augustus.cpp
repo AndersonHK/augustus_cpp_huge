@@ -1,4 +1,5 @@
 #include "building/building_type_startup_bridge.h"
+#include "city/victory.h"
 #include "core/log.h"
 #include "translation/translation.h"
 #include "game/game.h"
@@ -408,13 +409,16 @@ static void reset_test_diagnostics(void)
 static void run_save_soak_frames(int frame_count)
 {
     window_city_show();
+    city_victory_suppress_checks(1);
     figure_graphics_validate_loaded_core_soldiers();
     for (int frame = 0; frame < frame_count; frame++) {
         Animation::update_timers();
         game_tick_run();
+        window_city_show();
         game_draw();
         platform_renderer_render();
     }
+    city_victory_suppress_checks(0);
 }
 
 static void backup_log(const char *filename, const char *filename_old)

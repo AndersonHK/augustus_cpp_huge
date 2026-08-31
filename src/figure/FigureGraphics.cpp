@@ -543,6 +543,12 @@ int FigureGraphics::runtime_selected_image_may_be_hidden() const
     return uses_runtime_selected_image() && runtime_selected_empty_is_hidden;
 }
 
+FigureGraphicsLayer FigureGraphics::runtime_selected_layer(int legacy_image_id) const
+{
+    if (!uses_runtime_selected_image() || !runtime_selected_image_group || legacy_image_id <= 0) return {};
+    return payload_image_layer(runtime_selected_payload, legacy_image_id - ::image_group(runtime_selected_image_group));
+}
+
 int FigureGraphics::has_action_native_payload() const
 {
     return !action_path_pattern.empty();
@@ -1703,6 +1709,20 @@ const GraphicsTargetBinding *FigureGraphics::cached_target_binding_for_state(int
 
 const GraphicsTargetBinding *FigureGraphics::cached_target_binding_for_figure(const Figure &figure) const
 {
+    if (figure.type == FIGURE_GLADIATOR && figure.action_state == FIGURE_ACTION_150_ATTACK) {
+        const int direction = target_direction_index(figure);
+        int legacy_entry = LEGACY_ATTACK_ROW_IMAGE_OFFSET + direction +
+            LEGACY_DIRECTION_FRAME_STRIDE * (figure.image_offset / 2);
+        if (legacy_entry <= LEGACY_ATTACK_ROW_IMAGE_OFFSET + 1) {
+            legacy_entry -= LEGACY_DIRECTION_FRAME_STRIDE;
+        } else {
+            legacy_entry -= 2;
+        }
+        return cached_target_binding(
+            GraphicsTargetRole::Default,
+            legacy_entry % LEGACY_DIRECTION_FRAME_STRIDE,
+            legacy_entry / LEGACY_DIRECTION_FRAME_STRIDE + 1);
+    }
     if (figure.action_state != FIGURE_ACTION_149_CORPSE && static_frame_count > 0) {
         return cached_target_binding(GraphicsTargetRole::Default, 0, static_cast<int>(figure.id() % static_cast<unsigned int>(static_frame_count)) + 1);
     }

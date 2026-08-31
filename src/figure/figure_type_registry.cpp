@@ -559,7 +559,7 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 39> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 42> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
@@ -597,6 +597,9 @@ static int parse_image_group_name(const char *name)
         { "barber", GROUP_FIGURE_BARBER },
         { "bathhouse_worker", GROUP_FIGURE_BATHHOUSE_WORKER },
         { "school_child", GROUP_FIGURE_SCHOOL_CHILD },
+        { "sheep", GROUP_FIGURE_SHEEP },
+        { "zebra", GROUP_FIGURE_ZEBRA },
+        { "criminal", GROUP_FIGURE_CRIMINAL },
         { "ballista", GROUP_FIGURE_BALLISTA },
         { "ship", GROUP_FIGURE_SHIP }
     } };
@@ -1823,6 +1826,12 @@ static int parse_graphics_node()
         g_parse_state.graphics_definition.assetlist_path = xml_value::trim_copy(xml_parser_get_attribute_string("assetlist"));
         if (g_parse_state.graphics_definition.assetlist_path.empty()) return graphics_parse_error("FigureType graphics assetlist reference is empty");
         if (xml_parser_has_attribute("image_group") || xml_parser_has_attribute("image_asset") || xml_parser_has_attribute("path_pattern") || xml_parser_has_attribute("image_pattern") || xml_parser_has_attribute("corpse_path_pattern") || xml_parser_has_attribute("corpse_image_pattern") || xml_parser_has_attribute("action_path_pattern") || xml_parser_has_attribute("action_image_pattern")) return graphics_parse_error("FigureType graphics assetlist reference cannot be combined with internal graphics targets");
+        if (xml_parser_has_attribute("runtime_selected_image_group")) {
+            g_parse_state.graphics_definition.runtime_selected_image_group = parse_image_group_name(xml_parser_get_attribute_string("runtime_selected_image_group"));
+            if (!g_parse_state.graphics_definition.runtime_selected_image_group) return graphics_parse_error("FigureType graphics node has an unknown runtime_selected_image_group", xml_parser_get_attribute_string("runtime_selected_image_group"));
+        }
+    } else if (xml_parser_has_attribute("runtime_selected_image_group")) {
+        return graphics_parse_error("FigureType runtime_selected_image_group requires an assetlist");
     }
     if (!parse_graphics_default_attributes(g_parse_state.graphics_definition) ||
         !parse_graphics_legacy_action_attributes(g_parse_state.graphics_definition) ||

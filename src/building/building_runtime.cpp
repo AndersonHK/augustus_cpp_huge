@@ -941,6 +941,7 @@ void building_runtime::release_all_legacy_storage_reservations()
 
 void building_runtime_reset(void)
 {
+    building_granaries_invalidate_cached_stocks();
     water_access_runtime_reset();
     building_runtime_impl::reset_live_runtime_modules();
     building_runtime_impl::clear_loaded_runtime_state();

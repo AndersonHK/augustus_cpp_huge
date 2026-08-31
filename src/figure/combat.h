@@ -6,6 +6,8 @@
 
 void figure_combat_handle_corpse(Figure *f);
 void figure_combat_handle_attack(Figure *f);
+void figure_combat_relationship_removed(Figure *f, Figure *removed);
+void figure_combat_migrate_legacy_relationships(Figure *f);
 
 int figure_combat_get_target_for_soldier(int x, int y, int max_distance);
 int figure_combat_get_target_for_wolf(int x, int y, int max_distance);

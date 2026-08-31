@@ -9,6 +9,7 @@
 #include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
+#include "core/relationship.h"
 #include "building_graphics_contract_test.h"
 #include "building_type_registry_layering_test.h"
 #include "composition_contracts.h"
@@ -116,6 +117,60 @@ bool validate_building_graphics_generation_contract()
     state.invalidate();
     if (state.generation() == variant_generation) {
         std::cerr << "Building graphics generation did not advance on explicit invalidation.\n";
+        return false;
+    }
+    return true;
+}
+
+class RelationshipContractEndpoint : public RelationshipEndpoint {
+public:
+    void remove() { disconnect_relationships(RelationshipDisconnectReason::EndpointRemoved); }
+
+    ObjectRelationship<RelationshipContractEndpoint, RelationshipContractEndpoint> *outbound = nullptr;
+    RelationshipContractEndpoint *fallback = nullptr;
+    int connected_events = 0;
+    int disconnected_events = 0;
+    RelationshipDisconnectReason last_disconnect_reason = RelationshipDisconnectReason::Explicit;
+
+private:
+    void on_relationship_event(const RelationshipEvent &event) override
+    {
+        if (event.type == RelationshipEventType::Connected) {
+            connected_events++;
+            return;
+        }
+        disconnected_events++;
+        last_disconnect_reason = event.reason;
+        if (event.reason == RelationshipDisconnectReason::EndpointRemoved && outbound && fallback) {
+            outbound->retarget(*this, fallback);
+        }
+    }
+};
+
+bool validate_relationship_contract()
+{
+    RelationshipContractEndpoint source;
+    RelationshipContractEndpoint first_target;
+    RelationshipContractEndpoint fallback_target;
+    ObjectRelationship<RelationshipContractEndpoint, RelationshipContractEndpoint> relationship("test.destination");
+    source.outbound = &relationship;
+    source.fallback = &fallback_target;
+    relationship.retarget(source, &first_target);
+    if (relationship.get_ptr() != &first_target || source.relationships().size() != 1 || first_target.relationships().size() != 1) {
+        std::cerr << "Relationship endpoints did not register the initial connection.\n";
+        return false;
+    }
+
+    first_target.remove();
+    if (relationship.get_ptr() != &fallback_target || !first_target.relationships().empty() || source.relationships().size() != 1 || fallback_target.relationships().size() != 1 || source.last_disconnect_reason != RelationshipDisconnectReason::EndpointRemoved) {
+        std::cerr << "Relationship removal notification did not preserve reentrant retargeting invariants.\n";
+        return false;
+    }
+
+    source.fallback = nullptr;
+    source.remove();
+    if (relationship.get_ptr() || !source.relationships().empty() || !fallback_target.relationships().empty() || fallback_target.last_disconnect_reason != RelationshipDisconnectReason::EndpointRemoved) {
+        std::cerr << "Relationship source removal did not clear the reciprocal endpoint.\n";
         return false;
     }
     return true;
@@ -1093,7 +1148,8 @@ int run_startup_parser_test(int argc, char **argv)
     }
 
     if (!validate_startup_parser_abi_contract() ||
-        !validate_building_graphics_generation_contract()) {
+        !validate_building_graphics_generation_contract() ||
+        !validate_relationship_contract()) {
         return 1;
     }
 

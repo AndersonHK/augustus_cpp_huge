@@ -634,6 +634,8 @@ bool validate_foundation_rotation_contract()
         warehouse_space_type ? warehouse_space_type->foundation_def() : nullptr;
     if (!roadblock_foundation || roadblock_foundation->cells().size() != 1 ||
         !roadblock_foundation->cells()[0].binds_building ||
+        roadblock_foundation->default_permissions() != 0 ||
+        roadblock_foundation->configurable_permissions() == 0 ||
         !(roadblock_foundation->cells()[0].required_terrain & TERRAIN_ROAD) ||
         !(roadblock_foundation->cells()[0].permitted_blocking_terrain & TERRAIN_ROAD) ||
         !road_foundation || road_foundation->cells().size() != 1 ||
@@ -643,7 +645,7 @@ bool validate_foundation_rotation_contract()
             [](const FoundationCellDefinition &cell) {
                 return cell.binds_building || !(cell.removed_terrain & TERRAIN_ROAD);
             })) {
-        std::cerr << "Roadblock publication contract failed: bound blocker cannot replace an unbound road surface.\n";
+        std::cerr << "Roadblock publication contract failed: a new bound blocker must close every configurable permission without replacing the road surface.\n";
         return false;
     }
     if (!warehouse_foundation || warehouse_foundation->cells().size() != 1 ||

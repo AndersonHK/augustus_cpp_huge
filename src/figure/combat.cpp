@@ -76,6 +76,50 @@ static void resume_activity_after_attack(Figure *f)
     Route::remove(f);
 }
 
+static void normalize_attack_relationships(Figure *f)
+{
+    if (!f || f->action_state != FIGURE_ACTION_150_ATTACK) {
+        return;
+    }
+    if (!f->attacker1.save_id() && f->attacker2.save_id()) {
+        f->attacker1.retarget(f->attacker2.get());
+        f->attacker2.clear();
+    }
+    if (!f->opponent.save_id() && f->attacker1.save_id()) {
+        f->opponent.retarget(f->attacker1.get());
+    }
+    if (!f->opponent.save_id()) {
+        resume_activity_after_attack(f);
+        return;
+    }
+    f->num_attackers = static_cast<unsigned char>(f->attacker1.save_id() ? 1 : 0);
+    if (f->attacker2.save_id()) {
+        f->num_attackers++;
+    }
+}
+
+void figure_combat_relationship_removed(Figure *f, Figure *removed)
+{
+    if (!f || !removed) {
+        return;
+    }
+    if (f->opponent.save_id() && &f->opponent.get() == removed) {
+        f->opponent.clear();
+    }
+    if (f->attacker1.save_id() && &f->attacker1.get() == removed) {
+        f->attacker1.clear();
+    }
+    if (f->attacker2.save_id() && &f->attacker2.get() == removed) {
+        f->attacker2.clear();
+    }
+    normalize_attack_relationships(f);
+}
+
+void figure_combat_migrate_legacy_relationships(Figure *f)
+{
+    normalize_attack_relationships(f);
+}
+
 static void hit_opponent(Figure *f)
 {
     const formation *m = formation_get(f->formation_id);

@@ -413,21 +413,20 @@ static int collect_house_merge_plan(Building &source, building_type type, int x,
 
 static void retarget_figures_for_house_merge(const HouseMergePlan &plan, Building &replacement)
 {
-    std::vector<unsigned int> figure_ids;
+    std::vector<Figure *> figures;
     for (Building *participant : plan.participants) {
         if (!participant) {
             continue;
         }
-        for (unsigned int figure_id : Figure::ids_referencing_building(*participant)) {
-            if (std::find(figure_ids.begin(), figure_ids.end(), figure_id) == figure_ids.end()) {
-                figure_ids.push_back(figure_id);
+        for (Figure *figure : Figure::figures_referencing_building(*participant)) {
+            if (std::find(figures.begin(), figures.end(), figure) == figures.end()) {
+                figures.push_back(figure);
             }
         }
     }
 
-    for (unsigned int figure_id : figure_ids) {
-        Figure *figure = Figure::get(figure_id);
-        if (!figure || figure->id() != figure_id || !figure->state) {
+    for (Figure *figure : figures) {
+        if (!figure || !figure->state) {
             continue;
         }
         for (Building *participant : plan.participants) {

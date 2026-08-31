@@ -37,6 +37,7 @@ public:
     int figure_trade_ship_is_trading(Figure *ship);
 
     void figure_trade_ship_action(Figure *f);
+    void figure_trade_ship_destination_removed(Figure *f);
 
     int figure_trade_land_trade_units(void);
 

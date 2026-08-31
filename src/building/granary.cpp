@@ -22,6 +22,7 @@
 #include "sound/effect.h"
 
 #include <algorithm>
+#include <functional>
 #include <vector>
 
 #define MAX_GRANARIES 100
@@ -51,7 +52,7 @@ static int is_warehouse_building(const Building &b)
 }
 
 static struct {
-    std::vector<Building> buildings;
+    std::vector<std::reference_wrapper<Building>> buildings;
     int total_storage[RESOURCE_SLOT_COUNT];
 } non_getting_granaries;
 
@@ -422,12 +423,17 @@ int building_granary_determine_worker_task(const Building &granary)
     return GRANARY_TASK_NONE;
 }
 
-void building_granaries_calculate_stocks(void)
+void building_granaries_invalidate_cached_stocks(void)
 {
     non_getting_granaries.buildings.clear();
     for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
         non_getting_granaries.total_storage[i] = 0;
     }
+}
+
+void building_granaries_calculate_stocks(void)
+{
+    building_granaries_invalidate_cached_stocks();
 
     for (Building &b : Building::of_type(granary_type())) {
         if (!b.is_in_use() || !b.has_cached_road_access() ||

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="criminal" graphics_only="true">
+    <graphics assetlist="Walkers\legacy_criminal" runtime_selected_image_group="criminal" />
+</figure>

@@ -10,6 +10,7 @@
 #include "building/building_order.h"
 #include "building/storage_type.h"
 #include "building/building_type.h"
+#include "core/relationship.h"
 #include "game/resource.h"
 
 #include "game/Animation.h"
@@ -26,7 +27,7 @@ class BuildingGraphicsState;
 struct formation;
 class Figure;
 
-class Building {
+class Building : public RelationshipEndpoint {
     friend class building_runtime;
     friend class building_type_registry_impl::BuildingAnimation;
 
@@ -319,6 +320,7 @@ public:
     RecordField<unsigned char, int> dock_has_accepted_route_ids;
 
 private:
+    void on_relationship_event(const RelationshipEvent &event) override;
     void retire_for_destruction();
     void bind_record_fields();
     void bind_graphics(BuildingGraphicsState *graphics_state);

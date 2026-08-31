@@ -380,8 +380,15 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
 
     Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
     if (saved_owner_id && (!owner || !owner->id)) {
-        log_loaded_owner_error("Figure has an invalid serialized owner reference", *f, nullptr, saved_owner_id);
-        return false;
+        if (!allow_legacy_owner_reference_repair && !allow_delayed_owner_binding_bridge) {
+            log_loaded_owner_error("Figure has an invalid serialized owner reference", *f, nullptr, saved_owner_id);
+            return false;
+        }
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
+        log_warning("Repairing invalid serialized figure owner reference", detail, 0);
+        owner = nullptr;
+        saved_owner_id = 0;
     }
 
     const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
@@ -431,17 +438,23 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
     }
 
     if (profile && !profile->requires_owner()) {
-        if (saved_owner_id) {
-            if (allow_legacy_owner_reference_repair) {
-                char detail[256];
-                snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
-                log_warning("Discarding irrelevant serialized owner reference from ownerless figure profile", detail, 0);
-                return true;
-            }
-            log_loaded_owner_error("Ownerless figure has a serialized owner reference", *f, profile, saved_owner_id);
-            return false;
+        if (!saved_owner_id) {
+            return true;
         }
-        return true;
+        if (owner && figure_runtime_native_impl::owner_binding_matches(f, owner->record(), profile->owner_binding())) {
+            if (resolved_owner) {
+                *resolved_owner = owner;
+            }
+            return true;
+        }
+        if (allow_legacy_owner_reference_repair) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Discarding invalid optional owner reference from legacy figure profile", detail, 0);
+            return true;
+        }
+        log_loaded_owner_error("Optional figure owner reference failed save validation", *f, profile, saved_owner_id);
+        return false;
     }
 
     if (!profile) {
@@ -454,6 +467,13 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
     const building *owner_record = owner ? owner->record() : nullptr;
     if (!owner_record ||
         !figure_runtime_native_impl::owner_binding_matches(f, owner_record, profile->owner_binding())) {
+        if (allow_legacy_owner_reference_repair || allow_delayed_owner_binding_bridge) {
+            char detail[320];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Discarding legacy transient figure whose required owner cannot be recovered", detail, 0);
+            f->remove();
+            return true;
+        }
         log_loaded_owner_error("Figure required-owner invariant failed during save validation", *f, profile, saved_owner_id);
         return false;
     }

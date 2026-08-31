@@ -543,10 +543,8 @@ void figure_kill_tower_sentries_at(int x, int y)
 
 void figure_kill_tower_sentries_in_building(Building &building)
 {
-    for (unsigned int figure_id : Figure::ids_directly_referencing_building(building)) {
-        Figure *f = Figure::get(figure_id);
-        if (f && f->id() == figure_id && !f->is_dead() && f->type == FIGURE_TOWER_SENTRY &&
-            f->home_building_id() == static_cast<unsigned int>(building.id)) {
+    for (Figure *f : Figure::figures_directly_referencing_building(building)) {
+        if (f && !f->is_dead() && f->type == FIGURE_TOWER_SENTRY && f->building.get_ptr() == &building) {
             f->state = FIGURE_STATE_DEAD;
         }
     }
