@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<storage_type role="output">
-    <accepts resource="wheat" />
-    <capacity amount="800" />
-</storage_type>

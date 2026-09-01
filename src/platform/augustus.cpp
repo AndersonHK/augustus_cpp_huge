@@ -406,19 +406,56 @@ static void reset_test_diagnostics(void)
     data.error_count = 0;
 }
 
-static void run_save_soak_frames(int frame_count)
+static bool run_save_soak_ticks(int tick_count)
 {
+    constexpr int SOAK_SPEED_PERCENT = 1000;
+    constexpr int TICKS_PER_RENDER = 20;
+    constexpr int STEADY_STATE_WARMUP_TICKS = 1000;
+    constexpr double REQUIRED_STEADY_STATE_TPS = 1000.0;
+    const int previous_speed = setting_game_speed();
+    setting_set_game_speed(SOAK_SPEED_PERCENT);
     window_city_show();
     city_victory_suppress_checks(1);
-    figure_graphics_validate_loaded_core_soldiers();
-    for (int frame = 0; frame < frame_count; frame++) {
+    figure_graphics_validate_loaded_figures();
+    const uint64_t frequency = SDL_GetPerformanceFrequency();
+    const uint64_t start = SDL_GetPerformanceCounter();
+    uint64_t interval_start = start;
+    uint64_t steady_state_start = start;
+    for (int completed_ticks = 0; completed_ticks < tick_count;) {
+        const int batch_ticks = tick_count - completed_ticks < TICKS_PER_RENDER ? tick_count - completed_ticks : TICKS_PER_RENDER;
         Animation::update_timers();
-        game_tick_run();
+        for (int tick = 0; tick < batch_ticks; tick++) game_tick_run();
+        completed_ticks += batch_ticks;
         window_city_show();
         game_draw();
         platform_renderer_render();
+        if (completed_ticks % 1000 == 0) {
+            const uint64_t now = SDL_GetPerformanceCounter();
+            const double seconds = static_cast<double>(now - interval_start) / static_cast<double>(frequency);
+            const double interval_tps = seconds > 0.0 ? 1000.0 / seconds : 0.0;
+            fprintf(stdout, "Save soak throughput: ticks=%d speed=%d%% interval_tps=%.1f\n", completed_ticks, SOAK_SPEED_PERCENT, interval_tps);
+            fflush(stdout);
+            if (completed_ticks == STEADY_STATE_WARMUP_TICKS) steady_state_start = now;
+            interval_start = now;
+        }
     }
+    const uint64_t end = SDL_GetPerformanceCounter();
+    const double total_seconds = static_cast<double>(end - start) / static_cast<double>(frequency);
+    const double total_tps = total_seconds > 0.0 ? static_cast<double>(tick_count) / total_seconds : 0.0;
+    const int measured_steady_state_ticks = tick_count - STEADY_STATE_WARMUP_TICKS;
+    const double steady_state_seconds = static_cast<double>(end - steady_state_start) / static_cast<double>(frequency);
+    const double steady_state_tps = measured_steady_state_ticks > 0 && steady_state_seconds > 0.0 ?
+        static_cast<double>(measured_steady_state_ticks) / steady_state_seconds : 0.0;
     city_victory_suppress_checks(0);
+    setting_set_game_speed(previous_speed);
+    fprintf(stdout, "Save soak completed: ticks=%d speed=%d%% seconds=%.3f average_tps=%.1f steady_state_tps=%.1f\n", tick_count, SOAK_SPEED_PERCENT, total_seconds, total_tps, steady_state_tps);
+    fflush(stdout);
+    if (tick_count >= 3000 && steady_state_tps < REQUIRED_STEADY_STATE_TPS) {
+        fprintf(stderr, "Vespasian executable save-soak performance failed: required_tps=%.0f post_warmup_tps=%.1f ticks=%d warmup_ticks=%d\n", REQUIRED_STEADY_STATE_TPS, steady_state_tps, tick_count, STEADY_STATE_WARMUP_TICKS);
+        fflush(stderr);
+        return false;
+    }
+    return true;
 }
 
 static void backup_log(const char *filename, const char *filename_old)
@@ -1135,17 +1172,18 @@ int main(int argc, char **argv)
             fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, args.save_roundtrip_test);
             fflush(stdout);
         }
-        if (args.save_soak_frames) {
-            run_save_soak_frames(args.save_soak_frames);
+        bool soak_passed = true;
+        if (args.save_soak_ticks) {
+            soak_passed = run_save_soak_ticks(args.save_soak_ticks);
             log_repeated_messages();
         }
-        if (data.warning_count || data.error_count) {
-            fprintf(stderr, "Vespasian executable save-soak test failed: warnings=%d errors=%d frames=%d file=%s\n", data.warning_count, data.error_count, args.save_soak_frames, args.load_save_test);
+        if (!soak_passed || data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable save-soak test failed: warnings=%d errors=%d ticks=%d file=%s\n", data.warning_count, data.error_count, args.save_soak_ticks, args.load_save_test);
             fflush(stderr);
             teardown();
             return 5;
         }
-        fprintf(stdout, "Vespasian executable save-load test passed: frames=%d file=%s\n", args.save_soak_frames, args.load_save_test);
+        fprintf(stdout, "Vespasian executable save-load test passed: ticks=%d file=%s\n", args.save_soak_ticks, args.load_save_test);
         fflush(stdout);
         teardown();
         return 0;

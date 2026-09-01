@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\legio_statue_R">
-    <image id="legio statue" isometric="true" group="Aesthetics\legio_statue" image="legio statue"/>
-    <image id="legio statue R" width="118" height="80" isometric="true" group="Aesthetics\legio_statue" image="legio statue R"/>
-</assetlist>

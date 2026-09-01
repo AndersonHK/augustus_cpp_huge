@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Terrain_Maps\Native_Watchtower_Central_01">
-    <image id="Native_Watchtower_Central_01" isometric="true">
-        <layer src="Native_Watchtower_Central_01" part="footprint"/>
-    </image>
-</assetlist>

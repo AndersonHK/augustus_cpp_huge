@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Industry\Concrete_Cart_S">
-    <image id="Concrete_Cart_S" width="39" height="39">
-        <layer group="Walkers\Group_097" image="Image_0003"/>
-        <layer src="Concrete_Cart_S_Layer_02" x="14" y="10"/>
-    </image>
-</assetlist>

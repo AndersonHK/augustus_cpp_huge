@@ -16,7 +16,7 @@ typedef struct {
     int startup_test;
     const char *load_save_test;
     const char *save_roundtrip_test;
-    int save_soak_frames;
+    int save_soak_ticks;
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);

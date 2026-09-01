@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Health_Culture\Library_Ref_01">
-    <image id="Library Ref 01" width="118" height="72" group="Health_Culture\Library" image="Library Ref 01"/>
-    <image id="Downgraded_Library" width="118" height="101" isometric="true" group="Health_Culture\Library" image="Downgraded_Library"/>
-</assetlist>

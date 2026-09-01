@@ -9,6 +9,7 @@
 #include "core/image.h"
 #include "core/random.h"
 #include "figure/image.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figuretype/fishing_boat.h"
 #include "graphics/lang_text.h"
@@ -23,15 +24,6 @@ static const int FLOTSAM_RESOURCE_IDS[] = {
 };
 static const int FLOTSAM_WAIT_TICKS[] = {
     10, 50, 100, 130, 200, 250, 400, 430, 500, 600, 70, 750, 820, 830, 900, 980, 1010, 1030, 1200, 1300
-};
-
-static const int FLOTSAM_TYPE_0[] = {0, 1, 2, 3, 4, 4, 4, 3, 2, 1, 0, 0};
-static const int FLOTSAM_TYPE_12[] = {
-    0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 3, 2, 1, 0, 0, 1, 1, 2, 2, 1, 1, 0, 0, 0
-};
-static const int FLOTSAM_TYPE_3[] = {
-    0, 0, 1, 1, 2, 2, 3, 3, 4, 4, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
 static ::building *record_for(Building *runtime_building)
@@ -144,24 +136,23 @@ void figure_flotsam_action(Figure *f)
     }
     if (f->resource_id == 0) {
         figure_image_increase_offset(f, 12);
-        if (f->min_max_seen) {
-            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_SHEEP), FLOTSAM_TYPE_0[f->image_offset]);
-        } else {
-            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_0), FLOTSAM_TYPE_0[f->image_offset]);
-        }
+    } else {
+        figure_image_increase_offset(f, 24);
+    }
+    figure_flotsam_update_graphics(f);
+}
+
+void figure_flotsam_update_graphics(Figure *f)
+{
+    if (f->resource_id == 0) {
+        figure_runtime_graphics_select_default_entry_frame(f, f->min_max_seen ? "neptune_sheep" : "wood", f->image_offset + 1);
     } else if (f->resource_id == 1) {
-        figure_image_increase_offset(f, 24);
-        f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_1), FLOTSAM_TYPE_12[f->image_offset]);
+        figure_runtime_graphics_select_default_entry_frame(f, "cargo_a", f->image_offset + 1);
     } else if (f->resource_id == 2) {
-        figure_image_increase_offset(f, 24);
-        f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_2), FLOTSAM_TYPE_12[f->image_offset]);
+        figure_runtime_graphics_select_default_entry_frame(f, "cargo_b", f->image_offset + 1);
     } else if (f->resource_id == 3) {
-        figure_image_increase_offset(f, 24);
-        if (FLOTSAM_TYPE_3[f->image_offset] == -1) {
-            f->clear_legacy_image();
-        } else {
-            f->select_legacy_frame_image(image_group(GROUP_FIGURE_FLOTSAM_3), FLOTSAM_TYPE_3[f->image_offset]);
-        }
+        if (f->image_offset >= 10) figure_runtime_graphics_hide_default_entry(f);
+        else figure_runtime_graphics_select_default_entry_frame(f, "debris", f->image_offset + 1);
     }
 }
 

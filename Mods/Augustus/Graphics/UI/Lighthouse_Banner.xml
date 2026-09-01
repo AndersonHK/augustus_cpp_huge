@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Lighthouse_Banner">
-    <image id="Lighthouse Banner">
-        <layer src="Lighthouse_Banner"/>
-    </image>
-</assetlist>

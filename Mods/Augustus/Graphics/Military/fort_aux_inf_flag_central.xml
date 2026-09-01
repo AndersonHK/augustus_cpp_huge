@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Military\fort_aux_inf_flag_central">
-    <image id="fort_aux_inf_flag_central">
-        <layer group="Military\Fort" image="Image_0002"/>
-        <layer src="fort_aux_inf_flag_central_Layer_02" x="10" y="4"/>
-    </image>
-</assetlist>

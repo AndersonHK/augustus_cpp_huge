@@ -110,7 +110,7 @@ The next implementation-light milestone is a focused renderer seam tester. This 
 Suggested command shape:
 
 ```powershell
-RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams
+RendererSeamTest.exe --game-root "<game install path>" --matrix terrain-water --artifacts out\renderer_seams
 ```
 
 ### Inputs

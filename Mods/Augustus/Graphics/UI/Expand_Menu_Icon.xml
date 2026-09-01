@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Expand_Menu_Icon">
-    <image id="Expand Menu Icon" width="14" height="14">
-        <layer src="Expand_Menu_Icon" x="2" y="2"/>
-    </image>
-</assetlist>

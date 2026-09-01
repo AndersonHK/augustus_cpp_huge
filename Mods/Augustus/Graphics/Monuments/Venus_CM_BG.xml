@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Venus_CM_BG">
-    <image id="Venus_CM_BG">
-        <layer src="Venus_CM_BG" x="-40" y="-22"/>
-    </image>
-</assetlist>

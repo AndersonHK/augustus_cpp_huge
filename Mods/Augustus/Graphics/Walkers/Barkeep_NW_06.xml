@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\Barkeep_NW_06">
-    <image id="Barkeep NW 06">
-        <layer group="Walkers\Group_088" image="Image_0046"/>
-        <layer src="Barkeep_NW_06_Layer_02" x="13" y="4"/>
-    </image>
-</assetlist>

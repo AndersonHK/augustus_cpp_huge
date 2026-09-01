@@ -26,15 +26,15 @@ Native figures are profile-based:
 - `<profile id="...">`
 - `<native class="roaming_service|engineer_service|prefect_service|market_supplier|delivery_follower|entertainment_venue_seeker|entertainment_service|transient_wanderer" />`
 - `<owner slot="none|primary|secondary|quaternary" building="any|..." state="any|in_use|in_use_or_mothballed" />`
-- `<movement terrain_usage="any|roads|roads_highway|prefer_roads|prefer_roads_highway" roam_ticks="N" max_roam_length="N" return_mode="return_to_owner_road|die_at_limit|none" />`
-- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker|storage_fetch|follow_leader|stand_still|transient_wander" effect="..." />`
-- `<graphics image_group="..." max_image_offset="N" base_image_offset="N" static_frame_count="N" corpse_image_group="..." corpse_base_image_offset="N" />` at figure level. Optional `base_image_offset` defaults to zero, optional `static_frame_count` chooses one still frame by `figure id % N`, and optional corpse attributes let profiles use a different corpse row.
+- `<movement roam_ticks="N" max_roam_length="N" return_mode="return_to_owner_road|die_at_limit|none" />`
+- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker|storage_fetch|follow_leader|stand_still|transient_wander" terrain="roads|roads_highway" effect="..." />`
+- `<graphics>` at figure level, containing strict nested targets such as `<default>` and `<corpse>`. Each target contains exactly one `<path value="Category\Image_Group" />` that names a logical asset XML without a file extension. Target attributes such as `base_image_offset`, `max_image_offset`, and `static_frame_count` are retained only when the selection policy is not inferable from the asset XML.
 
 BuildingType `<spawn>` nodes choose a profile with `profile="..."`. This is the narrow handoff from building policy into figure behavior: after creation, the figure's bound profile owns pathing and road-history effect selection.
 
 BuildingType `<spawn_group existing_figure="...">` is the group-level guard for legacy tracked slots. Single-type groups behave like the old hardcoded checks; comma-list groups such as `actor,gladiator` are for venues where several profile-specific spawns share one legacy `figure_id` slot and must block one another.
 
-`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so they require `terrain_usage="roads"` or `terrain_usage="roads_highway"`. Off-road-capable modes such as `any`, `prefer_roads`, and `prefer_roads_highway` are rejected during XML load because the native policies are road-route, road-roaming, or road-following contracts.
+`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so `<pathing>` requires `terrain="roads"` or `terrain="roads_highway"`. Off-road-capable modes are not part of these native road-route, road-roaming, or road-following contracts.
 
 `smart_service` is only valid for road-only walkers with a non-none effect. `nearest_unemployed` is a road-only policy used by labor seeker profiles. `venue_seeker` uses profile venue targets to pick a destination venue.
 
@@ -87,11 +87,18 @@ Current profile examples:
         <profile id="house_roamer">
             <native class="roaming_service" />
             <owner slot="none" building="any" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="128" return_mode="return_to_owner_road" />
-            <pathing mode="vanilla_roaming" />
+            <movement roam_ticks="1" max_roam_length="128" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" terrain="roads" />
         </profile>
     </profiles>
-    <graphics image_group="patrician" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Group_229" />
+        </default>
+        <corpse>
+            <path value="Walkers\Group_229" />
+        </corpse>
+    </graphics>
 </figure>
 ```
 
@@ -101,11 +108,18 @@ Current profile examples:
         <profile id="unemployment_wanderer">
             <native class="transient_wanderer" />
             <owner slot="none" building="any" state="any" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="die_at_limit" />
-            <pathing mode="stand_still" />
+            <movement roam_ticks="1" max_roam_length="800" return_mode="die_at_limit" />
+            <pathing mode="stand_still" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics image_group="beggar" base_image_offset="104" max_image_offset="1" static_frame_count="8" corpse_image_group="labor_seeker" corpse_base_image_offset="96" />
+    <graphics>
+        <default base_image_offset="104" max_image_offset="1" static_frame_count="8">
+            <path value="Walkers\Group_118" />
+        </default>
+        <corpse base_image_offset="96">
+            <path value="Walkers\Group_057" />
+        </corpse>
+    </graphics>
 </figure>
 ```
 

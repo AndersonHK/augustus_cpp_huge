@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Industry\Papyrus_Cart_Getting_NE">
-    <image id="Papyrus_Cart_Getting_NE" width="39" height="39">
-        <layer group="Walkers\Group_097" image="Image_0000"/>
-        <layer src="Papyrus_Cart_Getting_NE_Layer_02" x="14" y="2"/>
-    </image>
-</assetlist>

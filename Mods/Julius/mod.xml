@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mod>
+    <name value="Julius" />
+    <description value="Caesar 3 base content and compatibility definitions." />
+    <version value="4.0.0" />
+    <dependencies />
+</mod>

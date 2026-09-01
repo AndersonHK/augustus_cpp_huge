@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Industry\Gold_Mine_C_ON">
-    <image id="Gold_Mine_C_OFF" width="118" height="67" isometric="true" group="Industry\Gold_Mine_C_OFF" image="Gold_Mine_C_OFF"/>
-    <image id="Gold_Mine_C_ON" width="118" height="67" isometric="true" group="Industry\Gold_Mine_C_OFF" image="Gold_Mine_C_ON"/>
-</assetlist>

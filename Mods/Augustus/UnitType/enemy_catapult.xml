@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="enemy_catapult">
-    <figure type="enemy_catapult" />
-    <combat><health value="200" /><attack value="1" /><defense value="0" /><armor value="20" /></combat>
-    <abilities>
-        <melee exposed_back_bonus="4" />
-        <ranged range="10" cooldown="200" damage="10" launch_frame="1" projectile="spear" />
-    </abilities>
-</unit>

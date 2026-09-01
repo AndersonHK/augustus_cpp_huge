@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<building type="grand_temples">
-    <identity name_key="TR_PARAMETER_VALUE_BUILDING_MENU_GRAND_TEMPLES" aliases="all_grand_temples" />
-    <button group="temples" order="200" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_GRAND_TEMPLES" />
-</building>

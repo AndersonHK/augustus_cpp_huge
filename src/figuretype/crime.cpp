@@ -28,6 +28,7 @@
 #include "figure/combat.h"
 #include "figure/formation_enemy.h"
 #include "figure/image.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/tutorial.h"
@@ -37,10 +38,6 @@
 #include "scenario/property.h"
 
 #define MAX_LOOTING_DISTANCE 120
-
-static const int CRIMINAL_OFFSETS[] = {
-    0, 0, 1, 2, 3, 4, 5, 6, 7, 7, 6, 5, 4, 3, 2, 1
-};
 
 typedef struct {
     Building *building;
@@ -315,16 +312,16 @@ void figure_protestor_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
         f->image_offset = 0;
     }
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
-    } else {
-        f->select_legacy_frame_image(
-            image_group(GROUP_FIGURE_CRIMINAL) + 104,
-            CRIMINAL_OFFSETS[f->image_offset / 4]);
-    }
+    figure_protestor_update_graphics(f);
 }
 
-static void set_criminal_image(Figure *f)
+void figure_protestor_update_graphics(Figure *f)
+{
+    if (f->action_state == FIGURE_ACTION_149_CORPSE) figure_runtime_graphics_select_corpse_entry(f, "corpse");
+    else figure_runtime_graphics_select_default_entry_frame(f, "gesture", f->image_offset / 4 + 1);
+}
+
+void figure_criminal_update_graphics(Figure *f)
 {
     int dir;
     if (f->direction == DIR_FIGURE_ATTACK) {
@@ -336,17 +333,13 @@ static void set_criminal_image(Figure *f)
     }
     dir = figure_image_normalize_direction(dir);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
+        figure_runtime_graphics_select_corpse_entry(f, "corpse");
     } else if (f->direction == DIR_FIGURE_ATTACK) {
-        f->select_legacy_frame_image(
-            image_group(GROUP_FIGURE_CRIMINAL) + 104,
-            CRIMINAL_OFFSETS[f->image_offset % 16]);
+        figure_runtime_graphics_select_default_entry_frame(f, "gesture", f->image_offset % 16 + 1);
     } else if (f->action_state == FIGURE_ACTION_121_RIOTER_MOVING || f->action_state == FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT || f->action_state == FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB) {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CRIMINAL), dir, f->image_offset);
+        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     } else {
-        f->select_legacy_frame_image(
-            image_group(GROUP_FIGURE_CRIMINAL) + 104,
-            CRIMINAL_OFFSETS[f->image_offset / 2]);
+        figure_runtime_graphics_select_default_entry_frame(f, "gesture", f->image_offset / 2 + 1);
     }
 }
 
@@ -416,7 +409,7 @@ void figure_rioter_action(Figure *f)
             break;
     }
 
-    set_criminal_image(f);
+    figure_criminal_update_graphics(f);
 }
 
 void figure_robber_action(Figure *f)
@@ -469,7 +462,7 @@ void figure_robber_action(Figure *f)
             break;
     }
 
-    set_criminal_image(f);
+    figure_criminal_update_graphics(f);
 }
 
 void figure_looter_action(Figure *f)
@@ -520,7 +513,7 @@ void figure_looter_action(Figure *f)
             break;
     }
 
-    set_criminal_image(f);
+    figure_criminal_update_graphics(f);
 }
 
 

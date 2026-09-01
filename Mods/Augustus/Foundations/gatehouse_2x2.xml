@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="gatehouse_2x2" width="2" height="2" rotates="true" default_permissions="all" configurable_permissions="all">
-    <profile symbol="R" requires="road_wall_or_land" adds="building road gatehouse" passage="owner_controlled" />
-    <rows><row cells="RR" /><row cells="RR" /></rows>
-</foundation>
-

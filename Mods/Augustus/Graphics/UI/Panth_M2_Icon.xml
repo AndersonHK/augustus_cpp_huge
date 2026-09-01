@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Panth_M2_Icon">
-    <image id="Panth M2 Icon">
-        <layer src="Panth_M2_Icon"/>
-    </image>
-</assetlist>

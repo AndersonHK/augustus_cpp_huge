@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\s_pond_north_on">
-    <image id="s pond north off" isometric="true" group="Aesthetics\s_pond_north_off" image="s pond north off"/>
-    <image id="s pond north on" isometric="true" group="Aesthetics\s_pond_north_off" image="s pond north on"/>
-</assetlist>

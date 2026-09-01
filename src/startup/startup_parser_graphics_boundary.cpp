@@ -7,6 +7,7 @@
 #include "graphics/screen.h"
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 namespace {
@@ -25,7 +26,22 @@ std::array<StartupAtlas, ATLAS_MAX> g_startup_atlases;
 graphics_renderer_interface g_startup_renderer = {};
 int g_startup_renderer_installed = 0;
 int g_next_startup_image_handle = 1;
+std::vector<std::uint64_t> g_startup_image_fingerprints(1, 0);
 constexpr int STARTUP_MAX_PACKED_IMAGE_SIZE = 64000;
+
+std::uint64_t image_fingerprint(const color_t *pixels, int width, int height)
+{
+    constexpr std::uint64_t FNV_OFFSET = 14695981039346656037ull;
+    constexpr std::uint64_t FNV_PRIME = 1099511628211ull;
+    std::uint64_t fingerprint = FNV_OFFSET;
+    const std::size_t byte_count = static_cast<std::size_t>(width) * height * sizeof(color_t);
+    const auto *bytes = reinterpret_cast<const unsigned char *>(pixels);
+    for (std::size_t index = 0; index < byte_count; ++index) {
+        fingerprint = (fingerprint ^ bytes[index]) * FNV_PRIME;
+    }
+    fingerprint = (fingerprint ^ static_cast<std::uint64_t>(width)) * FNV_PRIME;
+    return (fingerprint ^ static_cast<std::uint64_t>(height)) * FNV_PRIME;
+}
 
 void reset_startup_atlas(StartupAtlas &atlas, atlas_type type)
 {
@@ -111,17 +127,20 @@ void startup_renderer_free_image_atlas(atlas_type type)
 
 void startup_renderer_upload_image_resource(image *img, const color_t *pixels, int width, int height)
 {
-    (void) pixels;
-    (void) width;
-    (void) height;
-    if (img) {
-        img->resource_handle = g_next_startup_image_handle++;
+    if (!img || !pixels || width <= 0 || height <= 0) return;
+    img->resource_handle = g_next_startup_image_handle++;
+    if (g_startup_image_fingerprints.size() <= static_cast<std::size_t>(img->resource_handle)) {
+        g_startup_image_fingerprints.resize(static_cast<std::size_t>(img->resource_handle) + 1, 0);
     }
+    g_startup_image_fingerprints[static_cast<std::size_t>(img->resource_handle)] = image_fingerprint(pixels, width, height);
 }
 
 void startup_renderer_release_image_resource(image *img)
 {
     if (img) {
+        if (img->resource_handle > 0 && static_cast<std::size_t>(img->resource_handle) < g_startup_image_fingerprints.size()) {
+            g_startup_image_fingerprints[static_cast<std::size_t>(img->resource_handle)] = 0;
+        }
         img->resource_handle = 0;
     }
 }
@@ -145,6 +164,12 @@ int startup_renderer_should_pack_image(int width, int height)
 } // namespace
 
 namespace startup_parser {
+
+std::uint64_t image_resource_fingerprint(image_handle handle)
+{
+    return handle > 0 && static_cast<std::size_t>(handle) < g_startup_image_fingerprints.size() ?
+        g_startup_image_fingerprints[static_cast<std::size_t>(handle)] : 0;
+}
 
 void install_graphics_validation_renderer()
 {

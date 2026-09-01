@@ -8,5 +8,15 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics assetlist="Walkers\architect" />
+    <graphics>
+        <default>
+            <path value="Walkers\architect" />
+        </default>
+        <action state="work_camp_architect_working" frame_count="12" min_wait_ticks="2">
+            <path value="Walkers\architect" />
+        </action>
+        <corpse frame_count="5">
+            <path value="Walkers\architect" />
+        </corpse>
+    </graphics>
 </figure>

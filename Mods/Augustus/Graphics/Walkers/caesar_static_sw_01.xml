@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\caesar_static_sw_01">
-    <image id="caesar_static_sw_01" width="39" height="39">
-        <layer src="caesar_static_sw_01" x="12" y="4"/>
-    </image>
-</assetlist>

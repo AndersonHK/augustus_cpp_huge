@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\GoldShield">
-    <image id="GoldShield">
-        <layer src="GoldShield"/>
-    </image>
-</assetlist>

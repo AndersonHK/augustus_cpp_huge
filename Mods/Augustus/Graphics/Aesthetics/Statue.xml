@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\Statue">
-    <image id="V Small Statue" isometric="true">
-        <layer group="Aesthetics\Statue" image="Image_0000" part="footprint"/>
-        <layer group="Aesthetics\Statue" image="Image_0000" part="top"/>
-    </image>
-</assetlist>

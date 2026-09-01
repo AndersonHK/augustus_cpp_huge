@@ -45,7 +45,7 @@ The current full clean-run command used for validation is:
 
 ```powershell
 .\x64\Release\AugustusGraphicsExtractor.exe `
-    --game-root 'D:\Games\GOG Games\Caesar 3' `
+    --game-root '<game install path>' `
     --julius-graphics 'extracted_graphics_sample\Julius\Graphics' `
     --output 'extracted_graphics_sample\Augustus\Graphics' `
     --extract-julius-first
@@ -67,6 +67,7 @@ Harness output rules:
 
 - Repository-side extraction output belongs only under `extracted_graphics_sample`; an installed game may use its own runtime `Mods` output tree.
 - Extractors must never write generated files into this checkout's authored `Mods` tree or a build-output copy of it.
+- A checkout-path guard must reject any output path beneath source `Mods`, including when the caller passes it explicitly.
 - Augustus extraction is forced by default.
 - The harness does not write an Augustus stamp unless `--stamp` or `--extract-julius-first` is passed.
 - `--extract-julius-first` calls `image_load_climate()` for the central, northern, and desert main graphics packages. The explicit configured Augustus call becomes a stamped freshness/source-path check, so the normal clean-run output has three Julius summaries and one Augustus summary.
@@ -216,7 +217,7 @@ This supports future mods that override a single image entry in a lower stack gr
 
 ## Current Validation Baseline
 
-Against the current `D:\Games\GOG Games\Caesar 3\assets\Graphics` sample:
+Against the current `<game install path>\assets\Graphics` sample:
 
 ```text
 Julius:   257 XML, 9129 PNG, 8584 logical images
@@ -285,7 +286,7 @@ foreach ($target in $targets) {
 }
 
 .\x64\Release\AugustusGraphicsExtractor.exe `
-    --game-root 'D:\Games\GOG Games\Caesar 3' `
+    --game-root '<game install path>' `
     --julius-graphics 'extracted_graphics_sample\Julius\Graphics' `
     --output 'extracted_graphics_sample\Augustus\Graphics' `
     --extract-julius-first

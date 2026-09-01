@@ -39,12 +39,16 @@ figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_rout
 // Executes a native FigureType controller; returns zero when legacy action should handle it.
 int figure_runtime_execute(Figure *f);
 
-// Updates legacy-action figures from their XML graphics policy.
-int figure_runtime_update_graphics(Figure *f);
-
 // Runtime-owned semantic presentation for XML-authored figure graphics.
 // cart_image_id is maintained only as the existing save/load bridge.
 void figure_runtime_graphics_begin_update(Figure *f);
+void figure_runtime_graphics_select_default_entry(Figure *f, const char *image_id);
+void figure_runtime_graphics_select_default_entry_frame(Figure *f, const char *image_id, int one_based_frame);
+void figure_runtime_graphics_set_default_offset(Figure *f, int x, int y);
+void figure_runtime_graphics_add_required_layer(Figure *f, const char *role, const char *image_id, int one_based_frame, int x, int y, int draw_before_base);
+void figure_runtime_graphics_select_directional_entry_frame(Figure *f, const char *state_id, int direction, int one_based_frame);
+void figure_runtime_graphics_select_corpse_entry(Figure *f, const char *image_id);
+void figure_runtime_graphics_hide_default_entry(Figure *f);
 void figure_runtime_graphics_show_empty_cart(Figure *f);
 void figure_runtime_graphics_show_resource_cart(Figure *f);
 void figure_runtime_graphics_hide_cart(Figure *f);

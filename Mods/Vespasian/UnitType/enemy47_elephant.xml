@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="enemy47_elephant">
-    <figure type="enemy47_elephant" />
-    <combat><health value="200" /><attack value="20" /><defense value="5" /><armor value="8" /></combat>
-    <abilities><melee exposed_back_bonus="4" /></abilities>
-</unit>

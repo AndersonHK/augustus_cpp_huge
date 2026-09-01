@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Warriors\catapult_fr_nw_04">
-    <image id="catapult_nw_01" width="80" height="80" group="Warriors\catapult_nw_01" image="catapult_nw_01"/>
-    <image id="catapult_rock_nw_01" group="Warriors\catapult_nw_01" image="catapult_rock_nw_01"/>
-    <image id="catapult_fr_nw_04" width="80" height="80" group="Warriors\catapult_nw_01" image="catapult_fr_nw_04"/>
-    <image id="catapult_fr_nw_05" group="Warriors\catapult_nw_01" image="catapult_fr_nw_05"/>
-    <image id="catapult_fr_nw_08" width="80" height="80" group="Warriors\catapult_nw_01" image="catapult_fr_nw_08"/>
-</assetlist>

@@ -2,7 +2,7 @@
 
 This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`. For water access type identity and mask propagation after the save table resolves, see `docs/water_access_runtime.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xbf`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
 
 ## Top-Level Flow
 
@@ -48,7 +48,7 @@ Save-version gates are append/order gates. Adding, removing, resizing, or reorde
 
 ## Live Save Pieces
 
-This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb9` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
+This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xc6` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
 
 | # | Piece | Gate | Size allocation | C | Writer | Loader / consumer | Runtime data |
 | --- | --- | --- | --- | --- | --- | --- | --- |

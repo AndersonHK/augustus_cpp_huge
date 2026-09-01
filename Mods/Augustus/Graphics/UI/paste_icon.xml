@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\paste_icon">
-    <image id="paste_icon" width="16" height="16">
-        <layer src="paste_icon" x="1"/>
-    </image>
-</assetlist>

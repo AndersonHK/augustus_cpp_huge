@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\quartermaster_portrait">
-    <image id="quartermaster_portrait">
-        <layer group="UI\Big_People" image="Image_0007"/>
-        <layer src="quartermaster_portrait_Layer_02" x="15" y="9"/>
-    </image>
-</assetlist>

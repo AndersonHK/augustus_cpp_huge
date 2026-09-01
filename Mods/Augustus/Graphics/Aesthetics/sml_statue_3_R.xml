@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\sml_statue_3_R">
-    <image id="sml statue 2 R" isometric="true" group="Aesthetics\sml_statue_2_R" image="sml statue 2 R"/>
-    <image id="sml statue 3 R" isometric="true" group="Aesthetics\sml_statue_2_R" image="sml statue 3 R"/>
-</assetlist>

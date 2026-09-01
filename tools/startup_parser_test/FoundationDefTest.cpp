@@ -379,6 +379,25 @@ bool validate_foundation_rotation_contract()
         return false;
     }
 
+    const FoundationDef *roadblock_definition = find_foundation_definition("roadblock_1x1");
+    RoadblockState roadblock_state;
+    if (!roadblock_definition || roadblock_definition->default_permissions() != 0 ||
+        !roadblock_definition->configurable_permissions()) {
+        std::cerr << "Roadblock default-permission contract failed: authored roadblocks must start closed.\n";
+        return false;
+    }
+    roadblock_state.configure("roadblock_1x1", roadblock_definition->default_permissions(), roadblock_definition->configurable_permissions());
+    if (roadblock_state.permissions()) {
+        std::cerr << "Roadblock runtime-state contract failed: a new configured roadblock accepted walker types.\n";
+        return false;
+    }
+    roadblock_state.accept_all();
+    roadblock_state.configure("replacement_roadblock", roadblock_definition->default_permissions(), roadblock_definition->configurable_permissions());
+    if (roadblock_state.permissions()) {
+        std::cerr << "Roadblock runtime-state contract failed: a new definition identity inherited permissive state.\n";
+        return false;
+    }
+
     FoundationState state;
     state.begin_publication(11, 12, 5);
     FoundationTerrainDelta delta;
@@ -790,7 +809,8 @@ bool validate_foundation_rotation_contract()
         std::string(farm->foundation_def()->path()) != "land_2x2" ||
         std::string(field->foundation_def()->path()) != "meadow_1x1" ||
         field->foundation_def()->cells().size() != 1 ||
-        field->foundation_def()->cells().front().required_terrain != TERRAIN_MEADOW) {
+        field->foundation_def()->cells().front().required_terrain != TERRAIN_MEADOW ||
+        !field->foundation_def()->cells().front().binds_building) {
         std::cerr << "Foundation registry contract failed: Vespasian farm meadow ownership changed.\n";
         return false;
     }

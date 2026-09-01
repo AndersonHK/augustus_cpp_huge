@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\auxinf_banner_05">
-    <image id="auxinf_banner_05">
-        <layer src="auxinf_banner_05_Layer_01"/>
-        <layer src="auxinf_banner_05_Layer_02" x="4" y="3"/>
-    </image>
-</assetlist>

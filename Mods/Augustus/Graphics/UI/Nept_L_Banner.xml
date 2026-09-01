@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Nept_L_Banner">
-    <image id="Nept L Banner">
-        <layer src="Nept_L_Banner"/>
-    </image>
-</assetlist>

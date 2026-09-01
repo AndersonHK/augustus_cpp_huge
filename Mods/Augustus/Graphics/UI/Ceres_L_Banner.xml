@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Ceres_L_Banner">
-    <image id="Ceres L Banner">
-        <layer src="Ceres_L_Banner"/>
-    </image>
-</assetlist>

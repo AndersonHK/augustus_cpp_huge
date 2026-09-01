@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\Barkeep_Portrait">
-    <image id="Barkeep Portrait">
-        <layer group="UI\Big_People" image="Image_0002"/>
-        <layer src="Barkeep_Portrait_Layer_02" x="18" y="14"/>
-    </image>
-</assetlist>

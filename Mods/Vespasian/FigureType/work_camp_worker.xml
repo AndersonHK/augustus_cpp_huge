@@ -9,14 +9,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics max_image_offset="12">
-        <default>
-            <path value="Walkers\overseer_{dir}_{frame}" />
-            <image value="overseer_{dir}_{frame}" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\overseer" />
         </default>
         <corpse frame_count="4">
-            <path value="Walkers\overseer_death_{frame}" />
-            <image value="overseer_death_{frame}" />
+            <path value="Walkers\overseer" />
         </corpse>
     </graphics>
 </figure>

@@ -746,6 +746,11 @@ void building_runtime_debug_dump(FILE *file)
         Building &building = instance->building;
         const ::building *record = building.record();
         const building_type_registry_impl::BuildingType *definition = instance->definition();
+        const building_type_registry_impl::GraphicsTarget *graphics_target =
+            definition && definition->has_graphic() ? definition->graphics().resolve_target(building) : nullptr;
+        Building *surface_origin = record && map_grid_is_valid_offset(record->grid_offset) &&
+                map_building_exists_at(record->grid_offset) ?
+            &map_building_at(record->grid_offset) : nullptr;
         const RubbleState *rubble_state = building.Rubble ? building.Rubble->state() : nullptr;
         const int foundation_rotation = building.Foundation && building.Foundation->state().is_published()
             ? building.Foundation->state().rotation()
@@ -797,6 +802,10 @@ void building_runtime_debug_dump(FILE *file)
         fprintf(file, "      \"road_access_y\": %d,\n", record ? record->road_access_y : 0);
         fprintf(file, "      \"unknown_value\": %d,\n", record ? record->unknown_value : 0);
         fprintf(file, "      \"graphics_variant\": %u,\n", instance->graphics_variant());
+        fprintf(file, "      \"graphics_target_path\": ");
+        write_debug_json_string(file, graphics_target ? graphics_target->path() : nullptr);
+        fprintf(file, ",\n");
+        fprintf(file, "      \"surface_origin_building_id\": %u,\n", surface_origin ? static_cast<unsigned int>(surface_origin->id) : 0);
         fprintf(file, "      \"formation_id\": %d,\n", record ? record->formation_id : 0);
         fprintf(file, "      \"figure_id\": %u,\n", record ? record->figure_id : 0);
         fprintf(file, "      \"figure_id2\": %u,\n", record ? record->figure_id2 : 0);

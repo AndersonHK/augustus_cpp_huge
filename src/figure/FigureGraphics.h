@@ -78,7 +78,6 @@ enum class FigureResourceCartPresentation {
 
 struct FigureResourceCartGraphics {
     int enabled = 0;
-    int empty_image_group = 0;
     std::string empty_path;
     const ImageGroupPayload *empty_payload = nullptr;
     FigureResourceCartSource resource_source = FigureResourceCartSource::None;
@@ -103,9 +102,26 @@ struct FigureResourceCartGraphics {
 
 class FigureGraphicsState {
 public:
+    struct SelectedLayer {
+        std::string role;
+        std::string entry;
+        int frame = 0;
+        GraphicsPoint offset = {};
+        int draw_before_base = 0;
+    };
+
     void bind(Figure &figure, const FigureGraphics *graphics);
     int is_bound_to(const Figure &figure) const;
-    void begin_cart_update();
+    void begin_update();
+    void select_default_entry(std::string image_id, int frame = 0);
+    void hide_default_entry();
+    const char *selected_default_entry() const;
+    int selected_default_frame() const;
+    void set_default_offset(GraphicsPoint offset);
+    GraphicsPoint selected_default_offset() const;
+    void add_required_layer(std::string role, std::string entry, int frame, GraphicsPoint offset, int draw_before_base);
+    const std::vector<SelectedLayer> &selected_layers() const;
+    int default_entry_hidden() const;
     void show_empty_cart();
     void show_resource_cart();
     void hide_cart();
@@ -117,6 +133,11 @@ private:
     Figure *owner_ = nullptr;
     unsigned short created_sequence_ = 0;
     const FigureGraphics *graphics_ = nullptr;
+    std::string selected_default_entry_;
+    int selected_default_frame_ = 0;
+    GraphicsPoint selected_default_offset_ = {};
+    std::vector<SelectedLayer> selected_layers_;
+    int default_entry_hidden_ = 0;
     FigureResourceCartPresentation cart_presentation_ = FigureResourceCartPresentation::Hidden;
 };
 
@@ -138,7 +159,6 @@ struct FigureDirectionalPoseGraphics {
 
 struct FigureDirectionalGraphics {
     int enabled = 0;
-    int image_group = 0;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
     int default_base_image_offset = 0;
@@ -158,7 +178,6 @@ struct FigureDirectionalGraphics {
 struct FigureGraphicsStateLayer {
     std::string role;
     int action_state = 0;
-    int image_group = 0;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
     int base_image_offset = 0;
@@ -173,7 +192,6 @@ struct FigureGraphicsStateLayer {
 
 struct FigureGraphicsOverlay {
     std::string role;
-    int image_group = 0;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
     FigureOverlayDirection direction = FigureOverlayDirection::Static;
@@ -226,7 +244,6 @@ struct FigureGraphicsLayerSet {
 
 struct FigureStandardFlagGraphics {
     figure_type unit_type = FIGURE_NONE;
-    int image_group = 0;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
     int moving_base_offset = 0;
@@ -248,7 +265,6 @@ struct FigureStandardGraphics {
 struct FigureMapFlagMarkerGraphics {
     int resource_min = 0;
     int resource_max_exclusive = 0;
-    int image_group = 0;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
     int image_offset = 0;
@@ -270,48 +286,6 @@ struct FigureMapFlagGraphics {
     int number_for(int resource_id) const;
     int legacy_base_image_offset(int view_orientation, int image_offset) const;
     int covers_authored_range() const;
-};
-
-struct FigureHippodromeTeamGraphics {
-    int resource_min = 0;
-    int resource_max_exclusive = 0;
-    int horse_image_group = 0;
-    int cart_image_group = 0;
-    std::string horse_path;
-    std::string cart_path;
-    const ImageGroupPayload *horse_payload = nullptr;
-    const ImageGroupPayload *cart_payload = nullptr;
-};
-
-struct FigureHippodromeOffsetSchedule {
-    int orientation = 0;
-    std::array<int, 7> max_wait_ticks = {};
-    std::array<int, 7> x = {};
-    std::array<int, 7> y = {};
-
-    GraphicsPoint offset_for(int wait_ticks) const;
-};
-
-struct FigureHippodromeGraphics {
-    int enabled = 0;
-    int resource_min = 0;
-    int resource_max_exclusive = 0;
-    int horse_view_adjustments = 0;
-    int cart_view_adjustments = 0;
-    int frame_stride = 0;
-    int cart_direction_offset = 0;
-    std::array<int, 8> cart_offsets_x = {};
-    std::array<int, 8> cart_offsets_y = {};
-    std::vector<FigureHippodromeTeamGraphics> teams;
-    std::vector<FigureHippodromeOffsetSchedule> offset_schedules;
-
-    const FigureHippodromeTeamGraphics *team_for(int resource_id) const;
-    const FigureHippodromeOffsetSchedule *schedule_for(int orientation) const;
-    int covers_authored_range() const;
-    int is_complete() const;
-    int horse_image_offset(int raw_direction, int view_orientation, int image_offset) const;
-    int cart_image_offset(int raw_direction, int view_orientation) const;
-    GraphicsPoint cart_draw_offset(int raw_direction, int view_orientation) const;
 };
 
 class FigureGraphics : public GraphicsDefinition {
@@ -353,6 +327,11 @@ public:
     static int corpse_frame_for_wait_ticks(int wait_ticks);
     static int missile_launcher_frame_for(const Figure &figure);
 
+    GraphicsAssetReference &asset_target(GraphicsTargetRole role);
+    const GraphicsAssetReference &asset_target(GraphicsTargetRole role) const;
+    int asset_target_allows_empty(GraphicsTargetRole role) const;
+    const ImageGroupEntry *asset_entry(GraphicsTargetRole role, const char *image_id) const;
+
     int add_overlay(FigureGraphicsOverlay overlay);
     const std::vector<FigureGraphicsOverlay> &overlays() const;
     FigureGraphicsLayer legacy_overlay_layer(
@@ -378,19 +357,6 @@ public:
     int add_map_flag_marker(FigureMapFlagMarkerGraphics marker);
     const FigureMapFlagGraphics &map_flag() const;
     FigureGraphicsLayerSet legacy_map_flag_layers(const Figure &figure) const;
-    int configure_hippodrome(
-        int resource_min,
-        int resource_max_exclusive,
-        int horse_view_adjustments,
-        int cart_view_adjustments,
-        int frame_stride,
-        int cart_direction_offset,
-        std::array<int, 8> hippodrome_cart_offsets_x,
-        std::array<int, 8> hippodrome_cart_offsets_y);
-    int add_hippodrome_team(FigureHippodromeTeamGraphics team);
-    int add_hippodrome_offset_schedule(FigureHippodromeOffsetSchedule schedule);
-    const FigureHippodromeGraphics &hippodrome() const;
-    FigureGraphicsLayerSet legacy_hippodrome_layers(const Figure &figure) const;
     int configure_missile_launcher(
         FigureMissileLauncherCursor cursor,
         int frame_divisor,
@@ -413,34 +379,18 @@ public:
     FigureGraphicsLayer directional_layer(const Figure &figure) const;
     GraphicsPoint directional_sprite_offset(const Figure &figure) const;
 
-    int image_group = 0;
-    asset_id image_asset = ASSET_MAX_KEY;
-    std::string assetlist_path;
-    int runtime_selected_image = 0;
-    int runtime_selected_empty_is_hidden = 0;
-    int runtime_selected_image_group = 0;
-    std::string runtime_selected_source;
-    const ImageGroupPayload *runtime_selected_payload = nullptr;
-    std::string path_pattern;
-    std::string image_pattern;
     int action_state = 0;
     int action_frame_count = 0;
     int action_min_wait_ticks = 0;
     int action_min_missile_wait_ticks = 0;
-    int action_image_group = 0;
-    int action_image_group_offset = 0;
-    std::string action_path_pattern;
-    std::string action_image_pattern;
-    int image_group_offset = 0;
+    int action_entry_offset = 0;
+    int default_entry_offset = 0;
     int max_image_offset = 12;
     int payload_frame_count = 0;
     int direction_frame_stride = 8;
     int static_frame_count = 0;
-    int corpse_image_group = 0;
-    asset_id corpse_image_asset = ASSET_MAX_KEY;
-    std::string corpse_path_pattern;
-    std::string corpse_image_pattern;
-    int corpse_image_group_offset = 96;
+    int default_allows_empty = 0;
+    int corpse_entry_offset = 96;
     int corpse_frame_count = 0;
     CartGraphicsMode cart_mode = CartGraphicsMode::None;
     std::array<int, 8> cart_offsets_x = {};
@@ -453,14 +403,9 @@ public:
     int action_source_count() const;
     int corpse_source_count() const;
     int has_native_payload() const;
-    int uses_runtime_selected_image() const;
-    int runtime_selected_image_may_be_hidden() const;
-    FigureGraphicsLayer runtime_selected_layer(int legacy_image_id) const;
     int has_action_native_payload() const;
     int has_corpse_native_payload() const;
     int action_graphics_matches(int figure_action_state, int wait_ticks, int missile_wait_ticks = 0) const;
-    int has_legacy_default_source() const;
-    int has_legacy_resource_cart_graphics() const;
     int has_resource_cart_graphics() const;
     GraphicsPoint legacy_resource_cart_layer_offset(int cart_direction, int carried_loads) const;
     RuntimeDrawSlice legacy_resource_cart_slice(resource_type resource, int carried_loads, int cart_direction) const;
@@ -482,8 +427,6 @@ public:
         int image_offset,
         int corpse_frame_offset) const;
     int legacy_image_id_for_figure_direction(const Figure &figure, int direction) const;
-    int apply_legacy_image_state_for_direction(Figure &figure, int direction) const;
-    int apply_legacy_image_state(Figure &figure) const;
     void apply_legacy_prefect_service_image_state(Figure &figure, int direction) const;
     void apply_legacy_entertainment_image_state(Figure &figure, int direction) const;
     GraphicsTargetRole target_role_for_action_state(int figure_action_state, int wait_ticks, int missile_wait_ticks = 0) const;
@@ -506,6 +449,9 @@ public:
     std::vector<GraphicsTargetBinding> corpse_target_bindings;
 
 private:
+    GraphicsAssetReference default_asset_target_;
+    GraphicsAssetReference action_asset_target_;
+    GraphicsAssetReference corpse_asset_target_;
     FigureMissileLauncherGraphics missile_launcher_;
     FigureResourceCartGraphics resource_cart_;
     FigureDirectionalGraphics directional_;
@@ -513,7 +459,6 @@ private:
     std::vector<FigureGraphicsStateLayer> state_layer_definitions;
     FigureStandardGraphics standard_definition;
     FigureMapFlagGraphics map_flag_definition;
-    FigureHippodromeGraphics hippodrome_definition;
 };
 
 }

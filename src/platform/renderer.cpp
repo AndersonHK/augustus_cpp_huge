@@ -2053,12 +2053,13 @@ static void create_renderer_interface(void)
     graphics_renderer_set_interface(&data.renderer_interface);
 }
 
-int platform_renderer_init(SDL_Window *window)
+int platform_renderer_init(SDL_Window *window, int vsync)
 {
     free_all_textures();
 
     SDL_Log("Creating renderer");
-    data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+    const Uint32 flags = SDL_RENDERER_ACCELERATED | (vsync ? SDL_RENDERER_PRESENTVSYNC : 0);
+    data.renderer = SDL_CreateRenderer(window, -1, flags);
     if (!data.renderer) {
         SDL_Log("Unable to create renderer, trying software renderer: %s", SDL_GetError());
         data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);

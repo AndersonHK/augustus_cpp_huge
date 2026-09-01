@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\marketbuyer_sw_03">
-    <image id="marketbuyer_sw_03">
-        <layer group="Walkers\Group_106" image="Image_0020"/>
-        <layer src="marketbuyer_sw_03_Layer_02" x="14" y="10"/>
-    </image>
-</assetlist>

@@ -1,7 +1,7 @@
 # Codex Augustus repository map and implementation memory
 
 Snapshot: 2026-06-27
-Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
+Workspace: <repository checkout>
 
 ## Top-level layout that matters now
 - `src/` - main game source tree

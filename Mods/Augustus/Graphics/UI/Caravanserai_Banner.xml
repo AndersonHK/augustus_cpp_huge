@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Caravanserai_Banner">
-    <image id="Caravanserai Banner">
-        <layer src="Caravanserai_Banner"/>
-    </image>
-</assetlist>

@@ -2465,8 +2465,6 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::BuildRotation;
     } else if (compare_text(selection, "connectable") == 0) {
         option_selection = GraphicsOptionSelection::Connectable;
-    } else if (compare_text(selection, "storage_load") == 0) {
-        option_selection = GraphicsOptionSelection::StorageLoad;
     } else if (compare_text(selection, "orientation") == 0) {
         option_selection = GraphicsOptionSelection::Orientation;
     } else if (compare_text(selection, "production_progress") == 0) {

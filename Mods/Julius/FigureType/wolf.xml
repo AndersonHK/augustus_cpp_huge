@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="wolf" graphics_only="true">
+    <graphics>
+        <default>
+            <path value="Environment\wolf" />
+        </default>
+        <corpse>
+            <path value="Environment\wolf" />
+        </corpse>
+    </graphics>
+</figure>

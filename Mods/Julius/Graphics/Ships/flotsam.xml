@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="Ships\flotsam">
+    <image id="wood" group="Ships\Group_153" image="Image_0000">
+        <animation>
+            <frame group="Ships\Group_153" image="Image_0000" />
+            <frame group="Ships\Group_153" image="Image_0001" />
+            <frame group="Ships\Group_153" image="Image_0002" />
+            <frame group="Ships\Group_153" image="Image_0003" />
+            <frame group="Ships\Group_153" image="Image_0004" />
+            <frame group="Ships\Group_153" image="Image_0004" />
+            <frame group="Ships\Group_153" image="Image_0004" />
+            <frame group="Ships\Group_153" image="Image_0003" />
+            <frame group="Ships\Group_153" image="Image_0002" />
+            <frame group="Ships\Group_153" image="Image_0001" />
+            <frame group="Ships\Group_153" image="Image_0000" />
+            <frame group="Ships\Group_153" image="Image_0000" />
+        </animation>
+    </image>
+    <image id="neptune_sheep" group="Ships\Group_242" image="Image_0000">
+        <animation>
+            <frame group="Ships\Group_242" image="Image_0000" />
+            <frame group="Ships\Group_242" image="Image_0001" />
+            <frame group="Ships\Group_242" image="Image_0002" />
+            <frame group="Ships\Group_242" image="Image_0003" />
+            <frame group="Ships\Group_242" image="Image_0004" />
+            <frame group="Ships\Group_242" image="Image_0004" />
+            <frame group="Ships\Group_242" image="Image_0004" />
+            <frame group="Ships\Group_242" image="Image_0003" />
+            <frame group="Ships\Group_242" image="Image_0002" />
+            <frame group="Ships\Group_242" image="Image_0001" />
+            <frame group="Ships\Group_242" image="Image_0000" />
+            <frame group="Ships\Group_242" image="Image_0000" />
+        </animation>
+    </image>
+    <image id="cargo_a" group="Ships\Group_154" image="Image_0000">
+        <animation>
+            <frame group="Ships\Group_154" image="Image_0000" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0002" />
+            <frame group="Ships\Group_154" image="Image_0002" />
+            <frame group="Ships\Group_154" image="Image_0003" />
+            <frame group="Ships\Group_154" image="Image_0003" />
+            <frame group="Ships\Group_154" image="Image_0004" />
+            <frame group="Ships\Group_154" image="Image_0004" />
+            <frame group="Ships\Group_154" image="Image_0004" />
+            <frame group="Ships\Group_154" image="Image_0003" />
+            <frame group="Ships\Group_154" image="Image_0002" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0000" />
+            <frame group="Ships\Group_154" image="Image_0000" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0002" />
+            <frame group="Ships\Group_154" image="Image_0002" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0001" />
+            <frame group="Ships\Group_154" image="Image_0000" />
+            <frame group="Ships\Group_154" image="Image_0000" />
+            <frame group="Ships\Group_154" image="Image_0000" />
+        </animation>
+    </image>
+    <image id="cargo_b" group="Ships\Group_155" image="Image_0000">
+        <animation>
+            <frame group="Ships\Group_155" image="Image_0000" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0002" />
+            <frame group="Ships\Group_155" image="Image_0002" />
+            <frame group="Ships\Group_155" image="Image_0003" />
+            <frame group="Ships\Group_155" image="Image_0003" />
+            <frame group="Ships\Group_155" image="Image_0004" />
+            <frame group="Ships\Group_155" image="Image_0004" />
+            <frame group="Ships\Group_155" image="Image_0004" />
+            <frame group="Ships\Group_155" image="Image_0003" />
+            <frame group="Ships\Group_155" image="Image_0002" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0000" />
+            <frame group="Ships\Group_155" image="Image_0000" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0002" />
+            <frame group="Ships\Group_155" image="Image_0002" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0001" />
+            <frame group="Ships\Group_155" image="Image_0000" />
+            <frame group="Ships\Group_155" image="Image_0000" />
+            <frame group="Ships\Group_155" image="Image_0000" />
+        </animation>
+    </image>
+    <image id="debris" group="Ships\Group_156" image="Image_0000">
+        <animation>
+            <frame group="Ships\Group_156" image="Image_0000" />
+            <frame group="Ships\Group_156" image="Image_0000" />
+            <frame group="Ships\Group_156" image="Image_0001" />
+            <frame group="Ships\Group_156" image="Image_0001" />
+            <frame group="Ships\Group_156" image="Image_0002" />
+            <frame group="Ships\Group_156" image="Image_0002" />
+            <frame group="Ships\Group_156" image="Image_0003" />
+            <frame group="Ships\Group_156" image="Image_0003" />
+            <frame group="Ships\Group_156" image="Image_0004" />
+            <frame group="Ships\Group_156" image="Image_0004" />
+        </animation>
+    </image>
+</assetlist>

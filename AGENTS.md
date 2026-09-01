@@ -6,3 +6,12 @@
 - The startup gate must load a representative set of recent `.svv` and legacy `.sav` files, advance and render each city headlessly for several thousand frames, and fail on any warning or error emitted during load or the soak.
 - Save bridges must keep older and recoverably inconsistent saves loadable. Log every repair as a warning, repair the serialized/runtime relationship at load, and fix the runtime producer so the next save is clean; do not strand a usable save merely because the warning was persisted.
 - Renderer compatibility fallbacks are temporary bug indicators. Converted paths require a zero-fallback validation threshold; do not normalize fallback counters or logs as successful output.
+
+## Proprietary graphics boundary
+
+- Never extract, copy, stage, commit, archive, or otherwise materialize Caesar 3 or packaged Augustus graphics inside this repository's `Mods` tree. Generated XML, cropped PNGs, atlases, manifests, and extraction stamps are runtime/build artifacts, not source assets.
+- Runtime extraction may write only outside the checkout, normally beneath the installed game at `<game install path>\Mods\Julius\Graphics` and `<game install path>\Mods\Augustus\Graphics`, or beneath the ignored `extracted_graphics_sample` validation directory.
+- Source XML should refer to runtime-extracted logical groups directly when that fully represents the asset. Authored bridge/backport XMLs may live under `Mods/*/Graphics` when no clean direct-reference representation exists; the Julius low/ship bridge definitions are intentional examples. Do not add wrappers that only duplicate an extracted group.
+- Authored graphics directories are source directories, not extraction destinations. They may contain Vespasian-owned graphics, redistribution-safe backport fixes, and necessary authored bridge compositions. Verify provenance before adding any bitmap.
+- Before any graphics-related commit, inspect the staged paths and reject generated `Group_*` trees, extraction stamps/manifests, bulk graphics XML/PNG output, and any asset whose redistribution rights are not established.
+- The historical Augustus graphics import beginning at commit `fb138c6440c81a4aa5ad44cc12601484e2089b0d` is an incident to remove from all published Git history; do not use that commit's graphics blobs as source material.

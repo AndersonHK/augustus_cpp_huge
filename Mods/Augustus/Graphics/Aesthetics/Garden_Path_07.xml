@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\Garden_Path_07">
-    <image id="Garden Path 07" isometric="true">
-        <layer src="Garden_Path_07" part="footprint"/>
-    </image>
-</assetlist>

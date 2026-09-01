@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Terrain_Maps\Low_Bridge_R_Back">
-    <image id="Low_Bridge_R_Back" isometric="true">
-        <layer src="Low_Bridge_R_Back" part="footprint" rotate="90"/>
-    </image>
-</assetlist>

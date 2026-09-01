@@ -9,7 +9,9 @@
         </profile>
     </profiles>
     <graphics>
-        <default path_pattern="PaperMap\Group_139" image_pattern="{legacy_entry}" max_image_offset="16" payload_frame_count="1" />
+        <default max_image_offset="16" payload_frame_count="1">
+            <path value="PaperMap\Group_139" />
+        </default>
         <map_flag resource_min="1" resource_max_exclusive="26" base_direction="0" view_adjustments="1" frame_divisor="2" frame_stride="1" number_x="6" number_y="7">
             <marker resource_min="1" resource_max_exclusive="2" path="PaperMap\Group_140" image_offset="0" number_base="0" />
             <marker resource_min="2" resource_max_exclusive="3" path="PaperMap\Group_140" image_offset="2" number_base="0" />

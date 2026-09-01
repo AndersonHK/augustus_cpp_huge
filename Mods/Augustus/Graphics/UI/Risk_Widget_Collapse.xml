@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Risk_Widget_Collapse">
-    <image id="Risk_Widget_Collapse" width="24" height="24">
-        <layer src="Risk_Widget_Collapse" y="2"/>
-    </image>
-</assetlist>

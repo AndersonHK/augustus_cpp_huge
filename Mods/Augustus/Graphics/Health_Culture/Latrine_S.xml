@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Health_Culture\Latrine_S">
-    <image id="Latrine_S" width="58" height="39" isometric="true">
-        <layer src="Latrine_S_Layer_01" part="footprint"/>
-        <layer src="Latrine_S_Layer_02" y="17" part="top"/>
-    </image>
-</assetlist>

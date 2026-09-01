@@ -94,7 +94,6 @@ struct ImageGroupDoc {
     xml_asset_source source = XML_ASSET_SOURCE_AUTO;
     std::vector<std::string> ordered_ids;
     std::unordered_map<std::string, ImageEntryDef> entries;
-    ImageGroupFigureGraphicsContract figure_graphics_contract;
 };
 
 struct MergedImageGroup {

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="trade_caravan_donkey" graphics_only="true">
-    <graphics assetlist="Walkers\trade_caravan" />
+    <graphics>
+        <default>
+            <path value="Walkers\Group_130" />
+        </default>
+    </graphics>
 </figure>

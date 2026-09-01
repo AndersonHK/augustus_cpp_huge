@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Industry\Gold_Cart_Getting_NW">
-    <image id="Gold_Cart_Getting_NW" width="39" height="39">
-        <layer group="Walkers\Group_097" image="Image_0006"/>
-        <layer src="Gold_Cart_Getting_NW_Layer_02" x="9" y="4"/>
-    </image>
-</assetlist>

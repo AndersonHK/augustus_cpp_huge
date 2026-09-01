@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="highway_2x2" width="2" height="2" rotates="true">
-    <profile symbol="A" requires="road_or_land" permits="aqueduct" adds="highway_top_left" removes="road" binds="false" />
-    <profile symbol="B" requires="road_or_land" permits="aqueduct" adds="highway_top_right" removes="road" binds="false" />
-    <profile symbol="C" requires="road_or_land" permits="aqueduct" adds="highway_bottom_left" removes="road" binds="false" />
-    <profile symbol="D" requires="road_or_land" permits="aqueduct" adds="highway_bottom_right" removes="road" binds="false" />
-    <rows><row cells="AB" /><row cells="CD" /></rows>
-</foundation>

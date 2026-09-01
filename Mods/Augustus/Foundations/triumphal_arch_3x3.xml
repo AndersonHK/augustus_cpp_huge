@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="triumphal_arch_3x3" width="3" height="3" rotates="true" default_permissions="all" configurable_permissions="all">
-    <profile symbol="L" requires="road_or_land" adds="building" />
-    <profile symbol="R" requires="road_or_land" adds="building road" passage="owner_controlled" />
-    <rows><row cells="LRL" /><row cells="LRL" /><row cells="LRL" /></rows>
-</foundation>
-

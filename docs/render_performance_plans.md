@@ -74,10 +74,10 @@ Goal: make high-resolution, HDR, shaded, large-city rendering viable long term. 
 The design constraint is no longer the original 1 source pixel to 1 logical pixel world. Vespasian should eventually be able to replace legacy art with assets that are 6x larger horizontally and vertically, or 36x the source pixels, while preserving the same logical footprint on screen. That makes CPU-side per-sprite scaling, atlas bleed, immediate-mode draw submission, and movement/render math that assumes integer source-pixel offsets unacceptable as the final architecture.
 
 CityBuilder reference:
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\docs\design\vulkan-migration-plan.md`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\docs\design\renderer.md`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\VulkanRendererSupport.h`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\RendererPayload.h`
+- `<legacy renderer repository>\docs\design\vulkan-migration-plan.md`
+- `<legacy renderer repository>\docs\design\renderer.md`
+- `<legacy renderer repository>\City Builder\VulkanRendererSupport.h`
+- `<legacy renderer repository>\City Builder\RendererPayload.h`
 
 Platform target:
 - The long-term Vespasian target should be modern Vulkan-capable hardware across
@@ -119,6 +119,8 @@ Hardware rendering targets:
 - Upload native image groups into persistent GPU resources. Atlas fallback may exist only as a temporary compatibility bridge; final rendering should not depend on atlas sub-rect sampling.
 - Prefer texture arrays or descriptor-indexed image tables for image-group frames, terrain variants, figures, buildings, UI, and weather.
 - Use persistent per-object/per-tile instance buffers with revision counters. Dirty objects update their own records; stable objects remain resident.
+- Compile XML paths plus named entries into stable GPU resource/material indices. Gameplay publishes compact semantic state (pose, direction, frame, variant, resource, color, and ordered layers); shader tables turn that state into atlas UVs and layer draws without restoring CPU-side absolute image-ID mutation.
+- Keep simulation decisions on the CPU. Shaders may select declared frames/layers and apply presentation policy, but must not decide gameplay state transitions.
 - Track renderer metrics from day one: draw calls, instance count, texture bindings, descriptor updates, staging bytes, upload waits, command build time, render thread time, and GPU frame time.
 
 Parallelism targets:

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<religion>
-    <god path="mars" />
-    <tier value="grand" />
-    <capacity amount="5000" />
-    <presentation sound="wavs/temple_war.wav" name_key="TR_BUILDING_GRAND_TEMPLE_MARS_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_MARS_BONUS_DESC" quote_key="TR_BUILDING_MARS_TEMPLE_QUOTE" banner_group="UI\Mars_L_Banner" banner_image="Mars L Banner" content_y_offset="150" height_blocks="46" module_key="mars" />
-</religion>

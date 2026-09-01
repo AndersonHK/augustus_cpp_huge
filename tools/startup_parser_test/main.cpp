@@ -1,4 +1,5 @@
 #include "startup/startup_parser_abi.h"
+#include "startup/startup_parser_graphics_test.h"
 
 #include "assets/image_group_payload.h"
 #include "building/BuildingGraphicsState.h"
@@ -6,6 +7,7 @@
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/type.h"
+#include "graphics/GraphicsDefinition.h"
 #include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
@@ -21,6 +23,7 @@
 #include "housing_transition_planner_test.h"
 #include "housing_profile_registry_layering_test.h"
 #include "mod_definition_loader_test.h"
+#include "mod_metadata_test.h"
 #include "plague_runtime_contract_test.h"
 #include "production_method_layering_test.h"
 #include "resource_layering_test.h"
@@ -54,7 +57,7 @@ struct Options {
     std::filesystem::path game_root;
     bool dump_building_graphics_metadata = false;
     int save_soak_count = 3;
-    int save_soak_frames = 3000;
+    int save_soak_ticks = 3000;
 };
 
 struct StartupEnvironmentSnapshot {
@@ -179,7 +182,7 @@ bool validate_relationship_contract()
 void print_usage()
 {
     std::cout
-        << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-frames <count>] [--dump-building-graphics-metadata]\n\n"
+        << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-ticks <count>] [--dump-building-graphics-metadata]\n\n"
         << "Runs the headless startup XML/registry parse sequence and representative save soaks from the installed game folder.\n";
 }
 
@@ -212,12 +215,12 @@ int parse_options(int argc, char **argv, Options &options)
             options.dump_building_graphics_metadata = true;
             continue;
         }
-        if (arg == "--save-soak-count" || arg == "--save-soak-frames") {
+        if (arg == "--save-soak-count" || arg == "--save-soak-ticks" || arg == "--save-soak-frames") {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for " << arg << ".\n";
                 return -1;
             }
-            int &target = arg == "--save-soak-count" ? options.save_soak_count : options.save_soak_frames;
+            int &target = arg == "--save-soak-count" ? options.save_soak_count : options.save_soak_ticks;
             if (!parse_positive_count(argv[++i], target)) {
                 std::cerr << "Invalid positive count for " << arg << ".\n";
                 return -1;
@@ -887,6 +890,351 @@ bool validate_native_auxiliary_soldier_graphics()
     return true;
 }
 
+bool image_group_entry_is_drawable(const ImageGroupEntry *entry)
+{
+    if (!entry) return false;
+    const RuntimeDrawSlice *footprint = entry->footprint();
+    if (!entry->has_animation()) return footprint && footprint->is_valid();
+    if (entry->animation().frame_count() <= 0) return false;
+    for (int frame = 1; frame <= entry->animation().frame_count(); frame++) {
+        if (!entry->animation().frame_slice_at_offset(frame).is_valid()) return false;
+    }
+    return true;
+}
+
+bool validate_named_asset_entries(const char *path, const std::vector<std::string> &entry_ids)
+{
+    if (!image_group_payload_load(path)) {
+        std::cerr << "Figure asset contract failed: could not load " << path << ".\n";
+        return false;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(path);
+    for (const std::string &entry_id : entry_ids) {
+        if (!image_group_entry_is_drawable(payload ? payload->entry_for(entry_id.c_str()) : nullptr)) {
+            std::cerr << "Figure asset contract failed: " << path << " entry " << entry_id << " is missing or not drawable.\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+std::string extracted_image_name(int offset)
+{
+    char image[32];
+    std::snprintf(image, sizeof(image), "Image_%04d", offset);
+    return image;
+}
+
+bool runtime_slices_match(const RuntimeDrawSlice &actual, const RuntimeDrawSlice &expected)
+{
+    const std::uint64_t actual_fingerprint = startup_parser::image_resource_fingerprint(actual.handle);
+    const std::uint64_t expected_fingerprint = startup_parser::image_resource_fingerprint(expected.handle);
+    return actual_fingerprint && actual_fingerprint == expected_fingerprint &&
+        actual.width == expected.width && actual.height == expected.height &&
+        actual.draw_offset_x == expected.draw_offset_x && actual.draw_offset_y == expected.draw_offset_y &&
+        actual.is_isometric == expected.is_isometric &&
+        actual.fixed_logical_size.width == expected.fixed_logical_size.width &&
+        actual.fixed_logical_size.height == expected.fixed_logical_size.height;
+}
+
+bool validate_semantic_sequence_matches_legacy_offsets(
+    const char *semantic_path,
+    const std::string &semantic_entry_id,
+    const char *extracted_group,
+    const std::vector<int> &legacy_offsets)
+{
+    if (!image_group_payload_load(semantic_path) || !image_group_payload_load(extracted_group)) return false;
+    const ImageGroupPayload *semantic_payload = image_group_payload_get(semantic_path);
+    const ImageGroupPayload *extracted_payload = image_group_payload_get(extracted_group);
+    const ImageGroupEntry *semantic_entry = semantic_payload ? semantic_payload->entry_for(semantic_entry_id.c_str()) : nullptr;
+    if (!semantic_entry || !semantic_entry->has_animation() ||
+        semantic_entry->animation().frame_count() != static_cast<int>(legacy_offsets.size())) {
+        std::cerr << "Legacy image-selection parity failed: " << semantic_path << " entry " << semantic_entry_id
+            << " has the wrong animation length.\n";
+        return false;
+    }
+    for (std::size_t frame = 0; frame < legacy_offsets.size(); ++frame) {
+        const std::string expected_id = extracted_image_name(legacy_offsets[frame]);
+        const ImageGroupEntry *expected_entry = extracted_payload ? extracted_payload->entry_for(expected_id.c_str()) : nullptr;
+        const RuntimeDrawSlice *expected_slice = expected_entry ? expected_entry->footprint() : nullptr;
+        const RuntimeDrawSlice actual_slice = semantic_entry->animation().frame_slice_at_offset(static_cast<int>(frame) + 1, 0);
+        if (!expected_slice || !runtime_slices_match(actual_slice, *expected_slice)) {
+            std::cerr << "Legacy image-selection parity failed: " << semantic_path << " entry " << semantic_entry_id
+                << " frame " << (frame + 1) << " does not select " << extracted_group << "\\" << expected_id << ".\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool validate_semantic_static_matches_legacy_offset(
+    const char *semantic_path,
+    const std::string &semantic_entry_id,
+    const char *extracted_group,
+    int legacy_offset)
+{
+    if (!image_group_payload_load(semantic_path) || !image_group_payload_load(extracted_group)) return false;
+    const ImageGroupPayload *semantic_payload = image_group_payload_get(semantic_path);
+    const ImageGroupPayload *extracted_payload = image_group_payload_get(extracted_group);
+    const ImageGroupEntry *semantic_entry = semantic_payload ? semantic_payload->entry_for(semantic_entry_id.c_str()) : nullptr;
+    const std::string expected_id = extracted_image_name(legacy_offset);
+    const ImageGroupEntry *expected_entry = extracted_payload ? extracted_payload->entry_for(expected_id.c_str()) : nullptr;
+    const RuntimeDrawSlice *actual_slice = semantic_entry ? semantic_entry->footprint() : nullptr;
+    const RuntimeDrawSlice *expected_slice = expected_entry ? expected_entry->footprint() : nullptr;
+    if (!actual_slice || !expected_slice || !runtime_slices_match(*actual_slice, *expected_slice)) {
+        std::cerr << "Legacy image-selection parity failed: " << semantic_path << " entry " << semantic_entry_id
+            << " does not select " << extracted_group << "\\" << expected_id << ".\n";
+        return false;
+    }
+    return true;
+}
+
+std::vector<int> direction_major_offsets(int direction, int base, int frame_count)
+{
+    std::vector<int> offsets;
+    for (int frame = 0; frame < frame_count; ++frame) offsets.push_back(base + direction + 8 * frame);
+    return offsets;
+}
+
+std::vector<int> linear_offsets(int base, int frame_count)
+{
+    std::vector<int> offsets;
+    for (int frame = 0; frame < frame_count; ++frame) offsets.push_back(base + frame);
+    return offsets;
+}
+
+bool validate_legacy_figure_image_selection_parity()
+{
+    static const char *const directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    static const int criminal_gesture_offsets[] = { 0, 0, 1, 2, 3, 4, 5, 6, 7, 7, 6, 5, 4, 3, 2, 1 };
+    static const int flotsam_wood_offsets[] = { 0, 1, 2, 3, 4, 4, 4, 3, 2, 1, 0, 0 };
+    static const int flotsam_cargo_offsets[] = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 3, 2, 1, 0, 0, 1, 1, 2, 2, 1, 1, 0, 0, 0 };
+    static const int flotsam_debris_offsets[] = { 0, 0, 1, 1, 2, 2, 3, 3, 4, 4 };
+
+    for (int direction = 0; direction < 8; ++direction) {
+        const std::string suffix = directions[direction];
+        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "move_" + suffix,
+                "Environment\\Group_234", direction_major_offsets(direction, 0, 12)) ||
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "attack_" + suffix,
+                "Environment\\Group_234", direction_major_offsets(direction, 104, 6)) ||
+            !validate_semantic_static_matches_legacy_offset("Environment\\wolf", "rest_" + suffix,
+                "Environment\\Group_234", 152 + direction) ||
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "move_" + suffix,
+                "Environment\\Group_235", direction_major_offsets(direction, 0, 12)) ||
+            !validate_semantic_static_matches_legacy_offset("Environment\\zebra", "alternate_rest_" + suffix,
+                "Environment\\Group_235", direction) ||
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "move_" + suffix,
+                "Environment\\Group_233", direction_major_offsets(direction, 0, 6)) ||
+            !validate_semantic_static_matches_legacy_offset("Environment\\sheep", "alternate_rest_" + suffix,
+                "Environment\\Group_233", 96 + direction) ||
+            !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "move_" + suffix,
+                "Walkers\\Group_115", direction_major_offsets(direction, 0, 12))) return false;
+
+        std::vector<int> zebra_rest;
+        std::vector<int> sheep_rest;
+        for (int tick = 0; tick < 64; ++tick) {
+            const int common = tick < 2 ? 0 : tick < 4 ? 1 : tick < 6 ? 2 : tick < 52 ? 3 : tick < 56 ? 4 : -13;
+            zebra_rest.push_back(104 + direction + 8 * common);
+            const int sheep = tick < 2 ? 0 : tick < 4 ? 1 : tick < 6 ? 2 : tick < 52 ? 3 : tick < 54 ? 4 : tick < 56 ? 5 : -1;
+            sheep_rest.push_back(48 + direction + 8 * sheep);
+        }
+        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "rest_" + suffix,
+                "Environment\\Group_235", zebra_rest) ||
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "rest_" + suffix,
+                "Environment\\Group_233", sheep_rest)) return false;
+
+        for (const char *team : { "blue", "red" }) {
+            const int horse_group = std::strcmp(team, "blue") == 0 ? 217 : 218;
+            const int cart_group = std::strcmp(team, "blue") == 0 ? 219 : 220;
+            const std::string horse_path = "Walkers\\Group_" + std::to_string(horse_group);
+            const std::string cart_path = "Walkers\\Group_" + std::to_string(cart_group);
+            if (!validate_semantic_sequence_matches_legacy_offsets("Walkers\\hippodrome_horses",
+                    std::string("horse_") + team + "_" + suffix, horse_path.c_str(),
+                    direction_major_offsets(direction, 0, 8)) ||
+                !validate_semantic_static_matches_legacy_offset("Walkers\\hippodrome_horses",
+                    std::string("cart_") + team + "_" + suffix, cart_path.c_str(), direction)) return false;
+        }
+    }
+
+    std::vector<int> criminal_gesture_legacy_offsets;
+    for (int offset : criminal_gesture_offsets) criminal_gesture_legacy_offsets.push_back(104 + offset);
+    if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "corpse", "Environment\\Group_234", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "corpse", "Environment\\Group_235", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "corpse", "Environment\\Group_233", { 104, 105, 106, 107, 108, 109, 110, 111 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "corpse", "Walkers\\Group_115", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "gesture", "Walkers\\Group_115",
+            criminal_gesture_legacy_offsets) ||
+        !validate_semantic_sequence_matches_legacy_offsets("FX\\explosion", "cloud", "FX\\Group_102", linear_offsets(0, 8)) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\fish_gulls", "variant_a", "Environment\\Group_206",
+            linear_offsets(0, 18)) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\fish_gulls", "variant_b", "Environment\\Group_206",
+            linear_offsets(18, 24)) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "wood", "Ships\\Group_153",
+            std::vector<int>(std::begin(flotsam_wood_offsets), std::end(flotsam_wood_offsets))) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "neptune_sheep", "Ships\\Group_242",
+            std::vector<int>(std::begin(flotsam_wood_offsets), std::end(flotsam_wood_offsets))) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "cargo_a", "Ships\\Group_154",
+            std::vector<int>(std::begin(flotsam_cargo_offsets), std::end(flotsam_cargo_offsets))) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "cargo_b", "Ships\\Group_155",
+            std::vector<int>(std::begin(flotsam_cargo_offsets), std::end(flotsam_cargo_offsets))) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "debris", "Ships\\Group_156",
+            std::vector<int>(std::begin(flotsam_debris_offsets), std::end(flotsam_debris_offsets)))) return false;
+
+    std::cout << "Validated native semantic image selection against committed legacy group formulas.\n" << std::flush;
+    return true;
+}
+
+bool validate_semantic_figure_graphics_contract()
+{
+    static const char *const directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    std::vector<std::string> wolf_entries;
+    std::vector<std::string> zebra_entries;
+    std::vector<std::string> sheep_entries;
+    std::vector<std::string> hippodrome_entries;
+    for (const char *direction : directions) {
+        wolf_entries.emplace_back(std::string("move_") + direction);
+        wolf_entries.emplace_back(std::string("attack_") + direction);
+        wolf_entries.emplace_back(std::string("rest_") + direction);
+        for (std::vector<std::string> *entries : { &zebra_entries, &sheep_entries }) {
+            entries->emplace_back(std::string("move_") + direction);
+            entries->emplace_back(std::string("rest_") + direction);
+            entries->emplace_back(std::string("alternate_rest_") + direction);
+        }
+        for (const char *team : { "blue", "red" }) {
+            hippodrome_entries.emplace_back(std::string("horse_") + team + "_" + direction);
+            hippodrome_entries.emplace_back(std::string("cart_") + team + "_" + direction);
+        }
+    }
+    wolf_entries.emplace_back("corpse");
+    zebra_entries.emplace_back("corpse");
+    sheep_entries.emplace_back("corpse");
+
+    if (!validate_named_asset_entries("Environment\\wolf", wolf_entries) ||
+        !validate_named_asset_entries("Environment\\zebra", zebra_entries) ||
+        !validate_named_asset_entries("Environment\\sheep", sheep_entries) ||
+        !validate_named_asset_entries("Environment\\fish_gulls", { "variant_a", "variant_b" }) ||
+        !validate_named_asset_entries("Ships\\flotsam", { "wood", "neptune_sheep", "cargo_a", "cargo_b", "debris" }) ||
+        !validate_named_asset_entries("Walkers\\hippodrome_horses", hippodrome_entries)) {
+        return false;
+    }
+
+    std::vector<std::string> missionary_entries;
+    for (int frame = 0; frame < 104; frame++) {
+        char image[32];
+        std::snprintf(image, sizeof(image), "Image_%04d", frame);
+        missionary_entries.emplace_back(image);
+    }
+    if (!validate_named_asset_entries("Walkers\\Group_230", missionary_entries)) return false;
+
+    GraphicsAssetReference reference;
+    reference.set_path("Environment\\wolf");
+    reference.set_image("move_ne");
+    if (!reference.has_logical_asset_path() || !reference.cache_asset_binding() || !reference.cached_entry()) {
+        std::cerr << "Shared asset-reference contract failed: a valid logical FigureType asset reference did not bind.\n";
+        return false;
+    }
+    reference.set_image("horse_blue_ne");
+    if (reference.cache_asset_binding() || reference.cached_entry()) {
+        std::cerr << "Runtime-selected graphics contract failed: entry lookup escaped the referenced XML asset.\n";
+        return false;
+    }
+    reference.set_path("Environment\\wolf.xml");
+    if (reference.has_logical_asset_path() || reference.cache_asset_binding()) {
+        std::cerr << "Shared asset-reference contract failed: file-extension paths must be rejected.\n";
+        return false;
+    }
+
+    std::cout << "Validated semantic animal, missionary, gull, flotsam, and two-layer hippodrome assets in every direction.\n" << std::flush;
+    return true;
+}
+
+bool validate_synthetic_figure_lifecycle_graphics_contract()
+{
+    int figure_type_count = 0;
+    int live_binding_count = 0;
+    int corpse_binding_count = 0;
+    int specialized_live_count = 0;
+    int no_corpse_presentation_count = 0;
+    std::vector<std::string> specialized_live_types;
+    std::vector<std::string> types_without_corpse_presentation;
+    const auto intentionally_non_corporeal = [](figure_type type) {
+        switch (type) {
+            case FIGURE_FORT_STANDARD:
+            case FIGURE_FISHING_BOAT:
+            case FIGURE_MAP_FLAG:
+            case FIGURE_HIPPODROME_HORSES:
+                return true;
+            default:
+                return false;
+        }
+    };
+    const auto validate_role = [&](const figure_type_registry_impl::FigureTypeDefinition &definition,
+                                   const figure_type_registry_impl::FigureGraphics &graphics,
+                                   GraphicsTargetRole role,
+                                   int &binding_count) {
+        const int frame_count = graphics.target_frame_count(role);
+        for (int direction = 0; direction < GRAPHICS_DIRECTION8_COUNT; direction++) {
+            for (int frame = 1; frame <= frame_count; frame++) {
+                const figure_type_registry_impl::GraphicsTargetBinding *binding =
+                    graphics.cached_target_binding(role, direction, frame);
+                if (!binding || !binding->is_complete() || !binding->is_resolved() ||
+                    !binding->resolved_slice().is_valid()) {
+                    std::cerr << "Synthetic FigureType lifecycle render failed: figure=" << definition.attr()
+                        << " state=" << (role == GraphicsTargetRole::Corpse ? "dead" : "alive")
+                        << " direction=" << graphics_direction8_suffix(direction)
+                        << " frame=" << frame << ".\n";
+                    return false;
+                }
+                binding_count++;
+            }
+        }
+        return true;
+    };
+
+    for (int value = 1; value < FIGURE_TYPE_MAX; value++) {
+        const auto type = static_cast<figure_type>(value);
+        const figure_type_registry_impl::FigureTypeDefinition *definition =
+            figure_type_registry_impl::definition_for(type);
+        if (!definition) continue;
+        figure_type_count++;
+        const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
+        if (graphics.has_native_payload()) {
+            if (!validate_role(*definition, graphics, GraphicsTargetRole::Default, live_binding_count)) return false;
+        } else {
+            specialized_live_count++;
+            specialized_live_types.emplace_back(definition->attr());
+        }
+        if (graphics.has_corpse_native_payload()) {
+            if (!validate_role(*definition, graphics, GraphicsTargetRole::Corpse, corpse_binding_count)) return false;
+        } else if (intentionally_non_corporeal(type)) {
+            no_corpse_presentation_count++;
+            types_without_corpse_presentation.emplace_back(definition->attr());
+        } else {
+            std::cerr << "Synthetic FigureType lifecycle render failed: corporeal figure has no dead presentation: figure="
+                << definition->attr() << " corpse_sources=" << graphics.corpse_source_count()
+                << " corpse_path=" << graphics.asset_target(GraphicsTargetRole::Corpse).path() << ".\n";
+            return false;
+        }
+    }
+
+    std::cout << "Synthetically materialized every configured alive/dead FigureType render binding: figure_types="
+        << figure_type_count << " live_bindings=" << live_binding_count
+        << " corpse_bindings=" << corpse_binding_count
+        << " specialized_live_types=" << specialized_live_count
+        << " types_without_corpse_presentation=" << no_corpse_presentation_count << ".\n" << std::flush;
+    if (!specialized_live_types.empty()) {
+        std::cout << "Synthetic lifecycle specialized live renderers:";
+        for (const std::string &type : specialized_live_types) std::cout << ' ' << type;
+        std::cout << ".\n";
+    }
+    if (!types_without_corpse_presentation.empty()) {
+        std::cout << "Synthetic lifecycle explicitly non-corporeal renderers:";
+        for (const std::string &type : types_without_corpse_presentation) std::cout << ' ' << type;
+        std::cout << ".\n";
+    }
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -929,7 +1277,7 @@ int run_hidden_process(const std::filesystem::path &executable, const std::wstri
 }
 #endif
 
-bool run_executable_startup_test(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory)
+bool run_executable_startup_test(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, const char *mod_name)
 {
 #if defined(_WIN32)
     const std::filesystem::path executable = tool_directory / "Vespasian.exe";
@@ -941,21 +1289,30 @@ bool run_executable_startup_test(const std::filesystem::path &game_root, const s
         return false;
     }
 
-    std::cout << "Running executable startup test: " << executable << "\n" << std::flush;
+    std::cout << "Running executable startup test for " << mod_name << ": " << executable << "\n" << std::flush;
 #if defined(_WIN32)
     const std::wstring executable_arg = executable.wstring();
     const std::wstring game_root_arg = game_root.wstring();
-    const std::wstring command_line = L"\"" + executable_arg + L"\" --startup-test --no-audio --mod Vespasian \"" + game_root_arg + L"\"";
+    const std::wstring command_line = L"\"" + executable_arg + L"\" --startup-test --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root_arg + L"\"";
     const int result = run_hidden_process(executable, command_line);
 #else
-    const std::string command = quoted(executable) + " --startup-test --no-audio --mod Vespasian " + quoted(game_root);
+    const std::string command = quoted(executable) + " --startup-test --no-audio --mod " + mod_name + " " + quoted(game_root);
     const int result = std::system(command.c_str());
 #endif
     if (result != 0) {
-        std::cerr << "Executable startup test failed with exit code " << result << ".\n";
+        std::cerr << "Executable startup test for " << mod_name << " failed with exit code " << result << ".\n";
         return false;
     }
-    std::cout << "Executable startup test passed.\n";
+    std::cout << "Executable startup test for " << mod_name << " passed.\n";
+    return true;
+}
+
+bool run_executable_startup_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory)
+{
+    constexpr const char *MOD_STACK_TOPS[] = { "Julius", "Augustus", "Vespasian" };
+    for (const char *mod_name : MOD_STACK_TOPS) {
+        if (!run_executable_startup_test(game_root, tool_directory, mod_name)) return false;
+    }
     return true;
 }
 
@@ -964,6 +1321,21 @@ struct SaveSoakCandidate {
     std::filesystem::file_time_type modified;
     std::string extension;
 };
+
+std::string lowercase(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+    return value;
+}
+
+bool is_required_save_cohort_member(const std::filesystem::path &path)
+{
+    const std::string name = lowercase(path.stem().string());
+    if (name.find("praetor") != std::string::npos || name.find("engineer") != std::string::npos ||
+        name.find("quaestor") != std::string::npos || name.find("questor") != std::string::npos) return true;
+    int aedile_sequence = 0;
+    return std::sscanf(name.c_str(), "aedile 1 %d", &aedile_sequence) == 1 && aedile_sequence >= 3 && aedile_sequence <= 15;
+}
 
 std::vector<std::filesystem::path> discover_save_soak_files(const std::filesystem::path &game_root, int requested_count)
 {
@@ -987,22 +1359,69 @@ std::vector<std::filesystem::path> discover_save_soak_files(const std::filesyste
 
     std::vector<std::filesystem::path> selected;
     if (candidates.empty()) return selected;
-    selected.push_back(candidates.front().path);
     for (const SaveSoakCandidate &candidate : candidates) {
-        if (static_cast<int>(selected.size()) >= requested_count) break;
+        if (is_required_save_cohort_member(candidate.path)) selected.push_back(candidate.path);
+    }
+    const auto append_if_missing = [&selected](const std::filesystem::path &path) {
+        if (std::find(selected.begin(), selected.end(), path) == selected.end()) selected.push_back(path);
+    };
+    append_if_missing(candidates.front().path);
+    for (const SaveSoakCandidate &candidate : candidates) {
         if (candidate.extension != candidates.front().extension) {
-            selected.push_back(candidate.path);
+            append_if_missing(candidate.path);
             break;
         }
     }
+    int representative_count = 0;
     for (const SaveSoakCandidate &candidate : candidates) {
-        if (static_cast<int>(selected.size()) >= requested_count) break;
-        if (std::find(selected.begin(), selected.end(), candidate.path) == selected.end()) selected.push_back(candidate.path);
+        if (representative_count >= requested_count) break;
+        if (!is_required_save_cohort_member(candidate.path)) {
+            append_if_missing(candidate.path);
+            representative_count++;
+        }
     }
     return selected;
 }
 
-bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int frame_count)
+bool run_executable_save_soak_test(const std::filesystem::path &executable, const std::filesystem::path &game_root, const std::filesystem::path &save, const char *mod_name, int tick_count)
+{
+    const std::filesystem::path roundtrip_save = std::filesystem::temp_directory_path() / (std::string("Vespasian-StartupParserTest-") + mod_name + "-roundtrip.svv");
+    std::error_code remove_error;
+    std::filesystem::remove(roundtrip_save, remove_error);
+    std::cout << "Save soak [" << mod_name << "]: " << save << "\n" << std::flush;
+#if defined(_WIN32)
+    const std::wstring command_line = L"\"" + executable.wstring() + L"\" --load-save-test \"" + save.wstring() + L"\" --save-roundtrip-test \"" + roundtrip_save.wstring() + L"\" --save-soak-ticks " + std::to_wstring(tick_count) + L" --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root.wstring() + L"\"";
+    const int result = run_hidden_process(executable, command_line);
+#else
+    const std::string command = quoted(executable) + " --load-save-test " + quoted(save) + " --save-roundtrip-test " + quoted(roundtrip_save) + " --save-soak-ticks " + std::to_string(tick_count) + " --no-audio --mod " + mod_name + " " + quoted(game_root);
+    const int result = std::system(command.c_str());
+#endif
+    if (result != 0) {
+        std::cerr << "Save soak for " << mod_name << " failed with exit code " << result << ": " << save << "\n";
+        std::cerr << "Roundtrip output preserved for diagnosis: " << roundtrip_save << "\n";
+        return false;
+    }
+    std::filesystem::remove(roundtrip_save, remove_error);
+    return true;
+}
+
+bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int tick_count)
+{
+#if defined(_WIN32)
+    const std::filesystem::path executable = tool_directory / "Vespasian.exe";
+#else
+    const std::filesystem::path executable = tool_directory / "Vespasian";
+#endif
+    const std::filesystem::path save = game_root / "savegames" / "Citizen - Julius Only Save.svv";
+    if (!std::filesystem::is_regular_file(save)) {
+        std::cerr << "Dependency-stack save test requires: " << save << "\n";
+        return false;
+    }
+    return run_executable_save_soak_test(executable, game_root, save, "Julius", tick_count) &&
+        run_executable_save_soak_test(executable, game_root, save, "Augustus", tick_count);
+}
+
+bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int tick_count)
 {
 #if defined(_WIN32)
     const std::filesystem::path executable = tool_directory / "Vespasian.exe";
@@ -1014,30 +1433,13 @@ bool run_executable_save_soak_tests(const std::filesystem::path &game_root, cons
         std::cerr << "Save-soak test requires at least one .svv or .sav file under " << (game_root / "savegames") << ".\n";
         return false;
     }
-    std::cout << "Running " << saves.size() << " representative save soak(s) for " << frame_count << " frames each.\n" << std::flush;
+    std::cout << "Running " << saves.size() << " required and representative Vespasian save soak(s) for " << tick_count << " ticks each at 1000% speed.\n" << std::flush;
     bool passed = true;
-    const std::filesystem::path roundtrip_save = std::filesystem::temp_directory_path() / "Vespasian-StartupParserTest-roundtrip.svv";
     for (const std::filesystem::path &save : saves) {
-        std::cout << "Save soak: " << save << "\n" << std::flush;
-        std::error_code remove_error;
-        std::filesystem::remove(roundtrip_save, remove_error);
-#if defined(_WIN32)
-        const std::wstring command_line = L"\"" + executable.wstring() + L"\" --load-save-test \"" + save.wstring() + L"\" --save-roundtrip-test \"" + roundtrip_save.wstring() + L"\" --save-soak-frames " + std::to_wstring(frame_count) + L" --no-audio --mod Vespasian \"" + game_root.wstring() + L"\"";
-        const int result = run_hidden_process(executable, command_line);
-#else
-        const std::string command = quoted(executable) + " --load-save-test " + quoted(save) + " --save-roundtrip-test " + quoted(roundtrip_save) + " --save-soak-frames " + std::to_string(frame_count) + " --no-audio --mod Vespasian " + quoted(game_root);
-        const int result = std::system(command.c_str());
-#endif
-        if (result != 0) {
-            std::cerr << "Save soak failed with exit code " << result << ": " << save << "\n";
-            std::cerr << "Roundtrip output preserved for diagnosis: " << roundtrip_save << "\n";
-            passed = false;
-        } else {
-            std::filesystem::remove(roundtrip_save, remove_error);
-        }
+        if (!run_executable_save_soak_test(executable, game_root, save, "Vespasian", tick_count)) passed = false;
     }
     if (!passed) return false;
-    std::cout << "Representative save soaks passed with zero warnings and errors.\n";
+    std::cout << "Required and representative save soaks passed with zero unallowlisted warnings and errors.\n";
     return true;
 }
 
@@ -1155,9 +1557,7 @@ int run_startup_parser_test(int argc, char **argv)
 
     const std::filesystem::path game_root = std::filesystem::current_path();
     const std::filesystem::path tool_directory = executable_directory(argv[0]);
-    if (!check_extraction_prerequisites(game_root, tool_directory) ||
-        !run_executable_startup_test(game_root, tool_directory) ||
-        !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_frames)) {
+    if (!check_extraction_prerequisites(game_root, tool_directory)) {
         return 1;
     }
 
@@ -1184,6 +1584,9 @@ int run_startup_parser_test(int argc, char **argv)
         std::cerr << "Startup parser test failed.\n";
         return 1;
     }
+    if (!validate_mod_metadata_contract(std::cerr)) {
+        return 1;
+    }
     if (options.dump_building_graphics_metadata) {
         dump_building_graphics_metadata();
         return 0;
@@ -1202,14 +1605,18 @@ int run_startup_parser_test(int argc, char **argv)
     }
     std::cout << "Validated authoritative native graphics for forts, towers, arches, vacant lots, and rubble.\n";
     if (!validate_native_statue_orientation_graphics_contract(std::cerr) ||
+        !validate_native_building_selection_parity(std::cerr) ||
         !validate_native_hippodrome_graphics_contract(std::cerr) ||
         !validate_native_overlay_summary_graphics_contract(std::cerr) ||
         !validate_dock_native_orientation_contract() ||
         !validate_simple_native_building_graphics_contract() ||
         !validate_native_storage_and_fort_base_graphics_contract() ||
-        !validate_colosseum_graphics_contract() ||
-        !validate_figure_owner_contracts() ||
-        !validate_native_auxiliary_soldier_graphics()) {
+         !validate_colosseum_graphics_contract() ||
+         !validate_figure_owner_contracts() ||
+         !validate_semantic_figure_graphics_contract() ||
+         !validate_legacy_figure_image_selection_parity() ||
+         !validate_synthetic_figure_lifecycle_graphics_contract() ||
+         !validate_native_auxiliary_soldier_graphics()) {
         return 1;
     }
     if (!validate_building_type_registry_layering_contract(std::cerr)) {
@@ -1269,6 +1676,11 @@ int run_startup_parser_test(int argc, char **argv)
         return 1;
     }
     if (!validate_access_ramp_road_connection_rules()) {
+        return 1;
+    }
+    if (!run_executable_startup_tests(game_root, tool_directory) ||
+        !run_dependency_stack_save_soak_tests(game_root, tool_directory, options.save_soak_ticks) ||
+        !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_ticks)) {
         return 1;
     }
     std::cout << "Startup parser test passed.\n";

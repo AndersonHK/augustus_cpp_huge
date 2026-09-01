@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Center_Camera_Button">
-    <image id="Center Camera Button" width="26" height="16">
-        <layer src="Center_Camera_Button" x="1" y="3"/>
-    </image>
-</assetlist>

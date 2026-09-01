@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Venus_L_Banner">
-    <image id="Venus L Banner">
-        <layer src="Venus_L_Banner"/>
-    </image>
-</assetlist>

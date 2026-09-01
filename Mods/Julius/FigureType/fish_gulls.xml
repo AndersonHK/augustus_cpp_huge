@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="fish_gulls" graphics_only="true">
+    <graphics>
+        <default>
+            <path value="Environment\fish_gulls" />
+        </default>
+    </graphics>
+</figure>

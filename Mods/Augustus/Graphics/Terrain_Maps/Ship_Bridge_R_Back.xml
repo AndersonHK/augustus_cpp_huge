@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Terrain_Maps\Ship_Bridge_R_Back">
-    <image id="Ship_Bridge_R_Back" isometric="true">
-        <layer src="Ship_Bridge_R_Back" part="footprint"/>
-    </image>
-</assetlist>

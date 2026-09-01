@@ -1,4 +1,3 @@
-#include "building/granary.h"
 #include "building/HousingProfileDef.h"
 #include "building/industry.h"
 #include "map/building_tiles.h"
@@ -43,7 +42,7 @@ void make_building_context(char *buffer, size_t buffer_size, const building_runt
         return;
     }
     const Building &b = runtime->building;
-    const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
+    const building_type_registry_impl::BuildingType *definition = runtime->definition();
     if (b.type) {
         snprintf(
             buffer,
@@ -63,12 +62,12 @@ void log_building_scope_state(void *userdata)
         return;
     }
     const Building &b = runtime->building;
-    const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
+    const building_type_registry_impl::BuildingType *definition = runtime->definition();
     if (!b.type) {
         return;
     }
 
-    const building_type_registry_impl::GraphicsTarget *target = definition && runtime ? definition->graphics().resolve_target(runtime->building) : nullptr;
+    const building_type_registry_impl::GraphicsTarget *target = definition ? definition->graphics().resolve_target(runtime->building) : nullptr;
 
     char details[256];
     const building_type_registry_impl::BuildingGeometry geometry =
@@ -177,22 +176,6 @@ int selected_option_for_selection(
         int option = building_connectable_graphics_option(building);
         return option < 0 ? 0 : option;
     }
-    if (selection == building_type_registry_impl::GraphicsOptionSelection::StorageLoad) {
-        const int empty_loads = building.resource_amount(RESOURCE_NONE);
-        if (empty_loads < QUARTER_GRANARY) {
-            return 4;
-        }
-        if (empty_loads < HALF_GRANARY) {
-            return 3;
-        }
-        if (empty_loads < THREEQUARTERS_GRANARY) {
-            return 2;
-        }
-        if (empty_loads < FULL_GRANARY) {
-            return 1;
-        }
-        return 0;
-    }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
         int option = option_count == 4 ?
             (building.orientation() + city_view_orientation() / 2) % option_count :
@@ -219,6 +202,14 @@ int selected_option_for_selection(
         }
         int percentage = calc_percentage(record->data.industry.progress, max_value);
         percentage = calc_bound(percentage, 0, 100);
+        if (building.Composition && building.Composition->is_child()) {
+            const building_type_registry_impl::CompositionChildDef *child =
+                building.Composition->child_definition();
+            if (child && child->role.rfind("field_", 0) == 0) {
+                return building_type_registry_impl::graphics_farm_field_option_index(
+                    percentage, static_cast<int>(building.Composition->definition_index()), option_count);
+            }
+        }
         int option = percentage * option_count / 101;
         return calc_bound(option, 0, option_count - 1);
     }

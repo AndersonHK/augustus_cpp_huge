@@ -44,6 +44,7 @@
     <ClCompile Include="tools\startup_parser_test\housing_transition_planner_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\housing_profile_registry_layering_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\mod_definition_loader_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\mod_metadata_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\production_method_layering_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\resource_layering_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\religion_layering_test.cpp" />

@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Health_Culture\Theatre_Upgrade_OFF">
-    <image id="Theatre Upgrade OFF" width="118" height="101" isometric="true">
-        <layer group="Health_Culture\Theater" image="Image_0000" y="3" part="footprint"/>
-        <layer group="Health_Culture\Theater" image="Image_0000" y="3" part="top"/>
-        <layer src="Theatre_Upgrade_OFF_Layer_03" x="5" part="top"/>
-    </image>
-</assetlist>

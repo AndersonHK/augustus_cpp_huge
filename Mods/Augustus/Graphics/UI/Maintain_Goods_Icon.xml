@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Maintain_Goods_Icon">
-    <image id="Maintain_Goods_Icon" width="27" height="16" group="UI\Context_Icons" image="Maintain_Goods_Icon"/>
-    <image id="Maintain_Goods_Icon_2" width="27" height="16" group="UI\Context_Icons" image="Maintain_Goods_Icon_2"/>
-</assetlist>

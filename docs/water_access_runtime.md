@@ -19,11 +19,7 @@ The goal is that a building asks the same question everywhere: "given my Buildin
 
 ## Access Type Definitions
 
-Water access type XML lives in:
-
-- `Mods/Augustus/WaterAccessType/*.xml`
-- `Mods/Julius/WaterAccessType/*.xml`
-- `Mods/Vespasian/WaterAccessType/*.xml`
+Water access types form a layered registry. Julius supplies the shared aqueduct, fountain, reservoir, and well definitions; Augustus adds latrines; Vespasian currently inherits both layers without duplicating them. Future mods should likewise contain only additions, replacements, or supported tombstones.
 
 Each file has:
 

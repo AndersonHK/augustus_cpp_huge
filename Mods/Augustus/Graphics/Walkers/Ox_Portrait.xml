@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\Ox_Portrait">
-    <image id="Ox_Portrait">
-        <layer group="UI\Big_People" image="Image_0007"/>
-        <layer src="Ox_Portrait_Layer_02" x="1" y="20"/>
-    </image>
-</assetlist>

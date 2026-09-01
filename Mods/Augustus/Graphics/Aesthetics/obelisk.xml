@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\obelisk">
-    <image id="obelisk" width="118" height="128" isometric="true">
-        <layer src="obelisk_Layer_01" y="66" part="footprint"/>
-        <layer group="Health_Culture\Hippodrome_1" image="Image_0003" x="52" part="top"/>
-        <layer src="obelisk_Layer_03" x="57" y="70" part="top"/>
-    </image>
-</assetlist>

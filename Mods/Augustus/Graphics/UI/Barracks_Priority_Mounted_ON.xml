@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Barracks_Priority_Mounted_ON">
-    <image id="Barracks_Priority_Mounted_OFF" width="40" height="40" group="UI\Barracks_Priority_Mounted_OFF" image="Barracks_Priority_Mounted_OFF"/>
-    <image id="Barracks_Priority_Mounted_ON" width="40" height="40" group="UI\Barracks_Priority_Mounted_OFF" image="Barracks_Priority_Mounted_ON"/>
-</assetlist>

@@ -8,10 +8,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics
-        path_pattern="Walkers\Barkeep_{dir_upper}_{frame}"
-        image_pattern="Barkeep {dir_upper} {frame}"
-        corpse_path_pattern="Walkers\Barkeep_death_{frame}"
-        corpse_image_pattern="Barkeep death {frame}"
-        max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\barkeep" />
+        </default>
+        <corpse>
+            <path value="Walkers\barkeep" />
+        </corpse>
+    </graphics>
 </figure>

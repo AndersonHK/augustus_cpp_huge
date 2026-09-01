@@ -20,6 +20,16 @@ namespace {
 
 std::unordered_map<int, std::vector<BuildingFoundation *>> g_unbound_foundations;
 
+int surface_cell_can_bind_to(Building &building, int grid_offset)
+{
+    if (!map_building_exists_at(grid_offset)) return 1;
+    Building &surface_building = map_building_at(grid_offset);
+    if (surface_building.record() == building.record()) return 1;
+    Building *composition_owner = building.Composition && building.Composition->is_child() ?
+        building.Composition->owner() : nullptr;
+    return composition_owner && surface_building.record() == composition_owner->record();
+}
+
 }
 
 BuildingFoundation::BuildingFoundation(Building &owner, const FoundationDef &definition, FoundationState &state)
@@ -104,8 +114,7 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation)
             return 0;
         }
         const int grid_offset = map_grid_offset(origin_x + cell.x, origin_y + cell.y);
-        if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
-            map_building_at(grid_offset).record() != owner_->record()) {
+        if (cell.definition->binds_building && !surface_cell_can_bind_to(*owner_, grid_offset)) {
             return 0;
         }
     }
@@ -160,8 +169,7 @@ int BuildingFoundation::refresh()
             return 0;
         }
         const int grid_offset = map_grid_offset(origin_x + cell.x, origin_y + cell.y);
-        if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
-            map_building_at(grid_offset).record() != owner_->record()) {
+        if (cell.definition->binds_building && !surface_cell_can_bind_to(*owner_, grid_offset)) {
             return 0;
         }
     }

@@ -8,11 +8,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics
-        path_pattern="Walkers\caravanserai_overseer_{dir}_{frame}"
-        image_pattern="caravanserai_overseer_{dir}_{frame}"
-        corpse_path_pattern="Walkers\caravanserai_overseer_death_{frame}"
-        corpse_image_pattern="caravanserai_overseer_death_{frame}"
-        corpse_frame_count="4"
-        max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\caravanserai_overseer" />
+        </default>
+        <corpse frame_count="4">
+            <path value="Walkers\caravanserai_overseer" />
+        </corpse>
+    </graphics>
 </figure>

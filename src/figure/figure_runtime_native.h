@@ -4,6 +4,7 @@
 #include "graphics/runtime_texture.h"
 
 #include <memory>
+#include <string>
 
 class Figure;
 struct building;
@@ -40,9 +41,14 @@ struct FigureGraphicDrawRequest {
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
     render_logical_unit logical_units_per_source_pixel = 0;
     FigureMapFlagNumberOverlay map_flag_number_overlay = {};
+    int allows_empty = 0;
+    int required_layer_count = 0;
+    std::string missing_layer_role;
 
     bool add_layer(const FigureGraphicDrawLayer &layer);
     bool add_layer(const figure_type_registry_impl::FigureGraphicsLayer &layer);
+    bool has_drawable_content() const;
+    bool is_semantically_complete() const;
     int scaled_sprite_offset_x() const;
     int scaled_sprite_offset_y() const;
     void draw(int x, int y, color_t color_mask, float scale) const;
@@ -56,6 +62,7 @@ private:
 struct FigureGraphicsDebugCounters {
     unsigned long long facade_draw_requests = 0;
     unsigned long long unresolved_draw_requests = 0;
+    unsigned long long incomplete_composite_requests = 0;
 };
 
 namespace figure_runtime_native_impl {
@@ -112,6 +119,6 @@ bool is_road_history_tile(int grid_offset);
 } // namespace figure_runtime_native_impl
 
 bool figure_graphics_resolve_draw_request(const Figure &figure, FigureGraphicDrawRequest &request);
-bool figure_graphics_validate_loaded_core_soldiers();
+bool figure_graphics_validate_loaded_figures();
 FigureGraphicsDebugCounters figure_graphics_debug_counters();
 void figure_graphics_reset_debug_counters();

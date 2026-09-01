@@ -1,7 +1,7 @@
 #include "assets/graphics_extraction_abi.h"
 #include "core/image.h"
 #include "scenario/property.h"
-#include "tools/graphics_extraction_output_policy.h"
+#include "../graphics_extraction_output_policy.h"
 
 #include <filesystem>
 #include <iostream>

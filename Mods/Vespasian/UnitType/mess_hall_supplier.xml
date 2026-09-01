@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="mess_hall_supplier">
-    <figure type="mess_hall_supplier" />
-    <combat><health value="70" /><attack value="8" /><defense value="1" /><armor value="0" /></combat>
-    <abilities><melee exposed_back_bonus="4" /></abilities>
-</unit>

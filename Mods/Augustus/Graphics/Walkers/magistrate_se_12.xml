@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\magistrate_se_12">
-    <image id="magistrate_se_12">
-        <layer group="Walkers\Group_230" image="Image_0090"/>
-        <layer src="magistrate_se_12_Layer_02" x="15" y="7"/>
-    </image>
-</assetlist>

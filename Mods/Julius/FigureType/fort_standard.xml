@@ -9,7 +9,9 @@
         </profile>
     </profiles>
     <graphics>
-        <default path_pattern="Warriors\Group_241" image_pattern="{legacy_entry}" max_image_offset="21" />
+        <default max_image_offset="21">
+            <path value="Warriors\Group_241" />
+        </default>
         <standard moving_frame_divisor="2">
             <flag unit="fort_legionary" path="Warriors\Group_126" moving_base="0" halted_frame="8" />
             <flag unit="fort_javelin" path="Warriors\Group_126" moving_base="9" halted_frame="17" />

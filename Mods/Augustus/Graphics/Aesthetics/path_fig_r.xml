@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\path_fig_r">
-    <image id="path fig r" width="58" height="53" isometric="true">
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="21" part="footprint" invert="horizontal"/>
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="21" part="top" invert="horizontal"/>
-        <layer src="path_fig_r_Layer_03" x="4" part="top"/>
-    </image>
-</assetlist>

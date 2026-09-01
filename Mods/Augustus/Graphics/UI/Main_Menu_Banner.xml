@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Main_Menu_Banner">
-    <image id="Main Menu Banner">
-        <layer src="Main_Menu_Banner"/>
-    </image>
-</assetlist>

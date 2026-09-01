@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="PaperMap\Empire_Trade_Sea">
-    <image id="SeaRouteDot" width="5" height="5">
-        <layer group="PaperMap\Empire_Trade_Sea" image="Image_0007"/>
-    </image>
-</assetlist>

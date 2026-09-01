@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\20Legion_Sea_Goats">
-    <image id="20Legion_Sea_Goats" width="32" height="18">
-        <layer src="20Legion_Sea_Goats" x="3"/>
-    </image>
-</assetlist>

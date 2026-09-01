@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Selection_Checkmark">
-    <image id="Selection_Checkmark" width="12" height="12">
-        <layer src="Selection_Checkmark" x="1" y="1"/>
-    </image>
-</assetlist>

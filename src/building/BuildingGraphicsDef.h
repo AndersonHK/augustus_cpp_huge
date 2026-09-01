@@ -47,7 +47,6 @@ enum class GraphicsOptionSelection {
     StableVariant,
     BuildRotation,
     Connectable,
-    StorageLoad,
     Orientation,
     ProductionProgress,
     StoragePermission,
@@ -72,6 +71,7 @@ int graphics_orientation_option_index(
     int building_orientation,
     int view_orientation,
     int option_count);
+int graphics_farm_field_option_index(int percentage, int field_index, int option_count);
 
 struct GraphicsCondition {
     GraphicsConditionType type = GraphicsConditionType::None;
@@ -94,9 +94,7 @@ struct GraphicsLayerOption {
     int y_offset = 0;
 };
 
-struct GraphicsLayer {
-    void set_path(std::string path);
-    void set_image(std::string image);
+struct GraphicsLayer : public ::GraphicsAssetReference {
     void set_role(std::string role);
     void set_option_selection(GraphicsOptionSelection selection);
     void set_animation_enabled(int enabled);
@@ -105,11 +103,6 @@ struct GraphicsLayer {
     GraphicsLayerOption &add_option();
     void add_condition(GraphicsCondition condition);
 
-    int has_path() const;
-    const char *path() const;
-
-    int has_image() const;
-    const char *image() const;
     int has_role() const;
     const char *role() const;
     int role_is(const char *role) const;
@@ -126,8 +119,6 @@ struct GraphicsLayer {
     GraphicsLayer resolved_option(unsigned char variant) const;
 
 private:
-    std::string path_;
-    std::string image_;
     std::string role_;
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
     int animation_enabled_ = 1;
@@ -140,9 +131,7 @@ private:
 
 // A graphics target is either one direct path/image pair or a set of equivalent
 // options that materialize into one direct target after stable variant selection.
-struct GraphicsTarget {
-    void set_path(std::string path);
-    void set_image(std::string image);
+struct GraphicsTarget : public ::GraphicsAssetReference {
     void set_option_selection(GraphicsOptionSelection selection);
     void set_resource_storage(int value);
     void set_animation_enabled(int enabled);
@@ -151,11 +140,6 @@ struct GraphicsTarget {
     GraphicsTarget &add_option();
     GraphicsLayer &add_layer();
 
-    int has_path() const;
-    const char *path() const;
-
-    int has_image() const;
-    const char *image() const;
     GraphicsOptionSelection option_selection() const;
     int is_resource_storage() const;
     int animation_enabled() const;
@@ -169,8 +153,6 @@ struct GraphicsTarget {
     GraphicsTarget resolved_option(unsigned char variant) const;
 
 private:
-    std::string path_;
-    std::string image_;
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
     int resource_storage_ = 0;
     int animation_enabled_ = 1;

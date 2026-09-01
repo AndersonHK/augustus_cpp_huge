@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Mausoleum_L_Alt_R">
-    <image id="Mausoleum_L_Alt_R" isometric="true">
-        <layer src="Mausoleum_L_Alt_R_Layer_01" part="footprint"/>
-        <layer src="Mausoleum_L_Alt_R_Layer_02" x="31" y="87" part="top"/>
-    </image>
-</assetlist>

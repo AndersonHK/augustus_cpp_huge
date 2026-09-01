@@ -4,8 +4,8 @@ This note records the current resource ownership model after moving resource def
 
 ## Ownership
 
-- `Mods/<Mod>/Resources/*.xml` owns the selected mod's complete resource set.
-- `src/game/resource.cpp` parses those XML files into `resource_data` defaults.
+- `Mods/<Mod>/Resources/*.xml` contributes additions, replacements, or tombstones to the active resource set. Unchanged resources are inherited from lower dependencies.
+- `src/game/resource.cpp` parses every active layer in lower-to-upper order and materializes the winning definitions into `resource_data` defaults.
 - `resource_data` owns resource text id, numeric slot, locale key, flags, default trade prices, and XML attribute name.
 - `ResourceGraphics : GraphicsDefinition` in `src/game/ResourceGraphics.h/.cpp` owns resource presentation icons only: panel icons, empire icons, and editor icons.
 - `BuildingGraphics : GraphicsDefinition` owns the resource storage-stack image refs parsed from resource `<storage>` nodes, because those images draw warehouse/building storage.
@@ -85,29 +85,24 @@ The Julius localization extractor preserves existing `project_keys` in `Mods/Jul
 
 ## Mod Stack Notes
 
-The selected mod must provide a complete `Resources` folder. Vespasian inherits gameplay/content expectations from Augustus and Julius, but `resource_init()` reads the selected mod's resource folder directly.
+`Resources` is a layered registry. Julius owns the shared base resources, Augustus contributes only its additional resource definitions, and Vespasian currently inherits both sets without its own `Resources` folder. A dependent mod should add only changed definitions; an absent folder or file means inheritance, not removal. Where supported, an identity-only `disabled="true"` definition suppresses an inherited resource.
 
-When validating resource names or graphics against the local game install, check `D:\Games\GOG Games\Caesar 3\Mods` as well as the repo. Augustus localization is available there, and Julius localization can be extracted at runtime rather than existing as a checked-in `Localization` folder.
+When validating resource names or graphics against the local game install, check `<game install path>\Mods` as well as the repo. Augustus localization is available there, and Julius localization can be extracted at runtime rather than existing as a checked-in `Localization` folder.
 
 ## City Mint
 
-Denarii production now has XML-owned producer metadata through the City Mint definitions in Augustus and Vespasian:
+Denarii production has XML-owned producer metadata through the City Mint definitions. Vespasian inherits the unchanged production method from Augustus while retaining its own BuildingType override:
 
 - `Mods/Augustus/BuildingType/city_mint.xml`
 - `Mods/Augustus/ProductionMethod/city_mint_basic.xml`
 - `Mods/Augustus/ProductionMethod/city_mint_gold_basic.xml`
 - `Mods/Vespasian/BuildingType/city_mint.xml`
-- `Mods/Vespasian/ProductionMethod/city_mint_basic.xml`
-- `Mods/Vespasian/ProductionMethod/city_mint_gold_basic.xml`
 
 The runtime mint behavior still has specialized monument handling, but producer discovery no longer relies on a resource-owned industry field or a hardcoded resource-to-industry table.
 
 ## Wharf
 
-Fish production now has native BuildingType/ProductionMethod metadata in Julius, Augustus, and Vespasian:
-
-- `Mods/<Mod>/BuildingType/wharf.xml`
-- `Mods/<Mod>/ProductionMethod/fish_wharf_basic.xml`
+Fish production has native BuildingType/ProductionMethod metadata. Each active layer inherits the nearest lower definition unless it supplies an override; there is intentionally no requirement for all three mods to contain matching copies.
 
 The fishing-boat runtime still owns the actual catch loop. The wharf production method supplies semantic producer discovery and monthly-throughput metadata so fish no longer needs a resource-owned production value.
 

@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Health_Culture\Altar_Venus_R">
-    <image id="Altar_Venus_R" width="58" height="89" isometric="true">
-        <layer src="Altar_Venus_R_Layer_01" y="56" part="footprint"/>
-        <layer src="Altar_Venus_R_Layer_02" x="12" part="top"/>
-    </image>
-</assetlist>

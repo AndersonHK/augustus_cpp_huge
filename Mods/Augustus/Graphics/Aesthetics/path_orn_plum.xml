@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\path_orn_plum">
-    <image id="path orn plum" width="58" height="53" isometric="true">
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="21" part="footprint"/>
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="21" part="top"/>
-        <layer src="path_orn_plum_Layer_03" x="2" y="1" part="top"/>
-    </image>
-</assetlist>

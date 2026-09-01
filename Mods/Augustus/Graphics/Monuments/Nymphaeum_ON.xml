@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Nymphaeum_ON">
-    <image id="Nymphaeum OFF" width="178" height="158" isometric="true" group="Monuments\Nymphaeum_OFF" image="Nymphaeum OFF"/>
-    <image id="Nymphaeum ON" width="178" height="158" isometric="true" group="Monuments\Nymphaeum_OFF" image="Nymphaeum ON"/>
-</assetlist>

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Panth_L_Banner">
-    <image id="Panth L Banner">
-        <layer src="Panth_L_Banner"/>
-    </image>
-</assetlist>

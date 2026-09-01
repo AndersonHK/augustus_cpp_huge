@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Formation_UI_Helmet">
-    <image id="Formation_UI_Blank" width="81" height="80" group="UI\Formation_UI_Blank" image="Formation_UI_Blank"/>
-    <image id="Formation_UI_Helmet" width="22" height="16" group="UI\Formation_UI_Blank" image="Formation_UI_Helmet"/>
-    <image id="Formation_UI_Wedge" width="81" height="80" group="UI\Formation_UI_Blank" image="Formation_UI_Wedge"/>
-</assetlist>

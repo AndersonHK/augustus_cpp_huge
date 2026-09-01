@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\BorderWaypoint">
-    <image id="BorderWaypoint">
-        <layer src="BorderWaypoint"/>
-    </image>
-</assetlist>

@@ -1,7 +1,7 @@
 # Building Graphics Runtime Working Memory
 
 Snapshot: 2026-06-26 docs refresh over older building-graphics notes
-Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+Workspace: `<repository checkout>`
 
 ## 2026-06-26 building object surface checkpoint
 - `src/building/building.h` is the public `Building` object/class header. Do not recreate `src/building/building_object.h` or add compatibility-split object headers.

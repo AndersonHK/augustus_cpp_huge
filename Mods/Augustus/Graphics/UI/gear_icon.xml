@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\gear_icon">
-    <image id="gear_icon" width="14" height="14">
-        <layer src="gear_icon" x="1" y="1"/>
-    </image>
-</assetlist>

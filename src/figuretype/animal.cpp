@@ -13,9 +13,11 @@
 #include "figure/formation.h"
 #include "figure/formation_layout.h"
 #include "figure/image.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "graphics/lang_text.h"
+#include "graphics/GraphicsDefinition.h"
 #include "graphics/screen.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -25,6 +27,9 @@
 #include "scenario/map.h"
 #include "scenario/property.h"
 #include "window/building/common.h"
+
+#include <climits>
+#include <string>
 
 void map_figure_add(Figure *f);
 void map_figure_delete(Figure *f);
@@ -42,19 +47,22 @@ static const map_point HORSE_DESTINATION_2[] = {
     {2, 1},  {3, 1},  {4, 1},  {5, 1},  {6, 1}, {7, 1}, {8, 1}, {9, 1}, {10, 1}, {11, 1}, {12, 1}, {13, 2}
 };
 
-static const int SHEEP_IMAGE_OFFSETS[] = {
-    0,  0,  1,  1,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  4,  4,  5,  5, -1, -1, -1, -1, -1, -1, -1, -1
+struct HippodromeGraphicsOffsetSchedule {
+    int orientation;
+    int max_wait_ticks[7];
+    int x[7];
+    int y[7];
 };
 
-static const int ZEBRA_IMAGE_OFFSETS[] = {
-    0,  0,  1,  1,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-    3,  3,  3,  3,  4,  4,  4,  4, -13, -13, -13, -13, -13, -13, -13, -13
+static constexpr HippodromeGraphicsOffsetSchedule HIPPODROME_GRAPHICS_OFFSETS[] = {
+    { DIR_0_TOP, { 10, 11, 12, 13, 20, 21, INT_MAX }, { 10, 10, 10, 10, 10, 10, 10 }, { -2, -10, -18, -16, -14, -10, -2 } },
+    { DIR_2_RIGHT, { 9, 10, 11, 13, 20, 21, INT_MAX }, { -10, -10, -15, -15, -10, -10, -10 }, { -12, 4, 2, 0, -2, -6, -12 } },
+    { DIR_4_BOTTOM, { 9, 10, 11, 13, 20, 21, INT_MAX }, { 20, 30, 30, 20, 20, 20, 20 }, { 4, 4, -4, -6, -12, -10, -2 } },
+    { DIR_6_LEFT, { 9, 10, 11, 13, 20, 21, INT_MAX }, { -10, -10, -10, -10, -10, -10, -10 }, { -12, 4, 2, 0, -2, -6, -12 } },
 };
+
+static constexpr int HIPPODROME_CART_OFFSETS_X[] = { 13, 18, 12, 0, -13, -18, -13, 0 };
+static constexpr int HIPPODROME_CART_OFFSETS_Y[] = { -7, -1, 7, 11, 6, -1, -7, -12 };
 
 void figuretype::Animal::draw(building_info_context *c)
 {
@@ -139,19 +147,15 @@ void figure_seagulls_action(Figure *f)
     }
     if (f->id() & 1) {
         figure_image_increase_offset(f, 54);
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_SEAGULLS),
-            0,
-            f->image_offset / 3,
-            1);
     } else {
         figure_image_increase_offset(f, 72);
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_SEAGULLS) + 18,
-            0,
-            f->image_offset / 3,
-            1);
     }
+    figure_seagulls_update_graphics(f);
+}
+
+void figure_seagulls_update_graphics(Figure *f)
+{
+    figure_runtime_graphics_select_default_entry_frame(f, f->id() & 1 ? "variant_a" : "variant_b", f->image_offset / 3 + 1);
 }
 
 static void herd_get_destination(int index, const formation *m, uint8_t *x, uint8_t *y)
@@ -201,20 +205,22 @@ void figure_sheep_action(Figure *f)
             }
             break;
     }
-    int dir = figure_image_direction(f);
+    figure_sheep_update_graphics(f);
+}
+
+void figure_sheep_update_graphics(Figure *f)
+{
+    const int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_SHEEP) + 104);
+        figure_runtime_graphics_select_corpse_entry(f, "corpse");
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
         if (f->id() & 3) {
-            f->select_legacy_directional_frame_image(
-                image_group(GROUP_FIGURE_SHEEP) + 48,
-                dir,
-                SHEEP_IMAGE_OFFSETS[f->wait_ticks & 0x3f]);
+            figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, (f->wait_ticks & 0x3f) + 1);
         } else {
-            f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHEEP) + 96, dir, 0);
+            figure_runtime_graphics_select_directional_entry_frame(f, "alternate_rest", dir, 0);
         }
     } else {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHEEP), dir, f->image_offset);
+        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     }
 }
 
@@ -279,18 +285,20 @@ void figure_wolf_action(Figure *f)
             }
             break;
     }
-    int dir = figure_image_direction(f);
+    figure_wolf_update_graphics(f);
+}
+
+void figure_wolf_update_graphics(Figure *f)
+{
+    const int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_WOLF) + 96);
+        figure_runtime_graphics_select_corpse_entry(f, "corpse");
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_WOLF) + 104,
-            dir,
-            f->attack_image_offset / 4);
+        figure_runtime_graphics_select_directional_entry_frame(f, "attack", dir, f->attack_image_offset / 4 + 1);
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_WOLF) + 152, dir, 0);
+        figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, 0);
     } else {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_WOLF), dir, f->image_offset);
+        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     }
 }
 
@@ -360,20 +368,22 @@ void figure_zebra_action(Figure *f)
             }
             break;
     }
-    int dir = figure_image_direction(f);
+    figure_zebra_update_graphics(f);
+}
+
+void figure_zebra_update_graphics(Figure *f)
+{
+    const int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_ZEBRA) + 96);
+        figure_runtime_graphics_select_corpse_entry(f, "corpse");
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
         if (f->id() & 3) {
-            f->select_legacy_directional_frame_image(
-                image_group(GROUP_FIGURE_ZEBRA) + 104,
-                dir,
-                ZEBRA_IMAGE_OFFSETS[f->wait_ticks & 0x3f]);
+            figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, (f->wait_ticks & 0x3f) + 1);
         } else {
-            f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_ZEBRA), dir, 0);
+            figure_runtime_graphics_select_directional_entry_frame(f, "alternate_rest", dir, 0);
         }
     } else {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_ZEBRA), dir, f->image_offset);
+        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     }
 }
 
@@ -562,8 +572,48 @@ void figure_hippodrome_horse_action(Figure *f)
             break;
     }
 
-    f->clear_legacy_image();
-    f->clear_legacy_cart_overlay_image();
+    figure_hippodrome_horse_update_graphics(f);
+}
+
+static int hippodrome_view_direction(int direction, int orientation, int adjustments)
+{
+    for (int pass = 0; pass < adjustments; ++pass) direction = (direction - orientation + 8) % 8;
+    return direction;
+}
+
+static map_point hippodrome_world_offset(int orientation, int wait_ticks)
+{
+    for (const HippodromeGraphicsOffsetSchedule &schedule : HIPPODROME_GRAPHICS_OFFSETS) {
+        if (schedule.orientation != orientation) continue;
+        for (int index = 0; index < 7; ++index) {
+            if (wait_ticks <= schedule.max_wait_ticks[index]) return { schedule.x[index], schedule.y[index] };
+        }
+    }
+    return {};
+}
+
+void figure_hippodrome_horse_update_graphics(Figure *f)
+{
+    const int orientation = city_view_orientation();
+    const int horse_direction = hippodrome_view_direction(f->direction, orientation, 2);
+    const int cart_direction = hippodrome_view_direction(f->direction, orientation, 1);
+    const int cart_offset_index = (cart_direction + 4) % 8;
+    const map_point world_offset = hippodrome_world_offset(orientation, f->wait_ticks_missile);
+    const char *team = f->resource_id ? "red" : "blue";
+    std::string horse_entry = "horse_";
+    horse_entry += team;
+    horse_entry += '_';
+    horse_entry += graphics_direction8_suffix(horse_direction);
+    std::string cart_entry = "cart_";
+    cart_entry += team;
+    cart_entry += '_';
+    cart_entry += graphics_direction8_suffix(cart_direction);
+    figure_runtime_graphics_begin_update(f);
+    figure_runtime_graphics_select_default_entry_frame(f, horse_entry.c_str(), f->image_offset + 1);
+    figure_runtime_graphics_set_default_offset(f, world_offset.x, world_offset.y);
+    figure_runtime_graphics_add_required_layer(f, "cart", cart_entry.c_str(), 0,
+        HIPPODROME_CART_OFFSETS_X[cart_offset_index], HIPPODROME_CART_OFFSETS_Y[cart_offset_index],
+        HIPPODROME_CART_OFFSETS_Y[cart_offset_index] < 0);
 }
 
 void figure_hippodrome_horse_reroute(void)

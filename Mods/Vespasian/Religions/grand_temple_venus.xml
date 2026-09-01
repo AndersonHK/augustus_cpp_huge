@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<religion>
-    <god path="venus" />
-    <tier value="grand" />
-    <capacity amount="5000" />
-    <presentation sound="wavs/temple_love.wav" name_key="TR_BUILDING_GRAND_TEMPLE_VENUS_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_VENUS_BONUS_DESC" quote_key="TR_BUILDING_VENUS_TEMPLE_QUOTE" banner_group="UI\Venus_L_Banner" banner_image="Venus L Banner" content_y_offset="20" height_blocks="40" module_key="venus" />
-</religion>

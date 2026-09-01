@@ -132,7 +132,6 @@ void figure_workcamp_worker_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
-        figure_runtime_update_graphics(f);
         return;
     }
     Building &source = *f->building;
@@ -260,7 +259,6 @@ void figure_workcamp_worker_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }
 
 void figure_workcamp_slave_action(Figure *f)
@@ -354,7 +352,6 @@ void figure_workcamp_slave_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }
 
 void figure_workcamp_architect_action(Figure *f)
@@ -362,7 +359,6 @@ void figure_workcamp_architect_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
-        figure_runtime_update_graphics(f);
         return;
     }
     Building &source = *f->building;
@@ -453,5 +449,4 @@ void figure_workcamp_architect_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }

@@ -1,7 +1,7 @@
 # Codex Augustus VS2022 / MSBuild migration working memory
 
 Snapshot: 2026-06-27
-Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
+Workspace: <repository checkout>
 
 ## What is true in this checkout now
 - The repo already has the native Visual Studio solution/project at the repository root:
@@ -9,7 +9,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `Vespasian.vcxproj`
 - `Vespasian.vcxproj.filters`
 - MSBuild/VS2022 at repo root is the real Windows workflow.
-- VS is not necessarily on `PATH`; the known local MSBuild path is `D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
+- VS is not necessarily on `PATH`; the known local MSBuild path is `<MSBuild path>`.
 - Build in `Release|x64` when compiling this project, preserving project defaults such as `/O2`. Debug builds are not the validation target for current work.
 - `vendor/` contains local SDL2 and SDL2_mixer drops and stays ignored.
 - Generated/local build state is already excluded from Git.

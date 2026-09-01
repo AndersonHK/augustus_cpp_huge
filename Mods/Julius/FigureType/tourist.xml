@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="tourist" graphics_only="true">
-    <graphics path_pattern="Walkers\Group_229" image_pattern="{legacy_entry}" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Group_229" />
+        </default>
+        <corpse>
+            <path value="Walkers\Group_229" />
+        </corpse>
+    </graphics>
 </figure>

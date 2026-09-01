@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\19Legion_Dolphins">
-    <image id="19Legion_Dolphins" width="32" height="18">
-        <layer src="19Legion_Dolphins" y="1"/>
-    </image>
-</assetlist>

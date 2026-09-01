@@ -75,6 +75,7 @@ std::string append_path_component(const std::string &base_path, const std::strin
 bool read_text_file(const std::string &path, std::string &contents);
 bool write_text_file(const std::string &path, const std::string &contents);
 void ensure_directory(const std::string &path);
+bool extraction_target_is_in_source_mods(const std::string &path);
 bool parse_generated_image_index(const std::string &image_id, int &image_index);
 std::string make_generated_image_id(int image_index);
 void append_indent(std::string &xml, int depth);

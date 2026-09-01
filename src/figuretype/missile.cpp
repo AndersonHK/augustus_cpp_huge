@@ -3,6 +3,7 @@
 #include "city/view.h"
 #include "core/image.h"
 #include "figure/formation.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/properties.h"
 #include "figure/sound.h"
@@ -125,13 +126,13 @@ void figure_explosion_cloud_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     figure_movement_move_ticks_cross_country(f, f->speed_multiplier);
-    if (f->progress_on_tile < 48) {
-        f->select_legacy_frame_image(
-            image_group(GROUP_FIGURE_EXPLOSION),
-            CLOUD_IMAGE_OFFSETS[f->progress_on_tile / 2]);
-    } else {
-        f->select_legacy_frame_image(image_group(GROUP_FIGURE_EXPLOSION), 7);
-    }
+    figure_explosion_cloud_update_graphics(f);
+}
+
+void figure_explosion_cloud_update_graphics(Figure *f)
+{
+    const int image_offset = f->progress_on_tile < 48 ? CLOUD_IMAGE_OFFSETS[f->progress_on_tile / 2] : 7;
+    figure_runtime_graphics_select_default_entry_frame(f, "cloud", image_offset + 1);
 }
 
 static int missile_damage(const Figure &missile)

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\trade_caravan">
-    <figure_graphics runtime_selected_image="true" runtime_selected_source="Walkers\Group_130" />
-    <image id="runtime_selected_source" group="Walkers\Group_130" image="Image_0000" />
-</assetlist>

@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Military\Fort_Jav_Flag_North">
-    <image id="Fort_Jav_Flag_North">
-        <layer group="Military\Fort" image="Image_0002"/>
-        <layer src="Fort_Jav_Flag_North_Layer_02" x="22" y="30"/>
-    </image>
-</assetlist>

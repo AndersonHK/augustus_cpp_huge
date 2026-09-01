@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\path_palm_r">
-    <image id="path palm r" width="58" height="65" isometric="true">
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="32" part="footprint" invert="horizontal"/>
-        <layer group="Terrain_Maps\Garden" image="Image_0003" y="32" part="top" invert="horizontal"/>
-        <layer src="path_palm_r_Layer_03" part="top"/>
-    </image>
-</assetlist>

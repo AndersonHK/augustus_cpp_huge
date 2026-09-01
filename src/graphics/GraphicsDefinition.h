@@ -2,6 +2,9 @@
 
 #include <string>
 
+class ImageGroupEntry;
+class ImageGroupPayload;
+
 enum class GraphicsDefinitionKind {
     Base,
     Building,
@@ -96,6 +99,29 @@ std::string graphics_expand_direction_frame_pattern(
     int direction_index,
     int frame);
 int graphics_compare_int(int value, GraphicComparison comparison, int threshold);
+
+class GraphicsAssetReference {
+public:
+    void set_path(std::string path);
+    void set_image(std::string image);
+
+    int has_path() const;
+    const char *path() const;
+    int has_image() const;
+    const char *image() const;
+    int has_logical_asset_path() const;
+
+    void clear_cached_asset_binding();
+    int cache_asset_binding();
+    const ImageGroupPayload *cached_payload() const;
+    const ImageGroupEntry *cached_entry() const;
+
+private:
+    std::string path_;
+    std::string image_;
+    const ImageGroupPayload *payload_ = nullptr;
+    const ImageGroupEntry *entry_ = nullptr;
+};
 
 class GraphicsDefinition {
 public:

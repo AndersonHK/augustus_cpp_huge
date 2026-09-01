@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="criminal">
-    <figure type="criminal" />
-    <combat><health value="12" /><attack value="0" /><defense value="0" /><armor value="0" /></combat>
-    <abilities><melee exposed_back_bonus="4" /></abilities>
-</unit>

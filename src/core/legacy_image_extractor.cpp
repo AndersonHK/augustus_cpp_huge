@@ -1540,6 +1540,10 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
     if (!climate.valid()) {
         return JuliusExtractionReport();
     }
+    if (graphics_extractor::extraction_target_is_in_source_mods(mod_manager::julius_graphics_path())) {
+        log_error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
+        return JuliusExtractionReport();
+    }
 
     const LegacyClimateFlavor climate_flavor = climate_flavor_from_source(climate.source_name());
 
@@ -1588,7 +1592,6 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
             return JuliusExtractionReport();
         }
     }
-
     ensure_directory(mod_manager::julius_graphics_path().c_str());
     if (!write_manifest_entries(climate_flavor, manifest_entries)) {
         log_error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Sea_Trade_Policy">
-    <image id="Sea Trade Policy">
-        <layer src="Sea_Trade_Policy"/>
-    </image>
-</assetlist>

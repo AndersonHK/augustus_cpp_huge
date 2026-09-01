@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="sheep" graphics_only="true">
-    <graphics assetlist="Walkers\legacy_sheep" runtime_selected_image_group="sheep" />
+    <graphics>
+        <default>
+            <path value="Environment\sheep" />
+        </default>
+        <corpse>
+            <path value="Environment\sheep" />
+        </corpse>
+    </graphics>
 </figure>

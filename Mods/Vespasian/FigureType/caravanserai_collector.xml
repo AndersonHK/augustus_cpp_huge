@@ -8,5 +8,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics assetlist="Walkers\caravanserai_collector" />
+    <graphics>
+        <default>
+            <path value="Walkers\caravanserai_walker" />
+        </default>
+        <corpse frame_count="8">
+            <path value="Walkers\caravanserai_walker" />
+        </corpse>
+    </graphics>
 </figure>

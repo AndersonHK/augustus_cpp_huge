@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Message_Images">
-    <image id="HoldGames Banner" width="126" height="88">
-        <layer group="UI\Message_Images" image="Image_0047" x="-11" y="-9"/>
-    </image>
-</assetlist>

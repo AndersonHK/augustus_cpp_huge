@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\LandWaypoint">
-    <image id="LandWaypoint">
-        <layer src="LandWaypoint"/>
-    </image>
-</assetlist>

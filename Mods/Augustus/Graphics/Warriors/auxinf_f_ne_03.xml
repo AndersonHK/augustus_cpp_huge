@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Warriors\auxinf_f_ne_03">
-    <image id="auxinf_f_ne_03" width="39" height="39">
-        <layer src="auxinf_f_ne_03" x="5" y="7"/>
-    </image>
-</assetlist>

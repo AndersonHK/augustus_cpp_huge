@@ -118,6 +118,7 @@ struct FigureTypeXmlName {
 };
 
 inline constexpr FigureTypeXmlName FIGURE_TYPE_XML_NAMES[] = {
+    { "explosion", FIGURE_EXPLOSION },
     { "immigrant", FIGURE_IMMIGRANT },
     { "emigrant", FIGURE_EMIGRANT },
     { "homeless", FIGURE_HOMELESS },

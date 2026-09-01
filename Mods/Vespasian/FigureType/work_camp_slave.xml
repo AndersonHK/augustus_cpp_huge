@@ -8,5 +8,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics assetlist="Walkers\work_camp_slave" />
+    <graphics>
+        <default>
+            <path value="Walkers\slave" />
+        </default>
+        <corpse frame_count="8">
+            <path value="Walkers\slave" />
+        </corpse>
+    </graphics>
 </figure>

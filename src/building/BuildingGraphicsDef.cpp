@@ -28,6 +28,7 @@
 #endif
 #include "core/crash_context.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdio>
@@ -47,6 +48,22 @@ int graphics_orientation_option_index(
     }
     const int orientation = (4 + building_orientation - view_orientation / 2) % 4;
     return (orientation < 0 ? orientation + 4 : orientation) % option_count;
+}
+
+int graphics_farm_field_option_index(int percentage, int field_index, int option_count)
+{
+    if (option_count <= 0) {
+        return 0;
+    }
+    percentage = std::max(0, std::min(percentage, 100));
+    field_index = std::max(0, std::min(field_index, 4));
+
+    // The legacy farm renderer spread twenty growth steps across five fields.
+    // Preserve that visual progression while selecting named XML options.
+    const int growth = percentage / 5;
+    const int common_stage = growth / 5;
+    const int advanced_fields = growth % 5;
+    return std::min(common_stage + (field_index < advanced_fields ? 1 : 0), option_count - 1);
 }
 
 int graphics_overlay_summary_draws(
@@ -216,16 +233,6 @@ void BuildingGraphicsDef::reset_resource_storage_images()
     g_resource_storage_images = {};
 }
 
-void GraphicsLayer::set_path(std::string path)
-{
-    path_ = std::move(path);
-}
-
-void GraphicsLayer::set_image(std::string image)
-{
-    image_ = std::move(image);
-}
-
 void GraphicsLayer::set_role(std::string role)
 {
     role_ = std::move(role);
@@ -261,26 +268,6 @@ GraphicsLayerOption &GraphicsLayer::add_option()
 void GraphicsLayer::add_condition(GraphicsCondition condition)
 {
     conditions_.push_back(std::move(condition));
-}
-
-int GraphicsLayer::has_path() const
-{
-    return !path_.empty();
-}
-
-const char *GraphicsLayer::path() const
-{
-    return path_.c_str();
-}
-
-int GraphicsLayer::has_image() const
-{
-    return !image_.empty();
-}
-
-const char *GraphicsLayer::image() const
-{
-    return image_.c_str();
 }
 
 int GraphicsLayer::has_role() const
@@ -379,16 +366,6 @@ GraphicsLayer GraphicsLayer::resolved_option(unsigned char variant) const
     return resolved;
 }
 
-void GraphicsTarget::set_path(std::string path)
-{
-    path_ = std::move(path);
-}
-
-void GraphicsTarget::set_image(std::string image)
-{
-    image_ = std::move(image);
-}
-
 void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
 {
     option_selection_ = selection;
@@ -424,26 +401,6 @@ GraphicsLayer &GraphicsTarget::add_layer()
 {
     layers_.emplace_back();
     return layers_.back();
-}
-
-int GraphicsTarget::has_path() const
-{
-    return !path_.empty();
-}
-
-const char *GraphicsTarget::path() const
-{
-    return path_.c_str();
-}
-
-int GraphicsTarget::has_image() const
-{
-    return !image_.empty();
-}
-
-const char *GraphicsTarget::image() const
-{
-    return image_.c_str();
 }
 
 GraphicsOptionSelection GraphicsTarget::option_selection() const
@@ -512,7 +469,7 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     auto inherit_layer_paths = [](GraphicsTarget &target) {
         for (GraphicsLayer &layer : target.layers_) {
             if (!layer.has_path()) {
-                layer.set_path(target.path_);
+                layer.set_path(target.path());
             }
         }
     };
@@ -534,7 +491,7 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
         return resolved;
     }
     if (!resolved.has_path()) {
-        resolved.set_path(path_);
+        resolved.set_path(path());
     }
     if (resolved.layers_.empty()) {
         resolved.layers_ = layers_;

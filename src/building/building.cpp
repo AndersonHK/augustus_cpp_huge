@@ -2206,6 +2206,43 @@ static void publish_loaded_composed_record(building *record)
     building_object->refresh_graphic();
 }
 
+static int stale_owner_bindings_for_loaded_composition_child(const Building &owner, const Building &child)
+{
+    if (!owner.record() || !child.record() || !child.Foundation) {
+        return 0;
+    }
+    const int rotation = child.Foundation->definition().rotates() ? child.orientation() : 0;
+    int stale = 0;
+    for (const building_type_registry_impl::RotatedFoundationCell &cell : child.Foundation->cells(rotation)) {
+        if (!cell.definition || !cell.definition->binds_building) {
+            continue;
+        }
+        const int grid_offset = map_grid_offset(child.x() + cell.x, child.y() + cell.y);
+        if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).record() == owner.record()) {
+            ++stale;
+        }
+    }
+    return stale;
+}
+
+static int loaded_composition_child_owns_surface(const Building &child)
+{
+    if (!child.record() || !child.Foundation) {
+        return 0;
+    }
+    const int rotation = child.Foundation->definition().rotates() ? child.orientation() : 0;
+    for (const building_type_registry_impl::RotatedFoundationCell &cell : child.Foundation->cells(rotation)) {
+        if (!cell.definition || !cell.definition->binds_building) {
+            continue;
+        }
+        const int grid_offset = map_grid_offset(child.x() + cell.x, child.y() + cell.y);
+        if (!map_building_exists_at(grid_offset) || map_building_at(grid_offset).record() != child.record()) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static std::vector<building_type_registry_impl::LoadedCompositionCandidate>
 loaded_native_composition_chain(const building *main_record)
 {
@@ -2310,7 +2347,11 @@ static void initialize_loaded_native_composed_child(
     }
 }
 
-static int hydrate_loaded_native_composition(building *main_record, const building_type_registry_impl::BuildingType &definition, bool allow_legacy_repair)
+static int hydrate_loaded_native_composition(
+    building *main_record,
+    const building_type_registry_impl::BuildingType &definition,
+    bool allow_legacy_repair,
+    int *repaired_surface_bindings)
 {
     const int rotation = infer_loaded_composed_rotation(main_record, definition);
     const building_type_registry_impl::CompositionLayoutResult layout =
@@ -2414,6 +2455,12 @@ static int hydrate_loaded_native_composition(building *main_record, const buildi
         log_error("Unable to bind loaded native composition", relationship_error.c_str(), 0);
         return 0;
     }
+    for (const LoadedChild &child : children) {
+        if (child.object && repaired_surface_bindings) {
+            *repaired_surface_bindings += stale_owner_bindings_for_loaded_composition_child(
+                main_runtime->building, *child.object);
+        }
+    }
 
     if (allow_legacy_repair && owner_stores_orientation && !building_is_fort(main_record->type)) {
         main_record->subtype.orientation = static_cast<short>(rotation);
@@ -2467,6 +2514,10 @@ static int hydrate_loaded_native_composition(building *main_record, const buildi
     publish_loaded_composed_record(main_record);
     for (const LoadedChild &child : children) {
         publish_loaded_composed_record(child.record);
+        if (!child.object || !loaded_composition_child_owns_surface(*child.object)) {
+            log_error("Loaded composition child failed to publish its declared surface", definition.attr(), child.record ? child.record->id : 0);
+            return 0;
+        }
     }
     if (definition.is_warehouse()) {
         building_warehouse_recount_resources(main_runtime->building);
@@ -2477,6 +2528,7 @@ static int hydrate_loaded_native_composition(building *main_record, const buildi
 int building_hydrate_loaded_compositions(int save_version)
 {
     const bool allow_legacy_repair = save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS;
+    int repaired_surface_bindings = 0;
     for (size_t i = 1; i < data.buildings.size(); i++) {
         building *record = &data.buildings[i];
         if (!composed_record_is_live(record)) {
@@ -2485,9 +2537,12 @@ int building_hydrate_loaded_compositions(int save_version)
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(record->type);
         if (definition && definition->has_composition() &&
-            !hydrate_loaded_native_composition(record, *definition, allow_legacy_repair)) {
+            !hydrate_loaded_native_composition(record, *definition, allow_legacy_repair, &repaired_surface_bindings)) {
             return report_loaded_composition_failure(record, definition, "load hydration failed");
         }
+    }
+    if (repaired_surface_bindings) {
+        log_warning("Repairing composition child surface bindings owned by the parent record", 0, repaired_surface_bindings);
     }
 
     // The bridge ends here. From this point onward every composition owner and
@@ -2650,6 +2705,12 @@ building *building_create(building_type type, int x, int y)
     if (definition && definition->bridge().is_bridge()) {
         // Dynamic bridges still use the legacy record-backed permission state.
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
+    }
+    if (definition && definition->tile().kind() == building_type_registry_impl::TileKind::Roadblock) {
+        // A newly built roadblock starts closed. This is intentionally explicit
+        // at the runtime producer as well as in the Foundation XML so reused
+        // records and future definition layering cannot inherit permissive state.
+        Roadblock(*building_obj).accept_none();
     }
     if (definition && definition->is_warehouse() && building_obj->Foundation &&
         config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
@@ -4181,7 +4242,10 @@ static void normalize_loaded_surface_records(int allow_unverified_foundation_rec
                 }
             }
         }
-        if (!has_map_presence && (loaded_record_owns_unbound_foundation(record) || allow_unverified_foundation_recovery)) {
+        const bool owns_unbound_foundation = loaded_record_owns_unbound_foundation(record);
+        if (!has_map_presence && owns_unbound_foundation) {
+            has_map_presence = true;
+        } else if (!has_map_presence && allow_unverified_foundation_recovery) {
             has_map_presence = bind_loaded_unbound_foundation(record);
         }
         const bool has_unbound_only_foundation = foundation && !foundation->cells().empty() &&
@@ -4189,7 +4253,7 @@ static void normalize_loaded_surface_records(int allow_unverified_foundation_rec
                 [](const building_type_registry_impl::FoundationCellDefinition &cell) {
                     return cell.binds_building != 0;
                 });
-        if (has_map_presence && has_unbound_only_foundation && !loaded_record_owns_unbound_foundation(record)) {
+        if (has_map_presence && has_unbound_only_foundation && !owns_unbound_foundation) {
             stage_legacy_tile_foundation_state(record);
             char detail[160];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
@@ -4240,7 +4304,7 @@ static bool validate_loaded_surface_records()
     return true;
 }
 
-static void clear_loaded_unbound_foundation_bindings()
+static int clear_unbound_foundation_bindings()
 {
     // The load bridge uses the serialized map-building grid to deduplicate
     // surface records before runtime Foundation ownership exists. Unbound
@@ -4272,14 +4336,12 @@ static void clear_loaded_unbound_foundation_bindings()
             }
             const int grid_offset = map_grid_offset(x, y);
             if (map_building_loaded_id_at(grid_offset) == record.id) {
-                map_building_set_loaded_id(grid_offset, 0);
+                map_building_clear_at(grid_offset);
                 cleared++;
             }
         }
     }
-    if (cleared) {
-        log_info("Cleared temporary unbound surface bindings", 0, cleared);
-    }
+    return cleared;
 }
 
 static bool validate_loaded_unbound_foundation_bindings()
@@ -4485,9 +4547,10 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
-    if (save_version < SAVE_GAME_CURRENT_VERSION) {
-        normalize_loaded_surface_records(1);
-    }
+    // Current-format saves can still contain recoverably inconsistent records
+    // written by an older runtime producer. Repair those too, but only let old
+    // formats reconstruct ownership without serialized Foundation evidence.
+    normalize_loaded_surface_records(save_version < SAVE_GAME_CURRENT_VERSION);
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         building_promote_legacy_tile_buildings_after_load();
         // Old producers could persist a partial set of surface records even
@@ -4496,9 +4559,8 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
         // completed legacy bridge once more before publishing runtime state.
         normalize_loaded_surface_records(1);
     }
-    if (save_version < SAVE_GAME_CURRENT_VERSION) {
-        clear_loaded_unbound_foundation_bindings();
-    }
+    const int repaired_bindings = clear_unbound_foundation_bindings();
+    if (repaired_bindings) log_warning("Repairing serialized bindings on non-binding surface cells", 0, repaired_bindings);
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         normalize_loaded_rubble_records();
     }

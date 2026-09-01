@@ -1,6 +1,5 @@
 #include "figure/FigureGraphics.h"
 
-#include "assets/image_group_payload.h"
 #include "core/image.h"
 #include "figure/action.h"
 #include "figure/figure.h"
@@ -8,32 +7,9 @@
 
 namespace figure_type_registry_impl {
 
-int FigureGraphics::apply_legacy_image_state_for_direction(Figure &figure, int direction) const
-{
-    figure.is_enemy_image = 0;
-    if (has_native_payload()) {
-        const GraphicsTargetBinding *binding = cached_target_binding_for_figure_direction(figure, direction);
-        return binding &&
-            binding->is_resolved() &&
-            binding->entry->footprint() &&
-            binding->entry->footprint()->is_valid();
-    }
-
-    if (!has_legacy_default_source()) {
-        return 0;
-    }
-
-    figure.image_id = legacy_image_id_for_figure_direction(figure, direction);
-    return 1;
-}
-
-int FigureGraphics::apply_legacy_image_state(Figure &figure) const
-{
-    return apply_legacy_image_state_for_direction(figure, figure_image_direction(&figure));
-}
-
 void FigureGraphics::apply_legacy_prefect_service_image_state(Figure &figure, int direction) const
 {
+    figure.is_enemy_image = 0;
     if (state_layer_for_action(figure.action_state)) {
         return;
     }
@@ -47,22 +23,18 @@ void FigureGraphics::apply_legacy_prefect_service_image_state(Figure &figure, in
             figure.image_id = legacy_attack_directional_frame_image_id(direction, frame_offset);
             break;
         }
-        case FIGURE_ACTION_149_CORPSE:
-        default:
-            apply_legacy_image_state_for_direction(figure, direction);
-            break;
+        default: break;
     }
 }
 
 void FigureGraphics::apply_legacy_entertainment_image_state(Figure &figure, int direction) const
 {
+    figure.is_enemy_image = 0;
     direction = figure_image_normalize_direction(direction);
     if (figure.type == FIGURE_CHARIOTEER) {
         if (figure.action_state == FIGURE_ACTION_150_ATTACK ||
             figure.action_state == FIGURE_ACTION_149_CORPSE) {
             figure.image_id = legacy_directional_image_id(direction);
-        } else {
-            apply_legacy_image_state_for_direction(figure, direction);
         }
         return;
     }
@@ -80,12 +52,8 @@ void FigureGraphics::apply_legacy_entertainment_image_state(Figure &figure, int 
         } else {
             figure.image_id = legacy_directional_image_id(direction);
         }
-    } else if (figure.action_state == FIGURE_ACTION_149_CORPSE) {
-        apply_legacy_image_state_for_direction(figure, direction);
     } else if (use_lion_tamer_whip) {
         figure.image_id = legacy_action_directional_frame_image_id(direction, figure.image_offset);
-    } else {
-        apply_legacy_image_state_for_direction(figure, direction);
     }
 }
 

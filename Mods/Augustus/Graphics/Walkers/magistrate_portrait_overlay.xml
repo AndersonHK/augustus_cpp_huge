@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\magistrate_portrait_overlay">
-    <image id="magistrate_portrait_overlay">
-        <layer group="UI\Big_People" image="Image_0052"/>
-        <layer src="magistrate_portrait_overlay_Layer_02" x="4" y="14"/>
-    </image>
-</assetlist>

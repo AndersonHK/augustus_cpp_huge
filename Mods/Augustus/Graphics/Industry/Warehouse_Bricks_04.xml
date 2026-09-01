@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Industry\Warehouse_Bricks_04">
-    <image id="Warehouse_Bricks_04" width="58" height="49" isometric="true">
-        <layer group="Industry\Warehouse_Storage_Empty" image="Image_0000" y="8" part="footprint"/>
-        <layer group="Industry\Warehouse_Storage_Empty" image="Image_0000" y="8" part="top"/>
-        <layer src="Warehouse_Bricks_04_Layer_03" x="3" part="top"/>
-    </image>
-</assetlist>

@@ -3,7 +3,9 @@
 #include "core/file.h"
 #include "platform/file_manager.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <cstdlib>
 #include <cstring>
 
@@ -222,6 +224,19 @@ std::vector<XmlToken> XmlReader::parse(const std::string &xml) const
 
 namespace graphics_extractor {
 
+namespace {
+
+bool path_component_equals(const std::filesystem::path &component, const char *expected)
+{
+    std::string value = component.string();
+    std::string target = expected ? expected : "";
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::transform(target.begin(), target.end(), target.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return value == target;
+}
+
+}
+
 std::string sanitize_component(const char *text)
 {
     if (!text || !*text) {
@@ -356,6 +371,24 @@ void ensure_directory(const std::string &path)
     if (!path.empty()) {
         platform_file_manager_create_directory(path.c_str(), 0, 1);
     }
+}
+
+bool extraction_target_is_in_source_mods(const std::string &path)
+{
+    if (path.empty()) return false;
+    std::error_code error;
+    const std::filesystem::path target = std::filesystem::absolute(path, error).lexically_normal();
+    if (error) return false;
+    for (std::filesystem::path cursor = target; !cursor.empty(); cursor = cursor.parent_path()) {
+        if (std::filesystem::exists(cursor / ".git", error) && !error) {
+            const std::filesystem::path relative = target.lexically_relative(cursor);
+            auto component = relative.begin();
+            return component != relative.end() && path_component_equals(*component, "Mods");
+        }
+        error.clear();
+        if (cursor == cursor.root_path()) break;
+    }
+    return false;
 }
 
 bool parse_generated_image_index(const std::string &image_id, int &image_index)

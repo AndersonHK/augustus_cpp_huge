@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="wall_1x1" width="1" height="1" rotates="false">
-    <profile symbol="W" requires="land" adds="building wall" />
-    <rows><row cells="W" /></rows>
-</foundation>

@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Neptune_Complex_On">
-    <image id="Neptune worshippers" group="Monuments\Neptune_worshippers" image="Neptune worshippers"/>
-    <image id="Neptune Complex On" width="418" height="231" isometric="true" group="Monuments\Neptune_worshippers" image="Neptune Complex On"/>
-</assetlist>

@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Venus_M2_Icon">
-    <image id="Venus M2 Icon">
-        <layer src="Venus_M2_Icon"/>
-    </image>
-</assetlist>

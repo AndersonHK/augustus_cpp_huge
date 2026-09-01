@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\Store_Icon">
-    <image id="Store Icon" width="8" height="8">
-        <layer src="Store_Icon"/>
-    </image>
-</assetlist>

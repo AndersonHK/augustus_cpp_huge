@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Lighthouse_ON">
-    <image id="Lighthouse OFF" isometric="true" group="Monuments\Lighthouse_OFF" image="Lighthouse OFF"/>
-    <image id="Lighthouse ON" isometric="true" group="Monuments\Lighthouse_OFF" image="Lighthouse ON"/>
-</assetlist>

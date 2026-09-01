@@ -80,18 +80,23 @@ bool validate_enumeration(std::ostream &errors)
     }
 
     const std::filesystem::path julius = temporary.path() / "Julius";
-    const std::filesystem::path pharaoh = temporary.path() / "Pharaoh";
+    const std::filesystem::path augustus = temporary.path() / "Augustus";
+    const std::filesystem::path vespasian = temporary.path() / "Vespasian";
+    const std::filesystem::path sparse_patch = temporary.path() / "SparsePatch";
     if (!write_fixture(julius / "BuildingType" / "zeta.xml") ||
         !write_fixture(julius / "BuildingType" / "alpha.xml") ||
         !write_fixture(julius / "Tiles" / "road.xml") ||
-        !write_fixture(pharaoh / "BuildingType" / "alpha.xml")) {
+        !write_fixture(sparse_patch / "BuildingType" / "alpha.xml") ||
+        !write_fixture(sparse_patch / "BuildingType" / "new_building.xml")) {
         errors << "Unable to create layered-definition fixtures.\n";
         return false;
     }
 
     const std::vector<mod_definition::DefinitionLayer> layers = {
         {"Julius", julius.string()},
-        {"Pharaoh", pharaoh.string()}
+        {"Augustus", augustus.string()},
+        {"Vespasian", vespasian.string()},
+        {"SparsePatch", sparse_patch.string()}
     };
     std::vector<mod_definition::DefinitionSource> visited;
     mod_definition::DefinitionEnumerationSummary summary;
@@ -111,13 +116,14 @@ bool validate_enumeration(std::ostream &errors)
         return false;
     }
 
-    if (visited.size() != 4 || summary.layers != 2 || summary.directories != 3 || summary.files != 4 ||
+    if (visited.size() != 5 || summary.layers != 4 || summary.directories != 3 || summary.files != 5 ||
         visited[0].layer_index != 0 || visited[0].mod_name != "Julius" ||
         visited[0].registry_relative_path != "BuildingType\\alpha" ||
         visited[1].registry_relative_path != "BuildingType\\zeta" ||
         visited[2].registry_relative_path != "Tiles\\road" ||
-        visited[3].layer_index != 1 || visited[3].mod_name != "Pharaoh" ||
-        visited[3].normalized_definition_path != "alpha") {
+        visited[3].layer_index != 3 || visited[3].mod_name != "SparsePatch" ||
+        visited[3].normalized_definition_path != "alpha" ||
+        visited[4].normalized_definition_path != "new_building") {
         errors << "Layered definition enumeration did not preserve lower-to-upper, category, or file order.\n";
         return false;
     }

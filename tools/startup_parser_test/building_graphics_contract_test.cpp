@@ -253,6 +253,34 @@ bool validate_native_statue_orientation_graphics_contract(std::ostream &errors)
     return true;
 }
 
+bool validate_native_building_selection_parity(std::ostream &errors)
+{
+    using namespace building_type_registry_impl;
+
+    for (int percentage = 0; percentage <= 100; ++percentage) {
+        const int growth = percentage / 5;
+        const int common_stage = growth / 5;
+        const int advanced_fields = growth % 5;
+        for (int field = 0; field < 5; ++field) {
+            const int expected = common_stage + (field < advanced_fields ? 1 : 0);
+            const int selected = graphics_farm_field_option_index(percentage, field, 5);
+            if (selected != expected) {
+                errors << "Farm field XML selection diverged from legacy growth distribution at "
+                    << percentage << "% for field " << field << ".\n";
+                return false;
+            }
+        }
+    }
+
+    if (graphics_farm_field_option_index(-1, -1, 5) != 0 ||
+        graphics_farm_field_option_index(101, 5, 5) != 4 ||
+        graphics_farm_field_option_index(50, 2, 0) != 0) {
+        errors << "Farm field XML selection does not safely clamp invalid runtime state.\n";
+        return false;
+    }
+    return true;
+}
+
 bool validate_native_hippodrome_graphics_contract(std::ostream &errors)
 {
     using namespace building_type_registry_impl;
@@ -403,6 +431,21 @@ bool validate_native_overlay_summary_graphics_contract(std::ostream &errors)
 
         const BuildingGraphicsDef &owner_graphics = owner->graphics();
         const BuildingGraphicsDef &field_graphics = field->graphics();
+        if (std::string(owner_graphics.default_target().path()) != "Industry\\Farm_House" ||
+            std::string(field_graphics.default_target().path()) != "Industry\\Farm_Crops" ||
+            field_graphics.default_target().option_count() != 5) {
+            errors << "Farm owner/field graphics targets are not distinct and complete: "
+                << owner_attr << ".\n";
+            return false;
+        }
+        for (int option = 0; option < field_graphics.default_target().option_count(); ++option) {
+            const GraphicsTarget resolved = field_graphics.default_target().resolved_option(
+                static_cast<unsigned char>(option));
+            if (std::string(resolved.path()) != "Industry\\Farm_Crops" || !resolved.has_image()) {
+                errors << "Farm field option escaped its crop asset: " << field_attr << ".\n";
+                return false;
+            }
+        }
         int status_x = 0;
         int status_y = 0;
         if (!owner_graphics.has_overlay_summary_policy() ||

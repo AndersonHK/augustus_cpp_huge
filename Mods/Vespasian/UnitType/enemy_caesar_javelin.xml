@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="enemy_caesar_javelin">
-    <figure type="enemy_caesar_javelin" />
-    <combat><health value="90" /><attack value="4" /><defense value="0" /><armor value="0" /></combat>
-    <abilities><melee exposed_back_bonus="4" /></abilities>
-</unit>

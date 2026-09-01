@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\12Legion_Thunder_Bolts">
-    <image id="12Legion_Thunder_Bolts" width="32" height="18">
-        <layer src="12Legion_Thunder_Bolts" y="1"/>
-    </image>
-</assetlist>

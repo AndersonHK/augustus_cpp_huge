@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="UI\H_Sophia_Fix">
-    <image id="H Sophia Fix" width="63" height="69">
-        <layer src="H_Sophia_Fix" x="2" y="1"/>
-    </image>
-</assetlist>

@@ -79,7 +79,6 @@ static void culture_action(Figure *f)
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    figure_runtime_update_graphics(f);
 }
 
 void figure_destination_priest_action(Figure *f)
@@ -255,7 +254,6 @@ void figure_tavern_action(Figure *f)
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    figure_runtime_update_graphics(f);
 }
 
 static int fight_plague(Figure *f, int force)
@@ -394,7 +392,6 @@ void figure_labor_seeker_action(Figure *f)
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    figure_runtime_update_graphics(f);
 }
 
 void figure_market_trader_action(Figure *f)
@@ -410,7 +407,6 @@ void figure_market_trader_action(Figure *f)
     figure_image_increase_offset(f, 12);
 
     roamer_action(f, 1);
-    figure_runtime_update_graphics(f);
 }
 
 void figure_tax_collector_action(Figure *f)
@@ -487,5 +483,4 @@ void figure_tax_collector_action(Figure *f)
             }
             break;
     }
-    figure_runtime_update_graphics(f);
 }

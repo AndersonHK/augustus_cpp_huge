@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<building type="fort">
-    <identity name_key="TR_PARAMETER_VALUE_BUILDING_MENU_FORTS" aliases="all_forts" />
-  <button group="security" order="80" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_FORTS" />
-</building>

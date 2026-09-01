@@ -388,8 +388,6 @@ void figure_supplier_action(Figure *f)
         } else {
             f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
         }
-    } else {
-        figure_runtime_update_graphics(f);
     }
 }
 
@@ -424,7 +422,6 @@ void figure_delivery_boy_action(Figure *f)
     if (leader->is_ghost && !leader->height_adjusted_ticks) {
         f->is_ghost = 1;
     }
-    figure_runtime_update_graphics(f);
 }
 
 void figure_fort_supplier_action(Figure *f)
@@ -473,5 +470,4 @@ void figure_fort_supplier_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }

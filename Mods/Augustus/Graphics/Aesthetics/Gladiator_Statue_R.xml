@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\Gladiator_Statue_R">
-    <image id="Gladiator_Statue_R" isometric="true">
-        <layer src="Gladiator_Statue_R" part="footprint"/>
-    </image>
-</assetlist>

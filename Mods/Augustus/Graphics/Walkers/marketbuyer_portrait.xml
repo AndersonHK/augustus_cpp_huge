@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Walkers\marketbuyer_portrait">
-    <image id="marketbuyer_portrait">
-        <layer group="UI\Big_People" image="Image_0011"/>
-        <layer src="marketbuyer_portrait_Layer_02" x="14" y="25"/>
-    </image>
-</assetlist>

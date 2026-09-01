@@ -92,9 +92,9 @@ These are the live XML values observed in `Mods/Vespasian/FigureType` on
 2026-05-02, using 15 m/tile. Real walking minutes use 4.8 km/h, or 80 m/min,
 for adult walkers; the school-child row uses 3.6 km/h, or 60 m/min.
 
-Most current FigureType service and venue-seeker profiles use `terrain_usage="roads"`, so highway distance is not part of their authored range. Vespasian `hippodrome_service` uses `terrain_usage="roads_highway"` and can use the highway column.
+Most current FigureType service and venue-seeker profiles use `<pathing terrain="roads">`, so highway distance is not part of their authored range. Vespasian `hippodrome_service` uses `<pathing terrain="roads_highway">` and can use the highway column.
 
-| Walker group | `terrain_usage` | `roam_ticks` | `max_roam_length` | Normal road tiles | Normal road meters | All-highway meters | Real walk time for normal-road distance | Vespasian days before limit | Wall-clock at 100% |
+| Walker group | Pathing `terrain` | `roam_ticks` | `max_roam_length` | Normal road tiles | Normal road meters | All-highway meters | Real walk time for normal-road distance | Vespasian days before limit | Wall-clock at 100% |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Barber, bathhouse, librarian, labor seeker, priest, teacher | `roads` | 1 | 576 | 38.4 | 576 m | n/a | 7.2 adult min | 5.76 days | 9.2 sec |
 | Entertainment venue service except hippodrome | `roads` | 1 | 768 | 51.2 | 768 m | n/a | 9.6 adult min | 7.68 days | 12.3 sec |

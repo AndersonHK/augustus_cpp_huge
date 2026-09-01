@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<production_method>
-    <kind value="workshop" />
-    <output resource="weapons" production_per_month="40" />
-    <batch_size value="1" />
-    <input resource="iron" amount="100" />
-</production_method>

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<religion>
-    <god path="all" />
-    <tier value="oracle" />
-    <capacity amount="500" />
-</religion>

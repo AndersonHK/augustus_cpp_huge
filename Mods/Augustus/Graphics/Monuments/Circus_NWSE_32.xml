@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Circus_NWSE_32">
-    <image id="Circus NWSE 32" width="298" height="181" isometric="true">
-        <layer group="Health_Culture\Hippodrome_2" image="Image_0002" part="footprint"/>
-        <layer src="Circus_NWSE_32_Layer_02" x="31" part="top"/>
-        <layer src="Circus_NWSE_32_Layer_03" x="162" y="75" part="top"/>
-    </image>
-</assetlist>

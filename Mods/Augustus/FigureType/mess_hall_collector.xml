@@ -8,5 +8,12 @@
             <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics assetlist="Walkers\mess_hall" />
+    <graphics>
+        <default>
+            <path value="Walkers\m_hall" />
+        </default>
+        <corpse frame_count="8">
+            <path value="Walkers\m_hall" />
+        </corpse>
+    </graphics>
 </figure>

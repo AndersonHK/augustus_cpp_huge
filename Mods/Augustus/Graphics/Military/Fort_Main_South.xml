@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Military\Fort_Main_South">
-    <image id="Fort_Main_Central" isometric="true" group="Military\Fort_Main_Central" image="Fort_Main_Central"/>
-    <image id="Fort_Main_South" isometric="true" group="Military\Fort_Main_Central" image="Fort_Main_South"/>
-    <image id="Fort_Main_North" isometric="true" group="Military\Fort_Main_Central" image="Fort_Main_North"/>
-</assetlist>

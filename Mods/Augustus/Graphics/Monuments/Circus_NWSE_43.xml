@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Circus_NWSE_43">
-    <image id="Circus NWSE 41" isometric="true" group="Health_Culture\Hippodrome_2" image="Circus NWSE 41"/>
-    <image id="Circus NWSE 42" isometric="true" group="Health_Culture\Hippodrome_2" image="Circus NWSE 42"/>
-    <image id="Circus NWSE 43" isometric="true" group="Health_Culture\Hippodrome_2" image="Circus NWSE 43"/>
-</assetlist>

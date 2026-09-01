@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Warriors\auxinf_portrait">
-    <image id="auxinf_portrait">
-        <layer group="UI\Big_People" image="Image_0007"/>
-        <layer src="auxinf_portrait_Layer_02" x="6" y="7"/>
-    </image>
-</assetlist>

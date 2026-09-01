@@ -88,16 +88,6 @@ int ImageGroupPayload::entry_count() const
     return static_cast<int>(ordered_entry_keys_.size());
 }
 
-void ImageGroupPayload::set_figure_graphics_contract(ImageGroupFigureGraphicsContract contract)
-{
-    figure_graphics_contract_ = std::move(contract);
-}
-
-const ImageGroupFigureGraphicsContract *ImageGroupPayload::figure_graphics_contract() const
-{
-    return figure_graphics_contract_.present ? &figure_graphics_contract_ : nullptr;
-}
-
 const ImageGroupPayload *image_group_payload_get(const char *path_key)
 {
     const std::string normalized_key = image_group_payload_internal::normalize_path_key(path_key);
@@ -158,11 +148,6 @@ int image_group_payload_load(const char *path_key)
         merged->key,
         merged->xml_path,
         merged->source_chain.empty() ? XML_ASSET_SOURCE_AUTO : merged->source_chain.front());
-    if (!merged->source_chain.empty()) {
-        const image_group_payload_internal::ImageGroupDoc *primary_doc = image_group_payload_internal::load_group_doc(normalized_key, merged->source_chain.front());
-        if (primary_doc) payload->set_figure_graphics_contract(primary_doc->figure_graphics_contract);
-    }
-
     for (size_t i = 0; i < merged->ordered_entries.size(); i++) {
         const xml_asset_source source = merged->ordered_entries[i].first;
         const std::string &image_id = merged->ordered_entries[i].second;

@@ -187,7 +187,7 @@ int platform_screen_create(const char *title, int display_scale_percentage, int 
     set_window_icon();
 #endif
 
-    if (!platform_renderer_init(SDL.window)) {
+    if (!platform_renderer_init(SDL.window, !hidden)) {
         return 0;
     }
     if (hidden) SDL_HideWindow(SDL.window);

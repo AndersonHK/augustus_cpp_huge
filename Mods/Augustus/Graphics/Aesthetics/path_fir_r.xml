@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\path_fir_r">
-    <image id="garden path r" width="58" height="32" isometric="true" group="Aesthetics\garden_path_r" image="garden path r"/>
-    <image id="path fir r" width="58" height="72" isometric="true" group="Aesthetics\garden_path_r" image="path fir r"/>
-</assetlist>

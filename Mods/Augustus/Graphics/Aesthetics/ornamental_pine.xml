@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Aesthetics\ornamental_pine">
-    <image id="ornamental pine" isometric="true">
-        <layer group="Terrain_Maps\Garden" image="Image_0000" part="footprint"/>
-        <layer group="Terrain_Maps\Garden" image="Image_0000" part="top"/>
-        <layer src="ornamental_pine_Layer_03" x="29" y="38" part="top"/>
-    </image>
-</assetlist>

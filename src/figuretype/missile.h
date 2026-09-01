@@ -9,6 +9,8 @@
 
 	void figure_explosion_cloud_action(Figure *f);
 
+	void figure_explosion_cloud_update_graphics(Figure *f);
+
 	void figure_arrow_action(Figure *f);
 
 	void figure_friendly_arrow_action(Figure *f);

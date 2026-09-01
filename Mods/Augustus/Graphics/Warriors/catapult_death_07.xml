@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Warriors\catapult_death_07">
-    <image id="catapult_death_07" width="80" height="80">
-        <layer src="catapult_death_07" x="17" y="50"/>
-    </image>
-</assetlist>

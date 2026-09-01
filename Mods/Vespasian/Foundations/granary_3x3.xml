@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="granary_3x3" width="3" height="3" rotates="false" default_permissions="labor_seeker" configurable_permissions="all">
-    <profile symbol="C" requires="land" adds="building" />
-    <profile symbol="R" requires="road_or_land" adds="building road" passage="owner_controlled" />
-    <rows><row cells="CRC" /><row cells="RRR" /><row cells="CRC" /></rows>
-</foundation>
-

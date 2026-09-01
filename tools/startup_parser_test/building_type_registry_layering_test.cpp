@@ -89,6 +89,8 @@ bool validate_building_type_registry_layering_contract(std::ostream &errors)
     }
 
     const std::filesystem::path lower = temporary.path() / "Lower";
+    const std::filesystem::path augustus = temporary.path() / "Augustus";
+    const std::filesystem::path vespasian = temporary.path() / "Vespasian";
     const std::filesystem::path almost_empty_upper = temporary.path() / "AlmostEmptyUpper";
     if (!write_file(lower / "BuildingType" / "layered.xml", model_xml("layered", 1)) ||
         !write_file(lower / "BuildingType" / "inherited.xml", model_xml("inherited", 4)) ||
@@ -103,13 +105,15 @@ bool validate_building_type_registry_layering_contract(std::ostream &errors)
     std::string failure;
     const std::vector<mod_definition::DefinitionLayer> sparse_layers = {
         layer("Lower", lower),
+        layer("Augustus", augustus),
+        layer("Vespasian", vespasian),
         layer("AlmostEmptyUpper", almost_empty_upper)
     };
     if (!building_type_registry_layers_are_valid_for_test(
             sparse_layers, "layered", &result, &failure) ||
         result.active_count != 2 || result.suppressed_count != 0 ||
         result.queried_disabled || result.queried_cost != 9 ||
-        result.queried_runtime_type == BUILDING_NONE || result.queried_source_layer != 1 ||
+        result.queried_runtime_type == BUILDING_NONE || result.queried_source_layer != 3 ||
         live_road_definition() != road_before) {
         errors << "BuildingType almost-empty upper layer did not replace atomically: " << failure << '\n';
         return false;

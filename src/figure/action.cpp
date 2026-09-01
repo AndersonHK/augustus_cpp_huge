@@ -142,6 +142,25 @@ static FigureAction figure_action_callbacks[] = {
     figure_catapult_missile_action,
 };
 
+void figure_action_refresh_graphics(Figure *f)
+{
+    if (!f) return;
+    switch (f->type) {
+        case FIGURE_EXPLOSION: figure_explosion_cloud_update_graphics(f); break;
+        case FIGURE_PROTESTER: figure_protestor_update_graphics(f); break;
+        case FIGURE_RIOTER:
+        case FIGURE_CRIMINAL:
+        case FIGURE_CRIMINAL_ROBBER:
+        case FIGURE_CRIMINAL_LOOTER: figure_criminal_update_graphics(f); break;
+        case FIGURE_FLOTSAM: figure_flotsam_update_graphics(f); break;
+        case FIGURE_FISH_GULLS: figure_seagulls_update_graphics(f); break;
+        case FIGURE_SHEEP: figure_sheep_update_graphics(f); break;
+        case FIGURE_WOLF: figure_wolf_update_graphics(f); break;
+        case FIGURE_ZEBRA: figure_zebra_update_graphics(f); break;
+        case FIGURE_HIPPODROME_HORSES: figure_hippodrome_horse_update_graphics(f); break;
+    }
+}
+
 void figure_action_handle(void)
 {
     PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE);

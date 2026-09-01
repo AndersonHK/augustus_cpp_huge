@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!DOCTYPE assetlist>
-<assetlist name="Monuments\Circus_NESW_23">
-    <image id="Circus NESW 23" width="298" height="179" isometric="true">
-        <layer group="Health_Culture\Hippodrome_1" image="Image_0000" y="-56" part="footprint"/>
-        <layer src="Circus_NESW_23_Layer_02" part="top"/>
-        <layer src="Circus_NESW_23_Layer_03" x="128" y="97" part="top"/>
-    </image>
-</assetlist>
