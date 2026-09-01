@@ -4,11 +4,11 @@ This document is the current handoff for the generated graphics pipeline. It cov
 
 ## Current Shape
 
-Vespasian does not currently ship its own generated graphics. In an installed game folder, a clean generated output should have:
+Vespasian does not ship generated graphics. It may ship its own provenance-verified UI or mod art. In an installed game folder, clean generated output should have:
 
 - `Mods/Julius/Graphics`
 - `Mods/Augustus/Graphics`
-- no `Mods/Vespasian/Graphics`
+- no generated content under `Mods/Vespasian/Graphics`
 
 The default runtime stack is still Vespasian over Augustus over Julius. The graphics merge grain is an image entry id inside an assetlist, not an entire XML file. If a higher mod provides `Aesthetics\Statue.xml` with only one replacement image id, lower-mod entries in the same group remain available.
 
