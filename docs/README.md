@@ -17,7 +17,7 @@ Top-level documents in this directory describe the current runtime, active migra
 - [`figure_owned_native_graphics_plan.md`](figure_owned_native_graphics_plan.md): remaining figure-graphics ownership work.
 - [`renderer_scaling_seam_plan.md`](renderer_scaling_seam_plan.md), [`render_performance_plans.md`](render_performance_plans.md), and [`renderer_ui_vertical_slice_design.md`](renderer_ui_vertical_slice_design.md): renderer transition work.
 - [`routing_cost_map_scalability_plan.md`](routing_cost_map_scalability_plan.md), [`runtime_dll_boundary_refactor_plan.md`](runtime_dll_boundary_refactor_plan.md), and [`unit_and_formation_xml_plan.md`](unit_and_formation_xml_plan.md): active architectural work.
-- [`../temp/proprietary_graphics_history_scrub_plan.md`](../temp/proprietary_graphics_history_scrub_plan.md): planned, deliberately unexecuted history cleanup.
+- [`../temp/proprietary_graphics_history_scrub_plan.md`](../temp/proprietary_graphics_history_scrub_plan.md): deferred cleanup of licensed historical Augustus extraction output; this is not a proprietary Caesar 3 incident.
 
 ## Maintenance Rules
 

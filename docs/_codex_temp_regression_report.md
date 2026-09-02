@@ -13,6 +13,7 @@ Delete this file once all listed regressions are fixed and reflected in the norm
 - [ ] Building graphics variant save/load needs manual confirmation after the `BuildingGraphicsState` load-packet bridge.
 - [ ] Pavilion R-key rotation should cycle available variants instead of random stable-variant selection; candidate XML policy fix is pending manual confirmation.
 - [ ] Concrete carts with no destination still need explicit idle-at-source behavior if not already covered by the current cart wait action.
+- [ ] Hippodrome racing and betting need one shared four-team race result; the current visible race has only blue/red racers while betting independently rolls blue/red/white/green.
 
 ## Resolved: Actor Colony / Theater Regression
 
@@ -89,3 +90,17 @@ Delete this file once all listed regressions are fixed and reflected in the norm
 - Concrete cannot be stored in warehouses, so a city with no active construction sites can legitimately have zero valid concrete inputs.
 - Expected behavior: a cart with no destination should remain alive at the source on its idle standing frame, periodically recheck destinations, and start moving once a construction-site input opens. Do not add warehouse fallback behavior for concrete.
 - Candidate fix: `FIGURE_ACTION_245_CARTPUSHER_WAITING_FOR_DESTINATION` no longer kills the cart after a max wait, rechecks destinations periodically, and pins `image_offset` to the standing frame while waiting.
+
+## Open: Hippodrome Race and Betting Model
+
+Detailed research and implementation checklist: [`../temp/hippodrome_race_betting_fix_plan.md`](../temp/hippodrome_race_betting_fix_plan.md).
+
+- The betting UI exposes blue, red, white, and green teams, but `BuildingEntertainment::spawn_hippodrome_horses()` always creates exactly two racers with team ids 0 and 1.
+- Figure graphics interpret team id 0 as blue and every nonzero id as red. The current hippodrome asset contract contains only blue and red horse/cart entries, so white and green cannot be represented on the track.
+- Race settlement is disconnected from the simulated race. `race_result_process()` independently selects a random integer from 1 through 4 when the first finishing horse reaches its done state, then compares that lottery result with the player's bet. No actual winning team is recorded.
+- The two horse callbacks can both request settlement; resetting the bet makes the second call a practical no-op, but this is accidental exactly-once behavior rather than an owned race lifecycle.
+- Upstream Augustus contains the same two racers, start delays, speed values, checkpoint randomization, and unrelated four-way betting roll. This is longstanding inherited behavior rather than a regression introduced by native XML graphics.
+- Speed parity check: the normalized movement path converts legacy 15-unit steps to 128-unit coordinates. Horse speeds 2, 3, and 4 differ from the corresponding legacy displacement by less than 2% per update due to integer rounding, with no systematic material acceleration found.
+- Required fix: introduce one race-owned state object that selects participants, advances them, records the real winner exactly once, and settles the bet from that winner. Team identity must be a named four-value type rather than overloading `resource_id`, and lap count must stop overloading `leading_figure_id`.
+- Required asset decision: first verify whether runtime-extracted assets contain redistributable race sprites for white and green. If all four exist, expose them through the extractor and the existing logical asset path. If they do not, either supply legitimately authored team variants/tinting or deliberately reduce the UI and odds to the two drawable teams; never create duplicate extracted graphics in the repository.
+- Validation: deterministic races for every team and track orientation; bets on winners and losers with normal/festival payouts; save/load during an active bet and race; exactly-once settlement; repeated headless race soak; graphics resolution for every team/direction/cart layer; and a timing comparison against upstream at normal game speed.

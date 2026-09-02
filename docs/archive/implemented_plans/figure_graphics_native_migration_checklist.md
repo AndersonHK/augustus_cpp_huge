@@ -90,8 +90,8 @@ Status legend: `[x]` passing/completed, `[ ]` pending, `[!]` currently failing o
 - [x] Fresh Augustus v3 extraction completed successfully and produced 3,214 groups, 3,259 images, and 4,088 PNGs.
 - [x] Re-run a clean extraction after extractor changes settled and validate representative Julius/Augustus payloads through startup and direct asset contracts.
 - [x] Scan tracked/staged paths: no added/untracked generated `Group_*` trees, PNGs, stamps, manifests, or unverified proprietary assets; the 6,876 Augustus deletions are the user's intentional cleanup.
-- [x] Record the first known proprietary Augustus import as commit `fb138c6440c81a4aa5ad44cc12601484e2089b0d`.
-- [-] Do not execute the history scrub yet. Retain a plan covering affected refs, backups, branch protection, force-push coordination, collaborator reclones, and remote object/cache verification.
+- [x] Record the first known bulk Augustus graphics import as commit `fb138c6440c81a4aa5ad44cc12601484e2089b0d`. Later review established that this was licensed Augustus material, not proprietary Caesar 3 material.
+- [-] Defer any history rewrite. The retained plan is repository-hygiene contingency planning, not an active proprietary-asset scrub.
 
 ## Startup and deployment gates
 

@@ -22,4 +22,4 @@
 - [x] Confirm the installed stack contains zero exact redundant upper-layer non-Graphics files.
 - [x] Confirm the deployed executable SHA-256 matches the Release build.
 
-The proprietary-history scrub remains plan-only in `temp/proprietary_graphics_history_scrub_plan.md`; it was not executed.
+The historical Augustus extraction cleanup remains deferred in `temp/proprietary_graphics_history_scrub_plan.md`; it was not executed and is not required as proprietary-asset remediation.
