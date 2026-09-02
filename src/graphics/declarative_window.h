@@ -2,7 +2,11 @@
 
 #include "graphics/color.h"
 #include "graphics/font.h"
+#include "graphics/image.h"
+#include "graphics/tooltip.h"
 #include "graphics/ui_constants.h"
+#include "input/mouse.h"
+#include "core/time.h"
 
 #include <string>
 #include <string_view>
@@ -37,6 +41,7 @@ enum class DeclarativeWidgetStyle {
     Solid,
     Label,
     LargeLabel,
+    ImageSmallBorder,
 };
 
 enum class DeclarativeTextAlignment {
@@ -78,11 +83,17 @@ struct DeclarativeWidgetDefinition {
     std::string translation;
     std::string binding;
     std::string action;
+    std::string repeat_source;
+    std::string visible_binding;
+    std::string enabled_binding;
+    std::string selected_binding;
+    std::string tooltip_binding;
     std::string width_from_text;
     std::string visible_if_side_margin_lt_text;
     std::string stretch_to_widget;
     std::string assetlist_name;
     std::string image_name;
+    std::string pressed_image_name;
     int image_collection = 0;
     int image_offset = 0;
     int label_type = 1;
@@ -96,7 +107,12 @@ struct DeclarativeWidgetDefinition {
     int width_round_up_to = 0;
     int max_screen_height = -1;
     int side_margin_text_padding = 0;
+    int repeat_columns = 1;
+    int repeat_spacing_x = 0;
+    int repeat_spacing_y = 0;
     int invert_visibility_condition = 0;
+    int activate_on_press = 0;
+    int repeat_on_hold = 0;
     int color_declared = 0;
     DeclarativeDrawPhase draw_phase = DeclarativeDrawPhase::Foreground;
     DeclarativeCoordinateSpace coordinate_space = DeclarativeCoordinateSpace::Dialog;
@@ -160,6 +176,35 @@ public:
 
 private:
     const DeclarativeWindowDefinition *definition_ = nullptr;
+};
+
+class DeclarativeWindowController {
+public:
+    virtual ~DeclarativeWindowController() = default;
+    virtual int repeat_count(std::string_view source) const;
+    virtual std::string text(std::string_view binding, int item_index) const;
+    virtual ImageGroupEntryRef image(std::string_view binding, int item_index) const;
+    virtual int condition(std::string_view binding, int item_index) const;
+    virtual void action(std::string_view action, int item_index) = 0;
+    virtual const char *tooltip(std::string_view binding, int item_index) const;
+};
+
+class DeclarativeWindowRuntime {
+public:
+    DeclarativeWindowRuntime(const DeclarativeWindowDefinition &definition, DeclarativeWindowController &controller);
+    void draw(DeclarativeDrawPhase phase, int width, int height) const;
+    int handle_mouse(const mouse &mouse, int width, int height);
+    void tooltip(tooltip_context &context) const;
+
+private:
+    const DeclarativeWindowDefinition *definition_ = nullptr;
+    DeclarativeWindowController *controller_ = nullptr;
+    std::string focused_widget_;
+    int focused_item_ = -1;
+    std::string pressed_widget_;
+    int pressed_item_ = -1;
+    int pressed_repeat_count_ = 0;
+    time_millis last_repeat_time_ = 0;
 };
 
 int declarative_window_registry_load(void);

@@ -55,16 +55,6 @@ int city_entertainment_hippodrome_shows(void)
     return city_data.entertainment.hippodrome_shows;
 }
 
-void city_entertainment_set_hippodrome_has_race(int has_race)
-{
-    city_data.entertainment.hippodrome_has_race = has_race;
-}
-
-int city_entertainment_hippodrome_has_race(void)
-{
-    return city_data.entertainment.hippodrome_has_race;
-}
-
 int city_entertainment_venue_needing_shows(void)
 {
     return city_data.entertainment.venue_needing_shows;

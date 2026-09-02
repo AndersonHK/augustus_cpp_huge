@@ -7,9 +7,6 @@ int city_entertainment_arena_shows(void);
 int city_entertainment_colosseum_shows(void);
 int city_entertainment_hippodrome_shows(void);
 
-void city_entertainment_set_hippodrome_has_race(int has_race);
-int city_entertainment_hippodrome_has_race(void);
-
 int city_entertainment_venue_needing_shows(void);
 
 void city_entertainment_calculate_shows(void);

@@ -27,6 +27,7 @@
 #include "core/xml_parser.h"
 #include "game/resource.h"
 #include "figure/formation_type.h"
+#include "figure/figure_type_registry_internal.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
@@ -2995,6 +2996,30 @@ static int parse_graphics_condition()
 
         condition.type = GraphicsConditionType::MonumentUpgrade;
         condition.monument_upgrade = upgrade;
+    } else if (type_text && compare_text(type_text, "race_active") == 0) {
+        condition.type = GraphicsConditionType::RaceActive;
+    } else if (type_text && compare_text(type_text, "population") == 0) {
+        const char *operator_text = xml_parser_get_attribute_string("operator");
+        const char *threshold_text = xml_parser_get_attribute_string("threshold");
+        if (!operator_text || !threshold_text || !parse_graphics_comparison(operator_text, &condition.comparison) ||
+            !xml_value::parse_int_strict(threshold_text, &condition.threshold) || condition.threshold < 0) {
+            log_error("BuildingType graphics population condition is invalid", threshold_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Population;
+    } else if (type_text && compare_text(type_text, "orientation") == 0) {
+        const char *value = xml_parser_get_attribute_string("value");
+        if (value && compare_text(value, "top") == 0) condition.orientation = DIR_0_TOP;
+        else if (value && compare_text(value, "right") == 0) condition.orientation = DIR_2_RIGHT;
+        else if (value && compare_text(value, "bottom") == 0) condition.orientation = DIR_4_BOTTOM;
+        else if (value && compare_text(value, "left") == 0) condition.orientation = DIR_6_LEFT;
+        else {
+            log_error("BuildingType graphics orientation condition is invalid", value, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Orientation;
     } else if (type_text && compare_text(type_text, "festival_games") == 0) {
         if (!xml_parser_has_attribute("value")) {
             log_error("BuildingType graphics festival_games condition is missing required attribute 'value'", 0, 0);
@@ -4100,6 +4125,345 @@ static int parse_spawn()
     return 1;
 }
 
+static int parse_race_positive_attribute(const char *name, int *out_value, int minimum, int maximum)
+{
+    const char *text = xml_parser_get_attribute_string(name);
+    int value = 0;
+    if (!text || !xml_value::parse_int_strict(text, &value) || value < minimum || value > maximum) {
+        log_error("BuildingType race has an invalid numeric attribute", name, value);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    *out_value = value;
+    return 1;
+}
+
+static int parse_race()
+{
+    if (!g_parse_state.definition || g_parse_state.saw_race) {
+        log_error("BuildingType xml contains an invalid or duplicate race module",
+            g_parse_state.definition ? g_parse_state.definition->attr() : nullptr, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string participant;
+    if (!xml_definition::parse_required_nonempty_string_attribute("participant", &participant)) {
+        log_error("BuildingType race requires participant", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    const figure_type participant_type = figure_type_from_xml_name(participant.c_str());
+    if (participant_type == FIGURE_NONE) {
+        log_error("BuildingType race participant is unknown", participant.c_str(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    RaceDefinition &race = g_parse_state.race_definition;
+    race.participant_figure_reference = std::move(participant);
+    race.participant_figure = participant_type;
+    const char *start_delay_bands = xml_parser_get_attribute_string("start_delay_bands");
+    if (!parse_delay_bands_attribute(start_delay_bands, race.start_delay_bands)) {
+        log_error("BuildingType race requires valid start_delay_bands", start_delay_bands, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!parse_race_positive_attribute("laps", &race.laps, 1, 100) ||
+        !parse_race_positive_attribute("ready_ticks", &race.ready_ticks, 0, 10000) ||
+        !parse_race_positive_attribute("minimum_speed", &race.minimum_speed, 1, 32) ||
+        !parse_race_positive_attribute("maximum_speed", &race.maximum_speed, 1, 32) ||
+        !parse_race_positive_attribute("speed_roll", &race.speed_roll, 1, 10000) ||
+        !parse_race_positive_attribute("track_margin", &race.track_margin, 0, 64) ||
+        !parse_race_positive_attribute("lane_spacing", &race.lane_spacing, 1, 64) ||
+        race.maximum_speed < race.minimum_speed) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race = 1;
+    g_parse_state.parsing_race = 1;
+    return 1;
+}
+
+static void finish_race()
+{
+    RaceDefinition &race = g_parse_state.race_definition;
+    if (!g_parse_state.saw_race_spawn || !g_parse_state.saw_race_finish ||
+        !g_parse_state.saw_race_route || !g_parse_state.saw_race_teams || race.route.size() < 2 || race.teams.empty()) {
+        log_error("BuildingType race is missing spawn, finish, route, or teams",
+            g_parse_state.definition ? g_parse_state.definition->attr() : nullptr, 0);
+        g_parse_state.error = 1;
+    }
+    if (race.route.size() >= 2) {
+        const RaceRoutePoint &first = race.route[0];
+        const RaceRoutePoint &second = race.route[1];
+        const int finish_x = first.x - std::clamp(second.x - first.x, -1, 1);
+        const int finish_y = first.y - std::clamp(second.y - first.y, -1, 1);
+        if (race.spawn_x != first.x || race.spawn_y != first.y) {
+            log_error("BuildingType race spawn must equal its first route waypoint", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+        if (race.finish_x != finish_x || race.finish_y != finish_y) {
+            log_error("BuildingType race finish must be one step behind its first route waypoint", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+    }
+    if (race.betting.enabled) {
+        if (race.betting.window.empty()) {
+            log_error("BuildingType betting race requires a window", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+        for (const RaceTeamDefinition &team : race.teams) {
+            if (team.portrait_path.empty() || team.portrait_image.empty()) {
+                log_error("BuildingType betting race team requires a portrait", team.id.c_str(), 0);
+                g_parse_state.error = 1;
+            }
+        }
+    }
+    for (const RaceTeamDefinition &team : race.teams) {
+        if (race.track_margin + team.lane * race.lane_spacing > 64) {
+            log_error("BuildingType race lane exceeds the supported visual track width", team.id.c_str(), team.lane);
+            g_parse_state.error = 1;
+        }
+    }
+    if (!g_parse_state.error) {
+        g_parse_state.definition->set_race(std::move(race));
+    }
+    g_parse_state.parsing_race = 0;
+}
+
+static int parse_race_spawn_point()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_spawn ||
+        !parse_race_positive_attribute("x", &g_parse_state.race_definition.spawn_x, -64, 64) ||
+        !parse_race_positive_attribute("y", &g_parse_state.race_definition.spawn_y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_spawn = 1;
+    return 1;
+}
+
+static int parse_race_finish_point()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_finish ||
+        !parse_race_positive_attribute("x", &g_parse_state.race_definition.finish_x, -64, 64) ||
+        !parse_race_positive_attribute("y", &g_parse_state.race_definition.finish_y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_finish = 1;
+    return 1;
+}
+
+static int parse_race_route()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_route) {
+        log_error("BuildingType race contains an invalid or duplicate route", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_route = 1;
+    g_parse_state.parsing_race_route = 1;
+    return 1;
+}
+
+static void finish_race_route()
+{
+    if (g_parse_state.race_definition.route.size() < 2) {
+        log_error("BuildingType race route requires at least two waypoints", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_race_route = 0;
+}
+
+static int parse_race_waypoint()
+{
+    RaceRoutePoint point;
+    if (!g_parse_state.parsing_race_route ||
+        !parse_race_positive_attribute("x", &point.x, -64, 64) ||
+        !parse_race_positive_attribute("y", &point.y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.race_definition.route.push_back(point);
+    return 1;
+}
+
+static int parse_race_teams()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_teams) {
+        log_error("BuildingType race contains invalid or duplicate teams", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_teams = 1;
+    g_parse_state.parsing_race_teams = 1;
+    return 1;
+}
+
+static void finish_race_teams()
+{
+    if (g_parse_state.race_definition.teams.empty()) {
+        log_error("BuildingType race requires at least one team", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_race_teams = 0;
+}
+
+static int parse_race_team()
+{
+    RaceTeamDefinition team;
+    if (!g_parse_state.parsing_race_teams || g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("id", &team.id) ||
+        !xml_definition::parse_required_nonempty_string_attribute("name_key", &team.name_key) ||
+        !xml_definition::parse_required_nonempty_string_attribute("description_key", &team.description_key) ||
+        !xml_definition::parse_required_nonempty_string_attribute("tooltip_key", &team.tooltip_key) ||
+        !parse_race_positive_attribute("lane", &team.lane, 0, 255)) {
+        log_error("BuildingType race team is missing required attributes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    for (const RaceTeamDefinition &existing : g_parse_state.race_definition.teams) {
+        if (existing.id == team.id || existing.lane == team.lane) {
+            log_error("BuildingType race team id or lane is duplicated", team.id.c_str(), team.lane);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    g_parse_state.current_race_team = std::move(team);
+    g_parse_state.parsing_race_team = 1;
+    return 1;
+}
+
+static void finish_race_team()
+{
+    RaceTeamDefinition &team = g_parse_state.current_race_team;
+    if (team.graphics_path.empty() || team.body_entry.empty()) {
+        log_error("BuildingType race team requires racer graphics", team.id.c_str(), 0);
+        g_parse_state.error = 1;
+    } else {
+        g_parse_state.race_definition.teams.push_back(std::move(team));
+    }
+    g_parse_state.current_race_team = {};
+    g_parse_state.parsing_race_team = 0;
+}
+
+static int parse_race_vehicle_offsets(const char *text, std::array<RaceRoutePoint, 8> &offsets)
+{
+    if (!text || !*text) return 0;
+    std::string list(text);
+    size_t start = 0;
+    for (int direction = 0; direction < 8; ++direction) {
+        const size_t end = list.find(',', start);
+        const std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        const size_t separator = token.find(':');
+        if (separator == std::string::npos || !xml_value::parse_int_strict(token.substr(0, separator).c_str(), &offsets[direction].x) ||
+            !xml_value::parse_int_strict(token.substr(separator + 1).c_str(), &offsets[direction].y) ||
+            offsets[direction].x < -64 || offsets[direction].x > 64 || offsets[direction].y < -64 || offsets[direction].y > 64 ||
+            (direction < 7 && end == std::string::npos) || (direction == 7 && end != std::string::npos)) {
+            return 0;
+        }
+        start = end + 1;
+    }
+    return 1;
+}
+
+static int parse_race_vehicle_behind(const char *text, std::array<int, 8> &behind)
+{
+    if (!text || !*text) return 1;
+    static constexpr const char *directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    std::string list(text);
+    size_t start = 0;
+    while (start <= list.size()) {
+        const size_t end = list.find(',', start);
+        const std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        int found = -1;
+        for (int direction = 0; direction < 8; ++direction) {
+            if (token == directions[direction]) found = direction;
+        }
+        if (found < 0 || behind[found]) return 0;
+        behind[found] = 1;
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return 1;
+}
+
+static int parse_race_racer()
+{
+    if (!g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("path", &g_parse_state.current_race_team.graphics_path) ||
+        !xml_definition::parse_required_nonempty_string_attribute("body", &g_parse_state.current_race_team.body_entry)) {
+        log_error("BuildingType race racer requires path and body", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_race_team.graphics_path =
+        xml_definition::normalize_path(g_parse_state.current_race_team.graphics_path.c_str());
+    if (xml_parser_has_attribute("vehicle")) {
+        g_parse_state.current_race_team.vehicle_entry =
+            xml_value::trim_copy(xml_parser_get_attribute_string("vehicle"));
+        if (g_parse_state.current_race_team.vehicle_entry.empty()) {
+            log_error("BuildingType race racer vehicle cannot be empty", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        if (!parse_race_vehicle_offsets(xml_parser_get_attribute_string("vehicle_offsets"),
+                g_parse_state.current_race_team.vehicle_offsets) ||
+            !parse_race_vehicle_behind(xml_parser_get_attribute_string("vehicle_behind"),
+                g_parse_state.current_race_team.vehicle_behind)) {
+            log_error("BuildingType race racer has invalid vehicle offsets or draw order", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    } else if (xml_parser_has_attribute("vehicle_offsets") || xml_parser_has_attribute("vehicle_behind")) {
+        log_error("BuildingType race racer cannot define vehicle placement without a vehicle", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
+static int parse_race_portrait()
+{
+    if (!g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("path", &g_parse_state.current_race_team.portrait_path) ||
+        !xml_definition::parse_required_nonempty_string_attribute("image", &g_parse_state.current_race_team.portrait_image)) {
+        log_error("BuildingType race portrait requires path and image", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_race_team.portrait_path =
+        xml_definition::normalize_path(g_parse_state.current_race_team.portrait_path.c_str());
+    return 1;
+}
+
+static int parse_race_betting()
+{
+    RaceBettingDefinition &betting = g_parse_state.race_definition.betting;
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_betting || !xml_parser_has_attribute("enabled") ||
+        !xml_value::parse_bool(xml_parser_get_attribute_string("enabled"), &betting.enabled)) {
+        log_error("BuildingType race betting has an invalid enabled attribute", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_betting = 1;
+    if (betting.enabled) {
+        if (!xml_definition::parse_required_nonempty_string_attribute("window", &betting.window) ||
+            !parse_race_positive_attribute("wager_step", &betting.wager_step, 1, 1000000) ||
+            !parse_race_positive_attribute("normal_multiplier", &betting.normal_multiplier, 1, 100) ||
+            !parse_race_positive_attribute("festival_multiplier", &betting.festival_multiplier, 1, 100)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+    } else if (xml_parser_has_attribute("window") || xml_parser_has_attribute("wager_step") ||
+        xml_parser_has_attribute("normal_multiplier") || xml_parser_has_attribute("festival_multiplier")) {
+        log_error("Disabled BuildingType race betting cannot define betting parameters", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
 static const xml_parser_element XML_ELEMENTS[] = {
     { "building", parse_building_root, nullptr, nullptr, parse_building_root_text },
     { "identity", parse_identity, nullptr, "building", nullptr },
@@ -4163,7 +4527,17 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "housing", parse_housing, nullptr, "building", nullptr },
     { "vacant_lot", parse_vacant_lot, nullptr, "building", nullptr },
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
-    { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
+    { "spawn", parse_spawn, nullptr, "spawn_group", nullptr },
+    { "race", parse_race, finish_race, "building", nullptr },
+    { "spawn_point", parse_race_spawn_point, nullptr, "race", nullptr },
+    { "finish_point", parse_race_finish_point, nullptr, "race", nullptr },
+    { "route", parse_race_route, finish_race_route, "race", nullptr },
+    { "waypoint", parse_race_waypoint, nullptr, "route", nullptr },
+    { "teams", parse_race_teams, finish_race_teams, "race", nullptr },
+    { "team", parse_race_team, finish_race_team, "teams", nullptr },
+    { "racer", parse_race_racer, nullptr, "team", nullptr },
+    { "portrait", parse_race_portrait, nullptr, "team", nullptr },
+    { "betting", parse_race_betting, nullptr, "race", nullptr }
 };
 
 static int starts_with_token(const char *cursor, const char *end, const char *token)
@@ -4697,7 +5071,8 @@ static int parse_definition_buffer(
         g_parse_state.saw_culture_modules ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
         g_parse_state.saw_housing || g_parse_state.saw_vacant_lot ||
-        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access || g_parse_state.saw_composed;
+        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access || g_parse_state.saw_composed ||
+        g_parse_state.saw_race;
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition ||
         (!g_parse_state.disabled && !has_supported_node) ||
         (g_parse_state.disabled && (has_supported_node || g_parse_state.saw_root_text ||
@@ -5220,6 +5595,35 @@ static int validate_final_winner_definitions(
         }
         const mod_definition::DefinitionOverlayEntry *source = staged.overlays.find(definition->attr());
         const char *filename = source ? source->source.full_path.c_str() : definition->attr();
+        if (definition->has_race()) {
+            const RaceDefinition &race = definition->race();
+            static constexpr const char *direction_suffixes[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+            if (!figure_type_registry_impl::definition_for(race.participant_figure)) {
+                if (failure_reason) *failure_reason = std::string("Race participant FigureType is unresolved: ") + race.participant_figure_reference;
+                return 0;
+            }
+            for (const RaceTeamDefinition &team : race.teams) {
+                for (const char *suffix : direction_suffixes) {
+                    const std::string body_entry = team.body_entry + "_" + suffix;
+                    if (!ImageGroupEntryRef::from_group(team.graphics_path, body_entry).runtime_slice().is_valid()) {
+                        if (failure_reason) *failure_reason = std::string("Race team body graphics are unresolved: ") + team.id + " direction=" + suffix;
+                        return 0;
+                    }
+                    if (!team.vehicle_entry.empty()) {
+                        const std::string vehicle_entry = team.vehicle_entry + "_" + suffix;
+                        if (!ImageGroupEntryRef::from_group(team.graphics_path, vehicle_entry).runtime_slice().is_valid()) {
+                            if (failure_reason) *failure_reason = std::string("Race team vehicle graphics are unresolved: ") + team.id + " direction=" + suffix;
+                            return 0;
+                        }
+                    }
+                }
+                if (race.betting.enabled &&
+                    !ImageGroupEntryRef::from_group(team.portrait_path, team.portrait_image).runtime_slice().is_valid()) {
+                    if (failure_reason) *failure_reason = std::string("Race team portrait is unresolved: ") + team.id;
+                    return 0;
+                }
+            }
+        }
         if (!validate_runtime_graphics(*definition) ||
             !resolve_runtime_references(*definition, filename) ||
             !validate_runtime_class_nodes(*definition)) {

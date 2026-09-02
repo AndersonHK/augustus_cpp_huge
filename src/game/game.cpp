@@ -15,6 +15,7 @@
 #include "game.h"
 
 #include "building/building_runtime.h"
+#include "building/building_type_registry_internal.h"
 #include "game/performance_tracker.h"
 #include "graphics/declarative_window.h"
 #include "startup/startup_parser_abi.h"
@@ -203,6 +204,16 @@ int game_init(void)
             failure_message.empty() ? nullptr : failure_message.c_str());
         errlog("unable to load startup definitions");
         return 0;
+    }
+    for (int type = 0; type < BUILDING_TYPE_MAX; ++type) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (!definition || !definition->has_race() || !definition->race().betting.enabled) continue;
+        if (!declarative_window_definition(definition->race().betting.window)) {
+            set_init_failure_message("Race betting window is unresolved.", definition->race().betting.window.c_str());
+            errlog("race betting window is unresolved");
+            return 0;
+        }
     }
     building_runtime_reset();
     load_augustus_messages();

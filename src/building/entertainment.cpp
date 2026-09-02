@@ -13,7 +13,6 @@
 #include "figure/movement.h"
 #include "map/road_access.h"
 
-#include <array>
 #include <string_view>
 
 BuildingEntertainment::BuildingEntertainment(const Building &venue)
@@ -168,31 +167,52 @@ Figure *BuildingEntertainment::create_roaming_figure(const map_point &road, figu
     return figure;
 }
 
-bool BuildingEntertainment::spawn_hippodrome_horses() const
+bool BuildingEntertainment::create_race_participants() const
 {
     building *venue_record = record();
-    if (!venue_record) {
+    const building_type_registry_impl::RaceDefinition *race = venue_.type && venue_.type->has_race() ? &venue_.type->race() : nullptr;
+    if (!venue_record || !race || race->teams.empty()) {
         return false;
     }
 
-    std::array<Figure *, 4> horses = {};
-    for (int team = 0; team < 4; ++team) {
-        horses[team] = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 1 + (team & 1), DIR_2_RIGHT);
-        if (!horses[team]) {
-            for (Figure *horse : horses) {
+    std::vector<Figure *> participants(race->teams.size(), nullptr);
+    for (int team = 0; team < static_cast<int>(race->teams.size()); ++team) {
+        const int lane = race->teams[team].lane;
+        participants[team] = Figure::create(race->participant_figure,
+            venue_record->x + race->spawn_x, venue_record->y + race->spawn_y + (lane & 1), DIR_2_RIGHT);
+        if (!participants[team]) {
+            for (Figure *horse : participants) {
                 if (horse) {
                     horse->remove();
                 }
             }
             return false;
         }
-        horses[team]->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
-        attach_figure_to_venue(horses[team]);
-        horses[team]->resource_id = static_cast<unsigned char>(team);
-        horses[team]->speed_multiplier = 3;
+        participants[team]->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
+        attach_figure_to_venue(participants[team]);
+        participants[team]->resource_id = static_cast<unsigned char>(team);
+        participants[team]->speed_multiplier = static_cast<unsigned char>(race->minimum_speed);
     }
-    race_bet_start(static_cast<unsigned int>(venue_record->id));
+    race_bet_start(static_cast<unsigned int>(venue_record->id), static_cast<int>(race->teams.size()));
     return true;
+}
+
+void BuildingEntertainment::spawn_race_participants()
+{
+    building *venue_record = record();
+    building_runtime *runtime = venue_.runtime_instance();
+    const building_type_registry_impl::RaceDefinition *race = venue_.type && venue_.type->has_race() ? &venue_.type->race() : nullptr;
+    if (!venue_record || !runtime || !race || race_bet_is_active(static_cast<unsigned int>(venue_record->id))) {
+        return;
+    }
+
+    const size_t counter_index = venue_.type->spawn_groups().size() + 1;
+    if (!runtime->module_delay_has_elapsed(counter_index, race->start_delay_bands)) {
+        return;
+    }
+    if (create_race_participants() && venue_.type->attr_is("hippodrome")) {
+        post_hippodrome_message_if_active();
+    }
 }
 
 void BuildingEntertainment::spawn_execution_lion_tamers(const map_point &road) const
@@ -268,11 +288,6 @@ void BuildingEntertainment::spawn_hippodrome_service()
     }
     venue_record->figure_id = charioteer->id();
 
-    if (!city_entertainment_hippodrome_has_race()) {
-        if (spawn_hippodrome_horses()) {
-            post_hippodrome_message_if_active();
-        }
-    }
 }
 
 void BuildingEntertainment::spawn_colosseum_service()

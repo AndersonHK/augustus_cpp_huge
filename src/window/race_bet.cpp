@@ -1,257 +1,163 @@
-#include "game/ResourceGraphics.h"
-#include "graphics/arrow_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
-#include "graphics/image_border.h"
-#include "graphics/lang_text.h"
-#include "input/input.h"
 #include "race_bet.h"
 
-#include "city/race_bet.h"
-
-#include "translation/translation.h"
-#include "assets/assets.h"
+#include "building/building.h"
 #include "city/data_private.h"
+#include "city/race_bet.h"
 #include "core/calc.h"
-#include "graphics/image_button.h"
-#include "graphics/ui_runtime_api.h"
-#include "graphics/text.h"
+#include "graphics/declarative_window.h"
+#include "graphics/graphics.h"
 #include "graphics/window.h"
+#include "input/input.h"
+#include "translation/translation.h"
 
-static void arrow_button_bet(int is_down, int param2);
-static void button_horse_selection(const generic_button *button);
-static void button_confirm(const generic_button *button);
-static void button_close(int param1, int param2);
+#include <memory>
+#include <string>
 
-static generic_button buttons[] = {
-        {34, 145, 81, 91, button_horse_selection, 0, BLUE_HORSE},
-        {144, 145, 81, 91, button_horse_selection, 0, RED_HORSE},
-        {254, 145, 81, 91, button_horse_selection, 0, WHITE_HORSE},
-        {364, 145, 81, 91, button_horse_selection, 0, GREEN_HORSE}
-};
+namespace {
 
-static arrow_button amount_buttons[] = {
-        {106, 306, 17, 24, arrow_button_bet, 1, 0},
-        {130, 306, 15, 24, arrow_button_bet, 0, 0}
-};
-static generic_button bet_buttons[] = {
-        {90, 354, 300, 20, button_confirm},
-};
-
-static image_button image_button_close[] = {
-        {424, 354, 24, 24, IB_NORMAL, GROUP_CONTEXT_ICONS, 4, button_close, button_none, 0, 0, 1}
-};
-
-static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Hipp_Team_Blue"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0020"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0021"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0022"),
-};
-
-static const translation_key HORSE_DESCRIPTION_KEYS[] = {
-    "TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION",
-    "TR_WINDOW_RACE_RED_HORSE_DESCRIPTION",
-    "TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION",
-    "TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION"
-};
-
-static const translation_key HORSE_TOOLTIP_KEYS[] = {
-    "TR_WINDOW_RACE_BET_BLUE_HORSE",
-    "TR_WINDOW_RACE_BET_RED_HORSE",
-    "TR_WINDOW_RACE_BET_WHITE_HORSE",
-    "TR_WINDOW_RACE_BET_GREEN_HORSE"
-};
-
-static struct {
-    unsigned int chosen_horse;
-    unsigned int bet_amount;
-    int in_progress_bet;
-    unsigned int focus_button_id;
-    unsigned int focus_button_id2;
-    unsigned int focus_button_id3;
-    unsigned int focus_image_button_id;
-    int width_blocks;
-    int height_blocks;
-} data;
-
-static int init(void)
+std::string translated(const char *key)
 {
-    if (window_is(WINDOW_RACE_BET)) {
-        // don't show popup over popup
+    return reinterpret_cast<const char *>(translation_for_key(key));
+}
+
+class RaceBetController final : public DeclarativeWindowController {
+public:
+    int initialize(unsigned int building_id)
+    {
+        Building *building = Building::get(building_id);
+        if (!building || !building->type || !building->type->has_race() ||
+            !building->type->race().betting.enabled || building->type->race().teams.empty()) return 0;
+        building_id_ = building_id;
+        race_ = &building->type->race();
+        selected_team_ = city_data.games.chosen_horse;
+        wager_ = static_cast<unsigned int>(calc_bound(city_data.games.bet_amount, 0, city_data.emperor.personal_savings));
+        locked_ = has_bet_in_progress();
+        return 1;
+    }
+
+    const building_type_registry_impl::RaceDefinition *race() const { return race_; }
+
+    int repeat_count(std::string_view source) const override
+    {
+        return source == "race.teams" && race_ ? static_cast<int>(race_->teams.size()) : 0;
+    }
+
+    std::string text(std::string_view binding, int item_index) const override
+    {
+        (void)item_index;
+        if (binding == "race.selected_description" && selected_team_ > 0 && selected_team_ <= race_->teams.size()) {
+            return translated(race_->teams[selected_team_ - 1].description_key.c_str());
+        }
+        if (binding == "race.wager") return std::to_string(wager_) + " dn";
+        if (binding == "race.savings") {
+            return translated("TR_PERSONAL_SAVINGS") + " " +
+                std::to_string(city_data.emperor.personal_savings) + " dn";
+        }
+        if (binding == "race.confirm_label") {
+            return translated(locked_ ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" : "TR_WINDOW_RACE_BET_BUTTON");
+        }
+        return {};
+    }
+
+    ImageGroupEntryRef image(std::string_view binding, int item_index) const override
+    {
+        if (binding != "race.team.portrait" || !race_ || item_index < 0 || item_index >= race_->teams.size()) return {};
+        const building_type_registry_impl::RaceTeamDefinition &team = race_->teams[item_index];
+        return ImageGroupEntryRef::from_group(team.portrait_path, team.portrait_image);
+    }
+
+    int condition(std::string_view binding, int item_index) const override
+    {
+        if (binding == "race.can_edit") return !locked_ && race_bet_can_place_for(building_id_);
+        if (binding == "race.can_confirm") return !locked_ && selected_team_ > 0 && wager_ > 0 &&
+            race_bet_can_place_for(building_id_);
+        if (binding == "race.team.selected") return item_index >= 0 && selected_team_ == static_cast<unsigned int>(item_index + 1);
         return 0;
     }
-    data.in_progress_bet = city_data.games.chosen_horse ? 1 : 0;
-    data.chosen_horse = static_cast<unsigned int>(city_data.games.chosen_horse ? city_data.games.chosen_horse : NO_BET);
-    data.bet_amount = static_cast<unsigned int>(city_data.games.bet_amount ? city_data.games.bet_amount: 0);
-    data.width_blocks = 30;
-    data.height_blocks = 25;
 
+    void action(std::string_view action_id, int item_index) override
+    {
+        if (action_id == "window.close") {
+            window_go_back();
+        } else if (action_id == "race.team.select" && condition("race.can_edit", item_index) && item_index >= 0) {
+            selected_team_ = static_cast<unsigned int>(item_index + 1);
+        } else if (action_id == "race.wager.decrease" && condition("race.can_edit", -1)) {
+            wager_ = static_cast<unsigned int>(calc_bound(static_cast<int>(wager_) - race_->betting.wager_step,
+                0, city_data.emperor.personal_savings));
+        } else if (action_id == "race.wager.increase" && condition("race.can_edit", -1)) {
+            wager_ = static_cast<unsigned int>(calc_bound(static_cast<int>(wager_) + race_->betting.wager_step,
+                0, city_data.emperor.personal_savings));
+        } else if (action_id == "race.confirm" && condition("race.can_confirm", -1)) {
+            city_data.games.chosen_horse = static_cast<uint8_t>(selected_team_);
+            city_data.games.bet_amount = static_cast<int32_t>(wager_);
+            race_bet_select_building(building_id_);
+            window_go_back();
+        }
+        window_request_refresh();
+    }
+
+    const char *tooltip(std::string_view binding, int item_index) const override
+    {
+        if (binding == "race.team.tooltip" && race_ && item_index >= 0 && item_index < race_->teams.size()) {
+            return race_->teams[item_index].tooltip_key.c_str();
+        }
+        return nullptr;
+    }
+
+private:
+    unsigned int building_id_ = 0;
+    const building_type_registry_impl::RaceDefinition *race_ = nullptr;
+    unsigned int selected_team_ = 0;
+    unsigned int wager_ = 0;
+    int locked_ = 0;
+};
+
+RaceBetController controller;
+std::unique_ptr<DeclarativeWindowRuntime> runtime;
+const DeclarativeWindowDefinition *definition = nullptr;
+
+int init()
+{
+    if (window_is(WINDOW_RACE_BET) || !controller.initialize(race_bet_selected_building())) return 0;
+    definition = declarative_window_definition(controller.race()->betting.window);
+    if (!definition) return 0;
+    runtime = std::make_unique<DeclarativeWindowRuntime>(*definition, controller);
     return 1;
 }
 
-
-static void draw_background(void)
+void draw_background()
 {
     window_draw_underlying_window();
-
-    graphics_in_dialog_with_size(BLOCK_SIZE * data.width_blocks, BLOCK_SIZE * data.height_blocks);
-
-    outer_panel_draw(0, 0, data.width_blocks, data.height_blocks);
-
-    resource_graphics(resource_denarii()).panel_icon().draw(20, 20);
-
-    text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_TITLE"), 0, 20, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-
-    text_draw_multiline(translation_for_key("TR_WINDOW_RACE_BET_DESCRIPTION"), 25, 65, 438, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-
-    inner_panel_draw(18, 300, 28, 2);
-    text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_AMOUNT"), 18, 310, 80, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    int width = text_draw_number(static_cast<int>(data.bet_amount), '@', " ", 165, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    width += lang_text_draw("main_strings.50.15", 165 + width, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_with_money(translation_for_key("TR_PERSONAL_SAVINGS"), city_emperor_personal_savings(), " ", "", 284, 310, 175,  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-
-    translation_key horse_description;
-    if (data.focus_button_id) {
-        horse_description = HORSE_DESCRIPTION_KEYS[data.focus_button_id - 1];
-    } else if (data.chosen_horse) {
-        horse_description = HORSE_DESCRIPTION_KEYS[data.chosen_horse - 1];
-    }
-    if (horse_description) {
-        text_draw_multiline(translation_for(horse_description), 25, 250, 438, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    }
-
-    const int betting_locked = data.in_progress_bet || !race_bet_can_place();
-    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !betting_locked;
-
-    text_draw_centered(translation_for(betting_locked ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
-        "TR_WINDOW_RACE_BET_BUTTON"), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
-        button_enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
-
-    for (int i = 0; i < 4; i++) {
-        HORSE_TEAM_IMAGES[i].draw(39 + i * 110, 150);
-    }
-
+    graphics_in_dialog_with_size(definition->base_width(), definition->base_height());
+    runtime->draw(DeclarativeDrawPhase::Background, definition->base_width(), definition->base_height());
     graphics_reset_dialog();
 }
 
-static void draw_foreground(void)
+void draw_foreground()
 {
-    graphics_in_dialog_with_size(BLOCK_SIZE * data.width_blocks, BLOCK_SIZE * data.height_blocks);
-
-    const ImageBorder border = ImageBorder::image_small();
-
-    for (unsigned int i = 0; i < 4; i++) {
-        color_t color = data.focus_button_id == (i + 1) || data.chosen_horse == (i + 1) ?
-            COLOR_BORDER_RED : COLOR_BORDER_GREEN;
-        border.draw(34 + i * 110, 145, color);
-    }
-
-    arrow_buttons_draw(0, 0, amount_buttons, 2);
-
-    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet && race_bet_can_place();
-
-    button_border_draw(90, 354, 300, 20, button_enabled && data.focus_button_id3 == 1);
-    image_buttons_draw(0, 0, image_button_close, 1);
-
+    graphics_in_dialog_with_size(definition->base_width(), definition->base_height());
+    runtime->draw(DeclarativeDrawPhase::Foreground, definition->base_width(), definition->base_height());
     graphics_reset_dialog();
     window_request_refresh();
 }
 
-static void handle_input(const mouse *m, const hotkeys *h)
+void handle_input(const mouse *m, const hotkeys *hotkeys)
 {
-    const mouse *m_dialog = mouse_in_dialog_with_size(m, data.width_blocks * BLOCK_SIZE, data.height_blocks * BLOCK_SIZE);
-
-    if (image_buttons_handle_mouse(m_dialog, 0, 0, image_button_close, 1, &data.focus_image_button_id)) {
-        return;
-    }
-
-    if (input_go_back_requested(m, h)) {
-        window_go_back();
-    }
-
-    if (GenericButtonList(buttons, 4).handle_mouse(
-        *m_dialog,
-        0,
-        0,
-        &data.focus_button_id
-    ) ||
-        arrow_buttons_handle_mouse(m_dialog, 0, 0, amount_buttons, 2, &data.focus_button_id2) ||
-        GenericButtonList(bet_buttons, 1).handle_mouse(
-            *m_dialog,
-            0,
-            0,
-            &data.focus_button_id3
-        )) {
-        return;
-    }
+    const mouse *dialog_mouse = mouse_in_dialog_with_size(m, definition->base_width(), definition->base_height());
+    if (runtime->handle_mouse(*dialog_mouse, definition->base_width(), definition->base_height())) return;
+    if (input_go_back_requested(m, hotkeys)) window_go_back();
 }
 
-static void arrow_button_bet(int is_down, int param2)
+void handle_tooltip(tooltip_context *context)
 {
-    (void)param2;
-
-    if (!data.in_progress_bet) {
-        int amount = static_cast<int>(data.bet_amount);
-        amount += is_down ? -10 : 10;
-        data.bet_amount = static_cast<unsigned int>(calc_bound(amount, 0, city_data.emperor.personal_savings));
-
-        window_request_refresh();
-    }
+    runtime->tooltip(*context);
 }
 
-static void button_horse_selection(const generic_button *button)
-{
-    int option = button->parameter1;
-    if (!data.in_progress_bet) {
-        data.chosen_horse = static_cast<unsigned int>(option);
-        window_request_refresh();
-    }
-}
-
-static void button_confirm(const generic_button *button)
-{
-    (void)button;
-
-    // save bet and go back
-    if (race_bet_can_place() && data.chosen_horse && data.bet_amount) {
-        city_data.games.chosen_horse = static_cast<uint8_t>(data.chosen_horse);
-        city_data.games.bet_amount = static_cast<int32_t>(data.bet_amount);
-        window_go_back();
-    }
-}
-
-static void handle_tooltip(tooltip_context *c)
-{
-    if (data.focus_image_button_id) { // "Exit this panel"
-        c->type = TOOLTIP_BUTTON;
-        c->text_group = 68;
-        c->text_id = 2;
-    } else if (data.focus_button_id) {
-        c->type = TOOLTIP_BUTTON;
-        c->translation_key = HORSE_TOOLTIP_KEYS[data.focus_button_id - 1];
-    }
-}
-
-static void button_close(int param1, int param2)
-{
-    (void)param1;
-    (void)param2;
-
-    window_go_back();
-}
+} // namespace
 
 void window_race_bet_show(void)
 {
-    if (init()) {
-        window_type window = {
-                WINDOW_RACE_BET,
-                draw_background,
-                draw_foreground,
-                handle_input,
-                handle_tooltip
-        };
-        window_show(&window);
-    }
+    if (!init()) return;
+    window_type window = { WINDOW_RACE_BET, draw_background, draw_foreground, handle_input, handle_tooltip };
+    window_show(&window);
 }

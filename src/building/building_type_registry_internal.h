@@ -90,6 +90,18 @@ struct ParseState {
     WaterAccessRequirementRule current_water_access_requirement_rule;
     WaterAccessRequirementWhere current_water_access_requirement_where = WaterAccessRequirementWhere::Footprint;
     int saw_spawn = 0;
+    RaceDefinition race_definition;
+    RaceTeamDefinition current_race_team;
+    int saw_race = 0;
+    int parsing_race = 0;
+    int parsing_race_route = 0;
+    int parsing_race_teams = 0;
+    int parsing_race_team = 0;
+    int saw_race_spawn = 0;
+    int saw_race_finish = 0;
+    int saw_race_route = 0;
+    int saw_race_teams = 0;
+    int saw_race_betting = 0;
     int error = 0;
 };
 

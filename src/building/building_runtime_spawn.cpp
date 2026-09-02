@@ -1332,3 +1332,18 @@ void building_runtime::spawn_figure()
         }
     }
 }
+
+int building_runtime::module_delay_has_elapsed(size_t module_index, const std::vector<building_type_registry_impl::DelayBand> &delay_bands)
+{
+    const int delay = evaluate_delay(delay_bands);
+    if (delay < 0) {
+        return 0;
+    }
+    const unsigned char counter = static_cast<unsigned char>(get_spawn_delay_counter(module_index) + 1);
+    if (counter <= delay) {
+        set_spawn_delay_counter(module_index, counter);
+        return 0;
+    }
+    set_spawn_delay_counter(module_index, 0);
+    return 1;
+}

@@ -147,8 +147,20 @@ int xml_start_image(void)
     entry.id = id;
     entry.source = g_parse_state.source;
     entry.local_order = static_cast<int>(g_parse_state.doc->ordered_ids.size());
+    const int has_width = xml_parser_has_attribute("width");
+    const int has_height = xml_parser_has_attribute("height");
+    if (has_width != has_height) {
+        crash_context_report_error("ImageGroup source size requires both width and height", entry.id.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
     entry.width = xml_parser_get_attribute_int("width");
     entry.height = xml_parser_get_attribute_int("height");
+    if (has_width && (entry.width <= 0 || entry.height <= 0)) {
+        crash_context_report_error("ImageGroup source size requires positive pixel dimensions", entry.id.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
     const int has_logical_width = xml_parser_has_attribute("logical_width");
     const int has_logical_height = xml_parser_has_attribute("logical_height");
     if (has_logical_width != has_logical_height) {
@@ -157,6 +169,11 @@ int xml_start_image(void)
         return 0;
     }
     if (has_logical_width) {
+        if (!has_width) {
+            crash_context_report_error("ImageGroup logical size requires explicit source width and height", entry.id.c_str());
+            g_parse_state.error = 1;
+            return 0;
+        }
         entry.fixed_logical_size.width = xml_parser_get_attribute_int("logical_width");
         entry.fixed_logical_size.height = xml_parser_get_attribute_int("logical_height");
         if (entry.fixed_logical_size.width <= 0 || entry.fixed_logical_size.height <= 0) {

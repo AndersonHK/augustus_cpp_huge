@@ -6,7 +6,6 @@
 #include "building/industry.h"
 #include "building/rotation.h"
 #include "building/storage.h"
-#include "city/entertainment.h"
 #include "city/festival.h"
 #include "city/labor.h"
 #include "figure/roamer_preview.h"
@@ -269,74 +268,6 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
     draw_roamer_frequency(x, y, grid_offset);
 }
 
-static void draw_hippodrome_spectators(const Building &building, int x, int y, color_t color_mask)
-{
-    int building_part = 0;
-    if (building.Composition && building.Composition->is_child()) {
-        const building_type_registry_impl::CompositionChildDef *child =
-            building.Composition->child_definition();
-        if (child && child->role == "middle") {
-            building_part = 1;
-        } else if (child && child->role == "end") {
-            building_part = 2;
-        }
-    }
-    int orientation = building_rotation_get_building_orientation(building.orientation());
-    int population = city_population();
-    if ((building_part == 0) && population > 2000) {
-        // first building part
-        switch (orientation) {
-            case DIR_0_TOP:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_2) + 6).draw(x + 147, y - 72, color_mask, draw_context.scale);
-                break;
-            case DIR_2_RIGHT:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_1) + 8).draw(x + 58, y - 79, color_mask, draw_context.scale);
-                break;
-            case DIR_4_BOTTOM:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_2) + 8).draw(x + 119, y - 80, color_mask, draw_context.scale);
-                break;
-            case DIR_6_LEFT:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_1) + 6).draw(x, y - 72, color_mask, draw_context.scale);
-        }
-    } else if ((building_part == 1) && population > 100) {
-        // middle building part
-        switch (orientation) {
-            case DIR_0_TOP:
-            case DIR_4_BOTTOM:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_2) + 7).draw(x + 122, y - 79, color_mask, draw_context.scale);
-                break;
-            case DIR_2_RIGHT:
-            case DIR_6_LEFT:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_1) + 7).draw(x, y - 80, color_mask, draw_context.scale);
-        }
-    } else if ((building_part == 2) && population > 1000) {
-        // last building part
-        switch (orientation) {
-            case DIR_0_TOP:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_2) + 8).draw(x + 119, y - 80, color_mask, draw_context.scale);
-                break;
-            case DIR_2_RIGHT:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_1) + 6).draw(x, y - 72, color_mask, draw_context.scale);
-                break;
-            case DIR_4_BOTTOM:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_2) + 6).draw(x + 147, y - 72, color_mask, draw_context.scale);
-                break;
-            case DIR_6_LEFT:
-                Image::from_id(Image::group(GROUP_BUILDING_HIPPODROME_1) + 8).draw(x + 58, y - 79, color_mask, draw_context.scale);
-                break;
-        }
-    }
-}
-
-static void draw_entertainment_spectators(const Building &building, int x, int y, color_t color_mask)
-{
-    Building *owner = building.Composition ? building.Composition->owner() : const_cast<Building *>(&building);
-    if (owner && owner->matches("hippodrome") && owner->worker_count() > 0
-        && city_entertainment_hippodrome_has_race()) {
-        draw_hippodrome_spectators(building, x, y, color_mask);
-    }
-}
-
 static int has_workshop_raw_materials(const Building &building)
 {
     return building.loads_stored() >= 2 * resource_units_per_load() || building.industry_has_raw_materials();
@@ -465,7 +396,6 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
     if (building) {
         draw_senate_rating_flags(*building, x, y, color_mask);
     draw_mothball_icon(*building, x, y);
-        draw_entertainment_spectators(*building, x, y, color_mask);
         draw_workshop_raw_material_storage(*building, x, y, color_mask);
     }
 

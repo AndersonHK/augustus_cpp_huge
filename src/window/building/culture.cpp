@@ -57,13 +57,6 @@ static generic_button hold_games_button[] = {
     { 0, 0, 300, 20, button_hold_games}
 };
 
-static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Hipp_Team_Blue"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0020"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0021"),
-    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0022"),
-};
-
 static struct {
     unsigned int focus_button_id;
     Building *building = nullptr;
@@ -1154,7 +1147,8 @@ int window_building_handle_mouse_hippodrome(const mouse *m, building_info_contex
     if (c->building->monument_phase() != MONUMENT_FINISHED) {
         return 0;
     }
-    if (race_bet_can_place() && GenericButtonList(race_bet_button, 1).handle_mouse(
+    if (c->building->type && c->building->type->has_race() && c->building->type->race().betting.enabled &&
+        race_bet_can_place_for(c->building->id) && GenericButtonList(race_bet_button, 1).handle_mouse(
         *m,
         c->x_offset + 88,
         c->y_offset + (c->height_blocks > 27 ? 603 : 380),
@@ -1172,7 +1166,8 @@ void window_building_draw_hippodrome_foreground(building_info_context *c)
         return;
     }
 
-    if (race_bet_can_place()) {
+    if (c->building->type && c->building->type->has_race() && c->building->type->race().betting.enabled &&
+        race_bet_can_place_for(c->building->id)) {
         button_border_draw(c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 603 : 380),
                            300, 20, data.focus_button_id == 1);
         text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_TITLE"),
@@ -1210,32 +1205,33 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         } else {
             lang_text_draw("main_strings.73.5", c->x_offset + 32, c->y_offset + 202, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         }
+        const building_type_registry_impl::RaceDefinition *race = site.type && site.type->has_race() ? &site.type->race() : nullptr;
         int y_offset = 33;
-        if (c->height_blocks > 27) {
+        if (race && race->betting.enabled && c->height_blocks > 27) {
             y_offset += 223;
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + y_offset);
             ImageGroupEntryRef::from_group("UI\\Circus_Banner", "Circus Banner").draw(c->x_offset + 37, c->y_offset + y_offset + 5);
         }
 
-        if (city_data.games.chosen_horse) {
-            static const translation_key horse_description_keys[] = {
-                "TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION",
-                "TR_WINDOW_RACE_RED_HORSE_DESCRIPTION",
-                "TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION",
-                "TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION"
-            };
+        if (race && race->betting.enabled && city_data.games.chosen_horse &&
+            city_data.games.chosen_horse <= race->teams.size()) {
             const int horse_index = city_data.games.chosen_horse - 1;
             text_draw_with_money(translation_for_key("TR_WINDOW_RACE_YOUR_BET"), city_data.games.bet_amount, " - ", "",
                 c->x_offset + 32, c->y_offset + y_offset + 215, 438, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-            HORSE_TEAM_IMAGES[horse_index].draw(c->x_offset + 37, c->y_offset + y_offset + 245);
+            const building_type_registry_impl::RaceTeamDefinition &team = race->teams[horse_index];
+            ImageGroupEntryRef::from_group(team.portrait_path, team.portrait_image).draw(
+                c->x_offset + 37, c->y_offset + y_offset + 245);
             ImageBorder::image_small().draw(c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
 
-            text_draw_multiline(translation_for(horse_description_keys[horse_index]),
+            text_draw_multiline(translation_for_key(team.description_key.c_str()),
                 c->x_offset + 125, c->y_offset + y_offset + 240, 320,
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        text_draw_centered(translation_for(city_data.games.chosen_horse ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
-            "TR_WINDOW_RACE_BET_TITLE"), c->x_offset + 88, c->y_offset + y_offset + 351, 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        if (race && race->betting.enabled) {
+            text_draw_centered(translation_for(city_data.games.chosen_horse ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
+                "TR_WINDOW_RACE_BET_TITLE"), c->x_offset + 88, c->y_offset + y_offset + 351, 300,
+                FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        }
     } else {
         window_building_draw_monument_hippodrome_construction_process(c);
     }
@@ -1378,5 +1374,7 @@ static void button_hold_games(const generic_button *button)
 static void button_race_bet(const generic_button *button)
 {
     (void) button;
+    if (!data.building) return;
+    race_bet_select_building(data.building->id);
     window_race_bet_show();
 }

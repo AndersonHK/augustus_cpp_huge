@@ -324,30 +324,64 @@ bool validate_startup_parser_abi_contract()
 
 bool validate_hippodrome_race_contract()
 {
-    HippodromeRace race;
-    race.start(41);
-    if (race.participant_count() != 0 || race.register_participant(0, BLUE_HORSE) != 0 ||
-        race.register_participant(41, NO_BET) != 0 || race.register_participant(41, GREEN_HORSE) != 1 ||
-        race.register_participant(41, BLUE_HORSE) != 2 || race.register_participant(41, WHITE_HORSE) != 3 ||
-        race.register_participant(41, RED_HORSE) != 4 || race.register_participant(41, RED_HORSE) != 4 ||
+    RaceSession race;
+    race.start(41, 4);
+    if (race.participant_count() != 0 || race.register_participant(-1) != 0 ||
+        race.register_participant(4) != 0 || race.register_participant(3) != 1 ||
+        race.register_participant(0) != 2 || race.register_participant(2) != 3 ||
+        race.register_participant(1) != 4 || race.register_participant(1) != 4 ||
         race.participant_count() != 4) {
-        std::cerr << "Hippodrome race did not retain exactly one participant per team.\n";
+        std::cerr << "Race session did not retain exactly one participant per configured team.\n";
         return false;
     }
-    if (race.winner() != NO_BET || race.register_finish(0, BLUE_HORSE) != 0 ||
-        race.register_finish(41, NO_BET) != 0 || race.register_finish(41, GREEN_HORSE) != 1 ||
-        race.register_finish(41, BLUE_HORSE) != 2 || race.register_finish(41, GREEN_HORSE) != 1 ||
-        race.register_finish(41, WHITE_HORSE) != 3 || race.register_finish(41, RED_HORSE) != 4 ||
-        race.winner() != GREEN_HORSE || race.finish_position(GREEN_HORSE) != 1 ||
-        race.finish_position(BLUE_HORSE) != 2 || race.finish_position(WHITE_HORSE) != 3 ||
-        race.finish_position(RED_HORSE) != 4) {
-        std::cerr << "Hippodrome race controller did not preserve actual, unique finish order.\n";
+    if (race.winner() != -1 || race.register_finish(-1) != 0 || race.register_finish(4) != 0 ||
+        race.register_finish(3) != 1 || race.register_finish(0) != 2 || race.register_finish(3) != 1 ||
+        race.register_finish(2) != 3 || race.register_finish(1) != 4 || race.winner() != 3 ||
+        race.finish_position(3) != 1 || race.finish_position(0) != 2 ||
+        race.finish_position(2) != 3 || race.finish_position(1) != 4) {
+        std::cerr << "Race session did not preserve actual, unique finish order.\n";
         return false;
     }
-    if (race.register_finish(42, RED_HORSE) != 1 || race.hippodrome_id() != 42 ||
-        race.winner() != RED_HORSE || race.finish_position(GREEN_HORSE) != 0) {
-        std::cerr << "Hippodrome race controller did not reset cleanly for a new venue race.\n";
+    race.start(42, 7);
+    if (race.register_finish(6) != 0 || race.register_participant(6) != 1 || race.register_finish(6) != 1 ||
+        race.building_id() != 42 || race.team_capacity() != 7 || race.expected_participants() != 7 ||
+        race.winner() != 6 || race.finish_position(3) != 0) {
+        std::cerr << "Race session did not resize and reset cleanly for a new venue race.\n";
         return false;
+    }
+    race.start(43, 4, 2);
+    if (race.team_capacity() != 4 || race.expected_participants() != 2 || race.is_full_configured_field() ||
+        race.register_participant(2) != 1 || race.register_participant(3) != 2 || !race.has_complete_field() ||
+        race.register_finish(2) != 1 || race.winner() != 2) {
+        std::cerr << "Race session did not preserve configured team identity for a restored partial field.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_parsed_race_visual_contract()
+{
+    using building_type_registry_impl::BuildingType;
+    using building_type_registry_impl::definition_for_type;
+    using building_type_registry_impl::type_from_attr;
+
+    const BuildingType *hippodrome = definition_for_type(type_from_attr("hippodrome"));
+    if (!hippodrome || !hippodrome->has_race()) {
+        std::cerr << "Parsed race visual contract is missing the hippodrome race module.\n";
+        return false;
+    }
+    const building_type_registry_impl::RaceDefinition &race = hippodrome->race();
+    if (race.track_margin <= 0 || race.lane_spacing <= 0) {
+        std::cerr << "Parsed race visual contract permits racer centers on the outside track boundary.\n";
+        return false;
+    }
+    std::set<int> distances;
+    for (const building_type_registry_impl::RaceTeamDefinition &team : race.teams) {
+        const int distance = race.lane_render_distance(team.lane);
+        if (distance < race.track_margin || distance > 64 || !distances.insert(distance).second) {
+            std::cerr << "Parsed race visual contract does not keep distinct lanes inside the supported track width.\n";
+            return false;
+        }
     }
     return true;
 }
@@ -936,16 +970,78 @@ bool image_group_entry_is_drawable(const ImageGroupEntry *entry)
 bool validate_named_asset_entries(const char *path, const std::vector<std::string> &entry_ids)
 {
     if (!image_group_payload_load(path)) {
-        std::cerr << "Figure asset contract failed: could not load " << path << ".\n";
+        std::cerr << "Asset contract failed: could not load " << path << ".\n";
         return false;
     }
     const ImageGroupPayload *payload = image_group_payload_get(path);
     for (const std::string &entry_id : entry_ids) {
         if (!image_group_entry_is_drawable(payload ? payload->entry_for(entry_id.c_str()) : nullptr)) {
-            std::cerr << "Figure asset contract failed: " << path << " entry " << entry_id << " is missing or not drawable.\n";
+            std::cerr << "Asset contract failed: " << path << " entry " << entry_id << " is missing or not drawable.\n";
             return false;
         }
     }
+    return true;
+}
+
+bool validate_race_betting_ui_asset_contract()
+{
+    return validate_named_asset_entries("UI\\Arrow_Button", { "Increase", "Increase_Pressed", "Decrease", "Decrease_Pressed" }) &&
+        validate_named_asset_entries("UI\\Context_Icons", { "Image_0004", "Image_0005" }) &&
+        validate_named_asset_entries("UI\\Resource_Icons", { "Image_0016" });
+}
+
+bool validate_vespasian_race_team_asset_contract()
+{
+    using building_type_registry_impl::BuildingType;
+    using building_type_registry_impl::RaceDefinition;
+    using building_type_registry_impl::definition_for_type;
+    using building_type_registry_impl::type_from_attr;
+
+    const BuildingType *hippodrome = definition_for_type(type_from_attr("hippodrome"));
+    if (!hippodrome || !hippodrome->has_race()) return true;
+    const RaceDefinition &race = hippodrome->race();
+    if (race.teams.size() != 4) return true;
+
+    static constexpr const char *directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    static constexpr const char *body_entries[] = { "horse_blue", "horse_red", "horse_blue", "horse_red" };
+    static constexpr const char *vehicle_entries[] = { "cart_blue", "cart_red", "cart_blue", "cart_red" };
+    static constexpr int vehicle_offsets[][2] = { { 13, -7 }, { 18, -1 }, { 12, 7 }, { 0, 11 }, { -13, 6 }, { -18, -1 }, { -13, -7 }, { 0, -12 } };
+
+    for (size_t team_index = 0; team_index < race.teams.size(); ++team_index) {
+        const building_type_registry_impl::RaceTeamDefinition &team = race.teams[team_index];
+        if (team.graphics_path != "Walkers\\hippodrome_horses" || team.body_entry != body_entries[team_index] ||
+            team.vehicle_entry != vehicle_entries[team_index] ||
+            team.vehicle_behind[0] != 1 || team.vehicle_behind[1] != 1 || team.vehicle_behind[5] != 1 ||
+            team.vehicle_behind[6] != 1 || team.vehicle_behind[7] != 1) {
+            std::cerr << "Vespasian temporary legacy race-team mapping is incorrect for team " << team.id << ".\n";
+            return false;
+        }
+        for (int direction = 0; direction < 8; ++direction) {
+            if (team.vehicle_offsets[direction].x != vehicle_offsets[direction][0] ||
+                team.vehicle_offsets[direction].y != vehicle_offsets[direction][1]) {
+                std::cerr << "Vespasian temporary legacy race-team composition offset is incorrect for team " << team.id
+                          << " direction " << directions[direction] << ".\n";
+                return false;
+            }
+        }
+        if (!image_group_payload_load(team.graphics_path.c_str())) {
+            std::cerr << "Vespasian temporary legacy race-team asset could not load " << team.graphics_path << ".\n";
+            return false;
+        }
+        const ImageGroupPayload *payload = image_group_payload_get(team.graphics_path.c_str());
+        for (int direction = 0; direction < 8; ++direction) {
+            const std::string body_id = team.body_entry + "_" + directions[direction];
+            const std::string vehicle_id = team.vehicle_entry + "_" + directions[direction];
+            const ImageGroupEntry *body = payload ? payload->entry_for(body_id.c_str()) : nullptr;
+            const ImageGroupEntry *vehicle = payload ? payload->entry_for(vehicle_id.c_str()) : nullptr;
+            if (!image_group_entry_is_drawable(body) || !image_group_entry_is_drawable(vehicle)) {
+                std::cerr << "Vespasian temporary legacy race-team entries are incomplete for team " << team.id
+                          << " direction " << directions[direction] << ".\n";
+                return false;
+            }
+        }
+    }
+    std::cout << "Validated four Vespasian teams against the temporary two-set legacy race graphics mapping.\n";
     return true;
 }
 
@@ -1629,6 +1725,7 @@ int run_startup_parser_test(int argc, char **argv)
     // Validate configured-stack contracts before layering fixtures replace the
     // live registries with deliberately incomplete definitions.
     if (!validate_building_identity_contract() ||
+        !validate_parsed_race_visual_contract() ||
         !validate_parsed_composition_contracts(std::cerr) ||
         !validate_gate_terrain_foundation_contract() ||
         !validate_native_gatehouse_bridge_graphics_contract(std::cerr) ||
@@ -1645,6 +1742,8 @@ int run_startup_parser_test(int argc, char **argv)
         !validate_native_storage_and_fort_base_graphics_contract() ||
          !validate_colosseum_graphics_contract() ||
          !validate_figure_owner_contracts() ||
+         !validate_race_betting_ui_asset_contract() ||
+         !validate_vespasian_race_team_asset_contract() ||
          !validate_semantic_figure_graphics_contract() ||
          !validate_legacy_figure_image_selection_parity() ||
          !validate_synthetic_figure_lifecycle_graphics_contract() ||

@@ -1,57 +1,67 @@
 # Hippodrome Racing And Betting
 
-The hippodrome race is one simulation with four named teams: blue, red, white, and green. The figures on the track determine the finish order, and the first actual finish is the only result used to settle a bet.
+Hippodrome racing is an optional BuildingType module rather than a hard-coded four-team feature. The effective mod stack owns the participant count, route, timing, graphics, and betting policy:
+
+- Julius declares two teams without betting.
+- Augustus overrides the module with two teams and betting.
+- Vespasian overrides it with four teams and betting.
+
+Any BuildingType may declare the module. The runtime spawns its configured FigureType participants, maintains an independent session for each venue, and opens the module's declared betting window when betting is enabled.
 
 ## Historical Problem
 
-The Caesar 3 race animation created two horses. Augustus later added a four-team betting window, but the animation and betting code were never joined into one model. A visual horse reaching the end called `race_result_process()`, which selected an unrelated value from 1 through 4 with the C standard-library random generator. Consequently, only two racers appeared, the visible winner could disagree with the financial result, and the second finishing callback was harmless only because the first callback cleared the bet.
+The Caesar 3 race animation created two horses. Augustus added a four-team betting window, but its visual race and financial result were not one model: a horse reaching the end invoked an unrelated random winner roll from one through four. Only two racers appeared, unused team colors remained in the UI, and the displayed finish could disagree with the payout.
 
-The current implementation removes that independent result roll. It preserves the existing normal and festival payouts, but makes a recorded finish the authority.
+The current implementation removes that independent result roll. The first actual participant to finish is the authoritative winner. Duplicate finish callbacks are idempotent, and settlement happens once against a complete configured field.
 
-## Race Lifecycle
+## Data Contract
 
-`BuildingEntertainment::spawn_hippodrome_horses()` creates all four participants as one operation. If any figure allocation fails, it removes the partial field and does not announce or start a race. Each successful participant has a stable `bet_horse` identity carried by its existing figure resource field.
+The inline `<race>` module declares:
 
-All four racers:
+- participant FigureType and worker-scaled start-delay bands;
+- lap count, ready period, minimum/maximum speed, and the randomized speed-roll interval;
+- a cyclic building-local route, spawn point, and finish point;
+- one or more stable team IDs with unique lanes, translations, directional body/vehicle graphics, placement offsets, layer order, and optional portraits;
+- optional betting economics and a declarative UI window ID.
 
-- line up for the same 30-tick start period;
-- run the existing orientation-aware hippodrome route for six laps;
-- use base speed 3 and receive a small serialized-game-RNG pace variation at route checkpoints (a speed-4 step on one quarter of updates);
-- occupy four visual sub-lanes so the composed horse and cart layers do not overlap;
-- report their finish once when they enter the completed state.
+The spawn point must equal the route's first waypoint. The finish point must be one step behind that waypoint along the first route segment. These checks keep the explicit semantic points consistent with the cyclic route used by the orientation-aware legacy-compatible path.
 
-The source game provides two horse appearances and two cart liveries. The four teams use the four distinct horse/cart combinations through the Julius `Walkers\hippodrome_horses` bridge. This does not add copied PNGs or generated extraction output to the repository. A future palette-remap or shader-owned livery stage may give every faction a wholly independent palette without changing race identity or settlement.
+Startup resolves the participant FigureType and every one of the eight directional body and vehicle entries. Betting races additionally resolve every portrait. Missing directions therefore fail before play instead of producing an invisible or partially composed racer.
 
-## Authoritative Result And Betting
+## Runtime And Betting
 
-`HippodromeRace` records one participant and one finish position per team. Duplicate callbacks are idempotent. Position one becomes the race winner, and `settle_bet()` consumes that winner directly.
+`BuildingEntertainment::create_race_participants()` allocates the complete configured field atomically. Allocation failure removes the partial field and does not start or announce a race. Each participant carries its zero-based team index in the existing figure resource field.
 
-Betting closes as soon as a race is active. The confirmation handler rechecks this condition so a window opened just before the race cannot place a retroactive wager. A bet is settled once, then its selected team and amount are cleared. Existing economics are intentionally unchanged:
+At each waypoint a racer normally uses the configured minimum speed and has a small serialized-game-RNG chance to use the maximum speed. All racers share the declared route and lap count, so the variation affects real finish order without inventing a separate result.
 
-- a normal win adds twice the wager to personal savings;
-- a festival win adds four times the wager;
+`RaceSession` separates configured team capacity from the participant count recovered from a save. This preserves stable team indices when an old or inconsistent save contains only part of the field. A participant must register before it may register a finish. A complete current field settles its pending bet from the first recorded finish; a historical partial field cannot incorrectly settle a wager against absent teams.
+
+The existing economics remain unchanged:
+
+- a normal win adds the configured normal multiple of the wager;
+- a festival win adds the configured festival multiple;
 - a loss subtracts the wager without allowing negative savings.
 
-Settlement requires all four teams to have registered as participants. This matters for compatibility: a save made during the historical two-racer animation can finish without treating an absent white or green team as a loser. Its pending wager carries into the next complete four-team race.
+Pending bet fields remain in the established city save packet. Active sessions and finish order are reconstructed runtime state. Stable mod-owned string IDs for saved team and venue ownership belong to the planned mod migration-ledger extension; until that format exists, an incomplete historical field leaves its wager pending for the next complete field rather than guessing.
 
-## Save And Runtime Compatibility
+## Declarative Window
 
-The pending wager remains part of the existing city save data. The active field and finish order are runtime facts reconstructed from the saved horse figures. Resetting runtime state during scenario initialization or load cannot reroll a completed payout: settlement already clears the saved wager. After a mid-race load, every live horse registers its team before it can finish; if a horse was already at the finish boundary, settlement is deferred until the complete four-team field has registered.
+The betting window is loaded from layered `UI/windows/*.xml`. XML owns widget type, layout, repeat source, conditions, bindings, tooltips, and whitelisted actions. Its C++ controller owns only race state and callbacks. The same window repeats over two Augustus teams or four Vespasian teams without fixed team arrays or coordinates in controller code. Julius does not expose it because its module disables betting.
 
-No new save packet is required for the current behavior because no UI or finance feature consumes an unfinished race's prospective order. If persistent last-race standings are added later, the race id, finish order, and settlement status must become versioned save data rather than being inferred from generic figure fields.
+The layout deliberately matches the established Augustus window contract: a 480x400 panel, five-pixel portrait inset inside 81x91 small-image borders, the original amount-panel and confirmation-button coordinates, and the original 24x24 close control. Button text retains the original vertical baseline offset. The savings translation already owns its punctuation, so the controller adds spacing rather than another colon. Legacy amount arrows previously addressed absolute atlas images 15-18; the Julius extractor now publishes those normal and pressed states as `UI\Arrow_Button`, allowing XML to select them without raw IDs or native draw code.
+
+## Vespasian Graphics And Pipeline
+
+Vespasian currently keeps four logical teams but temporarily renders them from the two inherited Julius horse/cart sets. Blue and red use their matching legacy sets; white and green use the opposite horse/cart pairings so all four configured racers remain independently addressable without shipping art that has not cleared review.
+
+The withdrawn prototype remains preserved byte-for-byte in the separate `VespasianPixelArt` workspace. It contains four distinct two-layer horse-and-chariot assets, high-resolution sources, provenance, editable scenes, portable Python, local models, references, and intermediates. None of those provisional runtime sprites is duplicated under `Mods/Vespasian/Graphics` while the art direction is unresolved.
+
+The deterministic pipeline enforces one horse, one chariot/driver, two wheels, eight mathematical isometric headings, clean binary alpha, shared per-direction transforms, union crops across animation frames, and analytically derived horse/cart offsets. Each shipped layer retains a 78x78 raster while its asset entry declares a 13x13 logical footprint; Julius and Augustus omit logical dimensions and retain their 1:1 vanilla presentation. It does not use image-generated frames, preventing inconsistent anatomy, view angles, halos, and disconnected compositions.
+
+The prototype pass bakes a compact shadow by projecting each component silhouette down-right from one upper-left directional light. Validation requires minimum shadow area and width, grounding, directional reach, a one-pixel transparent perimeter, and logical-scale horse/cart continuity; alpha-valid circles or bars are not accepted. The deliberately simple 3D models remain artistically provisional and less detailed than the approved painted south-facing concept. Future work can improve source geometry, materials, silhouettes, harness, cloth, driver, and chariot detail without weakening the deterministic render/composition contract. Attractive generated concepts may guide design, but must not become independently generated directional frames whose topology cannot be guaranteed.
 
 ## Validation Contract
 
-The startup harness validates invalid participants, all four unique participants, actual finish order, duplicate finish idempotence, winner lookup, and clean race reset. The executable gate additionally loads Julius alone, Julius plus Augustus, and Vespasian, then round-trips and advances the required `.sav` and `.svv` set for 3,000 ticks at 1000% speed. Migration warnings are allowed only for repairs that disappear on the current-version round trip; unresolved graphics, renderer fallbacks, new warnings, and errors fail the gate.
+The startup harness validates session identity, unique participants, actual finish order, duplicate callbacks, partial restored fields, complete registry resolution, and every FigureType's live/dead graphics presentation. The executable gate loads Julius alone, Julius plus Augustus, and Vespasian, then round-trips and renders the required `.sav` and `.svv` set for 3,000 ticks at 1000% speed. Migration warnings are allowed only for repairs that disappear on immediate current-version reload; unresolved graphics, renderer fallbacks, new soak warnings, and errors fail the gate.
 
-Manual validation should still inspect all city orientations, four simultaneous sub-lanes, team readability, betting-window lockout, normal/festival wins, losses, and an old save containing an active two-racer race.
-
-Primary references:
-
-- `src/building/entertainment.cpp`
-- `src/city/race_bet.h`
-- `src/city/race_bet.cpp`
-- `src/figuretype/animal.cpp`
-- `src/window/race_bet.cpp`
-- `Mods/Julius/Graphics/Walkers/hippodrome_horses.xml`
-- `tools/startup_parser_test/main.cpp`
+Manual validation remains necessary for the visible race in each mod stack, betting outcomes, supported window sizes/translations, all city orientations, and the final artistic bar.

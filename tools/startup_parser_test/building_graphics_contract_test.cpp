@@ -29,6 +29,20 @@ bool target_entry_has_footprint(
     return true;
 }
 
+bool target_entry_has_fixed_1_to_1_size(const building_type_registry_impl::GraphicsTarget &target, std::ostream &errors, const char *type)
+{
+    if (!target.has_path() || !target.has_image() || !image_group_payload_load(target.path())) return false;
+    const ImageGroupPayload *payload = image_group_payload_get(target.path());
+    const ImageGroupEntry *entry = payload ? payload->entry_for(target.image()) : nullptr;
+    const render_logical_size logical = entry ? entry->fixed_logical_size() : render_logical_size{};
+    if (!entry || logical.width != entry->source_pixel_width() * RENDER_LOGICAL_UNITS_PER_PIXEL ||
+        logical.height != entry->source_pixel_height() * RENDER_LOGICAL_UNITS_PER_PIXEL) {
+        errors << "Bridge logical-size metadata is not expressed in 1/120-pixel units: " << type << ".\n";
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool validate_native_gatehouse_bridge_graphics_contract(std::ostream &errors)
@@ -83,7 +97,8 @@ bool validate_native_gatehouse_bridge_graphics_contract(std::ostream &errors)
                     errors << "Ship bridge no-draw option lost its terrain foundation.\n";
                     return false;
                 }
-            } else if (!target_entry_has_footprint(resolved, errors, expected.type)) {
+            } else if (!target_entry_has_footprint(resolved, errors, expected.type) ||
+                !target_entry_has_fixed_1_to_1_size(resolved, errors, expected.type)) {
                 return false;
             }
         }

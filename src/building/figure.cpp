@@ -558,6 +558,9 @@ void BuildingFigureGenerator::generate()
         }
 
         b->show_on_problem_overlay = 0;
+        if (building_object.type && building_object.type->has_race()) {
+            BuildingEntertainment(building_object).spawn_race_participants();
+        }
         if (building_uses_runtime_spawn(b)) {
             building_object.spawn_figure();
         } else if (building_is_raw_resource_producer(building_object.type) ||

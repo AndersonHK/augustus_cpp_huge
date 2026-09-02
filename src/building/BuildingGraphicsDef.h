@@ -35,6 +35,9 @@ enum class GraphicsConditionType {
     Terrain,
     Climate,
     MonumentUpgrade,
+    RaceActive,
+    Population,
+    Orientation,
     FestivalGames,
     Desirability,
     Days1Positive,
@@ -82,6 +85,7 @@ struct GraphicsCondition {
     int terrain_mask = 0;
     int climate = 0;
     int monument_upgrade = 0;
+    int orientation = 0;
     int festival_games = 0;
 };
 

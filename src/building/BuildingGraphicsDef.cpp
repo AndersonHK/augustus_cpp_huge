@@ -12,8 +12,11 @@
 #include "building/distribution.h"
 #include "building/industry.h"
 #include "building/monument.h"
+#include "building/rotation.h"
 #include "building/properties.h"
 #include "city/festival.h"
+#include "city/race_bet.h"
+#include "city/population.h"
 #include "core/calc.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -173,6 +176,15 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             break;
         case GraphicsConditionType::MonumentUpgrade:
             matches = state.monument_upgrade_level() == condition.monument_upgrade;
+            break;
+        case GraphicsConditionType::RaceActive:
+            matches = race_bet_is_active(state.id);
+            break;
+        case GraphicsConditionType::Population:
+            matches = graphics_compare_int(city_population(), condition.comparison, condition.threshold);
+            break;
+        case GraphicsConditionType::Orientation:
+            matches = building_rotation_get_building_orientation(state.orientation()) == condition.orientation;
             break;
         case GraphicsConditionType::FestivalGames:
             matches = city_festival_games_active() == condition.festival_games;

@@ -11,6 +11,10 @@
                 <option path="Health_Culture\Hippodrome_2" image="Image_0002" />
                 <option path="Health_Culture\Hippodrome_1" image="Image_0002" />
             </options>
+            <layer role="spectators_top" path="Health_Culture\Hippodrome_2" image="Image_0007" stage="top" x="122" y="-79"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="100" /><condition type="orientation" value="top" /></layer>
+            <layer role="spectators_right" path="Health_Culture\Hippodrome_1" image="Image_0007" stage="top" x="0" y="-80"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="100" /><condition type="orientation" value="right" /></layer>
+            <layer role="spectators_bottom" path="Health_Culture\Hippodrome_2" image="Image_0007" stage="top" x="122" y="-79"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="100" /><condition type="orientation" value="bottom" /></layer>
+            <layer role="spectators_left" path="Health_Culture\Hippodrome_1" image="Image_0007" stage="top" x="0" y="-80"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="100" /><condition type="orientation" value="left" /></layer>
         </default>
     </graphics>
 </building>

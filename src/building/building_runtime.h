@@ -120,6 +120,7 @@ public:
     int spawn_temple_mars_mess_hall_priest(const map_point &road);
     int spawn_temple_neptune_chariot(const map_point &road);
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
+    int module_delay_has_elapsed(size_t module_index, const std::vector<building_type_registry_impl::DelayBand> &delay_bands);
 
     const building_type_registry_impl::BuildingType *definition() const
     {
@@ -155,6 +156,7 @@ private:
         std::uint64_t generation = 0;
         std::uint64_t owner_generation = 0;
         std::uint64_t view_orientation_generation = 0;
+        int population_condition_signature = -1;
     };
 
     struct LegacyStorageReservation {

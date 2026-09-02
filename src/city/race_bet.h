@@ -1,77 +1,80 @@
 #pragma once
 
-#include <array>
+#include <algorithm>
+#include <vector>
 
+// Persisted saves use one-based team ordinals; runtime definitions and sessions
+// use zero-based team indices. Zero remains the historical "no bet" sentinel.
+constexpr unsigned int NO_BET = 0;
 
-typedef enum {
-    NO_BET,
-    BLUE_HORSE,
-    RED_HORSE,
-    WHITE_HORSE,
-    GREEN_HORSE
-} bet_horse;
-
-class HippodromeRace {
+class RaceSession {
 public:
-    void start(unsigned int hippodrome_id)
+    void start(unsigned int building_id, int expected_participants)
     {
-        hippodrome_id_ = hippodrome_id;
-        participants_.fill(false);
-        finish_order_.fill(NO_BET);
-        finish_count_ = 0;
+        start(building_id, expected_participants, expected_participants);
     }
 
-    int register_participant(unsigned int hippodrome_id, bet_horse horse)
+    void start(unsigned int building_id, int team_capacity, int expected_participants)
     {
-        if (!hippodrome_id || horse < BLUE_HORSE || horse > GREEN_HORSE) return 0;
-        if (hippodrome_id_ != hippodrome_id) start(hippodrome_id);
-        participants_[horse - BLUE_HORSE] = true;
+        building_id_ = building_id;
+        participants_.assign(std::max(0, team_capacity), false);
+        expected_participants_ = std::clamp(expected_participants, 0, static_cast<int>(participants_.size()));
+        finish_order_.clear();
+    }
+
+    int register_participant(int team_index)
+    {
+        if (team_index < 0 || team_index >= static_cast<int>(participants_.size())) return 0;
+        participants_[team_index] = true;
         return participant_count();
     }
 
-    int register_finish(unsigned int hippodrome_id, bet_horse horse)
+    int register_finish(int team_index)
     {
-        if (!hippodrome_id || horse < BLUE_HORSE || horse > GREEN_HORSE) return 0;
-        if (hippodrome_id_ != hippodrome_id) start(hippodrome_id);
-        for (int i = 0; i < finish_count_; ++i) {
-            if (finish_order_[i] == horse) return i + 1;
+        if (team_index < 0 || team_index >= static_cast<int>(participants_.size()) || !participants_[team_index] ||
+            std::find(finish_order_.begin(), finish_order_.end(), team_index) != finish_order_.end()) {
+            return finish_position(team_index);
         }
-        if (finish_count_ >= static_cast<int>(finish_order_.size())) return 0;
-        finish_order_[finish_count_++] = horse;
-        return finish_count_;
+        finish_order_.push_back(team_index);
+        return static_cast<int>(finish_order_.size());
     }
-
-    bet_horse winner() const { return finish_count_ ? finish_order_[0] : NO_BET; }
-    unsigned int hippodrome_id() const { return hippodrome_id_; }
 
     int participant_count() const
     {
-        int count = 0;
-        for (bool participant : participants_) count += participant;
-        return count;
+        return static_cast<int>(std::count(participants_.begin(), participants_.end(), true));
     }
 
-    int finish_position(bet_horse horse) const
+    int finish_position(int team_index) const
     {
-        for (int i = 0; i < finish_count_; ++i) {
-            if (finish_order_[i] == horse) return i + 1;
-        }
-        return 0;
+        const auto found = std::find(finish_order_.begin(), finish_order_.end(), team_index);
+        return found == finish_order_.end() ? 0 : static_cast<int>(found - finish_order_.begin()) + 1;
     }
+
+    int winner() const { return finish_order_.empty() ? -1 : finish_order_.front(); }
+    unsigned int building_id() const { return building_id_; }
+    int team_capacity() const { return static_cast<int>(participants_.size()); }
+    int expected_participants() const { return expected_participants_; }
+    int has_complete_field() const { return participant_count() == expected_participants_; }
+    int is_full_configured_field() const { return expected_participants_ == team_capacity(); }
 
 private:
-    unsigned int hippodrome_id_ = 0;
-    std::array<bool, 4> participants_ = { false, false, false, false };
-    std::array<bet_horse, 4> finish_order_ = { NO_BET, NO_BET, NO_BET, NO_BET };
-    int finish_count_ = 0;
+    unsigned int building_id_ = 0;
+    int expected_participants_ = 0;
+    std::vector<bool> participants_;
+    std::vector<int> finish_order_;
 };
 
 int has_bet_in_progress(void);
 int race_bet_can_place(void);
+int race_bet_can_place_for(unsigned int building_id);
 void race_bet_reset_runtime(void);
-void race_bet_start(unsigned int hippodrome_id);
-int race_bet_register_participant(unsigned int hippodrome_id, bet_horse horse);
-int race_bet_register_finish(unsigned int hippodrome_id, bet_horse horse);
-bet_horse race_bet_winner(void);
-int race_bet_finish_position(bet_horse horse);
-
+void race_bet_start(unsigned int building_id, int expected_participants);
+void race_bet_end(unsigned int building_id);
+int race_bet_is_active(unsigned int building_id);
+int race_bet_any_active(void);
+int race_bet_register_participant(unsigned int building_id, int team_index);
+int race_bet_register_finish(unsigned int building_id, int team_index);
+int race_bet_winner(unsigned int building_id);
+int race_bet_finish_position(unsigned int building_id, int team_index);
+unsigned int race_bet_selected_building(void);
+void race_bet_select_building(unsigned int building_id);

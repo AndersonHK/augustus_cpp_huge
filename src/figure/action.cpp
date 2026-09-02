@@ -1,4 +1,3 @@
-#include "city/entertainment.h"
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
@@ -165,7 +164,6 @@ void figure_action_handle(void)
 {
     PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE);
     city_figures_reset();
-    city_entertainment_set_hippodrome_has_race(0);
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
         if (!f || !f->state) {

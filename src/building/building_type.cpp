@@ -1483,6 +1483,12 @@ void BuildingType::set_temple_religion(const Religion *religion)
     religion_ = religion;
 }
 
+void BuildingType::set_race(RaceDefinition race)
+{
+    race_ = std::move(race);
+    has_race_ = 1;
+}
+
 SpawnDelayGroup *BuildingType::last_spawn_group()
 {
     return spawn_groups_.empty() ? nullptr : &spawn_groups_.back();
@@ -1950,6 +1956,11 @@ const Distribution *BuildingType::distribution() const
     return distribution_;
 }
 
+const RaceDefinition &BuildingType::race() const
+{
+    return race_;
+}
+
 HousingDef &BuildingType::housing_def()
 {
     return housing_def_;
@@ -2029,6 +2040,11 @@ int BuildingType::has_culture_modules() const
 int BuildingType::has_distribution() const
 {
     return distribution_ ? 1 : 0;
+}
+
+int BuildingType::has_race() const
+{
+    return has_race_;
 }
 
 int BuildingType::has_housing() const

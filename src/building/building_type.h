@@ -88,6 +88,7 @@ enum {
 
 #include <memory>
 #include <string>
+#include <array>
 #include <cstdint>
 #include <cstddef>
 #include <optional>
@@ -678,6 +679,56 @@ struct ConstructionPhase {
     std::vector<ConstructionRequirement> requirements;
 };
 
+struct RaceRoutePoint {
+    int x = 0;
+    int y = 0;
+};
+
+struct RaceTeamDefinition {
+    std::string id;
+    int lane = 0;
+    std::string name_key;
+    std::string description_key;
+    std::string tooltip_key;
+    std::string graphics_path;
+    std::string body_entry;
+    std::string vehicle_entry;
+    std::array<RaceRoutePoint, 8> vehicle_offsets = {};
+    std::array<int, 8> vehicle_behind = {};
+    std::string portrait_path;
+    std::string portrait_image;
+};
+
+struct RaceBettingDefinition {
+    int enabled = 0;
+    int wager_step = 10;
+    int normal_multiplier = 2;
+    int festival_multiplier = 4;
+    std::string window;
+};
+
+struct RaceDefinition {
+    std::string participant_figure_reference;
+    figure_type participant_figure = FIGURE_NONE;
+    int laps = 6;
+    int ready_ticks = 30;
+    int minimum_speed = 3;
+    int maximum_speed = 4;
+    int speed_roll = 4;
+    int track_margin = 4;
+    int lane_spacing = 4;
+    std::vector<DelayBand> start_delay_bands;
+    int spawn_x = 2;
+    int spawn_y = 1;
+    int finish_x = 1;
+    int finish_y = 1;
+    std::vector<RaceRoutePoint> route;
+    std::vector<RaceTeamDefinition> teams;
+    RaceBettingDefinition betting;
+
+    int lane_render_distance(int lane) const { return track_margin + lane * lane_spacing; }
+};
+
 class ConstructionDefinition {
 public:
     void set_mode(ConstructionMode mode);
@@ -806,6 +857,7 @@ public:
     void inherit_labor_category(LaborCategory category);
     void set_distribution(const Distribution *distribution);
     void set_temple_religion(const Religion *religion);
+    void set_race(RaceDefinition race);
 
     building_type type() const;
     const char *attr() const;
@@ -894,6 +946,7 @@ public:
     const std::vector<const StorageType *> &storage_types() const;
     const std::vector<ProductionMethod *> &production_methods() const;
     const Distribution *distribution() const;
+    const RaceDefinition &race() const;
     HousingDef &housing_def();
     const HousingDef &housing_def() const;
     building_type vacant_lot_fill_type() const;
@@ -901,6 +954,7 @@ public:
     int has_native_production() const;
     int has_culture_modules() const;
     int has_distribution() const;
+    int has_race() const;
     int has_housing() const;
     int is_vacant_lot() const;
     unsigned char upgrade_level_for(const Building &building) const;
@@ -942,6 +996,8 @@ private:
     std::vector<const StorageType *> storage_types_;
     std::vector<ProductionMethod *> production_methods_;
     const Distribution *distribution_ = nullptr;
+    RaceDefinition race_;
+    int has_race_ = 0;
 };
 
 } // namespace building_type_registry_impl

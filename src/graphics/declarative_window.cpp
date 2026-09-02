@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -19,14 +20,17 @@
 #include "core/xml_parser.h"
 #include "game/mod_definition_loader.h"
 #include "graphics/image.h"
+#include "graphics/graphics.h"
+#include "graphics/image_border.h"
+#include "graphics/text.h"
+#include "graphics/ui_runtime_api.h"
+#include "translation/translation.h"
 #include "window/main_menu.h"
 
 namespace {
 
 constexpr const char *kMissionBriefingWindowId = "mission_briefing";
-constexpr const char *kMissionBriefingPath = "UI/windows/mission_briefing.xml";
 constexpr const char *kMainMenuWindowId = "main_menu";
-constexpr const char *kMainMenuPath = "UI/windows/main_menu.xml";
 
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindowDefinition>> g_windows;
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindow>> g_constructed_windows;
@@ -110,7 +114,8 @@ DeclarativeWidgetType parse_widget_type(const char *value)
 }
 
 int attribute_is_one_of(const char *attribute, const char *first, const char *second = nullptr,
-    const char *third = nullptr, const char *fourth = nullptr, const char *fifth = nullptr)
+    const char *third = nullptr, const char *fourth = nullptr, const char *fifth = nullptr,
+    const char *sixth = nullptr)
 {
     if (!xml_parser_has_attribute(attribute)) {
         return 1;
@@ -120,7 +125,8 @@ int attribute_is_one_of(const char *attribute, const char *first, const char *se
         (second && xml_value::equals(value, second)) ||
         (third && xml_value::equals(value, third)) ||
         (fourth && xml_value::equals(value, fourth)) ||
-        (fifth && xml_value::equals(value, fifth));
+        (fifth && xml_value::equals(value, fifth)) ||
+        (sixth && xml_value::equals(value, sixth));
 }
 
 DeclarativeDrawPhase parse_draw_phase(const char *value)
@@ -151,6 +157,9 @@ DeclarativeWidgetStyle parse_widget_style(const char *value)
     }
     if (xml_value::equals(value, "large_label")) {
         return DeclarativeWidgetStyle::LargeLabel;
+    }
+    if (xml_value::equals(value, "image_small_border")) {
+        return DeclarativeWidgetStyle::ImageSmallBorder;
     }
     return DeclarativeWidgetStyle::None;
 }
@@ -322,11 +331,17 @@ int parse_widget_node(void)
     widget.translation = parse_optional_string("translation");
     widget.binding = parse_optional_string("binding");
     widget.action = parse_optional_string("action");
+    widget.repeat_source = parse_optional_string("repeat_source");
+    widget.visible_binding = parse_optional_string("visible_binding");
+    widget.enabled_binding = parse_optional_string("enabled_binding");
+    widget.selected_binding = parse_optional_string("selected_binding");
+    widget.tooltip_binding = parse_optional_string("tooltip_binding");
     widget.width_from_text = parse_optional_string("width_from_text");
     widget.visible_if_side_margin_lt_text = parse_optional_string("visible_if_side_margin_lt_text");
     widget.stretch_to_widget = parse_optional_string("stretch_to_widget");
     widget.assetlist_name = parse_optional_string("assetlist");
     widget.image_name = parse_optional_string("image");
+    widget.pressed_image_name = parse_optional_string("pressed_image");
     widget.image_collection = parse_optional_int("image_collection", 0);
     widget.image_offset = parse_optional_int("image_offset", 0);
     widget.label_type = parse_optional_int("label_type", 1);
@@ -340,7 +355,12 @@ int parse_widget_node(void)
     widget.width_round_up_to = parse_optional_int("width_round_up_to", 0);
     widget.max_screen_height = parse_optional_int("max_screen_height", -1);
     widget.side_margin_text_padding = parse_optional_int("side_margin_text_padding", 0);
+    widget.repeat_columns = parse_optional_int("repeat_columns", 1);
+    widget.repeat_spacing_x = parse_optional_int("repeat_spacing_x", 0);
+    widget.repeat_spacing_y = parse_optional_int("repeat_spacing_y", 0);
     widget.invert_visibility_condition = xml_parser_get_attribute_bool("invert_visibility_condition");
+    widget.activate_on_press = xml_parser_get_attribute_bool("activate_on_press");
+    widget.repeat_on_hold = xml_parser_get_attribute_bool("repeat_on_hold");
     widget.draw_phase = parse_draw_phase(xml_parser_get_attribute_string("phase"));
     widget.coordinate_space = parse_coordinate_space(xml_parser_get_attribute_string("coordinate_space"));
     widget.style = parse_widget_style(xml_parser_get_attribute_string("style"));
@@ -349,9 +369,9 @@ int parse_widget_node(void)
     widget.anchor_x = parse_anchor(xml_parser_get_attribute_string("anchor_x"));
     widget.anchor_y = parse_anchor(xml_parser_get_attribute_string("anchor_y"));
 
-    if (!attribute_is_one_of("phase", "background", "foreground") ||
+    if (widget.repeat_columns < 1 || !attribute_is_one_of("phase", "background", "foreground") ||
         !attribute_is_one_of("coordinate_space", "dialog", "screen") ||
-        !attribute_is_one_of("style", "outer_panel", "inner_panel", "solid", "label", "large_label") ||
+        !attribute_is_one_of("style", "outer_panel", "inner_panel", "solid", "label", "large_label", "image_small_border") ||
         !attribute_is_one_of("text_alignment", "left", "center", "right") ||
         !attribute_is_one_of("visible_when", "main_menu", "not_file_dialog")) {
         set_failure_reason("Declarative widget contains an unsupported main-menu attribute value.", widget.id.c_str());
@@ -769,26 +789,293 @@ int DeclarativeWindow::has_widget(std::string_view id) const
     return widget(id) != nullptr;
 }
 
+int validate_race_bet()
+{
+    const DeclarativeWindowDefinition *definition = declarative_window_definition("race_bet");
+    if (!definition) return 1;
+    static constexpr const char *kBindings[] = {
+        "race.team.portrait", "race.selected_description", "race.wager", "race.savings", "race.confirm_label"
+    };
+    static constexpr const char *kConditions[] = { "race.can_edit", "race.can_confirm", "race.team.selected" };
+    static constexpr const char *kActions[] = {
+        "race.team.select", "race.wager.decrease", "race.wager.increase", "race.confirm", "window.close"
+    };
+    const auto contains = [](std::string_view value, const auto &values) {
+        for (const char *candidate : values) if (value == candidate) return true;
+        return false;
+    };
+    for (const DeclarativeWidgetDefinition &widget : definition->widgets()) {
+        if ((!widget.binding.empty() && !contains(widget.binding, kBindings)) ||
+            (!widget.visible_binding.empty() && !contains(widget.visible_binding, kConditions)) ||
+            (!widget.enabled_binding.empty() && !contains(widget.enabled_binding, kConditions)) ||
+            (!widget.selected_binding.empty() && !contains(widget.selected_binding, kConditions)) ||
+            (!widget.action.empty() && !contains(widget.action, kActions)) ||
+            (!widget.repeat_source.empty() && widget.repeat_source != "race.teams") ||
+            (!widget.tooltip_binding.empty() && widget.tooltip_binding != "race.team.tooltip")) {
+            set_failure_reason("Race betting window contains an unsupported binding, condition, action, repeater, or tooltip.",
+                widget.id.c_str());
+            return 0;
+        }
+    }
+    static constexpr std::array<const char *, 6> kRequired = {
+        "outer_panel", "team", "team_description", "amount", "confirm", "close"
+    };
+    for (const char *id : kRequired) {
+        if (!definition->has_widget(id)) {
+            set_failure_reason("Race betting window is missing a required widget.", id);
+            return 0;
+        }
+    }
+    const auto widget_matches = [&](const char *id, DeclarativeWidgetType type, int x, int y, int width, int height) {
+        const DeclarativeWidgetDefinition *widget = definition->widget(id);
+        return widget && widget->type == type && widget->x == x && widget->y == y &&
+            widget->width == width && widget->height == height;
+    };
+    if (definition->base_width() != 480 || definition->base_height() != 400 ||
+        !widget_matches("outer_panel", DeclarativeWidgetType::Panel, 0, 0, 480, 400) ||
+        !widget_matches("title", DeclarativeWidgetType::Label, 0, 20, 480, 24) ||
+        !widget_matches("description", DeclarativeWidgetType::RichText, 25, 65, 438, 52) ||
+        !widget_matches("team", DeclarativeWidgetType::ImageButton, 34, 145, 81, 91) ||
+        !widget_matches("team_description", DeclarativeWidgetType::RichText, 25, 250, 438, 42) ||
+        !widget_matches("amount_panel", DeclarativeWidgetType::Panel, 18, 300, 448, 32) ||
+        !widget_matches("amount_label", DeclarativeWidgetType::Label, 18, 310, 80, 16) ||
+        !widget_matches("amount_down", DeclarativeWidgetType::ImageButton, 106, 306, 24, 24) ||
+        !widget_matches("amount_up", DeclarativeWidgetType::ImageButton, 130, 306, 24, 24) ||
+        !widget_matches("amount", DeclarativeWidgetType::Label, 165, 310, 92, 16) ||
+        !widget_matches("savings", DeclarativeWidgetType::Label, 284, 310, 175, 16) ||
+        !widget_matches("confirm", DeclarativeWidgetType::TextButton, 90, 354, 300, 20) ||
+        !widget_matches("close", DeclarativeWidgetType::ImageButton, 424, 354, 24, 24)) {
+        set_failure_reason("Race betting window no longer matches the established layout contract.", definition->id().c_str());
+        return 0;
+    }
+    const DeclarativeWidgetDefinition *team = definition->widget("team");
+    const DeclarativeWidgetDefinition *down = definition->widget("amount_down");
+    const DeclarativeWidgetDefinition *up = definition->widget("amount_up");
+    const DeclarativeWidgetDefinition *confirm = definition->widget("confirm");
+    const DeclarativeWidgetDefinition *close = definition->widget("close");
+    if (team->draw_offset_x != 5 || team->draw_offset_y != 5 || team->repeat_columns != 4 ||
+        team->repeat_spacing_x != 110 || team->style != DeclarativeWidgetStyle::ImageSmallBorder ||
+        down->assetlist_name != "UI\\Arrow_Button" || down->image_name != "Decrease" ||
+        down->pressed_image_name != "Decrease_Pressed" || !down->activate_on_press || !down->repeat_on_hold ||
+        up->assetlist_name != "UI\\Arrow_Button" || up->image_name != "Increase" ||
+        up->pressed_image_name != "Increase_Pressed" || !up->activate_on_press || !up->repeat_on_hold ||
+        confirm->text_offset_y != 4 || close->assetlist_name != "UI\\Context_Icons" ||
+        close->image_name != "Image_0004" || close->pressed_image_name != "Image_0005") {
+        set_failure_reason("Race betting window controls no longer match the established presentation contract.", definition->id().c_str());
+        return 0;
+    }
+    return 1;
+}
+
+int DeclarativeWindowController::repeat_count(std::string_view source) const
+{
+    return source.empty() ? 1 : 0;
+}
+
+std::string DeclarativeWindowController::text(std::string_view binding, int item_index) const
+{
+    (void)binding;
+    (void)item_index;
+    return {};
+}
+
+ImageGroupEntryRef DeclarativeWindowController::image(std::string_view binding, int item_index) const
+{
+    (void)binding;
+    (void)item_index;
+    return {};
+}
+
+int DeclarativeWindowController::condition(std::string_view binding, int item_index) const
+{
+    (void)binding;
+    (void)item_index;
+    return 0;
+}
+
+const char *DeclarativeWindowController::tooltip(std::string_view binding, int item_index) const
+{
+    (void)binding;
+    (void)item_index;
+    return nullptr;
+}
+
+DeclarativeWindowRuntime::DeclarativeWindowRuntime(const DeclarativeWindowDefinition &definition, DeclarativeWindowController &controller)
+    : definition_(&definition), controller_(&controller)
+{}
+
+static void declarative_widget_bounds(const DeclarativeWindowDefinition &window,
+    const DeclarativeWidgetDefinition &widget, int item, int width, int height,
+    int *x, int *y, int *widget_width, int *widget_height)
+{
+    const int columns = std::max(1, widget.repeat_columns);
+    *x = widget.resolved_x(width, window.base_width()) + (item >= 0 ? (item % columns) * widget.repeat_spacing_x : 0);
+    *y = widget.resolved_y(height, window.base_height()) + (item >= 0 ? (item / columns) * widget.repeat_spacing_y : 0);
+    *widget_width = widget.resolved_width(width, window.base_width());
+    *widget_height = widget.resolved_height(height, window.base_height());
+}
+
+void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int height) const
+{
+    if (!definition_ || !controller_) return;
+    for (const DeclarativeWidgetDefinition &widget : definition_->widgets()) {
+        if (widget.draw_phase != phase) continue;
+        const int count = widget.repeat_source.empty() ? 1 : controller_->repeat_count(widget.repeat_source);
+        for (int index = 0; index < count; ++index) {
+            const int item = widget.repeat_source.empty() ? -1 : index;
+            if (!widget.visible_binding.empty() && !controller_->condition(widget.visible_binding, item)) continue;
+            int x = 0;
+            int y = 0;
+            int widget_width = 0;
+            int widget_height = 0;
+            declarative_widget_bounds(*definition_, widget, item, width, height, &x, &y, &widget_width, &widget_height);
+            const int enabled = widget.enabled_binding.empty() || controller_->condition(widget.enabled_binding, item);
+            const int selected = !widget.selected_binding.empty() && controller_->condition(widget.selected_binding, item);
+            const int focused = focused_widget_ == widget.id && focused_item_ == item;
+            const int pressed = pressed_widget_ == widget.id && pressed_item_ == item;
+            if (widget.type == DeclarativeWidgetType::Panel) {
+                if (widget.style == DeclarativeWidgetStyle::OuterPanel) {
+                    outer_panel_draw(x, y, (widget_width + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                        (widget_height + BLOCK_SIZE - 1) / BLOCK_SIZE);
+                } else if (widget.style == DeclarativeWidgetStyle::InnerPanel) {
+                    inner_panel_draw(x, y, (widget_width + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                        (widget_height + BLOCK_SIZE - 1) / BLOCK_SIZE);
+                }
+                if (selected) button_border_draw(x, y, widget_width, widget_height, 1);
+                continue;
+            }
+            if (widget.type == DeclarativeWidgetType::Image || widget.type == DeclarativeWidgetType::ImageButton) {
+                const std::string &image_name = pressed && !widget.pressed_image_name.empty() ?
+                    widget.pressed_image_name : widget.image_name;
+                ImageGroupEntryRef image = !widget.binding.empty() ? controller_->image(widget.binding, item) :
+                    ImageGroupEntryRef::from_group(widget.assetlist_name, image_name);
+                if (image.is_bound()) image.draw(x + widget.draw_offset_x, y + widget.draw_offset_y);
+                if (widget.type == DeclarativeWidgetType::ImageButton && widget.style == DeclarativeWidgetStyle::ImageSmallBorder) {
+                    ImageBorder::image_small().draw(x, y, selected || focused ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
+                } else if (widget.type == DeclarativeWidgetType::ImageButton && selected) {
+                    button_border_draw(x, y, widget_width, widget_height, 1);
+                }
+                continue;
+            }
+            std::string dynamic_text = widget.binding.empty() ? std::string() : controller_->text(widget.binding, item);
+            const uint8_t *display = nullptr;
+            if (!dynamic_text.empty()) display = reinterpret_cast<const uint8_t *>(dynamic_text.c_str());
+            else if (!widget.translation.empty()) display = translation_for_key(widget.translation.c_str());
+            else display = reinterpret_cast<const uint8_t *>(widget.text.c_str());
+            const font_t font = enabled ? widget.font : FONT_NORMAL_PLAIN;
+            if (widget.type == DeclarativeWidgetType::RichText) {
+                text_draw_multiline(display, x + widget.padding_x, y + widget.padding_y, widget_width, 0, font,
+                    screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+            } else if (widget.type == DeclarativeWidgetType::Label || widget.type == DeclarativeWidgetType::TextButton) {
+                if (widget.type == DeclarativeWidgetType::TextButton) {
+                    button_border_draw(x, y, widget_width, widget_height, enabled && (selected || focused));
+                }
+                if (widget.text_alignment == DeclarativeTextAlignment::Center || widget.type == DeclarativeWidgetType::TextButton) {
+                    text_draw_centered(display, x + widget.text_offset_x, y + widget.text_offset_y, widget_width, font,
+                        screen_ui_to_pixel(font_definition_for(font)->line_height), enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
+                } else if (widget.text_alignment == DeclarativeTextAlignment::Right) {
+                    text_draw_right_aligned(display, x + widget.padding_x, y + widget.padding_y, widget_width, font,
+                        screen_ui_to_pixel(font_definition_for(font)->line_height), enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
+                } else {
+                    text_draw(display, x + widget.padding_x, y + widget.padding_y, font,
+                        screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+                }
+            }
+        }
+    }
+}
+
+int DeclarativeWindowRuntime::handle_mouse(const mouse &mouse, int width, int height)
+{
+    focused_widget_.clear();
+    focused_item_ = -1;
+    if (!definition_ || !controller_) return 0;
+    for (const DeclarativeWidgetDefinition &widget : definition_->widgets()) {
+        if (widget.action.empty() || (widget.type != DeclarativeWidgetType::TextButton &&
+            widget.type != DeclarativeWidgetType::ImageButton)) continue;
+        const int count = widget.repeat_source.empty() ? 1 : controller_->repeat_count(widget.repeat_source);
+        for (int index = 0; index < count; ++index) {
+            const int item = widget.repeat_source.empty() ? -1 : index;
+            if ((!widget.visible_binding.empty() && !controller_->condition(widget.visible_binding, item)) ||
+                (!widget.enabled_binding.empty() && !controller_->condition(widget.enabled_binding, item))) continue;
+            int x = 0;
+            int y = 0;
+            int widget_width = 0;
+            int widget_height = 0;
+            declarative_widget_bounds(*definition_, widget, item, width, height, &x, &y, &widget_width, &widget_height);
+            if (mouse.x < x || mouse.y < y || mouse.x >= x + widget_width || mouse.y >= y + widget_height) continue;
+            focused_widget_ = widget.id;
+            focused_item_ = item;
+            if (mouse.left.went_down) {
+                pressed_widget_ = widget.id;
+                pressed_item_ = item;
+                pressed_repeat_count_ = 0;
+                last_repeat_time_ = time_get_millis();
+                if (widget.activate_on_press) controller_->action(widget.action, item);
+                return 1;
+            }
+            if (mouse.left.is_down && pressed_widget_ == widget.id && pressed_item_ == item) {
+                if (widget.repeat_on_hold && time_get_millis() - last_repeat_time_ >= 30) {
+                    static constexpr int kRepeatPattern[] = {
+                        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+                        0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+                        1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0
+                    };
+                    last_repeat_time_ = time_get_millis();
+                    pressed_repeat_count_ = std::min(pressed_repeat_count_ + 1,
+                        static_cast<int>(std::size(kRepeatPattern)) - 1);
+                    if (kRepeatPattern[pressed_repeat_count_]) controller_->action(widget.action, item);
+                }
+                return 1;
+            }
+            if (mouse.left.went_up) {
+                if (!widget.activate_on_press && pressed_widget_ == widget.id && pressed_item_ == item) {
+                    controller_->action(widget.action, item);
+                }
+                pressed_widget_.clear();
+                pressed_item_ = -1;
+                return 1;
+            }
+            return 0;
+        }
+    }
+    if (mouse.left.went_up) {
+        pressed_widget_.clear();
+        pressed_item_ = -1;
+    }
+    return 0;
+}
+
+void DeclarativeWindowRuntime::tooltip(tooltip_context &context) const
+{
+    if (!definition_ || !controller_ || focused_widget_.empty()) return;
+    const DeclarativeWidgetDefinition *widget = definition_->widget(focused_widget_);
+    if (!widget || widget->tooltip_binding.empty()) return;
+    const char *value = controller_->tooltip(widget->tooltip_binding, focused_item_);
+    if (value && *value) {
+        context.type = TOOLTIP_BUTTON;
+        context.translation_key = value;
+    }
+}
+
 int declarative_window_registry_load(void)
 {
     g_windows.clear();
     g_constructed_windows.clear();
     g_failure_reason.clear();
 
-    // Each UI document is inherited as a complete nearest-mod file. Neither
-    // required screen is synthesized or merged with a compiled fallback.
-    mod_definition::LayeredFileSource source;
-    if (!mod_definition::find_nearest_configured_file(kMissionBriefingPath, &source, &g_failure_reason)) {
-        return 0;
-    }
-    if (!parse_definition_file(source.full_path.c_str())) {
-        return 0;
-    }
-    if (!mod_definition::find_nearest_configured_file(kMainMenuPath, &source, &g_failure_reason)) {
-        return 0;
-    }
-    if (!parse_definition_file(source.full_path.c_str())) {
-        return 0;
+    // UI documents inherit as complete files. Enumerate the whole category so
+    // a mod can add a new window without adding its path to native code; an
+    // upper layer replaces only the same registry-relative document.
+    std::map<std::string, mod_definition::DefinitionSource> winners;
+    if (!mod_definition::for_each_configured_definition_file(
+            { "UI\\windows" }, "declarative window", true,
+            [&](const mod_definition::DefinitionSource &source) {
+                winners[source.normalized_definition_path] = source;
+                return true;
+            }, nullptr, &g_failure_reason)) return 0;
+    for (const auto &winner : winners) {
+        if (!parse_definition_file(winner.second.full_path.c_str())) return 0;
     }
     if (!validate_mission_briefing()) {
         return 0;
@@ -796,6 +1083,7 @@ int declarative_window_registry_load(void)
     if (!validate_main_menu()) {
         return 0;
     }
+    if (!validate_race_bet()) return 0;
 
     for (const auto &entry : g_windows) {
         g_constructed_windows[entry.first] = std::make_unique<DeclarativeWindow>(*entry.second);

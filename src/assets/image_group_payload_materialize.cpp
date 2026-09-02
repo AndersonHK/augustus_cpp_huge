@@ -420,6 +420,9 @@ int materialize_explicit_frame(
             out_frame_slice.draw_offset_y = source_slice->draw_offset_y;
             out_frame_slice.fixed_logical_size = source_slice->fixed_logical_size;
         }
+        if (entry.fixed_logical_size.width > 0 && entry.fixed_logical_size.height > 0) {
+            out_frame_slice.fixed_logical_size = logical_size_for_slice(entry, entry.width, entry.height, out_frame_slice);
+        }
         return 1;
     }
 
@@ -452,6 +455,11 @@ int materialize_explicit_frame(
         out_frame_key,
         out_frame_slice);
     if (!materialized) crash_context_report_error("Unable to upload explicit image group animation frame", entry.id.c_str());
+    if (materialized) {
+        const int source_width = entry.width > 0 ? entry.width : out_frame_slice.width;
+        const int source_height = entry.height > 0 ? entry.height : out_frame_slice.height;
+        out_frame_slice.fixed_logical_size = logical_size_for_slice(entry, source_width, source_height, out_frame_slice);
+    }
     return materialized;
 }
 

@@ -22,6 +22,7 @@
 #include "core/direction.h"
 
 #include "core/image_group.h"
+#include "city/population.h"
 #include "city/view.h"
 #include "game/resource.h"
 #include "map/terrain.h"
@@ -34,6 +35,35 @@
 #include <string>
 
 namespace {
+
+int population_comparison_matches(int population, GraphicComparison comparison, int threshold)
+{
+    switch (comparison) {
+        case GraphicComparison::LessThan: return population < threshold;
+        case GraphicComparison::LessThanOrEqual: return population <= threshold;
+        case GraphicComparison::Equal: return population == threshold;
+        case GraphicComparison::GreaterThan: return population > threshold;
+        case GraphicComparison::GreaterThanOrEqual: return population >= threshold;
+        case GraphicComparison::None:
+        default: return 0;
+    }
+}
+
+int population_condition_signature(const building_type_registry_impl::GraphicsTarget *target)
+{
+    if (!target) return -1;
+    int signature = 0;
+    int condition_count = 0;
+    const int population = city_population();
+    for (const building_type_registry_impl::GraphicsLayer &layer : target->layers()) {
+        for (const building_type_registry_impl::GraphicsCondition &condition : layer.conditions()) {
+            if (condition.type != building_type_registry_impl::GraphicsConditionType::Population) continue;
+            signature = signature * 33 + population_comparison_matches(population, condition.comparison, condition.threshold) + 1;
+            ++condition_count;
+        }
+    }
+    return condition_count ? signature : -1;
+}
 
 void make_building_context(char *buffer, size_t buffer_size, const building_runtime *runtime)
 {
@@ -623,7 +653,8 @@ void building_runtime::ensure_cached_graphics_bindings()
         graphics_cache_.generation == graphics_state_.generation() &&
         graphics_cache_.owner_generation == graphics_owner_generation() &&
         graphics_cache_.view_orientation_generation == city_view_orientation_generation()) {
-        return;
+        if (graphics_cache_.population_condition_signature < 0 ||
+            graphics_cache_.population_condition_signature == population_condition_signature(resolve_graphic_target())) return;
     }
 
     rebuild_cached_graphics_bindings();
@@ -658,6 +689,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
     building_type_registry_impl::GraphicsTarget resolved_target =
         target->resolved_option(
             static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target, graphics_variant())));
+    graphics_cache_.population_condition_signature = population_condition_signature(&resolved_target);
     graphics_cache_.terrain_foundation = resolved_target.uses_terrain_foundation();
     if (resolved_target.no_draw()) {
         graphics_cache_.owns_graphics = 1;
