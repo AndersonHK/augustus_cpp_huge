@@ -4,6 +4,7 @@
 #include "assets/image_group_payload.h"
 #include "building/BuildingGraphicsState.h"
 #include "building/RubbleState.h"
+#include "city/race_bet.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/type.h"
@@ -316,6 +317,36 @@ bool validate_startup_parser_abi_contract()
     if (startup_parser_inspect_environment_v1(&environment_request, &environment_result) !=
         STARTUP_PARSER_STATUS_INVALID_ABI) {
         std::cerr << "Startup parser environment ABI accepted an unsupported caller contract.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_hippodrome_race_contract()
+{
+    HippodromeRace race;
+    race.start(41);
+    if (race.participant_count() != 0 || race.register_participant(0, BLUE_HORSE) != 0 ||
+        race.register_participant(41, NO_BET) != 0 || race.register_participant(41, GREEN_HORSE) != 1 ||
+        race.register_participant(41, BLUE_HORSE) != 2 || race.register_participant(41, WHITE_HORSE) != 3 ||
+        race.register_participant(41, RED_HORSE) != 4 || race.register_participant(41, RED_HORSE) != 4 ||
+        race.participant_count() != 4) {
+        std::cerr << "Hippodrome race did not retain exactly one participant per team.\n";
+        return false;
+    }
+    if (race.winner() != NO_BET || race.register_finish(0, BLUE_HORSE) != 0 ||
+        race.register_finish(41, NO_BET) != 0 || race.register_finish(41, GREEN_HORSE) != 1 ||
+        race.register_finish(41, BLUE_HORSE) != 2 || race.register_finish(41, GREEN_HORSE) != 1 ||
+        race.register_finish(41, WHITE_HORSE) != 3 || race.register_finish(41, RED_HORSE) != 4 ||
+        race.winner() != GREEN_HORSE || race.finish_position(GREEN_HORSE) != 1 ||
+        race.finish_position(BLUE_HORSE) != 2 || race.finish_position(WHITE_HORSE) != 3 ||
+        race.finish_position(RED_HORSE) != 4) {
+        std::cerr << "Hippodrome race controller did not preserve actual, unique finish order.\n";
+        return false;
+    }
+    if (race.register_finish(42, RED_HORSE) != 1 || race.hippodrome_id() != 42 ||
+        race.winner() != RED_HORSE || race.finish_position(GREEN_HORSE) != 0) {
+        std::cerr << "Hippodrome race controller did not reset cleanly for a new venue race.\n";
         return false;
     }
     return true;
@@ -1551,7 +1582,8 @@ int run_startup_parser_test(int argc, char **argv)
 
     if (!validate_startup_parser_abi_contract() ||
         !validate_building_graphics_generation_contract() ||
-        !validate_relationship_contract()) {
+        !validate_relationship_contract() ||
+        !validate_hippodrome_race_contract()) {
         return 1;
     }
 

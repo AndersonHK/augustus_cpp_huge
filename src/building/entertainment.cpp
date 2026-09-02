@@ -6,12 +6,14 @@
 #include "city/entertainment.h"
 #include "city/games.h"
 #include "city/message.h"
+#include "city/race_bet.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "map/road_access.h"
 
+#include <array>
 #include <string_view>
 
 BuildingEntertainment::BuildingEntertainment(const Building &venue)
@@ -166,28 +168,31 @@ Figure *BuildingEntertainment::create_roaming_figure(const map_point &road, figu
     return figure;
 }
 
-void BuildingEntertainment::spawn_hippodrome_horses() const
+bool BuildingEntertainment::spawn_hippodrome_horses() const
 {
     building *venue_record = record();
     if (!venue_record) {
-        return;
+        return false;
     }
 
-    Figure *horse1 = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 1, DIR_2_RIGHT);
-    if (horse1) {
-        horse1->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
-        attach_figure_to_venue(horse1);
-        horse1->resource_id = 0;
-        horse1->speed_multiplier = 3;
+    std::array<Figure *, 4> horses = {};
+    for (int team = 0; team < 4; ++team) {
+        horses[team] = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 1 + (team & 1), DIR_2_RIGHT);
+        if (!horses[team]) {
+            for (Figure *horse : horses) {
+                if (horse) {
+                    horse->remove();
+                }
+            }
+            return false;
+        }
+        horses[team]->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
+        attach_figure_to_venue(horses[team]);
+        horses[team]->resource_id = static_cast<unsigned char>(team);
+        horses[team]->speed_multiplier = 3;
     }
-
-    Figure *horse2 = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 2, DIR_2_RIGHT);
-    if (horse2) {
-        horse2->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
-        attach_figure_to_venue(horse2);
-        horse2->resource_id = 1;
-        horse2->speed_multiplier = 2;
-    }
+    race_bet_start(static_cast<unsigned int>(venue_record->id));
+    return true;
 }
 
 void BuildingEntertainment::spawn_execution_lion_tamers(const map_point &road) const
@@ -264,8 +269,9 @@ void BuildingEntertainment::spawn_hippodrome_service()
     venue_record->figure_id = charioteer->id();
 
     if (!city_entertainment_hippodrome_has_race()) {
-        spawn_hippodrome_horses();
-        post_hippodrome_message_if_active();
+        if (spawn_hippodrome_horses()) {
+            post_hippodrome_message_if_active();
+        }
     }
 }
 

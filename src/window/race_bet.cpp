@@ -122,9 +122,10 @@ static void draw_background(void)
         text_draw_multiline(translation_for(horse_description), 25, 250, 438, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet;
+    const int betting_locked = data.in_progress_bet || !race_bet_can_place();
+    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !betting_locked;
 
-    text_draw_centered(translation_for(data.in_progress_bet ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
+    text_draw_centered(translation_for(betting_locked ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
         "TR_WINDOW_RACE_BET_BUTTON"), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
         button_enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
 
@@ -149,7 +150,7 @@ static void draw_foreground(void)
 
     arrow_buttons_draw(0, 0, amount_buttons, 2);
 
-    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet;
+    int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet && race_bet_can_place();
 
     button_border_draw(90, 354, 300, 20, button_enabled && data.focus_button_id3 == 1);
     image_buttons_draw(0, 0, image_button_close, 1);
@@ -214,7 +215,7 @@ static void button_confirm(const generic_button *button)
     (void)button;
 
     // save bet and go back
-    if (!city_data.games.chosen_horse && data.chosen_horse && data.bet_amount) {
+    if (race_bet_can_place() && data.chosen_horse && data.bet_amount) {
         city_data.games.chosen_horse = static_cast<uint8_t>(data.chosen_horse);
         city_data.games.bet_amount = static_cast<int32_t>(data.bet_amount);
         window_go_back();

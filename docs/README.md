@@ -10,6 +10,7 @@ Top-level documents in this directory describe the current runtime, active migra
 - [`resource_runtime.md`](resource_runtime.md): layered resource definitions and runtime identity.
 - [`walker_pathing_runtime.md`](walker_pathing_runtime.md) and [`water_access_runtime.md`](water_access_runtime.md): figure routing and building water access.
 - [`performance_tracker_runtime.md`](performance_tracker_runtime.md): current performance tracking behavior and validation limits.
+- [`hippodrome_racing_and_betting.md`](hippodrome_racing_and_betting.md): four-team race lifecycle, actual finish-order settlement, and old two-racer compatibility.
 
 ## Active Migration And Validation Work
 

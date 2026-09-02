@@ -120,6 +120,23 @@ Primary references:
 - `Mods/Julius/FigureType/*.xml`
 - `docs/walker_pathing_runtime.md`
 
+## Hippodrome Racing And Betting
+
+### Four Visible Participants And Actual-Order Settlement
+
+Labels: `Project-wide`, `Bundled Augustus`
+
+Upstream Augustus presents blue, red, white, and green betting choices but retained the original two-racer track animation and selected the financial winner with a separate four-way random roll. This repo creates all four racers atomically, applies small checkpoint pace variations from the serialized game RNG, records their actual finish order, and settles the wager from the first real crossing. Betting is locked while a race is active. A migrated two-racer race may finish visually, but it cannot settle a four-team wager; the wager carries into the next complete field.
+
+The four track figures use distinct combinations of the two inherited Caesar 3 horse appearances and two cart liveries. No extracted sprite duplicate is authored for this divergence.
+
+Primary references:
+
+- `src/building/entertainment.cpp`
+- `src/city/race_bet.cpp`
+- `src/figuretype/animal.cpp`
+- `docs/hippodrome_racing_and_betting.md`
+
 ## Labor And Staffing
 
 ### Broader Vespasian Local Workforce Coverage

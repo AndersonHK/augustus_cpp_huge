@@ -28,6 +28,7 @@
 #include "city/constants.h"
 #include "city/data_private.h"
 #include "city/finance.h"
+#include "city/race_bet.h"
 #include "city/trade_policy.h"
 #include "core/dir.h"
 #include "graphics/ui_runtime_api.h"
@@ -1153,7 +1154,7 @@ int window_building_handle_mouse_hippodrome(const mouse *m, building_info_contex
     if (c->building->monument_phase() != MONUMENT_FINISHED) {
         return 0;
     }
-    if (!city_data.games.chosen_horse && GenericButtonList(race_bet_button, 1).handle_mouse(
+    if (race_bet_can_place() && GenericButtonList(race_bet_button, 1).handle_mouse(
         *m,
         c->x_offset + 88,
         c->y_offset + (c->height_blocks > 27 ? 603 : 380),
@@ -1171,7 +1172,7 @@ void window_building_draw_hippodrome_foreground(building_info_context *c)
         return;
     }
 
-    if (!city_data.games.chosen_horse) {
+    if (race_bet_can_place()) {
         button_border_draw(c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 603 : 380),
                            300, 20, data.focus_button_id == 1);
         text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_TITLE"),

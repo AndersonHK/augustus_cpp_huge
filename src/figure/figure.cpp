@@ -9,6 +9,7 @@
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/emperor.h"
+#include "city/race_bet.h"
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
@@ -144,7 +145,15 @@ struct FigureStore {
         unsigned int immigrant_building_id = 0;
         unsigned int destination_building_id = 0;
     };
+    struct PendingFigureRefs {
+        unsigned int target_figure_id = 0;
+        unsigned int targeted_by_figure_id = 0;
+        unsigned int attacker1_id = 0;
+        unsigned int attacker2_id = 0;
+        unsigned int opponent_id = 0;
+    };
     std::vector<PendingBuildingRefs> pending_building_refs;
+    std::vector<PendingFigureRefs> pending_figure_refs;
     int loaded_save_version = SAVE_GAME_CURRENT_VERSION;
 };
 
@@ -194,13 +203,23 @@ void store_pending_building_refs(unsigned int figure_id, unsigned int building_i
     data.pending_building_refs[figure_id] = { building_id, immigrant_building_id, destination_building_id };
 }
 
-void read_figure_relation(FigureRelation &relation, unsigned int id)
+bool resolve_loaded_figure_relation(Figure &owner, FigureRelation &relation, unsigned int id, const char *role)
 {
-    if (!id || id >= Figure::count()) {
+    if (!id) {
         relation.clear();
-        return;
+        return true;
     }
-    relation.retarget(*Figure::get(id));
+    Figure *target = id < Figure::count() ? Figure::get(id) : nullptr;
+    if (!target || target->id() != id || !target->state) {
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u relation=%s saved_figure_id=%u",
+            owner.id(), static_cast<unsigned int>(owner.type), role, id);
+        log_warning("Clearing stale saved figure relationship", detail, 0);
+        relation.clear();
+        return false;
+    }
+    relation.retarget(*target);
+    return true;
 }
 
 int get_resource_id(figure_type type, int resource)
@@ -707,20 +726,21 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.trader_id = buffer_read_u8(buf);
     f.wait_ticks_next_target = buffer_read_u8(buf);
     f.dont_draw_elevated = buffer_read_u8(buf);
-    read_figure_relation(f.target_figure, buffer_read_u16(buf));
-    read_figure_relation(f.targeted_by_figure, buffer_read_u16(buf));
+    FigureStore::PendingFigureRefs &figure_refs = data.pending_figure_refs[f.id()];
+    figure_refs.target_figure_id = buffer_read_u16(buf);
+    figure_refs.targeted_by_figure_id = buffer_read_u16(buf);
     f.created_sequence = buffer_read_u16(buf);
     f.target_figure_created_sequence = buffer_read_u16(buf);
     f.figures_on_same_tile_index = buffer_read_u8(buf);
     f.num_attackers = buffer_read_u8(buf);
     if (version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        read_figure_relation(f.attacker1, buffer_read_i16(buf));
-        read_figure_relation(f.attacker2, buffer_read_i16(buf));
-        read_figure_relation(f.opponent, buffer_read_i16(buf));
+        figure_refs.attacker1_id = static_cast<unsigned int>(buffer_read_i16(buf));
+        figure_refs.attacker2_id = static_cast<unsigned int>(buffer_read_i16(buf));
+        figure_refs.opponent_id = static_cast<unsigned int>(buffer_read_i16(buf));
     } else {
-        read_figure_relation(f.attacker1, buffer_read_i32(buf));
-        read_figure_relation(f.attacker2, buffer_read_i32(buf));
-        read_figure_relation(f.opponent, buffer_read_i32(buf));
+        figure_refs.attacker1_id = static_cast<unsigned int>(buffer_read_i32(buf));
+        figure_refs.attacker2_id = static_cast<unsigned int>(buffer_read_i32(buf));
+        figure_refs.opponent_id = static_cast<unsigned int>(buffer_read_i32(buf));
     }
     if (version > SAVE_GAME_LAST_GLOBAL_BUILDING_INFO) {
         f.last_visited_index = buffer_read_i16(buf);
@@ -1603,9 +1623,11 @@ void Figure::clear_legacy_cart_overlay_image()
 void Figure::init_scenario()
 {
     figure_runtime_reset();
+    race_bet_reset_runtime();
     map_road_service_history_clear();
     data.figures.clear();
     data.pending_building_refs.clear();
+    data.pending_figure_refs.clear();
     data.loaded_save_version = SAVE_GAME_CURRENT_VERSION;
     data.figures.reserve(kFigureArraySizeStep);
     data.figures.push_back(std::make_unique<Figure>(0));
@@ -1649,6 +1671,7 @@ void Figure::save_state(buffer *list, buffer *seq)
 void Figure::load_state(buffer *list, buffer *seq, int version)
 {
     figure_runtime_reset();
+    race_bet_reset_runtime();
     data.loaded_save_version = version;
     data.created_sequence = buffer_read_i32(seq);
 
@@ -1662,8 +1685,10 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
     const int figures_to_load = static_cast<int>(buf_size / figure_buf_size);
     data.figures.clear();
     data.pending_building_refs.clear();
+    data.pending_figure_refs.clear();
     data.figures.reserve(figures_to_load > 0 ? figures_to_load : 1);
     data.pending_building_refs.resize(figures_to_load > 0 ? figures_to_load : 1);
+    data.pending_figure_refs.resize(figures_to_load > 0 ? figures_to_load : 1);
     for (int i = 0; i < figures_to_load; i++) {
         data.figures.push_back(std::make_unique<Figure>(static_cast<unsigned int>(i)));
     }
@@ -1679,16 +1704,39 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
             highest_id_in_use = i;
         }
     }
-    if (version <= SAVE_GAME_LAST_UNNOTIFIED_RUNTIME_RELATIONSHIPS) {
-        for (const std::unique_ptr<Figure> &figure : data.figures) {
-            if (figure && figure->state) {
-                figure_combat_migrate_legacy_relationships(figure.get());
-            }
+    for (size_t i = 0; i < data.figures.size(); ++i) {
+        Figure *figure = data.figures[i].get();
+        if (!figure || !figure->state) {
+            continue;
+        }
+        const FigureStore::PendingFigureRefs &refs = data.pending_figure_refs[i];
+        resolve_loaded_figure_relation(*figure, figure->target_figure, refs.target_figure_id, "target_figure");
+        resolve_loaded_figure_relation(*figure, figure->targeted_by_figure, refs.targeted_by_figure_id, "targeted_by_figure");
+        resolve_loaded_figure_relation(*figure, figure->attacker1, refs.attacker1_id, "attacker1");
+        resolve_loaded_figure_relation(*figure, figure->attacker2, refs.attacker2_id, "attacker2");
+        resolve_loaded_figure_relation(*figure, figure->opponent, refs.opponent_id, "opponent");
+
+        const unsigned int attacker1_before = figure->attacker1.save_id();
+        const unsigned int attacker2_before = figure->attacker2.save_id();
+        const unsigned int opponent_before = figure->opponent.save_id();
+        const unsigned int num_attackers_before = figure->num_attackers;
+        const unsigned int action_before = figure->action_state;
+        figure_combat_migrate_legacy_relationships(figure);
+        if (attacker1_before != figure->attacker1.save_id() || attacker2_before != figure->attacker2.save_id() ||
+            opponent_before != figure->opponent.save_id() || num_attackers_before != figure->num_attackers ||
+            action_before != figure->action_state) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_num_attackers=%u saved_opponent_id=%u",
+                figure->id(), static_cast<unsigned int>(figure->type), num_attackers_before, opponent_before);
+            log_warning("Repairing inconsistent saved combat relationships", detail, 0);
         }
     }
     data.figures.resize(highest_id_in_use + 1);
     if (data.pending_building_refs.size() > data.figures.size()) {
         data.pending_building_refs.resize(data.figures.size());
+    }
+    if (data.pending_figure_refs.size() > data.figures.size()) {
+        data.pending_figure_refs.resize(data.figures.size());
     }
     invalid_figure();
 }

@@ -313,6 +313,8 @@ Monument deliveries are separate dynamic state. `building_monument_delivery_load
 
 Figures persist as legacy `array(figure)` records. `figure_load_state()` resets `figure_runtime`, reads the saved array record size when present, allocates the figure array, and fills each `figure` with legacy state.
 
+Figure-to-figure relationships require a two-pass load. The first pass stages saved ids for target, targeted-by, attacker, and opponent roles while every figure slot is reset and populated. The second pass attaches those relationships only after all target objects are stable, validates each target, and normalizes the combat tuple (`num_attackers`, attacker slots, opponent, and action). Connecting a forward reference during the first pass is invalid: resetting the later target slot disconnects it with `EndpointReassigned`, which can leave the peer's serialized combat counters out of sync with its now-empty relationship handles. A stale saved id is cleared with a bridge warning, and any recoverable combat normalization is warned and written cleanly on the current-version round trip.
+
 Native FigureType runtime state is not persisted as C++ objects. It is rebuilt after load:
 
 - `figure_runtime_initialize_city()` clears `g_runtime_entries`, walks live figures, and calls the internal binder.

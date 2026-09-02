@@ -18,7 +18,7 @@ Full deploys also check:
 - The target `Mods` folder is not a symlink, junction, or reparse point.
 - The repo `Mods` folder contains exactly three folders: `Augustus`, `Julius`, and `Vespasian`.
 
-After those checks pass, a full deploy moves existing target mod folders into a per-run backup folder, copies the repo mod folders in their place, restores from backup on failure when possible, copies `x64/Release/Vespasian.exe`, and copies `x64/Release/Vespasian.pdb` when that file exists. Runtime-only deploys skip all Mods validation and replacement.
+After those checks pass, a full deploy creates a small per-run backup of source-managed content, replaces ordinary mod files, and overlays authored `Graphics` files while preserving runtime-extracted graphics and extraction metadata in place. It verifies both the authored copies and hashes of every preserved extraction file, restores the managed content on failure when possible, then copies `x64/Release/Vespasian.exe` and its PDB when present. The backup is removed after a verified deployment. Runtime-only deploys skip all Mods validation and overlay work.
 
 ## Usage
 
