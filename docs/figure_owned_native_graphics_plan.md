@@ -34,7 +34,7 @@ An unresolved request is an error and must say `ERROR: Figure graphics request i
 
 - [ ] Delete controller-owned `image_id` mutation wherever it no longer carries simulation or save-bridge state. Remove generic “update graphics” stubs when the centralized runtime already refreshes every figure.
 - [ ] Finish separating save-compatible legacy image fields from draw authority. Persist or migrate them only where old saves require the data; native rendering must consume object state plus resolved asset definitions.
-- [ ] Add Vespasian logical half-size figure overrides only after the renderer has an explicit fixed-point logical-size contract and consistent tile anchoring. Logical/source dimensions belong in asset data, not FigureType XML.
+- [ ] Add Vespasian logical scaled-figure overrides only after the renderer has an explicit fixed-point logical-size contract and consistent tile anchoring. Logical/source dimensions belong in asset data, not FigureType XML.
 - [ ] Continue toward atlas residency in GPU VRAM and Vulkan submission driven by object state and shader-visible material/animation data. This is a renderer follow-on, not a reason to weaken the current XML contract.
 
 ## Validation Gates

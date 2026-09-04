@@ -1,6 +1,5 @@
 #include "building/building.h"
 #include "building/BuildingFoundation.h"
-#include "building/building_record.h"
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 #include "map/aqueduct.h"

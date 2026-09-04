@@ -118,7 +118,7 @@ int Barracks::can_recruit_soldier_for(const formation &legion) const
     if (legion.num_figures >= legion.barracks_recruit_capacity()) {
         return 0;
     }
-    if (legion.formation_type() && legion.formation_type()->primary_unit_requires_weapon() &&
+    if (legion.recruit_requires_weapon() &&
         resource_amount(resource_weapons()) <= 0) {
         return 0;
     }
@@ -210,8 +210,9 @@ int Barracks::create_soldier(int x, int y)
         const int fills_last_open_slot = m->num_figures + 1 >= m->barracks_recruit_capacity();
         Figure *f = Figure::create(static_cast<figure_type>(m->figure_type), x, y, DIR_0_TOP);
         f->formation_id = static_cast<short>(formation_id);
-        f->formation_at_rest = 1;
-        if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon()) {
+        f->formation_at_rest = 0;
+        m->publish_figure(*f);
+        if (m->recruit_requires_weapon()) {
             if (resource_amount(resource_weapons()) > 0) {
                 add_resource(resource_weapons(), -1);
             }

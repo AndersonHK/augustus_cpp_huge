@@ -396,14 +396,14 @@ const FigureTypeDefinition *definition_for(figure_type type)
 
 const FigureGraphics *graphics_for(figure_type type)
 {
-    if (const FigureTypeDefinition *definition = definition_for(type)) {
-        return &definition->graphics();
-    }
     if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) {
         return nullptr;
     }
-    const FigureTypeDefinition *graphics_only = g_figure_graphics_only[type].get();
-    return graphics_only ? &graphics_only->graphics() : nullptr;
+    if (const FigureTypeDefinition *graphics_only = g_figure_graphics_only[type].get()) {
+        return &graphics_only->graphics();
+    }
+    const FigureTypeDefinition *definition = definition_for(type);
+    return definition ? &definition->graphics() : nullptr;
 }
 
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id)
@@ -879,7 +879,9 @@ struct FigureIdentityReservation {
 };
 
 struct StagedFigureTypes {
-    std::array<std::optional<StagedFigureType>, FIGURE_TYPE_MAX> winners;
+    std::array<std::optional<StagedFigureType>, FIGURE_TYPE_MAX> runtime_winners;
+    std::array<std::optional<StagedFigureType>, FIGURE_TYPE_MAX> graphics_winners;
+    std::array<bool, FIGURE_TYPE_MAX> disabled{};
     std::array<std::optional<FigureIdentityReservation>, FIGURE_TYPE_MAX> slots;
     std::unordered_map<std::string, FigureIdentityReservation> ids;
     mod_definition::DefinitionOverlayTracker overlays;
@@ -2287,28 +2289,58 @@ static int stage_definition(StagedFigureTypes &staged, StagedFigureType definiti
         staged.slots[type] = identity;
         staged.ids.emplace(attr, std::move(identity));
     }
-    staged.winners[type] = std::move(definition);
+    staged.disabled[type] = definition.disabled;
+    if (definition.disabled) {
+        staged.runtime_winners[type].reset();
+        staged.graphics_winners[type].reset();
+    } else if (definition.graphics_only) {
+        staged.graphics_winners[type] = std::move(definition);
+    } else {
+        staged.runtime_winners[type] = std::move(definition);
+        staged.graphics_winners[type].reset();
+    }
+    return 1;
+}
+
+static int validate_runtime_winner(StagedFigureTypes &staged, StagedFigureType &winner)
+{
+    FigureTypeDefinition &definition = *winner.definition;
+    if (!winner.saw_profiles || !winner.saw_graphics || definition.profiles().empty() ||
+        !definition.default_profile()) {
+        staged.failure_reason = "Final runtime FigureType definition is incomplete: " + winner.source.full_path;
+        return 0;
+    }
+    if (!definition.cache_graphics_bindings()) {
+        staged.failure_reason = "Final runtime FigureType definition has invalid graphics: " + winner.source.full_path;
+        return 0;
+    }
+    return 1;
+}
+
+static int validate_graphics_winner(StagedFigureTypes &staged, StagedFigureType &winner)
+{
+    FigureTypeDefinition &definition = *winner.definition;
+    if (!winner.saw_graphics || winner.saw_profiles || !definition.profiles().empty()) {
+        staged.failure_reason = "Final graphics-only FigureType definition is incomplete: " + winner.source.full_path;
+        return 0;
+    }
+    if (!definition.cache_graphics_bindings()) {
+        staged.failure_reason = "Final graphics-only FigureType definition has invalid graphics: " + winner.source.full_path;
+        return 0;
+    }
     return 1;
 }
 
 static int validate_final_winners(StagedFigureTypes &staged)
 {
-    for (std::optional<StagedFigureType> &winner : staged.winners) {
-        if (!winner || winner->disabled) {
+    for (std::size_t type = 0; type < staged.runtime_winners.size(); ++type) {
+        if (staged.disabled[type]) {
             continue;
         }
-        FigureTypeDefinition &definition = *winner->definition;
-        const int incomplete_graphics_only = winner->graphics_only &&
-            (!winner->saw_graphics || winner->saw_profiles || !definition.profiles().empty());
-        const int incomplete_runtime_definition = !winner->graphics_only &&
-            (!winner->saw_profiles || !winner->saw_graphics || definition.profiles().empty() ||
-                !definition.default_profile());
-        if (incomplete_graphics_only || incomplete_runtime_definition) {
-            staged.failure_reason = "Final FigureType winner is incomplete: " + winner->source.full_path;
-            return 0;
-        }
-        if (!definition.cache_graphics_bindings()) {
-            staged.failure_reason = "Final FigureType winner has invalid graphics: " + winner->source.full_path;
+        std::optional<StagedFigureType> &runtime = staged.runtime_winners[type];
+        std::optional<StagedFigureType> &graphics = staged.graphics_winners[type];
+        if ((runtime && !validate_runtime_winner(staged, *runtime)) ||
+            (graphics && !validate_graphics_winner(staged, *graphics))) {
             return 0;
         }
     }
@@ -2425,13 +2457,12 @@ int figure_type_registry_load(void)
     }
     std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> published;
     std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> published_graphics_only;
-    for (std::size_t type = 0; type < staged.winners.size(); ++type) {
-        if (staged.winners[type] && !staged.winners[type]->disabled) {
-            if (staged.winners[type]->graphics_only) {
-                published_graphics_only[type] = std::move(staged.winners[type]->definition);
-            } else {
-                published[type] = std::move(staged.winners[type]->definition);
-            }
+    for (std::size_t type = 0; type < staged.runtime_winners.size(); ++type) {
+        if (!staged.disabled[type] && staged.runtime_winners[type]) {
+            published[type] = std::move(staged.runtime_winners[type]->definition);
+        }
+        if (!staged.disabled[type] && staged.graphics_winners[type]) {
+            published_graphics_only[type] = std::move(staged.graphics_winners[type]->definition);
         }
     }
     g_figure_types = std::move(published);
@@ -2485,13 +2516,16 @@ int figure_type_layered_definition_buffers_are_valid_for_test(
         if (overlay && identity != staged.ids.end()) {
             result->queried_disabled = overlay->disabled ? 1 : 0;
             result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
-            const std::optional<StagedFigureType> &winner = staged.winners[identity->second.type];
-            if (winner && !winner->disabled && winner->definition &&
-                (winner->graphics_only || winner->definition->default_profile())) {
-                if (const FigureTypeProfile *profile = winner->definition->default_profile()) {
+            const figure_type type = identity->second.type;
+            const std::optional<StagedFigureType> &runtime = staged.runtime_winners[type];
+            const std::optional<StagedFigureType> &graphics = staged.graphics_winners[type];
+            if (!staged.disabled[type] && runtime && runtime->definition) {
+                if (const FigureTypeProfile *profile = runtime->definition->default_profile()) {
                     result->queried_max_roam_length = profile->movement_profile().max_roam_length;
                 }
-                const std::vector<FigureGraphicsOverlay> &overlays = winner->definition->graphics().overlays();
+                const FigureTypeDefinition *graphics_definition =
+                    graphics && graphics->definition ? graphics->definition.get() : runtime->definition.get();
+                const std::vector<FigureGraphicsOverlay> &overlays = graphics_definition->graphics().overlays();
                 result->queried_overlay_count = static_cast<int>(overlays.size());
                 if (!overlays.empty()) {
                     const FigureGraphicsOverlay &overlay_definition = overlays.front();
@@ -2511,7 +2545,7 @@ int figure_type_layered_definition_buffers_are_valid_for_test(
                     result->queried_overlay_sample_x_offset = sample_offset.x;
                     result->queried_overlay_sample_y_offset = sample_offset.y;
                 }
-                const FigureStandardGraphics &standard = winner->definition->graphics().standard();
+                const FigureStandardGraphics &standard = graphics_definition->graphics().standard();
                 result->queried_standard_enabled = standard.enabled;
                 result->queried_standard_flag_count = static_cast<int>(standard.flags.size());
                 result->queried_standard_moving_frame_divisor = standard.moving_frame_divisor;
@@ -2519,7 +2553,7 @@ int figure_type_layered_definition_buffers_are_valid_for_test(
                     standard.flag_image_offset(FIGURE_FORT_LEGIONARY, 0, 10);
                 result->queried_standard_sample_halted_offset =
                     standard.flag_image_offset(FIGURE_FORT_LEGIONARY, 1, 10);
-                const FigureGraphics &graphics = winner->definition->graphics();
+                const FigureGraphics &graphics = graphics_definition->graphics();
                 result->queried_state_layer_count = static_cast<int>(graphics.state_layers().size());
                 if (const FigureGraphicsStateLayer *going =
                         graphics.state_layer_for_action(FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE)) {

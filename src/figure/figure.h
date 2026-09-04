@@ -20,6 +20,23 @@ class Figure;
 struct FigureGraphicDrawRequest;
 struct building_info_context;
 
+enum class FigureMovementPlane {
+    Ground,
+    Elevated
+};
+
+struct FigureMovementDestination {
+    int x = 0;
+    int y = 0;
+    FigureMovementPlane plane = FigureMovementPlane::Ground;
+};
+
+enum class FigureMovementResult {
+    Moving,
+    Arrived,
+    Blocked
+};
+
 class FigureRelation {
     friend class Figure;
 
@@ -59,6 +76,8 @@ public:
     static std::vector<Figure *> figures_directly_referencing_building(const Building &building);
 
     void remove();
+    int consume_movement_ticks(int num_ticks, int tick_percentage);
+    FigureMovementResult move_ticks_to(FigureMovementDestination destination, int num_ticks, int tick_percentage = 0);
     void release_destination_reservations();
     int retarget_building(Building &from, Building &to);
     bool set_home_building(Building *building);
@@ -82,9 +101,12 @@ public:
     int is_caesar_enemy() const;
     int is_legion() const;
     int is_herd() const;
+    int is_aggressive_herd() const;
     int is_category(figure_category_mask category_mask) const;
     int uses_tall_info_panel() const;
     int has_info_action_button() const;
+    void set_movement_plane(FigureMovementPlane plane) { dont_draw_elevated = plane == FigureMovementPlane::Ground; }
+    bool draws_elevated() const { return height_adjusted_ticks || (use_cross_country && !dont_draw_elevated); }
     void handle_info_action_button();
     void draw_figure_info(building_info_context *c);
     void draw(building_info_context *c);
@@ -95,25 +117,12 @@ public:
     static translation_key new_type_translation_key(figure_type type);
     translation_key type_translation_key() const;
     int target_is_alive() const;
-    int legacy_corpse_image_id(int base_image_id) const;
-    int legacy_frame_image_id(int base_image_id, int frame_offset) const;
-    int legacy_static_frame_image_id(int base_image_id, int frame_count) const;
-    int legacy_directional_frame_image_id(
-        int base_image_id,
-        int frame_direction,
-        int frame_offset,
-        int frame_stride = 8) const;
-    int legacy_image_id_for_direction_major_frame(
-        int base_image_id,
-        int frame_direction,
-        int frame_offset,
-        int direction_stride) const;
     void select_legacy_corpse_image(int base_image_id);
     void select_legacy_frame_image(int base_image_id, int frame_offset);
     void select_legacy_static_frame_image(int base_image_id, int frame_count);
     void select_legacy_directional_frame_image(
         int base_image_id,
-        int frame_direction,
+        int normalized_direction,
         int frame_offset,
         int frame_stride = 8);
     void select_legacy_default_or_corpse_image(int base_image_id);
@@ -236,6 +245,7 @@ public:
 
 private:
     Figure &operator=(const Figure &) = default;
+    FigureMovementResult move_ticks_cross_country_to(FigureMovementDestination destination, int num_ticks, int tick_percentage);
     bool set_building_reference(ObjectRelationship<Figure, Building> &relationship, Building *building);
     void on_relationship_event(const RelationshipEvent &event) override;
 

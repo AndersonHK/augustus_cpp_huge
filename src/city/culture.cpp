@@ -104,7 +104,7 @@ static int is_working_counted(const building *b)
     if (building_monument_get_id(b->type)) {
         return building_monument_working(b->type) ? 1 : 0;
     }
-    return building_is_active(b);
+    return Building::get(b->id)->is_active();
 }
 
 static int module_counted_for_building(const building *b, building_type_registry_impl::CultureModuleCountMode count_mode)
@@ -116,7 +116,7 @@ static int module_counted_for_building(const building *b, building_type_registry
             return is_working_counted(b);
         case building_type_registry_impl::CultureModuleCountMode::Active:
         default:
-            return b && is_main_building(b) && building_is_active(b);
+            return b && is_main_building(b) && Building::get(b->id)->is_active();
     }
 }
 

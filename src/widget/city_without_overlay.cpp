@@ -410,7 +410,7 @@ static void draw_figures(Figure *first_figure, int x, int y)
 {
     Figure *f = first_figure;
     while (f) {
-        const bool elevated = (f->use_cross_country && !f->dont_draw_elevated) || f->height_adjusted_ticks;
+        const bool elevated = f->draws_elevated();
         if (!elevated && f->id() == draw_context.selected_figure_id) {
             if (!f->is_ghost || f->height_adjusted_ticks) {
                 city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
@@ -510,7 +510,7 @@ static void draw_elevated_figures(Figure *first_figure, int x, int y)
 {
     Figure *f = first_figure;
     while (f) {
-        if ((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) {
+        if (f->draws_elevated() && (!f->is_ghost || f->height_adjusted_ticks)) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
             if (f->id() == draw_context.selected_figure_id) city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
             else city_draw_figure(f, x, y, draw_context.scale, highlight);

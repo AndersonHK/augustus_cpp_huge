@@ -7,6 +7,7 @@
 #include "core/xml_value.h"
 #include "game/mod_definition_loader.h"
 
+#include <array>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -19,6 +20,8 @@ namespace formation_type_registry_impl {
 std::string g_failure_reason;
 std::vector<std::unique_ptr<FormationType>> g_formation_types;
 mod_definition::DefinitionOverlayTracker g_formation_type_overlays;
+std::array<const FormationType *, FIGURE_TYPE_MAX> g_spawn_formations = {};
+std::array<std::vector<const FormationType *>, 3> g_herd_spawns_by_climate;
 
 namespace {
 
@@ -28,28 +31,31 @@ struct SlotSpec {
     std::string unit_key;
 };
 
-struct ParseState {
+struct FormationTypeSpec {
     std::string key;
     int width = 0;
     int height = 0;
     int recruit_capacity = 0;
+    FormationStationAlignment station_alignment = FormationStationAlignment::Unspecified;
+    FormationCombatModifiers combat_modifiers;
     std::vector<SlotSpec> slots;
+    FormationSpawn spawn;
     bool disabled = false;
-    bool saw_root = false;
-    bool saw_grid = false;
-    bool saw_slot = false;
-    bool error = false;
 };
 
-struct StagedFormationType {
-    std::string key;
-    int width = 0;
-    int height = 0;
-    int recruit_capacity = 0;
-    std::vector<SlotSpec> slots;
+struct StagedFormationType : FormationTypeSpec {
     std::unique_ptr<FormationType> definition;
     mod_definition::DefinitionSource source;
-    bool disabled = false;
+};
+
+struct ParseState : FormationTypeSpec {
+    bool saw_root = false;
+    bool saw_grid = false;
+    bool saw_combat = false;
+    bool saw_slot = false;
+    bool saw_herd_behavior = false;
+    bool saw_herd_member = false;
+    bool error = false;
 };
 
 struct StagedFormationTypes {
@@ -97,6 +103,37 @@ bool parse_row_range(const char *text, int *first_row, int *last_row)
     }
     *first_row = begin;
     *last_row = end;
+    return true;
+}
+
+bool parse_combat_modifier(const char *attribute, int *out_value, bool *saw_attribute)
+{
+    if (!xml_parser_has_attribute(attribute)) {
+        return true;
+    }
+
+    int value = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) ||
+        value < -100 || value > 100) {
+        log_error("FormationType combat modifier must be an integer from -100 through 100", attribute, 0);
+        return false;
+    }
+    *out_value = value;
+    *saw_attribute = true;
+    return true;
+}
+
+bool parse_combat_policy(const char *attribute, int minimum, int *out_value, bool *saw_attribute)
+{
+    if (!xml_parser_has_attribute(attribute)) return true;
+    int value = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) ||
+        value < minimum || value > 100) {
+        log_error("FormationType strategic combat value is outside its supported range", attribute, value);
+        return false;
+    }
+    *out_value = value;
+    *saw_attribute = true;
     return true;
 }
 
@@ -154,9 +191,54 @@ int parse_grid()
         g_parse_state.error = true;
         return 0;
     }
+    const char *alignment_value = xml_parser_get_attribute_string("station_alignment");
+    FormationStationAlignment station_alignment;
+    if (xml_value::equals(alignment_value, "scaled_tile_anchor")) {
+        station_alignment = FormationStationAlignment::ScaledTileAnchor;
+    } else if (xml_value::equals(alignment_value, "tile_anchor")) {
+        station_alignment = FormationStationAlignment::TileAnchor;
+    } else {
+        log_error("FormationType grid requires station_alignment 'scaled_tile_anchor' or 'tile_anchor'", alignment_value, 0);
+        g_parse_state.error = true;
+        return 0;
+    }
     g_parse_state.width = width;
     g_parse_state.height = height;
+    g_parse_state.station_alignment = station_alignment;
     g_parse_state.saw_grid = true;
+    return 1;
+}
+
+int parse_combat()
+{
+    if (!parse_enabled_content("combat")) {
+        return 0;
+    }
+    if (g_parse_state.saw_combat) {
+        log_error("FormationType contains duplicate combat nodes", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+
+    bool saw_attribute = false;
+    FormationCombatModifiers modifiers;
+    if (!parse_combat_modifier("melee_attack_modifier", &modifiers.melee_attack, &saw_attribute) ||
+        !parse_combat_modifier("melee_defense_modifier", &modifiers.melee_defense, &saw_attribute) ||
+        !parse_combat_modifier("morale_modifier", &modifiers.morale, &saw_attribute) ||
+        !parse_combat_modifier("missile_damage_modifier", &modifiers.missile_damage, &saw_attribute) ||
+        !parse_combat_policy("distant_battle_strength", 1, &modifiers.distant_battle_strength, &saw_attribute) ||
+        !parse_combat_policy("trained_distant_battle_bonus", 0, &modifiers.trained_distant_battle_bonus, &saw_attribute) ||
+        !parse_combat_policy("curse_weight_per_figure", 1, &modifiers.curse_weight_per_figure, &saw_attribute) ||
+        !saw_attribute) {
+        if (!saw_attribute) {
+            log_error("FormationType combat node requires at least one modifier", g_parse_state.key.c_str(), 0);
+        }
+        g_parse_state.error = true;
+        return 0;
+    }
+
+    g_parse_state.combat_modifiers = modifiers;
+    g_parse_state.saw_combat = true;
     return 1;
 }
 
@@ -226,9 +308,124 @@ int parse_slot()
     return 1;
 }
 
+int parse_spawn()
+{
+    if (!parse_enabled_content("spawn") || g_parse_state.spawn.role != FormationSpawnRole::None) {
+        log_error("FormationType contains an invalid or duplicate spawn node", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    const char *role = xml_parser_get_attribute_string("role");
+    if (xml_value::equals(role, "enemy")) {
+        if (xml_parser_has_attribute("climate") || xml_parser_has_attribute("count")) {
+            log_error("Enemy FormationType spawn cannot declare herd population data", g_parse_state.key.c_str(), 0);
+            g_parse_state.error = true;
+            return 0;
+        }
+        g_parse_state.spawn.role = FormationSpawnRole::Enemy;
+        return 1;
+    }
+    if (!xml_value::equals(role, "herd")) {
+        log_error("FormationType spawn role must be 'enemy' or 'herd'", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    const char *climate = xml_parser_get_attribute_string("climate");
+    if (xml_value::equals(climate, "central")) g_parse_state.spawn.climate = 0;
+    else if (xml_value::equals(climate, "northern")) g_parse_state.spawn.climate = 1;
+    else if (xml_value::equals(climate, "desert")) g_parse_state.spawn.climate = 2;
+    else {
+        log_error("Herd FormationType spawn requires central, northern, or desert climate", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    if (!xml_definition::parse_required_positive_int_attribute("count", &g_parse_state.spawn.initial_count)) {
+        log_error("Herd FormationType spawn requires a positive count", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    g_parse_state.spawn.role = FormationSpawnRole::Herd;
+    return 1;
+}
+
+int parse_herd_behavior()
+{
+    if (!parse_enabled_content("herd") || g_parse_state.saw_herd_behavior) {
+        log_error("FormationType contains invalid or duplicate herd behavior", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    g_parse_state.saw_herd_behavior = true;
+    int aggressive = 0;
+    int allow_negative_desirability = 0;
+    const char *invalid_attribute = nullptr;
+    if (!xml_definition::parse_required_positive_int_attribute("roam_distance", &g_parse_state.spawn.herd.roam_distance)) invalid_attribute = "roam_distance";
+    else if (!xml_definition::parse_required_positive_int_attribute("roam_delay", &g_parse_state.spawn.herd.roam_delay)) invalid_attribute = "roam_delay";
+    else if (!xml_definition::parse_required_nonnegative_int_attribute("reproduction_delay", &g_parse_state.spawn.herd.reproduction_delay)) invalid_attribute = "reproduction_delay";
+    else if (!xml_value::parse_bool(xml_parser_get_attribute_string("aggressive"), &aggressive)) invalid_attribute = "aggressive";
+    else if (!xml_value::parse_bool(xml_parser_get_attribute_string("allow_negative_desirability"), &allow_negative_desirability)) invalid_attribute = "allow_negative_desirability";
+    if (invalid_attribute) {
+        log_error("Herd FormationType spawn requires a valid behavior attribute", invalid_attribute, 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    g_parse_state.spawn.herd.aggressive = aggressive != 0;
+    g_parse_state.spawn.herd.allow_negative_desirability = allow_negative_desirability != 0;
+    const char *movement_sound = xml_parser_get_attribute_string("movement_sound");
+    if (xml_value::equals(movement_sound, "none")) {
+        g_parse_state.spawn.herd.movement_sound = FormationHerdMovementSound::None;
+    } else if (xml_value::equals(movement_sound, "wolf_howl")) {
+        g_parse_state.spawn.herd.movement_sound = FormationHerdMovementSound::WolfHowl;
+    } else {
+        log_error("Herd FormationType movement_sound must be none or wolf_howl", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    return 1;
+}
+
+int parse_herd_member()
+{
+    if (!parse_enabled_content("herd_member") || g_parse_state.saw_herd_member) {
+        log_error("FormationType contains invalid or duplicate herd member behavior", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    g_parse_state.saw_herd_member = true;
+    int alternate_rest_animation = 0;
+    const char *invalid_attribute = nullptr;
+    if (!xml_definition::parse_required_positive_int_attribute("rest_delay", &g_parse_state.spawn.herd.member_rest_delay)) invalid_attribute = "rest_delay";
+    else if (!xml_definition::parse_required_positive_int_attribute("move_speed", &g_parse_state.spawn.herd.member_move_speed)) invalid_attribute = "move_speed";
+    else if (!xml_definition::parse_required_positive_int_attribute("animation_frames", &g_parse_state.spawn.herd.member_animation_frames)) invalid_attribute = "animation_frames";
+    else if (!xml_value::parse_bool(xml_parser_get_attribute_string("alternate_rest_animation"), &alternate_rest_animation)) invalid_attribute = "alternate_rest_animation";
+    if (invalid_attribute) {
+        log_error("Herd FormationType member requires a valid behavior attribute", invalid_attribute, 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    g_parse_state.spawn.herd.alternate_rest_animation = alternate_rest_animation != 0;
+    const char *combat_animation = xml_parser_get_attribute_string("combat_animation");
+    if (xml_value::equals(combat_animation, "move")) {
+        g_parse_state.spawn.herd.combat_animation = FormationHerdCombatAnimation::Move;
+    } else if (xml_value::equals(combat_animation, "attack")) {
+        g_parse_state.spawn.herd.combat_animation = FormationHerdCombatAnimation::Attack;
+    } else if (xml_value::equals(combat_animation, "rest")) {
+        g_parse_state.spawn.herd.combat_animation = FormationHerdCombatAnimation::Rest;
+    } else {
+        log_error("Herd FormationType combat_animation must be move, attack, or rest", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    return 1;
+}
+
 const xml_parser_element XML_ELEMENTS[] = {
     { "formation", parse_root, nullptr, nullptr, nullptr },
     { "grid", parse_grid, nullptr, "formation", nullptr },
+    { "combat", parse_combat, nullptr, "formation", nullptr },
+    { "spawn", parse_spawn, nullptr, "formation", nullptr },
+    { "herd", parse_herd_behavior, nullptr, "formation", nullptr },
+    { "herd_member", parse_herd_member, nullptr, "formation", nullptr },
     { "slot", parse_slot, nullptr, "formation", nullptr }
 };
 
@@ -246,8 +443,8 @@ bool validate_definition(const FormationType &definition, const char *filename)
         return false;
     }
     if (!definition.has_slots()) {
-        log_error("FormationType requires at least one slot", definition.key(), 0);
-        error_context_report_error("FormationType requires at least one slot.", filename);
+        log_error("FormationType requires at least one declared slot", definition.key(), 0);
+        error_context_report_error("FormationType requires declared slots.", filename);
         return false;
     }
 
@@ -278,19 +475,26 @@ int parse_definition_buffer(
         XML_ELEMENTS,
         static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
         buffer);
-    if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.key.empty() ||
+    const bool has_complete_herd_data = g_parse_state.saw_herd_behavior && g_parse_state.saw_herd_member;
+    const bool herd_schema_matches_role = g_parse_state.spawn.role == FormationSpawnRole::Herd ?
+        has_complete_herd_data : !g_parse_state.saw_herd_behavior && !g_parse_state.saw_herd_member;
+    if (!herd_schema_matches_role) {
+        char detail[160];
+        snprintf(detail, sizeof(detail), "definition=%s role=%d grid=%d slot=%d herd=%d herd_member=%d",
+            g_parse_state.key.c_str(), static_cast<int>(g_parse_state.spawn.role),
+            g_parse_state.saw_grid, g_parse_state.saw_slot,
+            g_parse_state.saw_herd_behavior, g_parse_state.saw_herd_member);
+        log_error("FormationType herd role requires exactly one herd and herd_member declaration", detail, 0);
+    }
+    if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.key.empty() || !herd_schema_matches_role ||
         (!g_parse_state.disabled && (!g_parse_state.saw_grid || !g_parse_state.saw_slot))) {
         log_error("Unable to parse FormationType xml", filename, 0);
         return 0;
     }
 
     if (out_definition) {
-        out_definition->key = std::move(g_parse_state.key);
-        out_definition->width = g_parse_state.width;
-        out_definition->height = g_parse_state.height;
-        out_definition->recruit_capacity = g_parse_state.recruit_capacity;
-        out_definition->slots = std::move(g_parse_state.slots);
-        out_definition->disabled = g_parse_state.disabled;
+        static_cast<FormationTypeSpec &>(*out_definition) =
+            std::move(static_cast<FormationTypeSpec &>(g_parse_state));
     }
     return 1;
 }
@@ -320,6 +524,7 @@ int stage_definition(StagedFormationTypes &staged, StagedFormationType definitio
 
 int resolve_and_validate_winners(StagedFormationTypes &staged)
 {
+    std::array<const FormationType *, FIGURE_TYPE_MAX> spawn_owners = {};
     for (auto &entry : staged.winners) {
         StagedFormationType &winner = entry.second;
         if (winner.disabled) {
@@ -327,8 +532,10 @@ int resolve_and_validate_winners(StagedFormationTypes &staged)
         }
 
         winner.definition = std::make_unique<FormationType>(winner.key);
-        winner.definition->set_grid(winner.width, winner.height);
+        winner.definition->set_grid(winner.width, winner.height, winner.station_alignment);
         winner.definition->set_recruit_capacity(winner.recruit_capacity);
+        winner.definition->set_combat_modifiers(winner.combat_modifiers);
+        winner.definition->spawn = winner.spawn;
         for (const SlotSpec &slot : winner.slots) {
             if (!winner.definition->add_slot(slot.x, slot.y, slot.unit_key.c_str())) {
                 staged.failure_reason = "FormationType '" + entry.first + "' from " + winner.source.full_path +
@@ -339,6 +546,26 @@ int resolve_and_validate_winners(StagedFormationTypes &staged)
         if (!validate_definition(*winner.definition, winner.source.full_path.c_str())) {
             staged.failure_reason = "Invalid FormationType definition: " + winner.source.full_path;
             return 0;
+        }
+        if (winner.spawn.role == FormationSpawnRole::Herd &&
+            (winner.spawn.climate < 0 || winner.spawn.climate >= 3 || winner.spawn.initial_count <= 0 ||
+             winner.spawn.initial_count > winner.definition->capacity())) {
+            staged.failure_reason = "Invalid herd spawn metadata in FormationType '" + entry.first + "'.";
+            return 0;
+        }
+        if (winner.spawn.role != FormationSpawnRole::None && !winner.definition->can_spawn_figures_directly()) {
+            staged.failure_reason = "Spawnable FormationType '" + entry.first +
+                "' must fill its grid with one UnitType because the formation owns direct figure creation.";
+            return 0;
+        }
+        if (winner.spawn.role != FormationSpawnRole::None) {
+            const figure_type figure = winner.definition->primary_unit()->figure_type_id();
+            const size_t figure_index = static_cast<size_t>(figure);
+            if (figure <= FIGURE_NONE || figure >= FIGURE_TYPE_MAX || spawn_owners[figure_index]) {
+                staged.failure_reason = "Spawnable FormationType definitions must own unique figure types across all roles.";
+                return 0;
+            }
+            spawn_owners[figure_index] = winner.definition.get();
         }
     }
     return 1;
@@ -359,174 +586,31 @@ const FormationType *find_formation_type(const char *key)
     return nullptr;
 }
 
+const FormationType *find_spawn_formation(figure_type type)
+{
+    return type > FIGURE_NONE && type < FIGURE_TYPE_MAX ?
+        g_spawn_formations[static_cast<size_t>(type)] : nullptr;
+}
+
+const FormationType *find_herd_spawn_for_location(int climate, int x, int y)
+{
+    if (climate < 0 || climate >= static_cast<int>(g_herd_spawns_by_climate.size())) {
+        return nullptr;
+    }
+    const std::vector<const FormationType *> &spawns = g_herd_spawns_by_climate[static_cast<size_t>(climate)];
+    if (spawns.empty()) {
+        return nullptr;
+    }
+    const unsigned int location_key = static_cast<unsigned int>(x) * 73856093u ^ static_cast<unsigned int>(y) * 19349663u;
+    return spawns[location_key % spawns.size()];
+}
+
 const std::vector<std::unique_ptr<FormationType>> &formation_types()
 {
     return g_formation_types;
 }
 
 } // namespace formation_type_registry_impl
-
-FormationType::FormationType(std::string key)
-    : key_(std::move(key))
-{
-}
-
-const char *FormationType::key() const
-{
-    return key_.c_str();
-}
-
-bool FormationType::matches_key(const char *key) const
-{
-    return xml_value::equals(key_.c_str(), key);
-}
-
-void FormationType::set_grid(int width, int height)
-{
-    width_ = width;
-    height_ = height;
-}
-
-void FormationType::set_recruit_capacity(int capacity)
-{
-    recruit_capacity_ = capacity;
-}
-
-int FormationType::capacity() const
-{
-    return width_ * height_;
-}
-
-int FormationType::recruit_capacity() const
-{
-    return recruit_capacity_ > 0 ? recruit_capacity_ : capacity();
-}
-
-FormationLayoutFootprint FormationType::layout_footprint() const
-{
-    return {width_, height_};
-}
-
-bool FormationType::has_grid() const
-{
-    return width_ > 0 && height_ > 0;
-}
-
-bool FormationType::has_slots() const
-{
-    return !slots_.empty();
-}
-
-bool FormationType::has_valid_slots() const
-{
-    for (const FormationTypeSlot &slot : slots_) {
-        if (!contains(slot.x, slot.y) || !slot.unit) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool FormationType::has_duplicate_slots() const
-{
-    std::vector<bool> occupied(static_cast<size_t>(capacity()), false);
-    for (const FormationTypeSlot &slot : slots_) {
-        if (!contains(slot.x, slot.y)) {
-            return false;
-        }
-        const size_t index = static_cast<size_t>(slot_index(slot.x, slot.y));
-        if (occupied[index]) {
-            return true;
-        }
-        occupied[index] = true;
-    }
-    return false;
-}
-
-bool FormationType::contains_row_range(int first_row, int last_row) const
-{
-    return first_row >= 0 && last_row >= first_row && last_row < height_;
-}
-
-bool FormationType::contains(int x, int y) const
-{
-    return x >= 0 && y >= 0 && x < width_ && y < height_;
-}
-
-int FormationType::slot_index(int x, int y) const
-{
-    return y * width_ + x;
-}
-
-bool FormationType::add_slot(int x, int y, const char *unit_key)
-{
-    if (!unit_key || !*unit_key || !contains(x, y)) {
-        return false;
-    }
-
-    std::string normalized_unit_key = xml_value::trim_copy(unit_key);
-    const UnitType *unit = unit_type_registry_impl::find_unit_type(normalized_unit_key.c_str());
-    if (!unit) {
-        log_error("FormationType references unknown UnitType", normalized_unit_key.c_str(), 0);
-        return false;
-    }
-
-    slots_.push_back({ x, y, std::move(normalized_unit_key), unit });
-    return true;
-}
-
-bool FormationType::fill_slots(const char *unit_key)
-{
-    if (!has_grid()) {
-        return false;
-    }
-    for (int y = 0; y < height_; y++) {
-        for (int x = 0; x < width_; x++) {
-            if (!add_slot(x, y, unit_key)) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-bool FormationType::add_slots_in_row_range(int first_row, int last_row, const char *unit_key)
-{
-    if (!contains_row_range(first_row, last_row)) {
-        return false;
-    }
-    for (int y = first_row; y <= last_row; y++) {
-        for (int x = 0; x < width_; x++) {
-            if (!add_slot(x, y, unit_key)) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-const UnitType *FormationType::primary_unit() const
-{
-    return slots_.empty() ? nullptr : slots_.front().unit;
-}
-
-figure_type FormationType::primary_figure_type() const
-{
-    const UnitType *unit = primary_unit();
-    return unit ? unit->figure_type_id() : FIGURE_NONE;
-}
-
-int FormationType::primary_recruit_type() const
-{
-    const UnitType *unit = primary_unit();
-    return unit ? unit->recruit_type() : LEGION_RECRUIT_NONE;
-}
-
-bool FormationType::primary_unit_requires_weapon() const
-{
-    const UnitType *unit = primary_unit();
-    return unit && unit->requires_weapon();
-}
 
 const char *formation_type_registry_get_failure_reason(void)
 {
@@ -558,6 +642,10 @@ void formation_type_registry_reset(void)
     formation_type_registry_impl::g_formation_types.clear();
     formation_type_registry_impl::g_formation_type_overlays.clear();
     formation_type_registry_impl::g_failure_reason.clear();
+    formation_type_registry_impl::g_spawn_formations.fill(nullptr);
+    for (std::vector<const FormationType *> &spawns : formation_type_registry_impl::g_herd_spawns_by_climate) {
+        spawns.clear();
+    }
 }
 
 int formation_type_registry_load(void)
@@ -590,13 +678,27 @@ int formation_type_registry_load(void)
     }
 
     std::vector<std::unique_ptr<FormationType>> published;
+    std::array<const FormationType *, FIGURE_TYPE_MAX> spawn_formations = {};
+    std::array<std::vector<const FormationType *>, 3> herd_spawns;
     published.reserve(staged.overlays.active_count());
     for (auto &entry : staged.winners) {
         if (!entry.second.disabled) {
+            StagedFormationType &winner = entry.second;
+            FormationType *definition = winner.definition.get();
+            const figure_type figure = definition->primary_unit()->figure_type_id();
+            if (winner.spawn.role != FormationSpawnRole::None) {
+                const size_t figure_index = static_cast<size_t>(figure);
+                spawn_formations[figure_index] = definition;
+                if (winner.spawn.role == FormationSpawnRole::Herd) {
+                    herd_spawns[static_cast<size_t>(winner.spawn.climate)].push_back(definition);
+                }
+            }
             published.push_back(std::move(entry.second.definition));
         }
     }
     g_formation_types = std::move(published);
+    g_spawn_formations = spawn_formations;
+    g_herd_spawns_by_climate = herd_spawns;
     g_formation_type_overlays = std::move(staged.overlays);
     g_failure_reason.clear();
     return 1;
@@ -649,6 +751,30 @@ int formation_type_layered_definition_buffers_are_valid_for_test(
             if (!winner->second.disabled && winner->second.definition) {
                 result->queried_capacity = winner->second.definition->capacity();
                 result->queried_recruit_capacity = winner->second.definition->recruit_capacity();
+                constexpr int TEST_BASE_VALUE = 100;
+                result->queried_melee_attack_modifier = winner->second.definition->modified_combat_value(
+                    FormationCombatStat::MeleeAttack, TEST_BASE_VALUE) - TEST_BASE_VALUE;
+                result->queried_melee_defense_modifier = winner->second.definition->modified_combat_value(
+                    FormationCombatStat::MeleeDefense, TEST_BASE_VALUE) - TEST_BASE_VALUE;
+                result->queried_morale_modifier = winner->second.definition->modified_combat_value(
+                    FormationCombatStat::Morale, TEST_BASE_VALUE) - TEST_BASE_VALUE;
+                result->queried_missile_damage_modifier = winner->second.definition->modified_combat_value(
+                    FormationCombatStat::MissileDamage, TEST_BASE_VALUE) - TEST_BASE_VALUE;
+                const FormationSpawn &spawn = winner->second.definition->spawn;
+                result->queried_spawn_role = static_cast<int>(spawn.role);
+                result->queried_spawn_climate = spawn.climate;
+                result->queried_spawn_count = spawn.initial_count;
+                result->queried_herd_roam_distance = spawn.herd.roam_distance;
+                result->queried_herd_roam_delay = spawn.herd.roam_delay;
+                result->queried_herd_reproduction_delay = spawn.herd.reproduction_delay;
+                result->queried_herd_member_rest_delay = spawn.herd.member_rest_delay;
+                result->queried_herd_member_move_speed = spawn.herd.member_move_speed;
+                result->queried_herd_member_animation_frames = spawn.herd.member_animation_frames;
+                result->queried_herd_aggressive = spawn.herd.aggressive;
+                result->queried_herd_allow_negative_desirability = spawn.herd.allow_negative_desirability;
+                result->queried_herd_alternate_rest_animation = spawn.herd.alternate_rest_animation;
+                result->queried_herd_movement_sound = static_cast<int>(spawn.herd.movement_sound);
+                result->queried_herd_combat_animation = static_cast<int>(spawn.herd.combat_animation);
             }
         }
     }

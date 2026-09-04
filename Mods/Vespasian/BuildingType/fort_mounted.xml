@@ -12,7 +12,7 @@
     <button group="forts" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <military>
-        <formation key="vespasian_mounted_cohort" />
+        <formation key="vespasian_cavalry_turma" />
     </military>
     <graphics>
         <default>

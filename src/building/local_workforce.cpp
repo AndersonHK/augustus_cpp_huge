@@ -5,7 +5,6 @@
 
 #include "building/local_workforce.h"
 #include "building/local_workforce_route_access.h"
-#include "building/local_workforce_runtime_lists.h"
 
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
@@ -66,7 +65,6 @@ void LocalWorkforceRuntimeState::clear()
 {
     reservations_.clear();
     allocations_.clear();
-    runtime_lists_.clear();
     preserve_allocations_on_next_city_initialize_ = 0;
 }
 
@@ -77,7 +75,6 @@ void LocalWorkforceRuntimeState::initializeCity()
         allocations_.clear();
     }
     preserve_allocations_on_next_city_initialize_ = 0;
-    runtime_lists_.markDirty();
 }
 
 void LocalWorkforceRuntimeState::preserveAllocationsForNextCityInitialize()
@@ -85,14 +82,9 @@ void LocalWorkforceRuntimeState::preserveAllocationsForNextCityInitialize()
     preserve_allocations_on_next_city_initialize_ = 1;
 }
 
-void LocalWorkforceRuntimeState::markBuildingListsDirty()
-{
-    runtime_lists_.markDirty();
-}
-
 building_local_workforce::LocalWorkforceRouteAccessContext LocalWorkforceRuntimeState::routeAccessContext()
 {
-    return building_local_workforce::LocalWorkforceRouteAccessContext(runtime_lists_, allocations_);
+    return building_local_workforce::LocalWorkforceRouteAccessContext(allocations_);
 }
 
 int LocalWorkforceRuntimeState::assignedWorkersForHouse(unsigned int house_id) const
@@ -930,22 +922,21 @@ void WorkforceAllocationTable::mergeDuplicates()
     }
 }
 
-LocalWorkforceRouteAccessContext::LocalWorkforceRouteAccessContext(
-    RuntimeBuildingLists &runtime_lists,
-    WorkforceAllocationTable &allocations)
-    : runtime_lists_(runtime_lists),
-      allocations_(allocations)
+LocalWorkforceRouteAccessContext::LocalWorkforceRouteAccessContext(WorkforceAllocationTable &allocations)
+    : allocations_(allocations)
 {}
 
-RuntimeBuildingLists &LocalWorkforceRouteAccessContext::runtimeLists() const
+void LocalWorkforceRouteAccessContext::forEachPopulatedLaborSourceHouse(
+    const std::function<void(Building &)> &visitor) const
 {
-    return runtime_lists_;
+    Building::for_each(BuildingRuntimeList::Housing, [&visitor](Building *house) {
+        if (house->is_labor_source_house() && house->Housing->state().population > 0) visitor(*house);
+    });
 }
 
-int LocalWorkforceRouteAccessContext::houseHasUnemployedWorkers(Building &house, building &house_record) const
+int LocalWorkforceRouteAccessContext::houseHasUnemployedWorkers(Building &house) const
 {
-    ::refresh_house_unemployed(house);
-    return house_record.local_workforce_unemployed > 0;
+    return building_local_workforce::house_available_workers(house) > 0;
 }
 
 int LocalWorkforceRouteAccessContext::usesActiveWorkforce(const Building &building) const
@@ -1083,7 +1074,6 @@ void reconcile_house(Building &house)
 
 void remove_building(Building &target)
 {
-    ::g_runtime_state.markBuildingListsDirty();
     ::g_runtime_state.cancelReservationsForBuilding(target);
     remove_allocations_for_building(target.id);
     building *record = const_cast<building *>(target.record());
@@ -1112,7 +1102,6 @@ void replace_house(Building &from, const Building &to)
     g_runtime_state.replaceHouse(from.id, to.id);
     clamp_allocation_table();
     rebuild_counters_from_allocations();
-    ::g_runtime_state.markBuildingListsDirty();
 }
 
 int spawn_acquisition(Building &workplace, const map_point *road)

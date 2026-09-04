@@ -1,5 +1,4 @@
 #include "building/building_type.h"
-#include "building/plague_state.h"
 #include "building/HousingProfileDef.h"
 #include "building/construction.h"
 #include "building/construction_building.h"
@@ -747,6 +746,11 @@ int Building::is_in_use() const
     return record_->state == BUILDING_STATE_IN_USE;
 }
 
+int Building::is_labor_source_house() const
+{
+    return id && is_in_use() && type && type->has_housing() && Housing;
+}
+
 int Building::is_mothballed() const
 {
     return record_->state == BUILDING_STATE_MOTHBALLED;
@@ -818,12 +822,32 @@ int Building::has_plague() const
 
 void Building::advance_plague_day()
 {
-    building_plague_advance_day(*record_);
+    if (!is_in_use() || !record_->has_plague) {
+        return;
+    }
+    if (record_->sickness_duration != 99) {
+        ++record_->sickness_duration;
+        return;
+    }
+    record_->sickness_duration = 0;
+    record_->has_plague = 0;
+    record_->sickness_level = 0;
+    record_->sickness_doctor_cure = 0;
+    record_->figure_id4 = 0;
+    record_->fumigation_frame = 0;
+    record_->fumigation_direction = 0;
 }
 
 void Building::apply_plague_treatment()
 {
-    building_plague_apply_treatment(*record_);
+    if (!is_in_use() || !record_->has_plague) {
+        return;
+    }
+    if (record_->sickness_duration < 95) {
+        record_->sickness_duration = 95;
+    }
+    // Value 99 is part of the legacy save/display contract for active fumigation.
+    record_->sickness_doctor_cure = 99;
 }
 
 int Building::has_cached_road_access() const
@@ -883,6 +907,30 @@ int Building::access_area_touches_same_road_network(
         y_max,
         source_network_id,
         allow_highways);
+}
+
+void Building::initialize_loaded_foundation()
+{
+    if (!(is_in_use() || is_mothballed() || is_created()) || !Foundation) {
+        return;
+    }
+    const int rotation = Foundation->definition().rotates() ? orientation() : 0;
+    if (!Foundation->rebind(x(), y(), rotation)) {
+        log_warning("Unable to rebind loaded Building foundation", type ? type->attr() : "unknown", id);
+        return;
+    }
+    if (!Foundation->has_owner_controlled_passage() || (type && type->bridge().is_bridge())) {
+        return;
+    }
+    if (type && type->is_warehouse()) {
+        if (config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
+            Foundation->roadblock_state().accept_all();
+        } else {
+            Foundation->roadblock_state().accept_none();
+        }
+        return;
+    }
+    Foundation->roadblock_state().hydrate(record_->data.roadblock.exceptions);
 }
 
 building_runtime *Building::runtime_instance() const
@@ -3247,61 +3295,55 @@ void building_update_desirability(void)
     }
 }
 
-int building_is_active(const building *b)
+bool Building::is_active() const
 {
-    if (b->state != BUILDING_STATE_IN_USE) {
-        return 0;
+    if (record_->state != BUILDING_STATE_IN_USE) {
+        return false;
     }
     const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(b->type);
+        building_type_registry_impl::definition_for_type(record_->type);
     if (definition && definition->has_housing()) {
-        const Building *building_object = Building::get(b->id);
-        return building_object && building_object->Housing &&
-            building_object->Housing->state().population > 0;
+        return Housing && Housing->state().population > 0;
     }
-    if (building_monument_is_unfinished_monument(b)) {
-        return 0;
+    if (building_monument_is_unfinished_monument(record_)) {
+        return false;
     }
-    if (type_attr_is(b->type, "reservoir")) {
-        return b->has_water_access;
+    if (type_attr_is(record_->type, "reservoir")) {
+        return record_->has_water_access;
     }
-    if (type_attr_is(b->type, "fountain")) {
-        return b->has_water_access;
+    if (type_attr_is(record_->type, "fountain")) {
+        return record_->has_water_access;
     }
     if (definition != nullptr) {
         if (definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Oracle)) {
-            if (building_monument_is_monument(b) == 0) {
-                return 1;
+            if (building_monument_is_monument(record_) == 0) {
+                return true;
             }
-            return b->monument.phase == MONUMENT_FINISHED;
+            return record_->monument.phase == MONUMENT_FINISHED;
         }
     }
-    if (type_attr_is(b->type, "nymphaeum")) {
-        return b->monument.phase == MONUMENT_FINISHED;
+    if (type_attr_is(record_->type, "nymphaeum")) {
+        return record_->monument.phase == MONUMENT_FINISHED;
     }
-    if (type_attr_is(b->type, "small_mausoleum")) {
-        return b->monument.phase == MONUMENT_FINISHED;
+    if (type_attr_is(record_->type, "small_mausoleum")) {
+        return record_->monument.phase == MONUMENT_FINISHED;
     }
-    if (type_attr_is(b->type, "large_mausoleum")) {
-        return b->monument.phase == MONUMENT_FINISHED;
+    if (type_attr_is(record_->type, "large_mausoleum")) {
+        return record_->monument.phase == MONUMENT_FINISHED;
     }
-    if (type_attr_is(b->type, "wharf")) {
-        Building *wharf = runtime_building_for_record(const_cast<building *>(b));
-        if (wharf == nullptr) {
-            return 0;
+    if (type_attr_is(record_->type, "wharf")) {
+        if (record_->num_workers <= 0) {
+            return false;
         }
-        if (b->num_workers <= 0) {
-            return 0;
-        }
-        return map_water_wharf_live_fishing_boats(*wharf) > 0;
+        return map_water_wharf_live_fishing_boats(*this) > 0;
     }
-    if (type_attr_is(b->type, "dock")) {
-        if (b->num_workers <= 0) {
-            return 0;
+    if (type_attr_is(record_->type, "dock")) {
+        if (record_->num_workers <= 0) {
+            return false;
         }
-        return b->has_water_access != 0;
+        return record_->has_water_access != 0;
     }
-    return b->num_workers > 0;
+    return record_->num_workers > 0;
 }
 
 int building_is_fort(building_type type)

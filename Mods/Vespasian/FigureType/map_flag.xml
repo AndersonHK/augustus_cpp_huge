@@ -10,17 +10,17 @@
     </profiles>
     <graphics>
         <default max_image_offset="16" payload_frame_count="1">
-            <path value="PaperMap\Group_139" />
+            <path value="PaperMap\Map_Flag" />
         </default>
         <map_flag resource_min="1" resource_max_exclusive="26" base_direction="0" view_adjustments="1" frame_divisor="2" frame_stride="1" number_x="6" number_y="7">
-            <marker resource_min="1" resource_max_exclusive="2" path="PaperMap\Group_140" image_offset="0" number_base="0" />
-            <marker resource_min="2" resource_max_exclusive="3" path="PaperMap\Group_140" image_offset="2" number_base="0" />
-            <marker resource_min="3" resource_max_exclusive="4" path="PaperMap\Group_140" image_offset="3" number_base="0" />
-            <marker resource_min="4" resource_max_exclusive="12" path="PaperMap\Group_140" image_offset="1" number_base="1" />
-            <marker resource_min="12" resource_max_exclusive="13" path="PaperMap\Group_140" image_offset="4" number_base="0" />
-            <marker resource_min="13" resource_max_exclusive="14" path="PaperMap\Group_140" image_offset="5" number_base="0" />
-            <marker resource_min="14" resource_max_exclusive="22" path="Warriors\Group_127" image_offset="3" number_base="1" />
-            <marker resource_min="22" resource_max_exclusive="26" path="Warriors\Group_127" image_offset="4" number_base="1" />
+            <marker resource_min="1" resource_max_exclusive="2" path="PaperMap\Map_Flag_Icons" image_offset="0" number_base="0" />
+            <marker resource_min="2" resource_max_exclusive="3" path="PaperMap\Map_Flag_Icons" image_offset="2" number_base="0" />
+            <marker resource_min="3" resource_max_exclusive="4" path="PaperMap\Map_Flag_Icons" image_offset="3" number_base="0" />
+            <marker resource_min="4" resource_max_exclusive="12" path="PaperMap\Map_Flag_Icons" image_offset="1" number_base="1" />
+            <marker resource_min="12" resource_max_exclusive="13" path="PaperMap\Map_Flag_Icons" image_offset="4" number_base="0" />
+            <marker resource_min="13" resource_max_exclusive="14" path="PaperMap\Map_Flag_Icons" image_offset="5" number_base="0" />
+            <marker resource_min="14" resource_max_exclusive="22" path="PaperMap\Fort_Standard_Icons" image_offset="3" number_base="1" />
+            <marker resource_min="22" resource_max_exclusive="26" path="PaperMap\Fort_Standard_Icons" image_offset="4" number_base="1" />
         </map_flag>
     </graphics>
 </figure>

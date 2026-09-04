@@ -35,6 +35,7 @@ public:
     const building_type_registry_impl::CompositionChildDef *child_definition() const;
     std::size_t definition_index() const;
     const std::vector<BuildingComposition *> &children() const;
+    Building &require_child_for_role(const char *role, const char *operation) const;
 
     // Visits a standalone building or a complete owner/child graph. A published
     // incomplete composition is an invariant violation, never an empty result.

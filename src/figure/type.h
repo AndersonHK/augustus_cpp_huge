@@ -208,7 +208,13 @@ inline constexpr FigureTypeXmlName FIGURE_TYPE_XML_NAMES[] = {
     { "mess_hall_fort_supplier", FIGURE_MESS_HALL_FORT_SUPPLIER },
     { "fishing_boat", FIGURE_FISHING_BOAT },
     { "fish_gulls", FIGURE_FISH_GULLS },
-    { "flotsam", FIGURE_FLOTSAM }
+    { "flotsam", FIGURE_FLOTSAM },
+    { "arrow", FIGURE_ARROW },
+    { "javelin", FIGURE_JAVELIN },
+    { "bolt", FIGURE_BOLT },
+    { "spear", FIGURE_SPEAR },
+    { "friendly_arrow", FIGURE_FRIENDLY_ARROW },
+    { "catapult_missile", FIGURE_CATAPULT_MISSILE }
 };
 
 inline figure_type figure_type_from_xml_name(const char *name)

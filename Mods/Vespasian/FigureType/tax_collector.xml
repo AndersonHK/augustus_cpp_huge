@@ -11,10 +11,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12">
-            <path value="Walkers\Group_104" />
+            <path value="Walkers\Tax_Collector" />
         </default>
         <corpse>
-            <path value="Walkers\Group_104" />
+            <path value="Walkers\Tax_Collector" />
         </corpse>
     </graphics>
 </figure>

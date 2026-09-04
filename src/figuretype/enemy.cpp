@@ -6,6 +6,7 @@
 #include "city/sound.h"
 #include "core/calc.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "figure/combat.h"
 #include "figure/FigureGraphics.h"
 #include "figure/formation.h"
@@ -133,7 +134,7 @@ static void enemy_initial(Figure *f, formation *m)
                     map_point_get_last_result(&tile);
                 }
                 figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, missile_type);
-                formation_record_missile_fired(m);
+                m->record_missile_fired();
                 if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
                     sound_effect_play(SOUND_EFFECT_ARROW);
                 }
@@ -223,8 +224,7 @@ static void enemy_action(Figure *f, formation *m)
 {
     city_figures_add_enemy();
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
-    const FormationLayoutPosition position =
-        formation_layout_position(m->layout_type(), f->index_in_formation, m->declared_capacity());
+    const FormationLayoutPosition position = m->layout_position(f->index_in_formation);
     f->formation_position_x.enemy = static_cast<signed char>(position.x);
     f->formation_position_y.enemy = static_cast<signed char>(position.y);
 

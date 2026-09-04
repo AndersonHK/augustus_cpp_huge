@@ -2,7 +2,7 @@
 <figure type="trade_caravan_donkey" graphics_only="true">
     <graphics>
         <default>
-            <path value="Walkers\Group_130" />
+            <path value="Walkers\Trade_Caravan" />
         </default>
     </graphics>
 </figure>

@@ -37,14 +37,14 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - [x] Add atlas edge padding while atlas fallback remains.
 - [x] Migrate terrain, water, and climate images into managed native resources.
 - [ ] Remove atlas fallback from city draw after native coverage is complete.
-- [ ] Author Vespasian half-size graphics only after figure-owned native graphics and every seam item above are complete. Active Vespasian FigureTypes are path-backed, but half-size logical dimensions must be authored on clean graphics assetlists rather than on FigureType XML.
+- [ ] Author Vespasian scaled graphics only after figure-owned native graphics and every seam item above are complete. Active Vespasian FigureTypes are path-backed, but scaled logical dimensions must be authored on clean graphics assetlists rather than on FigureType XML.
 
 ## Prescription
 
-This whole prescription is a prerequisite for Vespasian half-size FigureType XML.
-Do not author the half-size XML slice until every seam item below is implemented
+This whole prescription is a prerequisite for Vespasian scaled FigureType XML.
+Do not author the scaled XML slice until every seam item below is implemented
 and validated. The source-pixels versus fixed-point-logical-size split is the
-specific dependency that makes half-size figure XML meaningful, but the seam
+specific dependency that makes scaled figure XML meaningful, but the seam
 work must land as a complete renderer slice so the new logical sizes do not
 inherit broken destination geometry or atlas filtering artifacts.
 
@@ -85,13 +85,13 @@ inherit broken destination geometry or atlas filtering artifacts.
    - sample expected shared edges for black, transparent, or unmatched pixels
    - keep screenshots for visual regression comparisons at the problematic zoom levels
 
-8. Unlock Vespasian half-size FigureType graphics after figure graphics ownership and all seam work land:
+8. Unlock Vespasian scaled FigureType graphics after figure graphics ownership and all seam work land:
    - prerequisite: complete every item above, including the split between source pixel dimensions and fixed-point logical image dimensions
    - prerequisite: figures must own native graphics like buildings do, with the game loop asking the `Figure` object for a resolved draw request instead of reconstructing image ids from type/action branches
    - follow `docs/figure_owned_native_graphics_plan.md` before authoring this data slice
    - add Vespasian FigureType XML overrides for each resized figure
    - point those overrides at the same extracted pixel art as before
-   - declare logical dimensions in the final fixed-point logical-size unit, with half-size figures as the first validation case
+- declare logical dimensions in the final fixed-point logical-size unit, with scaled figures as the first validation case
    - keep all logical-size declarations as integers in the chosen fine grain, so later 1/3-size, 0.15x, or 6.67x source-to-logical relationships do not introduce floating-point drift into city rendering
    - verify that tile anchoring, sprite offsets, carts/overlays, corpses, selected-figure coordinates, and zoomed scaling still line up
 
@@ -160,7 +160,7 @@ Each failure should write:
 Renderer seam changes become deployment-worthy only when:
 
 - the smoke subset passes before local manual testing,
-- the full matrix passes before a release deploy or before authoring Vespasian half-size FigureType XML,
+- the full matrix passes before a release deploy or before authoring Vespasian scaled FigureType XML,
 - every expected-skip has an owner and a prerequisite listed in this plan,
 - screenshot artifacts are retained for failed cases so manual review starts from exact pixels instead of eyeballing the whole city.
 
@@ -174,4 +174,4 @@ The likely clean slice is:
 4. Move terrain and water graphics out of `ATLAS_MAIN` and into managed image resources.
 5. Choose the final integer logical-size grain, then add explicit logical dimensions to image group XML and migrate callers onto the fixed request fields.
 6. Complete the figure-owned native graphics payload migration.
-7. Add Vespasian half-size FigureType logical-size overrides using the same source art only after the full seam slice is validated.
+7. Add Vespasian scaled FigureType logical-size overrides using the same source art only after the full seam slice is validated.

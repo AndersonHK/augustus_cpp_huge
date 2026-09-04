@@ -1,4 +1,3 @@
-#include "building/building_record.h"
 #include "routing.h"
 
 #include "building/building.h"

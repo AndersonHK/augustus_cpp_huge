@@ -19,10 +19,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12">
-            <path value="Walkers\Group_215" />
+            <path value="Walkers\Charioteer" />
         </default>
         <corpse base_image_offset="0" frame_count="1">
-            <path value="Walkers\Group_215" />
+            <path value="Walkers\Charioteer" />
         </corpse>
     </graphics>
 </figure>

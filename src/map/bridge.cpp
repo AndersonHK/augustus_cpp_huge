@@ -327,19 +327,6 @@ static int building_is_bridge_type(const Building &building, const building_type
         (building.type && building.type->type() == definition.type());
 }
 
-static void set_bridge_piece_graphics_variant(building *record, int variant)
-{
-    if (!record) {
-        return;
-    }
-    BuildingGraphicsState state;
-    state.set_variant(variant);
-    building_runtime_stage_loaded_graphics_state(record->id, state);
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(record)) {
-        runtime->restore_graphics_state(state);
-    }
-}
-
 static void normalize_bridge_chain_tiles(Building &main)
 {
     for (Building *part = &main; part; part = part->dynamic_bridge_next()) {
@@ -352,26 +339,6 @@ static void normalize_bridge_chain_tiles(Building &main)
             break;
         }
     }
-}
-
-static int restore_staged_bridge_chain_graphics(Building &main)
-{
-    int restored_every_piece = 1;
-    for (Building *part = &main; part; part = part->dynamic_bridge_next()) {
-        const building *record = part->record();
-        BuildingGraphicsState state;
-        building_runtime *runtime = record ?
-            building_runtime_impl::get_or_create_instance(const_cast<building *>(record)) : nullptr;
-        if (!record || !runtime || !building_runtime_loaded_graphics_state(record->id, &state)) {
-            restored_every_piece = 0;
-        } else {
-            runtime->restore_graphics_state(state);
-        }
-        if (!record || !part->has_dynamic_bridge_next()) {
-            break;
-        }
-    }
-    return restored_every_piece;
 }
 
 static Building *reuse_loaded_bridge_main(
@@ -443,7 +410,7 @@ int map_bridge_create_native_chain(int start_grid_offset, int length, int direct
         const int variant = legacy_sprite ?
             bridge_graphics_variant_for_legacy_sprite(legacy_sprite) :
             map_bridge_graphics_variant_for_piece(i, length, graphics_direction, is_ship_bridge);
-        set_bridge_piece_graphics_variant(record, variant);
+        piece->Graphics().set_variant(variant);
         map_building_tiles_add_bridge(*piece, x, y);
         previous = record;
     }
@@ -651,17 +618,11 @@ void map_bridge_update_after_rotate(int)
             const int graphics_direction = view_relative_direction(record->subtype.orientation);
             int index = 0;
             for (Building *part = &piece; part; part = part->dynamic_bridge_next(), index++) {
-                building *part_record = const_cast<building *>(part->record());
-                if (!part_record) {
+                if (!part->record()) {
                     break;
                 }
-                set_bridge_piece_graphics_variant(
-                    part_record,
-                    map_bridge_graphics_variant_for_piece(
-                        index,
-                        length,
-                        graphics_direction,
-                        piece.type->bridge().is_ship_bridge()));
+                part->Graphics().set_variant(map_bridge_graphics_variant_for_piece(
+                    index, length, graphics_direction, piece.type->bridge().is_ship_bridge()));
                 if (!part->has_dynamic_bridge_next()) {
                     break;
                 }
@@ -737,20 +698,6 @@ static void migrate_loaded_bridge_at(int grid_offset)
         Building &building = map_building_at(start).dynamic_bridge_owner();
         is_ship_bridge = building.type && building.type->bridge().is_ship_bridge();
         if (building.has_dynamic_bridge_next()) {
-            if (restore_staged_bridge_chain_graphics(building)) {
-                normalize_bridge_chain_tiles(building);
-                return;
-            }
-            const int graphics_direction = view_relative_direction(direction);
-            int index = 0;
-            for (Building *part = &building; part; part = part->dynamic_bridge_next(), index++) {
-                set_bridge_piece_graphics_variant(
-                    const_cast<::building *>(part->record()),
-                    map_bridge_graphics_variant_for_piece(index, length, graphics_direction, is_ship_bridge));
-                if (!part->has_dynamic_bridge_next()) {
-                    break;
-                }
-            }
             normalize_bridge_chain_tiles(building);
             return;
         }

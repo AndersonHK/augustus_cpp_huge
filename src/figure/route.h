@@ -60,7 +60,7 @@ public:
             const Building &building,
             bool fallbackToShortestDistance = true) const;
         RoadResult findMonumentConstructionRoadToLargestNetwork(const Building &building) const;
-        RoadResult findAccessRoad(const building &target, int radius, int maxDistance = 0, bool requireSameNetwork = false) const;
+        RoadResult findAccessRoad(const Building &target, int radius, int maxDistance = 0, bool requireSameNetwork = false) const;
 
     private:
         class CostMapHandle {

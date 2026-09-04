@@ -18,6 +18,7 @@
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
+#include "figure/formation.h"
 #include "figure/movement.h"
 #include "figure/name.h"
 #include "figure/route.h"
@@ -48,6 +49,7 @@
 
 #include <cstdlib>
 #include <algorithm>
+#include <exception>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -154,7 +156,6 @@ struct FigureStore {
     };
     std::vector<PendingBuildingRefs> pending_building_refs;
     std::vector<PendingFigureRefs> pending_figure_refs;
-    int loaded_save_version = SAVE_GAME_CURRENT_VERSION;
 };
 
 FigureStore data;
@@ -172,7 +173,12 @@ Building *loaded_building_ref(unsigned int id)
     return Building::get(id);
 }
 
-bool loaded_optional_building_ref(const Figure &figure, unsigned int &id, const char *relation, Building **out)
+bool loaded_optional_building_ref(
+    const Figure &figure,
+    unsigned int &id,
+    const char *relation,
+    int save_version,
+    Building **out)
 {
     *out = nullptr;
     Building *building = loaded_building_ref(id);
@@ -183,7 +189,7 @@ bool loaded_optional_building_ref(const Figure &figure, unsigned int &id, const 
             static_cast<unsigned int>(figure.type),
             relation ? relation : "<unknown>",
             id);
-        if (data.loaded_save_version < SAVE_GAME_CURRENT_VERSION) {
+        if (save_version < SAVE_GAME_CURRENT_VERSION) {
             log_warning("Clearing invalid legacy figure building reference", detail, 0);
             id = 0;
             return true;
@@ -1190,6 +1196,12 @@ void Figure::remove()
         building_local_workforce::remove_labor_seeker(*this);
     }
     release_destination_reservations();
+    if (formation_id) {
+        formation *owner = formation_get(formation_id);
+        if (owner && owner->in_use) {
+            owner->unpublish_figure(*this);
+        }
+    }
     clear_known_building_refs_for_figure(*this);
     switch (type) {
         case FIGURE_DOCKER:
@@ -1309,8 +1321,8 @@ int Figure::is_dead() const
 
 int Figure::is_enemy() const
 {
-    return (type >= FIGURE_ENEMY43_SPEAR && type <= FIGURE_ENEMY_CAESAR_LEGIONARY) ||
-        type == FIGURE_ENEMY_CATAPULT;
+    const FormationType *definition = formation_type_registry_impl::find_spawn_formation(static_cast<figure_type>(type));
+    return definition && definition->spawn.role == FormationSpawnRole::Enemy;
 }
 
 int Figure::is_melee_enemy() const
@@ -1371,7 +1383,21 @@ int Figure::is_legion() const
 
 int Figure::is_herd() const
 {
-    return type >= FIGURE_SHEEP && type <= FIGURE_ZEBRA;
+    const FormationType *definition = formation_type_registry_impl::find_spawn_formation(static_cast<figure_type>(type));
+    return definition && definition->spawn.role == FormationSpawnRole::Herd;
+}
+
+int Figure::is_aggressive_herd() const
+{
+    if (!is_herd()) {
+        return 0;
+    }
+    formation *owner = formation_get(formation_id);
+    if (!owner || !owner->owns_figure(*this)) {
+        log_error("Herd member has an invalid formation relationship", 0, static_cast<int>(id()));
+        std::terminate();
+    }
+    return owner->is_aggressive_herd();
 }
 
 int Figure::is_category(figure_category_mask category_mask) const
@@ -1529,67 +1555,31 @@ int Figure::target_is_alive() const
     return !target.is_dead() && target.created_sequence == target_figure_created_sequence;
 }
 
-int Figure::legacy_corpse_image_id(int base_image_id) const
-{
-    return base_image_id +
-        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(wait_ticks);
-}
-
-int Figure::legacy_frame_image_id(int base_image_id, int frame_offset) const
-{
-    return base_image_id + frame_offset;
-}
-
-int Figure::legacy_static_frame_image_id(int base_image_id, int frame_count) const
-{
-    if (frame_count <= 0) {
-        return base_image_id;
-    }
-    return base_image_id + static_cast<int>(id() % static_cast<unsigned int>(frame_count));
-}
-
-int Figure::legacy_directional_frame_image_id(
-    int base_image_id,
-    int frame_direction,
-    int frame_offset,
-    int frame_stride) const
-{
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    return base_image_id + normalized_direction + frame_stride * frame_offset;
-}
-
-int Figure::legacy_image_id_for_direction_major_frame(
-    int base_image_id,
-    int frame_direction,
-    int frame_offset,
-    int direction_stride) const
-{
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    return base_image_id + normalized_direction * direction_stride + frame_offset;
-}
-
 void Figure::select_legacy_corpse_image(int base_image_id)
 {
-    image_id = legacy_corpse_image_id(base_image_id);
+    image_id = base_image_id +
+        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(wait_ticks);
 }
 
 void Figure::select_legacy_frame_image(int base_image_id, int frame_offset)
 {
-    image_id = legacy_frame_image_id(base_image_id, frame_offset);
+    image_id = base_image_id + frame_offset;
 }
 
 void Figure::select_legacy_static_frame_image(int base_image_id, int frame_count)
 {
-    image_id = legacy_static_frame_image_id(base_image_id, frame_count);
+    image_id = frame_count > 0 ?
+        base_image_id + static_cast<int>(id() % static_cast<unsigned int>(frame_count)) :
+        base_image_id;
 }
 
 void Figure::select_legacy_directional_frame_image(
     int base_image_id,
-    int frame_direction,
+    int normalized_direction,
     int frame_offset,
     int frame_stride)
 {
-    image_id = legacy_directional_frame_image_id(base_image_id, frame_direction, frame_offset, frame_stride);
+    image_id = base_image_id + normalized_direction + frame_stride * frame_offset;
 }
 
 void Figure::select_legacy_default_or_corpse_image(int base_image_id)
@@ -1628,7 +1618,6 @@ void Figure::init_scenario()
     data.figures.clear();
     data.pending_building_refs.clear();
     data.pending_figure_refs.clear();
-    data.loaded_save_version = SAVE_GAME_CURRENT_VERSION;
     data.figures.reserve(kFigureArraySizeStep);
     data.figures.push_back(std::make_unique<Figure>(0));
     data.created_sequence = 0;
@@ -1672,7 +1661,6 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
 {
     figure_runtime_reset();
     race_bet_reset_runtime();
-    data.loaded_save_version = version;
     data.created_sequence = buffer_read_i32(seq);
 
     int figure_buf_size = kFigureOriginalBufferSize;
@@ -1765,13 +1753,13 @@ bool Figure::resolve_loaded_building_references(int save_version)
         else if (save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES) refs.building_id = 0;
         Building *immigrant = nullptr;
         Building *destination = nullptr;
-        if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", &immigrant) ||
-            !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", &destination)) {
+        if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", save_version, &immigrant) ||
+            !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", save_version, &destination)) {
             log_error("Loaded save failed strict optional figure building reference validation", 0, static_cast<int>(i));
             return false;
         }
         if (!f->set_immigrant_building(immigrant)) {
-            if (data.loaded_save_version >= SAVE_GAME_CURRENT_VERSION) {
+            if (save_version >= SAVE_GAME_CURRENT_VERSION) {
                 log_error("Loaded save failed strict immigrant building relationship validation", 0, static_cast<int>(i));
                 return false;
             }
@@ -1789,7 +1777,7 @@ bool Figure::resolve_loaded_building_references(int save_version)
             !last_destination_is_figure_id(static_cast<figure_type>(f->type))) {
             Building *last_destination = loaded_building_ref(static_cast<unsigned int>(f->last_destination_id));
             if (!last_destination || !f->set_last_destination_building(last_destination)) {
-                if (data.loaded_save_version < SAVE_GAME_CURRENT_VERSION) {
+                if (save_version < SAVE_GAME_CURRENT_VERSION) {
                     char detail[192];
                     snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), static_cast<unsigned int>(f->last_destination_id));
                     log_warning("Clearing invalid legacy last-destination building reference", detail, 0);
@@ -1801,10 +1789,17 @@ bool Figure::resolve_loaded_building_references(int save_version)
             }
         }
     }
-    if (!repair_loaded_migrant_house_refs(data.loaded_save_version)) {
+    if (!repair_loaded_migrant_house_refs(save_version)) {
         log_error("Loaded save failed legacy migrant and housing relationship repair", 0, 0);
         return false;
     }
     repair_loaded_building_figure_slots();
-    return validate_loaded_migrant_house_refs() && validate_loaded_building_figure_slots();
+    if (!validate_loaded_migrant_house_refs() || !validate_loaded_building_figure_slots()) {
+        return false;
+    }
+    data.pending_building_refs.clear();
+    data.pending_building_refs.shrink_to_fit();
+    data.pending_figure_refs.clear();
+    data.pending_figure_refs.shrink_to_fit();
+    return true;
 }

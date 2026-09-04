@@ -2,15 +2,34 @@
 
 #include "building/building_fwd.h"
 #include "core/buffer.h"
+#include "core/relationship.h"
+#include "figure/formation_member_movement_plan.h"
 #include "figure/formation_type.h"
+#include "figure/movement.h"
+#include "figure/route.h"
 #include "figure/type.h"
 
 #include <algorithm>
 #include <functional>
-#include <initializer_list>
 #include <vector>
 class Building;
 class Figure;
+struct formation;
+
+class FormationRelation {
+public:
+    FormationRelation(formation *owner, const char *role);
+    FormationRelation(const FormationRelation &) = delete;
+    FormationRelation &operator=(const FormationRelation &other);
+    formation *get_ptr() const;
+    void retarget(formation &target);
+    void clear();
+    unsigned int save_id() const;
+
+private:
+    formation *owner_ = nullptr;
+    ObjectRelationship<formation, formation> relationship_;
+};
 
 
 #define MAX_LEGIONS 6
@@ -104,7 +123,7 @@ struct formation_state {
 /**
  * Formation data
  */
-struct formation {
+struct formation : public RelationshipEndpoint {
     unsigned int id; /**< ID of the formation */
     int faction_id; /**< 1 = player, 0 = everyone else */
 
@@ -128,6 +147,7 @@ struct formation {
     int max_figures; /**< Maximum number of figures */
     const FormationType *formation_type_definition; /**< Runtime declaration; restored from the owning fort. */
     std::vector<int> figures; /**< Figure IDs, indexed by resolved formation slot. */
+    FormationMemberMovementPlan member_movement_plan;
     int total_damage; /**< Total damage of all figures added */
     int max_total_damage; /**< Maximum total damage of all figures added */
 
@@ -137,8 +157,8 @@ struct formation {
     int x_home; // legions - x position of the formation RIGHT NOW
     int y_home; // legions - y position of the formation RIGHT NOW
     int building_id; // legions - Building ID of home fort
-    int standard_x; // legions - x position of the DESTINATION. Standard means 'flag' in this case
-    int standard_y; // legions - y position of the DESTINATION. Standard means 'flag' in this case
+    int standard_x; // legions - x origin of the authoritative commanded station plan
+    int standard_y; // legions - y origin of the authoritative commanded station plan
     int standard_figure_id; // Figure id of the standard slag - position in the array of figures
     int destination_x; //for enemy and animals
     int destination_y; //for enemy and animals
@@ -182,7 +202,7 @@ struct formation {
 
     /* Herd-related */
     int herd_direction;
-    int herd_wolf_spawn_delay;
+    int herd_spawn_delay;
 
     struct {
         const FormationLayoutDef *layout_definition;
@@ -190,21 +210,28 @@ struct formation {
         int y_home;
     } prev;
 
-    unsigned int target_formation_id;
+    FormationRelation target_formation{ this, "formation.target" };
 
-    void set_formation_type(const FormationType *definition)
+    void bind_definition(const FormationType &definition)
     {
-        formation_type_definition = definition;
-        if (definition) {
-            max_figures = definition->capacity();
-        }
-        ensure_roster_capacity(slot_capacity());
+        formation_type_definition = &definition;
+        is_herd = definition.spawn.role == FormationSpawnRole::Herd;
+        max_figures = definition.capacity();
+        ensure_roster_capacity(declared_capacity());
+        invalidate_member_movement_plan();
     }
 
-    const FormationType *formation_type() const
-    {
-        return formation_type_definition;
-    }
+    FormationLayoutPosition layout_position(int index, const FormationLayoutDef *layout_override = nullptr) const;
+    FormationMemberMovementResult move_member_to_slot(
+        Figure &figure, FormationMemberDestination destination, int num_ticks, int tick_percentage);
+    void rebuild_member_movement_plan(FormationMemberDestination destination, const FormationLayoutDef &layout,
+        int origin_x, int origin_y, int area_width, int area_height);
+    void resolve_member_movement_station(Figure &figure);
+    int member_station_route_distance(
+        const Route::DistanceQuery &route, const FigureMovementDestination &candidate) const;
+    FormationMemberMovementResult settle_member(Figure &figure, FormationMemberDestination destination,
+        const FormationLayoutDef &layout, FormationMemberMovementResult result) const;
+    void invalidate_member_movement_plan() { member_movement_plan.invalidate(); }
 
     bool set_layout(const char *key)
     {
@@ -213,6 +240,7 @@ struct formation {
             return false;
         }
         layout_definition = definition;
+        invalidate_member_movement_plan();
         return true;
     }
 
@@ -220,12 +248,8 @@ struct formation {
     {
         const FormationLayoutDef *definition = formation_layout_from_legacy_id(legacy_id);
         layout_definition = definition;
+        invalidate_member_movement_plan();
         return definition != nullptr;
-    }
-
-    const FormationLayoutDef *layout_type() const
-    {
-        return layout_definition;
     }
 
     bool uses_layout(const char *key) const
@@ -235,9 +259,11 @@ struct formation {
 
     bool bind_to_fort(Building &fort, const char **failure_reason = nullptr);
     void unbind_from_fort();
+    void remove();
     Building *fort() const;
     bool refresh_legion_definition_from_home();
     bool initialize_legion_from_fort(Building &fort, int assigned_legion_id);
+    bool owns_figure(const Figure &figure) const;
 
     ::figure_type figure_type_id() const
     {
@@ -249,41 +275,10 @@ struct formation {
         return figure_type_id() == type;
     }
 
-    bool has_any_figure_type(std::initializer_list<::figure_type> types) const
-    {
-        for (::figure_type type : types) {
-            if (has_figure_type(type)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     int declared_capacity() const
     {
-        if (formation_type_definition) {
-            return formation_type_definition->capacity();
-        }
-        return max_figures > 0 ? max_figures : 0;
-    }
-
-    int slot_capacity() const
-    {
-        const int capacity = declared_capacity();
-        return capacity > 0 ? capacity : std::max(num_figures, 1);
-    }
-
-    int figure_count() const
-    {
-        if (num_figures <= 0) {
-            return 0;
-        }
-        return num_figures;
-    }
-
-    int total_figure_count() const
-    {
-        return num_figures;
+        require_definition("declared_capacity");
+        return formation_type_definition->capacity();
     }
 
     bool has_figures() const
@@ -297,35 +292,42 @@ struct formation {
         return capacity <= 0 || num_figures < capacity;
     }
 
-    int is_full() const
-    {
-        const int capacity = declared_capacity();
-        return capacity > 0 && num_figures >= capacity;
-    }
-
-    int overflow_count() const
-    {
-        const int capacity = declared_capacity();
-        const int overflow = capacity > 0 ? num_figures - capacity : 0;
-        return overflow > 0 ? overflow : 0;
-    }
-
-    bool counts_for_legion_type(::figure_type type) const
+    bool matches_player_troop_query(::figure_type type) const
     {
         return is_legion && (type == FIGURE_FORT_STANDARD || has_figure_type(type));
     }
 
-    bool should_update_herd(bool include_empty_wolf_spawns) const
-    {
-        return in_use && is_herd && !is_legion && (has_figures() || include_empty_wolf_spawns);
-    }
+    bool is_roster_member(const Figure &figure) const;
 
+    int modified_combat_value(FormationCombatStat stat, int base_value) const;
+    void update_movement_states();
+    void update_herd(bool reproduction_allowed);
+    void update_herd_member(Figure &member) const;
+    void update_herd_member_graphics(Figure &member) const;
+    bool is_aggressive_herd() const;
+    bool find_herd_roaming_destination(const FormationHerdBehavior &behavior, int *x_tile, int *y_tile) const;
+    void change_morale(int amount);
+    void update_morale_after_death();
+    void decrease_monthly_counters();
+    void clear_monthly_counters();
+    void set_destination(int tile_x, int tile_y);
+    void set_destination(int tile_x, int tile_y, const Building *building);
+    void set_station_origin(int tile_x, int tile_y);
+    void record_missile_attack(int from_formation_id);
+    void pursue_target();
+    void toggle_empire_service() { empire_service ^= 1; }
+    void record_missile_fired() { missile_fired = 6; }
+    void record_fight() { recent_fight = 6; }
+    bool has_low_morale() const { return months_low_morale || months_very_low_morale; }
+    void set_home(int tile_x, int tile_y) { x_home = tile_x; y_home = tile_y; }
+    void retreat() { months_low_morale = 1; }
+    bool recruit_requires_weapon() const;
     int base_morale_limit() const;
     int barracks_recruit_capacity() const;
     int barracks_recruit_overflow_count() const;
     int declared_recruit_type() const;
-    int legion_distant_battle_strength_factor() const;
-    int legion_curse_weight() const;
+    int distant_battle_strength() const;
+    int curse_weight() const;
     std::vector<int> layout_grid_offsets() const;
     void ensure_roster_capacity(int capacity);
     int roster_figure_id(int slot) const;
@@ -333,38 +335,11 @@ struct formation {
     void read_legacy_figure_slots(buffer *buf);
     void write_extended_figure_slots(buffer *buf) const;
     void read_extended_figure_slots(buffer *buf, int formation_buf_size);
-
-    void clear_roster()
-    {
-        ensure_roster_capacity(slot_capacity());
-        std::fill(figures.begin(), figures.end(), 0);
-        num_figures = 0;
-        total_damage = 0;
-        max_total_damage = 0;
-    }
-
-    int assign_figure_to_open_slot(int figure_id)
-    {
-        for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
-            if (!figures[slot]) {
-                figures[slot] = figure_id;
-                return slot;
-            }
-        }
-        figures.push_back(figure_id);
-        return static_cast<int>(figures.size()) - 1;
-    }
-
-    int add_figure_to_roster(int figure_id, int deployed, int damage, int max_damage)
-    {
-        num_figures++;
-        total_damage += damage;
-        max_total_damage += max_damage;
-        if (deployed) {
-            is_at_fort = 0;
-        }
-        return assign_figure_to_open_slot(figure_id);
-    }
+    void require_definition(const char *operation) const;
+    void prepare_roster_refresh();
+    int publish_figure(Figure &figure);
+    void refresh_published_figure(Figure &figure);
+    void unpublish_figure(Figure &figure);
 
     int first_figure_id() const
     {
@@ -389,7 +364,7 @@ struct formation {
     void kill_figures() const;
     int kill_alive_figures(int limit) const;
     void set_all_figures_action(int action_state) const;
-    void set_alive_figures_action(int action_state, bool mark_at_rest = false) const;
+    void set_alive_figures_action(int action_state) const;
     void set_non_combat_figures_action(int action_state, bool remove_route = false) const;
     void reset_non_combat_figures_action(int action_state) const;
     void move_herd_animals(int attacking_animals) const;
@@ -434,37 +409,29 @@ struct formation {
 
 };
 
+inline FormationRelation::FormationRelation(formation *owner, const char *role) : owner_(owner), relationship_(role) {}
+inline FormationRelation &FormationRelation::operator=(const FormationRelation &)
+{
+    if (owner_) relationship_.clear(*owner_, RelationshipDisconnectReason::EndpointReassigned);
+    return *this;
+}
+inline formation *FormationRelation::get_ptr() const { return relationship_.get_ptr(); }
+inline void FormationRelation::retarget(formation &target) { relationship_.retarget(*owner_, &target); }
+inline void FormationRelation::clear() { relationship_.clear(*owner_); }
+inline unsigned int FormationRelation::save_id() const { return relationship_ ? relationship_->id : 0; }
+
 void formations_clear(void);
 
-void formation_clear(int formation_id);
-
 formation *formation_create_legion(Building &fort);
-int formation_create_herd(figure_type type, int x, int y, int num_animals);
+int formation_create_herd(const FormationType &definition, int x, int y);
 int formation_create_enemy(figure_type type, int x, int y, int layout, int orientation,
                            int enemy_type, int attack_type, int invasion_id, int invasion_sequence);
 
 formation *formation_get(int formation_id);
-int formation_bind_runtime_fort(Building &fort, const char **failure_reason = nullptr);
 int formation_count(void);
 
 unsigned int formation_get_selected(void);
 void formation_set_selected(int formation_id);
-
-int formation_update_halted_state(formation *m);
-int formation_update_movement_state(formation *m);
-int formation_update_charge_state(formation *m);
-
-void formation_update_movement_all_states(formation *m);
-
-int formation_is_halted(const formation *m);
-int formation_is_moving(const formation *m);
-int formation_is_charging(const formation *m);
-
-void formation_toggle_empire_service(int formation_id);
-
-void formation_record_missile_fired(formation *m);
-void formation_record_missile_attack(formation *m, int from_formation_id);
-void formation_record_fight(formation *m);
 
 int formation_grid_offset_for_invasion(int invasion_sequence);
 
@@ -480,23 +447,9 @@ int formation_get_max_legions(void);
 
 int formation_for_legion(int legion_index);
 
-void formation_change_morale(formation *m, int amount);
-int formation_has_low_morale(formation *m);
-void formation_update_morale_after_death(formation *m);
-
-void formation_change_all_legions_morale(int amount);
-
 void formation_update_monthly_morale_deployed(void);
 void formation_update_monthly_morale_at_rest(void);
-void formation_decrease_monthly_counters(formation *m);
-void formation_clear_monthly_counters(formation *m);
 
-void formation_set_destination(formation *m, int x, int y);
-void formation_set_destination_building(formation *m, int x, int y, const Building *building);
-void formation_set_home(formation *m, int x, int y);
-void formation_retreat(formation *m);
-
-int formation_legion_count_alive_soldiers(int formation_id);
 int formation_legion_count_alive_soldiers_by_type(figure_type type);
 void formation_move_herds_away(int x, int y);
 

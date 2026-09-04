@@ -4,11 +4,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(_WIN32) && defined(GRAPHICS_EXTRACTION_BUILD_DLL)
+#define GRAPHICS_EXTRACTION_API __declspec(dllexport)
+#else
+#define GRAPHICS_EXTRACTION_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define GRAPHICS_EXTRACTION_ABI_VERSION 1u
+#define GRAPHICS_EXTRACTION_MODULE_FILENAME "GraphicsExtractor.dll"
+#define GRAPHICS_EXTRACTION_MODULE_FILENAME_W L"GraphicsExtractor.dll"
+#define GRAPHICS_EXTRACTION_RUN_AUGUSTUS_V1_NAME "graphics_extraction_run_augustus_v1"
+#define GRAPHICS_EXTRACTION_BOOTSTRAP_CLIMATE_V1_NAME "graphics_extraction_bootstrap_climate_v1"
 
 typedef enum graphics_extraction_status_v1 {
     GRAPHICS_EXTRACTION_STATUS_SUCCEEDED = 0,
@@ -21,6 +31,11 @@ typedef enum graphics_extraction_flags_v1 {
     GRAPHICS_EXTRACTION_FORCE = 1u << 0,
     GRAPHICS_EXTRACTION_WRITE_STAMP = 1u << 1
 } graphics_extraction_flags_v1;
+
+typedef enum graphics_extraction_climate_mode_v1 {
+    GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP = 0,
+    GRAPHICS_EXTRACTION_CLIMATE_JULIUS_ONLY = 1
+} graphics_extraction_climate_mode_v1;
 
 typedef struct graphics_extraction_augustus_request_v1 {
     uint32_t struct_size;
@@ -44,6 +59,11 @@ typedef struct graphics_extraction_climate_request_v1 {
     int32_t group_count;
     const char *source_name;
     const void *atlas_data;
+    uint32_t mode;
+    uint32_t path_reserved;
+    const char *game_root;
+    const char *augustus_graphics;
+    const char *julius_graphics;
 } graphics_extraction_climate_request_v1;
 
 typedef struct graphics_extraction_result_v1 {
@@ -56,16 +76,18 @@ typedef struct graphics_extraction_result_v1 {
     int32_t pngs_written;
 } graphics_extraction_result_v1;
 
-graphics_extraction_status_v1 graphics_extraction_run_augustus_v1(
+GRAPHICS_EXTRACTION_API graphics_extraction_status_v1 graphics_extraction_run_augustus_v1(
     const graphics_extraction_augustus_request_v1 *request,
     graphics_extraction_result_v1 *result);
 
-graphics_extraction_status_v1 graphics_extraction_bootstrap_climate_v1(
+GRAPHICS_EXTRACTION_API graphics_extraction_status_v1 graphics_extraction_bootstrap_climate_v1(
     const graphics_extraction_climate_request_v1 *request,
     graphics_extraction_result_v1 *result);
 
 #ifdef __cplusplus
 }
 #endif
+
+#undef GRAPHICS_EXTRACTION_API
 
 #endif // GRAPHICS_EXTRACTION_ABI_H

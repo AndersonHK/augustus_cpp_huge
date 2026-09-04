@@ -10,10 +10,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12" direction_stride="12">
-            <path value="Walkers\ox" />
+            <path value="Walkers\Cart_Ox" />
         </default>
         <corpse>
-            <path value="Walkers\ox" />
+            <path value="Walkers\Cart_Ox" />
         </corpse>
         <cart mode="resource_load" offsets_x="24,34,29,7,-15,-20,-13,6" offsets_y="-5,6,17,40,15,7,-3,-6" high_load_threshold="8" high_load_y_adjust="-40" direction_3_y_adjust="-20" />
     </graphics>

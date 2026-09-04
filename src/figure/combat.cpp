@@ -139,6 +139,14 @@ static void hit_opponent(Figure *f)
         attacker_unit->combat_stats().attack_for_difficulty(setting_difficulty()) :
         figure_attack_value_for_type(type_of(*f));
     int opponent_defense = figure_defense_value_for_type(type_of(*opponent));
+    const bool attacker_has_formation = m && m->owns_figure(*f);
+    const bool defender_has_formation = opponent_formation && opponent_formation->owns_figure(*opponent);
+    if (attacker_has_formation) {
+        figure_attack = m->modified_combat_value(FormationCombatStat::MeleeAttack, figure_attack);
+    }
+    if (defender_has_formation) {
+        opponent_defense = opponent_formation->modified_combat_value(FormationCombatStat::MeleeDefense, opponent_defense);
+    }
     const UnitMeleeAbility *attacker_melee = attacker_unit ? attacker_unit->melee_ability() : nullptr;
     const UnitMeleeAbility *defender_melee = defender_unit ? defender_unit->melee_ability() : nullptr;
 
@@ -151,16 +159,16 @@ static void hit_opponent(Figure *f)
             sound_effect_play(SOUND_EFFECT_SWORD_SWING);
         }
     }
-    if (attacker_melee && m->is_halted &&
+    if (attacker_has_formation && attacker_melee && m->is_halted &&
         attack_is_same_direction(f->attack_direction, m->direction)) {
         figure_attack += attacker_melee->halted_attack_bonus;
     }
-    if (attacker_melee && m->is_charging) {
+    if (attacker_has_formation && attacker_melee && m->is_charging) {
         figure_attack += attacker_melee->charge_attack_bonus;
     }
 
     // defense modifiers
-    if (opponent_formation->is_halted && defender_melee) {
+    if (defender_has_formation && opponent_formation->is_halted && defender_melee) {
         if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction)) {
             opponent_defense -= defender_melee->exposed_defense_penalty;
         } else if (opponent_formation->uses_layout("column")) {
@@ -183,7 +191,9 @@ static void hit_opponent(Figure *f)
         opponent->action_state = FIGURE_ACTION_149_CORPSE;
         opponent->wait_ticks = 0;
         figure_play_die_sound(opponent);
-        formation_update_morale_after_death(opponent_formation);
+        if (defender_has_formation) {
+            opponent_formation->update_morale_after_death();
+        }
     }
 }
 
@@ -260,7 +270,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     return 0;
 }
 
-int figure_combat_get_target_for_wolf(int x, int y, int max_distance)
+int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance)
 {
     int min_figure_id = 0;
     int min_distance = 10000;
@@ -352,10 +362,10 @@ static int is_valid_missile_target(Figure *f, formation *l)
     if (!f->is_herd()) {
         return 0;
     }
-    if (f->type == FIGURE_WOLF || config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
+    if (f->is_aggressive_herd() || config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
         return 1;
     }
-    if (l->target_formation_id && l->target_formation_id == f->formation_id) {
+    if (l->target_formation.save_id() == f->formation_id) {
         return 1;
     }
     return 0;
@@ -407,6 +417,9 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
         if (f->is_dead() || !f->type) {
             continue;
         }
+        if (f->is_herd()) {
+            continue;
+        }
         switch (f->type) {
             case FIGURE_EXPLOSION:
             case FIGURE_FORT_STANDARD:
@@ -424,9 +437,6 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
             case FIGURE_CREATURE:
             case FIGURE_FISH_GULLS:
             case FIGURE_SHIPWRECK:
-            case FIGURE_SHEEP:
-            case FIGURE_WOLF:
-            case FIGURE_ZEBRA:
             case FIGURE_SPEAR:
                 continue;
         }
@@ -461,7 +471,7 @@ static int can_attack_animal(figure_category_mask category, figure_category_mask
     if (config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
         return 1;
     }
-    if ((l->target_formation_id && l->target_formation_id == opponent->formation_id) ||
+    if (l->target_formation.save_id() == opponent->formation_id ||
         (opponent_category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL)) {
         return 1;
     }

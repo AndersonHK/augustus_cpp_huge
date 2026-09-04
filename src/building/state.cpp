@@ -254,6 +254,13 @@ static void read_rubble_type_data(buffer *buf, building *b, int version, int for
     if (!b || for_preview) {
         return;
     }
+    // Warehouses share this tail of the serialized type-data block, but an
+    // all-zero payload is padding rather than RubbleState. Do not manufacture
+    // a bridge DTO that the canonical warehouse object cannot own.
+    if (!original_type && !original_grid_offset && !original_orientation &&
+        !type_is_rubble_shell(b->type) && b->state != BUILDING_STATE_RUBBLE) {
+        return;
+    }
 
     RubbleState rubble_state;
     rubble_state.original_grid_offset = static_cast<unsigned short>(original_grid_offset);

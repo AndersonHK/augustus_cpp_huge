@@ -17,6 +17,7 @@
 #include "map/terrain.h"
 
 static void update_land_terrain_noncitizen(void);
+static int get_land_type_citizen_aqueduct(int grid_offset);
 
 static int is_road_surface(int terrain)
 {
@@ -88,15 +89,17 @@ static int get_land_type_citizen_building(int grid_offset)
     building *b = const_cast<::building *>(current.record());
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    if ((terrain & TERRAIN_RUBBLE) && current.Rubble && current.Rubble->is_rubble()) {
-        // Runtime-backed rubble also carries TERRAIN_BUILDING so that each piece can
-        // retain its origin and burning state. It remains citizen-passable terrain.
-        type = CITIZEN_2_PASSABLE_TERRAIN;
-    } else if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
+    if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
         // The road/highway surface below an aqueduct remains traversable.
         type = CITIZEN_1_HIGHWAY;
     } else if ((terrain & TERRAIN_AQUEDUCT) && is_road_surface(terrain)) {
         type = CITIZEN_0_ROAD;
+    } else if (terrain & TERRAIN_AQUEDUCT) {
+        type = get_land_type_citizen_aqueduct(grid_offset);
+    } else if ((terrain & TERRAIN_RUBBLE) && current.Rubble && current.Rubble->is_rubble()) {
+        // Runtime-backed rubble also carries TERRAIN_BUILDING so that each piece can
+        // retain its origin and burning state. It remains citizen-passable terrain.
+        type = CITIZEN_2_PASSABLE_TERRAIN;
     } else if (current.Foundation && current.Foundation->passage_at(grid_offset) !=
             building_type_registry_impl::FoundationPassage::None) {
         if (terrain & TERRAIN_HIGHWAY) {
@@ -164,10 +167,10 @@ void Route::updateCitizenLandTerrain(void)
                 terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
             } else if (terrain & TERRAIN_HIGHWAY) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
-            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
-                terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & TERRAIN_AQUEDUCT) {
                 terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_aqueduct(grid_offset));
+            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
+                terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & TERRAIN_NOT_CLEAR) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_N1_BLOCKED;
             } else {

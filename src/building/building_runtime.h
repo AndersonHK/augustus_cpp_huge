@@ -34,12 +34,12 @@ void building_runtime_stage_loaded_foundation_state(
     const building_type_registry_impl::FoundationTerrainSaveState &state);
 int building_runtime_loaded_rubble_state(unsigned int building_id, RubbleState *state);
 int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGraphicsState *state);
-int building_runtime_loaded_housing_state(unsigned int building_id, HousingState *state);
 int building_runtime_loaded_foundation_state(
     unsigned int building_id,
     building_type_registry_impl::FoundationTerrainSaveState *state);
 void building_runtime_backup_graphics_state(void);
 void building_runtime_restore_graphics_state(void);
+int building_runtime_hydrate_loaded_modules(void);
 void building_runtime_initialize_city_graphics_cache(void);
 void building_runtime_for_each(const std::function<void(Building *)> &visitor);
 void building_runtime_for_each(

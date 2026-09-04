@@ -12,7 +12,7 @@
   <button group="forts" order="130" text_key="TR_BUILDING_FORT_AUXILIA_INFANTRY" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <military>
-        <formation key="vespasian_infantry_cohort" />
+        <formation key="vespasian_auxiliary_infantry_century" />
     </military>
     <graphics>
         <default>

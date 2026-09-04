@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="dock_3x3" width="3" height="3" rotates="true">
-    <profile symbol="W" requires="water" adds="building" />
-    <profile symbol="L" requires="land" adds="building" />
-    <rows><row cells="WWW" /><row cells="LLL" /><row cells="LLL" /></rows>
-</foundation>

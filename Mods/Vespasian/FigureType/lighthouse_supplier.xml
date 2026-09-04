@@ -2,11 +2,11 @@
 <figure type="lighthouse_supplier" graphics_only="true">
     <graphics>
         <default max_image_offset="12">
-            <path value="Walkers\Group_107" />
+            <path value="Walkers\Cart_Pusher" />
         </default>
         <corpse base_image_offset="96">
-            <path value="Walkers\Group_107" />
+            <path value="Walkers\Cart_Pusher" />
         </corpse>
-        <resource_cart empty_path="Walkers\Group_097" resource_source="collecting_item_on_action" resource_action="supplier_returning" load_mode="fixed_one" state_source="action" suppress_body_when_hidden="false" lift_food_at_loads="0" lift_food_y_adjust="0" offsets_x="13,18,12,0,-13,-18,-13,0" offsets_y="-7,-1,7,11,6,-1,-7,-12" hide_on_corpse="true" />
+        <resource_cart empty_path="Walkers\Cart_Pusher_Cart" resource_source="collecting_item_on_action" resource_action="supplier_returning" load_mode="fixed_one" state_source="action" suppress_body_when_hidden="false" lift_food_at_loads="0" lift_food_y_adjust="0" offsets_x="13,18,12,0,-13,-18,-13,0" offsets_y="-7,-1,7,11,6,-1,-7,-12" hide_on_corpse="true" />
     </graphics>
 </figure>

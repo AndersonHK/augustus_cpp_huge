@@ -4,7 +4,6 @@
 #include "translation/localization_internal.h"
 
 #include "core/file.h"
-#include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "city/message.h"
 #include "core/log.h"

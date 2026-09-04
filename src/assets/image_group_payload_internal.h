@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/image_group_payload.h"
+#include "assets/xml_path_resolution.h"
 
 #include "assets/layer.h"
 
@@ -28,6 +29,7 @@ extern std::unordered_set<std::string> g_failed_group_payloads;
 extern std::unordered_set<std::string> g_loading_group_payloads;
 extern std::unordered_set<std::string> g_failed_group_docs;
 extern std::unordered_set<std::string> g_failed_merged_groups;
+extern std::unordered_set<std::string> g_loading_merged_groups;
 extern std::unordered_set<std::string> g_failed_resolved_entries;
 extern std::unordered_set<std::string> g_loading_resolved_entries;
 extern std::unordered_set<std::string> g_failed_png_rasters;
@@ -74,7 +76,7 @@ struct RawAnimationDef {
 
 struct ImageEntryDef {
     std::string id;
-    xml_asset_source source = XML_ASSET_SOURCE_AUTO;
+    GraphicsLayerSource source;
     int local_order = 0;
     int width = 0;
     int height = 0;
@@ -91,16 +93,29 @@ struct ImageEntryDef {
 struct ImageGroupDoc {
     std::string key;
     std::string xml_path;
-    xml_asset_source source = XML_ASSET_SOURCE_AUTO;
+    GraphicsLayerSource source;
+    std::string inherited_group_key;
+    render_logical_unit logical_units_per_source_pixel = 0;
     std::vector<std::string> ordered_ids;
     std::unordered_map<std::string, ImageEntryDef> entries;
+
+    bool inherits_group() const { return !inherited_group_key.empty(); }
+};
+
+struct MergedImageEntrySelector {
+    std::string group_key;
+    GraphicsLayerSource source;
+    std::string image_id;
 };
 
 struct MergedImageGroup {
     std::string key;
     std::string xml_path;
-    std::vector<xml_asset_source> source_chain;
-    std::vector<std::pair<xml_asset_source, std::string>> ordered_entries;
+    std::string inherited_group_key;
+    render_logical_unit logical_units_per_source_pixel = 0;
+    std::vector<MergedImageEntrySelector> ordered_entries;
+
+    bool inherits_group() const { return !inherited_group_key.empty(); }
 };
 
 struct ResolvedTextureSlice {
@@ -146,21 +161,21 @@ std::string normalize_path_key(const char *text);
 // Output: the normalized target group key that later stages should resolve against.
 std::string normalize_group_reference_key(const char *group_name, const std::string &current_group);
 
-// Input: one group key and one source enum.
+// Input: one group key and one source layer.
 // Output: the stable cache key for a source-local parsed document.
-std::string make_source_doc_cache_key(const std::string &group_key, xml_asset_source source);
+std::string make_source_doc_cache_key(const std::string &group_key, const GraphicsLayerSource &source);
 
 // Input: one group key, one winning source, and one image id.
 // Output: the stable cache key for a resolved entry selector.
-std::string make_selector_cache_key(const std::string &group_key, xml_asset_source source, const std::string &image_id);
+std::string make_selector_cache_key(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id);
 
 // Input: one group key, one source, and one image id.
 // Output: the unique managed-texture payload key used for uploaded runtime textures.
-std::string make_entry_payload_key(const std::string &group_key, xml_asset_source source, const std::string &image_id);
+std::string make_entry_payload_key(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id);
 
 // Input: a group key and source.
 // Output: the cached source-local document if it exists, otherwise null.
-const ImageGroupDoc *find_group_doc(const std::string &group_key, xml_asset_source source);
+const ImageGroupDoc *find_group_doc(const std::string &group_key, const GraphicsLayerSource &source);
 
 // Input: a merged group key.
 // Output: the cached merged group if it exists, otherwise null.
@@ -168,7 +183,7 @@ const MergedImageGroup *find_merged_group(const std::string &group_key);
 
 // Input: a group key, source, and image id selector.
 // Output: the cached resolved entry if it exists, otherwise null.
-const ResolvedImageEntry *find_resolved_entry(const std::string &group_key, xml_asset_source source, const std::string &image_id);
+const ResolvedImageEntry *find_resolved_entry(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id);
 
 // Input: one resolved entry whose managed texture keys were retained during materialization.
 // Output: no return value; all retained payload keys owned by that resolved entry are released.
@@ -176,19 +191,30 @@ void release_resolved_entry_resources(const ResolvedImageEntry &entry);
 
 // Input: a source-local XML document path, requested group key, and source.
 // Output: a parsed document that contains unresolved symbolic entry data only, or null on parse failure.
-const ImageGroupDoc *load_group_doc(const std::string &group_key, xml_asset_source source);
+const ImageGroupDoc *load_group_doc(const std::string &group_key, const GraphicsLayerSource &source);
 
 // Input: a group key.
 // Output: the merged entry-id namespace across the source chain for that group, or null on failure.
 const MergedImageGroup *load_merged_group(const std::string &group_key);
 
+// Input: a merged group, requesting source context, and image id.
+// Output: the first exact entry selector visible at or below the requesting source, or null when absent.
+const MergedImageEntrySelector *find_merged_entry_selector(const MergedImageGroup &merged, const GraphicsLayerSource &preferred_source, const std::string &image_id);
+
 // Input: a merged group key and image id.
 // Output: the resolved entry for the winning source of that id, or null on resolution/materialization failure.
-const ResolvedImageEntry *materialize_merged_entry(const std::string &group_key, xml_asset_source preferred_source, const std::string &image_id);
+const ResolvedImageEntry *materialize_merged_entry(const std::string &group_key, const GraphicsLayerSource &preferred_source, const std::string &image_id);
 
 // Input: a source-local entry selector.
 // Output: a resolved entry that owns split-source pixels plus render-facing payload keys, or null on failure.
-const ResolvedImageEntry *materialize_source_entry(const std::string &group_key, xml_asset_source source, const std::string &image_id);
+const ResolvedImageEntry *materialize_source_entry(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id);
+
+// Input: one semantic alias selector plus the absolute logical-units-per-source-pixel scale declared by its owning group.
+// Output: a cached resolved entry that shares source textures/pixels and gives every draw-facing slice fixed logical dimensions.
+const ResolvedImageEntry *materialize_scaled_alias_entry(
+    const std::string &alias_group_key,
+    const MergedImageEntrySelector &source_selector,
+    render_logical_unit logical_units_per_source_pixel);
 
 // Input: one resolved entry split buffer and a requested isometric part selection.
 // Output: a renderer-independent raster surface for PART_TOP, PART_FOOTPRINT, or PART_BOTH.

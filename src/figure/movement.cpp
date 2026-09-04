@@ -443,9 +443,9 @@ void figure_movement_move_ticks(Figure *f, int num_ticks)
     walk_ticks(f, num_ticks, 0);
 }
 
-void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int tick_percentage)
+int Figure::consume_movement_ticks(int num_ticks, int tick_percentage)
 {
-    int progress = f->progress_to_next_tick + tick_percentage;
+    int progress = progress_to_next_tick + tick_percentage;
 
     if (progress >= 100) {
         progress -= 100;
@@ -454,9 +454,77 @@ void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int ti
         progress += 100;
         num_ticks--;
     }
-    f->progress_to_next_tick = static_cast<char>(progress);
+    progress_to_next_tick = static_cast<char>(progress);
+
+    return num_ticks;
+}
+
+void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int tick_percentage)
+{
+    num_ticks = f->consume_movement_ticks(num_ticks, tick_percentage);
 
     walk_ticks(f, num_ticks, 0);
+}
+
+FigureMovementResult Figure::move_ticks_cross_country_to(
+    FigureMovementDestination destination, int num_ticks, int tick_percentage)
+{
+    figure_movement_set_cross_country_direction(this, cross_country_x, cross_country_y, destination.x, destination.y, 0);
+    if (cross_country_x == destination.x && cross_country_y == destination.y) {
+        direction = DIR_FIGURE_AT_DESTINATION;
+        return FigureMovementResult::Arrived;
+    }
+    figure_movement_move_ticks_cross_country(this, consume_movement_ticks(num_ticks, tick_percentage));
+    if (cross_country_x == destination.x && cross_country_y == destination.y) {
+        if (direction < DIR_8_NONE) previous_tile_direction = direction;
+        direction = DIR_FIGURE_AT_DESTINATION;
+        return FigureMovementResult::Arrived;
+    }
+    return FigureMovementResult::Moving;
+}
+
+FigureMovementResult Figure::move_ticks_to(
+    FigureMovementDestination destination, int num_ticks, int tick_percentage)
+{
+    const int destination_tile_x = figure_movement_cross_country_to_tile(destination.x);
+    const int destination_tile_y = figure_movement_cross_country_to_tile(destination.y);
+    if (!map_grid_is_inside(destination_tile_x, destination_tile_y, 0)) {
+        Route::remove(this);
+        return FigureMovementResult::Blocked;
+    }
+    destination_x = static_cast<unsigned char>(destination_tile_x);
+    destination_y = static_cast<unsigned char>(destination_tile_y);
+    destination_grid_offset = static_cast<short>(map_grid_offset(destination_tile_x, destination_tile_y));
+    set_movement_plane(destination.plane);
+
+    if (use_cross_country) {
+        if (x == destination_tile_x && y == destination_tile_y) {
+            return move_ticks_cross_country_to(destination, num_ticks, tick_percentage);
+        }
+
+        const FigureMovementDestination route_entry = figure_movement_destination_for_tile(x, y, destination.plane);
+        const FigureMovementResult entry_result = move_ticks_cross_country_to(route_entry, num_ticks, tick_percentage);
+        if (entry_result == FigureMovementResult::Arrived) {
+            use_cross_country = 0;
+            progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
+            direction = DIR_FIGURE_REROUTE;
+            Route::remove(this);
+            return FigureMovementResult::Moving;
+        }
+        return entry_result;
+    }
+
+    figure_movement_move_ticks_with_percentage(this, num_ticks, tick_percentage);
+    if (direction == DIR_FIGURE_REROUTE || direction == DIR_FIGURE_LOST) {
+        Route::remove(this);
+        return FigureMovementResult::Blocked;
+    }
+    if (direction != DIR_FIGURE_AT_DESTINATION) return FigureMovementResult::Moving;
+
+    cross_country_x = figure_movement_tile_to_cross_country(x);
+    cross_country_y = figure_movement_tile_to_cross_country(y);
+    use_cross_country = 1;
+    return move_ticks_cross_country_to(destination, 0, 0);
 }
 
 void figure_movement_move_ticks_tower_sentry(Figure *f, int num_ticks)

@@ -26,8 +26,7 @@ static int active_count(const char *text_id)
     int active = 0;
     const building_type type = building_type_registry_impl::type_from_attr(text_id);
     for (const Building &building : Building::of_type(type)) {
-        const ::building *b = building.record();
-        if (building_is_active(b) &&
+        if (building.is_active() &&
             (!building.Composition || !building.Composition->is_child()) &&
             !building.is_dynamic_bridge_segment()) {
             active++;

@@ -55,7 +55,8 @@ constexpr int figure_movement_tile_center_cross_country(int tile)
 
 constexpr int figure_movement_cross_country_to_tile(int value)
 {
-    return value / FIGURE_CROSS_COUNTRY_TILE_UNITS;
+    return value >= 0 ? value / FIGURE_CROSS_COUNTRY_TILE_UNITS :
+        -((-value + FIGURE_CROSS_COUNTRY_TILE_UNITS - 1) / FIGURE_CROSS_COUNTRY_TILE_UNITS);
 }
 
 constexpr int figure_movement_cross_country_tile_offset(int value)
@@ -86,6 +87,11 @@ constexpr bool figure_movement_legacy_tick_count_is_preserved()
 
 static_assert(figure_movement_legacy_progress_round_trip_is_exact(), "128-unit progress must reproduce every legacy render position");
 static_assert(figure_movement_legacy_tick_count_is_preserved(), "128-unit progress must preserve the legacy 15-tick tile duration");
+
+constexpr FigureMovementDestination figure_movement_destination_for_tile(int x, int y, FigureMovementPlane plane)
+{
+    return {figure_movement_tile_to_cross_country(x), figure_movement_tile_to_cross_country(y), plane};
+}
 
 void figure_movement_init_roaming(Figure *f);
 

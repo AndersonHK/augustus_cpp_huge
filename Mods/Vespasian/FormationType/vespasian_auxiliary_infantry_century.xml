@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<formation key="vespasian_auxiliary_infantry_century" recruit_capacity="64">
+    <grid width="8" height="8" station_alignment="scaled_tile_anchor" />
+    <combat melee_attack_modifier="-1" melee_defense_modifier="-1" morale_modifier="-5"
+        distant_battle_strength="1" trained_distant_battle_bonus="1" curse_weight_per_figure="1" />
+    <slot fill="all" unit="infantry" />
+</formation>

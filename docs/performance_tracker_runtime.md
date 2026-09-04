@@ -16,7 +16,7 @@ The runtime provides an opt-in, low-overhead performance tracker controlled by `
 - A cheap enabled check at coarse call sites; disabled mode performs no file open or per-frame formatting.
 
 ## Tracking Contract
-- Output file: `vespasian-performance.log` in the same logging directory as `vespasian-log.txt`.
+- Output file: `vespasian-performance.log` in the same logging directory as `vespasian-log.txt`. On Windows, that directory is `%APPDATA%\augustus\Vespasian\`.
 - Format: one line per sample, readable and parseable key/value fields, for example:
   `perf sample=12 elapsed_ms=1003 speed=1000 target_ticks=1003 actual_ticks=997 frames=61 zero_tick_frames=0 speed_wait_ms=0.0 run_ms=410.2 tick_ms=320.5 draw_ms=180.4 present_ms=470.1 buckets=figure:120.3,advance:90.1,building_state:18.4,map_desirability:22.7,city_draw:150.8`
 - Tick goal is computed from the existing speed-timer math, not guessed from the UI label.

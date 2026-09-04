@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="road_or_land_1x1" width="1" height="1" rotates="false" default_permissions="all" configurable_permissions="all">
-    <profile symbol="R" requires="road_or_land" adds="building road" passage="owner_controlled" />
-    <rows><row cells="R" /></rows>
-</foundation>

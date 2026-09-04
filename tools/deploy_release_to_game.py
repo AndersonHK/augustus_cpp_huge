@@ -26,6 +26,16 @@ LEGACY_DEPLOY_WORKSPACES = ("Mods.deploy-staging", "Mods.deploy-backup")
 DEPLOY_BACKUP_PREFIX = "Mods.deploy-backup"
 GRAPHICS_FOLDER = "Graphics"
 GRAPHICS_BACKUP_FOLDER = ".graphics-overwrites"
+REQUIRED_RUNTIME_ARTIFACTS = (
+    "Vespasian.exe",
+    "GraphicsExtractor.dll",
+    "VespasianLoadSave.dll",
+)
+OPTIONAL_RUNTIME_ARTIFACTS = (
+    "Vespasian.pdb",
+    "GraphicsExtractor.pdb",
+    "VespasianLoadSave.pdb",
+)
 PROCESS_SNAPSHOT_FLAG = 0x00000002
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -827,22 +837,27 @@ def deploy_release(dry_run: bool, runtime_only: bool) -> None:
 
     repo_root = Path(__file__).resolve().parents[1]
     release_dir = repo_root / "x64" / "Release"
-    exe_path = release_dir / "Vespasian.exe"
-    pdb_path = release_dir / "Vespasian.pdb"
-    if not exe_path.is_file():
-        raise RuntimeError(f"Release executable does not exist: {exe_path}")
+    required_runtime_artifacts = [release_dir / name for name in REQUIRED_RUNTIME_ARTIFACTS]
+    optional_runtime_artifacts = [release_dir / name for name in OPTIONAL_RUNTIME_ARTIFACTS]
+    missing_artifacts = [path for path in required_runtime_artifacts if not path.is_file()]
+    if missing_artifacts:
+        raise RuntimeError("Required Release runtime artifacts do not exist: " +
+                           ", ".join(str(path) for path in missing_artifacts))
 
-    print(f"Release executable: {exe_path}")
-    if pdb_path.is_file():
-        print(f"Release debug symbols: {pdb_path}")
-    else:
-        print("Release debug symbols: not found; skipping Vespasian.pdb")
+    for artifact in required_runtime_artifacts:
+        print(f"Required Release runtime artifact: {artifact}")
+    for artifact in optional_runtime_artifacts:
+        if artifact.is_file():
+            print(f"Optional Release debug symbols: {artifact}")
+
+    def deploy_runtime_artifacts() -> None:
+        for artifact in required_runtime_artifacts + optional_runtime_artifacts:
+            if artifact.is_file():
+                copy_file(artifact, game_root / artifact.name, dry_run)
 
     if runtime_only:
         print("Runtime-only deploy: skipping Mods validation and replacement.")
-        copy_file(exe_path, game_root / exe_path.name, dry_run)
-        if pdb_path.is_file():
-            copy_file(pdb_path, game_root / pdb_path.name, dry_run)
+        deploy_runtime_artifacts()
         print("Runtime-only deploy dry run completed." if dry_run else "Runtime-only deploy completed.")
         return
 
@@ -853,9 +868,7 @@ def deploy_release(dry_run: bool, runtime_only: bool) -> None:
     require_no_running_game_processes(game_root, dry_run)
     replace_mods_folder(source_mods, target_mods, game_root, dry_run)
 
-    copy_file(exe_path, game_root / exe_path.name, dry_run)
-    if pdb_path.is_file():
-        copy_file(pdb_path, game_root / pdb_path.name, dry_run)
+    deploy_runtime_artifacts()
 
     print("Deploy dry run completed." if dry_run else "Deploy completed.")
 

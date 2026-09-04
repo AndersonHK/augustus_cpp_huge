@@ -6,7 +6,6 @@
 
 #include "city/population.h"
 
-#include "building/building_record.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -382,10 +381,12 @@ static int calculate_people_per_house_type(void)
     city_data.population.people_in_large_insula_and_above = 0;
     int total = 0;
     Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
-        building *b = const_cast<building *>(house->record());
-        if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
-            b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
-            !house->Housing) {
+        if (!house || !house->Housing) {
+            return;
+        }
+        const int state = house->state_id();
+        if (state == BUILDING_STATE_UNUSED || state == BUILDING_STATE_UNDO ||
+            state == BUILDING_STATE_DELETED_BY_GAME || state == BUILDING_STATE_DELETED_BY_PLAYER) {
             return;
         }
         int pop = house->Housing->state().population;

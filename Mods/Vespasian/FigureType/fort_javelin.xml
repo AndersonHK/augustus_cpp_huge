@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="fort_javelin" graphics_only="true">
     <graphics>
+        <default max_image_offset="12">
+            <path value="Warriors\Auxiliary_Javelin" />
+        </default>
         <missile_launcher cursor="attack_image_offset" frame_divisor="2" frames="0,1,2,3,4,4,4,4,4,4,5,5,5,5,5,5" after_frame="0" />
     </graphics>
 </figure>

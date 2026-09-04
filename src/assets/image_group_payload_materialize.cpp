@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -68,35 +69,17 @@ void copy_prepared_layer_metadata(const RawLayerDef &raw_layer, PreparedLayer &o
 
 // Input: one candidate entry id.
 // Output: true when the merged group actually declares that image id without reporting a materialization error.
-int merged_group_has_entry(const std::string &group_key, xml_asset_source preferred_source, const std::string &image_id)
+int merged_group_has_entry(const std::string &group_key, const GraphicsLayerSource &preferred_source, const std::string &image_id)
 {
     const MergedImageGroup *merged = load_merged_group(group_key);
-    if (!merged) {
-        return 0;
-    }
-
-    size_t start_index = 0;
-    for (size_t i = 0; i < merged->source_chain.size(); i++) {
-        if (merged->source_chain[i] == preferred_source) {
-            start_index = i;
-            break;
-        }
-    }
-
-    for (size_t i = start_index; i < merged->source_chain.size(); i++) {
-        const ImageGroupDoc *source_doc = load_group_doc(group_key, merged->source_chain[i]);
-        if (source_doc && source_doc->entries.find(image_id) != source_doc->entries.end()) {
-            return 1;
-        }
-    }
-    return 0;
+    return merged && find_merged_entry_selector(*merged, preferred_source, image_id);
 }
 
 // Input: one extracted construction-layer reference whose shadow entry was not emitted explicitly.
 // Output: a prepared shadow layer derived from the matching extracted base image, or false when the pattern does not apply.
 int prepare_derived_construction_shadow_layer(
     const std::string &target_group,
-    xml_asset_source source,
+    const GraphicsLayerSource &source,
     const RawLayerDef &raw_layer,
     PreparedLayer &out_layer)
 {
@@ -546,6 +529,44 @@ int resolve_animation(
     }
 
     out_entry.has_animation = out_entry.animation.has_frames();
+    return 1;
+}
+
+// Input: one source-pixel slice and an absolute logical-units-per-source-pixel scale.
+// Output: true after replacing its fixed logical dimensions, or false if the product cannot fit.
+int apply_absolute_logical_scale(RuntimeDrawSlice &slice, render_logical_unit logical_units_per_source_pixel)
+{
+    if (!slice.is_valid()) {
+        return 1;
+    }
+    const int64_t logical_width = static_cast<int64_t>(slice.width) * logical_units_per_source_pixel;
+    const int64_t logical_height = static_cast<int64_t>(slice.height) * logical_units_per_source_pixel;
+    if (logical_width <= 0 || logical_height <= 0 ||
+        logical_width > std::numeric_limits<render_logical_unit>::max() ||
+        logical_height > std::numeric_limits<render_logical_unit>::max()) {
+        return 0;
+    }
+    slice.fixed_logical_size = {
+        static_cast<render_logical_unit>(logical_width),
+        static_cast<render_logical_unit>(logical_height)
+    };
+    return 1;
+}
+
+// Input: an inherited animation and the alias' absolute logical scale.
+// Output: true after rebuilding every frame slice with fixed logical dimensions.
+int apply_absolute_logical_scale(Animation &animation, render_logical_unit logical_units_per_source_pixel)
+{
+    std::vector<RuntimeDrawSlice> scaled_frames;
+    scaled_frames.reserve(static_cast<size_t>(animation.frame_count()));
+    for (int frame = 1; frame <= animation.frame_count(); frame++) {
+        RuntimeDrawSlice slice = animation.frame_slice_at_offset(frame, 0);
+        if (!apply_absolute_logical_scale(slice, logical_units_per_source_pixel)) {
+            return 0;
+        }
+        scaled_frames.push_back(slice);
+    }
+    animation.replace_frames(std::move(scaled_frames));
     return 1;
 }
 
@@ -1047,7 +1068,7 @@ int upload_split_surface(
 
 // Input: one source-local entry selector.
 // Output: a resolved entry that owns split-source pixels plus render-facing payload keys, or null on failure.
-const ResolvedImageEntry *materialize_source_entry(const std::string &group_key, xml_asset_source source, const std::string &image_id)
+const ResolvedImageEntry *materialize_source_entry(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id)
 {
     if (const ResolvedImageEntry *existing = find_resolved_entry(group_key, source, image_id)) {
         return existing;
@@ -1158,6 +1179,12 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
         ok = resolve_animation(*doc, entry, referenced_entry, resolved_entry);
         if (!ok) crash_context_report_error("Unable to materialize image group animation", selector_key.c_str());
     }
+    if (ok && doc->logical_units_per_source_pixel > 0) {
+        ok = apply_absolute_logical_scale(resolved_entry.footprint.slice, doc->logical_units_per_source_pixel) &&
+            apply_absolute_logical_scale(resolved_entry.top.slice, doc->logical_units_per_source_pixel) &&
+            apply_absolute_logical_scale(resolved_entry.animation, doc->logical_units_per_source_pixel);
+        if (!ok) crash_context_report_error("ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
+    }
 
     g_loading_resolved_entries.erase(selector_key);
     if (!ok) {
@@ -1169,6 +1196,72 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
     std::unique_ptr<ResolvedImageEntry> stored_entry = std::make_unique<ResolvedImageEntry>(std::move(resolved_entry));
     const ResolvedImageEntry *stored_ptr = stored_entry.get();
     g_resolved_entries.emplace(selector_key, std::move(stored_entry));
+    return stored_ptr;
+}
+
+// Input: one semantic alias selector plus the absolute logical-units-per-source-pixel scale declared by its owning group.
+// Output: a cached resolved entry that shares source textures/pixels while scaling every draw-facing slice.
+const ResolvedImageEntry *materialize_scaled_alias_entry(
+    const std::string &alias_group_key,
+    const MergedImageEntrySelector &source_selector,
+    render_logical_unit logical_units_per_source_pixel)
+{
+    if (logical_units_per_source_pixel <= 0) {
+        crash_context_report_error("Inherited ImageGroup scale must be positive", alias_group_key.c_str());
+        return nullptr;
+    }
+    if (const ResolvedImageEntry *existing = find_resolved_entry(alias_group_key, source_selector.source, source_selector.image_id)) {
+        return existing;
+    }
+
+    const std::string selector_key = make_selector_cache_key(alias_group_key, source_selector.source, source_selector.image_id);
+    if (g_failed_resolved_entries.find(selector_key) != g_failed_resolved_entries.end()) {
+        return nullptr;
+    }
+    if (g_loading_resolved_entries.find(selector_key) != g_loading_resolved_entries.end()) {
+        crash_context_report_error("Detected recursive inherited image entry resolution", selector_key.c_str());
+        g_failed_resolved_entries.insert(selector_key);
+        return nullptr;
+    }
+
+    g_loading_resolved_entries.insert(selector_key);
+    const ResolvedImageEntry *source_entry = materialize_source_entry(
+        source_selector.group_key,
+        source_selector.source,
+        source_selector.image_id);
+    if (!source_entry) {
+        g_loading_resolved_entries.erase(selector_key);
+        g_failed_resolved_entries.insert(selector_key);
+        return nullptr;
+    }
+
+    ResolvedImageEntry resolved_entry = *source_entry;
+    // Slice draw offsets remain in source-pixel coordinates: the renderer scales them from
+    // fixed_logical_size. Figure-level attachment offsets use the scale inferred from this size.
+    const int ok = apply_absolute_logical_scale(resolved_entry.footprint.slice, logical_units_per_source_pixel) &&
+        apply_absolute_logical_scale(resolved_entry.top.slice, logical_units_per_source_pixel) &&
+        apply_absolute_logical_scale(resolved_entry.animation, logical_units_per_source_pixel);
+    if (!ok) {
+        crash_context_report_error("Inherited ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
+        g_loading_resolved_entries.erase(selector_key);
+        g_failed_resolved_entries.insert(selector_key);
+        return nullptr;
+    }
+
+    image_manager().retain(resolved_entry.footprint.texture_key);
+    if (!resolved_entry.top.texture_key.empty()) {
+        image_manager().retain(resolved_entry.top.texture_key);
+    }
+    for (const std::string &frame_key : resolved_entry.animation_frame_keys) {
+        if (!frame_key.empty()) {
+            image_manager().retain(frame_key);
+        }
+    }
+
+    std::unique_ptr<ResolvedImageEntry> stored_entry = std::make_unique<ResolvedImageEntry>(std::move(resolved_entry));
+    const ResolvedImageEntry *stored_ptr = stored_entry.get();
+    g_resolved_entries.emplace(selector_key, std::move(stored_entry));
+    g_loading_resolved_entries.erase(selector_key);
     return stored_ptr;
 }
 

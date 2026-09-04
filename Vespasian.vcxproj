@@ -11,11 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\assets\augustus_asset_extractor.cpp" />
-    <ClCompile Include="src\assets\graphics_extraction_abi.cpp" />
-    <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_client.cpp" />
     <ClCompile Include="src\assets\assets.cpp" />
-    <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
     <ClCompile Include="src\assets\group.cpp" />
     <ClCompile Include="src\assets\image.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
@@ -67,7 +64,6 @@
     <ClCompile Include="src\building\housing_profile_registry.cpp" />
     <ClCompile Include="src\building\local_workforce.cpp" />
     <ClCompile Include="src\building\local_workforce_route_access.cpp" />
-    <ClCompile Include="src\building\local_workforce_runtime_lists.cpp" />
     <ClCompile Include="src\building\water_access_runtime.cpp" />
     <ClCompile Include="src\building\caravanserai.cpp" />
     <ClCompile Include="src\building\connectable.cpp" />
@@ -172,7 +168,6 @@
     <ClCompile Include="src\core\crash_context.cpp" />
     <ClCompile Include="src\core\hotkey_config.cpp" />
     <ClCompile Include="src\core\image.cpp" />
-    <ClCompile Include="src\core\legacy_image_extractor.cpp" />
     <ClCompile Include="src\core\image_packer.cpp" />
     <ClCompile Include="src\core\io.cpp" />
     <ClCompile Include="src\core\locale.cpp" />
@@ -225,6 +220,7 @@
     <ClCompile Include="src\figure\enemy_army.cpp" />
     <ClCompile Include="src\figure\figure.cpp" />
     <ClCompile Include="src\figure\formation.cpp" />
+    <ClCompile Include="src\figure\formation_member_movement_plan.cpp" />
     <ClCompile Include="src\figure\formation_enemy.cpp" />
     <ClCompile Include="src\figure\formation_herd.cpp" />
     <ClCompile Include="src\figure\formation_layout.cpp" />
@@ -246,6 +242,7 @@
     <ClCompile Include="src\figure\trader.cpp" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
     <ClCompile Include="src\figure\unit_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_type.cpp" />
     <ClCompile Include="src\figure\formation_type_registry.cpp" />
     <ClCompile Include="src\figure\PathingMode.cpp" />
     <ClCompile Include="src\figure\PathingMode_metadata.cpp" />
@@ -263,6 +260,7 @@
     <ClCompile Include="src\game\file.cpp" />
     <ClCompile Include="src\game\file_editor.cpp" />
     <ClCompile Include="src\game\file_io.cpp" />
+    <ClCompile Include="src\game\load_save\LoadSaveModuleClient.cpp" />
     <ClCompile Include="src\game\game.cpp" />
     <ClCompile Include="src\game\performance_tracker.cpp" />
     <ClCompile Include="src\game\mission.cpp" />
@@ -581,11 +579,9 @@
     <ResourceCompile Include="res\augustus.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\assets\augustus_asset_extractor.h" />
+    <ClInclude Include="src\assets\graphics_extraction_client.h" />
     <ClInclude Include="src\assets\graphics_extraction_abi.h" />
-    <ClInclude Include="src\assets\augustus_julius_template_resolver.h" />
     <ClInclude Include="src\assets\assets.h" />
-    <ClInclude Include="src\assets\graphics_extractor_common.h" />
     <ClInclude Include="src\assets\group.h" />
     <ClInclude Include="src\assets\image.h" />
     <ClInclude Include="src\assets\image_group_entry.h" />
@@ -635,7 +631,6 @@
     <ClInclude Include="src\building\housing_profile_registry.h" />
     <ClInclude Include="src\building\local_workforce.h" />
     <ClInclude Include="src\building\local_workforce_route_access.h" />
-    <ClInclude Include="src\building\local_workforce_runtime_lists.h" />
     <ClInclude Include="src\building\caravanserai.h" />
     <ClInclude Include="src\building\connectable.h" />
     <ClInclude Include="src\building\construction.h" />
@@ -742,7 +737,6 @@
     <ClInclude Include="src\core\image.h" />
     <ClInclude Include="src\core\image_group.h" />
     <ClInclude Include="src\core\image_group_editor.h" />
-    <ClInclude Include="src\core\legacy_image_extractor.h" />
     <ClInclude Include="src\core\image_packer.h" />
     <ClInclude Include="src\core\io.h" />
     <ClInclude Include="src\core\locale.h" />
@@ -805,6 +799,7 @@
     <ClInclude Include="src\figure\formation_type.h" />
     <ClInclude Include="src\figure\PathingMode.h" />
     <ClInclude Include="src\figure\formation.h" />
+    <ClInclude Include="src\figure\formation_member_movement_plan.h" />
     <ClInclude Include="src\figure\formation_enemy.h" />
     <ClInclude Include="src\figure\formation_herd.h" />
     <ClInclude Include="src\figure\formation_layout.h" />
@@ -834,6 +829,9 @@
     <ClInclude Include="src\game\file.h" />
     <ClInclude Include="src\game\file_editor.h" />
     <ClInclude Include="src\game\file_io.h" />
+    <ClInclude Include="src\game\load_save\LoadSaveModuleAbi.h" />
+    <ClInclude Include="src\game\load_save\LoadSaveModuleClient.h" />
+    <ClInclude Include="src\building\workforce_types.h" />
     <ClInclude Include="src\game\defines.h" />
     <ClInclude Include="src\game\mod_manager.h" />
     <ClInclude Include="src\game\mod_definition_loader.h" />
@@ -1188,7 +1186,7 @@
     <IntDir>out\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Mods\**\*" Exclude="Mods\**\*.md">
+    <Content Include="Mods\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>Mods\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </Content>
@@ -1239,13 +1237,19 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="GraphicsExtractor.vcxproj">
+      <Project>{4b1435bb-86c6-47ec-9d40-31c955b1bfd4}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="LoadSaveModule.vcxproj">
+      <Project>{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-  <Target Name="RemoveModMarkdownFromOutput" AfterTargets="Build">
-    <ItemGroup>
-      <ModMarkdownOutput Include="$(OutDir)Mods\**\*.md" />
-    </ItemGroup>
-    <Delete Files="@(ModMarkdownOutput)" TreatErrorsAsWarnings="true" />
-  </Target>
 </Project>

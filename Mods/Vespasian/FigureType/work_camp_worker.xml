@@ -11,10 +11,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12">
-            <path value="Walkers\overseer" />
+            <path value="Walkers\Work_Camp_Overseer" />
         </default>
         <corpse frame_count="4">
-            <path value="Walkers\overseer" />
+            <path value="Walkers\Work_Camp_Overseer" />
         </corpse>
     </graphics>
 </figure>

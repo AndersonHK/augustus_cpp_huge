@@ -135,8 +135,7 @@ int building_count_active(building_type type)
     }
     int active = 0;
     for (Building &building : Building::of_type(type)) {
-        const ::building *b = building.record();
-        if (building_is_active(b) && building_counts_once(building)) {
+        if (building.is_active() && building_counts_once(building)) {
             active++;
         }
     }
@@ -170,7 +169,7 @@ int building_count_any_total(int active_only)
         if (!building_counts_once(*building)) {
             return;
         }
-        if (active_only ? building_is_active(b) :
+        if (active_only ? building->is_active() :
             (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
                 b->state == BUILDING_STATE_MOTHBALLED)) {
             total++;
@@ -388,11 +387,10 @@ static int count_forts_per_type(building_type type, int active_only)
 {
     int count = 0;
     for (Building &fort : Building::of_type(type)) {
-        const ::building *b = fort.record();
-        if (!active_only && b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_CREATED) {
+        if (!active_only && !fort.is_in_use() && !fort.is_created()) {
             continue;
         }
-        if (building_is_active(b) >= active_only && building_counts_once(fort) &&
+        if ((!active_only || fort.is_active()) && building_counts_once(fort) &&
             fort.fort_figure_type() == building_count_forts_get_figure_type_from_building(type)) {
             count++;
         }

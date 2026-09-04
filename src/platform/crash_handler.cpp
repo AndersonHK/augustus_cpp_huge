@@ -8,6 +8,8 @@
 
 #include "SDL.h"
 
+#include <exception>
+
 #if (defined(__GNUC__) && !defined(__MINGW32__) && !defined(__OpenBSD__) && \
    !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && \
    !defined(__HAIKU__) && !defined(__EMSCRIPTEN__)) || \
@@ -33,6 +35,15 @@ static void display_crash_message(void)
         "With your help, we can avoid this crash in the future.\n\n"
         "Thanks!\n\n"
         "- The Vespasian dev team");
+}
+
+static void runtime_terminate_handler() noexcept
+{
+    log_error("Unrecoverable runtime invariant violation", 0, 0);
+    crash_context_log_current();
+    runtime_diagnostics_write_crash_dump("Runtime invariant violation");
+    display_crash_message();
+    exit_with_status(1);
 }
 
 #if defined(__GNUC__) && !defined(_WIN32)
@@ -96,6 +107,7 @@ static void crash_handler(int sig)
 
 void system_setup_crash_handler(void)
 {
+    std::set_terminate(runtime_terminate_handler);
     signal(SIGSEGV, crash_handler);
 }
 
@@ -294,12 +306,15 @@ static LONG CALLBACK exception_handler(LPEXCEPTION_POINTERS e)
 
 void system_setup_crash_handler(void)
 {
+    std::set_terminate(runtime_terminate_handler);
     SetUnhandledExceptionFilter(exception_handler);
 }
 
 #else // fallback
 
 void system_setup_crash_handler(void)
-{}
+{
+    std::set_terminate(runtime_terminate_handler);
+}
 
 #endif

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mod>
+    <!-- Required. Must exactly match the folder and active mod-list entry. -->
+    <name value="MyMod" />
+
+    <!-- Required, non-empty human-readable metadata. -->
+    <description value="Describe the gameplay or content supplied by this mod." />
+    <version value="1.0.0" />
+
+    <!-- Required container. Dependencies must appear earlier in the active mod list. -->
+    <dependencies>
+        <mod name="Vespasian" />
+    </dependencies>
+</mod>

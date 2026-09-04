@@ -33,10 +33,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12" payload_frame_count="20">
-            <path value="Warriors\Group_111" />
+            <path value="Warriors\Gladiator" />
         </default>
         <corpse>
-            <path value="Warriors\Group_111" />
+            <path value="Warriors\Gladiator" />
         </corpse>
     </graphics>
 </figure>

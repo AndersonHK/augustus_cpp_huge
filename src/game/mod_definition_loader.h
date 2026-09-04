@@ -45,9 +45,8 @@ using DefinitionSourceVisitor = std::function<bool(const DefinitionSource &)>;
 
 bool configured_layers(std::vector<DefinitionLayer> &out, std::string *failure_reason = nullptr);
 
-// Selects one complete file from a lower-to-upper layer list. This is for
-// resources such as UI documents that inherit as a whole, not registries whose
-// individual definitions are overlaid.
+// Selects one complete singleton file from a lower-to-upper layer list. Use
+// identity-based enumeration for files that contain registry definitions.
 bool find_nearest_file(
     const std::vector<DefinitionLayer> &layers,
     const std::string &relative_path,

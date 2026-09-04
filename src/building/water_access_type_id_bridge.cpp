@@ -1,4 +1,3 @@
-#include "building/building_record.h"
 #include "building/water_access_type_id_bridge.h"
 
 #include "building/water_access_type.h"

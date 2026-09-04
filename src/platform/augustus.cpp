@@ -460,8 +460,6 @@ static bool run_save_soak_ticks(int tick_count)
 
 static void backup_log(const char *filename, const char *filename_old)
 {
-    // On some platforms (vita, android), not removing the file will not empty it when reopening for writing
-    file_remove(filename_old);
     platform_file_manager_copy_file(filename, filename_old);
 }
 
@@ -477,9 +475,14 @@ static void setup_logging(void)
     SDL_free(pref_dir);
     backup_log(log_file, log_file_old);
 
-    // On some platforms (vita, android), not removing the file will not empty it when reopening for writing
+#if defined(__vita__) || defined(__ANDROID__)
     file_remove(log_file);
+#endif
     data.log_file = file_open(log_file, "wt");
+    if (!data.log_file) {
+        fprintf(stderr, "Unable to open Vespasian log file for writing: %s\n", log_file);
+        fflush(stderr);
+    }
     SDL_LogSetOutputFunction(write_log, NULL);
 }
 
@@ -1025,6 +1028,14 @@ static void setup(const augustus_args *args)
         exit_with_status(-1);
     }
 
+    // SDL_GetPrefPath can be unavailable before SDL initialization. Retry here so
+    // startup and configuration failures are captured in the normal log.
+    if (!data.log_file) {
+        setup_logging();
+        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
+        SDL_Log("Running on: %s", system_OS());
+    }
+
 #ifdef __vita__
     const char *base_dir = VITA_PATH_PREFIX;
 #else
@@ -1054,15 +1065,6 @@ static void setup(const augustus_args *args)
         show_startup_error("Missing mod", message);
         SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
         exit_with_status(4);
-    }
-
-    // If starting the log file failed (because, for example, the executable path isn't writable)
-    // try again, placing the log file on the C3 path
-    if (!data.log_file) {
-        setup_logging();
-        // We always want this info
-        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
-        SDL_Log("Running on: %s", system_OS());
     }
 
     if (args->force_windowed && setting_fullscreen()) {

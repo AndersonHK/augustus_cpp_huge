@@ -15,7 +15,6 @@ struct FigureGraphicDrawLayer {
     int y_offset = 0;
     int draw_before_base = 0;
     int use_figure_color_mask = 1;
-    render_logical_size fixed_logical_size = {};
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
 };
 
@@ -32,19 +31,18 @@ private:
 struct FigureGraphicDrawRequest {
     static constexpr int MAX_LAYERS = 4;
 
-    RuntimeDrawSlice base_slice = {};
     FigureGraphicDrawLayer layers[MAX_LAYERS] = {};
     int layer_count = 0;
     int sprite_offset_x = 0;
     int sprite_offset_y = 0;
-    render_logical_size fixed_logical_size = {};
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
-    render_logical_unit logical_units_per_source_pixel = 0;
     FigureMapFlagNumberOverlay map_flag_number_overlay = {};
     int allows_empty = 0;
     int required_layer_count = 0;
     std::string missing_layer_role;
 
+    void set_base_slice(RuntimeDrawSlice slice) { base_slice_ = slice; }
+    bool has_base_slice() const { return base_slice_.is_valid(); }
     bool add_layer(const FigureGraphicDrawLayer &layer);
     bool add_layer(const figure_type_registry_impl::FigureGraphicsLayer &layer);
     bool has_drawable_content() const;
@@ -54,9 +52,12 @@ struct FigureGraphicDrawRequest {
     void draw(int x, int y, color_t color_mask, float scale) const;
 
 private:
+    render_logical_unit logical_units_per_source_pixel() const;
     int scaled_offset(int offset) const;
     void draw_layers(int x, int y, color_t color_mask, float scale, int draw_before_base) const;
-    static void draw_runtime_slice(const RuntimeDrawSlice &slice, int x, int y, color_t color, float scale, render_logical_size fixed_logical_size, render_scaling_policy scaling_policy, render_logical_unit logical_units_per_source_pixel);
+    static void draw_runtime_slice(const RuntimeDrawSlice &slice, int x, int y, color_t color, float scale, render_scaling_policy scaling_policy);
+
+    RuntimeDrawSlice base_slice_ = {};
 };
 
 struct FigureGraphicsDebugCounters {

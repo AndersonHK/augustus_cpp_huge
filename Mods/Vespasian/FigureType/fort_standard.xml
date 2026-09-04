@@ -10,12 +10,12 @@
     </profiles>
     <graphics>
         <default max_image_offset="21">
-            <path value="Warriors\Group_241" />
+            <path value="Warriors\Fort_Standard_Pole" />
         </default>
         <standard moving_frame_divisor="2">
-            <flag unit="fort_legionary" path="Warriors\Group_126" moving_base="0" halted_frame="8" />
-            <flag unit="fort_javelin" path="Warriors\Group_126" moving_base="9" halted_frame="17" />
-            <flag unit="fort_mounted" path="Warriors\Group_126" moving_base="18" halted_frame="26" />
+            <flag unit="fort_legionary" path="Warriors\Fort_Flags" moving_base="0" halted_frame="8" />
+            <flag unit="fort_javelin" path="Warriors\Fort_Flags" moving_base="9" halted_frame="17" />
+            <flag unit="fort_mounted" path="Warriors\Fort_Flags" moving_base="18" halted_frame="26" />
         </standard>
     </graphics>
 </figure>

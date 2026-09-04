@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<foundation type="waterside_2x2" width="2" height="2" rotates="true">
-    <profile symbol="W" requires="water" adds="building" />
-    <profile symbol="L" requires="land" adds="building" />
-    <rows><row cells="WW" /><row cells="LL" /></rows>
-</foundation>

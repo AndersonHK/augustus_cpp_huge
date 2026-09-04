@@ -12,7 +12,7 @@
   <button group="forts" order="140" text_key="TR_BUILDING_FORT_ARCHERS" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <military>
-        <formation key="vespasian_archer_cohort" />
+        <formation key="vespasian_auxiliary_archer_century" />
     </military>
     <graphics>
         <default>

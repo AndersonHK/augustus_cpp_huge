@@ -2,13 +2,12 @@
 
 #include "building/building_fwd.h"
 #include "building/building_order.h"
+#include "building/workforce_types.h"
 #include "core/time.h"
 #include "game/resource.h"
 
 // Transitional runtime building record. Do not add peeled module state here:
 // save/load bridges must read and write legacy payload fields through the owning runtime modules.
-using workforce_count = short;
-
 typedef struct building {
     unsigned int id;
 

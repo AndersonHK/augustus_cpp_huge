@@ -229,6 +229,38 @@ const std::vector<BuildingComposition *> &BuildingComposition::children() const
     return owner_ ? owner_->children_ : children_;
 }
 
+Building &BuildingComposition::require_child_for_role(const char *role, const char *operation) const
+{
+    const BuildingComposition *composition = owner_ ? owner_ : this;
+    composition->require_complete(operation);
+    if (!role || !*role) {
+        log_error("BuildingComposition requires a non-empty child role", operation ? operation : "<unknown>", 0);
+        std::terminate();
+    }
+    for (BuildingComposition *child : composition->children_) {
+        const building_type_registry_impl::CompositionChildDef *child_definition =
+            child ? child->child_definition() : nullptr;
+        if (child_definition && child_definition->role == role && child->building_) {
+            return *child->building_;
+        }
+    }
+
+    const Building *owner = composition->building_;
+    char detail[800];
+    std::snprintf(detail, sizeof(detail),
+        "operation=%s owner_id=%u owner_type=%s missing_role=%s",
+        operation ? operation : "<unknown>",
+        owner ? static_cast<unsigned int>(owner->id) : 0,
+        owner && owner->type ? owner->type->attr() : "<none>",
+        role ? role : "<none>");
+    log_error("BuildingComposition required child role is missing", detail, owner ? owner->id : 0);
+    error_context_report_fatal_error_dialog(
+        "Building composition error",
+        "A live building composition lacks a required child role. The game has stopped to prevent corrupted state from continuing.",
+        detail);
+    std::terminate();
+}
+
 void BuildingComposition::for_each_member(const std::function<void(Building &)> &visitor) const
 {
     const BuildingComposition *composition = owner_ ? owner_ : this;

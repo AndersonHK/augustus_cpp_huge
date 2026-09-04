@@ -1,38 +1,33 @@
 #include "buildings.h"
 
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "building/dock.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 
-static const building DUMMY_BUILDING = { 0 };
-
-static const building *get_first_working_building(const char *text_id)
+static Building *get_first_working_building(const char *text_id)
 {
     const building_type type = building_type_registry_impl::type_from_attr(text_id);
-    for (const Building &building : Building::of_type(type)) {
-        const ::building *b = building.record();
-        if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
-            b->state == BUILDING_STATE_MOTHBALLED) {
-            return b;
+    for (Building &building : Building::of_type(type)) {
+        if (building.is_in_use() || building.is_created() || building.is_mothballed()) {
+            return &building;
         }
     }
-    return &DUMMY_BUILDING;
+    return nullptr;
 }
 
 int city_buildings_has_senate(void)
 {
-    return get_first_working_building("senate")->id != 0;
+    return get_first_working_building("senate") != nullptr;
 }
 
 int city_buildings_has_governor_house(void)
 {
-    return get_first_working_building("governors_house")->id != 0 ||
-        get_first_working_building("governors_villa")->id != 0 ||
-        get_first_working_building("governors_palace")->id != 0;
+    return get_first_working_building("governors_house") ||
+        get_first_working_building("governors_villa") ||
+        get_first_working_building("governors_palace");
 }
 
 int city_buildings_has_barracks(void)
@@ -42,7 +37,8 @@ int city_buildings_has_barracks(void)
 
 int city_buildings_get_barracks(void)
 {
-    return get_first_working_building("barracks")->id;
+    Building *building = get_first_working_building("barracks");
+    return building ? building->id : 0;
 }
 
 int city_buildings_has_mess_hall(void)
@@ -52,22 +48,23 @@ int city_buildings_has_mess_hall(void)
 
 int city_buildings_has_city_mint(void)
 {
-    return get_first_working_building("city_mint")->id != 0;
+    return get_first_working_building("city_mint") != nullptr;
 }
 
 int city_buildings_get_mess_hall(void)
 {
-    return get_first_working_building("mess_hall")->id;
+    Building *building = get_first_working_building("mess_hall");
+    return building ? building->id : 0;
 }
 
 int city_buildings_has_hippodrome(void)
 {
-    return get_first_working_building("hippodrome")->id != 0;
+    return get_first_working_building("hippodrome") != nullptr;
 }
 
 int city_buildings_has_lighthouse(void)
 {
-    return get_first_working_building("lighthouse")->id != 0;
+    return get_first_working_building("lighthouse") != nullptr;
 }
 
 int city_buildings_has_caravanserai(void)
@@ -77,7 +74,8 @@ int city_buildings_has_caravanserai(void)
 
 int city_buildings_get_caravanserai(void)
 {
-    return get_first_working_building("caravanserai")->id;
+    Building *building = get_first_working_building("caravanserai");
+    return building ? building->id : 0;
 }
 
 int city_buildings_triumphal_arch_available(void)
@@ -115,9 +113,9 @@ int city_buildings_has_working_dock(void)
 
 void city_buildings_main_native_meeting_center(int *x, int *y)
 {
-    const building *native_meeting = get_first_working_building("native_meeting");
-    *x = native_meeting->x;
-    *y = native_meeting->y;
+    Building *native_meeting = get_first_working_building("native_meeting");
+    *x = native_meeting ? native_meeting->x() : 0;
+    *y = native_meeting ? native_meeting->y() : 0;
 }
 
 Building *city_buildings_get_closest_plague(int x, int y, int *distance)

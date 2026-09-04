@@ -9,6 +9,7 @@
 #include "figure/figure_type_registry_internal.h"
 #include "figure/type.h"
 #include "graphics/GraphicsDefinition.h"
+#include "game/defines.h"
 #include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
@@ -33,6 +34,9 @@
 #include "water_access_type_layering_test.h"
 #include "unit_type_registry_layering_test.h"
 #include "formation_type_registry_layering_test.h"
+#include "font_vector_runtime_layering_test.h"
+#include "graphics_extraction_boundary_test.h"
+#include "vespasian_graphics_source_contract_test.h"
 #include "figure_type_registry_layering_test.h"
 
 #include <algorithm>
@@ -898,19 +902,52 @@ bool validate_entertainer_graphics_contract()
     return true;
 }
 
-bool validate_native_soldier_frame(const char *name)
+bool validate_native_soldier_animation(
+    const char *group,
+    const std::string &entry_id,
+    const std::string &source_prefix,
+    const char *source_direction,
+    int frame_count)
 {
-    char group[96];
-    std::snprintf(group, sizeof(group), "Warriors\\%s", name);
     if (!image_group_payload_load(group)) {
         std::cerr << "Native soldier graphics contract failed: could not load " << group << ".\n";
         return false;
     }
     const ImageGroupPayload *payload = image_group_payload_get(group);
-    const ImageGroupEntry *entry = payload ? payload->entry_for(name) : nullptr;
-    const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
-    if (!slice || !slice->is_valid() || slice->width > 64 || slice->height > 64) {
-        std::cerr << "Native soldier graphics contract failed: " << group << " did not materialize a valid figure-sized footprint.\n";
+    const ImageGroupEntry *entry = payload ? payload->entry_for(entry_id.c_str()) : nullptr;
+    if (!entry || !entry->has_animation() || entry->animation().frame_count() != frame_count) {
+        std::cerr << "Native soldier graphics contract failed: " << group << " entry " << entry_id
+                  << " did not materialize the declared animation.\n";
+        return false;
+    }
+    for (int frame = 1; frame <= frame_count; frame++) {
+        char source_name[64];
+        if (source_direction) {
+            std::snprintf(source_name, sizeof(source_name), "%s_%s_%02d", source_prefix.c_str(), source_direction, frame);
+        } else {
+            std::snprintf(source_name, sizeof(source_name), "%s_%02d", source_prefix.c_str(), frame);
+        }
+        char source_group[96];
+        std::snprintf(source_group, sizeof(source_group), "Warriors\\%s", source_name);
+        if (!image_group_payload_load(source_group)) return false;
+        const ImageGroupPayload *source_payload = image_group_payload_get(source_group);
+        const ImageGroupEntry *source_entry = source_payload ? source_payload->entry_for(source_name) : nullptr;
+        const RuntimeDrawSlice *source_slice = source_entry ? source_entry->footprint() : nullptr;
+        const RuntimeDrawSlice scaled_slice = entry->animation().frame_slice_at_offset(frame, 0);
+        if (!source_slice || !scaled_slice.is_valid() || scaled_slice.width != source_slice->width ||
+            scaled_slice.height != source_slice->height ||
+            startup_parser::image_resource_fingerprint(scaled_slice.handle) !=
+                startup_parser::image_resource_fingerprint(source_slice->handle) ||
+            scaled_slice.fixed_logical_size.width != scaled_slice.width * 96 ||
+            scaled_slice.fixed_logical_size.height != scaled_slice.height * 96) {
+            std::cerr << "Native soldier graphics contract failed: " << group << " entry " << entry_id
+                      << " frame " << frame << " is not an 0.8-scale reference to " << source_group << ".\n";
+            return false;
+        }
+    }
+    if (entry->animation().sprite_offset_x() != 26 || entry->animation().sprite_offset_y() != 29) {
+        std::cerr << "Native soldier graphics contract failed: " << group << " entry " << entry_id
+                  << " does not preserve the 26,29 tile attachment anchor.\n";
         return false;
     }
     return true;
@@ -918,40 +955,33 @@ bool validate_native_soldier_frame(const char *name)
 
 bool validate_native_auxiliary_soldier_graphics()
 {
-    static const char *const directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
-    static const char *const prefixes[] = { "auxinf", "auxarch" };
-    for (const char *prefix : prefixes) {
-        for (const char *direction : directions) {
-            for (int frame = 1; frame <= 12; frame++) {
-                char name[64];
-                std::snprintf(name, sizeof(name), "%s_%s_%02d", prefix, direction, frame);
-                if (!validate_native_soldier_frame(name)) {
-                    return false;
-                }
-            }
-            for (int frame = 1; frame <= 5; frame++) {
-                char name[64];
-                std::snprintf(name, sizeof(name), "%s_f%s_%s_%02d", prefix, prefix == prefixes[0] ? "" : "m", direction, frame);
-                if (!validate_native_soldier_frame(name)) {
-                    return false;
-                }
-                if (prefix == prefixes[1]) {
-                    std::snprintf(name, sizeof(name), "%s_fr_%s_%02d", prefix, direction, frame);
-                    if (!validate_native_soldier_frame(name)) {
-                        return false;
-                    }
-                }
-            }
-        }
-        for (int frame = 1; frame <= 8; frame++) {
-            char name[64];
-            std::snprintf(name, sizeof(name), "%s_death_%02d", prefix, frame);
-            if (!validate_native_soldier_frame(name)) {
-                return false;
-            }
+    if (!image_group_payload_load("Warriors\\Auxiliary_Infantry") ||
+        !image_group_payload_load("Warriors\\Auxiliary_Archer")) {
+        std::cerr << "Native soldier graphics contract failed: consolidated auxiliary groups did not load.\n";
+        return false;
+    }
+    const ImageGroupPayload *infantry = image_group_payload_get("Warriors\\Auxiliary_Infantry");
+    const ImageGroupPayload *archer = image_group_payload_get("Warriors\\Auxiliary_Archer");
+    if (!infantry || infantry->entry_count() != 17 || !archer || archer->entry_count() != 25) {
+        std::cerr << "Native soldier graphics contract failed: Auxiliary_Infantry must contain exactly 17 entries and Auxiliary_Archer exactly 25.\n";
+        return false;
+    }
+    static const char *const lower_directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    static const char *const semantic_directions[] = { "NE", "E", "SE", "S", "SW", "W", "NW", "N" };
+    for (int direction = 0; direction < 8; direction++) {
+        if (!validate_native_soldier_animation("Warriors\\Auxiliary_Infantry", "Move_" + std::string(semantic_directions[direction]), "auxinf", lower_directions[direction], 12) ||
+            !validate_native_soldier_animation("Warriors\\Auxiliary_Infantry", "Attack_" + std::string(semantic_directions[direction]), "auxinf_f", lower_directions[direction], 5) ||
+            !validate_native_soldier_animation("Warriors\\Auxiliary_Archer", "Move_" + std::string(semantic_directions[direction]), "auxarch", lower_directions[direction], 12) ||
+            !validate_native_soldier_animation("Warriors\\Auxiliary_Archer", "Melee_" + std::string(semantic_directions[direction]), "auxarch_fm", lower_directions[direction], 5) ||
+            !validate_native_soldier_animation("Warriors\\Auxiliary_Archer", "Ranged_" + std::string(semantic_directions[direction]), "auxarch_fr", lower_directions[direction], 5)) {
+            return false;
         }
     }
-    std::cout << "Validated every live, attack, ranged, and corpse frame for native auxiliary soldiers.\n" << std::flush;
+    if (!validate_native_soldier_animation("Warriors\\Auxiliary_Infantry", "Death", "auxinf_death", nullptr, 8) ||
+        !validate_native_soldier_animation("Warriors\\Auxiliary_Archer", "Death", "auxarch_death", nullptr, 8)) {
+        return false;
+    }
+    std::cout << "Validated two consolidated, tile-anchored 0.8-scale auxiliary soldier image groups.\n" << std::flush;
     return true;
 }
 
@@ -983,6 +1013,35 @@ bool validate_named_asset_entries(const char *path, const std::vector<std::strin
     return true;
 }
 
+bool validate_vespasian_legacy_figure_and_projectile_scale_contract()
+{
+    constexpr int expected_legacy_figure_units = 96;
+    constexpr int expected_projectile_units = 96;
+    if (game_defines_legacy_figure_logical_units_per_source_pixel() != expected_legacy_figure_units) {
+        std::cerr << "Vespasian legacy figure presentation scale is not the declared 0.8 value.\n";
+        return false;
+    }
+    if (!image_group_payload_load("Warriors\\Projectiles")) {
+        std::cerr << "Projectile asset contract failed: could not load Warriors\\Projectiles.\n";
+        return false;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get("Warriors\\Projectiles");
+    for (int offset = 0; offset < 48; offset++) {
+        char image_id[32];
+        std::snprintf(image_id, sizeof(image_id), "Image_%04d", offset);
+        const ImageGroupEntry *entry = payload ? payload->entry_for(image_id) : nullptr;
+        const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
+        const render_logical_size logical = entry ? entry->fixed_logical_size() : render_logical_size{};
+        if (!slice || !slice->is_valid() || logical.width != entry->source_pixel_width() * expected_projectile_units ||
+            logical.height != entry->source_pixel_height() * expected_projectile_units) {
+            std::cerr << "Projectile asset contract failed for Warriors\\Projectiles\\" << image_id << ".\n";
+            return false;
+        }
+    }
+    std::cout << "Validated Vespasian 0.8-scale legacy figures and all 48 projectile frames.\n" << std::flush;
+    return true;
+}
+
 bool validate_race_betting_ui_asset_contract()
 {
     return validate_named_asset_entries("UI\\Arrow_Button", { "Increase", "Increase_Pressed", "Decrease", "Decrease_Pressed" }) &&
@@ -1009,7 +1068,7 @@ bool validate_vespasian_race_team_asset_contract()
 
     for (size_t team_index = 0; team_index < race.teams.size(); ++team_index) {
         const building_type_registry_impl::RaceTeamDefinition &team = race.teams[team_index];
-        if (team.graphics_path != "Walkers\\hippodrome_horses" || team.body_entry != body_entries[team_index] ||
+        if (team.graphics_path != "Walkers\\Hippodrome_Chariot_Teams" || team.body_entry != body_entries[team_index] ||
             team.vehicle_entry != vehicle_entries[team_index] ||
             team.vehicle_behind[0] != 1 || team.vehicle_behind[1] != 1 || team.vehicle_behind[5] != 1 ||
             team.vehicle_behind[6] != 1 || team.vehicle_behind[7] != 1) {
@@ -1362,6 +1421,47 @@ bool validate_synthetic_figure_lifecycle_graphics_contract()
     return true;
 }
 
+bool validate_semantic_walker_alias_frame_selection_contract()
+{
+    struct BindingCase {
+        figure_type type;
+        GraphicsTargetRole role;
+        int direction;
+        int frame;
+        const char *expected_entry;
+    };
+    constexpr BindingCase cases[] = {
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 1, "Image_0000" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 1, 1, "Image_0001" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 2, "Image_0008" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 7, 12, "Image_0095" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 0, 1, "Image_0096" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 7, 8, "Image_0103" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 1, "Image_0000" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 1, 1, "Image_0001" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 2, "Image_0008" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Corpse, 0, 1, "Image_0096" }
+    };
+
+    for (const BindingCase &test_case : cases) {
+        const figure_type_registry_impl::FigureGraphics *graphics =
+            figure_type_registry_impl::graphics_for(test_case.type);
+        const figure_type_registry_impl::GraphicsTargetBinding *binding = graphics ?
+            graphics->cached_target_binding(test_case.role, test_case.direction, test_case.frame) :
+            nullptr;
+        if (!binding || binding->image != test_case.expected_entry || !binding->frame_selects_entry) {
+            std::cerr << "Semantic walker alias selected the wrong extracted entry: figure_type="
+                << static_cast<int>(test_case.type)
+                << " direction=" << test_case.direction << " frame=" << test_case.frame
+                << " expected=" << test_case.expected_entry
+                << " actual=" << (binding ? binding->image : "missing") << ".\n";
+            return false;
+        }
+    }
+    std::cout << "Validated semantic walker aliases across direction, animation, and corpse entries.\n" << std::flush;
+    return true;
+}
+
 struct ExtractionPrerequisite {
     const char *label;
     const char *relative_path;
@@ -1561,11 +1661,11 @@ bool run_executable_save_soak_tests(const std::filesystem::path &game_root, cons
         return false;
     }
     std::cout << "Running " << saves.size() << " required and representative Vespasian save soak(s) for " << tick_count << " ticks each at 1000% speed.\n" << std::flush;
-    bool passed = true;
     for (const std::filesystem::path &save : saves) {
-        if (!run_executable_save_soak_test(executable, game_root, save, "Vespasian", tick_count)) passed = false;
+        if (!run_executable_save_soak_test(executable, game_root, save, "Vespasian", tick_count)) {
+            return false;
+        }
     }
-    if (!passed) return false;
     std::cout << "Required and representative save soaks passed with zero unallowlisted warnings and errors.\n";
     return true;
 }
@@ -1688,6 +1788,14 @@ int run_startup_parser_test(int argc, char **argv)
     if (!check_extraction_prerequisites(game_root, tool_directory)) {
         return 1;
     }
+    std::filesystem::path source_graphics = tool_directory.parent_path().parent_path() /
+        "Mods" / "Vespasian" / "Graphics";
+    if (!std::filesystem::is_directory(source_graphics)) {
+        source_graphics = game_root / "Mods" / "Vespasian" / "Graphics";
+    }
+    if (!validate_vespasian_graphics_source_contract(source_graphics, std::cerr)) {
+        return 1;
+    }
 
     StartupEnvironmentSnapshot environment;
     if (!inspect_startup_environment(environment)) {
@@ -1743,9 +1851,11 @@ int run_startup_parser_test(int argc, char **argv)
          !validate_colosseum_graphics_contract() ||
          !validate_figure_owner_contracts() ||
          !validate_race_betting_ui_asset_contract() ||
+         !validate_vespasian_legacy_figure_and_projectile_scale_contract() ||
          !validate_vespasian_race_team_asset_contract() ||
          !validate_semantic_figure_graphics_contract() ||
          !validate_legacy_figure_image_selection_parity() ||
+         !validate_semantic_walker_alias_frame_selection_contract() ||
          !validate_synthetic_figure_lifecycle_graphics_contract() ||
          !validate_native_auxiliary_soldier_graphics()) {
         return 1;
@@ -1784,6 +1894,12 @@ int run_startup_parser_test(int argc, char **argv)
         return 1;
     }
     if (!validate_formation_type_registry_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_font_vector_runtime_layering_contract(std::cerr)) {
+        return 1;
+    }
+    if (!validate_graphics_extraction_boundary(std::cerr)) {
         return 1;
     }
     if (!validate_figure_type_registry_layering_contract(std::cerr)) {

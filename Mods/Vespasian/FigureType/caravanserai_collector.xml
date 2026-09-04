@@ -10,10 +10,10 @@
     </profiles>
     <graphics>
         <default>
-            <path value="Walkers\caravanserai_walker" />
+            <path value="Walkers\Caravanserai_Collector" />
         </default>
         <corpse frame_count="8">
-            <path value="Walkers\caravanserai_walker" />
+            <path value="Walkers\Caravanserai_Collector" />
         </corpse>
     </graphics>
 </figure>

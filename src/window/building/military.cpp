@@ -604,7 +604,7 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
             } else {
                 title_id = 16;
                 text_id = 22;
-                log_info("Unknown formation", m->layout_type() ? m->layout_type()->key() : "unbound", 0);
+                log_info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
             }
             break;
     }
@@ -734,7 +734,7 @@ static void button_layout(const generic_button *button)
         return;
     }
     // store layout in case of mop up
-    const char *new_layout = m->layout_type() ? m->layout_type()->key() : "column";
+    const char *new_layout = m->layout_definition ? m->layout_definition->key() : "column";
     if (m->figure_type == FIGURE_FORT_LEGIONARY || m->figure_type == FIGURE_FORT_INFANTRY) {
         switch (index) {
             case 0: new_layout = "tortoise"; break;

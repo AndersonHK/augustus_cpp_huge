@@ -5,6 +5,8 @@ This is the stable requirements companion for `deep_refactor_implementation_prog
 ## Data Ownership
 
 - XML declarations are the source of truth for buildings, figures, units, formations, resources, graphics, pathing, and movement surfaces.
+- The configured mod list is one ordered composition, lowest priority first. Registries merge definitions by authored stable identity: absence means inherit, a higher declaration replaces only the same identity, and two declarations of one identity inside a layer are invalid. A sparse or otherwise blank upper mod is valid when the completed lower stack supplies the required definitions.
+- Parse every available layer into staged objects before publishing. Validate required definitions and cross-references against the final composed winners, not against each individual mod folder. Filenames are discovery paths unless a schema explicitly defines the path itself as identity.
 - Preserve mod identity: Julius XML/data should match Julius GH behavior, Augustus should match Augustus GH behavior, and Vespasian is the enhanced data mod for intentional behavior changes such as making actor colonies required for plays.
 - Startup should resolve XML keys into immutable typed definition objects once, then hand those definitions to runtime for the rest of the process.
 - Save/load should be the only layer that knows save records. It should hydrate records into live objects, serialize live objects and module state back into save records, and apply old-save migrations without owning game-loop behavior.

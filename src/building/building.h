@@ -174,6 +174,8 @@ public:
     int is_deleted() const;
     int is_created() const;
     int is_in_use() const;
+    bool is_active() const;
+    int is_labor_source_house() const;
     int is_mothballed() const;
     int is_fire_proof() const;
     MaintenanceRiskOutcome apply_maintenance_risk(const MaintenanceRiskTick &tick);
@@ -197,6 +199,7 @@ public:
         const map_point &source_road,
         int radius,
         bool allow_highways = false) const;
+    void initialize_loaded_foundation();
     building_runtime *runtime_instance() const;
     BuildingGraphics &Graphics(const std::source_location &location = std::source_location::current()) const;
     building_type_registry_impl::BuildingAnimation animate();
@@ -363,8 +366,6 @@ void building_update_state(void);
 void building_update_desirability(void);
 
 int building_is_fort(building_type type);
-
-int building_is_active(const building *b);
 
 int building_mothball_toggle(building *b);
 

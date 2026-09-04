@@ -55,6 +55,7 @@ struct ParseState {
     FormationLayoutDef::ArmyOffsets army_offsets;
     std::array<bool, ARMY_ORIENTATION_COUNT> saw_army_orientation = {};
     std::string army_offsets_reference;
+    int stationary_facing = DIR_8_NONE;
     int current_army_orientation = -1;
     bool disabled = false;
     bool saw_root = false;
@@ -67,6 +68,7 @@ struct StagedLayout {
     std::vector<FormationLayoutPosition> positions;
     FormationLayoutDef::ArmyOffsets army_offsets;
     std::string army_offsets_reference;
+    int stationary_facing = DIR_8_NONE;
     std::unique_ptr<FormationLayoutDef> definition;
     mod_definition::DefinitionSource source;
     bool disabled = false;
@@ -129,6 +131,13 @@ int parse_root()
             g_parse_state.error = true;
             return 0;
         }
+    }
+    if (xml_parser_has_attribute("stationary_facing") &&
+        (!parse_signed_attribute("stationary_facing", &g_parse_state.stationary_facing) ||
+            g_parse_state.stationary_facing < DIR_0_TOP || g_parse_state.stationary_facing >= DIR_8_NONE)) {
+        log_error("FormationLayout stationary_facing must be a direction from 0 through 7", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
     }
 
     g_parse_state.saw_root = true;
@@ -240,6 +249,7 @@ int parse_definition_buffer(
         out_definition->positions = std::move(g_parse_state.positions);
         out_definition->army_offsets = std::move(g_parse_state.army_offsets);
         out_definition->army_offsets_reference = std::move(g_parse_state.army_offsets_reference);
+        out_definition->stationary_facing = g_parse_state.stationary_facing;
         out_definition->disabled = g_parse_state.disabled;
     }
     return 1;
@@ -284,7 +294,8 @@ int resolve_and_validate_winners(StagedLayouts &staged, bool require_full_covera
             winner.legacy_id,
             std::move(winner.positions),
             std::move(winner.army_offsets),
-            std::move(winner.army_offsets_reference));
+            std::move(winner.army_offsets_reference),
+            winner.stationary_facing);
     }
     if (require_full_coverage && legacy_owners.size() != formation_layout_legacy::COUNT) {
         staged.failure_reason = "FormationLayout definitions must cover every supported legacy layout id.";
@@ -298,6 +309,11 @@ int resolve_and_validate_winners(StagedLayouts &staged, bool require_full_covera
                 staged.failure_reason = "FormationLayout requires stable identity '" +
                     std::string(required.key) + "' with legacy_id " +
                     std::to_string(required.legacy_id) + ".";
+                return 0;
+            }
+            if (required.legacy_id == formation_layout_legacy::AT_REST &&
+                winner->second.definition->stationary_facing == DIR_8_NONE) {
+                staged.failure_reason = "FormationLayout 'at_rest' requires an explicit stationary_facing.";
                 return 0;
             }
         }
@@ -356,81 +372,6 @@ const std::vector<std::unique_ptr<FormationLayoutDef>> &layouts()
 
 } // namespace formation_layout_registry_impl
 
-FormationLayoutDef::FormationLayoutDef(
-    std::string key,
-    int legacy_id,
-    std::vector<FormationLayoutPosition> positions,
-    ArmyOffsets army_offsets,
-    std::string army_offsets_reference)
-    : key_(std::move(key)),
-      legacy_id_(legacy_id),
-      positions_(std::move(positions)),
-      army_offsets_(std::move(army_offsets)),
-      army_offsets_reference_(std::move(army_offsets_reference))
-{
-}
-
-const char *FormationLayoutDef::key() const
-{
-    return key_.c_str();
-}
-
-bool FormationLayoutDef::matches_key(const char *key) const
-{
-    return xml_value::equals(key_.c_str(), key);
-}
-
-int FormationLayoutDef::legacy_id() const
-{
-    return legacy_id_;
-}
-
-int FormationLayoutDef::authored_position_count() const
-{
-    return static_cast<int>(positions_.size());
-}
-
-FormationLayoutPosition FormationLayoutDef::authored_position(int index) const
-{
-    if (index < 0 || index >= authored_position_count()) {
-        return {0, 0};
-    }
-    return positions_[static_cast<size_t>(index)];
-}
-
-bool FormationLayoutDef::has_authored_army_offsets() const
-{
-    for (const std::vector<FormationLayoutPosition> &orientation : army_offsets_) {
-        if (orientation.empty()) {
-            return false;
-        }
-    }
-    return true;
-}
-
-const char *FormationLayoutDef::army_offsets_reference() const
-{
-    return army_offsets_reference_.c_str();
-}
-
-void FormationLayoutDef::bind_army_offsets_reference(const FormationLayoutDef *layout)
-{
-    army_offsets_definition_ = layout;
-}
-
-FormationLayoutPosition FormationLayoutDef::army_offset(int orientation, int formation_index) const
-{
-    const FormationLayoutDef *source = army_offsets_definition_ ? army_offsets_definition_ : this;
-    if (orientation < 0 || orientation >= static_cast<int>(source->army_offsets_.size()) ||
-        formation_index < 0) {
-        return {0, 0};
-    }
-    const std::vector<FormationLayoutPosition> &offsets =
-        source->army_offsets_[static_cast<size_t>(orientation)];
-    return formation_index < static_cast<int>(offsets.size()) ?
-        offsets[static_cast<size_t>(formation_index)] : FormationLayoutPosition{0, 0};
-}
-
 const char *formation_layout_registry_get_failure_reason(void)
 {
     return formation_layout_registry_impl::g_failure_reason.c_str();
@@ -461,7 +402,12 @@ const FormationLayoutDef *formation_layout_from_legacy_id(int legacy_id)
 {
     const FormationLayoutDef *layout =
         formation_layout_registry_impl::find_layout_by_legacy_id(legacy_id);
-    return layout ? layout : formation_layout_registry_impl::find_layout("column");
+    if (layout) {
+        return layout;
+    }
+
+    log_warning("Repairing unknown serialized formation layout as column", 0, legacy_id);
+    return formation_layout_registry_impl::find_layout("column");
 }
 
 int formation_layout_to_legacy_id(const FormationLayoutDef *layout)

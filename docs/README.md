@@ -14,6 +14,7 @@ Top-level documents in this directory describe the current runtime, active migra
 
 ## Active Migration And Validation Work
 
+- [`vespasian_formation_graphics_and_bridge_modules_checklist.md`](vespasian_formation_graphics_and_bridge_modules_checklist.md): authoritative checklist for Vespasian formation sizing, scaled semantic figure graphics, combat data, and Extractor/LoadSave DLL isolation.
 - [`deep_refactor_implementation_progress.md`](deep_refactor_implementation_progress.md): consolidated implementation and manual-validation tracker.
 - [`figure_owned_native_graphics_plan.md`](figure_owned_native_graphics_plan.md): remaining figure-graphics ownership work.
 - [`renderer_scaling_seam_plan.md`](renderer_scaling_seam_plan.md), [`render_performance_plans.md`](render_performance_plans.md), and [`renderer_ui_vertical_slice_design.md`](renderer_ui_vertical_slice_design.md): renderer transition work.

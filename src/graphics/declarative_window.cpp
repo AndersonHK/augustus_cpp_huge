@@ -19,6 +19,7 @@
 #include "core/file.h"
 #include "core/xml_parser.h"
 #include "game/mod_definition_loader.h"
+#ifndef STARTUP_PARSER_TEST
 #include "graphics/image.h"
 #include "graphics/graphics.h"
 #include "graphics/image_border.h"
@@ -26,14 +27,16 @@
 #include "graphics/ui_runtime_api.h"
 #include "translation/translation.h"
 #include "window/main_menu.h"
+#endif
 
 namespace {
 
+#ifndef STARTUP_PARSER_TEST
 constexpr const char *kMissionBriefingWindowId = "mission_briefing";
 constexpr const char *kMainMenuWindowId = "main_menu";
-
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindowDefinition>> g_windows;
 std::unordered_map<std::string, std::unique_ptr<DeclarativeWindow>> g_constructed_windows;
+#endif
 std::string g_failure_reason;
 
 struct ParseState {
@@ -259,6 +262,12 @@ void set_failure_reason(const char *message, const char *detail)
 
 int parse_window_node(void)
 {
+    if (g_parse_state.saw_root) {
+        set_failure_reason("Declarative window XML contains duplicate window roots.", nullptr);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
     const char *id = xml_parser_get_attribute_string("id");
     if (!id || !*id) {
         set_failure_reason("Declarative window XML is missing a window id.", nullptr);
@@ -429,12 +438,11 @@ int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
     return 1;
 }
 
-int parse_definition_file(const char *filename)
+int parse_definition_buffer(
+    const char *filename,
+    const std::vector<char> &buffer,
+    std::unique_ptr<DeclarativeWindowDefinition> &definition)
 {
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
     if (buffer.size() > std::numeric_limits<unsigned int>::max()) {
         set_failure_reason("Declarative window XML is too large to parse.", filename);
         return 0;
@@ -456,10 +464,60 @@ int parse_definition_file(const char *filename)
         return 0;
     }
 
-    g_windows[g_parse_state.definition->id()] = std::move(g_parse_state.definition);
+    definition = std::move(g_parse_state.definition);
     return 1;
 }
 
+int parse_definition_file(
+    const mod_definition::DefinitionSource &source,
+    std::unique_ptr<DeclarativeWindowDefinition> &definition)
+{
+    std::vector<char> buffer;
+    if (!load_file_to_buffer(source.full_path.c_str(), buffer)) {
+        return 0;
+    }
+    return parse_definition_buffer(source.full_path.c_str(), buffer, definition);
+}
+
+struct StagedWindowRegistry {
+    std::map<std::string, std::unique_ptr<DeclarativeWindowDefinition>> winners;
+    mod_definition::DefinitionOverlayTracker overlays;
+};
+
+int stage_definition(
+    StagedWindowRegistry &staged,
+    std::unique_ptr<DeclarativeWindowDefinition> definition,
+    const mod_definition::DefinitionSource &source)
+{
+    const std::string stable_id = definition ? definition->id() : "";
+    if (!staged.overlays.apply(stable_id, false, source)) {
+        set_failure_reason("Unable to layer declarative window definition.", staged.overlays.failure_reason().c_str());
+        error_context_report_error("Unable to layer declarative window definition.", staged.overlays.failure_reason().c_str());
+        return 0;
+    }
+    staged.winners.insert_or_assign(stable_id, std::move(definition));
+    return 1;
+}
+
+int build_layered_registry(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    StagedWindowRegistry &staged)
+{
+    return mod_definition::for_each_definition_file(
+        layers,
+        {"UI\\windows"},
+        "declarative window",
+        true,
+        [&](const mod_definition::DefinitionSource &source) {
+            std::unique_ptr<DeclarativeWindowDefinition> definition;
+            return parse_definition_file(source, definition) &&
+                stage_definition(staged, std::move(definition), source);
+        },
+        nullptr,
+        &g_failure_reason);
+}
+
+#ifndef STARTUP_PARSER_TEST
 int validate_required_widget(const DeclarativeWindowDefinition &definition, const char *id, DeclarativeWidgetType type)
 {
     const DeclarativeWidgetDefinition *widget = definition.widget(id);
@@ -619,6 +677,7 @@ int validate_main_menu()
     }
     return 1;
 }
+#endif
 
 } // namespace
 
@@ -769,6 +828,7 @@ int DeclarativeWindowDefinition::has_widget(std::string_view id) const
     return widget(id) != nullptr;
 }
 
+#ifndef STARTUP_PARSER_TEST
 DeclarativeWindow::DeclarativeWindow(const DeclarativeWindowDefinition &definition)
     : definition_(&definition)
 {
@@ -1064,18 +1124,17 @@ int declarative_window_registry_load(void)
     g_constructed_windows.clear();
     g_failure_reason.clear();
 
-    // UI documents inherit as complete files. Enumerate the whole category so
-    // a mod can add a new window without adding its path to native code; an
-    // upper layer replaces only the same registry-relative document.
-    std::map<std::string, mod_definition::DefinitionSource> winners;
-    if (!mod_definition::for_each_configured_definition_file(
-            { "UI\\windows" }, "declarative window", true,
-            [&](const mod_definition::DefinitionSource &source) {
-                winners[source.normalized_definition_path] = source;
-                return true;
-            }, nullptr, &g_failure_reason)) return 0;
-    for (const auto &winner : winners) {
-        if (!parse_definition_file(winner.second.full_path.c_str())) return 0;
+    std::vector<mod_definition::DefinitionLayer> layers;
+    if (!mod_definition::configured_layers(layers, &g_failure_reason)) {
+        return 0;
+    }
+
+    StagedWindowRegistry staged;
+    if (!build_layered_registry(layers, staged)) {
+        return 0;
+    }
+    for (auto &winner : staged.winners) {
+        g_windows.emplace(winner.first, std::move(winner.second));
     }
     if (!validate_mission_briefing()) {
         return 0;
@@ -1090,12 +1149,14 @@ int declarative_window_registry_load(void)
     }
     return 1;
 }
+#endif
 
 const char *declarative_window_registry_get_failure_reason(void)
 {
     return g_failure_reason.c_str();
 }
 
+#ifndef STARTUP_PARSER_TEST
 const DeclarativeWindowDefinition *declarative_window_definition(std::string_view id)
 {
     const auto found = g_windows.find(std::string(id));
@@ -1107,3 +1168,54 @@ const DeclarativeWindow *declarative_window(std::string_view id)
     const auto found = g_constructed_windows.find(std::string(id));
     return found != g_constructed_windows.end() ? found->second.get() : nullptr;
 }
+#endif
+
+#ifdef STARTUP_PARSER_TEST
+int declarative_window_layered_definition_buffers_are_valid_for_test(
+    const declarative_window_layer_test_input *inputs,
+    int input_count,
+    const char *query_id,
+    declarative_window_layer_test_result *result)
+{
+    if (!inputs || input_count < 0) {
+        return 0;
+    }
+
+    g_failure_reason.clear();
+    StagedWindowRegistry staged;
+    for (int index = 0; index < input_count; ++index) {
+        const declarative_window_layer_test_input &input = inputs[index];
+        const char *xml = input.xml ? input.xml : "";
+        std::vector<char> buffer(xml, xml + std::strlen(xml));
+
+        mod_definition::DefinitionSource source;
+        source.layer_index = input.layer_index < 0 ? 0 : static_cast<std::size_t>(input.layer_index);
+        source.mod_name = input.mod_name ? input.mod_name : "";
+        source.category = "UI\\windows";
+        source.full_path = input.source_path ? input.source_path : "DeclarativeWindowLayerTest.xml";
+        source.file_name = source.full_path;
+
+        std::unique_ptr<DeclarativeWindowDefinition> definition;
+        if (!parse_definition_buffer(source.full_path.c_str(), buffer, definition) ||
+            !stage_definition(staged, std::move(definition), source)) {
+            return 0;
+        }
+    }
+
+    if (result) {
+        *result = {};
+        result->active_count = static_cast<int>(staged.overlays.active_count());
+        result->queried_source_layer = -1;
+        const std::string stable_id = query_id ? query_id : "";
+        const mod_definition::DefinitionOverlayEntry *overlay = staged.overlays.find(stable_id);
+        if (overlay) {
+            result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+        }
+        const auto winner = staged.winners.find(stable_id);
+        if (winner != staged.winners.end() && winner->second) {
+            result->queried_base_width = winner->second->base_width();
+        }
+    }
+    return 1;
+}
+#endif

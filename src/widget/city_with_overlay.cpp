@@ -537,7 +537,7 @@ static void draw_figures(Figure *first_figure, int x, int y)
 {
     Figure *f = first_figure;
     while (f) {
-        const bool elevated = (f->use_cross_country && !f->dont_draw_elevated) || f->height_adjusted_ticks;
+        const bool elevated = f->draws_elevated();
         if (!elevated && !f->is_ghost && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
         }
@@ -555,7 +555,7 @@ static void draw_elevated_figures(Figure *first_figure, int x, int y)
 {
     Figure *f = first_figure;
     while (f) {
-        if (((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) && overlay->show_figure(f)) {
+        if (f->draws_elevated() && (!f->is_ghost || f->height_adjusted_ticks) && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
         } else if (f->building && f->building->id == city_roamer_preview_selected_building_id) { //figure from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {

@@ -10,10 +10,10 @@
     </profiles>
     <graphics>
         <default max_image_offset="12">
-            <path value="Walkers\Group_118" />
+            <path value="Walkers\Homeless" />
         </default>
         <corpse>
-            <path value="Walkers\Group_118" />
+            <path value="Walkers\Homeless" />
         </corpse>
     </graphics>
 </figure>

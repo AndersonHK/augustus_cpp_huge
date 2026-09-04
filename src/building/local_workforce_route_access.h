@@ -39,9 +39,8 @@ private:
         RouteAccessSelectorContext &context);
 
     int houseAccessAreaTouchesSourceNetwork(const Building &house) const;
-    int houseRecordIsLiveLaborSource(const building *house) const;
     void recordNetworkPrune() const;
-    Route::RoadResult findHouseAccessRoad(const Building &house, const building &house_record) const;
+    Route::RoadResult findHouseAccessRoad(const Building &house) const;
     HouseRouteSelection bestSelection(
         const HouseRouteSelection &current,
         Building &house,

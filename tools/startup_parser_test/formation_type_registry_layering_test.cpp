@@ -1,18 +1,23 @@
 #include "formation_type_registry_layering_test.h"
 
 #include "figure/formation.h"
+#include "figure/formation_member_movement_plan.h"
 #include "figure/formation_type.h"
 
+#include <array>
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace {
 
 constexpr const char *LOWER_XML =
-    "<formation key=\"archers\"><grid width=\"2\" height=\"1\"/>"
+    "<formation key=\"archers\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
     "<slot fill=\"all\" unit=\"archer\"/></formation>";
 constexpr const char *UPPER_XML =
-    "<formation key=\"archers\" recruit_capacity=\"2\"><grid width=\"3\" height=\"1\"/>"
+    "<formation key=\"archers\" recruit_capacity=\"2\"><grid width=\"3\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
+    "<combat melee_attack_modifier=\"2\" melee_defense_modifier=\"1\" morale_modifier=\"5\" "
+    "missile_damage_modifier=\"-1\"/>"
     "<slot fill=\"all\" unit=\"archer\"/></formation>";
 constexpr const char *DISABLED_XML =
     "<formation key=\"archers\" disabled=\"true\"></formation>";
@@ -63,10 +68,306 @@ bool valid(
     return formation_type_layered_definition_buffers_are_valid_for_test(inputs, count, query, result) != 0;
 }
 
+bool positions_are_unique(const std::vector<FormationLayoutPosition> &positions)
+{
+    for (size_t first = 0; first < positions.size(); ++first) {
+        for (size_t second = first + 1; second < positions.size(); ++second) {
+            if (positions[first].x == positions[second].x && positions[first].y == positions[second].y) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool same_destination(const FigureMovementDestination &left, const FigureMovementDestination &right)
+{
+    return left.x == right.x && left.y == right.y && left.plane == right.plane;
+}
+
+bool validate_formation_member_assignment_contract(std::ostream &errors)
+{
+    FormationLayoutDef layout("assignment_test", -1, {}, {}, "");
+    std::array<RelationshipEndpoint, 102> members;
+    std::vector<FigureMovementDestination> ideals;
+    std::vector<FormationMemberStationRequest> ascending;
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            const int slot = y * 8 + x;
+            ideals.push_back({32 + x * 64, 32 + y * 64, FigureMovementPlane::Ground});
+            ascending.push_back({slot, &members[static_cast<size_t>(slot)]});
+        }
+    }
+    std::vector<FormationMemberStationRequest> descending(ascending.rbegin(), ascending.rend());
+    const auto reachable = [](int, const FigureMovementDestination &candidate) {
+        const int tile_x = figure_movement_cross_country_to_tile(candidate.x);
+        const int tile_y = figure_movement_cross_country_to_tile(candidate.y);
+        if (tile_x < 0 || tile_y < 0 || tile_x >= 4 || tile_y >= 4) return 0;
+        if (tile_x == 1 && tile_y == 1) return 0;
+        return 1 + tile_x + tile_y;
+    };
+
+    FormationMemberMovementPlan forward;
+    FormationMemberMovementPlan reverse;
+    const FormationMovementBounds four_by_four_bounds = {0, 0, 511, 511};
+    if (!forward.configure(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, four_by_four_bounds, ideals) ||
+        !reverse.configure(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, four_by_four_bounds, ideals) ||
+        !forward.assign_members(ascending, reachable) || !reverse.assign_members(descending, reachable)) {
+        errors << "Formation station planner rejected a complete 8x8 roster.\n";
+        return false;
+    }
+
+    std::vector<FigureMovementDestination> resolved;
+    for (int slot = 0; slot < 64; slot++) {
+        FigureMovementDestination forward_destination = {};
+        FigureMovementDestination reverse_destination = {};
+        FormationStationState forward_state = FormationStationState::Unplaced;
+        FormationStationState reverse_state = FormationStationState::Unplaced;
+        if (!forward.resolve_member(slot, members[static_cast<size_t>(slot)], &forward_destination, &forward_state) ||
+            !reverse.resolve_member(slot, members[static_cast<size_t>(slot)], &reverse_destination, &reverse_state) ||
+            forward_state == FormationStationState::Unplaced || forward_state != reverse_state ||
+            !same_destination(forward_destination, reverse_destination)) {
+            errors << "Formation station assignment depends on roster traversal order or left a reachable member unplaced.\n";
+            return false;
+        }
+        const int ideal_tile_x = figure_movement_cross_country_to_tile(ideals[slot].x);
+        const int ideal_tile_y = figure_movement_cross_country_to_tile(ideals[slot].y);
+        const bool ideal_is_blocked = ideal_tile_x == 1 && ideal_tile_y == 1;
+        if ((ideal_is_blocked && forward_state != FormationStationState::Fallback) ||
+            (!ideal_is_blocked && forward_state != FormationStationState::Ideal) ||
+            forward_destination.x < 0 || forward_destination.x > 480 ||
+            forward_destination.y < 0 || forward_destination.y > 480) {
+            errors << "Formation station planner did not keep internal-obstacle fallbacks inside the formation footprint.\n";
+            return false;
+        }
+        for (int other_slot = 0; other_slot < 64; other_slot++) {
+            if (other_slot != slot && same_destination(forward_destination, ideals[other_slot])) {
+                errors << "Formation fallback stole a canonical station reserved for a future or current member.\n";
+                return false;
+            }
+        }
+        for (const FigureMovementDestination &other : resolved) {
+            if (same_destination(forward_destination, other)) {
+                errors << "Formation station planner stacked two members on one exact endpoint.\n";
+                return false;
+            }
+        }
+        resolved.push_back(forward_destination);
+    }
+
+    FormationMemberMovementPlan partial;
+    const std::vector<FormationMemberStationRequest> incumbents(ascending.begin(), ascending.begin() + 4);
+    if (!partial.configure(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, four_by_four_bounds, ideals) ||
+        !partial.assign_members(incumbents, reachable)) {
+        errors << "Formation station planner rejected a partial roster.\n";
+        return false;
+    }
+    std::vector<FigureMovementDestination> incumbent_destinations;
+    for (int slot = 0; slot < 4; slot++) {
+        FigureMovementDestination destination = {};
+        FormationStationState state = FormationStationState::Unplaced;
+        partial.resolve_member(slot, members[static_cast<size_t>(slot)], &destination, &state);
+        incumbent_destinations.push_back(destination);
+    }
+    if (!partial.assign_member(4, members[4], reachable)) {
+        errors << "Formation station planner rejected the next free recruit slot.\n";
+        return false;
+    }
+    for (int slot = 0; slot < 4; slot++) {
+        FigureMovementDestination destination = {};
+        FormationStationState state = FormationStationState::Unplaced;
+        if (!partial.resolve_member(slot, members[static_cast<size_t>(slot)], &destination, &state) ||
+            !same_destination(destination, incumbent_destinations[slot])) {
+            errors << "Adding a recruit changed an incumbent formation assignment.\n";
+            return false;
+        }
+    }
+    partial.release_member(1, members[1]);
+    if (!partial.assign_member(1, members[100], reachable)) {
+        errors << "Formation station planner could not reuse a casualty's released roster slot.\n";
+        return false;
+    }
+    for (int slot : {0, 2, 3}) {
+        FigureMovementDestination destination = {};
+        FormationStationState state = FormationStationState::Unplaced;
+        if (!partial.resolve_member(slot, members[static_cast<size_t>(slot)], &destination, &state) ||
+            !same_destination(destination, incumbent_destinations[slot])) {
+            errors << "Replacing a removed member changed an unrelated incumbent assignment.\n";
+            return false;
+        }
+    }
+    if (!partial.matches(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, 64)) {
+        errors << "Formation station plan lost its command/layout/anchor context.\n";
+        return false;
+    }
+    partial.invalidate();
+    if (partial.matches(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, 64)) {
+        errors << "Formation station plan ignored explicit command invalidation.\n";
+        return false;
+    }
+
+    FormationMemberMovementPlan isolated;
+    const std::vector<FigureMovementDestination> isolated_ideal = {{64, 64, FigureMovementPlane::Ground}};
+    if (!isolated.configure(FormationMemberDestination::Standard, layout, 0, 0, 1, 1,
+            {0, 0, 127, 127}, isolated_ideal) ||
+        !isolated.assign_member(0, members[99], [](int, const FigureMovementDestination &) { return 0; })) {
+        errors << "Formation station planner rejected an explicitly unreachable member.\n";
+        return false;
+    }
+    FigureMovementDestination isolated_destination = {};
+    FormationStationState isolated_state = FormationStationState::Ideal;
+    if (!isolated.resolve_member(0, members[99], &isolated_destination, &isolated_state) ||
+        isolated_state != FormationStationState::Unplaced) {
+        errors << "Formation station planner did not preserve explicit Unplaced state for an unreachable member.\n";
+        return false;
+    }
+
+    FormationMemberMovementPlan thick_obstacle;
+    if (!thick_obstacle.configure(FormationMemberDestination::Standard, layout, 0, 0, 1, 1,
+            {0, 0, 1023, 1023}, isolated_ideal) ||
+        !thick_obstacle.assign_member(0, members[101], [](int, const FigureMovementDestination &candidate) {
+            return figure_movement_cross_country_to_tile(candidate.x) >= 5 ? 1 : 0;
+        })) {
+        errors << "Formation station planner rejected a map-bounded thick-obstacle fallback.\n";
+        return false;
+    }
+    FigureMovementDestination thick_obstacle_destination = {};
+    FormationStationState thick_obstacle_state = FormationStationState::Unplaced;
+    if (!thick_obstacle.resolve_member(
+            0, members[101], &thick_obstacle_destination, &thick_obstacle_state) ||
+        thick_obstacle_state != FormationStationState::Fallback ||
+        figure_movement_cross_country_to_tile(thick_obstacle_destination.x) != 5) {
+        errors << "Formation fallback stopped at an arbitrary local envelope instead of the nearest reachable shell.\n";
+        return false;
+    }
+
+    FormationMemberMovementPlan repeated_legacy_station;
+    const std::vector<FigureMovementDestination> repeated_ideals = {
+        {64, 64, FigureMovementPlane::Ground},
+        {64, 64, FigureMovementPlane::Ground}
+    };
+    const std::vector<FormationMemberStationRequest> repeated_members = {
+        {0, &members[0]}, {1, &members[1]}
+    };
+    if (!repeated_legacy_station.configure(FormationMemberDestination::Standard, layout, 0, 0, 1, 1,
+            {0, 0, 255, 255}, repeated_ideals) ||
+        !repeated_legacy_station.assign_members(repeated_members,
+            [](int, const FigureMovementDestination &) { return 1; })) {
+        errors << "Formation station planner rejected a data-authored repeated legacy tile station.\n";
+        return false;
+    }
+    FigureMovementDestination repeated_first = {};
+    FigureMovementDestination repeated_second = {};
+    FormationStationState repeated_first_state = FormationStationState::Unplaced;
+    FormationStationState repeated_second_state = FormationStationState::Unplaced;
+    if (!repeated_legacy_station.resolve_member(0, members[0], &repeated_first, &repeated_first_state) ||
+        !repeated_legacy_station.resolve_member(1, members[1], &repeated_second, &repeated_second_state) ||
+        repeated_first_state != FormationStationState::Ideal ||
+        repeated_second_state != FormationStationState::Fallback ||
+        same_destination(repeated_first, repeated_second)) {
+        errors << "Formation station planner stacked members whose legacy layout declares one tile twice.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_mustering_ground_fit_contract(std::ostream &errors)
+{
+    const FigureMovementDestination ground_destination =
+        figure_movement_destination_for_tile(2, 3, FigureMovementPlane::Ground);
+    const FigureMovementDestination elevated_destination =
+        figure_movement_destination_for_tile(2, 3, FigureMovementPlane::Elevated);
+    if (ground_destination.plane != FigureMovementPlane::Ground ||
+        elevated_destination.plane != FigureMovementPlane::Elevated ||
+        ground_destination.x != 256 || ground_destination.y != 384) {
+        errors << "Exact movement destinations did not preserve coordinates and an explicit render plane.\n";
+        return false;
+    }
+
+    if (figure_movement_cross_country_to_tile(-1) != -1 ||
+        figure_movement_cross_country_to_tile(-128) != -1 ||
+        figure_movement_cross_country_to_tile(-129) != -2) {
+        errors << "Exact movement coordinates did not project negative offsets to their containing tile.\n";
+        return false;
+    }
+    const auto has_offset = [](const FormationType &type, int x, int y, int fixed_x, int fixed_y) {
+        FormationLayoutDef direct("direct", -1, {{x, y}}, {}, "");
+        FormationSlotOffset offset;
+        return type.resolve_station_offset(direct, 0, 1, 4, 4, &offset) &&
+            offset.x == fixed_x && offset.y == fixed_y;
+    };
+
+    FormationType legacy("legacy_formation");
+    legacy.set_grid(4, 4, FormationStationAlignment::TileAnchor);
+    if (!has_offset(legacy, 0, 0, 0, 0) ||
+        !has_offset(legacy, 1, 1, 128, 128) ||
+        !has_offset(legacy, 3, 3, 384, 384) ||
+        !has_offset(legacy, -1, -1, -128, -128)) {
+        errors << "FormationType did not preserve exact 4x4 legacy mustering-ground positions.\n";
+        return false;
+    }
+
+    FormationType century("century");
+    century.set_grid(8, 8, FormationStationAlignment::ScaledTileAnchor);
+    constexpr int century_offsets[] = {0, 55, 110, 165, 219, 274, 329, 384};
+    std::vector<FigureMovementDestination> century_stations;
+    for (int coordinate = 0; coordinate < 8; coordinate++) {
+        FormationLayoutDef direct("direct", -1, {{coordinate, coordinate}}, {}, "");
+        FormationSlotOffset offset;
+        if (!century.resolve_station_offset(direct, 0, 1, 4, 4, &offset) ||
+            offset.x != century_offsets[coordinate] || offset.x != offset.y ||
+            figure_movement_cross_country_to_tile(offset.x) < 0 ||
+            figure_movement_cross_country_to_tile(offset.x) >= 4) {
+            errors << "FormationType did not fit an 8x8 century monotonically inside a 4x4 mustering ground.\n";
+            return false;
+        }
+    }
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            FormationLayoutDef direct("direct", -1, {{x, y}}, {}, "");
+            FormationSlotOffset offset;
+            if (!century.resolve_station_offset(direct, 0, 1, 4, 4, &offset)) {
+                errors << "FormationType could not resolve a declared century station.\n";
+                return false;
+            }
+            century_stations.push_back({offset.x, offset.y, FigureMovementPlane::Ground});
+        }
+    }
+    if (!has_offset(century, 0, 0, 0, 0) ||
+        !has_offset(century, 7, 7, 384, 384) ||
+        !has_offset(century, -1, -1, -55, -55)) {
+        errors << "FormationType did not fit the 8x8 century between the original 4x4 formation endpoints.\n";
+        return false;
+    }
+    for (size_t first = 0; first < century_stations.size(); first++) {
+        for (size_t second = first + 1; second < century_stations.size(); second++) {
+            if (same_destination(century_stations[first], century_stations[second])) {
+                errors << "FormationType generated duplicate exact century stations.\n";
+                return false;
+            }
+        }
+    }
+
+    FormationType turma("turma");
+    turma.set_grid(6, 6, FormationStationAlignment::ScaledTileAnchor);
+    if (!has_offset(turma, 0, 0, 0, 0) ||
+        !has_offset(turma, 1, 1, 77, 77) ||
+        !has_offset(turma, 4, 4, 307, 307) ||
+        !has_offset(turma, 5, 5, 384, 384) ||
+        !has_offset(turma, -1, -1, -77, -77)) {
+        errors << "FormationType did not fit a 6x6 turma between the original 4x4 formation endpoints.\n";
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool validate_formation_type_registry_layering_contract(std::ostream &errors)
 {
+    if (!validate_mustering_ground_fit_contract(errors)) return false;
+    if (!validate_formation_member_assignment_contract(errors)) return false;
+
     constexpr const char *LAYOUT_LOWER_XML =
         "<layout key=\"column\" legacy_id=\"0\">"
         "<position x=\"0\" y=\"0\"/><position x=\"1\" y=\"0\"/>"
@@ -326,8 +627,15 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     if (!valid(replacement, 2, "archers", &result) ||
         result.active_count != 1 || result.suppressed_count != 0 || result.queried_disabled ||
         result.queried_capacity != 3 || result.queried_recruit_capacity != 2 ||
+        result.queried_melee_attack_modifier != 2 || result.queried_melee_defense_modifier != 1 ||
+        result.queried_morale_modifier != 5 || result.queried_missile_damage_modifier != -1 ||
         result.queried_source_layer != 1) {
-        errors << "FormationType upper-layer replacement lost winner data or provenance.\n";
+        errors << "FormationType upper-layer replacement lost winner combat data or provenance: active="
+               << result.active_count << " suppressed=" << result.suppressed_count
+               << " disabled=" << result.queried_disabled << " capacity=" << result.queried_capacity
+               << " recruit=" << result.queried_recruit_capacity << " attack=" << result.queried_melee_attack_modifier
+               << " defense=" << result.queried_melee_defense_modifier << " morale=" << result.queried_morale_modifier
+               << " missile=" << result.queried_missile_damage_modifier << " source=" << result.queried_source_layer << ".\n";
         return false;
     }
 
@@ -336,8 +644,10 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     };
     if (!valid(inherited_only, 1, "archers", &result) ||
         result.queried_capacity != 2 || result.queried_recruit_capacity != 2 ||
+        result.queried_melee_attack_modifier != 0 || result.queried_melee_defense_modifier != 0 ||
+        result.queried_morale_modifier != 0 || result.queried_missile_damage_modifier != 0 ||
         result.queried_source_layer != 0) {
-        errors << "FormationType lower definition was not inherited when the upper layer was absent.\n";
+        errors << "FormationType lower definition did not preserve zero combat defaults.\n";
         return false;
     }
 
@@ -372,7 +682,7 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *INVALID_LOWER_UNIT =
-        "<formation key=\"archers\"><grid width=\"1\" height=\"1\"/>"
+        "<formation key=\"archers\"><grid width=\"1\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
         "<slot fill=\"all\" unit=\"missing_unit\"/></formation>";
     const formation_type_layer_test_input deferred_reference[] = {
         input(INVALID_LOWER_UNIT, 0, "Julius", "Julius/FormationType/archers.xml"),
@@ -392,7 +702,7 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *OVERSIZED_RECRUITMENT =
-        "<formation key=\"archers\" recruit_capacity=\"3\"><grid width=\"2\" height=\"1\"/>"
+        "<formation key=\"archers\" recruit_capacity=\"3\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
         "<slot fill=\"all\" unit=\"archer\"/></formation>";
     const formation_type_layer_test_input oversized_recruitment[] = {
         input(OVERSIZED_RECRUITMENT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
@@ -403,13 +713,269 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *ZERO_RECRUITMENT =
-        "<formation key=\"archers\" recruit_capacity=\"0\"><grid width=\"2\" height=\"1\"/>"
+        "<formation key=\"archers\" recruit_capacity=\"0\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
         "<slot fill=\"all\" unit=\"archer\"/></formation>";
     const formation_type_layer_test_input zero_recruitment[] = {
         input(ZERO_RECRUITMENT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
     };
     if (valid(zero_recruitment, 1, "archers")) {
         errors << "FormationType accepted a non-positive recruit_capacity.\n";
+        return false;
+    }
+
+    constexpr const char *MISSING_STATION_ALIGNMENT =
+        "<formation key=\"archers\"><grid width=\"2\" height=\"1\"/>"
+        "<slot fill=\"all\" unit=\"archer\"/></formation>";
+    const formation_type_layer_test_input missing_station_alignment[] = {
+        input(MISSING_STATION_ALIGNMENT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
+    };
+    if (valid(missing_station_alignment, 1, "archers")) {
+        errors << "FormationType accepted a grid without explicit station_alignment semantics.\n";
+        return false;
+    }
+
+    constexpr const char *MALFORMED_COMBAT =
+        "<formation key=\"archers\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<combat melee_attack_modifier=\"1.5\"/><slot fill=\"all\" unit=\"archer\"/></formation>";
+    const formation_type_layer_test_input malformed_combat[] = {
+        input(MALFORMED_COMBAT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
+    };
+    if (valid(malformed_combat, 1, "archers")) {
+        errors << "FormationType accepted a non-integer combat modifier.\n";
+        return false;
+    }
+
+    constexpr const char *OUT_OF_RANGE_COMBAT =
+        "<formation key=\"archers\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<combat morale_modifier=\"101\"/><slot fill=\"all\" unit=\"archer\"/></formation>";
+    const formation_type_layer_test_input out_of_range_combat[] = {
+        input(OUT_OF_RANGE_COMBAT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
+    };
+    if (valid(out_of_range_combat, 1, "archers")) {
+        errors << "FormationType accepted an out-of-range combat modifier.\n";
+        return false;
+    }
+
+    constexpr const char *EMPTY_COMBAT =
+        "<formation key=\"archers\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<combat/><slot fill=\"all\" unit=\"archer\"/></formation>";
+    const formation_type_layer_test_input empty_combat[] = {
+        input(EMPTY_COMBAT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
+    };
+    if (valid(empty_combat, 1, "archers")) {
+        errors << "FormationType accepted an empty combat node.\n";
+        return false;
+    }
+
+    constexpr const char *DUPLICATE_COMBAT =
+        "<formation key=\"archers\"><grid width=\"2\" height=\"1\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<combat melee_attack_modifier=\"1\"/><combat morale_modifier=\"1\"/>"
+        "<slot fill=\"all\" unit=\"archer\"/></formation>";
+    const formation_type_layer_test_input duplicate_combat[] = {
+        input(DUPLICATE_COMBAT, 0, "Pharaoh", "Pharaoh/FormationType/archers.xml")
+    };
+    if (valid(duplicate_combat, 1, "archers")) {
+        errors << "FormationType accepted duplicate combat nodes.\n";
+        return false;
+    }
+
+    constexpr const char *HERD_SPAWN =
+        "<formation key=\"wolf_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"northern\" count=\"8\"/>"
+        "<herd roam_distance=\"16\" roam_delay=\"6\" reproduction_delay=\"32\" aggressive=\"true\" "
+        "allow_negative_desirability=\"true\" movement_sound=\"wolf_howl\"/>"
+        "<herd_member rest_delay=\"400\" move_speed=\"2\" animation_frames=\"12\" alternate_rest_animation=\"false\" combat_animation=\"attack\"/>"
+        "<slot fill=\"all\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input herd_spawn[] = {
+        input(HERD_SPAWN, 0, "Julius", "Julius/FormationType/wolf_herd.xml")
+    };
+    if (!valid(herd_spawn, 1, "wolf_herd", &result) || result.queried_capacity != 16 ||
+        result.queried_spawn_role != static_cast<int>(FormationSpawnRole::Herd) ||
+        result.queried_spawn_climate != 1 || result.queried_spawn_count != 8 ||
+        result.queried_herd_roam_distance != 16 || result.queried_herd_roam_delay != 6 ||
+        result.queried_herd_reproduction_delay != 32 || result.queried_herd_member_rest_delay != 400 ||
+        result.queried_herd_member_move_speed != 2 || result.queried_herd_member_animation_frames != 12 ||
+        !result.queried_herd_aggressive || !result.queried_herd_allow_negative_desirability ||
+        result.queried_herd_alternate_rest_animation ||
+        result.queried_herd_movement_sound != static_cast<int>(FormationHerdMovementSound::WolfHowl) ||
+        result.queried_herd_combat_animation != static_cast<int>(FormationHerdCombatAnimation::Attack)) {
+        errors << "FormationType rejected a fully data-defined herd spawn.\n";
+        return false;
+    }
+
+    constexpr const char *SECOND_CENTRAL_HERD =
+        "<formation key=\"sheep_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"central\" count=\"10\"/>"
+        "<herd roam_distance=\"8\" roam_delay=\"20\" reproduction_delay=\"0\" aggressive=\"false\" "
+        "allow_negative_desirability=\"false\" movement_sound=\"none\"/>"
+        "<herd_member rest_delay=\"400\" move_speed=\"1\" animation_frames=\"6\" alternate_rest_animation=\"true\" combat_animation=\"move\"/>"
+        "<slot fill=\"all\" unit=\"sheep\"/></formation>";
+    constexpr const char *FIRST_CENTRAL_HERD =
+        "<formation key=\"wolf_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"central\" count=\"8\"/>"
+        "<herd roam_distance=\"16\" roam_delay=\"6\" reproduction_delay=\"32\" aggressive=\"true\" "
+        "allow_negative_desirability=\"true\" movement_sound=\"wolf_howl\"/>"
+        "<herd_member rest_delay=\"400\" move_speed=\"2\" animation_frames=\"12\" alternate_rest_animation=\"false\" combat_animation=\"attack\"/>"
+        "<slot fill=\"all\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input multiple_herds_per_climate[] = {
+        input(FIRST_CENTRAL_HERD, 0, "Julius", "Julius/FormationType/wolf_herd.xml"),
+        input(SECOND_CENTRAL_HERD, 0, "Julius", "Julius/FormationType/sheep_herd.xml")
+    };
+    if (!valid(multiple_herds_per_climate, 2, "sheep_herd", &result) ||
+        result.active_count != 2 || result.queried_capacity != 16) {
+        errors << "FormationType rejected multiple independently authored herds for one climate.\n";
+        return false;
+    }
+
+    constexpr const char *ENEMY_SPAWN =
+        "<formation key=\"enemy_formation\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"enemy\"/><slot fill=\"all\" unit=\"enemy43_spear\"/></formation>";
+    const formation_type_layer_test_input enemy_spawn[] = {
+        input(ENEMY_SPAWN, 0, "Julius", "Julius/FormationType/enemy_formation.xml")
+    };
+    if (!valid(enemy_spawn, 1, "enemy_formation", &result) || result.queried_capacity != 16) {
+        errors << "FormationType rejected explicit enemy spawn behavior.\n";
+        return false;
+    }
+
+    constexpr const char *DUPLICATE_HERD_ROLE =
+        "<formation key=\"duplicate_herd\"><grid width=\"1\" height=\"1\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"northern\" count=\"1\"/>"
+        "<herd roam_distance=\"1\" roam_delay=\"1\" reproduction_delay=\"0\" aggressive=\"false\" "
+        "allow_negative_desirability=\"false\" movement_sound=\"none\"/>"
+        "<herd_member rest_delay=\"1\" move_speed=\"1\" animation_frames=\"1\" alternate_rest_animation=\"false\" combat_animation=\"move\"/>"
+        "<slot fill=\"all\" unit=\"enemy43_spear\"/></formation>";
+    const formation_type_layer_test_input duplicate_spawn_roles[] = {
+        input(ENEMY_SPAWN, 0, "Julius", "Julius/FormationType/enemy_formation.xml"),
+        input(DUPLICATE_HERD_ROLE, 0, "Julius", "Julius/FormationType/duplicate_herd.xml")
+    };
+    if (valid(duplicate_spawn_roles, 2, "duplicate_herd")) {
+        errors << "FormationType accepted one figure type in two spawn roles.\n";
+        return false;
+    }
+
+    constexpr const char *INVALID_HERD_SPAWN =
+        "<formation key=\"bad_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"wet\" count=\"8\"/>"
+        "<slot fill=\"all\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input invalid_herd_spawn[] = {
+        input(INVALID_HERD_SPAWN, 0, "Julius", "Julius/FormationType/bad_herd.xml")
+    };
+    if (valid(invalid_herd_spawn, 1, "bad_herd")) {
+        errors << "FormationType accepted an unknown herd climate.\n";
+        return false;
+    }
+
+    constexpr const char *MISSING_HERD_COUNT =
+        "<formation key=\"bad_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"central\"/><slot fill=\"all\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input missing_herd_count[] = {
+        input(MISSING_HERD_COUNT, 0, "Julius", "Julius/FormationType/bad_herd.xml")
+    };
+    if (valid(missing_herd_count, 1, "bad_herd")) {
+        errors << "FormationType accepted herd behavior without an explicit positive count.\n";
+        return false;
+    }
+
+    constexpr const char *OVERSIZED_HERD_COUNT =
+        "<formation key=\"bad_herd\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"central\" count=\"17\"/>"
+        "<herd roam_distance=\"16\" roam_delay=\"6\" reproduction_delay=\"32\" aggressive=\"true\" "
+        "allow_negative_desirability=\"true\" movement_sound=\"wolf_howl\"/>"
+        "<herd_member rest_delay=\"400\" move_speed=\"2\" animation_frames=\"12\" alternate_rest_animation=\"false\" combat_animation=\"attack\"/>"
+        "<slot fill=\"all\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input oversized_herd_count[] = {
+        input(OVERSIZED_HERD_COUNT, 0, "Julius", "Julius/FormationType/bad_herd.xml")
+    };
+    if (valid(oversized_herd_count, 1, "bad_herd")) {
+        errors << "FormationType accepted a herd count larger than its declared grid.\n";
+        return false;
+    }
+
+    constexpr const char *INVALID_ENEMY_METADATA =
+        "<formation key=\"bad_enemy\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"enemy\" count=\"8\"/><slot fill=\"all\" unit=\"enemy43_spear\"/></formation>";
+    const formation_type_layer_test_input invalid_enemy_metadata[] = {
+        input(INVALID_ENEMY_METADATA, 0, "Julius", "Julius/FormationType/bad_enemy.xml")
+    };
+    if (valid(invalid_enemy_metadata, 1, "bad_enemy")) {
+        errors << "FormationType accepted herd-only metadata on enemy behavior.\n";
+        return false;
+    }
+
+    constexpr const char *DUPLICATE_SPAWN =
+        "<formation key=\"bad_spawn\"><grid width=\"4\" height=\"4\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"enemy\"/><spawn role=\"enemy\"/>"
+        "<slot fill=\"all\" unit=\"enemy43_spear\"/></formation>";
+    const formation_type_layer_test_input duplicate_spawn[] = {
+        input(DUPLICATE_SPAWN, 0, "Julius", "Julius/FormationType/bad_spawn.xml")
+    };
+    if (valid(duplicate_spawn, 1, "bad_spawn")) {
+        errors << "FormationType accepted duplicate behavior declarations.\n";
+        return false;
+    }
+
+    constexpr const char *PARTIAL_SPAWN_ROSTER =
+        "<formation key=\"partial_spawn\"><grid width=\"2\" height=\"2\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"herd\" climate=\"central\" count=\"1\"/>"
+        "<herd roam_distance=\"16\" roam_delay=\"6\" reproduction_delay=\"32\" aggressive=\"true\" "
+        "allow_negative_desirability=\"true\" movement_sound=\"wolf_howl\"/>"
+        "<herd_member rest_delay=\"400\" move_speed=\"2\" animation_frames=\"12\" alternate_rest_animation=\"false\" combat_animation=\"attack\"/>"
+        "<slot x=\"0\" y=\"0\" unit=\"wolf\"/></formation>";
+    const formation_type_layer_test_input partial_spawn_roster[] = {
+        input(PARTIAL_SPAWN_ROSTER, 0, "Julius", "Julius/FormationType/partial_spawn.xml")
+    };
+    if (valid(partial_spawn_roster, 1, "partial_spawn")) {
+        errors << "FormationType accepted a partial direct-spawn roster.\n";
+        return false;
+    }
+
+    constexpr const char *MIXED_SPAWN_ROSTER =
+        "<formation key=\"mixed_spawn\"><grid width=\"2\" height=\"2\" station_alignment=\"tile_anchor\"/>"
+        "<spawn role=\"enemy\"/>"
+        "<slot row=\"0\" unit=\"enemy43_spear\"/>"
+        "<slot row=\"1\" unit=\"enemy44_sword\"/></formation>";
+    const formation_type_layer_test_input mixed_spawn_roster[] = {
+        input(MIXED_SPAWN_ROSTER, 0, "Julius", "Julius/FormationType/mixed_spawn.xml")
+    };
+    if (valid(mixed_spawn_roster, 1, "mixed_spawn")) {
+        errors << "FormationType accepted a mixed direct-spawn roster.\n";
+        return false;
+    }
+
+    constexpr const char *MIXED_MANAGED_ROSTER =
+        "<formation key=\"mixed_managed\"><grid width=\"2\" height=\"2\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<slot row=\"0\" unit=\"archer\"/>"
+        "<slot row=\"1\" unit=\"legionary\"/></formation>";
+    const formation_type_layer_test_input mixed_managed_roster[] = {
+        input(MIXED_MANAGED_ROSTER, 0, "Vespasian", "Vespasian/FormationType/mixed_managed.xml")
+    };
+    if (!valid(mixed_managed_roster, 1, "mixed_managed", &result) || result.queried_capacity != 4) {
+        errors << "FormationType rejected a complete mixed managed roster without direct-spawn behavior.\n";
+        return false;
+    }
+
+    constexpr const char *VESPASIAN_CENTURY =
+        "<formation key=\"vespasian_legionary_century\" recruit_capacity=\"64\"><grid width=\"8\" height=\"8\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<slot fill=\"all\" unit=\"legionary\"/></formation>";
+    const formation_type_layer_test_input vespasian_century[] = {
+        input(VESPASIAN_CENTURY, 0, "Vespasian", "Vespasian/FormationType/vespasian_legionary_century.xml")
+    };
+    if (!valid(vespasian_century, 1, "vespasian_legionary_century", &result) ||
+        result.queried_capacity != 64 || result.queried_recruit_capacity != 64) {
+        errors << "FormationType did not preserve an 8x8 Vespasian century and its recruit capacity.\n";
+        return false;
+    }
+
+    constexpr const char *VESPASIAN_MOUNTED =
+        "<formation key=\"vespasian_cavalry_turma\" recruit_capacity=\"36\"><grid width=\"6\" height=\"6\" station_alignment=\"scaled_tile_anchor\"/>"
+        "<slot fill=\"all\" unit=\"mounted\"/></formation>";
+    const formation_type_layer_test_input vespasian_mounted[] = {
+        input(VESPASIAN_MOUNTED, 0, "Vespasian", "Vespasian/FormationType/vespasian_cavalry_turma.xml")
+    };
+    if (!valid(vespasian_mounted, 1, "vespasian_cavalry_turma", &result) ||
+        result.queried_capacity != 36 || result.queried_recruit_capacity != 36) {
+        errors << "FormationType did not preserve a 6x6 Vespasian mounted formation and its recruit capacity.\n";
         return false;
     }
 
@@ -427,17 +993,28 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
         return false;
     }
     const FormationLayoutDef *column_layout = formation_layout_registry_impl::find_layout("column");
-    const FormationLayoutPosition first_column = formation_layout_position(column_layout, 0, 16);
-    const FormationLayoutPosition last_authored_column = formation_layout_position(column_layout, 15, 16);
-    const FormationLayoutPosition first_extended_column =
-        formation_layout_position(column_layout, 16, 64, {8, 8});
-    const std::vector<FormationLayoutPosition> clamped_positions =
-        formation_layout_positions(column_layout, 70, 64, {8, 8});
-    if (!column_layout || first_column.x != 0 || first_column.y != 0 ||
+    FormationLayoutPosition first_column = {};
+    FormationLayoutPosition last_authored_column = {};
+    std::vector<FormationLayoutPosition> century_positions;
+    std::vector<FormationLayoutPosition> mounted_positions;
+    FormationType century_definition("century");
+    century_definition.set_grid(8, 8, FormationStationAlignment::ScaledTileAnchor);
+    FormationType mounted_definition("turma");
+    mounted_definition.set_grid(6, 6, FormationStationAlignment::ScaledTileAnchor);
+    if (!column_layout ||
+        !column_layout->try_position(0, 16, 0, 0, &first_column) ||
+        !column_layout->try_position(15, 16, 0, 0, &last_authored_column) ||
+        !century_definition.layout_positions(*column_layout, 70, 64, &century_positions) ||
+        !mounted_definition.layout_positions(*column_layout, 36, 36, &mounted_positions) ||
+        first_column.x != 0 || first_column.y != 0 ||
         last_authored_column.x != 2 || last_authored_column.y != 2 ||
-        first_extended_column.x != 0 || first_extended_column.y != 2 ||
-        clamped_positions.size() != 64) {
-        errors << "FormationLayout authored positions or footprint-derived extension changed.\n";
+        century_positions.size() != 64 || century_positions[15].x != 7 || century_positions[15].y != 1 ||
+        century_positions[16].x != 0 || century_positions[16].y != 2 ||
+        century_positions[63].x != 7 || century_positions[63].y != 7 ||
+        mounted_positions.size() != 36 || mounted_positions[15].x != 3 || mounted_positions[15].y != 2 ||
+        mounted_positions[35].x != 5 || mounted_positions[35].y != 5 ||
+        !positions_are_unique(century_positions) || !positions_are_unique(mounted_positions)) {
+        errors << "FormationLayout did not preserve legacy authored slots or compute unique square typed footprints.\n";
         return false;
     }
     const FormationLayoutDef *double_line_1_layout =
@@ -456,7 +1033,6 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
         double_line_2_layout->army_offset(2, 5) : FormationLayoutPosition{};
     const FormationLayoutPosition authored_wide = wide_column_layout ?
         wide_column_layout->army_offset(3, 6) : FormationLayoutPosition{};
-    const FormationLayoutPosition out_of_range = column_layout->army_offset(0, 7);
     if (!column_layout->has_authored_army_offsets() ||
         column_authored.x != -3 || column_authored.y != 8 ||
         column_rotated.x != -8 || column_rotated.y != 3 ||
@@ -466,40 +1042,17 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
         std::string(double_line_2_layout->army_offsets_reference()) != "double_line_1" ||
         reused_double_line.x != -4 || reused_double_line.y != -6 ||
         !wide_column_layout || !wide_column_layout->has_authored_army_offsets() ||
-        authored_wide.x != -12 || authored_wide.y != 4 ||
-        out_of_range.x != 0 || out_of_range.y != 0) {
+        authored_wide.x != -12 || authored_wide.y != 4) {
         errors << "FormationLayout army offsets or direct army_from reuse changed.\n";
         return false;
     }
     formation layout_bridge = {};
     if (!layout_bridge.set_layout_from_legacy_id(formation_layout_legacy::TORTOISE) ||
         !layout_bridge.uses_layout("tortoise") ||
-        formation_layout_to_legacy_id(layout_bridge.layout_type()) != formation_layout_legacy::TORTOISE ||
+        formation_layout_to_legacy_id(layout_bridge.layout_definition) != formation_layout_legacy::TORTOISE ||
         !layout_bridge.set_layout_from_legacy_id(999) ||
         !layout_bridge.uses_layout("column")) {
         errors << "Formation runtime did not resolve legacy layout ids exactly once at the bridge.\n";
-        return false;
-    }
-
-    formation unbounded_roster = {};
-    unbounded_roster.add_figure_to_roster(11, 0, 0, 1);
-    unbounded_roster.add_figure_to_roster(12, 0, 0, 1);
-    unbounded_roster.add_figure_to_roster(13, 0, 0, 1);
-    if (unbounded_roster.figure_count() != 3 || unbounded_roster.figures.size() != 3 ||
-        unbounded_roster.figures[2] != 13 ||
-        !unbounded_roster.has_open_slot() || unbounded_roster.overflow_count()) {
-        errors << "Unbounded runtime formation roster retained an implicit legacy-size limit.\n";
-        return false;
-    }
-
-    formation bounded_roster = {};
-    bounded_roster.max_figures = 2;
-    bounded_roster.add_figure_to_roster(21, 0, 0, 1);
-    bounded_roster.add_figure_to_roster(22, 0, 0, 1);
-    bounded_roster.add_figure_to_roster(23, 0, 0, 1);
-    if (!bounded_roster.is_full() || bounded_roster.overflow_count() != 1 ||
-        bounded_roster.figures.size() != 3 || bounded_roster.figures[2] != 23) {
-        errors << "Bounded runtime formation roster lost declared overflow ownership.\n";
         return false;
     }
 

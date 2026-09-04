@@ -10,10 +10,10 @@
     </profiles>
     <graphics>
         <default>
-            <path value="Walkers\slave" />
+            <path value="Walkers\Work_Camp_Slave" />
         </default>
         <corpse frame_count="8">
-            <path value="Walkers\slave" />
+            <path value="Walkers\Work_Camp_Slave" />
         </corpse>
     </graphics>
 </figure>

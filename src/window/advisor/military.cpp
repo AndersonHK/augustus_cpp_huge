@@ -191,7 +191,7 @@ static int draw_background(void)
 
         text_draw(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
             84, 83 + 44 * i, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        int width = text_draw_number(formation_legion_count_alive_soldiers(m->id), '@', " ", 84, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        int width = text_draw_number(m->count_alive_figures(), '@', " ", 84, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         switch (m->figure_type) {
             case FIGURE_FORT_LEGIONARY:
                 text_draw(translation_for_key("TR_WINDOW_ADVISOR_LEGIONARIES"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
@@ -310,7 +310,7 @@ static void button_empire_service(const generic_button *button)
 {
     int legion_id = button->parameter1;
     int formation_id = formation_for_legion(legion_id + scrollbar.scroll_position);
-    formation_toggle_empire_service(formation_id);
+    formation_get(formation_id)->toggle_empire_service();
     formation_calculate_figures();
     window_invalidate();
 }

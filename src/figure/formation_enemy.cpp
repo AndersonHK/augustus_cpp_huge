@@ -10,6 +10,7 @@
 #include "city/message.h"
 #include "city/military.h"
 #include "core/calc.h"
+#include "core/log.h"
 #include "core/random.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
@@ -22,6 +23,7 @@
 #include "map/terrain.h"
 
 #include <optional>
+#include <exception>
 #include <vector>
 
 constexpr int INFINITE_DISTANCE = 10000;
@@ -298,9 +300,9 @@ static int set_enemy_target_building(formation *m)
                 return 0;
             }
             Building *destination = best_object->Composition->children().front()->building();
-            formation_set_destination_building(m, best_building->x() + 1, best_building->y(), destination);
+            m->set_destination(best_building->x() + 1, best_building->y(), destination);
         } else {
-            formation_set_destination_building(m, best_building->x(), best_building->y(), best_object);
+            m->set_destination(best_building->x(), best_building->y(), best_object);
         }
     }
     return best_building != nullptr;
@@ -401,15 +403,15 @@ static void set_native_target_building(formation *m)
         }
     });
     if (min_building) {
-        formation_set_destination_building(m, min_building->x(), min_building->y(), min_building);
+        m->set_destination(min_building->x(), min_building->y(), min_building);
     } else {
         int dst_x = 0;
         int dst_y = 0;
         int has_target = get_structures_on_native_land(&dst_x, &dst_y);
         if (has_target) {
-            formation_set_destination_building(m, dst_x, dst_y, nullptr);
+            m->set_destination(dst_x, dst_y, nullptr);
         } else {
-            formation_retreat(m);
+            m->retreat();
         }
     }
 }
@@ -485,10 +487,11 @@ static void mars_kill_enemies(void)
 
 static void get_layout_orientation_offset(const enemy_army *army, const formation *m, int *x_offset, int *y_offset)
 {
-    const FormationLayoutDef *layout = army->layout_definition ?
-        army->layout_definition : formation_layout_registry_impl::find_layout("column");
-    const FormationLayoutPosition offset = layout ?
-        layout->army_offset(m->orientation / 2, m->enemy_legion_index) : FormationLayoutPosition{0, 0};
+    if (!army->layout_definition) {
+        log_error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
+        std::terminate();
+    }
+    const FormationLayoutPosition offset = army->layout_definition->army_offset(m->orientation / 2, m->enemy_legion_index);
     *x_offset = offset.x;
     *y_offset = offset.y;
 }
@@ -594,15 +597,15 @@ static void update_enemy_movement(formation *m, int roman_distance)
         mars_kill_enemies();
     }
     if (halt) {
-        formation_set_destination(m, m->x_home, m->y_home);
+        m->set_destination(m->x_home, m->y_home);
     } else if (pursue_target) {
         if (target_formation_id > 0) {
             const formation *target = formation_get(target_formation_id);
             if (target->has_figures()) {
-                formation_set_destination(m, target->x_home, target->y_home);
+                m->set_destination(target->x_home, target->y_home);
             }
         } else {
-            formation_set_destination(m, army->destination_x, army->destination_y);
+            m->set_destination(army->destination_x, army->destination_y, nullptr);
         }
     } else if (regroup) {
         int x_offset, y_offset;
@@ -612,7 +615,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
         map_grid_bound(&x_offset, &y_offset);
         int x_tile, y_tile;
         if (formation_enemy_move_formation_to(m, x_offset, y_offset, &x_tile, &y_tile)) {
-            formation_set_destination(m, x_tile, y_tile);
+            m->set_destination(x_tile, y_tile);
         }
     } else if (advance) {
         int x_offset, y_offset;
@@ -622,7 +625,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
         map_grid_bound(&x_offset, &y_offset);
         int x_tile, y_tile;
         if (formation_enemy_move_formation_to(m, x_offset, y_offset, &x_tile, &y_tile)) {
-            formation_set_destination(m, x_tile, y_tile);
+            m->set_destination(x_tile, y_tile);
         }
     }
 }
@@ -635,25 +638,25 @@ static void update_enemy_formation(formation *m, int *roman_distance)
             army->ignore_roman_soldiers = 1;
         }
     }
-    formation_decrease_monthly_counters(m);
+    m->decrease_monthly_counters();
     if (city_figures_soldiers() <= 0) {
-        formation_clear_monthly_counters(m);
+        m->clear_monthly_counters();
     }
     if (m->has_figure_attacking_live_legion()) {
-        formation_record_fight(m);
+        m->record_fight();
     }
-    if (formation_has_low_morale(m)) {
+    if (m->has_low_morale()) {
         m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         return;
     }
     if (Figure *f = m->first_alive_figure()) {
-        formation_set_home(m, f->x, f->y);
+        m->set_home(f->x, f->y);
     }
     if (!army->formation_id) {
         army->formation_id = m->id;
         army->home_x = m->x_home;
         army->home_y = m->y_home;
-        army->layout_definition = m->layout_type();
+        army->layout_definition = m->layout_definition;
         *roman_distance = 0;
         const Route::TerrainQuery enemy_route =
             Route::TerrainQuery::enemyLandFrom({ m->x_home, m->y_home }, 300, 100000);
@@ -686,12 +689,12 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     if (!army->started_retreating) {
         if (army->destination_building_id) {
             Building *destination = Building::get(static_cast<unsigned int>(army->destination_building_id));
-            formation_set_destination_building(m, army->destination_x, army->destination_y, destination);
+            m->set_destination(army->destination_x, army->destination_y, destination);
         } else {
-            formation_set_destination_building(m, army->destination_x, army->destination_y, nullptr);
+            m->set_destination(army->destination_x, army->destination_y);
         }
     } else {
-        formation_retreat(m);
+        m->retreat();
     }
 
     update_enemy_movement(m, *roman_distance);

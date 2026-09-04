@@ -1,6 +1,9 @@
 #include "mod_definition_loader_test.h"
 
+#include "assets/xml_path_resolution.h"
+#include "core/file.h"
 #include "game/mod_definition_loader.h"
+#include "graphics/declarative_window.h"
 
 #include <chrono>
 #include <filesystem>
@@ -37,7 +40,7 @@ private:
     bool valid_ = false;
 };
 
-bool write_fixture(const std::filesystem::path &path)
+bool write_fixture(const std::filesystem::path &path, const char *contents = "<fixture/>\n")
 {
     std::error_code error;
     std::filesystem::create_directories(path.parent_path(), error);
@@ -45,7 +48,7 @@ bool write_fixture(const std::filesystem::path &path)
         return false;
     }
     std::ofstream output(path, std::ios::binary);
-    output << "<fixture/>\n";
+    output << (contents ? contents : "");
     return output.good();
 }
 
@@ -237,6 +240,135 @@ bool validate_complete_file_fallback(std::ostream &errors)
     return true;
 }
 
+bool validate_sparse_identity_composition(std::ostream &errors)
+{
+    TemporaryDirectory temporary;
+    if (!temporary.valid()) {
+        errors << "Unable to create sparse-composition temporary directory.\n";
+        return false;
+    }
+
+    const char *names[] = {"A", "B", "C", "D", "BlankTop"};
+    std::vector<mod_definition::DefinitionLayer> layers;
+    for (const char *name : names) {
+        const std::filesystem::path root = temporary.path() / name;
+        std::error_code error;
+        std::filesystem::create_directories(root, error);
+        if (error) {
+            errors << "Unable to create sparse-composition layer " << name << ".\n";
+            return false;
+        }
+        layers.push_back({name, root.string()});
+    }
+    if (!write_fixture(temporary.path() / "A" / "BuildingType" / "hut.xml") ||
+        !write_fixture(temporary.path() / "B" / "BuildingType" / "house.xml") ||
+        !write_fixture(temporary.path() / "C" / "BuildingType" / "hut.xml") ||
+        !write_fixture(temporary.path() / "D" / "BuildingType" / "hut.xml") ||
+        !write_fixture(temporary.path() / "BlankTop" / "mod.xml",
+            "<mod><name value=\"BlankTop\"/><description value=\"Blank overlay\"/>"
+            "<version value=\"1\"/><dependencies><mod name=\"D\"/></dependencies></mod>\n")) {
+        errors << "Unable to create sparse-composition definitions.\n";
+        return false;
+    }
+
+    mod_definition::DefinitionOverlayTracker winners;
+    mod_definition::DefinitionEnumerationSummary summary;
+    std::vector<std::string> visit_order;
+    std::string failure;
+    if (!mod_definition::for_each_definition_file(
+            layers, {"BuildingType"}, "SparseComposition", true,
+            [&](const mod_definition::DefinitionSource &definition) {
+                visit_order.push_back(definition.mod_name + "/" + definition.normalized_definition_path);
+                if (!winners.apply(definition.normalized_definition_path, false, definition)) {
+                    failure = winners.failure_reason();
+                    return false;
+                }
+                return true;
+            }, &summary, &failure)) {
+        errors << "Sparse identity composition failed: " << failure << '\n';
+        return false;
+    }
+
+    const std::vector<std::string> expected = {"A/hut", "B/house", "C/hut", "D/hut"};
+    const mod_definition::DefinitionOverlayEntry *hut = winners.find("hut");
+    const mod_definition::DefinitionOverlayEntry *house = winners.find("house");
+    if (visit_order != expected || summary.layers != 5 || summary.directories != 4 || summary.files != 4 ||
+        winners.active_count() != 2 || !hut || hut->source.mod_name != "D" ||
+        !house || house->source.mod_name != "B") {
+        errors << "Sparse composition did not retain the highest declaration per identity through a blank top mod.\n";
+        return false;
+    }
+    return true;
+}
+
+bool validate_arbitrary_graphics_layer_composition(std::ostream &errors)
+{
+    TemporaryDirectory temporary;
+    if (!temporary.valid()) {
+        errors << "Unable to create graphics-layer temporary directory.\n";
+        return false;
+    }
+
+    std::vector<GraphicsLayerSource> layers;
+    for (std::size_t index = 0; index < 11; ++index) {
+        const std::string name = "Custom" + std::to_string(index);
+        const std::filesystem::path graphics = temporary.path() / name / "Graphics";
+        std::error_code error;
+        std::filesystem::create_directories(graphics, error);
+        if (error) {
+            errors << "Unable to create graphics layer " << name << ".\n";
+            return false;
+        }
+        layers.push_back({index, name, graphics.string()});
+        if (index < 10 && !write_fixture(graphics / "Shared" / "Group.xml")) {
+            errors << "Unable to create graphics assetlist in layer " << name << ".\n";
+            return false;
+        }
+    }
+
+    const std::vector<GraphicsLayerSource> sources =
+        xml_collect_assetlist_sources(layers, "Shared/Group");
+    if (sources.size() != 10) {
+        errors << "Graphics composition truncated, reordered, or skipped custom layers.\n";
+        return false;
+    }
+    for (std::size_t index = 0; index < sources.size(); ++index) {
+        const std::size_t expected_layer = 9 - index;
+        if (sources[index].layer_index != expected_layer ||
+            sources[index].mod_name != "Custom" + std::to_string(expected_layer)) {
+            errors << "Graphics composition did not preserve top-to-bottom mod-list order.\n";
+            return false;
+        }
+    }
+
+    char assetlist_path[FILE_NAME_MAX] = {0};
+    const std::filesystem::path expected_assetlist =
+        std::filesystem::path(layers[5].graphics_root) / "Shared" / "Group.xml";
+    if (!xml_resolve_assetlist_path(assetlist_path, "Shared/Group", layers[5]) ||
+        std::filesystem::path(assetlist_path) != expected_assetlist) {
+        errors << "An intermediate custom graphics layer lost its exact XML provenance.\n";
+        return false;
+    }
+
+    const std::filesystem::path upper_png =
+        std::filesystem::path(layers[9].graphics_root) / "Shared" / "Group" / "sprite.png";
+    const std::filesystem::path inherited_png =
+        std::filesystem::path(layers[3].graphics_root) / "Shared" / "Group" / "sprite.png";
+    if (!write_fixture(upper_png, "upper") || !write_fixture(inherited_png, "lower")) {
+        errors << "Unable to create graphics image fallback fixtures.\n";
+        return false;
+    }
+
+    char resolved[FILE_NAME_MAX] = {0};
+    if (!xml_resolve_image_path(
+            layers, resolved, "Shared/Group", "sprite", layers[4]) ||
+        std::filesystem::path(resolved) != inherited_png) {
+        errors << "An intermediate custom graphics layer resolved an image from above itself.\n";
+        return false;
+    }
+    return true;
+}
+
 bool validate_overlay(std::ostream &errors)
 {
     using mod_definition::DefinitionOverlayAction;
@@ -302,11 +434,60 @@ bool validate_overlay(std::ostream &errors)
     return true;
 }
 
+bool validate_declarative_window_identity_overlay(std::ostream &errors)
+{
+    constexpr const char *LOWER_SHARED =
+        "<window id=\"shared\" base_width=\"320\" base_height=\"240\"></window>";
+    constexpr const char *LOWER_RETAINED =
+        "<window id=\"retained\" base_width=\"400\" base_height=\"300\"></window>";
+    constexpr const char *UPPER_SHARED =
+        "<window id=\"shared\" base_width=\"640\" base_height=\"480\"></window>";
+
+    const declarative_window_layer_test_input sparse_replacement[] = {
+        {LOWER_SHARED, 0, "Lower", "Lower/UI/windows/legacy_name.xml"},
+        {LOWER_RETAINED, 0, "Lower", "Lower/UI/windows/retained.xml"},
+        {UPPER_SHARED, 1, "SparsePatch", "SparsePatch/UI/windows/renamed.xml"},
+    };
+    declarative_window_layer_test_result result;
+    if (!declarative_window_layered_definition_buffers_are_valid_for_test(
+            sparse_replacement, 3, "shared", &result) ||
+        result.active_count != 2 || result.queried_source_layer != 1 || result.queried_base_width != 640) {
+        errors << "Declarative windows were not overlaid by XML window id across differently named files.\n";
+        return false;
+    }
+    if (!declarative_window_layered_definition_buffers_are_valid_for_test(
+            sparse_replacement, 3, "retained", &result) ||
+        result.active_count != 2 || result.queried_source_layer != 0 || result.queried_base_width != 400) {
+        errors << "A sparse declarative-window layer did not preserve an unrelated lower-layer winner.\n";
+        return false;
+    }
+
+    const declarative_window_layer_test_input duplicate[] = {
+        {LOWER_SHARED, 0, "Lower", "Lower/UI/windows/first.xml"},
+        {UPPER_SHARED, 0, "Lower", "Lower/UI/windows/second.xml"},
+    };
+    if (declarative_window_layered_definition_buffers_are_valid_for_test(
+            duplicate, 2, "shared", &result)) {
+        errors << "Declarative windows accepted an ambiguous same-layer duplicate XML id.\n";
+        return false;
+    }
+    const std::string duplicate_failure = declarative_window_registry_get_failure_reason();
+    if (duplicate_failure.find("first.xml") == std::string::npos ||
+        duplicate_failure.find("second.xml") == std::string::npos) {
+        errors << "Declarative-window duplicate diagnostics did not identify both sources.\n";
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool validate_mod_definition_layering_contract(std::ostream &errors)
 {
-    if (!validate_enumeration(errors) || !validate_complete_file_fallback(errors) || !validate_overlay(errors)) {
+    if (!validate_enumeration(errors) || !validate_complete_file_fallback(errors) ||
+        !validate_sparse_identity_composition(errors) ||
+        !validate_arbitrary_graphics_layer_composition(errors) || !validate_overlay(errors) ||
+        !validate_declarative_window_identity_overlay(errors)) {
         return false;
     }
     return true;

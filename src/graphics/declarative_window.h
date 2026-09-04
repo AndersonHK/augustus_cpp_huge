@@ -211,3 +211,24 @@ int declarative_window_registry_load(void);
 const char *declarative_window_registry_get_failure_reason(void);
 const DeclarativeWindowDefinition *declarative_window_definition(std::string_view id);
 const DeclarativeWindow *declarative_window(std::string_view id);
+
+#ifdef STARTUP_PARSER_TEST
+struct declarative_window_layer_test_input {
+    const char *xml;
+    int layer_index;
+    const char *mod_name;
+    const char *source_path;
+};
+
+struct declarative_window_layer_test_result {
+    int active_count;
+    int queried_source_layer;
+    int queried_base_width;
+};
+
+int declarative_window_layered_definition_buffers_are_valid_for_test(
+    const declarative_window_layer_test_input *inputs,
+    int input_count,
+    const char *query_id,
+    declarative_window_layer_test_result *result);
+#endif

@@ -10,13 +10,13 @@
     </profiles>
     <graphics>
         <default>
-            <path value="Walkers\architect" />
+            <path value="Walkers\Work_Camp_Architect" />
         </default>
         <action state="work_camp_architect_working" frame_count="12" min_wait_ticks="2">
-            <path value="Walkers\architect" />
+            <path value="Walkers\Work_Camp_Architect" />
         </action>
         <corpse frame_count="5">
-            <path value="Walkers\architect" />
+            <path value="Walkers\Work_Camp_Architect" />
         </corpse>
     </graphics>
 </figure>

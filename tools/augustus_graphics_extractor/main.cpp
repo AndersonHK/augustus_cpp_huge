@@ -1,4 +1,5 @@
-#include "assets/graphics_extraction_abi.h"
+#include "assets/graphics_extraction_client.h"
+#include "assets/graphics_extractor_shims.h"
 #include "core/image.h"
 #include "scenario/property.h"
 #include "../graphics_extraction_output_policy.h"
@@ -6,11 +7,6 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-
-void augustus_graphics_extractor_shims_set_game_root(const char *path);
-void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path);
-void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path);
-void augustus_graphics_extractor_shims_install_renderer(void);
 
 namespace {
 
@@ -209,5 +205,10 @@ int main(int argc, char **argv)
     request.julius_graphics = cli.julius_graphics().c_str();
     graphics_extraction_result_v1 result = {};
     result.struct_size = sizeof(result);
-    return graphics_extraction_run_augustus_v1(&request, &result) == GRAPHICS_EXTRACTION_STATUS_SUCCEEDED ? 0 : 1;
+    const graphics_extraction_status_v1 status = GraphicsExtractionClient().runAugustus(request, result);
+    if (status != GRAPHICS_EXTRACTION_STATUS_SUCCEEDED) {
+        std::cerr << "GraphicsExtractor module operation failed with status " << status << ".\n";
+        return 1;
+    }
+    return 0;
 }

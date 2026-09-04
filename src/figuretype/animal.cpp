@@ -2,19 +2,16 @@
 #include "animal.h"
 
 #include "building/building.h"
-#include "city/figures.h"
 #include "city/view.h"
 #include "city/race_bet.h"
 #include "core/calc.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "core/random.h"
-#include "figure/combat.h"
 #include "figure/formation.h"
-#include "figure/formation_layout.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
-#include "figure/route.h"
 #include "graphics/lang_text.h"
 #include "graphics/GraphicsDefinition.h"
 #include "graphics/screen.h"
@@ -28,6 +25,7 @@
 #include "window/building/common.h"
 
 #include <climits>
+#include <exception>
 #include <string>
 
 void map_figure_add(Figure *f);
@@ -83,29 +81,16 @@ void figure_create_fishing_points(void)
 
 static void create_herd(int x, int y)
 {
-    figure_type herd_type;
-    int num_animals;
-    switch (scenario_property_climate()) {
-        case CLIMATE_CENTRAL:
-            herd_type = FIGURE_SHEEP;
-            num_animals = 10;
-            break;
-        case CLIMATE_NORTHERN:
-            herd_type = FIGURE_WOLF;
-            num_animals = 8;
-            break;
-        case CLIMATE_DESERT:
-            herd_type = FIGURE_ZEBRA;
-            num_animals = 12;
-            break;
-        default:
-            return;
+    const FormationType *definition =
+        formation_type_registry_impl::find_herd_spawn_for_location(scenario_property_climate(), x, y);
+    if (!definition) {
+        return;
     }
-    int formation_id = formation_create_herd(herd_type, x, y, num_animals);
+    const int formation_id = formation_create_herd(*definition, x, y);
     if (formation_id > 0) {
-        for (int fig = 0; fig < num_animals; fig++) {
+        for (int fig = 0; fig < definition->spawn.initial_count; fig++) {
             random_generate_next();
-            Figure *f = Figure::create(herd_type, x, y, DIR_0_TOP);
+            Figure *f = Figure::create(definition->primary_unit()->figure_type_id(), x, y, DIR_0_TOP);
             f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
             f->formation_id = formation_id;
             f->wait_ticks = f->id() & 0x1f;
@@ -145,148 +130,24 @@ void figure_seagulls_update_graphics(Figure *f)
     figure_runtime_graphics_select_default_entry_frame(f, f->id() & 1 ? "variant_a" : "variant_b", f->image_offset / 3 + 1);
 }
 
-static void herd_get_destination(int index, const formation *m, uint8_t *x, uint8_t *y)
+void figuretype::Animal::action()
 {
-    const FormationLayoutPosition position =
-        formation_layout_position(m->layout_type(), index, m->declared_capacity());
-    int destination_x = m->destination_x + position.x;
-    int destination_y = m->destination_y + position.y;
-    map_grid_bound(&destination_x, &destination_y);
-    *x = static_cast<uint8_t>(destination_x);
-    *y = static_cast<uint8_t>(destination_y);
+    formation *owner = formation_get(formation_id);
+    if (!owner) {
+        log_error("Herd member references an unknown formation", 0, static_cast<int>(formation_id));
+        std::terminate();
+    }
+    owner->update_herd_member(*this);
 }
 
-void figure_sheep_action(Figure *f)
+void figuretype::Animal::update_graphics()
 {
-    const formation *m = formation_get(f->formation_id);
-    f->terrain_usage = TERRAIN_USAGE_ANIMAL;
-    f->use_cross_country = 0;
-    f->is_ghost = 0;
-    city_figures_add_animal();
-    figure_image_increase_offset(f, 6);
-
-    switch (f->action_state) {
-        case FIGURE_ACTION_150_ATTACK:
-            figure_combat_handle_attack(f);
-            break;
-        case FIGURE_ACTION_149_CORPSE:
-            figure_combat_handle_corpse(f);
-            break;
-        case FIGURE_ACTION_196_HERD_ANIMAL_AT_REST:
-            f->wait_ticks++;
-            if (f->wait_ticks > 400) {
-                f->wait_ticks = f->id() & 0x1f;
-                f->action_state = FIGURE_ACTION_197_HERD_ANIMAL_MOVING;
-                herd_get_destination(f->index_in_formation, m, &f->destination_x, &f->destination_y);
-                f->roam_length = 0;
-            }
-            break;
-        case FIGURE_ACTION_197_HERD_ANIMAL_MOVING:
-            figure_movement_move_ticks(f, 1);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
-                f->direction = f->previous_tile_direction;
-                f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
-                f->wait_ticks = f->id() & 0x1f;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            }
-            break;
+    formation *owner = formation_get(formation_id);
+    if (!owner) {
+        log_error("Herd member graphics reference an unknown formation", 0, static_cast<int>(formation_id));
+        std::terminate();
     }
-    figure_sheep_update_graphics(f);
-}
-
-void figure_sheep_update_graphics(Figure *f)
-{
-    const int dir = figure_image_direction(f);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        figure_runtime_graphics_select_corpse_entry(f, "corpse");
-    } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
-        if (f->id() & 3) {
-            figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, (f->wait_ticks & 0x3f) + 1);
-        } else {
-            figure_runtime_graphics_select_directional_entry_frame(f, "alternate_rest", dir, 0);
-        }
-    } else {
-        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
-    }
-}
-
-void figure_wolf_action(Figure *f)
-{
-    const formation *m = formation_get(f->formation_id);
-    f->terrain_usage = TERRAIN_USAGE_ANIMAL;
-    f->use_cross_country = 0;
-    f->is_ghost = 0;
-    city_figures_add_animal();
-    figure_image_increase_offset(f, 12);
-
-    switch (f->action_state) {
-        case FIGURE_ACTION_150_ATTACK:
-            figure_combat_handle_attack(f);
-            break;
-        case FIGURE_ACTION_149_CORPSE:
-            figure_combat_handle_corpse(f);
-            break;
-        case FIGURE_ACTION_196_HERD_ANIMAL_AT_REST:
-            f->wait_ticks++;
-            if (f->wait_ticks > 400) {
-                f->wait_ticks = f->id() & 0x1f;
-                f->action_state = FIGURE_ACTION_197_HERD_ANIMAL_MOVING;
-                herd_get_destination(f->index_in_formation, m, &f->destination_x, &f->destination_y);
-                f->roam_length = 0;
-            }
-            break;
-        case FIGURE_ACTION_197_HERD_ANIMAL_MOVING:
-            figure_movement_move_ticks(f, 2);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
-                f->direction = f->previous_tile_direction;
-                f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
-                f->wait_ticks = f->id() & 0x1f;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            }
-            break;
-        case FIGURE_ACTION_199_WOLF_ATTACKING:
-            figure_movement_move_ticks(f, 2);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                int target_id = figure_combat_get_target_for_wolf(f->x, f->y, 6);
-                if (target_id) {
-                    Figure *target = Figure::get(target_id);
-                    f->destination_x = target->x;
-                    f->destination_y = target->y;
-                    f->target_figure.retarget(*target);
-                    target->targeted_by_figure.retarget(*f);
-                    f->target_figure_created_sequence = target->created_sequence;
-                    Route::remove(f);
-                } else {
-                    f->direction = f->previous_tile_direction;
-                    f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
-                    f->wait_ticks = f->id() & 0x1f;
-                }
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            } else if (f->direction == DIR_FIGURE_LOST) {
-                f->direction = f->previous_tile_direction;
-                f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
-                f->wait_ticks = f->id() & 0x1f;
-            }
-            break;
-    }
-    figure_wolf_update_graphics(f);
-}
-
-void figure_wolf_update_graphics(Figure *f)
-{
-    const int dir = figure_image_direction(f);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        figure_runtime_graphics_select_corpse_entry(f, "corpse");
-    } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        figure_runtime_graphics_select_directional_entry_frame(f, "attack", dir, f->attack_image_offset / 4 + 1);
-    } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
-        figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, 0);
-    } else {
-        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
-    }
+    owner->update_herd_member_graphics(*this);
 }
 
 static int terrain_blocked_for_animals(int grid_offset)
@@ -299,7 +160,7 @@ void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal
 {
     int figure_id = map_figure_at(animal_tile_offset);
     Figure *f = Figure::get(figure_id);
-    if ((f->type == FIGURE_SHEEP || f->type == FIGURE_ZEBRA) 
+    if (f->is_herd() && !f->is_aggressive_herd()
         && f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
         const int num_tiles = building_size * 4;
         const int *tile_deltas = map_grid_adjacent_offsets(building_size);
@@ -316,61 +177,6 @@ void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal
             f->roam_length = 0;
             break;
         }
-    }
-}
-
-void figure_zebra_action(Figure *f)
-{
-    const formation *m = formation_get(f->formation_id);
-    f->terrain_usage = TERRAIN_USAGE_ANIMAL;
-    f->use_cross_country = 0;
-    f->is_ghost = 0;
-    city_figures_add_animal();
-    figure_image_increase_offset(f, 12);
-
-    switch (f->action_state) {
-        case FIGURE_ACTION_150_ATTACK:
-            figure_combat_handle_attack(f);
-            break;
-        case FIGURE_ACTION_149_CORPSE:
-            figure_combat_handle_corpse(f);
-            break;
-        case FIGURE_ACTION_196_HERD_ANIMAL_AT_REST:
-            f->wait_ticks++;
-            if (f->wait_ticks > 200) {
-                f->wait_ticks = f->id() & 0x1f;
-                f->action_state = FIGURE_ACTION_197_HERD_ANIMAL_MOVING;
-                herd_get_destination(f->index_in_formation, m, &f->destination_x, &f->destination_y);
-                f->roam_length = 0;
-            }
-            break;
-        case FIGURE_ACTION_197_HERD_ANIMAL_MOVING:
-            figure_movement_move_ticks(f, 2);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
-                f->direction = f->previous_tile_direction;
-                f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
-                f->wait_ticks = f->id() & 0x1f;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            }
-            break;
-    }
-    figure_zebra_update_graphics(f);
-}
-
-void figure_zebra_update_graphics(Figure *f)
-{
-    const int dir = figure_image_direction(f);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        figure_runtime_graphics_select_corpse_entry(f, "corpse");
-    } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
-        if (f->id() & 3) {
-            figure_runtime_graphics_select_directional_entry_frame(f, "rest", dir, (f->wait_ticks & 0x3f) + 1);
-        } else {
-            figure_runtime_graphics_select_directional_entry_frame(f, "alternate_rest", dir, 0);
-        }
-    } else {
-        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     }
 }
 

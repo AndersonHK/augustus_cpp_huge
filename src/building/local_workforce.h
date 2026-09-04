@@ -1,8 +1,7 @@
 #pragma once
 
 #include "building/building.h"
-#include "building/building_record.h"
-#include "building/local_workforce_runtime_lists.h"
+#include "building/workforce_types.h"
 #include "core/buffer.h"
 
 #include "map/point.h"
@@ -75,8 +74,8 @@ public:
 
     virtual ~RouteAccessSelectorContext() = default;
 
-    virtual RuntimeBuildingLists &runtimeLists() const = 0;
-    virtual int houseHasUnemployedWorkers(Building &house, building &house_record) const = 0;
+    virtual void forEachPopulatedLaborSourceHouse(const std::function<void(Building &)> &visitor) const = 0;
+    virtual int houseHasUnemployedWorkers(Building &house) const = 0;
     virtual int usesActiveWorkforce(const Building &workplace) const = 0;
     virtual void forEachAssignedSource(unsigned int workplace_id, const AssignedSourceVisitor &visitor) const = 0;
     virtual void releaseWorkplaceSource(unsigned int workplace_id, unsigned int house_id) const = 0;
@@ -84,12 +83,10 @@ public:
 
 class LocalWorkforceRouteAccessContext : public RouteAccessSelectorContext {
 public:
-    LocalWorkforceRouteAccessContext(
-        RuntimeBuildingLists &runtime_lists,
-        WorkforceAllocationTable &allocations);
+    explicit LocalWorkforceRouteAccessContext(WorkforceAllocationTable &allocations);
 
-    RuntimeBuildingLists &runtimeLists() const override;
-    int houseHasUnemployedWorkers(Building &house, building &house_record) const override;
+    void forEachPopulatedLaborSourceHouse(const std::function<void(Building &)> &visitor) const override;
+    int houseHasUnemployedWorkers(Building &house) const override;
     int usesActiveWorkforce(const Building &building) const override;
     void forEachAssignedSource(
         unsigned int workplace_id,
@@ -97,7 +94,6 @@ public:
     void releaseWorkplaceSource(unsigned int workplace_id, unsigned int house_id) const override;
 
 private:
-    RuntimeBuildingLists &runtime_lists_;
     WorkforceAllocationTable &allocations_;
 };
 
@@ -109,7 +105,6 @@ public:
     void clear();
     void initializeCity();
     void preserveAllocationsForNextCityInitialize();
-    void markBuildingListsDirty();
     LocalWorkforceRouteAccessContext routeAccessContext();
 
     int assignedWorkersForHouse(unsigned int house_id) const;
@@ -135,7 +130,6 @@ public:
 private:
     WorkforceAllocationTable allocations_;
     std::vector<std::unique_ptr<LaborReservation>> reservations_;
-    RuntimeBuildingLists runtime_lists_;
     int preserve_allocations_on_next_city_initialize_ = 0;
 };
 

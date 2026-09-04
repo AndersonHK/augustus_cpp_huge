@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="FX\Explosion_Cloud" inherits="FX\explosion" logical_units_per_source_pixel="120">
+</assetlist>

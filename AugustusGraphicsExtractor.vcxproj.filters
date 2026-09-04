@@ -24,13 +24,7 @@
     <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c">
       <Filter>Tools</Filter>
     </ClCompile>
-    <ClCompile Include="src\assets\augustus_asset_extractor.cpp">
-      <Filter>Extractor</Filter>
-    </ClCompile>
-    <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp">
-      <Filter>Extractor</Filter>
-    </ClCompile>
-    <ClCompile Include="src\assets\graphics_extractor_common.cpp">
+    <ClCompile Include="src\assets\graphics_extraction_client.cpp">
       <Filter>Extractor</Filter>
     </ClCompile>
     <ClCompile Include="src\core\buffer.cpp">
@@ -43,9 +37,6 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\io.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\legacy_image_extractor.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\png_read.cpp">
@@ -68,13 +59,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\assets\augustus_asset_extractor.h">
+    <ClInclude Include="src\assets\graphics_extraction_client.h">
       <Filter>Extractor</Filter>
     </ClInclude>
-    <ClInclude Include="src\assets\augustus_julius_template_resolver.h">
+    <ClInclude Include="src\assets\graphics_extraction_abi.h">
       <Filter>Extractor</Filter>
     </ClInclude>
-    <ClInclude Include="src\assets\graphics_extractor_common.h">
+    <ClInclude Include="src\assets\graphics_extractor_shims.h">
       <Filter>Extractor</Filter>
     </ClInclude>
   </ItemGroup>

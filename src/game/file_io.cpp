@@ -8,6 +8,7 @@
 #include "city/data.h"
 #include "empire/empire.h"
 #include "game/file.h"
+#include "game/load_save/LoadSaveModuleClient.h"
 #include "game/mod_manager.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
@@ -23,6 +24,7 @@
 #include "building/building.h"
 #include "building/barracks.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
 #include "building/building_type_startup_bridge.h"
 
 #include "core/file.h"
@@ -77,6 +79,9 @@
 #include "scenario/invasion.h"
 #include "scenario/map.h"
 #include "scenario/message_media_text_blob.h"
+
+#include <string>
+#include <vector>
 #include "scenario/price_change.h"
 #include "scenario/request.h"
 #include "sound/city.h"
@@ -1094,6 +1099,9 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     // runtime subsystem traverses a composed building. Warehouse recounting
     // must also happen after keyed resources have restored each bay by id.
     if (!building_hydrate_loaded_compositions(version)) return 0;
+    // Serialized module DTOs are bridge-only state. Materialize every Building
+    // and restore its modules before any cross-object relationship is repaired.
+    if (!building_runtime_hydrate_loaded_modules()) return 0;
     if (!formation_refresh_runtime_definitions()) {
         log_error("Loaded save contains invalid fort-formation ownership links", 0, 0);
         return 0;
@@ -1312,42 +1320,6 @@ static void savegame_save_to_state(savegame_state *state)
     widget_minimap_save_preview(state->minimap_preview);
 }
 
-static scenario_version_t get_scenario_version(FILE *fp)
-{
-    static const char kVersionMagic[] = "VERSION";
-    char version_magic[sizeof(kVersionMagic) - 1];
-    size_t read = fread(version_magic, 1, sizeof(version_magic), fp);
-    if (read != sizeof(version_magic)) {
-        log_error("Unable to read version header from file", 0, 0);
-        return SCENARIO_VERSION_NONE;
-    }
-    if (memcmp(version_magic, kVersionMagic, sizeof(version_magic)) != 0) {
-        rewind(fp);
-        return SCENARIO_LAST_UNVERSIONED;
-    }
-
-    buffer buf;
-    uint8_t version_data[4];
-    buffer_init(&buf, version_data, 4);
-    read = fread(version_data, 1, 4, fp);
-    if (read != sizeof(version_data)) {
-        log_error("Unable to read version number from file", 0, 0);
-        return SCENARIO_VERSION_NONE;
-    }
-    return static_cast<scenario_version_t>(buffer_read_i32(&buf));
-}
-
-static int read_int32(FILE *fp)
-{
-    uint8_t data[4];
-    if (fread(&data, 1, 4, fp) != 4) {
-        return 0;
-    }
-    buffer buf;
-    buffer_init(&buf, data, 4);
-    return buffer_read_i32(&buf);
-}
-
 static void write_int32(FILE *fp, int value)
 {
     uint8_t data[4];
@@ -1384,40 +1356,6 @@ static int read_compressed_chunk_from_buffer(buffer *buf, void *dst, size_t byte
     }
 }
 
-static int read_compressed_chunk(FILE *fp, void *dst, size_t bytes_to_read, int read_as_zlib,
-    memory_block *compress_buffer)
-{
-    int input_size = read_int32(fp);
-    if ((unsigned int) input_size == UNCOMPRESSED) {
-        return fread(dst, 1, bytes_to_read, fp) == bytes_to_read;
-    }
-    if (input_size <= 0 || input_size > MAX_COMPRESSED_CHUNK_SIZE) {
-        log_error("Invalid compressed save chunk size", 0, input_size);
-        return 0;
-    }
-
-    if (!core_memory_block_ensure_size(compress_buffer, input_size)) {
-        return 0;
-    }
-    if (fread(compress_buffer->memory, 1, input_size, fp) != input_size) {
-        return 0;
-    }
-
-    if (!read_as_zlib) {
-        return zip_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read);
-    } else {
-        int output_size = 0;
-        return zlib_helper_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read, &output_size);
-    }
-}
-
-static int read_compressed_savegame_chunk(FILE *fp, void *buf, size_t bytes_to_read,
-    savegame_version_t version, memory_block *compress_buffer)
-{
-    int read_as_zlib = version > SAVE_GAME_LAST_ZIP_COMPRESSION;
-    return read_compressed_chunk(fp, buf, bytes_to_read, read_as_zlib, compress_buffer);
-}
-
 static int write_compressed_chunk(FILE *fp, void *buf, size_t bytes_to_write, memory_block *compress_buffer)
 {
     if (!core_memory_block_ensure_size(compress_buffer, bytes_to_write)) {
@@ -1431,24 +1369,6 @@ static int write_compressed_chunk(FILE *fp, void *buf, size_t bytes_to_write, me
         // unable to compress: write uncompressed
         write_int32(fp, UNCOMPRESSED);
         fwrite(buf, 1, bytes_to_write, fp);
-    }
-    return 1;
-}
-
-static int prepare_dynamic_piece_from_file(FILE *fp, file_piece *piece)
-{
-    if (piece->dynamic) {
-        int size = read_int32(fp);
-        if (!size) {
-            return 0;
-        }
-        if (size < 0 || size > MAX_DYNAMIC_PIECE_SIZE) {
-            log_error("Invalid dynamic save piece size", 0, size);
-            return -1;
-        }
-        if (!allocate_zeroed_piece_buffer(&piece->buf, size)) {
-            return -1;
-        }
     }
     return 1;
 }
@@ -1525,51 +1445,6 @@ static int load_scenario_from_buffer(buffer *buf)
     return 1;
 }
 
-static int load_scenario_to_buffers(const char *filename)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        return 0;
-    }
-    scenario_version_t version = get_scenario_version(fp);
-    init_scenario_data(version);
-    if (version > SCENARIO_CURRENT_VERSION) {
-        log_error("Scenario version incompatible with current version, got version", 0, version);
-        return 0;
-    }
-    memory_block compress_buffer;
-    core_memory_block_init(&compress_buffer, COMPRESS_BUFFER_INITIAL_SIZE);
-    for (int i = 0; i < scenario_data.num_pieces; i++) {
-        file_piece *piece = &scenario_data.pieces[i];
-        int result = 0;
-        int prepared = prepare_dynamic_piece_from_file(fp, piece);
-        if (prepared < 0) {
-            file_close(fp);
-            core_memory_block_free(&compress_buffer);
-            return 0;
-        }
-        if (!prepared) {
-            continue;
-        }
-        if (piece->compressed) {
-            result = read_compressed_chunk(fp, piece->buf.data, piece->buf.size, 1, &compress_buffer);
-        } else {
-            size_t bytes_read = fread(piece->buf.data, 1, piece->buf.size, fp);
-            result = bytes_read == piece->buf.size;
-        }
-        if (!result) {
-            log_info("Incorrect buffer size, got", 0, result);
-            log_info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
-            file_close(fp);
-            core_memory_block_free(&compress_buffer);
-            return 0;
-        }
-    }
-    core_memory_block_free(&compress_buffer);
-    file_close(fp);
-    return 1;
-}
-
 int game_file_io_read_scenario_from_buffer(buffer *buf)
 {
     if (!load_scenario_from_buffer(buf)) {
@@ -1582,11 +1457,16 @@ int game_file_io_read_scenario_from_buffer(buffer *buf)
 int game_file_io_read_scenario(const char *filename)
 {
     log_info("Loading scenario", filename, 0);
-    if (!load_scenario_to_buffers(filename)) {
+    std::vector<uint8_t> archive;
+    std::string diagnostic;
+    const uint32_t read_status = LoadSaveModuleClient().readArchive(filename, 0, archive, diagnostic);
+    if (read_status != VESPASIAN_LOAD_SAVE_OK) {
+        log_error("Unable to load scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
         return 0;
     }
-    scenario_load_from_state(&scenario_data.state, scenario_data.version);
-    return 1;
+    buffer source;
+    buffer_init(&source, archive.data(), archive.size());
+    return game_file_io_read_scenario_from_buffer(&source);
 }
 
 static int scenario_terrain_at(int grid_offset)
@@ -1688,33 +1568,34 @@ static int read_scenario_info(saved_game_info *info)
 
 int game_file_io_read_scenario_info(const char *filename, saved_game_info *info)
 {
-    memset(info, 0, sizeof(saved_game_info));
-
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
+    memset(info, 0, sizeof(saved_game_info));
 
-    if (!load_scenario_to_buffers(filename)) {
-        if (scenario_data.version > SCENARIO_CURRENT_VERSION) {
-            return SAVEGAME_STATUS_NEWER_VERSION;
-        }
-        return game_file_io_read_saved_game_info(filename, 0, info);
+    std::vector<uint8_t> archive;
+    std::string diagnostic;
+    const uint32_t read_status = LoadSaveModuleClient().readArchive(filename, 0, archive, diagnostic);
+    if (read_status != VESPASIAN_LOAD_SAVE_OK) {
+        log_error("Unable to inspect scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
+        return SAVEGAME_STATUS_INVALID;
     }
-
-    return read_scenario_info(info);
+    buffer source;
+    buffer_init(&source, archive.data(), archive.size());
+    return game_file_io_read_scenario_info_from_buffer(&source, info);
 }
 
 int game_file_io_read_scenario_info_from_buffer(buffer *buf, saved_game_info *info)
 {
-    memset(info, 0, sizeof(saved_game_info));
-
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
+    memset(info, 0, sizeof(saved_game_info));
     if (!load_scenario_from_buffer(buf)) {
         if (scenario_data.version > SCENARIO_CURRENT_VERSION) {
             return SAVEGAME_STATUS_NEWER_VERSION;
         }
+        buffer_reset(buf);
         return game_file_io_read_saved_game_info_from_buffer(buf, info);
     }
     return read_scenario_info(info);
@@ -1790,38 +1671,6 @@ static int savegame_read_from_buffer(buffer *buf, savegame_version_t version)
     return 1;
 }
 
-static int savegame_read_from_file(FILE *fp, savegame_version_t version)
-{
-    memory_block compress_buffer;
-    core_memory_block_init(&compress_buffer, COMPRESS_BUFFER_INITIAL_SIZE);
-    for (int i = 0; i < savegame_data.num_pieces; i++) {
-        file_piece *piece = &savegame_data.pieces[i];
-        int result = 0;
-        int prepared = prepare_dynamic_piece_from_file(fp, piece);
-        if (prepared < 0) {
-            core_memory_block_free(&compress_buffer);
-            return 0;
-        }
-        if (!prepared) {
-            continue;
-        }
-        if (piece->compressed) {
-            result = read_compressed_savegame_chunk(fp, piece->buf.data, piece->buf.size, version, &compress_buffer);
-        } else {
-            result = fread(piece->buf.data, 1, piece->buf.size, fp) == piece->buf.size;
-        }
-        // The last piece may be smaller than buf.size
-        if (!result && i != (savegame_data.num_pieces - 1)) {
-            log_info("Incorrect buffer size, got", 0, result);
-            log_info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
-            core_memory_block_free(&compress_buffer);
-            return 0;
-        }
-    }
-    core_memory_block_free(&compress_buffer);
-    return 1;
-}
-
 static void savegame_write_to_file(FILE *fp, memory_block *compress_buffer)
 {
     for (int i = 0; i < savegame_data.num_pieces; i++) {
@@ -1854,33 +1703,6 @@ static int get_savegame_versions_from_buffer(buffer *buf, savegame_version_t *sa
     }
     buffer_reset(buf);
     return *save_version != 0;
-}
-
-static int get_savegame_versions(FILE *fp, savegame_version_t *save_version, resource_version_t *resource_version)
-{
-    buffer buf;
-    uint8_t data[4];
-    buffer_init(&buf, data, 4);
-    if (fseek(fp, 4, SEEK_CUR) ||
-        fread(data, 1, 4, fp) != 4) {
-        return 0;
-    }
-    *save_version = static_cast<savegame_version_t>(buffer_read_i32(&buf));
-    int seek_back_bytes = -8;
-    if (*save_version > SAVE_GAME_LAST_STATIC_RESOURCES) {
-        buffer_reset(&buf);
-        if (fread(data, 1, 4, fp) != 4) {
-            return 0;
-        }
-        *resource_version = static_cast<resource_version_t>(buffer_read_i32(&buf));
-        seek_back_bytes = -12;
-    } else {
-        *resource_version = resource_id_bridge_original_version();
-    }
-    if (fseek(fp, seek_back_bytes, SEEK_CUR)) {
-        return 0;
-    }
-    return 1;
 }
 
 int game_file_io_read_save_game_from_buffer(buffer *buf)
@@ -1919,41 +1741,21 @@ int game_file_io_read_saved_game(const char *filename, int offset)
     clear_loaded_save_mod_metadata();
     clear_savegame_context();
     log_info("Loading saved game", filename, 0);
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to load game, unable to open file.", 0, 0);
-        return FILE_LOAD_DOES_NOT_EXIST;
-    }
-    if (offset) {
-        fseek(fp, offset, SEEK_SET);
-    }
-    int result = 0;
-    savegame_version_t save_version;
-    resource_version_t resource_version;
-    if (get_savegame_versions(fp, &save_version, &resource_version)) {
-        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
-            log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
-            file_close(fp);
-            return FILE_LOAD_INCOMPATIBLE_VERSION;
-        }
-        log_info("Savegame version", 0, save_version);
-        resource_set_mapping(resource_version);
-        init_savegame_data(save_version);
-        result = savegame_read_from_file(fp, save_version);
-    }
-    file_close(fp);
-    if (!result) {
-        clear_savegame_context();
-        log_error("Unable to load game, incompatible savefile.", 0, 0);
-        return FILE_LOAD_WRONG_FILE_FORMAT;
-    }
-    update_loaded_save_mod_metadata(&savegame_data.state, save_version);
-    if (!savegame_load_from_state(&savegame_data.state, save_version)) {
-        clear_savegame_context();
+    if (offset < 0) {
+        log_error("Unable to load game archive with a negative offset", filename, offset);
         return FILE_LOAD_VALIDATION_FAILED;
     }
-    clear_savegame_context();
-    return 1;
+    std::vector<uint8_t> archive;
+    std::string diagnostic;
+    const uint32_t read_status = LoadSaveModuleClient().readArchive(
+        filename, static_cast<uint64_t>(offset), archive, diagnostic);
+    if (read_status != VESPASIAN_LOAD_SAVE_OK) {
+        log_error("Unable to load game archive", diagnostic.c_str(), static_cast<int>(read_status));
+        return read_status == VESPASIAN_LOAD_SAVE_NOT_FOUND ? FILE_LOAD_DOES_NOT_EXIST : FILE_LOAD_VALIDATION_FAILED;
+    }
+    buffer source;
+    buffer_init(&source, archive.data(), archive.size());
+    return game_file_io_read_save_game_from_buffer(&source);
 }
 
 static void get_saved_game_origin(saved_game_info *info, const savegame_state *state)
@@ -2038,33 +1840,21 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     }
     clear_savegame_context();
     memset(info, 0, sizeof(saved_game_info));
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
+    if (offset < 0) {
+        log_error("Unable to inspect save archive with a negative offset", filename, offset);
         return SAVEGAME_STATUS_INVALID;
     }
-    if (offset) {
-        fseek(fp, offset, SEEK_SET);
-    }
-    savegame_load_status result = SAVEGAME_STATUS_INVALID;
-    savegame_version_t save_version;
-    resource_version_t resource_version;
-    if (!get_savegame_versions(fp, &save_version, &resource_version)) {
-        file_close(fp);
+    std::vector<uint8_t> archive;
+    std::string diagnostic;
+    const uint32_t read_status = LoadSaveModuleClient().readArchive(
+        filename, static_cast<uint64_t>(offset), archive, diagnostic);
+    if (read_status != VESPASIAN_LOAD_SAVE_OK) {
+        log_error("Unable to inspect save archive", diagnostic.c_str(), static_cast<int>(read_status));
         return SAVEGAME_STATUS_INVALID;
     }
-    if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
-        file_close(fp);
-        return SAVEGAME_STATUS_NEWER_VERSION;
-    }
-    resource_set_mapping(resource_version);
-    init_savegame_data(save_version);
-    result = static_cast<savegame_load_status>(savegame_read_from_file(fp, save_version));
-    file_close(fp);
-    if (result != SAVEGAME_STATUS_OK) {
-        clear_savegame_context();
-        return FILE_LOAD_WRONG_FILE_FORMAT;
-    }
-    return savegame_read_file_info(info, save_version);
+    buffer source;
+    buffer_init(&source, archive.data(), archive.size());
+    return game_file_io_read_saved_game_info_from_buffer(&source, info);
 }
 
 int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info)
@@ -2134,21 +1924,23 @@ int game_file_io_write_saved_game(const char *filename)
 
 static int saved_game_file_has_valid_structure(const char *filename)
 {
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
+    std::vector<uint8_t> archive;
+    std::string diagnostic;
+    if (LoadSaveModuleClient().readArchive(filename, 0, archive, diagnostic) != VESPASIAN_LOAD_SAVE_OK) {
         return 0;
     }
+    buffer source;
+    buffer_init(&source, archive.data(), archive.size());
     savegame_version_t save_version;
     resource_version_t resource_version;
-    if (!get_savegame_versions(fp, &save_version, &resource_version) || save_version != SAVE_GAME_CURRENT_VERSION || resource_version != resource_id_bridge_current_version()) {
-        file_close(fp);
+    if (!get_savegame_versions_from_buffer(&source, &save_version, &resource_version) ||
+        save_version != SAVE_GAME_CURRENT_VERSION || resource_version != resource_id_bridge_current_version()) {
         return 0;
     }
     init_savegame_data(save_version);
-    const int result = savegame_read_from_file(fp, save_version);
-    const int close_result = file_close(fp);
+    const int result = savegame_read_from_buffer(&source, save_version);
     clear_savegame_context();
-    return result && close_result;
+    return result;
 }
 
 int game_file_io_delete_saved_game(const char *filename)

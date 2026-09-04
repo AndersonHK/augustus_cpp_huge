@@ -83,6 +83,17 @@ bool valid(
     return figure_type_layered_definition_buffers_are_valid_for_test(inputs, count, query, result) != 0;
 }
 
+std::string runtime_definition(const char *type)
+{
+    return std::string("<figure type=\"") + type +
+        "\"><profiles default=\"legacy\"><profile id=\"legacy\">"
+        "<native class=\"legacy_action\"/><owner slot=\"none\" building=\"any\" state=\"any\"/>"
+        "<movement roam_ticks=\"1\" max_roam_length=\"800\" return_mode=\"none\"/>"
+        "<pathing mode=\"cross_country\" terrain=\"any\"/></profile></profiles>"
+        "<graphics><default max_image_offset=\"12\"><path value=\"Walkers\\Group_118\"/>"
+        "</default></graphics></figure>";
+}
+
 std::string replace_graphics(const char *figure_xml, const char *graphics_xml)
 {
     std::string result = figure_xml ? figure_xml : "";
@@ -142,34 +153,40 @@ bool missile_launcher_definition_is_valid(
     const char *policy,
     figure_type_layer_test_result *result = nullptr)
 {
+    const std::string runtime_xml = runtime_definition("fort_javelin");
     const std::string xml =
         std::string(MISSILE_LAUNCHER_XML_PREFIX) + policy + MISSILE_LAUNCHER_XML_SUFFIX;
     const figure_type_layer_test_input inputs[] = {
-        input(xml.c_str(), 0, "Julius", "Julius/FigureType/fort_javelin.xml")
+        input(runtime_xml.c_str(), 0, "Julius", "Julius/FigureType/fort_javelin.xml"),
+        input(xml.c_str(), 1, "Vespasian", "Vespasian/FigureType/fort_javelin.xml")
     };
-    return valid(inputs, 1, "fort_javelin", result);
+    return valid(inputs, 2, "fort_javelin", result);
 }
 
 bool resource_cart_definition_is_valid(
     const char *policy,
     figure_type_layer_test_result *result = nullptr)
 {
+    const std::string runtime_xml = runtime_definition("lighthouse_supplier");
     const std::string xml = std::string(RESOURCE_CART_XML_PREFIX) + policy + RESOURCE_CART_XML_SUFFIX;
     const figure_type_layer_test_input inputs[] = {
-        input(xml.c_str(), 0, "Julius", "Julius/FigureType/lighthouse_supplier.xml")
+        input(runtime_xml.c_str(), 0, "Julius", "Julius/FigureType/lighthouse_supplier.xml"),
+        input(xml.c_str(), 1, "Vespasian", "Vespasian/FigureType/lighthouse_supplier.xml")
     };
-    return valid(inputs, 1, "lighthouse_supplier", result);
+    return valid(inputs, 2, "lighthouse_supplier", result);
 }
 
 bool directional_definition_is_valid(
     const char *policy,
     figure_type_layer_test_result *result = nullptr)
 {
+    const std::string runtime_xml = runtime_definition("fishing_boat");
     const std::string xml = std::string(DIRECTIONAL_XML_PREFIX) + policy + DIRECTIONAL_XML_SUFFIX;
     const figure_type_layer_test_input inputs[] = {
-        input(xml.c_str(), 0, "Julius", "Julius/FigureType/fishing_boat.xml")
+        input(runtime_xml.c_str(), 0, "Julius", "Julius/FigureType/fishing_boat.xml"),
+        input(xml.c_str(), 1, "Vespasian", "Vespasian/FigureType/fishing_boat.xml")
     };
-    return valid(inputs, 1, "fishing_boat", result);
+    return valid(inputs, 2, "fishing_boat", result);
 }
 
 } // namespace
@@ -209,8 +226,9 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
     figure_type_registry_impl::FigureGraphics pattern_graphics;
     pattern_graphics.asset_target(GraphicsTargetRole::Default).set_path("Walkers\\Group_107");
-    if (!pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry) {
-        errors << "Figure graphics did not recognize a legacy per-frame entry pattern.\n";
+    if (!pattern_graphics.asset_target(GraphicsTargetRole::Default).cache_asset_binding() ||
+        !pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry) {
+        errors << "Figure graphics did not recognize a payload-backed per-frame entry pattern.\n";
         return false;
     }
     pattern_graphics.asset_target(GraphicsTargetRole::Default).set_path("Walkers\\walker_{dir}");
@@ -256,6 +274,19 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
         return false;
     }
 
+    constexpr const char *GRAPHICS_OVERRIDE_XML =
+        "<figure type=\"homeless\" graphics_only=\"true\"><graphics>"
+        "<default max_image_offset=\"12\"><path value=\"Walkers\\Group_117\"/></default>"
+        "</graphics></figure>";
+    const figure_type_layer_test_input graphics_override[] = {
+        input(LOWER_XML, 0, "Julius", "Julius/FigureType/homeless.xml"),
+        input(GRAPHICS_OVERRIDE_XML, 1, "Vespasian", "Vespasian/FigureType/homeless.xml")
+    };
+    if (!valid(graphics_override, 2, "homeless", &result) ||
+        result.queried_max_roam_length != 800 || result.queried_source_layer != 1) {
+        errors << "FigureType graphics-only overlay did not preserve its inherited runtime definition.\n";
+        return false;
+    }
     constexpr const char *PROPORTIONAL_LOGICAL_SIZE_XML =
         "<figure type=\"homeless\"><profiles default=\"legacy\"><profile id=\"legacy\"><native class=\"legacy_action\"/><owner slot=\"none\" building=\"any\" state=\"any\"/><movement roam_ticks=\"1\" max_roam_length=\"800\" return_mode=\"none\"/><pathing mode=\"vanilla_roaming\" terrain=\"roads_highway\"/></profile></profiles><graphics><default max_image_offset=\"12\" logical_units_per_source_pixel=\"60\"><path value=\"Walkers\\Group_118\"/></default></graphics></figure>";
     const figure_type_layer_test_input proportional_logical_size[] = { input(PROPORTIONAL_LOGICAL_SIZE_XML, 0, "Vespasian", "Vespasian/FigureType/homeless.xml") };
@@ -350,10 +381,12 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
         "<figure type=\"fort_javelin\" disabled=\"true\" graphics_only=\"true\"></figure>"
     };
     for (const char *xml : invalid_graphics_only_definitions) {
+        const std::string runtime_xml = runtime_definition("fort_javelin");
         const figure_type_layer_test_input inputs[] = {
-            input(xml, 0, "Julius", "Julius/FigureType/fort_javelin.xml")
+            input(runtime_xml.c_str(), 0, "Julius", "Julius/FigureType/fort_javelin.xml"),
+            input(xml, 1, "Vespasian", "Vespasian/FigureType/fort_javelin.xml")
         };
-        if (valid(inputs, 1, "fort_javelin")) {
+        if (valid(inputs, 2, "fort_javelin")) {
             errors << "FigureType accepted a malformed graphics-only definition.\n";
             return false;
         }
@@ -683,10 +716,12 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
         "<state role=\"firing\" action=\"ballista_firing\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"missile_launcher\" frame_divisor=\"1\" direction_stride=\"8\"/>"
         "<state role=\"dead\" action=\"corpse\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"static\" frame_divisor=\"1\" direction_stride=\"8\"/>"
         "</graphics></figure>";
+    const std::string ballista_runtime_xml = runtime_definition("ballista");
     const figure_type_layer_test_input ballista_inputs[] = {
-        input(BALLISTA_GRAPHICS, 0, "Julius", "Julius/FigureType/ballista.xml")
+        input(ballista_runtime_xml.c_str(), 0, "Julius", "Julius/FigureType/ballista.xml"),
+        input(BALLISTA_GRAPHICS, 1, "Vespasian", "Vespasian/FigureType/ballista.xml")
     };
-    if (!valid(ballista_inputs, 1, "ballista", &result) ||
+    if (!valid(ballista_inputs, 2, "ballista", &result) ||
         result.queried_state_layer_count != 3 ||
         !result.queried_ballista_idle_has_path ||
         result.queried_ballista_idle_sample_offset != 3 ||

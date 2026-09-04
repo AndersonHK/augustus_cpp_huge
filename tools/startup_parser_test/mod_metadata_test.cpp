@@ -3,6 +3,7 @@
 #include "game/mod_manager.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -61,20 +62,57 @@ bool validate_source_schema(std::ostream &errors)
     return true;
 }
 
-bool files_are_identical(const std::filesystem::path &left, const std::filesystem::path &right)
+std::string normalized_xml_source(const std::filesystem::path &path)
 {
-    std::error_code error;
-    const std::uintmax_t left_size = std::filesystem::file_size(left, error);
-    if (error) return false;
-    const std::uintmax_t right_size = std::filesystem::file_size(right, error);
-    if (error || left_size != right_size) return false;
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream) return {};
+    const std::string source{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    std::string normalized;
+    normalized.reserve(source.size());
+    bool quoted = false;
+    char quote = 0;
+    for (std::size_t index = 0; index < source.size();) {
+        if (!quoted && source.compare(index, 2, "<?") == 0) {
+            const std::size_t end = source.find("?>", index + 2);
+            if (end == std::string::npos) return {};
+            index = end + 2;
+            continue;
+        }
+        if (!quoted && source.compare(index, 4, "<!--") == 0) {
+            const std::size_t end = source.find("-->", index + 4);
+            if (end == std::string::npos) return {};
+            index = end + 3;
+            continue;
+        }
+        const char character = source[index++];
+        if (character == '"' || character == '\'') {
+            if (!quoted) {
+                quoted = true;
+                quote = character;
+            } else if (quote == character) {
+                quoted = false;
+            }
+            normalized.push_back(character);
+            continue;
+        }
+        if (!quoted && std::isspace(static_cast<unsigned char>(character))) {
+            while (index < source.size() && std::isspace(static_cast<unsigned char>(source[index]))) index++;
+            const char previous = normalized.empty() ? 0 : normalized.back();
+            const char next = index < source.size() ? source[index] : 0;
+            if (previous && previous != '>' && previous != '<' && next && next != '<' && next != '>') {
+                normalized.push_back(' ');
+            }
+            continue;
+        }
+        normalized.push_back(character);
+    }
+    return normalized;
+}
 
-    std::ifstream left_stream(left, std::ios::binary);
-    std::ifstream right_stream(right, std::ios::binary);
-    if (!left_stream || !right_stream) return false;
-    return std::equal(
-        std::istreambuf_iterator<char>(left_stream), std::istreambuf_iterator<char>(),
-        std::istreambuf_iterator<char>(right_stream));
+bool definitions_are_equivalent(const std::filesystem::path &left, const std::filesystem::path &right)
+{
+    const std::string left_source = normalized_xml_source(left);
+    return !left_source.empty() && left_source == normalized_xml_source(right);
 }
 
 bool is_authored_definition_file(const std::filesystem::path &relative_path)
@@ -101,7 +139,7 @@ bool validate_sparse_active_mod_trees(std::ostream &errors)
                 if (is_authored_definition_file(relative_path)) {
                     const std::string key = normalized_name(relative_path.generic_string());
                     const auto lower = inherited_files.find(key);
-                    if (lower != inherited_files.end() && files_are_identical(lower->second, iterator->path())) {
+                    if (lower != inherited_files.end() && definitions_are_equivalent(lower->second, iterator->path())) {
                         errors << "Redundant definition duplicates its inherited winner: "
                                << iterator->path().generic_string() << " duplicates "
                                << lower->second.generic_string() << "\n";

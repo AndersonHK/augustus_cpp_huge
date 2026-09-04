@@ -7,6 +7,7 @@
 #include "city/military.h"
 #include "city/warning.h"
 #include "core/calc.h"
+#include "core/log.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
 #include "figure/route.h"
@@ -15,6 +16,8 @@
 #include "map/grid.h"
 #include "map/routing.h"
 #include "scenario/distant_battle.h"
+
+#include <exception>
 
 int formation_legion_create_for_fort(Building &fort)
 {
@@ -40,7 +43,7 @@ void formation_legion_delete_for_fort(const Building &fort)
                 Figure::get(m->standard_figure_id)->remove();
             }
             m->kill_figures();
-            formation_clear(static_cast<int>(m->id));
+            m->remove();
             formation_calculate_legion_totals();
         }
     }
@@ -83,49 +86,54 @@ void formation_legion_change_layout(formation *m, const char *layout_key)
         return;
     }
     if (definition->matches_key("mop_up") && !m->uses_layout("mop_up")) {
-        m->prev.layout_definition = m->layout_type();
+        m->prev.layout_definition = m->layout_definition;
     }
     m->layout_definition = definition;
+    m->invalidate_member_movement_plan();
 }
 
 void formation_legion_restore_layout(formation *m)
 {
     if (m->uses_layout("mop_up")) {
-        m->layout_definition = m->prev.layout_definition ?
-            m->prev.layout_definition :
-            formation_layout_registry_impl::find_layout("column");
+        if (!m->prev.layout_definition) {
+            log_error("Legion lost its pre-mop-up FormationLayout", "formation", m->id);
+            std::terminate();
+        }
+        m->layout_definition = m->prev.layout_definition;
+        m->invalidate_member_movement_plan();
     }
 }
 
 void formation_legion_move_to(formation *m, const map_tile *tile)
 {
-    const Route::DistanceQuery route = Route::DistanceQuery::fromPoint({ m->x_home, m->y_home });
-    if (!route.distanceTo(tile->grid_offset)) {
-        return; // unable to route there
-    }
-    if (tile->x == m->x_home && tile->y == m->y_home) {
-        return; // use formation_legion_return_home
-    }
     if (m->cursed_by_mars) {
         return;
     }
-    m->standard_x = tile->x;
-    m->standard_y = tile->y;
-    m->is_at_fort = 0;
-    m->target_formation_id = 0;
-
+    formation *attack_target = nullptr;
     int figure_id = map_figure_at(tile->grid_offset);
     while (figure_id) {
         Figure *f = Figure::get(figure_id);
         if (f->formation_id) {
             formation *l = formation_get(f->formation_id);
             if (!l->is_legion) {
-                m->target_formation_id = l->id;
+                attack_target = l;
                 break;
             }
         }
 
         figure_id = f->next_figure_id_on_same_tile;
+    }
+
+    if (!attack_target) {
+        const Route::DistanceQuery route = Route::DistanceQuery::fromPoint({ m->x_home, m->y_home });
+        if (!route.distanceTo(tile->grid_offset)) return;
+    }
+    m->set_station_origin(tile->x, tile->y);
+    m->is_at_fort = 0;
+    if (attack_target) {
+        m->target_formation.retarget(*attack_target);
+    } else {
+        m->target_formation.clear();
     }
 
     if (m->morale <= 20) {
@@ -143,7 +151,9 @@ void formation_legion_return_home(formation *m)
     if (m->cursed_by_mars) {
         return;
     }
-    m->is_at_fort = 1;
+    m->set_station_origin(m->x, m->y);
+    m->is_at_fort = 0;
+    m->target_formation.clear();
     formation_legion_restore_layout(m);
     m->send_non_combat_figures_to_fort();
 }
@@ -162,9 +172,9 @@ static int dispatch_soldiers(formation *m)
 {
     m->in_distant_battle = 1;
     m->is_at_fort = 0;
-    const int figure_count = m->figure_count();
+    const int figure_count = m->num_figures;
     m->set_alive_figures_action(FIGURE_ACTION_87_SOLDIER_GOING_TO_DISTANT_BATTLE);
-    int strength_factor = m->legion_distant_battle_strength_factor();
+    int strength_factor = m->distant_battle_strength();
     if (city_games_naval_battle_distant_battle_bonus_active()) {
         strength_factor += 1;
     }
@@ -194,7 +204,7 @@ void formation_legions_dispatch_to_distant_battle(void)
 
 static void kill_soldiers(formation *m, int kill_percentage)
 {
-    formation_change_morale(m, -75);
+    m->change_morale(-75);
     int soldiers_total = m->count_alive_figures();
     int soldiers_to_kill = calc_adjust_with_percentage(soldiers_total, kill_percentage);
     if (soldiers_to_kill >= soldiers_total) {
@@ -217,7 +227,8 @@ void formation_legions_kill_in_distant_battle(int kill_percentage)
 static void return_soldiers(formation *m)
 {
     m->in_distant_battle = 0;
-    m->set_alive_figures_action(FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE, true);
+    m->set_station_origin(m->x, m->y);
+    m->set_alive_figures_action(FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE);
 }
 
 void formation_legions_return_from_distant_battle(void)
@@ -237,7 +248,7 @@ int formation_legion_curse(void)
     for (int i = 1; i < formation_count(); i++) {
         formation *m = formation_get(i);
         if (m->in_use == 1 && m->is_legion) {
-            int weight = m->legion_curse_weight();
+            int weight = m->curse_weight();
             if (weight > best_legion_weight) {
                 best_legion_weight = weight;
                 best_legion = m;
@@ -305,14 +316,15 @@ void formation_legion_update(void)
         if (m->in_use != 1 || !m->is_legion) {
             continue;
         }
-        formation_decrease_monthly_counters(m);
+        m->pursue_target();
+        m->decrease_monthly_counters();
         if (city_figures_enemies() <= 0) {
-            formation_clear_monthly_counters(m);
+            m->clear_monthly_counters();
         }
         if (m->has_figure_in_action(FIGURE_ACTION_150_ATTACK)) {
-            formation_record_fight(m);
+            m->record_fight();
         }
-        if (formation_has_low_morale(m)) {
+        if (m->has_low_morale()) {
             // flee back to fort
             m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         } else if (m->uses_layout("mop_up")) {

@@ -433,21 +433,8 @@ namespace {
 
 using route_internal::LegacyRoutePlannerBackend;
 
-static int next_is_better(
-    int base_distance,
-    int distance,
-    int next_distance,
-    int direction,
-    int next_direction,
-    int is_highway,
-    int next_is_highway)
+static int next_is_better(int distance, int next_distance, int direction, int next_direction)
 {
-    if (!is_highway && next_is_highway && next_distance < base_distance) {
-        return 1;
-    }
-    if (is_highway && !next_is_highway) {
-        return 0;
-    }
     if (next_distance < distance) {
         return 1;
     }
@@ -481,10 +468,8 @@ static BuiltPath build_land_path(
     const int step = num_directions == 8 ? 1 : 2;
 
     while (distance > 1) {
-        const int base_distance = route_distance_at(grid_offset);
-        distance = base_distance;
+        distance = route_distance_at(grid_offset);
         int direction = -1;
-        int is_highway = 0;
         for (int next_direction = 0; next_direction < 8; next_direction += step) {
             if (next_direction == last_direction) {
                 continue;
@@ -495,18 +480,9 @@ static BuiltPath build_land_path(
                 continue;
             }
             const int next_distance = route_distance_at(next_offset);
-            const int next_is_highway = map_terrain_is(next_offset, TERRAIN_HIGHWAY);
-            if (next_distance && next_is_better(
-                base_distance,
-                distance,
-                next_distance,
-                direction,
-                next_direction,
-                is_highway,
-                next_is_highway)) {
+            if (next_distance && next_is_better(distance, next_distance, direction, next_direction)) {
                 distance = next_distance;
                 direction = next_direction;
-                is_highway = next_is_highway;
             }
         }
         if (direction == -1) {
@@ -866,9 +842,18 @@ Route::DistanceQuery Route::DistanceQuery::fromFigure(
     Figure &figure,
     performance_tracker_route_purpose purpose)
 {
+    const RouteNeighborhood neighborhood = route_neighborhood_from_direction_limit(figure.disallow_diagonal ? 4 : 8);
     const figure_type_registry_impl::PathingMode::RoutePolicySelection selection =
-        figure_runtime_route_policy_selection(&figure, RouteNeighborhood::FourWay);
-    return fromRoad({ figure.x, figure.y }, selection.policy, purpose);
+        figure_runtime_route_policy_selection(&figure, neighborhood);
+    const map_point source = { figure.x, figure.y };
+    const int source_offset = map_grid_offset(source.x, source.y);
+    if (!map_grid_is_valid_offset(source_offset) || selection.policy.isWater() ||
+        selection.policy.isWalls() || selection.policy.isNonCitizenLand()) {
+        return DistanceQuery({ 0, 0 }, 0, RoutePolicy(), purpose, false);
+    }
+    const int source_network = figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(
+        source_offset, selection.policy.isCitizenRoadGardenHighway());
+    return DistanceQuery(source, source_network, selection.policy, purpose, true);
 }
 
 const Route::DistanceQuery::CostMapHandle &Route::DistanceQuery::costMap() const
@@ -1032,7 +1017,7 @@ Route::RoadResult Route::DistanceQuery::findRoadToLargestNetwork(
 }
 
 Route::RoadResult Route::DistanceQuery::findAccessRoad(
-    const building &target,
+    const Building &target,
     int radius,
     int maxDistance,
     bool requireSameNetwork) const
@@ -1041,10 +1026,7 @@ Route::RoadResult Route::DistanceQuery::findAccessRoad(
         return {};
     }
 
-    const Building *target_building = Building::get(target.id);
-    const building_type_registry_impl::BuildingGeometry geometry = target_building
-        ? building_type_registry_impl::BuildingGeometry::query(*target_building)
-        : building_type_registry_impl::BuildingGeometry{};
+    const building_type_registry_impl::BuildingGeometry geometry = building_type_registry_impl::BuildingGeometry::query(target);
     if (!geometry.valid()) {
         return {};
     }

@@ -222,16 +222,6 @@ FigureGraphicsLayer payload_image_layer(const ImageGroupPayload *payload, int im
     return layer;
 }
 
-bool path_names_extracted_group(const std::string &path)
-{
-    const std::size_t marker = path.rfind("Group_");
-    if (marker == std::string::npos || marker + 6 >= path.size()) return false;
-    for (std::size_t index = marker + 6; index < path.size(); ++index) {
-        if (!std::isdigit(static_cast<unsigned char>(path[index]))) return false;
-    }
-    return true;
-}
-
 } // namespace
 
 
@@ -1513,9 +1503,13 @@ GraphicsTargetBinding FigureGraphics::target_binding(
             binding.frame_selects_entry = 1;
         }
     }
-    if (binding.image.empty() && path_names_extracted_group(binding.path)) {
-        binding.image = extracted_payload_entry_name(extracted_group_entry_index(*this, role, direction_index, frame));
-        binding.frame_selects_entry = 1;
+    if (binding.image.empty() && target.cached_payload()) {
+        const std::string extracted_entry = extracted_payload_entry_name(
+            extracted_group_entry_index(*this, role, direction_index, frame));
+        if (target.cached_payload()->entry_for(extracted_entry.c_str())) {
+            binding.image = extracted_entry;
+            binding.frame_selects_entry = 1;
+        }
     }
     binding.frame = frame;
     return binding;
@@ -1772,16 +1766,6 @@ int FigureGraphics::cache_native_payload_bindings(const FigureTypeDefinition &de
 {
     clear_cached_native_bindings();
     std::unordered_map<std::string, CachedFigureGraphicsTarget> validated_targets;
-    const char *default_path = default_asset_target_.path();
-    const char *corpse_path = corpse_asset_target_.path();
-    if (has_native_payload() && has_corpse_native_payload() &&
-        !path_names_extracted_group(default_path) && std::strcmp(default_path, corpse_path) != 0) {
-        const std::string detail = "figure=" + std::string(definition.attr()) +
-            " default_path=" + default_path + " corpse_path=" + corpse_path;
-        return fail_figure_graphics_validation(
-            "FigureType corpse graphics must remain inside its conceptual default asset.",
-            detail);
-    }
     const auto cache_asset = [&](GraphicsTargetRole role) {
         GraphicsAssetReference &target = asset_target(role);
         if (!target.has_path() || target.cache_asset_binding()) return 1;

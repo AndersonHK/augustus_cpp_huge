@@ -4,6 +4,7 @@
   </calendar>
 
   <combat default_building_hit_points="20" />
+  <presentation legacy_figure_logical_units_per_source_pixel="96" />
 
   <birth_table id="default">
     <age_decennia values="0,3,16,9,2,0,0,0,0,0" />

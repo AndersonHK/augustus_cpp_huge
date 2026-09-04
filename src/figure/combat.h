@@ -10,7 +10,7 @@ void figure_combat_relationship_removed(Figure *f, Figure *removed);
 void figure_combat_migrate_legacy_relationships(Figure *f);
 
 int figure_combat_get_target_for_soldier(int x, int y, int max_distance);
-int figure_combat_get_target_for_wolf(int x, int y, int max_distance);
+int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance);
 int figure_combat_get_target_for_enemy(int x, int y);
 
 int figure_combat_get_missile_target_for_soldier(Figure *shooter, int max_distance, map_point *tile);

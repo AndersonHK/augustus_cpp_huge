@@ -1,4 +1,5 @@
 #include "core/crash_context.h"
+#include "assets/graphics_extractor_shims.h"
 #include "core/dir.h"
 #include "core/file.h"
 #include "core/log.h"

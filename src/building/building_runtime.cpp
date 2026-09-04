@@ -11,7 +11,6 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/local_workforce.h"
-#include "building/HousingStateBridge.h"
 #include "building/FoundationStateSaveBridge.h"
 #include "building/water_access_runtime.h"
 
@@ -38,7 +37,6 @@
 #include "city/data_private.h"
 #include "city/population.h"
 #include "core/calc.h"
-#include "core/config.h"
 #include "figure/movement.h"
 #include "game/Animation.h"
 #include "game/resource.h"
@@ -132,7 +130,13 @@ void building_runtime::bind_native_modules()
 
     if (!ephemeral_ && definition_ && definition_->has_military() && record_ && record_->formation_id > 0) {
         const char *failure = nullptr;
-        if (!formation_bind_runtime_fort(building_, &failure)) {
+        formation *saved_formation = formation_get(record_->formation_id);
+        if (!saved_formation) {
+            failure = "fort references a formation outside the runtime pool";
+        } else if (saved_formation->bind_to_fort(building_, &failure)) {
+            failure = nullptr;
+        }
+        if (failure) {
             log_error("Unable to bind fort runtime to saved formation", failure, static_cast<int>(record_->id));
         }
     }
@@ -1107,20 +1111,6 @@ int building_runtime_loaded_graphics_state(unsigned int building_id, BuildingGra
     return 1;
 }
 
-int building_runtime_loaded_housing_state(unsigned int building_id, HousingState *state)
-{
-    if (!state) {
-        return 0;
-    }
-    const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
-        building_runtime_impl::loaded_runtime_state_for(building_id);
-    if (!loaded || !loaded->housing_state_valid) {
-        return 0;
-    }
-    *state = loaded->housing_state;
-    return 1;
-}
-
 void building_runtime_backup_graphics_state(void)
 {
     using building_runtime_impl::g_graphics_state_backup;
@@ -1153,6 +1143,66 @@ void building_runtime_restore_graphics_state(void)
     }
 }
 
+int building_runtime_hydrate_loaded_modules(void)
+{
+    bool valid = true;
+    int discarded_rubble_states = 0;
+    int discarded_foundation_states = 0;
+    building_for_each_loaded_record([&](building *b) {
+        building_runtime *instance = building_runtime_impl::get_or_create_instance(b);
+        const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
+            building_runtime_impl::loaded_runtime_state_for(b->id);
+        if (!instance) {
+            log_error("Unable to materialize loaded Building object", 0, b->id);
+            valid = false;
+            return;
+        }
+        if (!loaded) {
+            return;
+        }
+        if (loaded->graphics_state_valid) {
+            instance->restore_graphics_state(loaded->graphics_state);
+        }
+        if (loaded->rubble_state_valid) {
+            // Legacy normalization can intentionally replace a rubble record
+            // after its state was staged. In that case there is no live module
+            // to receive the obsolete bridge payload.
+            if (instance->building.Rubble && instance->building.Rubble->state()) {
+                *instance->building.Rubble->state() = loaded->rubble_state;
+            } else {
+                ++discarded_rubble_states;
+            }
+        }
+        if (loaded->housing_state_valid) {
+            if (!instance->building.Housing) {
+                log_error("Loaded HousingState has no owning Housing module", 0, b->id);
+                valid = false;
+            } else {
+                instance->building.Housing->state() = loaded->housing_state;
+            }
+        }
+        if (loaded->foundation_state_valid) {
+            // Surface-record normalization may likewise remove a legacy
+            // Foundation before module hydration reaches this record.
+            if (instance->building.Foundation &&
+                !restore_loaded_foundation_state(instance->building, loaded->foundation_state)) {
+                log_error("Unable to restore loaded FoundationState", 0, b->id);
+                valid = false;
+            } else if (!instance->building.Foundation) {
+                ++discarded_foundation_states;
+            }
+        }
+    });
+    if (discarded_rubble_states) {
+        log_warning("Discarding staged RubbleState payloads removed by load normalization", 0, discarded_rubble_states);
+    }
+    if (discarded_foundation_states) {
+        log_warning("Discarding staged FoundationState payloads removed by load normalization", 0, discarded_foundation_states);
+    }
+    building_runtime_impl::clear_loaded_runtime_state();
+    return valid ? 1 : 0;
+}
+
 // After save load/new city init, bind each live building instance to its runtime wrapper, rebuild native storage/production instances,
 // and precompute cached image-group bindings.
 void building_runtime_initialize_city_graphics_cache(void)
@@ -1163,65 +1213,22 @@ void building_runtime_initialize_city_graphics_cache(void)
     // second reconstruction during the same load.
     map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
+    if (!building_runtime_impl::g_loaded_building_runtime_state.empty()) {
+        log_error("Building runtime initialization began before the load bridge finished", 0, 0);
+        std::terminate();
+    }
 
-    building_for_each_loaded_record([](building *b) {
-        if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-            if (const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
-                    building_runtime_impl::loaded_runtime_state_for(b->id)) {
-                if (loaded->graphics_state_valid) {
-                    instance->restore_graphics_state(loaded->graphics_state);
-                }
-                if (loaded->rubble_state_valid) {
-                    if (instance->building.Rubble && instance->building.Rubble->state()) {
-                        *instance->building.Rubble->state() = loaded->rubble_state;
-                    }
-                }
-                if (loaded->housing_state_valid && instance->building.Housing) {
-                    instance->building.Housing->state() = loaded->housing_state;
-                }
-                if (loaded->foundation_state_valid && instance->building.Foundation &&
-                    !restore_loaded_foundation_state(instance->building, loaded->foundation_state)) {
-                    log_error("Unable to restore building FoundationState", 0, b->id);
-                }
-            }
-            if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
-                b->state == BUILDING_STATE_CREATED) {
-                if (instance->building.Foundation) {
-                    const int rotation = instance->building.Foundation->definition().rotates()
-                        ? instance->building.orientation()
-                        : 0;
-                    instance->building.Foundation->rebind(b->x, b->y, rotation);
-                    if (instance->building.Foundation->has_owner_controlled_passage() &&
-                        !(instance->building.type && instance->building.type->bridge().is_bridge())) {
-                        if (instance->building.type && instance->building.type->is_warehouse()) {
-                            // Warehouse tower roads are freight access, not a
-                            // shortcut for ordinary walkers. Freight is handled
-                            // explicitly by Roadblock::allows_at().
-                            if (config_get(CONFIG_GP_CH_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS)) {
-                                instance->building.Foundation->roadblock_state().accept_all();
-                            } else {
-                                instance->building.Foundation->roadblock_state().accept_none();
-                            }
-                        } else {
-                            instance->building.Foundation->roadblock_state().hydrate(
-                                b->data.roadblock.exceptions);
-                        }
-                    }
-                }
-            }
-        }
+    Building::for_each([](Building *building) {
+        if (building) building->initialize_loaded_foundation();
     });
 
     // Every Foundation and Composition must be authoritative before any
     // graphics condition can query the retained water-access cache.
     water_access_runtime_finish_world_load();
 
-    building_for_each_loaded_record([](building *b) {
-        if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-            if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED ||
-                b->state == BUILDING_STATE_CREATED) {
-                instance->set_building_graphic();
-            }
+    Building::for_each([](Building *building) {
+        if (building && (building->is_in_use() || building->is_mothballed() || building->is_created())) {
+            building->refresh_graphic();
         }
     });
 
@@ -1232,5 +1239,4 @@ void building_runtime_initialize_city_graphics_cache(void)
     // graph, so loading cannot rebuild their capacity cache any earlier.
     city_culture_rebuild_module_capacity_cache();
 
-    building_runtime_impl::clear_loaded_runtime_state();
 }

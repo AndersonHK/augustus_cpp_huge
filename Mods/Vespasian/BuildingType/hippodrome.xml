@@ -93,19 +93,19 @@
         </route>
         <teams>
             <team id="blue" lane="0" name_key="TR_WINDOW_RACE_BET_BLUE_HORSE" description_key="TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_BLUE_HORSE">
-                <racer path="Walkers\hippodrome_horses" body="horse_blue" vehicle="cart_blue" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+            <racer path="Walkers\Hippodrome_Chariot_Teams" body="horse_blue" vehicle="cart_blue" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
                 <portrait path="UI\Hipp_Team_Blue" image="Hipp_Team_Blue" />
             </team>
             <team id="red" lane="1" name_key="TR_WINDOW_RACE_BET_RED_HORSE" description_key="TR_WINDOW_RACE_RED_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_RED_HORSE">
-                <racer path="Walkers\hippodrome_horses" body="horse_red" vehicle="cart_red" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+            <racer path="Walkers\Hippodrome_Chariot_Teams" body="horse_red" vehicle="cart_red" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
                 <portrait path="UI\Hipp_Team_Blue" image="Image_0020" />
             </team>
             <team id="white" lane="2" name_key="TR_WINDOW_RACE_BET_WHITE_HORSE" description_key="TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_WHITE_HORSE">
-                <racer path="Walkers\hippodrome_horses" body="horse_blue" vehicle="cart_blue" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+            <racer path="Walkers\Hippodrome_Chariot_Teams" body="horse_blue" vehicle="cart_blue" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
                 <portrait path="UI\Hipp_Team_Blue" image="Image_0021" />
             </team>
             <team id="green" lane="3" name_key="TR_WINDOW_RACE_BET_GREEN_HORSE" description_key="TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_GREEN_HORSE">
-                <racer path="Walkers\hippodrome_horses" body="horse_red" vehicle="cart_red" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+            <racer path="Walkers\Hippodrome_Chariot_Teams" body="horse_red" vehicle="cart_red" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
                 <portrait path="UI\Hipp_Team_Blue" image="Image_0022" />
             </team>
         </teams>

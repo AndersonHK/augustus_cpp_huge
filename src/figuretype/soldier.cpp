@@ -5,6 +5,7 @@
 #include "city/map.h"
 #include "core/calc.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "figure/combat.h"
 #include "figure/FigureGraphics.h"
 #include "figure/formation.h"
@@ -16,37 +17,10 @@
 #include "figuretype/missile.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/point.h"
 
 void map_figure_add(Figure *f);
 void map_figure_update(Figure *f);
 void map_figure_delete(Figure *f);
-
-static const map_point ALTERNATIVE_POINTS[] = { {-1, -6},
-    {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1},
-    {0, -2}, {1, -2}, {2, -2}, {2, -1}, {2, 0}, {2, 1}, {2, 2}, {1, 2},
-    {0, 2}, {-1, 2}, {-2, 2}, {-2, 1}, {-2, 0}, {-2, -1}, {-2, -2}, {-1, -2},
-    {0, -3}, {1, -3}, {2, -3}, {3, -3}, {3, -2}, {3, -1}, {3, 0}, {3, 1},
-    {3, 2}, {3, 3}, {2, 3}, {1, 3}, {0, 3}, {-1, 3}, {-2, 3}, {-3, 3},
-    {-3, 2}, {-3, 1}, {-3, 0}, {-3, -1}, {-3, -2}, {-3, -3}, {-2, -3}, {-1, -3},
-    {0, -4}, {1, -4}, {2, -4}, {3, -4}, {4, -4}, {4, -3}, {4, -2}, {4, -1},
-    {4, 0}, {4, 1}, {4, 2}, {4, 3}, {4, 4}, {3, 4}, {2, 4}, {1, 4},
-    {0, 4}, {-1, 4}, {-2, 4}, {-3, 4}, {-4, 4}, {-4, 3}, {-4, 2}, {-4, 1},
-    {-4, 0}, {-4, -1}, {-4, -2}, {-4, -3}, {-4, -4}, {-3, -4}, {-2, -4}, {-1, -4},
-    {0, -5}, {1, -5}, {2, -5}, {3, -5}, {4, -5}, {5, -5}, {5, -4}, {5, -3},
-    {5, -2}, {5, -1}, {5, 0}, {5, 1}, {5, 2}, {5, 3}, {5, 4}, {5, 5},
-    {4, 5}, {3, 5}, {2, 5}, {1, 5}, {0, 5}, {-1, 5}, {-2, 5}, {-3, 5},
-    {-4, 5}, {-5, 5}, {-5, 4}, {-5, 3}, {-5, 2}, {-5, 1}, {-5, 0}, {-5, -1},
-    {-5, -2}, {-5, -3}, {-5, -4}, {-5, -5}, {-4, -5}, {-3, -5}, {-2, -5}, {-1, -5},
-    {0, -6}, {1, -6}, {2, -6}, {3, -6}, {4, -6}, {5, -6}, {6, -6}, {6, -5},
-    {6, -4}, {6, -3}, {6, -2}, {6, -1}, {6, 0}, {6, 1}, {6, 2}, {6, 3},
-    {6, 4}, {6, 5}, {6, 6}, {5, 6}, {4, 6}, {3, 6}, {2, 6}, {1, 6},
-    {0, 6}, {-1, 6}, {-2, 6}, {-3, 6}, {-4, 6}, {-5, 6}, {-6, 6}, {-6, 5},
-    {-6, 4}, {-6, 3}, {-6, 2}, {-6, 1}, {-6, 0}, {-6, -1}, {-6, -2}, {-6, -3},
-    {-6, -4}, {-6, -5}, {-6, -6}, {-5, -6}, {-4, -6}, {-3, -6}, {-2, -6}, {-1, -6},
-};
-
-
 
 void figure_military_standard_action(Figure *f)
 {
@@ -55,13 +29,8 @@ void figure_military_standard_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ANY;
     figure_image_increase_offset(f, 16);
     map_figure_delete(f);
-    if (m->is_at_fort) {
-        f->x = static_cast<unsigned char>(m->x);
-        f->y = static_cast<unsigned char>(m->y);
-    } else {
-        f->x = static_cast<unsigned char>(m->standard_x);
-        f->y = static_cast<unsigned char>(m->standard_y);
-    }
+    f->x = static_cast<unsigned char>(m->standard_x);
+    f->y = static_cast<unsigned char>(m->standard_y);
     f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
     f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
     f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
@@ -131,7 +100,7 @@ static Figure *soldier_launch_missile(Figure *f)
             figure_create_missile(
                 soldier_id, f->x, f->y, tile.x, tile.y, ability->projectile_type);
             f = Figure::get(f->id());
-            formation_record_missile_fired(formation_get(f->formation_id));
+            formation_get(f->formation_id)->record_missile_fired();
         }
         f->attack_image_offset++;
         if (f->attack_image_offset > 100) {
@@ -307,15 +276,6 @@ void figure_soldier_action(Figure *f)
     } else {
         speed_factor = 1;
     }
-    const FormationLayoutDef *layout = m->layout_type();
-    if (f->formation_at_rest || f->action_state == FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT) {
-        layout = formation_layout_registry_impl::find_layout("at_rest");
-    }
-    FormationLayoutPosition position =
-        formation_layout_position(layout, f->index_in_formation, m->declared_capacity());
-    f->formation_position_x.soldier = static_cast<unsigned char>(m->x + position.x);
-    f->formation_position_y.soldier = static_cast<unsigned char>(m->y + position.y);
-
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
             figure_combat_handle_attack(f);
@@ -324,86 +284,66 @@ void figure_soldier_action(Figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_80_SOLDIER_AT_REST:
+        {
             map_figure_update(f);
             f->wait_ticks = 0;
-            f->formation_at_rest = 1;
             f->image_offset = 0;
             f->attack_image_offset = 0;
-            if (f->x != f->formation_position_x.soldier || f->y != f->formation_position_y.soldier) {
+            const FormationMemberMovementResult movement = m->move_member_to_slot(
+                *f, FormationMemberDestination::MusteringGround, 0, 0);
+            f->formation_at_rest = movement == FormationMemberMovementResult::Stationed;
+            if (movement == FormationMemberMovementResult::Moving) {
                 f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
             }
             break;
+        }
         case FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT:
         case FIGURE_ACTION_148_FLEEING:
+        {
             f->wait_ticks = 0;
-            f->formation_at_rest = 1;
-            f->destination_x = f->formation_position_x.soldier;
-            f->destination_y = f->formation_position_y.soldier;
-            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
-            figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            f->formation_at_rest = 0;
+            const FormationMemberMovementResult movement = m->move_member_to_slot(
+                *f, FormationMemberDestination::MusteringGround, speed_factor, speed_factor_percentage);
+            if (movement != FormationMemberMovementResult::Moving) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            } else if (f->direction == DIR_FIGURE_LOST) {
-                f->state = FIGURE_STATE_DEAD;
+                f->formation_at_rest = movement == FormationMemberMovementResult::Stationed;
+                f->image_offset = 0;
             }
             break;
+        }
         case FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS:
-            f->formation_at_rest = 1;
-            f->destination_x = f->source_x;
-            f->destination_y = f->source_y;
-            figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
-                f->state = FIGURE_STATE_DEAD;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
+        {
+            f->formation_at_rest = 0;
+            const FigureMovementResult movement = f->move_ticks_to(
+                figure_movement_destination_for_tile(f->source_x, f->source_y, FigureMovementPlane::Ground),
+                speed_factor, speed_factor_percentage);
+            if (movement == FigureMovementResult::Arrived) {
+                f->remove();
+                return;
             }
             break;
+        }
         case FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD:
+        {
             f->attack_image_offset = 0;
             f->formation_at_rest = 0;
-        position = formation_layout_position(m->layout_type(), f->index_in_formation, m->declared_capacity());
-            f->destination_x = static_cast<unsigned char>(m->standard_x + position.x);
-            f->destination_y = static_cast<unsigned char>(m->standard_y + position.y);
-            if (f->alternative_location_index) {
-                f->destination_x = static_cast<unsigned char>(
-                    f->destination_x + ALTERNATIVE_POINTS[f->alternative_location_index].x);
-                f->destination_y = static_cast<unsigned char>(
-                    f->destination_y + ALTERNATIVE_POINTS[f->alternative_location_index].y);
-            }
-            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
-            figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            const FormationMemberMovementResult movement = m->move_member_to_slot(
+                *f, FormationMemberDestination::Standard, speed_factor, speed_factor_percentage);
+            if (movement != FormationMemberMovementResult::Moving) {
                 f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
-                f->image_offset = 0;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            } else if (f->direction == DIR_FIGURE_LOST) {
-                f->alternative_location_index++;
-                if (f->alternative_location_index > 168) {
-                    f->state = FIGURE_STATE_DEAD;
-                }
                 f->image_offset = 0;
             }
             break;
+        }
         case FIGURE_ACTION_84_SOLDIER_AT_STANDARD:
+        {
             f->formation_at_rest = 0;
             f->image_offset = 0;
             map_figure_update(f);
-        position = formation_layout_position(m->layout_type(), f->index_in_formation, m->declared_capacity());
-            f->destination_x = static_cast<unsigned char>(m->standard_x + position.x);
-            f->destination_y = static_cast<unsigned char>(m->standard_y + position.y);
-            if (f->alternative_location_index) {
-                f->destination_x = static_cast<unsigned char>(
-                    f->destination_x + ALTERNATIVE_POINTS[f->alternative_location_index].x);
-                f->destination_y = static_cast<unsigned char>(
-                    f->destination_y + ALTERNATIVE_POINTS[f->alternative_location_index].y);
-            }
-            if (f->x != f->destination_x || f->y != f->destination_y) {
+            if (m->move_member_to_slot(*f, FormationMemberDestination::Standard, 0, 0) ==
+                FormationMemberMovementResult::Moving) {
                 if (m->missile_fired <= 0 && m->recent_fight <= 0 && m->missile_attack_timeout <= 0) {
                     f->action_state = FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD;
-                    f->alternative_location_index = 0;
                 }
             }
             if (f->action_state != FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD) {
@@ -418,28 +358,35 @@ void figure_soldier_action(Figure *f)
                 }
             }
             break;
+        }
         case FIGURE_ACTION_85_SOLDIER_GOING_TO_MILITARY_ACADEMY:
+        {
             m->has_military_training = 1;
-            f->formation_at_rest = 1;
-            figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            f->formation_at_rest = 0;
+            const FigureMovementDestination destination =
+                figure_movement_destination_for_tile(
+                    f->destination_x, f->destination_y, FigureMovementPlane::Ground);
+            const FigureMovementResult movement = f->move_ticks_to(
+                destination, speed_factor, speed_factor_percentage);
+            if (movement == FigureMovementResult::Arrived) {
                 f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            } else if (f->direction == DIR_FIGURE_LOST) {
-                f->state = FIGURE_STATE_DEAD;
             }
             break;
+        }
         case FIGURE_ACTION_86_SOLDIER_MOPPING_UP:
             f->formation_at_rest = 0;
             if (find_mop_up_target(f)) {
-                figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                const FigureMovementDestination destination =
+                    figure_movement_destination_for_tile(
+                        f->destination_x, f->destination_y, FigureMovementPlane::Ground);
+                const FigureMovementResult movement = f->move_ticks_to(
+                    destination, speed_factor, speed_factor_percentage);
+                if (movement == FigureMovementResult::Arrived) {
                     Figure &target = f->target_figure.get();
                     f->destination_x = target.x;
                     f->destination_y = target.y;
                     Route::remove(f);
-                } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
+                } else if (movement == FigureMovementResult::Blocked) {
                     f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
                     f->target_figure.clear();
                     f->image_offset = 0;
@@ -450,35 +397,29 @@ void figure_soldier_action(Figure *f)
             {
                 const map_tile *exit = city_map_exit_point();
                 f->formation_at_rest = 0;
-                f->destination_x = static_cast<unsigned char>(exit->x);
-                f->destination_y = static_cast<unsigned char>(exit->y);
-                figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                const FigureMovementResult movement = f->move_ticks_to(
+                    figure_movement_destination_for_tile(exit->x, exit->y, FigureMovementPlane::Ground),
+                    speed_factor, speed_factor_percentage);
+                if (movement == FigureMovementResult::Arrived) {
                     f->action_state = FIGURE_ACTION_89_SOLDIER_AT_DISTANT_BATTLE;
                     Route::remove(f);
-                } else if (f->direction == DIR_FIGURE_REROUTE) {
-                    Route::remove(f);
-                } else if (f->direction == DIR_FIGURE_LOST) {
-                    f->state = FIGURE_STATE_DEAD;
                 }
                 break;
             }
         case FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE:
+        {
             f->is_ghost = 0;
             f->wait_ticks = 0;
-            f->formation_at_rest = 1;
-            f->destination_x = f->formation_position_x.soldier;
-            f->destination_y = f->formation_position_y.soldier;
-            f->destination_grid_offset = static_cast<short>(map_grid_offset(f->destination_x, f->destination_y));
-            figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
-            if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            f->formation_at_rest = 0;
+            const FormationMemberMovementResult movement = m->move_member_to_slot(
+                *f, FormationMemberDestination::MusteringGround, speed_factor, speed_factor_percentage);
+            if (movement != FormationMemberMovementResult::Moving) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;
-            } else if (f->direction == DIR_FIGURE_REROUTE) {
-                Route::remove(f);
-            } else if (f->direction == DIR_FIGURE_LOST) {
-                f->state = FIGURE_STATE_DEAD;
+                f->formation_at_rest = movement == FormationMemberMovementResult::Stationed;
+                f->image_offset = 0;
             }
             break;
+        }
         case FIGURE_ACTION_89_SOLDIER_AT_DISTANT_BATTLE:
             f->is_ghost = 1;
             f->formation_at_rest = 1;

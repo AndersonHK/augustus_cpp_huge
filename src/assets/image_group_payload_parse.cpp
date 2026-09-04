@@ -7,6 +7,9 @@
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
 
+#include <algorithm>
+#include <cctype>
+#include <limits>
 #include <utility>
 
 namespace image_group_payload_internal {
@@ -16,7 +19,7 @@ namespace {
 struct ParseState {
     std::string requested_key;
     std::string xml_path;
-    xml_asset_source source = XML_ASSET_SOURCE_AUTO;
+    GraphicsLayerSource source;
     std::unique_ptr<ImageGroupDoc> doc;
     ImageEntryDef *current_entry = nullptr;
     int error = 0;
@@ -28,6 +31,39 @@ static const char *INVERT_VALUES[3] = { "horizontal", "vertical", "both" };
 static const char *ROTATE_VALUES[3] = { "90", "180", "270" };
 static const char *PART_VALUES[2] = { "footprint", "top" };
 static const char *MASK_VALUES[2] = { "grayscale", "alpha" };
+
+// Input: two normalized asset keys.
+// Output: true when they address the same Windows asset path regardless of ASCII case.
+int normalized_keys_equal(const std::string &left, const std::string &right)
+{
+    return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(), [](char lhs, char rhs) {
+        return std::tolower(static_cast<unsigned char>(lhs)) == std::tolower(static_cast<unsigned char>(rhs));
+    });
+}
+
+// Input: a required decimal XML attribute.
+// Output: true with one positive in-range fixed logical unit value, or false for malformed text.
+int parse_positive_logical_unit(const char *text, render_logical_unit &out_value)
+{
+    if (!text || !*text) {
+        return 0;
+    }
+    int64_t value = 0;
+    for (const char *cursor = text; *cursor; cursor++) {
+        if (*cursor < '0' || *cursor > '9') {
+            return 0;
+        }
+        value = value * 10 + (*cursor - '0');
+        if (value > std::numeric_limits<render_logical_unit>::max()) {
+            return 0;
+        }
+    }
+    if (value <= 0) {
+        return 0;
+    }
+    out_value = static_cast<render_logical_unit>(value);
+    return 1;
+}
 
 // Input: one XML file path and an output byte buffer.
 // Output: the file contents in memory so the XML parser can work on a stable buffer.
@@ -83,6 +119,36 @@ int xml_start_assetlist(void)
     g_parse_state.doc->key = normalized_name;
     g_parse_state.doc->xml_path = g_parse_state.xml_path;
     g_parse_state.doc->source = g_parse_state.source;
+
+    const int has_inherited_group = xml_parser_has_attribute("inherits");
+    const int has_logical_scale = xml_parser_has_attribute("logical_units_per_source_pixel");
+    if (has_inherited_group && !has_logical_scale) {
+        crash_context_report_error("Inherited ImageGroup requires logical_units_per_source_pixel", normalized_name.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_logical_scale && !parse_positive_logical_unit(
+            xml_parser_get_attribute_string("logical_units_per_source_pixel"),
+            g_parse_state.doc->logical_units_per_source_pixel)) {
+        crash_context_report_error("ImageGroup scale must be a positive decimal logical-units-per-source-pixel value", normalized_name.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_inherited_group) {
+        g_parse_state.doc->inherited_group_key = normalize_group_reference_key(
+            xml_parser_get_attribute_string("inherits"),
+            normalized_name);
+        if (g_parse_state.doc->inherited_group_key.empty()) {
+            crash_context_report_error("Inherited ImageGroup target must be a nonempty normalized key", normalized_name.c_str());
+            g_parse_state.error = 1;
+            return 0;
+        }
+        if (normalized_keys_equal(g_parse_state.doc->inherited_group_key, normalized_name)) {
+            crash_context_report_error("ImageGroup cannot inherit itself", normalized_name.c_str());
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
     return 1;
 }
 
@@ -132,6 +198,11 @@ RawLayerDef parse_raw_layer(layer_isometric_part default_part, layer_mask defaul
 int xml_start_image(void)
 {
     if (!g_parse_state.doc) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.doc->inherits_group()) {
+        crash_context_report_error("Inherited ImageGroup cannot declare local image entries", g_parse_state.requested_key.c_str());
         g_parse_state.error = 1;
         return 0;
     }
@@ -260,7 +331,7 @@ static const xml_parser_element kXmlElements[] = {
 
 // Input: one XML path plus the requested group key/source identity.
 // Output: a fully parsed source-local document or null when the XML is malformed or mismatched.
-std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::string &path_key, xml_asset_source source)
+std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::string &path_key, const GraphicsLayerSource &source)
 {
     CrashContextScope crash_scope("image_group.parse_group_doc", xml_path);
     std::vector<char> buffer;
@@ -291,7 +362,7 @@ std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::
 
 // Input: a source-local XML document path, requested group key, and source.
 // Output: a parsed document that contains unresolved symbolic entry data only, or null on parse failure.
-const ImageGroupDoc *load_group_doc(const std::string &group_key, xml_asset_source source)
+const ImageGroupDoc *load_group_doc(const std::string &group_key, const GraphicsLayerSource &source)
 {
     if (const ImageGroupDoc *existing = find_group_doc(group_key, source)) {
         return existing;
@@ -303,8 +374,7 @@ const ImageGroupDoc *load_group_doc(const std::string &group_key, xml_asset_sour
     }
 
     char xml_path[FILE_NAME_MAX] = { 0 };
-    xml_asset_source resolved_source = XML_ASSET_SOURCE_AUTO;
-    if (!xml_resolve_assetlist_path(xml_path, group_key.c_str(), source, &resolved_source) || resolved_source != source) {
+    if (!xml_resolve_assetlist_path(xml_path, group_key.c_str(), source)) {
         g_failed_group_docs.insert(cache_key);
         return nullptr;
     }

@@ -282,9 +282,9 @@ static void clear_legion_info(legion_info *legion)
 static void update_legion_info(legion_info *legion, const formation *m)
 {
     legion->health = calc_percentage(m->total_damage, m->max_total_damage);
-    legion->layout_definition = m->layout_type();
+            legion->layout_definition = m->layout_definition;
     legion->morale = m->morale;
-    legion->soldiers = formation_legion_count_alive_soldiers(m->id);
+        legion->soldiers = m->count_alive_figures();
     legion->is_at_fort = m->is_at_fort;
     legion->empire_service = m->empire_service;
 }
@@ -427,7 +427,7 @@ void widget_sidebar_military_draw_background(void)
 static int has_legion_changed(const legion_info *legion, const formation *m)
 {
     return legion->health != calc_percentage(m->total_damage, m->max_total_damage) ||
-        legion->layout_definition != m->layout_type() ||
+                legion->layout_definition != m->layout_definition ||
         legion->morale != m->morale ||
         legion->soldiers != m->num_figures ||
         legion->is_at_fort != m->is_at_fort ||
@@ -699,6 +699,6 @@ static void button_empire_service(const generic_button *button)
 {
     (void)button;
 
-    formation_toggle_empire_service(data.active_legion.formation_id);
+    formation_get(data.active_legion.formation_id)->toggle_empire_service();
     formation_calculate_figures();
 }

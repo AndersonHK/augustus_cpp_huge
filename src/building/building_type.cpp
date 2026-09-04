@@ -683,7 +683,7 @@ const FormationType *MilitaryDefinition::formation_type() const
 
 figure_type MilitaryDefinition::primary_figure_type() const
 {
-    return formation_type_ ? formation_type_->primary_figure_type() : FIGURE_NONE;
+    return formation_type_->primary_unit()->figure_type_id();
 }
 
 int MilitaryDefinition::has_any() const

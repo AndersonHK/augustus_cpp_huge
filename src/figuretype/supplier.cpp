@@ -238,7 +238,7 @@ static int is_better_destination(Figure *f, resource_type r, resource_storage_in
     building *old_dest = const_cast<building *>(old_destination->record());
     const auto *old_dest_type = old_destination->type;
     // if any of these are true, the new building is automatically better
-    if (!building_is_active(old_dest)) {
+    if (!old_destination->is_active()) {
         return 1;
     } else if (old_dest_type && old_dest_type->is_granary() && old_dest->resources[r] <= 0) {
         return 1;

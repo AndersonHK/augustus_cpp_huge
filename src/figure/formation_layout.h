@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/direction.h"
+
 #include <array>
 #include <memory>
 #include <string>
@@ -25,11 +27,6 @@ constexpr int COUNT = 13;
 
 } // namespace formation_layout_legacy
 
-struct FormationLayoutFootprint {
-    int width;
-    int height;
-};
-
 struct FormationLayoutPosition {
     int x;
     int y;
@@ -44,13 +41,17 @@ public:
         int legacy_id,
         std::vector<FormationLayoutPosition> positions,
         ArmyOffsets army_offsets,
-        std::string army_offsets_reference);
+        std::string army_offsets_reference,
+        int stationary_facing = DIR_8_NONE);
+
+    int stationary_facing;
 
     const char *key() const;
     bool matches_key(const char *key) const;
     int legacy_id() const;
     int authored_position_count() const;
-    FormationLayoutPosition authored_position(int index) const;
+    bool try_position(int index, int declared_capacity, int grid_width, int grid_height, FormationLayoutPosition *position) const;
+    bool positions(int live_slot_count, int declared_capacity, int grid_width, int grid_height, std::vector<FormationLayoutPosition> *positions) const;
     bool has_authored_army_offsets() const;
     const char *army_offsets_reference() const;
     void bind_army_offsets_reference(const FormationLayoutDef *layout);
@@ -106,27 +107,3 @@ int formation_layout_layered_definition_buffers_are_valid_for_test(
     const char *query_key,
     formation_layout_layer_test_result *result);
 #endif
-
-FormationLayoutFootprint formation_layout_legacy_footprint();
-
-FormationLayoutPosition formation_layout_position(
-    const FormationLayoutDef *layout,
-    int index,
-    int declared_capacity);
-
-FormationLayoutPosition formation_layout_position(
-    const FormationLayoutDef *layout,
-    int index,
-    int declared_capacity,
-    FormationLayoutFootprint footprint);
-
-std::vector<FormationLayoutPosition> formation_layout_positions(
-    const FormationLayoutDef *layout,
-    int live_slot_count,
-    int declared_capacity);
-
-std::vector<FormationLayoutPosition> formation_layout_positions(
-    const FormationLayoutDef *layout,
-    int live_slot_count,
-    int declared_capacity,
-    FormationLayoutFootprint footprint);

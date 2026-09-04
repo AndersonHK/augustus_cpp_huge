@@ -1,4 +1,6 @@
-#include "assets/graphics_extraction_abi.h"
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+#include "assets/graphics_extraction_client.h"
+#endif
 #include "building/building.h"
 #ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
 #include "building/building_type_registry_internal.h"
@@ -12,17 +14,22 @@
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "core/buffer.h"
+#include "core/dir.h"
 #include "core/image_packer.h"
 #include "core/io.h"
 #include "core/log.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
+#include "game/mod_manager.h"
 #include "map/terrain.h"
+#include "platform/file_manager.h"
 #include "scenario/property.h"
 
 
 #include <stdlib.h>
 #include <string.h>
+#include <filesystem>
+#include <string>
 #include <string_view>
 
 #define HEADER_SIZE 20680
@@ -791,6 +798,16 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     const char *source_name,
     const image_atlas_data *atlas_data)
 {
+#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+    (void) images;
+    (void) image_count;
+    (void) group_image_ids;
+    (void) group_count;
+    (void) source_name;
+    (void) atlas_data;
+    log_error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
+    return 0;
+#else
     graphics_extraction_climate_request_v1 request = {};
     request.struct_size = sizeof(request);
     request.abi_version = GRAPHICS_EXTRACTION_ABI_VERSION;
@@ -801,9 +818,21 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     request.group_count = group_count;
     request.source_name = source_name;
     request.atlas_data = atlas_data;
+    request.mode = GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP;
+    const std::filesystem::path asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
+    const std::string game_root = asset_root.parent_path().string();
+    request.game_root = game_root.c_str();
+    request.augustus_graphics = mod_manager::augustus_graphics_path().c_str();
+    request.julius_graphics = mod_manager::julius_graphics_path().c_str();
     graphics_extraction_result_v1 result = {};
     result.struct_size = sizeof(result);
-    return graphics_extraction_bootstrap_climate_v1(&request, &result) == GRAPHICS_EXTRACTION_STATUS_SUCCEEDED;
+    const graphics_extraction_status_v1 status = GraphicsExtractionClient().bootstrapClimate(request, result);
+    if (status != GRAPHICS_EXTRACTION_STATUS_SUCCEEDED) {
+        log_error("GraphicsExtractor climate operation failed", source_name, status);
+        return 0;
+    }
+    return 1;
+#endif
 }
 
 static void update_native_images(int old_climate, int new_climate)

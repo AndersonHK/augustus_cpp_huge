@@ -10,7 +10,7 @@ from pathlib import Path
 def default_dump_path() -> Path:
     appdata = os.environ.get("APPDATA")
     if appdata:
-        return Path(appdata) / "augustus" / "augustus" / "vespasian-runtime-crash-dump.json"
+        return Path(appdata) / "augustus" / "Vespasian" / "vespasian-runtime-crash-dump.json"
     return Path("vespasian-runtime-crash-dump.json")
 
 
