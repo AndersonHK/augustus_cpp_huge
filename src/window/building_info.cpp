@@ -542,7 +542,7 @@ static void init(int grid_offset)
             continue;
         }
         Figure *f = Figure::get(figure_id);
-        if (f->type == FIGURE_FORT_STANDARD || f->is_legion()) {
+        if (f->is_legion()) {
             context.type = BUILDING_INFO_LEGION;
             context.formation_id = f->formation_id;
             const formation *m = formation_get(context.formation_id);

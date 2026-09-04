@@ -1214,7 +1214,6 @@ void Figure::remove()
             city_emperor_mark_soldier_killed();
             break;
         case FIGURE_EXPLOSION:
-        case FIGURE_FORT_STANDARD:
         case FIGURE_ARROW:
         case FIGURE_JAVELIN:
         case FIGURE_FRIENDLY_ARROW:
@@ -1637,7 +1636,6 @@ void Figure::kill_all()
             case FIGURE_MAP_FLAG:
             case FIGURE_FISH_GULLS:
             case FIGURE_SHIPWRECK:
-            case FIGURE_FORT_STANDARD:
                 break;
         }
     }

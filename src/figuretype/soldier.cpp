@@ -18,36 +18,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 
-void map_figure_add(Figure *f);
 void map_figure_update(Figure *f);
-void map_figure_delete(Figure *f);
-
-void figure_military_standard_action(Figure *f)
-{
-    const formation *m = formation_get(f->formation_id);
-
-    f->terrain_usage = TERRAIN_USAGE_ANY;
-    figure_image_increase_offset(f, 16);
-    map_figure_delete(f);
-    f->x = static_cast<unsigned char>(m->standard_x);
-    f->y = static_cast<unsigned char>(m->standard_y);
-    f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
-    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
-    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
-    map_figure_add(f);
-
-    int pole_offset = 20 - m->morale / 5;
-    if (pole_offset < 0) {
-        pole_offset = 0;
-    }
-    f->select_legacy_directional_frame_image(
-        image_group(GROUP_FIGURE_FORT_STANDARD_POLE),
-        0,
-        pole_offset,
-        1);
-
-    f->clear_legacy_cart_overlay_image();
-}
 
 static const UnitType *unit_type_for(const Figure &f)
 {

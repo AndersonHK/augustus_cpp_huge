@@ -51,6 +51,7 @@
 #include "core/dir.h"
 #include "core/random.h"
 #include "empire/city.h"
+#include "figure/FormationDestination.h"
 #include "figure/formation.h"
 #include "game/time.h"
 #include "game/tutorial.h"
@@ -274,13 +275,15 @@ void game_tick_run(void)
 {
     if (editor_is_active()) {
         random_generate_next(); // update random to randomize native huts
-        figure_action_handle(); // just update the flag figures
+        FormationDestination::advance_graphics();
+        figure_action_handle();
         return;
     }
     random_generate_next();
     game_undo_reduce_time_available();
     building_local_workforce::refresh_access_scores();
     advance_tick();
+    FormationDestination::advance_graphics();
     figure_action_handle();
     scenario_earthquake_process();
     scenario_gladiator_revolt_process();

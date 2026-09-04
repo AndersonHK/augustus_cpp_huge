@@ -13,6 +13,7 @@
 #include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
 #include "map/terrain.h"
+#include "platform/arguments.h"
 #include "core/relationship.h"
 #include "building_graphics_contract_test.h"
 #include "building_type_registry_layering_test.h"
@@ -58,9 +59,12 @@
 
 namespace {
 
+constexpr int REQUIRED_COLD_SAVE_SOAK_TICKS = 3000;
+
 struct Options {
     std::filesystem::path game_root;
     bool dump_building_graphics_metadata = false;
+    bool cold_save_validation = false;
     int save_soak_count = 3;
     int save_soak_ticks = 3000;
 };
@@ -187,8 +191,10 @@ bool validate_relationship_contract()
 void print_usage()
 {
     std::cout
-        << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-ticks <count>] [--dump-building-graphics-metadata]\n\n"
-        << "Runs the headless startup XML/registry parse sequence and representative save soaks from the installed game folder.\n";
+        << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-ticks <count>] [--cold-save-validation] [--dump-building-graphics-metadata]\n\n"
+        << "Runs the headless startup XML/registry parse sequence and representative save soaks from the installed game folder.\n"
+        << "The default fast mode initializes once per mod stack and loads its saves sequentially.\n"
+        << "--cold-save-validation starts a fresh process per save and requires at least 3000 soak ticks.\n";
 }
 
 bool parse_positive_count(const char *text, int &value)
@@ -220,6 +226,10 @@ int parse_options(int argc, char **argv, Options &options)
             options.dump_building_graphics_metadata = true;
             continue;
         }
+        if (arg == "--cold-save-validation") {
+            options.cold_save_validation = true;
+            continue;
+        }
         if (arg == "--save-soak-count" || arg == "--save-soak-ticks" || arg == "--save-soak-frames") {
             if (i + 1 >= argc) {
                 std::cerr << "Missing value for " << arg << ".\n";
@@ -234,6 +244,10 @@ int parse_options(int argc, char **argv, Options &options)
         }
         std::cerr << "Unsupported argument: " << arg << "\n";
         print_usage();
+        return -1;
+    }
+    if (options.cold_save_validation && options.save_soak_ticks < REQUIRED_COLD_SAVE_SOAK_TICKS) {
+        std::cerr << "Cold save validation requires at least " << REQUIRED_COLD_SAVE_SOAK_TICKS << " soak ticks per save.\n";
         return -1;
     }
     return 1;
@@ -1610,29 +1624,59 @@ std::vector<std::filesystem::path> discover_save_soak_files(const std::filesyste
     return selected;
 }
 
-bool run_executable_save_soak_test(const std::filesystem::path &executable, const std::filesystem::path &game_root, const std::filesystem::path &save, const char *mod_name, int tick_count)
+bool run_executable_save_validation_process(const std::filesystem::path &executable, const std::filesystem::path &game_root, const std::vector<std::filesystem::path> &saves, const char *mod_name, int tick_count)
 {
-    const std::filesystem::path roundtrip_save = std::filesystem::temp_directory_path() / (std::string("Vespasian-StartupParserTest-") + mod_name + "-roundtrip.svv");
+    if (saves.empty()) return true;
+    if (saves.size() > MAX_LOAD_SAVE_TESTS) {
+        std::cerr << "Save validation for " << mod_name << " selected " << saves.size() << " files, exceeding the executable limit of " << MAX_LOAD_SAVE_TESTS << ".\n";
+        return false;
+    }
+
+    std::vector<std::filesystem::path> roundtrip_saves;
+    roundtrip_saves.reserve(saves.size());
     std::error_code remove_error;
-    std::filesystem::remove(roundtrip_save, remove_error);
-    std::cout << "Save soak [" << mod_name << "]: " << save << "\n" << std::flush;
+    for (std::size_t index = 0; index < saves.size(); index++) {
+        std::filesystem::path roundtrip = std::filesystem::temp_directory_path() / (std::string("Vespasian-StartupParserTest-") + mod_name + "-" + std::to_string(index) + "-roundtrip.svv");
+        std::filesystem::remove(roundtrip, remove_error);
+        roundtrip_saves.push_back(roundtrip);
+    }
+    std::cout << "Save validation [" << mod_name << "]: loading " << saves.size() << " save(s) sequentially in one initialized process, " << tick_count << " soak ticks each.\n" << std::flush;
 #if defined(_WIN32)
-    const std::wstring command_line = L"\"" + executable.wstring() + L"\" --load-save-test \"" + save.wstring() + L"\" --save-roundtrip-test \"" + roundtrip_save.wstring() + L"\" --save-soak-ticks " + std::to_wstring(tick_count) + L" --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root.wstring() + L"\"";
+    std::wstring command_line = L"\"" + executable.wstring() + L"\"";
+    for (std::size_t index = 0; index < saves.size(); index++) {
+        command_line += L" --load-save-test \"" + saves[index].wstring() + L"\" --save-roundtrip-test \"" + roundtrip_saves[index].wstring() + L"\"";
+    }
+    command_line += L" --save-soak-ticks " + std::to_wstring(tick_count) + L" --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root.wstring() + L"\"";
     const int result = run_hidden_process(executable, command_line);
 #else
-    const std::string command = quoted(executable) + " --load-save-test " + quoted(save) + " --save-roundtrip-test " + quoted(roundtrip_save) + " --save-soak-ticks " + std::to_string(tick_count) + " --no-audio --mod " + mod_name + " " + quoted(game_root);
+    std::string command = quoted(executable);
+    for (std::size_t index = 0; index < saves.size(); index++) {
+        command += " --load-save-test " + quoted(saves[index]) + " --save-roundtrip-test " + quoted(roundtrip_saves[index]);
+    }
+    command += " --save-soak-ticks " + std::to_string(tick_count) + " --no-audio --mod " + mod_name + " " + quoted(game_root);
     const int result = std::system(command.c_str());
 #endif
     if (result != 0) {
-        std::cerr << "Save soak for " << mod_name << " failed with exit code " << result << ": " << save << "\n";
-        std::cerr << "Roundtrip output preserved for diagnosis: " << roundtrip_save << "\n";
+        std::cerr << "Save validation for " << mod_name << " failed with exit code " << result << ".\n";
+        for (const std::filesystem::path &roundtrip : roundtrip_saves) {
+            if (std::filesystem::is_regular_file(roundtrip)) std::cerr << "Roundtrip output preserved for diagnosis: " << roundtrip << "\n";
+        }
         return false;
     }
-    std::filesystem::remove(roundtrip_save, remove_error);
+    for (const std::filesystem::path &roundtrip : roundtrip_saves) std::filesystem::remove(roundtrip, remove_error);
     return true;
 }
 
-bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int tick_count)
+bool run_executable_save_validation(const std::filesystem::path &executable, const std::filesystem::path &game_root, const std::vector<std::filesystem::path> &saves, const char *mod_name, int tick_count, bool cold_start_each_save)
+{
+    if (!cold_start_each_save) return run_executable_save_validation_process(executable, game_root, saves, mod_name, tick_count);
+    for (const std::filesystem::path &save : saves) {
+        if (!run_executable_save_validation_process(executable, game_root, { save }, mod_name, tick_count)) return false;
+    }
+    return true;
+}
+
+bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int tick_count, bool cold_start_each_save)
 {
 #if defined(_WIN32)
     const std::filesystem::path executable = tool_directory / "Vespasian.exe";
@@ -1644,11 +1688,11 @@ bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root
         std::cerr << "Dependency-stack save test requires: " << save << "\n";
         return false;
     }
-    return run_executable_save_soak_test(executable, game_root, save, "Julius", tick_count) &&
-        run_executable_save_soak_test(executable, game_root, save, "Augustus", tick_count);
+    return run_executable_save_validation(executable, game_root, { save }, "Julius", tick_count, cold_start_each_save) &&
+        run_executable_save_validation(executable, game_root, { save }, "Augustus", tick_count, cold_start_each_save);
 }
 
-bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int tick_count)
+bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int tick_count, bool cold_start_each_save)
 {
 #if defined(_WIN32)
     const std::filesystem::path executable = tool_directory / "Vespasian.exe";
@@ -1660,12 +1704,8 @@ bool run_executable_save_soak_tests(const std::filesystem::path &game_root, cons
         std::cerr << "Save-soak test requires at least one .svv or .sav file under " << (game_root / "savegames") << ".\n";
         return false;
     }
-    std::cout << "Running " << saves.size() << " required and representative Vespasian save soak(s) for " << tick_count << " ticks each at 1000% speed.\n" << std::flush;
-    for (const std::filesystem::path &save : saves) {
-        if (!run_executable_save_soak_test(executable, game_root, save, "Vespasian", tick_count)) {
-            return false;
-        }
-    }
+    std::cout << "Running " << saves.size() << " required and representative Vespasian save soak(s) for " << tick_count << " ticks each at 1000% speed in " << (cold_start_each_save ? "cold" : "fast sequential") << " mode.\n" << std::flush;
+    if (!run_executable_save_validation(executable, game_root, saves, "Vespasian", tick_count, cold_start_each_save)) return false;
     std::cout << "Required and representative save soaks passed with zero unallowlisted warnings and errors.\n";
     return true;
 }
@@ -1926,8 +1966,8 @@ int run_startup_parser_test(int argc, char **argv)
         return 1;
     }
     if (!run_executable_startup_tests(game_root, tool_directory) ||
-        !run_dependency_stack_save_soak_tests(game_root, tool_directory, options.save_soak_ticks) ||
-        !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_ticks)) {
+        !run_dependency_stack_save_soak_tests(game_root, tool_directory, options.save_soak_ticks, options.cold_save_validation) ||
+        !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_ticks, options.cold_save_validation)) {
         return 1;
     }
     std::cout << "Startup parser test passed.\n";

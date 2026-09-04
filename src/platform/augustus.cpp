@@ -420,11 +420,18 @@ static bool run_save_soak_ticks(int tick_count)
     const uint64_t frequency = SDL_GetPerformanceFrequency();
     const uint64_t start = SDL_GetPerformanceCounter();
     uint64_t interval_start = start;
-    uint64_t steady_state_start = start;
+    uint64_t interval_simulation_ticks = 0;
+    uint64_t total_simulation_ticks = 0;
+    uint64_t steady_state_simulation_ticks = 0;
     for (int completed_ticks = 0; completed_ticks < tick_count;) {
         const int batch_ticks = tick_count - completed_ticks < TICKS_PER_RENDER ? tick_count - completed_ticks : TICKS_PER_RENDER;
         Animation::update_timers();
+        const uint64_t simulation_start = SDL_GetPerformanceCounter();
         for (int tick = 0; tick < batch_ticks; tick++) game_tick_run();
+        const uint64_t simulation_ticks = SDL_GetPerformanceCounter() - simulation_start;
+        interval_simulation_ticks += simulation_ticks;
+        total_simulation_ticks += simulation_ticks;
+        if (completed_ticks >= STEADY_STATE_WARMUP_TICKS) steady_state_simulation_ticks += simulation_ticks;
         completed_ticks += batch_ticks;
         window_city_show();
         game_draw();
@@ -432,30 +439,88 @@ static bool run_save_soak_ticks(int tick_count)
         if (completed_ticks % 1000 == 0) {
             const uint64_t now = SDL_GetPerformanceCounter();
             const double seconds = static_cast<double>(now - interval_start) / static_cast<double>(frequency);
-            const double interval_tps = seconds > 0.0 ? 1000.0 / seconds : 0.0;
-            fprintf(stdout, "Save soak throughput: ticks=%d speed=%d%% interval_tps=%.1f\n", completed_ticks, SOAK_SPEED_PERCENT, interval_tps);
+            const double simulation_seconds = static_cast<double>(interval_simulation_ticks) / static_cast<double>(frequency);
+            const double interval_wall_tps = seconds > 0.0 ? 1000.0 / seconds : 0.0;
+            const double interval_simulation_tps = simulation_seconds > 0.0 ? 1000.0 / simulation_seconds : 0.0;
+            fprintf(stdout, "Save soak throughput: ticks=%d speed=%d%% interval_wall_tps=%.1f interval_simulation_tps=%.1f\n", completed_ticks, SOAK_SPEED_PERCENT, interval_wall_tps, interval_simulation_tps);
             fflush(stdout);
-            if (completed_ticks == STEADY_STATE_WARMUP_TICKS) steady_state_start = now;
             interval_start = now;
+            interval_simulation_ticks = 0;
         }
     }
     const uint64_t end = SDL_GetPerformanceCounter();
     const double total_seconds = static_cast<double>(end - start) / static_cast<double>(frequency);
-    const double total_tps = total_seconds > 0.0 ? static_cast<double>(tick_count) / total_seconds : 0.0;
+    const double total_simulation_seconds = static_cast<double>(total_simulation_ticks) / static_cast<double>(frequency);
+    const double steady_state_simulation_seconds = static_cast<double>(steady_state_simulation_ticks) / static_cast<double>(frequency);
+    const double total_wall_tps = total_seconds > 0.0 ? static_cast<double>(tick_count) / total_seconds : 0.0;
+    const double total_simulation_tps = total_simulation_seconds > 0.0 ? static_cast<double>(tick_count) / total_simulation_seconds : 0.0;
     const int measured_steady_state_ticks = tick_count - STEADY_STATE_WARMUP_TICKS;
-    const double steady_state_seconds = static_cast<double>(end - steady_state_start) / static_cast<double>(frequency);
-    const double steady_state_tps = measured_steady_state_ticks > 0 && steady_state_seconds > 0.0 ?
-        static_cast<double>(measured_steady_state_ticks) / steady_state_seconds : 0.0;
+    const double steady_state_simulation_tps = measured_steady_state_ticks > 0 && steady_state_simulation_seconds > 0.0 ?
+        static_cast<double>(measured_steady_state_ticks) / steady_state_simulation_seconds : 0.0;
     city_victory_suppress_checks(0);
     setting_set_game_speed(previous_speed);
-    fprintf(stdout, "Save soak completed: ticks=%d speed=%d%% seconds=%.3f average_tps=%.1f steady_state_tps=%.1f\n", tick_count, SOAK_SPEED_PERCENT, total_seconds, total_tps, steady_state_tps);
+    fprintf(stdout, "Save soak completed: ticks=%d speed=%d%% seconds=%.3f average_wall_tps=%.1f average_simulation_tps=%.1f steady_state_simulation_tps=%.1f\n", tick_count, SOAK_SPEED_PERCENT, total_seconds, total_wall_tps, total_simulation_tps, steady_state_simulation_tps);
     fflush(stdout);
-    if (tick_count >= 3000 && steady_state_tps < REQUIRED_STEADY_STATE_TPS) {
-        fprintf(stderr, "Vespasian executable save-soak performance failed: required_tps=%.0f post_warmup_tps=%.1f ticks=%d warmup_ticks=%d\n", REQUIRED_STEADY_STATE_TPS, steady_state_tps, tick_count, STEADY_STATE_WARMUP_TICKS);
+    if (tick_count >= 3000 && steady_state_simulation_tps < REQUIRED_STEADY_STATE_TPS) {
+        fprintf(stderr, "Vespasian executable save-soak performance failed: required_simulation_tps=%.0f post_warmup_simulation_tps=%.1f ticks=%d warmup_ticks=%d\n", REQUIRED_STEADY_STATE_TPS, steady_state_simulation_tps, tick_count, STEADY_STATE_WARMUP_TICKS);
         fflush(stderr);
         return false;
     }
     return true;
+}
+
+static int run_save_validation(const augustus_args &args)
+{
+    for (int index = 0; index < args.load_save_test_count; index++) {
+        const char *input = args.load_save_tests[index];
+        const char *roundtrip = args.save_roundtrip_test_count ? args.save_roundtrip_tests[index] : nullptr;
+        reset_test_diagnostics();
+        int result = game_file_load_saved_game(input);
+        if (result != FILE_LOAD_SUCCESS) {
+            fprintf(stderr, "Vespasian executable save-load test failed: result=%d file=%s\n", result, input);
+            fflush(stderr);
+            return 4;
+        }
+        const int migration_warnings = data.warning_count;
+        if (roundtrip) reset_test_diagnostics();
+
+        bool soak_passed = true;
+        if (args.save_soak_ticks) {
+            soak_passed = run_save_soak_ticks(args.save_soak_ticks);
+            log_repeated_messages();
+        }
+        if (!soak_passed || data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable migrated-save soak failed: migration_warnings=%d warnings=%d errors=%d ticks=%d file=%s\n",
+                migration_warnings, data.warning_count, data.error_count, args.save_soak_ticks, input);
+            fflush(stderr);
+            return 5;
+        }
+        if (roundtrip) {
+            const bool roundtrip_written = game_file_write_saved_game(roundtrip);
+            if (!roundtrip_written || data.error_count || data.warning_count) {
+                fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, input, roundtrip);
+                fflush(stderr);
+                return 6;
+            }
+            reset_test_diagnostics();
+            result = game_file_load_saved_game(roundtrip);
+            if (result != FILE_LOAD_SUCCESS) {
+                fprintf(stderr, "Vespasian executable strict roundtrip reload failed: result=%d file=%s\n", result, roundtrip);
+                fflush(stderr);
+                return 7;
+            }
+            fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, roundtrip);
+            fflush(stdout);
+        }
+        if (data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable strict roundtrip validation failed: warnings=%d errors=%d file=%s\n", data.warning_count, data.error_count, roundtrip);
+            fflush(stderr);
+            return 7;
+        }
+        fprintf(stdout, "Vespasian executable save-load test passed: ticks=%d file=%s\n", args.save_soak_ticks, input);
+        fflush(stdout);
+    }
+    return 0;
 }
 
 static void backup_log(const char *filename, const char *filename_old)
@@ -1014,7 +1079,7 @@ static int pre_init(const char *custom_data_dir)
 
 static void setup(const augustus_args *args)
 {
-    data.startup_test = args->startup_test || args->load_save_test;
+    data.startup_test = args->startup_test || args->load_save_test_count;
     system_setup_crash_handler();
     setup_logging();
 
@@ -1092,7 +1157,7 @@ static void setup(const augustus_args *args)
 
     char title[100];
     encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
-    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id, args->startup_test || args->load_save_test)) {
+    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id, args->startup_test || args->load_save_test_count)) {
         SDL_Log("Exiting: SDL create window failed");
         exit_with_status(-2);
     }
@@ -1138,7 +1203,7 @@ int main(int argc, char **argv)
     log_set_debug_enabled(args.debug);
 
 #ifdef _MSC_VER
-    if (args.startup_test || args.load_save_test) {
+    if (args.startup_test || args.load_save_test_count) {
         _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     }
@@ -1146,49 +1211,10 @@ int main(int argc, char **argv)
 
     setup(&args);
 
-    if (args.load_save_test) {
-        reset_test_diagnostics();
-        int result = game_file_load_saved_game(args.load_save_test);
-        if (result != FILE_LOAD_SUCCESS) {
-            fprintf(stderr, "Vespasian executable save-load test failed: result=%d file=%s\n", result, args.load_save_test);
-            fflush(stderr);
-            teardown();
-            return 4;
-        }
-        if (args.save_roundtrip_test) {
-            const int migration_warnings = data.warning_count;
-            if (data.error_count || !game_file_write_saved_game(args.save_roundtrip_test)) {
-                fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, args.load_save_test, args.save_roundtrip_test);
-                fflush(stderr);
-                teardown();
-                return 6;
-            }
-            reset_test_diagnostics();
-            result = game_file_load_saved_game(args.save_roundtrip_test);
-            if (result != FILE_LOAD_SUCCESS) {
-                fprintf(stderr, "Vespasian executable strict roundtrip reload failed: result=%d file=%s\n", result, args.save_roundtrip_test);
-                fflush(stderr);
-                teardown();
-                return 7;
-            }
-            fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, args.save_roundtrip_test);
-            fflush(stdout);
-        }
-        bool soak_passed = true;
-        if (args.save_soak_ticks) {
-            soak_passed = run_save_soak_ticks(args.save_soak_ticks);
-            log_repeated_messages();
-        }
-        if (!soak_passed || data.warning_count || data.error_count) {
-            fprintf(stderr, "Vespasian executable save-soak test failed: warnings=%d errors=%d ticks=%d file=%s\n", data.warning_count, data.error_count, args.save_soak_ticks, args.load_save_test);
-            fflush(stderr);
-            teardown();
-            return 5;
-        }
-        fprintf(stdout, "Vespasian executable save-load test passed: ticks=%d file=%s\n", args.save_soak_ticks, args.load_save_test);
-        fflush(stdout);
+    if (args.load_save_test_count) {
+        const int result = run_save_validation(args);
         teardown();
-        return 0;
+        return result;
     }
 
     if (args.startup_test) {

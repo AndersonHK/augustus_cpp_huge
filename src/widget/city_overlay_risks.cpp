@@ -203,8 +203,7 @@ static int show_figure_native(const Figure *f)
 static int show_figure_enemy(const Figure *f)
 {
     return f->is_category(FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_AGGRESSIVE_ANIMAL |
-            FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_PROJECTILE)
-        || f->type == FIGURE_FORT_STANDARD;
+        FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_PROJECTILE);
 }
 
 static int get_column_height_fire(const building *b)

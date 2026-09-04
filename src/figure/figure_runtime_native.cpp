@@ -741,8 +741,8 @@ static int standard_graphic_draw_request(
     }
 
     const int pole_frame = std::clamp(20 - m->morale / 5, 0, 20);
-    return add_graphics_layers(request, graphics.legacy_standard_layers(
-        figure, unit_type, m->is_halted, m->legion_flag_id, pole_frame));
+    return add_graphics_layers(request, graphics.standard_layers(
+        unit_type, m->is_halted, m->legion_flag_id, pole_frame, figure.image_offset));
 }
 
 static int map_flag_graphic_draw_request(
@@ -2958,6 +2958,13 @@ void FigureGraphicDrawRequest::draw(int x, int y, color_t color_mask, float scal
     draw_runtime_slice(base_slice_, x, y, color_mask, scale, scaling_policy);
     draw_layers(x, y, color_mask, scale, 0);
     map_flag_number_overlay.draw(x, y, scale, logical_units_per_source_pixel());
+}
+
+void FigureGraphicDrawRequest::draw_with_baseline_at_tile_center(int tile_x, int tile_y, color_t color_mask, float scale) const
+{
+    constexpr int legacy_tile_center_x = 29;
+    draw(tile_x + legacy_tile_center_x - scaled_sprite_offset_x(),
+        tile_y + FIGURE_LEGACY_TILE_PROGRESS_MAX - scaled_sprite_offset_y(), color_mask, scale);
 }
 
 void FigureGraphicDrawRequest::draw_layers(

@@ -27,11 +27,6 @@ int formation_legion_create_for_fort(Building &fort)
     if (!m->id) {
         return 0;
     }
-    Figure *standard = Figure::create(FIGURE_FORT_STANDARD, 0, 0, DIR_0_TOP);
-    standard->set_home_building(&fort);
-    standard->formation_id = m->id;
-    m->standard_figure_id = standard->id();
-
     return m->id;
 }
 
@@ -39,9 +34,6 @@ void formation_legion_delete_for_fort(const Building &fort)
 {
     if (formation *m = fort.formation_object()) {
         if (m->in_use) {
-            if (m->standard_figure_id) {
-                Figure::get(m->standard_figure_id)->remove();
-            }
             m->kill_figures();
             m->remove();
             formation_calculate_legion_totals();
@@ -170,7 +162,7 @@ void formation_legion_return_home_all(void)
 
 static int dispatch_soldiers(formation *m)
 {
-    m->in_distant_battle = 1;
+    m->set_distant_battle(1);
     m->is_at_fort = 0;
     const int figure_count = m->num_figures;
     m->set_alive_figures_action(FIGURE_ACTION_87_SOLDIER_GOING_TO_DISTANT_BATTLE);
@@ -209,7 +201,7 @@ static void kill_soldiers(formation *m, int kill_percentage)
     int soldiers_to_kill = calc_adjust_with_percentage(soldiers_total, kill_percentage);
     if (soldiers_to_kill >= soldiers_total) {
         m->is_at_fort = 1;
-        m->in_distant_battle = 0;
+        m->set_distant_battle(0);
     }
     m->kill_alive_figures(soldiers_to_kill);
 }
@@ -226,8 +218,8 @@ void formation_legions_kill_in_distant_battle(int kill_percentage)
 
 static void return_soldiers(formation *m)
 {
-    m->in_distant_battle = 0;
     m->set_station_origin(m->x, m->y);
+    m->set_distant_battle(0);
     m->set_alive_figures_action(FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE);
 }
 
@@ -266,7 +258,7 @@ int formation_legion_curse(void)
 
 static int is_legion(Figure *f)
 {
-    if (f->is_legion() || f->type == FIGURE_FORT_STANDARD) {
+    if (f->is_legion()) {
         return f->formation_id;
     }
     return 0;
@@ -282,12 +274,14 @@ static int is_herd(Figure *f)
 
 int formation_legion_at_grid_offset(int grid_offset)
 {
-    return map_figure_foreach_until(grid_offset, is_legion);
+    const int marker_formation = FormationDestination::formation_at(grid_offset);
+    return marker_formation ? marker_formation : map_figure_foreach_until(grid_offset, is_legion);
 }
 
 int formation_legion_or_herd_at_grid_offset(int grid_offset)
 {
-    int formation_id = map_figure_foreach_until(grid_offset, is_legion);
+    int formation_id = FormationDestination::formation_at(grid_offset);
+    if (!formation_id) formation_id = map_figure_foreach_until(grid_offset, is_legion);
     if (formation_id) {
         return formation_id;
     }

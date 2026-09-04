@@ -1110,6 +1110,10 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         log_error("Loaded save failed figure/building reference validation", 0, 0);
         return 0;
     }
+    if (!formation_finish_load_bridge()) {
+        log_error("Loaded save failed formation destination migration", 0, 0);
+        return 0;
+    }
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
     random_load_state(state->random_iv);

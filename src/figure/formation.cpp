@@ -62,6 +62,11 @@ static unsigned int formation_pool_size(void)
     return static_cast<unsigned int>(formations.size());
 }
 
+static void clear_formation_destinations(void)
+{
+    for (formation &entry : formations) entry.standard.clear();
+}
+
 static formation *formation_slot(unsigned int id)
 {
     return id < formations.size() ? &formations[id] : nullptr;
@@ -102,12 +107,14 @@ static formation *new_formation_after_index(unsigned int start)
 static void trim_inactive_formations(void)
 {
     while (formations.size() > 1 && !formation_is_active(formations.back())) {
+        formations.back().standard.clear();
         formations.pop_back();
     }
 }
 
 static void resize_formations_for_load(unsigned int size)
 {
+    clear_formation_destinations();
     formations.resize(size);
     for (unsigned int i = 0; i < size; i++) {
         reset_formation_slot(i);
@@ -116,6 +123,7 @@ static void resize_formations_for_load(unsigned int size)
 
 void formations_clear(void)
 {
+    clear_formation_destinations();
     formations.clear();
     if (!append_formation()) { // Ignore first formation
         log_error("Unable to create the formations array. The game will likely crash.", 0, 0);
@@ -128,6 +136,7 @@ void formations_clear(void)
 
 void formation::remove()
 {
+    standard.clear();
     if (!in_use) {
         return;
     }
@@ -302,22 +311,112 @@ bool formation::refresh_legion_definition_from_home()
         log_error("Unable to bind legion formation to fort", failure, static_cast<int>(id));
         return false;
     }
-    if (is_at_fort) {
-        if (!home->Composition) {
-            log_error("Loaded fort formation has no data-defined mustering ground", 0, static_cast<int>(id));
-            return false;
-        }
-        Building &ground = home->Composition->require_child_for_role(
-            "mustering_ground", "formation::refresh_legion_definition_from_home");
-        if (standard_x != ground.x() || standard_y != ground.y()) {
-            char detail[160];
-            snprintf(detail, sizeof(detail),
-                "formation_id=%u saved_x=%d saved_y=%d canonical_x=%d canonical_y=%d",
-                id, standard_x, standard_y, ground.x(), ground.y());
-            log_warning("Repairing an at-home legion's loaded standard position", detail, 0);
-            set_station_origin(ground.x(), ground.y());
-        }
+    return true;
+}
+
+bool formation::reconcile_loaded_legion_command()
+{
+    Building *home = fort();
+    if (!home || !home->Composition) {
+        log_error("Loaded fort formation has no data-defined mustering ground", 0, static_cast<int>(id));
+        return false;
     }
+    Building &ground = home->Composition->require_child_for_role(
+        "mustering_ground", "formation::reconcile_loaded_legion_command");
+    const int saved_standard_x = standard_x;
+    const int saved_standard_y = standard_y;
+    const int saved_is_at_fort = is_at_fort;
+    const int saved_direction = direction;
+    int repaired_actions = 0;
+    int live_members = 0;
+    int home_command_members = 0;
+    int deployed_command_members = 0;
+    int stationed_home_members = 0;
+    int facing_counts[DIR_8_NONE] = {};
+
+    for_each_alive_figure([&](Figure &member, int) {
+        if (member.action_state == FIGURE_ACTION_149_CORPSE) return;
+        live_members++;
+        if (member.action_state == FIGURE_ACTION_80_SOLDIER_AT_REST ||
+            member.action_state == FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT) {
+            home_command_members++;
+        } else if (member.action_state == FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD ||
+            member.action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
+            deployed_command_members++;
+        }
+        if (member.action_state == FIGURE_ACTION_80_SOLDIER_AT_REST && member.formation_at_rest == 1) {
+            stationed_home_members++;
+        }
+        int member_facing = member.previous_tile_direction;
+        if (member_facing < DIR_0_TOP || member_facing >= DIR_8_NONE) member_facing = member.direction;
+        if (member_facing >= DIR_0_TOP && member_facing < DIR_8_NONE) facing_counts[member_facing]++;
+    });
+
+    bool command_is_home = standard_x == ground.x() && standard_y == ground.y();
+    if (live_members && home_command_members == live_members) {
+        command_is_home = true;
+    } else if (live_members && deployed_command_members == live_members) {
+        command_is_home = false;
+    }
+    if (command_is_home) set_station_origin(ground.x(), ground.y());
+
+    for_each_alive_figure([&](Figure &member, int) {
+        if (member.action_state == FIGURE_ACTION_149_CORPSE) return;
+        if (command_is_home) {
+            if (member.action_state == FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD ||
+                member.action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
+                member.action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
+                member.formation_at_rest = 0;
+                Route::remove(&member);
+                repaired_actions++;
+            }
+        } else {
+            if (member.action_state == FIGURE_ACTION_80_SOLDIER_AT_REST ||
+                member.action_state == FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT) {
+                member.action_state = FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD;
+                Route::remove(&member);
+                repaired_actions++;
+            }
+            member.formation_at_rest = 0;
+        }
+    });
+
+    is_at_fort = command_is_home && stationed_home_members == live_members;
+    int recovered_facing = direction;
+    if (!command_is_home && (recovered_facing < DIR_0_TOP || recovered_facing >= DIR_8_NONE)) {
+        int best_count = 0;
+        for (int candidate = DIR_0_TOP; candidate < DIR_8_NONE; candidate++) {
+            if (facing_counts[candidate] > best_count) {
+                recovered_facing = candidate;
+                best_count = facing_counts[candidate];
+            }
+        }
+        if (best_count == 0 && layout_definition &&
+            layout_definition->stationary_facing >= DIR_0_TOP &&
+            layout_definition->stationary_facing < DIR_8_NONE) {
+            recovered_facing = layout_definition->stationary_facing;
+        }
+        if (recovered_facing < DIR_0_TOP || recovered_facing >= DIR_8_NONE) {
+            const FormationLayoutDef *at_rest = formation_layout_registry_impl::find_layout("at_rest");
+            if (!at_rest || at_rest->stationary_facing < DIR_0_TOP || at_rest->stationary_facing >= DIR_8_NONE) {
+                log_error("Loaded deployed legion has no recoverable stationary facing", 0, static_cast<int>(id));
+                return false;
+            }
+            recovered_facing = at_rest->stationary_facing;
+        }
+        direction = recovered_facing;
+    }
+
+    if (saved_standard_x != standard_x || saved_standard_y != standard_y ||
+        saved_is_at_fort != is_at_fort || saved_direction != direction || repaired_actions) {
+        char detail[256];
+        snprintf(detail, sizeof(detail),
+            "formation_id=%u saved_anchor=(%d,%d) canonical_anchor=(%d,%d) home=(%d,%d) saved_at_fort=%d canonical_at_fort=%d saved_facing=%d canonical_facing=%d repaired_actions=%d",
+            id, saved_standard_x, saved_standard_y, standard_x, standard_y, ground.x(), ground.y(), saved_is_at_fort, is_at_fort,
+            saved_direction, direction, repaired_actions);
+        log_warning("Repairing contradictory loaded legion command state", detail, 0);
+    }
+    set_station_origin(standard_x, standard_y);
     return true;
 }
 
@@ -349,8 +448,9 @@ bool formation::initialize_legion_from_fort(Building &fort, int assigned_legion_
     }
     Building &fort_ground = fort.Composition->require_child_for_role(
         "mustering_ground", "formation::initialize_legion_from_fort");
-    x = standard_x = x_home = fort_ground.x();
-    y = standard_y = y_home = fort_ground.y();
+    x = x_home = fort_ground.x();
+    y = y_home = fort_ground.y();
+    set_station_origin(fort_ground.x(), fort_ground.y());
     target_formation.clear();
     return true;
 }
@@ -366,15 +466,14 @@ bool formation::owns_figure(const Figure &figure) const
     }
     const ::figure_type type = static_cast<::figure_type>(figure.type);
     if (is_legion) {
-        return type == FIGURE_FORT_STANDARD ? figure.id() == static_cast<unsigned int>(standard_figure_id) :
-            has_figure_type(type);
+        return has_figure_type(type);
     }
     return formation_type_definition->spawn.role != FormationSpawnRole::None && has_figure_type(type);
 }
 
 bool formation::is_roster_member(const Figure &figure) const
 {
-    return owns_figure(figure) && (!is_legion || figure.type != FIGURE_FORT_STANDARD);
+    return owns_figure(figure);
 }
 
 int formation::modified_combat_value(FormationCombatStat stat, int base_value) const
@@ -466,7 +565,7 @@ void formation::prepare_roster_refresh()
     num_figures = 0;
     total_damage = 0;
     max_total_damage = 0;
-    is_at_fort = 1;
+    is_at_fort = !is_legion || (!in_distant_battle && standard_x == x && standard_y == y);
 
     for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
         const int figure_id = figures[slot];
@@ -534,9 +633,6 @@ void formation::refresh_published_figure(Figure &figure)
 
 void formation::unpublish_figure(Figure &figure)
 {
-    if (standard_figure_id == static_cast<int>(figure.id())) {
-        standard_figure_id = 0;
-    }
     for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
         if (figures[slot] == static_cast<int>(figure.id())) {
             member_movement_plan.release_member(slot, figure);
@@ -1546,10 +1642,19 @@ void formation::set_destination(int tile_x, int tile_y, const Building *building
 
 void formation::set_station_origin(int tile_x, int tile_y)
 {
-    if (standard_x == tile_x && standard_y == tile_y) return;
+    const bool changed = standard_x != tile_x || standard_y != tile_y;
     standard_x = tile_x;
     standard_y = tile_y;
-    invalidate_member_movement_plan();
+    if (is_legion && in_use && !in_distant_battle) standard.place(tile_x, tile_y);
+    else standard.clear();
+    if (changed) invalidate_member_movement_plan();
+}
+
+void formation::set_distant_battle(int value)
+{
+    in_distant_battle = value ? 1 : 0;
+    if (!is_legion || !in_use || in_distant_battle) standard.clear();
+    else standard.place(standard_x, standard_y);
 }
 
 static void prepare_rosters_for_refresh(void)
@@ -1650,56 +1755,45 @@ void formation_calculate_figures(void)
     city_military_update_totals();
 }
 
-static void update_direction(int formation_id, int first_figure_direction)
+void formation::update_direction(const Figure &first_figure)
 {
-    formation *f = formation_get(formation_id);
-    if (f->unknown_fired) {
-        f->unknown_fired--;
-    } else if (f->missile_fired) {
-        f->direction = first_figure_direction;
-    } else if (f->uses_layout("double_line_1") || f->uses_layout("single_line_1")) {
-        if (f->y_home < f->prev.y_home) {
-            f->direction = DIR_0_TOP;
-        } else if (f->y_home > f->prev.y_home) {
-            f->direction = DIR_4_BOTTOM;
+    if (unknown_fired) {
+        unknown_fired--;
+    } else if (missile_fired) {
+        const int firing_direction = first_figure.direction < DIR_8_NONE ?
+            first_figure.direction : first_figure.previous_tile_direction;
+        if (firing_direction >= DIR_0_TOP && firing_direction < DIR_8_NONE) direction = firing_direction;
+    } else if (uses_layout("double_line_1") || uses_layout("single_line_1")) {
+        if (y_home < prev.y_home) {
+            direction = DIR_0_TOP;
+        } else if (y_home > prev.y_home) {
+            direction = DIR_4_BOTTOM;
         }
-    } else if (f->uses_layout("double_line_2") || f->uses_layout("single_line_2")) {
-        if (f->x_home < f->prev.x_home) {
-            f->direction = DIR_6_LEFT;
-        } else if (f->x_home > f->prev.x_home) {
-            f->direction = DIR_2_RIGHT;
+    } else if (uses_layout("double_line_2") || uses_layout("single_line_2")) {
+        if (x_home < prev.x_home) {
+            direction = DIR_6_LEFT;
+        } else if (x_home > prev.x_home) {
+            direction = DIR_2_RIGHT;
         }
-    } else if (f->uses_layout("tortoise") || f->uses_layout("column")) {
-        int dx = (f->x_home < f->prev.x_home) ? (f->prev.x_home - f->x_home) : (f->x_home - f->prev.x_home);
-        int dy = (f->y_home < f->prev.y_home) ? (f->prev.y_home - f->y_home) : (f->y_home - f->prev.y_home);
+    } else if (uses_layout("tortoise") || uses_layout("column")) {
+        int dx = (x_home < prev.x_home) ? (prev.x_home - x_home) : (x_home - prev.x_home);
+        int dy = (y_home < prev.y_home) ? (prev.y_home - y_home) : (y_home - prev.y_home);
         if (dx > dy) {
-            if (f->x_home < f->prev.x_home) {
-                f->direction = DIR_6_LEFT;
-            } else if (f->x_home > f->prev.x_home) {
-                f->direction = DIR_2_RIGHT;
+            if (x_home < prev.x_home) {
+                direction = DIR_6_LEFT;
+            } else if (x_home > prev.x_home) {
+                direction = DIR_2_RIGHT;
             }
         } else {
-            if (f->y_home < f->prev.y_home) {
-                f->direction = DIR_0_TOP;
-            } else if (f->y_home > f->prev.y_home) {
-                f->direction = DIR_4_BOTTOM;
+            if (y_home < prev.y_home) {
+                direction = DIR_0_TOP;
+            } else if (y_home > prev.y_home) {
+                direction = DIR_4_BOTTOM;
             }
         }
     }
-    f->prev.x_home = f->x_home;
-    f->prev.y_home = f->y_home;
-}
-
-static void update_directions(void)
-{
-    for (formation &entry : formations) {
-        formation *m = &entry;
-        if (m->in_use && !m->is_herd) {
-            if (Figure *f = m->first_figure()) {
-                update_direction(m->id, f->direction);
-            }
-        }
-    }
+    prev.x_home = x_home;
+    prev.y_home = y_home;
 }
 
 int formation_refresh_runtime_definitions(void)
@@ -1743,23 +1837,8 @@ int formation_refresh_runtime_definitions(void)
         if (!figure || figure->state != FIGURE_STATE_ALIVE || !figure->formation_id) {
             continue;
         }
+        if (figure->type == FIGURE_FORT_STANDARD) continue;
         formation *owner = formation_slot(figure->formation_id);
-        if (owner && owner->in_use && owner->is_legion && figure->type == FIGURE_FORT_STANDARD &&
-            owner->standard_figure_id != static_cast<int>(figure->id())) {
-            Figure *saved_standard = owner->standard_figure_id > 0 &&
-                static_cast<unsigned int>(owner->standard_figure_id) < Figure::count() ?
-                Figure::get(owner->standard_figure_id) : nullptr;
-            const bool saved_standard_is_valid = saved_standard && saved_standard->state == FIGURE_STATE_ALIVE &&
-                saved_standard->type == FIGURE_FORT_STANDARD && saved_standard->formation_id == owner->id;
-            if (!saved_standard_is_valid) {
-                char detail[192];
-                snprintf(detail, sizeof(detail),
-                    "formation_id=%u saved_standard_id=%d recovered_standard_id=%u",
-                    owner->id, owner->standard_figure_id, figure->id());
-                log_warning("Repairing a legion's standard relationship while loading", detail, 0);
-                owner->standard_figure_id = static_cast<int>(figure->id());
-            }
-        }
         if (owner && owner->owns_figure(*figure)) {
             continue;
         }
@@ -1774,11 +1853,44 @@ int formation_refresh_runtime_definitions(void)
     return valid;
 }
 
+int formation_finish_load_bridge(void)
+{
+    for (unsigned int figure_id = Figure::count(); figure_id-- > 1;) {
+        Figure *figure = Figure::get(figure_id);
+        if (!figure || figure->state != FIGURE_STATE_ALIVE || figure->type != FIGURE_FORT_STANDARD) continue;
+        char detail[128];
+        snprintf(detail, sizeof(detail), "figure_id=%u saved_formation_id=%u", figure->id(), figure->formation_id);
+        log_warning("Migrating a serialized fort standard into its formation-owned destination", detail, 0);
+        figure->remove();
+    }
+
+    for (formation &entry : formations) {
+        if (!entry.in_use || !entry.is_legion) continue;
+        if (!entry.formation_type_definition) {
+            log_error("Loaded legion has no FormationType after the load bridge", 0, static_cast<int>(entry.id));
+            return 0;
+        }
+        if (!entry.reconcile_loaded_legion_command()) return 0;
+    }
+
+    for (unsigned int figure_id = 1; figure_id < Figure::count(); figure_id++) {
+        const Figure *figure = Figure::get(figure_id);
+        if (figure && figure->state == FIGURE_STATE_ALIVE && figure->type == FIGURE_FORT_STANDARD) {
+            log_error("Load bridge left a live fort standard figure in runtime", 0, static_cast<int>(figure_id));
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void formation_update_all(int second_time)
 {
     formation_calculate_legion_totals();
     formation_calculate_figures();
-    update_directions();
+    for (formation &entry : formations) {
+        if (!entry.in_use || entry.is_herd) continue;
+        if (Figure *first = entry.first_alive_figure()) entry.update_direction(*first);
+    }
     formation_legion_decrease_damage();
     if (!second_time) {
         formation_update_monthly_morale_deployed();
@@ -1818,7 +1930,7 @@ void formations_save_state(buffer *buf, buffer *totals)
         buffer_write_u8(buf, static_cast<uint8_t>(f->destination_x));
         buffer_write_u8(buf, static_cast<uint8_t>(f->destination_y));
         buffer_write_i16(buf, static_cast<int16_t>(f->destination_building_id));
-        buffer_write_i16(buf, static_cast<int16_t>(f->standard_figure_id));
+        buffer_write_i16(buf, 0); // Reserved legacy fort-standard figure id. Runtime destinations are formation-owned.
         buffer_write_u8(buf, static_cast<uint8_t>(f->is_legion));
         buffer_write_u8(buf, static_cast<uint8_t>(f->mess_hall_max_morale_modifier));
         buffer_write_i32(buf, f->legion_flag_id);
@@ -1914,7 +2026,7 @@ void formations_load_state(buffer *buf, buffer *totals, int version)
         f->destination_x = buffer_read_u8(buf);
         f->destination_y = buffer_read_u8(buf);
         f->destination_building_id = buffer_read_i16(buf);
-        f->standard_figure_id = buffer_read_i16(buf);
+        buffer_read_i16(buf); // Consume the legacy fort-standard figure id at the save boundary.
         f->is_legion = buffer_read_u8(buf);
         f->mess_hall_max_morale_modifier = buffer_read_u8(buf);
         if (version <= SAVE_GAME_LAST_10_LEGIONS_MAX) {

@@ -1175,7 +1175,8 @@ const FigureStandardGraphics &FigureGraphics::standard() const
     return standard_definition;
 }
 
-FigureGraphicsLayerSet FigureGraphics::legacy_standard_layers(const Figure &figure, figure_type unit_type, int halted, int legion_flag_image_id, int pole_frame) const
+FigureGraphicsLayerSet FigureGraphics::standard_layers(figure_type unit_type, int halted, int legion_flag_image_id,
+    int pole_frame, int animation_frame) const
 {
     FigureGraphicsLayerSet result;
     const FigureStandardFlagGraphics *flag = standard_definition.flag_for(unit_type);
@@ -1191,13 +1192,9 @@ FigureGraphicsLayerSet FigureGraphics::legacy_standard_layers(const Figure &figu
         pole_layer.use_figure_color_mask = 0;
         pole_layer.height = pole_layer.slice.height;
         result.add(pole_layer);
-    } else {
-        const Image &pole_image = legacy_image(figure.image_id);
-        if (const image_animation *animation = pole_image.animation()) result.sprite_offset = { animation->sprite_offset_x, animation->sprite_offset_y };
-        result.add(image_layer(pole_image, {}, 0));
     }
 
-    const int flag_offset = standard_definition.flag_image_offset(unit_type, halted, figure.image_offset);
+    const int flag_offset = standard_definition.flag_image_offset(unit_type, halted, animation_frame);
     FigureGraphicsLayer flag_layer = payload_image_layer(flag->payload, flag_offset, {}, 0);
     flag_layer.offset.y = -flag_layer.height;
     result.add(flag_layer);

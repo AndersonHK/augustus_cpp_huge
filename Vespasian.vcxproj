@@ -219,6 +219,7 @@
     <ClCompile Include="src\figure\combat.cpp" />
     <ClCompile Include="src\figure\enemy_army.cpp" />
     <ClCompile Include="src\figure\figure.cpp" />
+    <ClCompile Include="src\figure\FormationDestination.cpp" />
     <ClCompile Include="src\figure\formation.cpp" />
     <ClCompile Include="src\figure\formation_member_movement_plan.cpp" />
     <ClCompile Include="src\figure\formation_enemy.cpp" />
@@ -795,6 +796,7 @@
     <ClInclude Include="src\figure\figure_type_registry.h" />
     <ClInclude Include="src\figure\figure_type_registry_internal.h" />
     <ClInclude Include="src\figure\FigureGraphics.h" />
+    <ClInclude Include="src\figure\FormationDestination.h" />
     <ClInclude Include="src\figure\unit_type.h" />
     <ClInclude Include="src\figure\formation_type.h" />
     <ClInclude Include="src\figure\PathingMode.h" />

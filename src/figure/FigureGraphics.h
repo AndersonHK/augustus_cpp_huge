@@ -345,7 +345,8 @@ public:
     int configure_standard(int moving_frame_divisor, int moving_frame_count, std::string icon_path = {});
     int add_standard_flag(FigureStandardFlagGraphics flag);
     const FigureStandardGraphics &standard() const;
-    FigureGraphicsLayerSet legacy_standard_layers(const Figure &figure, figure_type unit_type, int halted, int legion_flag_image_id, int pole_frame) const;
+    FigureGraphicsLayerSet standard_layers(figure_type unit_type, int halted, int legion_flag_image_id,
+        int pole_frame, int animation_frame) const;
     int configure_map_flag(
         int resource_min,
         int resource_max_exclusive,

@@ -39,6 +39,7 @@
 #include "city/view.h"
 #include "core/config.h"
 #include "core/log.h"
+#include "figure/FormationDestination.h"
 #include "graphics/renderer.h"
 
 #include "graphics/window.h"
@@ -549,6 +550,7 @@ static void draw_figures(Figure *first_figure, int x, int y)
 static void draw_figures_render_tile(const CityDrawTileCommand &command)
 {
     draw_figures(command.first_figure, command.x, command.y);
+    if (overlay->type == OVERLAY_ENEMY) FormationDestination::draw_at(command.grid_offset, command.x, command.y, scale, 0);
 }
 
 static void draw_elevated_figures(Figure *first_figure, int x, int y)

@@ -4,6 +4,7 @@
 #include "core/buffer.h"
 #include "core/relationship.h"
 #include "figure/formation_member_movement_plan.h"
+#include "figure/FormationDestination.h"
 #include "figure/formation_type.h"
 #include "figure/movement.h"
 #include "figure/route.h"
@@ -159,7 +160,7 @@ struct formation : public RelationshipEndpoint {
     int building_id; // legions - Building ID of home fort
     int standard_x; // legions - x origin of the authoritative commanded station plan
     int standard_y; // legions - y origin of the authoritative commanded station plan
-    int standard_figure_id; // Figure id of the standard slag - position in the array of figures
+    FormationDestination standard{ this }; // Ephemeral, non-physical presentation of the commanded destination.
     int destination_x; //for enemy and animals
     int destination_y; //for enemy and animals
     int destination_building_id;
@@ -262,6 +263,7 @@ struct formation : public RelationshipEndpoint {
     void remove();
     Building *fort() const;
     bool refresh_legion_definition_from_home();
+    bool reconcile_loaded_legion_command();
     bool initialize_legion_from_fort(Building &fort, int assigned_legion_id);
     bool owns_figure(const Figure &figure) const;
 
@@ -301,6 +303,7 @@ struct formation : public RelationshipEndpoint {
 
     int modified_combat_value(FormationCombatStat stat, int base_value) const;
     void update_movement_states();
+    void update_direction(const Figure &first_figure);
     void update_herd(bool reproduction_allowed);
     void update_herd_member(Figure &member) const;
     void update_herd_member_graphics(Figure &member) const;
@@ -313,6 +316,7 @@ struct formation : public RelationshipEndpoint {
     void set_destination(int tile_x, int tile_y);
     void set_destination(int tile_x, int tile_y, const Building *building);
     void set_station_origin(int tile_x, int tile_y);
+    void set_distant_battle(int value);
     void record_missile_attack(int from_formation_id);
     void pursue_target();
     void toggle_empire_service() { empire_service ^= 1; }
@@ -457,6 +461,7 @@ void formation_calculate_figures(void);
 
 void formation_update_all(int second_time);
 int formation_refresh_runtime_definitions(void);
+int formation_finish_load_bridge(void);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);

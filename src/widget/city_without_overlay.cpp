@@ -43,6 +43,7 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/time.h"
+#include "figure/FormationDestination.h"
 #include "figure/formation_legion.h"
 #include "game/resource.h"
 #include "graphics/renderer.h"
@@ -427,6 +428,7 @@ static void draw_figures(Figure *first_figure, int x, int y)
 static void draw_figures_render_tile(const CityDrawTileCommand &command)
 {
     draw_figures(command.first_figure, command.x, command.y);
+    FormationDestination::draw_at(command.grid_offset, command.x, command.y, draw_context.scale, draw_context.highlighted_formation);
 }
 
 static void draw_fumigation(Building &building, int x, int y, color_t color_mask)

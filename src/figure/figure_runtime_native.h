@@ -50,6 +50,7 @@ struct FigureGraphicDrawRequest {
     int scaled_sprite_offset_x() const;
     int scaled_sprite_offset_y() const;
     void draw(int x, int y, color_t color_mask, float scale) const;
+    void draw_with_baseline_at_tile_center(int tile_x, int tile_y, color_t color_mask, float scale) const;
 
 private:
     render_logical_unit logical_units_per_source_pixel() const;

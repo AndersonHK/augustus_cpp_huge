@@ -387,6 +387,10 @@ static bool initialize_saved_game(void)
         log_error("World initialization failed strict figure/building reference validation", 0, 0);
         return false;
     }
+    if (!formation_finish_load_bridge()) {
+        log_error("World initialization failed formation destination migration", 0, 0);
+        return false;
+    }
     figure_runtime_initialize_city();
     map_tiles_update_all_gardens();
     map_tiles_update_all_plazas();

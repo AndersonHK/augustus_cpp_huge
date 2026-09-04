@@ -56,7 +56,7 @@ static FigureAction figure_action_callbacks[] = {
     figure_soldier_action,
     figure_soldier_action,
     figure_soldier_action,
-    figure_military_standard_action,
+    figure_retired_native_action,
     figure_entertainer_action,
     figure_entertainer_action,
     figure_entertainer_action,

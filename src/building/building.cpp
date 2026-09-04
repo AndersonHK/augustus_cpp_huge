@@ -2038,6 +2038,7 @@ void Building::on_relationship_event(const RelationshipEvent &event)
             Housing->clear_immigrant_if_matches(*figure);
         }
     } else if (strcmp(event.relationship.role(), "figure.destination_building") == 0) {
+        clear_figure_slot_if_matches(figure->id());
         release_input_storage_reservation(*figure);
         release_legacy_storage_reservation(*figure);
     }

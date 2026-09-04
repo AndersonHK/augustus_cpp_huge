@@ -281,7 +281,6 @@ int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance)
         }
         switch (f->type) {
             case FIGURE_EXPLOSION:
-            case FIGURE_FORT_STANDARD:
             case FIGURE_TRADE_SHIP:
             case FIGURE_FISHING_BOAT:
             case FIGURE_MAP_FLAG:
@@ -422,7 +421,6 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
         }
         switch (f->type) {
             case FIGURE_EXPLOSION:
-            case FIGURE_FORT_STANDARD:
             case FIGURE_MAP_FLAG:
             case FIGURE_FLOTSAM:
             case FIGURE_INDIGENOUS_NATIVE:

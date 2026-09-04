@@ -10,7 +10,9 @@
 #define DISPLAY_ID_ERROR_MESSAGE "Option --display must be followed by a number indicating the display, starting from 0"
 #define MOD_NAME_ERROR_MESSAGE "Option --mod must be followed by a mod name"
 #define LOAD_SAVE_TEST_ERROR_MESSAGE "Option --load-save-test must be followed by a save file path"
+#define LOAD_SAVE_TEST_LIMIT_ERROR_MESSAGE "Too many --load-save-test options"
 #define SAVE_ROUNDTRIP_TEST_ERROR_MESSAGE "Option --save-roundtrip-test must be followed by an output save file path"
+#define SAVE_ROUNDTRIP_TEST_LIMIT_ERROR_MESSAGE "Too many --save-roundtrip-test options"
 #define SAVE_SOAK_TICKS_ERROR_MESSAGE "Option --save-soak-ticks must be followed by a positive tick count"
 #define UNKNOWN_OPTION_ERROR_MESSAGE "Option %s not recognized"
 
@@ -82,8 +84,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->debug = 0;
     output_args->disable_audio = 0;
     output_args->startup_test = 0;
-    output_args->load_save_test = 0;
-    output_args->save_roundtrip_test = 0;
+    output_args->load_save_test_count = 0;
+    output_args->save_roundtrip_test_count = 0;
     output_args->save_soak_ticks = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -155,14 +157,26 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
             output_args->startup_test = 1;
         } else if (SDL_strcmp(argv[i], "--load-save-test") == 0) {
             if (i + 1 < argc) {
-                output_args->load_save_test = argv[++i];
+                if (output_args->load_save_test_count < MAX_LOAD_SAVE_TESTS) {
+                    output_args->load_save_tests[output_args->load_save_test_count++] = argv[++i];
+                } else {
+                    print_log(LOAD_SAVE_TEST_LIMIT_ERROR_MESSAGE);
+                    i++;
+                    ok = 0;
+                }
             } else {
                 print_log(LOAD_SAVE_TEST_ERROR_MESSAGE);
                 ok = 0;
             }
         } else if (SDL_strcmp(argv[i], "--save-roundtrip-test") == 0) {
             if (i + 1 < argc) {
-                output_args->save_roundtrip_test = argv[++i];
+                if (output_args->save_roundtrip_test_count < MAX_LOAD_SAVE_TESTS) {
+                    output_args->save_roundtrip_tests[output_args->save_roundtrip_test_count++] = argv[++i];
+                } else {
+                    print_log(SAVE_ROUNDTRIP_TEST_LIMIT_ERROR_MESSAGE);
+                    i++;
+                    ok = 0;
+                }
             } else {
                 print_log(SAVE_ROUNDTRIP_TEST_ERROR_MESSAGE);
                 ok = 0;
@@ -192,15 +206,19 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log(WINDOWED_AND_FULLSCREEN_ERROR_MESSAGE);
         ok = 0;
     }
-    if (output_args->save_soak_ticks && !output_args->load_save_test) {
+    if (output_args->save_soak_ticks && !output_args->load_save_test_count) {
         print_log("Option --save-soak-ticks requires --load-save-test");
         ok = 0;
     }
-    if (output_args->save_roundtrip_test && !output_args->load_save_test) {
+    if (output_args->save_roundtrip_test_count && !output_args->load_save_test_count) {
         print_log("Option --save-roundtrip-test requires --load-save-test");
         ok = 0;
     }
-    if (output_args->startup_test || output_args->load_save_test) output_args->disable_audio = 1;
+    if (output_args->save_roundtrip_test_count && output_args->save_roundtrip_test_count != output_args->load_save_test_count) {
+        print_log("Each --load-save-test requires one --save-roundtrip-test when roundtrip validation is enabled");
+        ok = 0;
+    }
+    if (output_args->startup_test || output_args->load_save_test_count) output_args->disable_audio = 1;
 
     if (!ok) {
         if (add_blank_line) {
@@ -225,9 +243,9 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log("--startup-test");
         print_log("          Runs the real executable startup path with a hidden window and exits before the game loop");
         print_log("--load-save-test FILE");
-        print_log("          Runs startup and loads FILE through the real save loader with no visible window or dialogs");
+        print_log("          Loads FILE through the real save loader; repeat to validate saves sequentially in one process");
         print_log("--save-roundtrip-test FILE");
-        print_log("          Saves a loaded legacy file in the current format, reloads it strictly, and writes it to FILE");
+        print_log("          Writes and strictly reloads the corresponding loaded save; repeat once per input save");
         print_log("--save-soak-ticks NUMBER");
         print_log("          Advances and renders a loaded save for NUMBER headless frames; warnings and errors fail the test");
         print_log("--mod NAME");
