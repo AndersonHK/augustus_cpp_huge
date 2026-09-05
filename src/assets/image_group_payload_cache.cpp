@@ -2,6 +2,8 @@
 
 #include "graphics/image.h"
 
+#include <cctype>
+
 namespace image_group_payload_internal {
 
 GroupPayloadMap g_group_payloads;
@@ -14,6 +16,7 @@ std::unordered_set<std::string> g_failed_group_payloads;
 std::unordered_set<std::string> g_loading_group_payloads;
 std::unordered_set<std::string> g_failed_group_docs;
 std::unordered_set<std::string> g_failed_merged_groups;
+std::unordered_set<std::string> g_loading_merged_groups;
 std::unordered_set<std::string> g_failed_resolved_entries;
 std::unordered_set<std::string> g_loading_resolved_entries;
 std::unordered_set<std::string> g_failed_png_rasters;
@@ -59,36 +62,49 @@ std::string normalize_path_key(const char *text)
 std::string normalize_group_reference_key(const char *group_name, const std::string &current_group)
 {
     const std::string normalized_group = normalize_path_key(group_name);
-    if (normalized_group == "this" || normalized_group == "THIS") {
+    if (normalized_group.size() == 4 &&
+        std::tolower(static_cast<unsigned char>(normalized_group[0])) == 't' &&
+        std::tolower(static_cast<unsigned char>(normalized_group[1])) == 'h' &&
+        std::tolower(static_cast<unsigned char>(normalized_group[2])) == 'i' &&
+        std::tolower(static_cast<unsigned char>(normalized_group[3])) == 's') {
         return current_group;
     }
     return normalized_group;
 }
 
-// Input: one group key and one source enum.
-// Output: the stable cache key for a source-local parsed document.
-std::string make_source_doc_cache_key(const std::string &group_key, xml_asset_source source)
+namespace {
+
+std::string source_cache_token(const GraphicsLayerSource &source)
 {
-    return group_key + "|" + std::to_string(static_cast<int>(source));
+    return std::to_string(source.layer_index) + "@" + source.graphics_root;
+}
+
+} // namespace
+
+// Input: one group key and one source layer.
+// Output: the stable cache key for a source-local parsed document.
+std::string make_source_doc_cache_key(const std::string &group_key, const GraphicsLayerSource &source)
+{
+    return group_key + "|" + source_cache_token(source);
 }
 
 // Input: one group key, one winning source, and one image id.
 // Output: the stable cache key for a resolved entry selector.
-std::string make_selector_cache_key(const std::string &group_key, xml_asset_source source, const std::string &image_id)
+std::string make_selector_cache_key(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id)
 {
-    return group_key + "|" + std::to_string(static_cast<int>(source)) + "|" + image_id;
+    return group_key + "|" + source_cache_token(source) + "|" + image_id;
 }
 
 // Input: one group key, one source, and one image id.
 // Output: the unique managed-texture payload key used for uploaded runtime textures.
-std::string make_entry_payload_key(const std::string &group_key, xml_asset_source source, const std::string &image_id)
+std::string make_entry_payload_key(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id)
 {
-    return "MergedGraphics\\" + group_key + "\\" + std::to_string(static_cast<int>(source)) + "\\" + image_id;
+    return "MergedGraphics\\" + group_key + "\\" + std::to_string(source.layer_index) + "_" + source.mod_name + "\\" + image_id;
 }
 
 // Input: a group key and source.
 // Output: the cached source-local document if it exists, otherwise null.
-const ImageGroupDoc *find_group_doc(const std::string &group_key, xml_asset_source source)
+const ImageGroupDoc *find_group_doc(const std::string &group_key, const GraphicsLayerSource &source)
 {
     auto it = g_group_docs.find(make_source_doc_cache_key(group_key, source));
     return it == g_group_docs.end() ? nullptr : it->second.get();
@@ -104,7 +120,7 @@ const MergedImageGroup *find_merged_group(const std::string &group_key)
 
 // Input: a group key, source, and image id selector.
 // Output: the cached resolved entry if it exists, otherwise null.
-const ResolvedImageEntry *find_resolved_entry(const std::string &group_key, xml_asset_source source, const std::string &image_id)
+const ResolvedImageEntry *find_resolved_entry(const std::string &group_key, const GraphicsLayerSource &source, const std::string &image_id)
 {
     auto it = g_resolved_entries.find(make_selector_cache_key(group_key, source, image_id));
     return it == g_resolved_entries.end() ? nullptr : it->second.get();
@@ -143,6 +159,7 @@ void clear_all_cached_payload_state(void)
     g_loading_group_payloads.clear();
     g_failed_group_docs.clear();
     g_failed_merged_groups.clear();
+    g_loading_merged_groups.clear();
     g_failed_resolved_entries.clear();
     g_loading_resolved_entries.clear();
     g_failed_png_rasters.clear();

@@ -1,15 +1,17 @@
 #include "roamer_preview.h"
 
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/CompositionDef.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
-#include "building/properties.h"
 #include "building/rotation.h"
 #include "core/config.h"
 #include "figure/figure.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "map/building.h"
 #include "map/grid.h"
 #include "map/road_access.h"
 
@@ -77,24 +79,83 @@ static void init_roaming(Figure *f, int roam_dir, int x, int y)
     }
 }
 
-static int determine_road_access(int x, int y, int size, building_type type, map_point *road)
+struct PreviewFoundationBounds {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+
+    int valid() const { return width > 0 && height > 0; }
+};
+
+static int preview_rotation(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int requested_rotation)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    if (definition && definition->is_warehouse()) {
-        return map_has_road_access_warehouse(x, y, road);
+    if (requested_rotation >= 0) {
+        return building_type_registry_impl::normalize_composition_rotation(requested_rotation);
     }
-    if (definition && definition->is_hippodrome()) {
-        int building_orientation = building_rotation_get_building_orientation(building_rotation_get_rotation());
-        return map_has_road_access_hippodrome_rotation(x, y, road, building_orientation);
+    for (Building &candidate : Building::of_type(definition.type())) {
+        const building *record = candidate.record();
+        const bool is_fixed_child = candidate.Composition && candidate.Composition->is_child();
+        const bool is_dynamic_bridge_child = candidate.is_dynamic_bridge_segment();
+        if (record && !is_fixed_child && !is_dynamic_bridge_child && record->x == x && record->y == y) {
+            return building_type_registry_impl::normalize_composition_rotation(
+                record->subtype.orientation);
+        }
     }
-    if (definition && definition->is_granary()) {
-        return map_has_road_access_granary(x, y, road);
-    }
-    return map_has_road_access(x, y, size, road);
+    return building_type_registry_impl::normalize_composition_rotation(building_rotation_get_rotation());
 }
 
-void figure_roamer_preview_create(building_type b_type, int x, int y)
+static PreviewFoundationBounds preview_foundation_bounds(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int rotation)
+{
+    if (definition.has_composition()) {
+        const building_type_registry_impl::CompositionLayoutResult layout =
+            building_type_registry_impl::build_composition_layout(
+                &definition, definition.composition(), x, y, rotation);
+        if (!layout.valid()) {
+            return {};
+        }
+        return {
+            layout.bounds.min_x,
+            layout.bounds.min_y,
+            layout.bounds.width(),
+            layout.bounds.height()
+        };
+    }
+
+    const building_type_registry_impl::FoundationDef *foundation = definition.foundation_def();
+    if (!foundation) {
+        return {};
+    }
+    const int foundation_rotation = foundation->rotates() ? rotation : 0;
+    return {
+        x,
+        y,
+        foundation->rotated_width(foundation_rotation),
+        foundation->rotated_height(foundation_rotation)
+    };
+}
+
+static int determine_road_access(
+    int owner_x,
+    int owner_y,
+    const PreviewFoundationBounds &bounds,
+    map_point *road)
+{
+    if (map_building_exists_at(map_grid_offset(owner_x, owner_y))) {
+        return map_has_road_access_building(owner_x, owner_y, road);
+    }
+    return map_has_road_access_rectangle(bounds.x, bounds.y, bounds.width, bounds.height, road);
+}
+
+void figure_roamer_preview_create(building_type b_type, int x, int y, int requested_rotation)
 {
     if (!config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
         figure_roamer_preview_reset_building_types();
@@ -123,17 +184,25 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
 
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(b_type);
-    int b_size = definition->is_farm() ? 3 : building_properties_for_type(b_type)->size;
+    if (!definition) {
+        return;
+    }
+    const int rotation = preview_rotation(*definition, x, y, requested_rotation);
+    const PreviewFoundationBounds bounds = preview_foundation_bounds(*definition, x, y, rotation);
+    if (!bounds.valid()) {
+        return;
+    }
 
     map_point road;
-    if (!determine_road_access(x, y, b_size, b_type, &road)) {
+    if (!determine_road_access(x, y, bounds, &road)) {
         return;
     }
 
     int figure_walks_into_building = figure_enters_exits_building(fig_type);
 
     int x_road, y_road;
-    int has_closest_road = map_closest_road_within_radius(x, y, b_size, 2, &x_road, &y_road);
+    int has_closest_road = map_closest_road_within_radius_rectangle(
+        bounds.x, bounds.y, bounds.width, bounds.height, 2, &x_road, &y_road);
 
     if (figure_walks_into_building && !has_closest_road) {
         return;

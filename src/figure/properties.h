@@ -33,6 +33,10 @@ struct figure_properties {
 };
 
 const figure_properties *figure_properties_for_type(figure_type type);
+int figure_damage_limit_for_type(figure_type type);
+int figure_attack_value_for_type(figure_type type);
+int figure_defense_value_for_type(figure_type type);
+int figure_missile_defense_for_type(figure_type type);
 
 
 constexpr figure_category_mask operator|(figure_category_mask lhs, figure_category_mask rhs)

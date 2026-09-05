@@ -23,7 +23,7 @@ int city_sound_update_march_horse(void)
     return update_field(&city_data.sound.march_horse, 200);
 }
 
-int city_sound_update_march_wolf(void)
+int city_sound_update_herd_movement(void)
 {
     return update_field(&city_data.sound.march_wolf, 12);
 }

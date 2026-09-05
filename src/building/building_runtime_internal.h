@@ -24,6 +24,7 @@ public:
     explicit ScopedEphemeralBuildingRuntime(const std::vector<EphemeralBuildingRuntimeBinding> &bindings);
     ~ScopedEphemeralBuildingRuntime();
 
+    bool valid() const;
     building_runtime *runtime_for_record(::building *record) const;
     building_runtime *runtime_for_id(unsigned int runtime_id) const;
     building_runtime *main_runtime_for_record(::building *record) const;
@@ -31,6 +32,7 @@ public:
 
 private:
     ScopedEphemeralBuildingRuntime *previous_ = nullptr;
+    bool valid_ = false;
     std::vector<std::unique_ptr<building_runtime>> runtimes_;
     std::unordered_map<const ::building *, unsigned int> runtime_id_by_record_;
     std::unordered_map<unsigned int, unsigned int> main_id_by_runtime_id_;
@@ -39,6 +41,7 @@ private:
 
 building_runtime *get_city_building(::building *building_data);
 building_runtime *get_or_create_instance(::building *building_data);
+void discard_instance_for_reused_record(::building *building_data);
 building_runtime *get_ephemeral_instance(::building *building_data);
 building_runtime *get_ephemeral_instance(unsigned int runtime_id);
 building_runtime *get_ephemeral_main_instance(::building *building_data);

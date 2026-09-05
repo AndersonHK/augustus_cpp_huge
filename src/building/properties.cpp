@@ -1,8 +1,5 @@
 #include "properties.h"
 
-#include "building/housing_type.h"
-#include "building/housing_type_registry.h"
-
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -16,25 +13,6 @@ static const model_building NO_BUILDING_MODEL = {
     .desirability_step_size = 0,
     .desirability_range = 0,
     .laborers = 0
-};
-
-static const model_house NO_HOUSE_MODEL = {
-    .devolve_desirability = 0,
-    .evolve_desirability = 0,
-    .entertainment = 0,
-    .water = 0,
-    .religion = 0,
-    .education = 0,
-    .barber = 0,
-    .bathhouse = 0,
-    .health = 0,
-    .food_types = 0,
-    .pottery = 0,
-    .oil = 0,
-    .furniture = 0,
-    .wine = 0,
-    .prosperity = 0,
-    .tax_multiplier = 0
 };
 
 static int valid_building_type(building_type type)
@@ -52,22 +30,6 @@ void building_properties_clear_xml_runtime_fields(building_type type)
         return;
     }
     properties[type] = {};
-}
-
-void building_properties_apply_xml_model_size(building_type type, int size)
-{
-    if (!valid_building_type(type)) {
-        return;
-    }
-    properties[type].size = size;
-}
-
-void building_properties_apply_xml_event_attr(building_type type, const char *attr)
-{
-    if (!valid_building_type(type)) {
-        return;
-    }
-    properties[type].event_data.attr = attr;
 }
 
 void building_properties_apply_xml_sound_id(building_type type, int sound_id)
@@ -132,35 +94,10 @@ void model_load_model_data(buffer *buf)
     buffer_read_raw(buf, buildings, buf_size);
 }
 
-const model_house *model_get_house(house_level level)
-{
-    const building_type_registry_impl::HousingType *housing_type =
-        building_type_registry_impl::find_housing_type_definition_for_level(level);
-    return housing_type ? &housing_type->model() : &NO_HOUSE_MODEL;
-}
-
 model_building *model_get_building(building_type type)
 {
     if (!valid_building_type(type)) {
         return (model_building *) &NO_BUILDING_MODEL;
     }
     return &buildings[type];
-}
-
-int model_house_uses_inventory(house_level level, resource_type inventory)
-{
-    const model_house *house = model_get_house(level);
-    if (inventory == resource_wine()) {
-        return house->wine;
-    }
-    if (inventory == resource_oil()) {
-        return house->oil;
-    }
-    if (inventory == resource_furniture()) {
-        return house->furniture;
-    }
-    if (inventory == resource_pottery()) {
-        return house->pottery;
-    }
-    return 0;
 }

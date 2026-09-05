@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\Work_Camp_Architect" inherits="Walkers\architect" logical_units_per_source_pixel="96">
+</assetlist>

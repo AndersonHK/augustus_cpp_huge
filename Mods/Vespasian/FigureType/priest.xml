@@ -38,5 +38,12 @@
             <pathing mode="smart_service" terrain="roads" effect="religion_pantheon" />
         </profile>
     </profiles>
-    <graphics image_group="priest" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Priest" />
+        </default>
+        <corpse>
+            <path value="Walkers\Priest" />
+        </corpse>
+    </graphics>
 </figure>

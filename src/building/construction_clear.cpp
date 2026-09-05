@@ -28,6 +28,7 @@
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/terrain.h"
+#include "map/water_navigation.h"
 
 #include <string.h>
 #include <vector>
@@ -52,8 +53,14 @@ static Building *get_deletable_building(int grid_offset)
     if (!map_building_exists_at(grid_offset)) {
         return 0;
     }
-    Building &target = map_building_at(grid_offset).main();
-    building *b = const_cast<::building *>(target.record());
+    Building &selected = map_building_at(grid_offset);
+    Building *target = selected.type && selected.type->bridge().is_bridge() ?
+        &selected.dynamic_bridge_owner() :
+        (selected.Composition ? selected.Composition->owner() : &selected);
+    building *b = target ? const_cast<::building *>(target->record()) : nullptr;
+    if (!b) {
+        return nullptr;
+    }
     static const char *const protected_types[] = {
         "burning_ruin",
         "native_crops",
@@ -71,13 +78,33 @@ static Building *get_deletable_building(int grid_offset)
     if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
         return 0;
     }
-    return &target;
+    return target;
 }
 
 static void remove_legacy_aqueduct_tile(int grid_offset)
 {
     map_terrain_remove(grid_offset, TERRAIN_AQUEDUCT);
     map_aqueduct_remove(grid_offset);
+}
+
+static void mark_composition_deleted(Building &building_object)
+{
+    BuildingComposition *composition = building_object.Composition;
+    if (!composition) {
+        return;
+    }
+    composition->for_each_member([](Building &member) {
+        building *record = const_cast<::building *>(member.record());
+        if (!record || record->state == BUILDING_STATE_DELETED_BY_PLAYER) {
+            return;
+        }
+        game_undo_add_building(record);
+        building_local_workforce::remove_building(member);
+        member.cleanup_figure_references_for_removal();
+        city_culture_remove_building_module_capacity(record);
+        record->state = BUILDING_STATE_DELETED_BY_PLAYER;
+        record->is_deleted = 1;
+    });
 }
 
 static int clear_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end)
@@ -91,6 +118,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
     int visual_feedback_on_delete = 1;
     int highways_removed = 0;
     int radius = 0;
+    bool dock_endpoints_changed = false;
 
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
@@ -152,9 +180,10 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         game_undo_disable();
                     }
                 }
-                if (b->house_size && b->house_population && !measure_only) {
-                    Figure *homeless = migrant_create_homeless(*building_obj, b->house_population);
-                    b->house_population = 0;
+                if (building_obj->Housing && building_obj->Housing->state().population && !measure_only) {
+                    HousingState &housing = building_obj->Housing->state();
+                    Figure *homeless = migrant_create_homeless(*building_obj, housing.population);
+                    housing.population = 0;
                     b->figure_id = homeless->id();
                 }
                 if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
@@ -163,30 +192,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         f->state = FIGURE_STATE_DEAD;
                     }
                     items_placed++;
-                    game_undo_add_building(b);
                 }
-                building_local_workforce::remove_building(*building_obj);
-                if (!b->house_size) {
-                    building_obj->cleanup_figure_references_for_removal();
-                }
-                city_culture_remove_building_module_capacity(b);
-                b->state = BUILDING_STATE_DELETED_BY_PLAYER;
-                b->is_deleted = 1;
-                Building *space_obj = building_obj;
-                for (int i = 0; i < 9; i++) {
-                    space_obj = space_obj->next();
-                    if (!space_obj) {
-                        break;
-                    }
-                    building *space = const_cast<::building *>(space_obj->record());
-                    game_undo_add_building(space);
-                    building_local_workforce::remove_building(*space_obj);
-                    if (!space->house_size) {
-                        space_obj->cleanup_figure_references_for_removal();
-                    }
-                    city_culture_remove_building_module_capacity(space);
-                    space->state = BUILDING_STATE_DELETED_BY_PLAYER;
-                }
+                dock_endpoints_changed = dock_endpoints_changed || building_obj->matches("dock");
+                mark_composition_deleted(*building_obj);
             } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
                 remove_legacy_aqueduct_tile(grid_offset);
                 items_placed++;
@@ -245,7 +253,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
     if (!measure_only) {
         Route::updateLandTerrain();
         Route::updateWallTerrain();
-        Route::updateWaterTerrain();
+        if (dock_endpoints_changed) {
+            water_navigation::invalidate_dock_endpoints();
+        }
         building_update_state(); // the update of b state is needed to determine the right images for walls/palisades
         map_tiles_update_area_walls(x_min, y_min, radius + 1);
         building_connectable_update_connections();

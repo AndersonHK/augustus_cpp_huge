@@ -19,7 +19,6 @@
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "figure/figure_runtime_api.h"
-#include "figure/figure_type_registry_internal.h"
 #include "game/ResourceGraphics.h"
 #include "game/resource.h"
 #include "game/time.h"
@@ -55,9 +54,9 @@ int figure_supplier_create_delivery_boy(int leader_id, int first_figure_id, int 
     boy->loads_sold_or_carrying = 1; // for consistency
     // deliver to destination instead of origin
     if (f->action_state == FIGURE_ACTION_214_DESTINATION_MARS_PRIEST_CREATED) {
-        boy->building = f->destination_building;
+        boy->set_home_building(f->destination_building);
     } else {
-        boy->building = f->building;
+        boy->set_home_building(f->building);
     }
     return boy->id();
 }
@@ -207,21 +206,18 @@ static int take_resource_from_warehouse(Figure *f, Building &warehouse, int max_
     return 1;
 }
 
-static int change_market_supplier_destination(Figure *f, int dst_building_id)
+static int change_market_supplier_destination(Figure *f, Building *destination)
 {
     Route::remove(f);
-    Building *destination = Building::get(static_cast<unsigned int>(dst_building_id));
     if (!destination) {
         return 0;
     }
-    f->destination_building = destination;
+    f->set_destination_building(destination);
     const auto *destination_type = destination->type;
     map_point road = { 0 };
     int has_road_access = 0;
-    if (destination_type && destination_type->is_warehouse()) {
-        has_road_access = map_has_road_access_warehouse(destination->x(), destination->y(), &road);
-    } else if (destination_type && destination_type->is_granary()) {
-        has_road_access = map_has_road_access_granary(destination->x(), destination->y(), &road);
+    if (destination_type && destination_type->is_storage()) {
+        has_road_access = map_has_road_access_building(destination->x(), destination->y(), &road);
     }
     if (!has_road_access) {
         return 0;
@@ -242,7 +238,7 @@ static int is_better_destination(Figure *f, resource_type r, resource_storage_in
     building *old_dest = const_cast<building *>(old_destination->record());
     const auto *old_dest_type = old_destination->type;
     // if any of these are true, the new building is automatically better
-    if (!building_is_active(old_dest)) {
+    if (!old_destination->is_active()) {
         return 1;
     } else if (old_dest_type && old_dest_type->is_granary() && old_dest->resources[r] <= 0) {
         return 1;
@@ -274,14 +270,14 @@ static int recalculate_market_supplier_destination(Figure *f)
         return 0;
     }
 
-    if (market->id == info[item].building_id ||
-        (f->destination_building && f->destination_building->id == info[item].building_id)) {
+    Building *item_storage = info[item].source;
+    if (market == item_storage || f->destination_building == item_storage) {
         return 1;
     }
 
-    if (info[item].building_id) {
+    if (item_storage) {
         if (is_better_destination(f, item, &info[item])) {
-            return change_market_supplier_destination(f, info[item].building_id);
+            return change_market_supplier_destination(f, item_storage);
         } else {
             return 1;
         }
@@ -292,14 +288,18 @@ static int recalculate_market_supplier_destination(Figure *f)
     }
     market_object.set_fetch_inventory_id(fetch_inventory);
     f->collecting_item_id = static_cast<unsigned char>(fetch_inventory);
-    return change_market_supplier_destination(f, info[fetch_inventory].building_id);
+    return change_market_supplier_destination(f, info[fetch_inventory].source);
 }
 
 void figure_supplier_action(Figure *f)
 {
-    f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    f->use_cross_country = 0;
-    f->max_roam_length = 800;
+    if (f->type == FIGURE_MESS_HALL_SUPPLIER) {
+        figure_runtime_apply_profile_movement(f);
+    } else {
+        f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
+        f->use_cross_country = 0;
+        f->max_roam_length = 800;
+    }
 
     Building *source = f->building;
     building *source_record = source ? const_cast<building *>(source->record()) : nullptr;
@@ -382,22 +382,12 @@ void figure_supplier_action(Figure *f)
     if (f->type == FIGURE_PRIEST_SUPPLIER) {
         figure_image_update(f, image_group(GROUP_FIGURE_PRIEST));
     } else if (f->type == FIGURE_LIGHTHOUSE_SUPPLIER) {
-        const resource_type carried_resource = f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING ?
-            static_cast<resource_type>(f->collecting_item_id) :
-            RESOURCE_NONE;
-        f->select_legacy_cart_overlay_base_image(carried_resource == RESOURCE_NONE ?
-            image_group(GROUP_FIGURE_CARTPUSHER_CART) :
-            figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0));
         int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
             f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);
-            f->clear_legacy_cart_overlay_image();
         } else {
             f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
         }
-        f->finalize_legacy_cartpusher_overlay_image(dir);
-    } else {
-        figure_runtime_update_graphics(f);
     }
 }
 
@@ -432,7 +422,6 @@ void figure_delivery_boy_action(Figure *f)
     if (leader->is_ghost && !leader->height_adjusted_ticks) {
         f->is_ghost = 1;
     }
-    figure_runtime_update_graphics(f);
 }
 
 void figure_fort_supplier_action(Figure *f)
@@ -481,5 +470,4 @@ void figure_fort_supplier_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }

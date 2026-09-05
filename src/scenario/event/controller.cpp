@@ -28,7 +28,7 @@ static std::vector<scenario_event_t> scenario_events;
 static std::vector<scenario_formula_t> scenario_formulas;
 
 static void formulas_save_state(buffer *buf);
-static void formulas_load_state(buffer *buf);
+static void formulas_load_state(buffer *buf, int allow_legacy_id_repair);
 
 static int load_dynamic_array_header(buffer *buf, const char *label, size_t *array_size, size_t *element_size)
 {
@@ -489,7 +489,7 @@ static void formulas_save_state(buffer *buf)
     }
 }
 
-static void formulas_load_state(buffer *buf)
+static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
 {
     size_t array_size = 0;
     size_t element_size = 0;
@@ -509,6 +509,7 @@ static void formulas_load_state(buffer *buf)
     scenario_formulas.reserve(static_cast<size_t>(array_size) + 1);
 
     add_formula_slot(); // Advance once to skip index 0, which is reserved for invalid formulas
+    std::vector<uint8_t> loaded_ids(1, 1);
 
     for (size_t i = 0; i < array_size; ++i) {
         size_t record_start = buf->index;
@@ -518,13 +519,46 @@ static void formulas_load_state(buffer *buf)
             return;
         }
 
-        scenario_formula_t *formula = add_formula_slot();
-        
         unsigned int id = buffer_read_u32(buf);
-        if (id != formula->id) {
-            log_error("Formula ID mismatch during loading. Something has gone wrong.", 0, 0);
+        const unsigned int expected_id = static_cast<unsigned int>(i + 1);
+        if (id != expected_id) {
+            char detail[128];
+            snprintf(detail, sizeof(detail), "record=%u saved_id=%u expected_id=%u", static_cast<unsigned int>(i), id, expected_id);
+            if (!allow_legacy_id_repair) {
+                log_error("Formula ID mismatch during loading", detail, 0);
+                return;
+            }
+            log_warning("Repairing legacy scenario formula ID layout", detail, 0);
+            // Formula references historically addressed the record's stable
+            // array position. Some old writers persisted an uninitialized id
+            // field, so the position is authoritative during this bridge.
+            id = expected_id;
+        }
+        if (id > 1000000) {
+            log_error("Scenario formula ID is too large to load", 0, static_cast<int>(id));
             return;
         }
+        while (scenario_formulas.size() <= id) {
+            add_formula_slot();
+        }
+        if (loaded_ids.size() <= id) {
+            loaded_ids.resize(static_cast<size_t>(id) + 1, 0);
+        }
+        if (loaded_ids[id]) {
+            if (!allow_legacy_id_repair) {
+                log_error("Duplicate scenario formula ID during loading", 0, static_cast<int>(id));
+                return;
+            }
+            char detail[96];
+            snprintf(detail, sizeof(detail), "record=%u duplicate_id=%u", static_cast<unsigned int>(i), id);
+            log_warning("Discarding duplicate legacy scenario formula record", detail, 0);
+            buffer_set(buf, record_end);
+            continue;
+        }
+        loaded_ids[id] = 1;
+        scenario_formula_t *formula = &scenario_formulas[id];
+        memset(formula, 0, sizeof(*formula));
+        new_formula(formula, id);
 
         buffer_read_raw(buf, formula->formatted_calculation, MAX_FORMULA_LENGTH);
         formula->formatted_calculation[MAX_FORMULA_LENGTH - 1] = '\0'; // ensure safety
@@ -551,7 +585,7 @@ void scenario_events_load_state(buffer *buf_events, buffer *buf_conditions, buff
     }
     actions_load_state(buf_actions, scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        formulas_load_state(buf_formulas);
+        formulas_load_state(buf_formulas, scenario_version < SCENARIO_CURRENT_VERSION);
     }
 
     for (scenario_event_t &event : scenario_events) {

@@ -1,13 +1,23 @@
 #include <array>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <stdexcept>
 #include <system_error>
+#include <unordered_map>
 #include <vector>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
+#include "renderer_seam_asset_fixture.h"
 #include "renderer_seam_geometry_fixture.h"
 #include "renderer_seam_report_writer.h"
 
@@ -15,6 +25,7 @@ namespace {
 
 struct Options {
     std::filesystem::path game_root;
+    std::filesystem::path graphics_root;
     std::filesystem::path artifacts = "out/renderer_seams";
     std::string matrix = "terrain-water";
 };
@@ -27,11 +38,11 @@ struct ExtractionPrerequisite {
 void print_usage()
 {
     std::cout
-        << "RendererSeamTest [--game-root <path>] [--matrix terrain-water|city-tile-geometry] [--artifacts <path>]\n\n"
+        << "RendererSeamTest [--game-root <path>] [--graphics-root <path>] [--matrix terrain-water|city-tile-geometry] [--artifacts <path>]\n\n"
         << "Prepares renderer terrain/water seam pixel-check cases and writes machine-readable JSON results.\n"
         << "The city-tile-geometry matrix is asset-free and validates canonical isometric shared-edge masks.\n"
-        << "The terrain-water matrix validates game-root/extraction prerequisites and marks render-dependent\n"
-        << "cases as expected skips until offscreen renderer capture is wired.\n";
+        << "The terrain-water matrix renders climate-specific extracted terrain/water pixels through managed-native\n"
+        << "and padded-atlas paths, then requires every matrix case and backend parity check to pass.\n";
 }
 
 int parse_options(int argc, char **argv, Options &options)
@@ -48,6 +59,14 @@ int parse_options(int argc, char **argv, Options &options)
                 return -1;
             }
             options.game_root = argv[++i];
+            continue;
+        }
+        if (arg == "--graphics-root") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing value for --graphics-root.\n";
+                return -1;
+            }
+            options.graphics_root = argv[++i];
             continue;
         }
         if (arg == "--matrix") {
@@ -83,6 +102,9 @@ int parse_options(int argc, char **argv, Options &options)
             std::cerr << "Unable to resolve current directory: " << error.message() << "\n";
             return -1;
         }
+    }
+    if (options.graphics_root.empty() && options.matrix == "terrain-water") {
+        options.graphics_root = options.game_root / "Mods" / "Julius" / "Graphics";
     }
     return 1;
 }
@@ -141,6 +163,7 @@ std::string quoted(const std::filesystem::path &path)
 
 bool check_extraction_prerequisites(
     const std::filesystem::path &game_root,
+    const std::filesystem::path &graphics_root,
     const std::filesystem::path &tool_directory)
 {
     const std::array<ExtractionPrerequisite, 4> prerequisites = {{
@@ -156,6 +179,14 @@ bool check_extraction_prerequisites(
         std::error_code error;
         if (!std::filesystem::is_regular_file(stamp_path, error)) {
             missing.push_back(stamp_path);
+        }
+    }
+
+    for (const char *climate : { "central", "northern", "desert" }) {
+        for (const char *group : { "Flat_Tile", "Grass_1", "Water" }) {
+            const std::filesystem::path snapshot = graphics_root / "Renderer_Seam_Climate" / climate / "Terrain_Maps" / group / "Image_0000.png";
+            std::error_code error;
+            if (!std::filesystem::is_regular_file(snapshot, error)) missing.push_back(snapshot);
         }
     }
 
@@ -176,7 +207,7 @@ bool check_extraction_prerequisites(
     const std::filesystem::path augustus_extractor = tool_directory / "AugustusGraphicsExtractor.exe";
     std::cerr
         << "\nRequired order:\n"
-        << "  " << quoted(julius_extractor) << " --game-root " << quoted(game_root) << "\n"
+        << "  " << quoted(julius_extractor) << " --game-root " << quoted(game_root) << " --output " << quoted(graphics_root) << "\n"
         << "  " << quoted(augustus_extractor) << " --game-root " << quoted(game_root)
         << " --no-force --stamp\n"
         << "  " << quoted(tool_directory / "RendererSeamTest.exe") << " --game-root "
@@ -277,25 +308,82 @@ RendererSeamMatrixCaseResult run_software_fixture_case(
     return RendererSeamMatrixCaseResult::from_geometry_fixture(fixture_result);
 }
 
+std::string backend_parity_key(const RendererSeamMatrixCase &test_case)
+{
+    std::ostringstream key;
+    key << test_case.mod << '|' << test_case.climate << '|' << test_case.scale_filter << '|' << test_case.city_scale_percent << '|'
+        << test_case.grid << '|' << test_case.orientation << '|' << test_case.scene;
+    return key.str();
+}
+
+std::string grid_parity_key(const RendererSeamMatrixCase &test_case)
+{
+    std::ostringstream key;
+    key << test_case.mod << '|' << test_case.climate << '|' << test_case.backend << '|' << test_case.scale_filter << '|'
+        << test_case.city_scale_percent << '|' << test_case.orientation << '|' << test_case.scene;
+    return key.str();
+}
+
+void validate_backend_parity(const std::vector<RendererSeamMatrixCase> &cases, std::vector<RendererSeamMatrixCaseResult> &results)
+{
+    std::unordered_map<std::string, uint64_t> atlas_signatures;
+    for (std::size_t index = 0; index < cases.size(); ++index) {
+        if (results[index].result != "pass") continue;
+        const std::string key = backend_parity_key(cases[index]);
+        if (cases[index].backend == "atlas-fallback") {
+            atlas_signatures[key] = results[index].seam_signature;
+            continue;
+        }
+        const auto found = atlas_signatures.find(key);
+        if (found == atlas_signatures.end() || found->second == results[index].seam_signature) continue;
+        results[index].result = "fail";
+        results[index].same_surface_delta = 0;
+        results[index].backend_parity = 0;
+        results[index].failure_detail = "managed-native and padded-atlas seam signatures differ";
+    }
+}
+
+void validate_grid_is_overlay_only(const std::vector<RendererSeamMatrixCase> &cases, std::vector<RendererSeamMatrixCaseResult> &results)
+{
+    std::unordered_map<std::string, uint64_t> grid_off_signatures;
+    for (std::size_t index = 0; index < cases.size(); ++index) {
+        if (results[index].result != "pass") continue;
+        const std::string key = grid_parity_key(cases[index]);
+        if (!cases[index].grid) {
+            grid_off_signatures[key] = results[index].interior_signature;
+            continue;
+        }
+        const auto found = grid_off_signatures.find(key);
+        if (found == grid_off_signatures.end() || found->second == results[index].interior_signature) continue;
+        results[index].result = "fail";
+        results[index].grid_overlay_only = 0;
+        results[index].failure_detail = "grid rendering changed pixels in tile interiors outside the grid-line mask";
+    }
+}
+
 std::vector<RendererSeamMatrixCaseResult> run_matrix_cases(
     const Options &options,
     const std::vector<RendererSeamMatrixCase> &cases)
 {
     std::vector<RendererSeamMatrixCaseResult> results;
     results.reserve(cases.size());
+    std::unique_ptr<RendererSeamAssetFixture> asset_fixture;
+    if (options.matrix == "terrain-water") asset_fixture = std::make_unique<RendererSeamAssetFixture>(options.graphics_root, options.artifacts);
     for (const RendererSeamMatrixCase &test_case : cases) {
         if (is_software_fixture_case(test_case)) {
             results.push_back(run_software_fixture_case(options, test_case));
         } else {
-            results.push_back(RendererSeamMatrixCaseResult::expected_skip(options.artifacts, test_case));
+            results.push_back(asset_fixture->run(test_case));
         }
     }
+    validate_grid_is_overlay_only(cases, results);
+    validate_backend_parity(cases, results);
     return results;
 }
 
 } // namespace
 
-int main(int argc, char **argv)
+int run_renderer_seam_test(int argc, char **argv)
 {
     Options options;
     const int parse_result = parse_options(argc, argv, options);
@@ -312,7 +400,12 @@ int main(int argc, char **argv)
             return 1;
         }
 
-        if (!check_extraction_prerequisites(options.game_root, executable_directory(argv[0]))) {
+        options.graphics_root = std::filesystem::absolute(options.graphics_root, error);
+        if (error) {
+            std::cerr << "Unable to resolve graphics root: " << error.message() << "\n";
+            return 1;
+        }
+        if (!check_extraction_prerequisites(options.game_root, options.graphics_root, executable_directory(argv[0]))) {
             return 1;
         }
     } else if (!options.game_root.empty()) {
@@ -352,4 +445,35 @@ int main(int argc, char **argv)
         std::cerr << "RendererSeamTest failed: " << exc.what() << "\n";
         return 1;
     }
+}
+
+#if defined(_WIN32)
+static LONG WINAPI report_cli_exception(EXCEPTION_POINTERS *exception)
+{
+    const EXCEPTION_RECORD *record = exception ? exception->ExceptionRecord : nullptr;
+    const unsigned long code = record ? record->ExceptionCode : 0;
+    const void *address = record ? record->ExceptionAddress : nullptr;
+    const auto module_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    const auto exception_address = reinterpret_cast<uintptr_t>(address);
+    const auto relative_address = exception_address >= module_base ? exception_address - module_base : 0;
+    std::fprintf(stderr, "RendererSeamTest terminated after Windows exception 0x%08lX at %p (RVA 0x%llX).\n", code, address, static_cast<unsigned long long>(relative_address));
+    std::fflush(stderr);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+int main(int argc, char **argv)
+{
+#if defined(_WIN32)
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    SetUnhandledExceptionFilter(report_cli_exception);
+    __try {
+        return run_renderer_seam_test(argc, argv);
+    } __except (report_cli_exception(GetExceptionInformation())) {
+        return 3;
+    }
+#else
+    return run_renderer_seam_test(argc, argv);
+#endif
 }

@@ -5,6 +5,13 @@
 #include "building/building_type_registry_internal.h"
 #include "game/state.h"
 
+static const HousingServiceState &housing_services(const building *record)
+{
+    static const HousingServiceState empty;
+    Building *building = record ? Building::get(record->id) : nullptr;
+    return building && building->Housing ? building->Housing->state().services : empty;
+}
+
 static int show_building_education(const building *b)
 {
     return building_type_registry_impl::type_attr_is_any(b->type, {"school", "library", "academy"});
@@ -53,29 +60,33 @@ static int show_figure_academy(const Figure *f)
 
 static int get_column_height_education(const building *b)
 {
-    return b->house_size && b->data.house.education ? b->data.house.education * 3 - 1 : NO_COLUMN;
+    const auto &services = housing_services(b);
+    return services.education ? services.education * 3 - 1 : NO_COLUMN;
 }
 
 static int get_column_height_school(const building *b)
 {
-    return b->house_size && b->data.house.school ? b->data.house.school / 10 : NO_COLUMN;
+    const auto &services = housing_services(b);
+    return services.school ? services.school / 10 : NO_COLUMN;
 }
 
 static int get_column_height_library(const building *b)
 {
-    return b->house_size && b->data.house.library ? b->data.house.library / 10 : NO_COLUMN;
+    const auto &services = housing_services(b);
+    return services.library ? services.library / 10 : NO_COLUMN;
 }
 
 static int get_column_height_academy(const building *b)
 {
-    return b->house_size && b->data.house.academy ? b->data.house.academy / 10 : NO_COLUMN;
+    const auto &services = housing_services(b);
+    return services.academy ? services.academy / 10 : NO_COLUMN;
 }
 
 static int get_tooltip_education(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    switch (b->data.house.education) {
+    switch (housing_services(b).education) {
         case 0: return 100;
         case 1: return 101;
         case 2: return 102;
@@ -88,11 +99,12 @@ static int get_tooltip_school(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.school <= 0) {
+    const int school = housing_services(b).school;
+    if (school <= 0) {
         return 19;
-    } else if (b->data.house.school >= 80) {
+    } else if (school >= 80) {
         return 20;
-    } else if (b->data.house.school >= 20) {
+    } else if (school >= 20) {
         return 21;
     } else {
         return 22;
@@ -103,11 +115,12 @@ static int get_tooltip_library(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.library <= 0) {
+    const int library = housing_services(b).library;
+    if (library <= 0) {
         return 23;
-    } else if (b->data.house.library >= 80) {
+    } else if (library >= 80) {
         return 24;
-    } else if (b->data.house.library >= 20) {
+    } else if (library >= 20) {
         return 25;
     } else {
         return 26;
@@ -118,11 +131,12 @@ static int get_tooltip_academy(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.academy <= 0) {
+    const int academy = housing_services(b).academy;
+    if (academy <= 0) {
         return 27;
-    } else if (b->data.house.academy >= 80) {
+    } else if (academy >= 80) {
         return 28;
-    } else if (b->data.house.academy >= 20) {
+    } else if (academy >= 20) {
         return 29;
     } else {
         return 30;

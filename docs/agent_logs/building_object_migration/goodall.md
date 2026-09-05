@@ -83,7 +83,7 @@
 - Graphics/static-call hotspot in this scope: lighthouse timber consumption now asks `lighthouse.type().has_phased_construction()` for the type decision, but it still refreshes graphics through `building_runtime_apply_graphic`, `building_image_get`, and `map_building_tiles_add`. This should be converted later to `Building` object -> `BuildingType` -> graphics module, not wrapped.
 
 ## Build Commands And Results
-- `& 'D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
+- `& '<MSBuild path>' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
   - Result: failed. Early errors included `Building` redefinition from headers that still included unsafe `building.h`, callers outside this scope passing raw `building *` to newly hard-migrated object APIs, and several unrelated migration lanes (`granary`, `storage`, `production_runtime`, `destruction`, `house`) still needing object conversion.
 - Same MSBuild command after header hygiene.
   - Result: failed, but the `Building` redefinition and deleted `building_object.h` failures are gone. Current front is raw-to-object caller migration and missing direct includes in non-Goodall files, especially `armoury`, `construction_routed`, `data_transfer`, `destruction`, `dock`, `figure`, `warehouse`, and storage/granary call sites.

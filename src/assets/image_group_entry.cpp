@@ -62,6 +62,21 @@ int ImageGroupEntry::tile_span() const
     return tile_span_;
 }
 
+int ImageGroupEntry::source_pixel_width() const
+{
+    return footprint_.width;
+}
+
+int ImageGroupEntry::source_pixel_height() const
+{
+    return footprint_.height;
+}
+
+render_logical_size ImageGroupEntry::fixed_logical_size() const
+{
+    return footprint_.fixed_logical_size;
+}
+
 const std::vector<color_t> &ImageGroupEntry::split_pixels() const
 {
     return split_pixels_;

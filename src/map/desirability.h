@@ -9,8 +9,6 @@ void map_desirability_update(void);
 
 int map_desirability_get(int grid_offset);
 
-int map_desirability_get_max(int x, int y, int size);
-
 void map_desirability_save_state(buffer *buf);
 
 void map_desirability_load_state(buffer *buf);

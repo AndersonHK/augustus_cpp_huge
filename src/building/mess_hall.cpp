@@ -3,19 +3,19 @@
 #include "building/building_record.h"
 #include "building/building_runtime.h"
 #include "building/distribution.h"
+#include "city/buildings.h"
 #include "figure/action.h"
 #include "figure/figure.h"
+#include "figure/figure_type_registry_internal.h"
 #include "game/resource.h"
 #include "game/time.h"
-
-#define MAX_DISTANCE 40
 
 building *MessHall::legacy_record() const
 {
     return const_cast<building *>(Building::record());
 }
 
-Building *MessHall::storage_destination()
+Building *MessHall::storage_destination(const map_point &source_road)
 {
     const building_type_registry_impl::Distribution *distribution =
         type ? type->distribution() : nullptr;
@@ -23,23 +23,29 @@ Building *MessHall::storage_destination()
         return nullptr;
     }
 
+    const figure_type_registry_impl::FigureTypeProfile *supplier_profile =
+        figure_type_registry_impl::default_profile_for(FIGURE_MESS_HALL_SUPPLIER);
+    if (!supplier_profile || supplier_profile->movement_profile().max_roam_length <= 0) {
+        return nullptr;
+    }
+
+    const RoutePolicy route_policy = supplier_profile->pathing_policy()
+        .routePolicySelection(PERMISSION_NONE, RouteNeighborhood::FourWay)
+        .policy;
+    const int max_distance = supplier_profile->movement_profile().max_roam_length;
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
 
     if (!distribution->needed_resources_for(*this, info) ||
-        !distribution->find_sources_for_building(info, *this, MAX_DISTANCE)) {
+        !distribution->find_sources_for_building_by_road(
+            info,
+            *this,
+            source_road,
+            route_policy,
+            max_distance)) {
         return nullptr;
     }
     auto destination_for_resource = [&](resource_type resource) -> Building * {
-        const unsigned int destination_id = info[resource].building_id;
-        if (!destination_id) {
-            return nullptr;
-        }
-        Building *destination = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!destination && building->id == destination_id) {
-                destination = building;
-            }
-        });
+        Building *destination = info[resource].source;
         if (destination) {
             set_fetch_inventory_id(resource);
         }
@@ -114,7 +120,7 @@ Figure *MessHall::create_fort_supplier(const map_point &road, Building &fort) co
     supplier->destination_y = static_cast<unsigned char>(fort.road_access_y());
     supplier->source_x = static_cast<unsigned char>(road.x);
     supplier->source_y = static_cast<unsigned char>(road.y);
-    supplier->destination_building = &fort;
+    supplier->set_destination_building(&fort);
     attach_figure(supplier);
     return supplier;
 }
@@ -123,7 +129,7 @@ void MessHall::attach_figure(Figure *figure) const
 {
     if (figure) {
         building_runtime *runtime = runtime_instance();
-        figure->building = runtime ? &runtime->building : nullptr;
+        figure->set_home_building(runtime ? &runtime->building : nullptr);
     }
 }
 
@@ -151,7 +157,16 @@ int MessHall::spawn_fort_supplier_to(Building &fort)
     return 1;
 }
 
-Building *building_mess_hall_get_storage_destination(Building mess_hall)
+void MessHall::spawn_supplier_for_fort(Building &fort)
 {
-    return MessHall(mess_hall).storage_destination();
+    const int mess_hall_id = city_buildings_get_mess_hall();
+    Building *mess_hall = mess_hall_id > 0 ? Building::get(static_cast<unsigned int>(mess_hall_id)) : nullptr;
+    if (mess_hall) {
+        MessHall(*mess_hall).spawn_fort_supplier_to(fort);
+    }
+}
+
+Building *building_mess_hall_get_storage_destination(Building mess_hall, const map_point &source_road)
+{
+    return MessHall(mess_hall).storage_destination(source_road);
 }

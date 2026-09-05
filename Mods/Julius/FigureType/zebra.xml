@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="zebra" graphics_only="true">
+    <graphics>
+        <default>
+            <path value="Environment\zebra" />
+        </default>
+        <corpse>
+            <path value="Environment\zebra" />
+        </corpse>
+    </graphics>
+</figure>

@@ -5,8 +5,6 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
-#include "building/house.h"
-#include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
 #include "city/buildings.h"
@@ -38,73 +36,6 @@ static struct {
     int fire_spread_direction;
     int obstruction_message_displayed;
 } data;
-
-static int composed_main_uses_union_road_access(const building *b)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-    return definition && definition->has_composition() &&
-        !definition->is_warehouse() &&
-        !building_type_registry_impl::type_attr_is(b->type, "hippodrome") &&
-        !building_is_fort(b->type);
-}
-
-static int composed_main_road_access_area(const Building &building_object, int *x, int *y, int *size)
-{
-    const building *b = building_object.record();
-    if (!b || !x || !y || !size || !composed_main_uses_union_road_access(b)) {
-        return 0;
-    }
-
-    int min_x = b->x;
-    int min_y = b->y;
-    int max_x = b->x + b->size;
-    int max_y = b->y + b->size;
-    int saw_child = 0;
-    building_object.for_each_part([&](Building part_object) {
-        const building *part = part_object.record();
-        if (part != b) {
-            saw_child = 1;
-        }
-        if (part->x < min_x) {
-            min_x = part->x;
-        }
-        if (part->y < min_y) {
-            min_y = part->y;
-        }
-        if (part->x + part->size > max_x) {
-            max_x = part->x + part->size;
-        }
-        if (part->y + part->size > max_y) {
-            max_y = part->y + part->size;
-        }
-    });
-
-    if (!saw_child) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(b->type);
-        const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
-        int rotation = b->subtype.orientation % 4;
-        if (rotation < 0) {
-            rotation += 4;
-        }
-        const building_type_registry_impl::ComposedPartOffset main_offset =
-            composition.main_offset_for_rotation(rotation);
-        min_x = b->x - main_offset.x;
-        min_y = b->y - main_offset.y;
-        const int width = rotation % 2 ? composition.footprint_height() : composition.footprint_width();
-        const int height = rotation % 2 ? composition.footprint_width() : composition.footprint_height();
-        max_x = min_x + width;
-        max_y = min_y + height;
-    }
-
-    const int width = max_x - min_x;
-    const int height = max_y - min_y;
-    *x = min_x;
-    *y = min_y;
-    *size = width > height ? width : height;
-    return *size > 0;
-}
 
 static int is_storage_road_access_type(building_type type)
 {
@@ -142,7 +73,8 @@ void building_maintenance_update_burning_ruins(void)
             b->fire_duration = 0;
             b->state = BUILDING_STATE_RUBBLE;
             if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-                map_building_tiles_add_rubble(runtime->building, b->x, b->y, building_image_get(&runtime->building));
+                map_building_tiles_add_rubble(runtime->building, b->x, b->y);
+                runtime->building.refresh_graphic();
             }
             recalculate_terrain = 1;
             return;
@@ -160,7 +92,7 @@ void building_maintenance_update_burning_ruins(void)
                 return;
             }
         }
-        if ((b->house_figure_generation_delay & 3) != (random_byte() & 3)) {
+        if ((building_object->Rubble->state()->random_seed & 3) != (random_byte() & 3)) {
             return;
         }
         int dir1 = data.fire_spread_direction - 1;
@@ -181,11 +113,10 @@ void building_maintenance_update_burning_ruins(void)
             if (target_building.is_surface_terrain_tile()) {
                 return 0;
             }
-            building *target = const_cast<::building *>(target_building.record());
-            if (!target || target->fire_proof) {
+            if (target_building.is_fire_proof()) {
                 return 0;
             }
-            building_destroy_by_fire(target);
+            target_building.destroy_by_fire();
             sound_effect_play(SOUND_EFFECT_EXPLOSION);
             recalculate_terrain = 1;
             return 1;
@@ -235,94 +166,47 @@ int building_maintenance_get_closest_burning_ruin(int x, int y, int *distance)
     return min_free_building_id;
 }
 
-static void collapse_building(building *b)
-{
-    city_message_apply_sound_interval(MESSAGE_CAT_COLLAPSE);
-    if (!tutorial_handle_collapse()) {
-        city_message_post_with_popup_delay(MESSAGE_CAT_COLLAPSE, MESSAGE_COLLAPSED_BUILDING, b->type, b->grid_offset);
-    }
-
-    game_undo_disable();
-    building_destroy_by_collapse(b);
-}
-
-static void fire_building(building *b)
-{
-    city_message_apply_sound_interval(MESSAGE_CAT_FIRE);
-    if (!tutorial_handle_fire()) {
-        city_message_post_with_popup_delay(MESSAGE_CAT_FIRE, MESSAGE_FIRE, b->type, b->grid_offset);
-    }
-
-    building_destroy_by_fire(b);
-    sound_effect_play(SOUND_EFFECT_EXPLOSION);
-}
-
 void building_maintenance_check_fire_collapse(void)
 {
     city_sentiment_reset_protesters_criminals();
 
-    scenario_climate climate = scenario_property_climate();
-    int recalculate_terrain = 0;
-    int random_global = random_byte() & 7;
+    bool recalculate_terrain = false;
     if (city_population() < 10) {
         return; // skip fire/collapse checks in very early game to avoid frustrating the player
     }
+    const scenario_climate climate = scenario_property_climate();
+    const Building::MaintenanceRiskTick tick = {
+        random_byte() & 7,
+        tutorial_extra_damage_risk() ? 5 : 0,
+        (tutorial_extra_fire_risk() ? 5 : 0) + (climate == CLIMATE_DESERT ? 3 : 0),
+        climate == CLIMATE_NORTHERN,
+    };
     Building::for_each([&](Building *building_object) {
-        building *b = const_cast<::building *>(building_object->record());
-        if (building_object->is_surface_terrain_tile()) {
-            b->fire_risk = 0;
-            b->damage_risk = 0;
-            return;
-        }
-        if (b->state != BUILDING_STATE_IN_USE || b->fire_proof || b->state == BUILDING_STATE_RUBBLE) {
-            return;
-        }
-        if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") && b->prev_part_building_id) {
-            return;
-        }
-        int random_building = (b->id + map_random_get(b->grid_offset)) & 7;
-        int house_level = building_house_legacy_level(*building_object);
-        // damage
-        b->damage_risk += random_building == random_global ? 3 : 1;
-        if (tutorial_extra_damage_risk()) {
-            b->damage_risk += 5;
-        }
-        if (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT) {
-            b->damage_risk = 0;
-        }
-        if (b->damage_risk > 200) {
-            collapse_building(b);
-            recalculate_terrain = 1;
-            return;
-        }
-        // fire
-        if (random_building == random_global) {
-            int fire_increase = 0;
-            if (!b->house_size) {
-                fire_increase += 5;
-            } else if (b->house_population <= 0) {
-                fire_increase = 0;
-            } else if (house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_SHACK) {
-                fire_increase += 10;
-            } else if (house_level >= HOUSE_MIN && house_level <= HOUSE_GRAND_INSULA) {
-                fire_increase += 5;
-            } else {
-                fire_increase += 2;
-            }
-            if (tutorial_extra_fire_risk()) {
-                fire_increase += 5;
-            }
-            if (climate == CLIMATE_NORTHERN) {
-                fire_increase = 0;
-            } else if (climate == CLIMATE_DESERT) {
-                fire_increase += 3;
-            }
-
-            b->fire_risk = static_cast<short>(b->fire_risk + fire_increase);
-        }
-        if (b->fire_risk > 100) {
-            fire_building(b);
-            recalculate_terrain = 1;
+        const building_type type = building_object->type ?
+            building_object->type->type() : BUILDING_NONE;
+        const short grid_offset = static_cast<short>(building_object->grid_offset());
+        switch (building_object->apply_maintenance_risk(tick)) {
+            case Building::MaintenanceRiskOutcome::Collapse:
+                building_object->destroy_by_collapse();
+                city_message_apply_sound_interval(MESSAGE_CAT_COLLAPSE);
+                if (!tutorial_handle_collapse()) {
+                    city_message_post_with_popup_delay(
+                        MESSAGE_CAT_COLLAPSE, MESSAGE_COLLAPSED_BUILDING, type, grid_offset);
+                }
+                recalculate_terrain = true;
+                break;
+            case Building::MaintenanceRiskOutcome::Fire:
+                building_object->destroy_by_fire();
+                city_message_apply_sound_interval(MESSAGE_CAT_FIRE);
+                if (!tutorial_handle_fire()) {
+                    city_message_post_with_popup_delay(
+                        MESSAGE_CAT_FIRE, MESSAGE_FIRE, type, grid_offset);
+                }
+                sound_effect_play(SOUND_EFFECT_EXPLOSION);
+                recalculate_terrain = true;
+                break;
+            case Building::MaintenanceRiskOutcome::None:
+                break;
         }
     });
 
@@ -342,10 +226,17 @@ void building_maintenance_check_rome_access(void)
         if (b->state != BUILDING_STATE_IN_USE) {
             return;
         }
+        if (building_object->Composition && building_object->Composition->is_child()) {
+            // Native composition access is evaluated once by the owner and
+            // copied to children in a second pass, after all owners have run.
+            return;
+        }
         Route::RoadResult road_access;
         b->distance_from_entry = 0;
-        if (b->prev_part_building_id > 0) {
-            building *main_building = building_main(b);
+        if (building_object->has_dynamic_bridge_predecessor()) {
+            // Dynamic bridges retain record-owned segment chains. Native fixed
+            // composition children returned above through BuildingComposition.
+            const building *main_building = building_object->dynamic_bridge_owner().record();
             if (main_building) {
                 b->road_network_id = main_building->road_network_id;
                 b->distance_from_entry = main_building->distance_from_entry;
@@ -356,17 +247,19 @@ void building_maintenance_check_rome_access(void)
             }
             return;
         }
-        if (b->house_size) {
+        if (building_object->Housing) {
+            HousingState &housing = building_object->Housing->state();
             int x_road = 0;
             int y_road = 0;
-            if (!map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+            if (!map_closest_road_within_radius_building(
+                    *building_object, 2, &x_road, &y_road)) {
                 // no road: eject people
-                b->house_unreachable_ticks++;
-                if (b->house_unreachable_ticks > 4) {
-                    if (b->house_population) {
-                        migrant_create_homeless(*building_object, b->house_population);
-                        b->house_population = 0;
-                        b->house_unreachable_ticks = 0;
+                ++housing.unreachable_ticks;
+                if (housing.unreachable_ticks > 4) {
+                    if (housing.population) {
+                        migrant_create_homeless(*building_object, housing.population);
+                        housing.population = 0;
+                        housing.unreachable_ticks = 0;
                     }
                     b->state = BUILDING_STATE_UNDO;
                 }
@@ -375,55 +268,36 @@ void building_maintenance_check_rome_access(void)
                 if (route) {
                     // reachable from rome
                     b->distance_from_entry = static_cast<short>(route.distance);
-                    b->house_unreachable_ticks = 0;
-                } else if ((route = entry_route.findReachableRoad(b->x, b->y, b->size, 2))) {
+                    housing.unreachable_ticks = 0;
+                } else if ((route = entry_route.findReachableRoad(*building_object, 2))) {
                     x_road = route.road.x;
                     y_road = route.road.y;
                     b->distance_from_entry = static_cast<short>(route.distance);
-                    b->house_unreachable_ticks = 0;
+                    housing.unreachable_ticks = 0;
                 } else {
                     // no reachable road in radius
-                    if (!b->house_unreachable_ticks) {
+                    if (!housing.unreachable_ticks) {
                         b->distance_from_entry = 1;
                         problem_grid_offset = b->grid_offset;
                     }
-                    b->house_unreachable_ticks++;
-                    if (b->house_unreachable_ticks > 8) {
-                        b->house_unreachable_ticks = 0;
+                    ++housing.unreachable_ticks;
+                    if (housing.unreachable_ticks > 8) {
+                        housing.unreachable_ticks = 0;
                         b->state = BUILDING_STATE_UNDO;
                     }
                 }
                 b->road_access_x = static_cast<unsigned char>(x_road);
                 b->road_access_y = static_cast<unsigned char>(y_road);
             }
-        } else if (building_type_registry_impl::type_attr_is(b->type, "granary")) {
-            map_point road_acces_point;
-            if (map_has_road_access_granary(b->x, b->y, &road_acces_point)) {
-                road_access = entry_route.findRoad(road_acces_point);
-            }
-        } else if (building_type_registry_impl::type_attr_is(b->type, "warehouse")) {
-            map_point road_acces_point;
-            if (map_has_road_access_warehouse(b->x, b->y, &road_acces_point)) {
-                road_access = entry_route.findRoad(road_acces_point);
-            }
         } else {
-            int access_x = 0;
-            int access_y = 0;
-            int access_size = 0;
-            if (composed_main_road_access_area(*building_object, &access_x, &access_y, &access_size)) {
-                road_access = entry_route.findRoadToLargestNetwork(access_x, access_y, access_size);
-            } else if (building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
-                int rotated = b->subtype.orientation != 0;
-                road_access = entry_route.findHippodromeRoadToLargestNetwork(b->x, b->y, rotated);
-            } else if (building_monument_is_unfinished_monument(b)) {
-                road_access = entry_route.findMonumentConstructionRoadToLargestNetwork(b->x, b->y, b->size);
-            } else if (building_is_fort(b->type)) {
-                road_access = entry_route.findRoadToLargestNetwork(b->x, b->y, b->size);
-                if (!road_access) {
-                    road_access = entry_route.findReachableTile(b->x, b->y, b->size, 1);
-                }
+            if (building_monument_is_unfinished_monument(b)) {
+                road_access = entry_route.findMonumentConstructionRoadToLargestNetwork(
+                    *building_object);
             } else {
-                road_access = entry_route.findRoadToLargestNetwork(b->x, b->y, b->size);
+                road_access = entry_route.findRoadToLargestNetwork(*building_object);
+                if (!road_access && building_is_fort(b->type)) {
+                    road_access = entry_route.findReachableTile(*building_object, 1);
+                }
             }
         }
         if (road_access) {
@@ -432,9 +306,28 @@ void building_maintenance_check_rome_access(void)
             b->road_access_x = static_cast<unsigned char>(road_access.road.x);
             b->road_access_y = static_cast<unsigned char>(road_access.road.y);
         }
-        if (!is_storage_road_access_type(b->type) && b->house_unreachable_ticks == 0) {
+        const bool access_is_stable = !building_object->Housing ||
+            building_object->Housing->state().unreachable_ticks == 0;
+        if (!is_storage_road_access_type(b->type) && access_is_stable) {
             b->has_road_access = b->distance_from_entry > 0;
         }
+    });
+    Building::for_each([](Building *building_object) {
+        if (!building_object->Composition || !building_object->Composition->is_child()) {
+            return;
+        }
+        building *child = const_cast<::building *>(building_object->record());
+        Building *owner_object = building_object->Composition->owner();
+        const building *owner = owner_object ? owner_object->record() : nullptr;
+        if (!child || !owner) {
+            return;
+        }
+        child->road_network_id = owner->road_network_id;
+        child->distance_from_entry = owner->distance_from_entry;
+        child->road_access_x = owner->road_access_x;
+        child->road_access_y = owner->road_access_y;
+        child->has_road_access = owner->has_road_access;
+        child->labor_access_score = owner->labor_access_score;
     });
     const map_tile *exit_point = city_map_exit_point();
 

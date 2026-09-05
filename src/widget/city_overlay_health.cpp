@@ -20,11 +20,18 @@ static Building &runtime_building_for_overlay_record(const building *record)
     if (tile_building.id == record->id) {
         return tile_building;
     }
-    Building &main_building = tile_building.main();
-    if (main_building.id == record->id) {
-        return main_building;
+    Building *main_building = tile_building.Composition ? tile_building.Composition->owner() : &tile_building;
+    if (main_building && main_building->id == record->id) {
+        return *main_building;
     }
     std::terminate();
+}
+
+static const HousingState &housing_state_for_overlay_record(const building *record)
+{
+    static const HousingState empty;
+    const Building &building = runtime_building_for_overlay_record(record);
+    return building.Housing ? building.Housing->state() : empty;
 }
 
 static int show_building_health(const building *b)
@@ -115,31 +122,35 @@ static int get_column_height_health(const building *b)
     Building &house = runtime_building_for_overlay_record(b);
     int house_health = city_health_get_house_health_level(house, 0);
 
-    if (b->house_population > 0 && house_health < 1) {
+    if (house.Housing->state().population > 0 && house_health < 1) {
         house_health += 1;
     }
 
-    return b->house_size && house_health ? house_health / 10 : NO_COLUMN;
+    return building_type_registry_impl::type_has_housing(b->type) && house_health ? house_health / 10 : NO_COLUMN;
 }
 
 static int get_column_height_barber(const building *b)
 {
-    return b->house_size && b->data.house.barber ? b->data.house.barber / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.barber ? services.barber / 10 : NO_COLUMN;
 }
 
 static int get_column_height_bathhouse(const building *b)
 {
-    return b->house_size && b->data.house.bathhouse ? b->data.house.bathhouse / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.bathhouse ? services.bathhouse / 10 : NO_COLUMN;
 }
 
 static int get_column_height_clinic(const building *b)
 {
-    return b->house_size && b->data.house.clinic ? b->data.house.clinic / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.clinic ? services.clinic / 10 : NO_COLUMN;
 }
 
 static int get_column_height_hospital(const building *b)
 {
-    return b->house_size && b->data.house.hospital ? b->data.house.hospital / 10 : NO_COLUMN;
+    const auto &services = housing_state_for_overlay_record(b).services;
+    return services.hospital ? services.hospital / 10 : NO_COLUMN;
 }
 
 static int get_column_height_sickness(const building *b)
@@ -154,9 +165,10 @@ static int get_tooltip_health(tooltip_context *c, const building *b)
         int house_health = city_health_get_house_health_level(current_building, 0);
 
         if (house_health < 40) {
-            if (b->house_population < 1 && house_health < 1) {
+            const int population = current_building.Housing->state().population;
+            if (population < 1 && house_health < 1) {
                 c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_NONE";
-            } else if (b->house_population >= 1 && house_health < 10) {
+            } else if (population >= 1 && house_health < 10) {
                 c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_0";
             } else if (house_health < 20) {
                 c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_1";
@@ -194,11 +206,12 @@ static int get_tooltip_barber(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.barber <= 0) {
+    const int barber = housing_state_for_overlay_record(b).services.barber;
+    if (barber <= 0) {
         return 31;
-    } else if (b->data.house.barber >= 80) {
+    } else if (barber >= 80) {
         return 32;
-    } else if (b->data.house.barber >= 20) {
+    } else if (barber >= 20) {
         return 33;
     } else {
         return 34;
@@ -209,11 +222,12 @@ static int get_tooltip_bathhouse(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.bathhouse <= 0) {
+    const int bathhouse = housing_state_for_overlay_record(b).services.bathhouse;
+    if (bathhouse <= 0) {
         return 8;
-    } else if (b->data.house.bathhouse >= 80) {
+    } else if (bathhouse >= 80) {
         return 9;
-    } else if (b->data.house.bathhouse >= 20) {
+    } else if (bathhouse >= 20) {
         return 10;
     } else {
         return 11;
@@ -224,11 +238,12 @@ static int get_tooltip_clinic(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.clinic <= 0) {
+    const int clinic = housing_state_for_overlay_record(b).services.clinic;
+    if (clinic <= 0) {
         return 35;
-    } else if (b->data.house.clinic >= 80) {
+    } else if (clinic >= 80) {
         return 36;
-    } else if (b->data.house.clinic >= 20) {
+    } else if (clinic >= 20) {
         return 37;
     } else {
         return 38;
@@ -239,11 +254,12 @@ static int get_tooltip_hospital(tooltip_context *c, const building *b)
 {
     (void)c;
 
-    if (b->data.house.hospital <= 0) {
+    const int hospital = housing_state_for_overlay_record(b).services.hospital;
+    if (hospital <= 0) {
         return 39;
-    } else if (b->data.house.hospital >= 80) {
+    } else if (hospital >= 80) {
         return 40;
-    } else if (b->data.house.hospital >= 20) {
+    } else if (hospital >= 20) {
         return 41;
     } else {
         return 42;

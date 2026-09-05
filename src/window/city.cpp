@@ -535,7 +535,11 @@ static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
     const int terrain = map_terrain_get(grid_offset);
-    const Building building = map_building_at(grid_offset).main();
+    Building &selected = map_building_at(grid_offset);
+    Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+        &selected.dynamic_bridge_owner() :
+        (selected.Composition ? selected.Composition->owner() : &selected);
+    const Building building = owner ? *owner : selected;
     if (building.id && building.type) {
         overlay = get_overlay_for_building_type(*building.type);
     } else {
@@ -705,13 +709,20 @@ static void handle_hotkeys(const hotkeys *h)
     if (h->mothball_toggle) {
         int grid_offset = widget_city_current_grid_offset();
         if (map_building_exists_at(grid_offset)) {
-            Building &building = map_building_at(grid_offset).main();
-            toggle_mothball_building(&building);
+            Building &selected = map_building_at(grid_offset);
+            Building *building = selected.type && selected.type->bridge().is_bridge() ?
+                &selected.dynamic_bridge_owner() :
+                (selected.Composition ? selected.Composition->owner() : &selected);
+            toggle_mothball_building(building);
         }
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
-        const Building building = map_building_at(grid_offset).main();
+        Building &selected = map_building_at(grid_offset);
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        const Building building = owner ? *owner : selected;
         if (building.id && building.type) {
             if (has_storage_orders(*building.type)) {
                 window_building_info_show(grid_offset);
@@ -720,17 +731,29 @@ static void handle_hotkeys(const hotkeys *h)
         }
     }
     if (h->clone_building) {
-        Building building = map_building_at(widget_city_current_grid_offset()).main();
+        Building &selected = map_building_at(widget_city_current_grid_offset());
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        Building building = owner ? *owner : selected;
         const building_type_registry_impl::BuildingType *type =
             building.Rubble && building.Rubble->original_type() ? building.Rubble->original_type() : building.type;
         set_construction_building_type(type, building.Graphics().rotation());
     }
     if (h->copy_building_settings) {
-        Building building = map_building_at(widget_city_current_grid_offset()).main();
+        Building &selected = map_building_at(widget_city_current_grid_offset());
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        Building building = owner ? *owner : selected;
         copy_building_settings(building);
     }
     if (h->paste_building_settings) {
-        Building building = map_building_at(widget_city_current_grid_offset()).main();
+        Building &selected = map_building_at(widget_city_current_grid_offset());
+        Building *owner = selected.type && selected.type->bridge().is_bridge() ?
+            &selected.dynamic_bridge_owner() :
+            (selected.Composition ? selected.Composition->owner() : &selected);
+        Building building = owner ? *owner : selected;
         paste_building_settings(building);
     }
     if (h->show_empire_map) {

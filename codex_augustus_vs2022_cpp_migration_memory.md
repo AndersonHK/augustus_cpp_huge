@@ -1,7 +1,7 @@
 # Codex Augustus VS2022 / MSBuild migration working memory
 
 Snapshot: 2026-06-27
-Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
+Workspace: <repository checkout>
 
 ## What is true in this checkout now
 - The repo already has the native Visual Studio solution/project at the repository root:
@@ -9,7 +9,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `Vespasian.vcxproj`
 - `Vespasian.vcxproj.filters`
 - MSBuild/VS2022 at repo root is the real Windows workflow.
-- VS is not necessarily on `PATH`; the known local MSBuild path is `D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
+- VS is not necessarily on `PATH`; the known local MSBuild path is `<MSBuild path>`.
 - Build in `Release|x64` when compiling this project, preserving project defaults such as `/O2`. Debug builds are not the validation target for current work.
 - `vendor/` contains local SDL2 and SDL2_mixer drops and stays ignored.
 - Generated/local build state is already excluded from Git.
@@ -123,7 +123,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Shared UI primitives/widget/runtime chain is active for common widget primitives.
 - Graphics-pack precedence and retained critical startup failures are now part of the architecture, not temporary patches.
 - Native FigureType XML and `figure_runtime` are active for the currently ported service walkers.
-- Native BuildingType XML and HousingType XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
+- Native BuildingType XML and HousingProfile XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
 - Native WaterAccessType XML is active. BuildingType water rules now describe providers, requirements, nodes, and natural-source terms; runtime propagates typed masks through a fixed-point pass.
 - `WaterAccessType` is not a complete building module definition; it is the vocabulary. Building-specific water provider/requirement policy still lives in BuildingType until a future module-definition folder peels it away.
 - Building animation policy has been extracted from runtime drawing. `building_runtime_graphics.cpp` should resolve/copy draw slices, while `animations.cpp` decides what frame can advance or render.

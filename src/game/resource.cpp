@@ -4,7 +4,6 @@
 #include "figure/figure_type_registry_internal.h"
 #include "translation/translation.h"
 #include "core/xml_value.h"
-#include "game/mod_manager.h"
 #include "game/ResourceGraphics.h"
 
 #include "resource.h"
@@ -15,6 +14,7 @@
 #include "core/log.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
+#include "game/mod_definition_loader.h"
 #include "game/save_version.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
@@ -26,6 +26,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -44,6 +46,8 @@ static std::array<int, RESOURCE_ALL> resource_declared_slots;
 static std::unordered_map<std::string, resource_type> resource_text_id_lookup;
 static std::vector<resource_type> loaded_resources;
 static std::vector<resource_type> production_resources;
+static mod_definition::DefinitionOverlayTracker resource_definition_overlays;
+static std::string resource_failure_reason;
 
 struct ResourceParseState {
     resource_type type = RESOURCE_NONE;
@@ -57,12 +61,82 @@ struct ResourceParseState {
     ImageGroupEntryRef editor_icon;
     ImageGroupEntryRef editor_empire_icon;
     std::string text_id;
+    std::string name_key;
     std::string xml_attr_name;
+    int disabled = 0;
     int saw_root = 0;
     int error = 0;
 };
 
 static ResourceParseState resource_parse_state;
+
+struct StagedResourceDefinition {
+    ResourceParseState definition;
+    mod_definition::DefinitionSource source;
+};
+
+struct ResourceIdentityReservation {
+    resource_type slot = RESOURCE_NONE;
+    std::string text_id;
+    mod_definition::DefinitionSource source;
+};
+
+struct StagedResourceDefinitions {
+    std::array<std::optional<StagedResourceDefinition>, RESOURCE_ALL> winners;
+    std::array<std::optional<ResourceIdentityReservation>, RESOURCE_ALL> slots;
+    std::unordered_map<std::string, ResourceIdentityReservation> ids;
+    mod_definition::DefinitionOverlayTracker overlays;
+    std::string failure_reason;
+};
+
+static std::string source_path(const mod_definition::DefinitionSource &source)
+{
+    return source.full_path.empty() ? source.describe() : source.full_path;
+}
+
+static int stage_resource_definition(
+    StagedResourceDefinitions &staged,
+    ResourceParseState definition,
+    const mod_definition::DefinitionSource &source)
+{
+    const resource_type slot = definition.type;
+    const std::string &text_id = definition.text_id;
+    const std::optional<ResourceIdentityReservation> &slot_identity =
+        staged.slots[static_cast<std::size_t>(slot)];
+    if (slot_identity && slot_identity->text_id != text_id) {
+        std::ostringstream failure;
+        failure << "Resource slot " << slot << " is already owned by id '" << slot_identity->text_id
+            << "' from " << source_path(slot_identity->source) << "; id '" << text_id
+            << "' in " << source_path(source) << " cannot replace it.";
+        staged.failure_reason = failure.str();
+        return 0;
+    }
+
+    const auto id_identity = staged.ids.find(text_id);
+    if (id_identity != staged.ids.end() && id_identity->second.slot != slot) {
+        std::ostringstream failure;
+        failure << "Resource id '" << text_id << "' is already assigned to slot " << id_identity->second.slot
+            << " by " << source_path(id_identity->second.source) << "; " << source_path(source)
+            << " cannot move it to slot " << slot << ".";
+        staged.failure_reason = failure.str();
+        return 0;
+    }
+
+    mod_definition::DefinitionOverlayChange change;
+    if (!staged.overlays.apply(text_id, definition.disabled != 0, source, &change)) {
+        staged.failure_reason = staged.overlays.failure_reason();
+        return 0;
+    }
+
+    if (!slot_identity) {
+        ResourceIdentityReservation identity{slot, text_id, source};
+        staged.slots[static_cast<std::size_t>(slot)] = identity;
+        staged.ids.emplace(text_id, std::move(identity));
+    }
+    staged.winners[static_cast<std::size_t>(slot)] = StagedResourceDefinition{
+        std::move(definition), source};
+    return 1;
+}
 
 static int parse_required_int_attribute(const char *attribute_name, int *out_value)
 {
@@ -141,6 +215,16 @@ static ImageGroupEntryRef parse_image_ref()
     return ImageGroupEntryRef::from_group(path ? path : "", image ? image : "");
 }
 
+static int parse_enabled_content(const char *element)
+{
+    if (!resource_parse_state.saw_root || resource_parse_state.disabled) {
+        log_error("Disabled Resource definition must contain only its root identity", element, 0);
+        resource_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
 static int parse_resource_root()
 {
     if (resource_parse_state.saw_root) {
@@ -159,48 +243,29 @@ static int parse_resource_root()
         resource_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("name_key")) {
-        log_error("Resource xml is missing required attribute 'name_key'", 0, 0);
-        resource_parse_state.error = 1;
-        return 0;
-    }
-
     const std::string text_id = xml_value::trim_copy(xml_parser_get_attribute_string("id"));
     if (text_id.empty()) {
         log_error("Resource xml has empty id", 0, slot);
         resource_parse_state.error = 1;
         return 0;
     }
-    if (resource_text_id_lookup.find(text_id) != resource_text_id_lookup.end()) {
-        log_error("Duplicate Resource id", text_id.c_str(), slot);
-        resource_parse_state.error = 1;
-        return 0;
-    }
-
-    const char *name_key = xml_parser_get_attribute_string("name_key");
-    const uint8_t *text = lang_get_string_by_key(name_key);
-    if (!text) {
-        log_error("Resource xml has unsupported name_key", name_key, 0);
-        resource_parse_state.error = 1;
-        return 0;
-    }
-
     const resource_type type = static_cast<resource_type>(slot);
-    if (resource_declared_slots[static_cast<size_t>(type)]) {
-        log_error("Duplicate Resource slot", text_id.c_str(), slot);
+    int disabled = 0;
+    if (xml_parser_has_attribute("disabled") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
+        log_error("Resource xml has invalid Boolean attribute 'disabled'", text_id.c_str(), slot);
         resource_parse_state.error = 1;
         return 0;
     }
 
     resource_parse_state.saw_root = 1;
     resource_parse_state.type = type;
+    resource_parse_state.disabled = disabled;
     resource_parse_state.data = {};
     resource_parse_state.data.type = type;
-    resource_parse_state.data.text = text;
     resource_parse_state.text_id = text_id;
+    resource_parse_state.name_key.clear();
     resource_parse_state.xml_attr_name.clear();
-    resource_name_key_storage[static_cast<size_t>(type)] = xml_value::trim_copy(name_key);
-    resource_parse_state.data.name_key = resource_name_key_storage[static_cast<size_t>(type)].c_str();
     resource_parse_state.storage_images = {};
     resource_parse_state.cart_single_load = ImageGroupEntryRef();
     resource_parse_state.cart_multiple_loads = ImageGroupEntryRef();
@@ -209,11 +274,35 @@ static int parse_resource_root()
     resource_parse_state.empire_icon = ImageGroupEntryRef();
     resource_parse_state.editor_icon = ImageGroupEntryRef();
     resource_parse_state.editor_empire_icon = ImageGroupEntryRef();
+
+    if (disabled) {
+        if (xml_parser_has_attribute("name_key")) {
+            log_error("Disabled Resource definition must not declare name_key", text_id.c_str(), slot);
+            resource_parse_state.error = 1;
+            return 0;
+        }
+        return 1;
+    }
+
+    if (!xml_parser_has_attribute("name_key")) {
+        log_error("Resource xml is missing required attribute 'name_key'", text_id.c_str(), slot);
+        resource_parse_state.error = 1;
+        return 0;
+    }
+    resource_parse_state.name_key = xml_value::trim_copy(xml_parser_get_attribute_string("name_key"));
+    if (resource_parse_state.name_key.empty()) {
+        log_error("Resource xml has empty name_key", text_id.c_str(), slot);
+        resource_parse_state.error = 1;
+        return 0;
+    }
     return 1;
 }
 
 static int parse_resource_model()
 {
+    if (!parse_enabled_content("model")) {
+        return 0;
+    }
     if (xml_parser_has_attribute("xml_attr")) {
         resource_parse_state.xml_attr_name = xml_value::trim_copy(xml_parser_get_attribute_string("xml_attr"));
     }
@@ -229,12 +318,18 @@ static int parse_resource_model()
 
 static int parse_resource_trade()
 {
+    if (!parse_enabled_content("trade")) {
+        return 0;
+    }
     return parse_optional_int_attribute("buy", &resource_parse_state.data.default_trade_price.buy, 0) &&
         parse_optional_int_attribute("sell", &resource_parse_state.data.default_trade_price.sell, 0);
 }
 
 static int parse_resource_cart_graphic()
 {
+    if (!parse_enabled_content("cart")) {
+        return 0;
+    }
     if (!xml_parser_has_attribute("load")) {
         log_error("Resource cart graphic is missing required load", 0, 0);
         resource_parse_state.error = 1;
@@ -259,6 +354,9 @@ static int parse_resource_cart_graphic()
 
 static int parse_resource_storage_graphic()
 {
+    if (!parse_enabled_content("storage")) {
+        return 0;
+    }
     int load = 0;
     if (!parse_required_int_attribute("load", &load) || load < 1 || load > 4) {
         log_error("Resource storage graphic has unsupported load", 0, load);
@@ -272,63 +370,50 @@ static int parse_resource_storage_graphic()
 
 static int parse_resource_panel_icon()
 {
+    if (!parse_enabled_content("panel_icon")) {
+        return 0;
+    }
     resource_parse_state.panel_icon = parse_image_ref();
     return !resource_parse_state.error;
 }
 
 static int parse_resource_empire_icon()
 {
+    if (!parse_enabled_content("empire_icon")) {
+        return 0;
+    }
     resource_parse_state.empire_icon = parse_image_ref();
     return !resource_parse_state.error;
 }
 
 static int parse_resource_editor_icon()
 {
+    if (!parse_enabled_content("editor_icon")) {
+        return 0;
+    }
     resource_parse_state.editor_icon = parse_image_ref();
     return !resource_parse_state.error;
 }
 
 static int parse_resource_editor_empire_icon()
 {
+    if (!parse_enabled_content("editor_empire_icon")) {
+        return 0;
+    }
     resource_parse_state.editor_empire_icon = parse_image_ref();
     return !resource_parse_state.error;
 }
 
-static void finish_resource_root()
+static int parse_resource_graphics()
 {
-    const resource_type type = resource_parse_state.type;
-    resource_text_id_storage[static_cast<size_t>(type)] = resource_parse_state.text_id;
-    resource_parse_state.data.text_id = resource_text_id_storage[static_cast<size_t>(type)].c_str();
-    resource_xml_attr_storage[static_cast<size_t>(type)] = resource_parse_state.xml_attr_name;
-    resource_parse_state.data.xml_attr_name =
-        resource_xml_attr_storage[static_cast<size_t>(type)].empty() ?
-            nullptr :
-            resource_xml_attr_storage[static_cast<size_t>(type)].c_str();
-    resource_info_defaults[type] = resource_parse_state.data;
-    resource_declared_slots[static_cast<size_t>(type)] = 1;
-    resource_text_id_lookup[resource_text_id_storage[static_cast<size_t>(type)]] = type;
-    loaded_resources.push_back(type);
-
-    building_type_registry_impl::BuildingGraphicsDef::set_resource_storage_images(
-        type,
-        resource_parse_state.storage_images);
-    figure_type_registry_impl::FigureGraphics::set_resource_cart_images(
-        type,
-        resource_parse_state.cart_single_load,
-        resource_parse_state.cart_multiple_loads,
-        resource_parse_state.cart_eight_loads);
-    ResourceGraphics &graphics = mutable_resource_graphics(type);
-    graphics.set_panel_icon(resource_parse_state.panel_icon);
-    graphics.set_empire_icon(resource_parse_state.empire_icon);
-    graphics.set_editor_icon(resource_parse_state.editor_icon);
-    graphics.set_editor_empire_icon(resource_parse_state.editor_empire_icon);
+    return parse_enabled_content("graphics");
 }
 
 static const xml_parser_element RESOURCE_XML_ELEMENTS[] = {
-    { "resource", parse_resource_root, finish_resource_root, nullptr, nullptr },
+    { "resource", parse_resource_root, nullptr, nullptr, nullptr },
     { "model", parse_resource_model, nullptr, "resource", nullptr },
     { "trade", parse_resource_trade, nullptr, "resource", nullptr },
-    { "graphics", nullptr, nullptr, "resource", nullptr },
+    { "graphics", parse_resource_graphics, nullptr, "resource", nullptr },
     { "cart", parse_resource_cart_graphic, nullptr, "graphics", nullptr },
     { "storage", parse_resource_storage_graphic, nullptr, "graphics", nullptr },
     { "panel_icon", parse_resource_panel_icon, nullptr, "graphics", nullptr },
@@ -337,24 +422,62 @@ static const xml_parser_element RESOURCE_XML_ELEMENTS[] = {
     { "editor_empire_icon", parse_resource_editor_empire_icon, nullptr, "graphics", nullptr },
 };
 
-static int parse_resource_definition_file(const char *filename)
+static int parse_resource_definition_buffer(
+    const char *filename,
+    const std::vector<char> &buffer,
+    ResourceParseState *out_definition)
 {
     const ErrorContextScope error_scope("Resource XML", filename);
 
     resource_parse_state = {};
-    const int parsed = xml_definition::parse_file(
+    const int parsed = xml_definition::parse_buffer(
         filename,
         "Resource",
         RESOURCE_XML_ELEMENTS,
-        static_cast<int>(sizeof(RESOURCE_XML_ELEMENTS) / sizeof(RESOURCE_XML_ELEMENTS[0])));
+        static_cast<int>(sizeof(RESOURCE_XML_ELEMENTS) / sizeof(RESOURCE_XML_ELEMENTS[0])),
+        buffer);
     if (!parsed || resource_parse_state.error || !resource_parse_state.saw_root) {
         log_error("Unable to parse Resource xml", filename, 0);
         return 0;
     }
+    if (out_definition) {
+        *out_definition = std::move(resource_parse_state);
+    }
     return 1;
 }
 
-static int load_resource_definitions()
+static int parse_resource_definition_file(const char *filename, ResourceParseState *out_definition)
+{
+    std::vector<char> buffer;
+    if (!xml_definition::load_file_to_buffer(filename, buffer, "Resource")) {
+        return 0;
+    }
+    return parse_resource_definition_buffer(filename, buffer, out_definition);
+}
+
+static int validate_staged_resource_definitions(StagedResourceDefinitions &staged)
+{
+    if (staged.overlays.active_count() == 0) {
+        staged.failure_reason = "No enabled Resource definitions remain after applying the configured mod layers.";
+        return 0;
+    }
+
+    for (std::optional<StagedResourceDefinition> &winner : staged.winners) {
+        if (!winner || winner->definition.disabled) {
+            continue;
+        }
+        winner->definition.data.text = lang_get_string_by_key(winner->definition.name_key.c_str());
+        if (!winner->definition.data.text) {
+            staged.failure_reason = "Resource '" + winner->definition.text_id +
+                "' has unsupported name_key '" + winner->definition.name_key +
+                "' in " + source_path(winner->source) + ".";
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void publish_resource_definitions(const StagedResourceDefinitions &staged)
 {
     std::memset(resource_info_defaults, 0, sizeof(resource_info_defaults));
     for (std::string &text_id : resource_text_id_storage) {
@@ -370,35 +493,82 @@ static int load_resource_definitions()
     resource_text_id_lookup.clear();
     loaded_resources.clear();
     production_resources.clear();
+    resource_graphics_reset();
+    building_type_registry_impl::BuildingGraphicsDef::reset_resource_storage_images();
+    figure_type_registry_impl::FigureGraphics::reset_resource_cart_images();
 
-    const std::string resource_path = mod_manager::mod_path() + "Resources/";
-    bool found_any = false;
-    if (!xml_definition::for_each_definition_file(
-        resource_path,
-        "Resource",
-        true,
-        [](const xml_definition::DefinitionFile &file, const std::string &) {
-            if (parse_resource_definition_file(file.full_path.c_str())) {
-                return true;
-            }
-            error_context_report_error("Unable to parse Resource xml.", file.full_path.c_str());
-            return false;
-        },
-        &found_any)) {
-        if (!found_any) {
-            error_context_report_error("No Resource xml files found.", resource_path.c_str());
+    for (std::size_t slot = 0; slot < staged.winners.size(); ++slot) {
+        const std::optional<StagedResourceDefinition> &winner = staged.winners[slot];
+        if (!winner || winner->definition.disabled) {
+            continue;
         }
+        const ResourceParseState &definition = winner->definition;
+        const resource_type type = definition.type;
+        resource_text_id_storage[slot] = definition.text_id;
+        resource_name_key_storage[slot] = definition.name_key;
+        resource_xml_attr_storage[slot] = definition.xml_attr_name;
+
+        resource_data data = definition.data;
+        data.text_id = resource_text_id_storage[slot].c_str();
+        data.name_key = resource_name_key_storage[slot].c_str();
+        data.xml_attr_name = resource_xml_attr_storage[slot].empty() ?
+            nullptr : resource_xml_attr_storage[slot].c_str();
+        resource_info_defaults[type] = data;
+        resource_declared_slots[slot] = 1;
+        resource_text_id_lookup[resource_text_id_storage[slot]] = type;
+        loaded_resources.push_back(type);
+
+        building_type_registry_impl::BuildingGraphicsDef::set_resource_storage_images(
+            type, definition.storage_images);
+        figure_type_registry_impl::FigureGraphics::set_resource_cart_images(
+            type,
+            definition.cart_single_load,
+            definition.cart_multiple_loads,
+            definition.cart_eight_loads);
+        ResourceGraphics &graphics = mutable_resource_graphics(type);
+        graphics.set_panel_icon(definition.panel_icon);
+        graphics.set_empire_icon(definition.empire_icon);
+        graphics.set_editor_icon(definition.editor_icon);
+        graphics.set_editor_empire_icon(definition.editor_empire_icon);
+
+        if (type != RESOURCE_NONE &&
+            (data.flags & RESOURCE_FLAG_SPECIAL) != RESOURCE_FLAG_SPECIAL) {
+            production_resources.push_back(type);
+        }
+    }
+    resource_definition_overlays = staged.overlays;
+}
+
+static int load_resource_definitions()
+{
+    StagedResourceDefinitions staged;
+    std::string enumeration_failure;
+    if (!mod_definition::for_each_configured_definition_file(
+            {"Resources"},
+            "Resource",
+            true,
+            [&](const mod_definition::DefinitionSource &source) {
+                ResourceParseState definition;
+                if (!parse_resource_definition_file(source.full_path.c_str(), &definition)) {
+                    staged.failure_reason = "Unable to parse Resource xml: " + source.full_path;
+                    return false;
+                }
+                return stage_resource_definition(staged, std::move(definition), source) != 0;
+            },
+            nullptr,
+            &enumeration_failure)) {
+        resource_failure_reason = staged.failure_reason.empty() ? enumeration_failure : staged.failure_reason;
+        error_context_report_error("Unable to load layered Resource definitions.", resource_failure_reason.c_str());
+        return 0;
+    }
+    if (!validate_staged_resource_definitions(staged)) {
+        resource_failure_reason = staged.failure_reason;
+        error_context_report_error("Unable to validate layered Resource definitions.", resource_failure_reason.c_str());
         return 0;
     }
 
-    std::sort(loaded_resources.begin(), loaded_resources.end());
-    loaded_resources.erase(std::unique(loaded_resources.begin(), loaded_resources.end()), loaded_resources.end());
-    for (resource_type resource : loaded_resources) {
-        if (resource != RESOURCE_NONE &&
-            (resource_info_defaults[resource].flags & RESOURCE_FLAG_SPECIAL) != RESOURCE_FLAG_SPECIAL) {
-            production_resources.push_back(resource);
-        }
-    }
+    publish_resource_definitions(staged);
+    resource_failure_reason.clear();
     return 1;
 }
 
@@ -465,15 +635,38 @@ int resource_get_supply_chain_for_raw_material(resource_supply_chain *chain, res
     return production_method_registry_supply_chain_for_raw_material(chain, raw_material, RESOURCE_SUPPLY_CHAIN_MAX_SIZE);
 }
 
-void resource_init(void)
+int resource_init(void)
 {
-    resource_graphics_reset();
-    building_type_registry_impl::BuildingGraphicsDef::reset_resource_storage_images();
-    figure_type_registry_impl::FigureGraphics::reset_resource_cart_images();
+    if (!load_resource_definitions()) {
+        return 0;
+    }
     production_method_registry_reset_production_overrides();
-    load_resource_definitions();
     std::memcpy(resource_info, resource_info_defaults, sizeof(resource_info_defaults));
     resource_id_bridge_reset_for_runtime();
+    return 1;
+}
+
+const char *resource_get_failure_reason(void)
+{
+    return resource_failure_reason.c_str();
+}
+
+const char *resource_definition_source_path(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return nullptr;
+    }
+    const mod_definition::DefinitionOverlayEntry *entry = resource_definition_overlays.find(text_id);
+    return entry ? entry->source.full_path.c_str() : nullptr;
+}
+
+int resource_definition_is_suppressed(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return 0;
+    }
+    const mod_definition::DefinitionOverlayEntry *entry = resource_definition_overlays.find(text_id);
+    return entry && entry->disabled;
 }
 
 resource_data *resource_get_data(resource_type resource)
@@ -613,3 +806,64 @@ void production_rates_load(buffer *buf)
         production_method_registry_set_production_per_month_for_resource(resource, buffer_read_u16(buf));
     }
 }
+
+#ifdef STARTUP_PARSER_TEST
+int resource_layered_definition_buffers_are_valid_for_test(
+    const resource_layer_test_input *inputs,
+    int input_count,
+    const char *query_id,
+    resource_layer_test_result *result)
+{
+    if (!inputs || input_count < 0) {
+        return 0;
+    }
+
+    StagedResourceDefinitions staged;
+    for (int index = 0; index < input_count; ++index) {
+        const resource_layer_test_input &input = inputs[index];
+        const char *xml = input.xml ? input.xml : "";
+        std::vector<char> buffer(xml, xml + std::strlen(xml));
+        mod_definition::DefinitionSource source;
+        source.layer_index = input.layer_index < 0 ? 0 : static_cast<std::size_t>(input.layer_index);
+        source.mod_name = input.mod_name ? input.mod_name : "";
+        source.full_path = input.source_path ? input.source_path : "ResourceLayerTest.xml";
+        source.file_name = source.full_path;
+        source.category = "Resources";
+        source.registry_relative_path = "Resources\\" + source.file_name;
+
+        ResourceParseState definition;
+        if (!parse_resource_definition_buffer(source.full_path.c_str(), buffer, &definition) ||
+            !stage_resource_definition(staged, std::move(definition), source)) {
+            return 0;
+        }
+    }
+    if (!validate_staged_resource_definitions(staged)) {
+        return 0;
+    }
+
+    if (result) {
+        *result = {};
+        result->active_count = static_cast<int>(staged.overlays.active_count());
+        result->suppressed_count = static_cast<int>(staged.overlays.suppressed_count());
+        result->queried_slot = -1;
+        result->queried_source_layer = -1;
+
+        const std::string id = query_id ? query_id : "";
+        const auto identity = staged.ids.find(id);
+        const mod_definition::DefinitionOverlayEntry *overlay = staged.overlays.find(id);
+        if (identity != staged.ids.end() && overlay) {
+            const resource_type slot = identity->second.slot;
+            result->queried_slot = slot;
+            result->queried_disabled = overlay->disabled ? 1 : 0;
+            result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+            const std::optional<StagedResourceDefinition> &winner =
+                staged.winners[static_cast<std::size_t>(slot)];
+            if (winner && !winner->definition.disabled) {
+                result->queried_buy = winner->definition.data.default_trade_price.buy;
+                result->queried_sell = winner->definition.data.default_trade_price.sell;
+            }
+        }
+    }
+    return 1;
+}
+#endif

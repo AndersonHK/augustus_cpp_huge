@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<formation key="enemy53_axe_formation">
+    <grid width="4" height="4" station_alignment="tile_anchor" />
+    <spawn role="enemy" />
+    <slot fill="all" unit="enemy53_axe" />
+</formation>

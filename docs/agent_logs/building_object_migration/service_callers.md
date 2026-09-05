@@ -37,7 +37,7 @@
 ## Build Commands / Results
 - `git diff --check -- <touched service-caller files> docs/agent_logs/building_object_migration/service_callers.md`
   - Result: passed with no whitespace errors. Git reported existing LF-to-CRLF normalization warnings for touched files.
-- `& 'D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
+- `& '<MSBuild path>' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
   - Result: failed before this lane's caller files were meaningfully reached.
   - First blocker: `src/building/building_type.h(482,33): error C2061: syntax error: identifier 'BuildingDrawPass'`.
   - Related blockers: `src/building/building.cpp(307,37)` still defines `Building::draw(BuildingDrawPass, ...)` while the current `Building` declaration exposes `draw(int, int, int, color_t, float)`, and `src/building/building_type.cpp(924,19)` defines a `BuildingType::draw(Building, BuildingDrawPass, ...)` overload not present in `building_type.h`.

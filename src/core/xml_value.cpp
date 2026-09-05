@@ -1,6 +1,9 @@
 #include "core/xml_value.h"
 
+#include <cerrno>
+#include <cctype>
 #include <cstdlib>
+#include <limits>
 
 namespace xml_value {
 
@@ -49,9 +52,16 @@ int parse_int_strict(std::string_view text, int *out_value)
     }
 
     std::string value(text);
+    if (value.empty() ||
+        std::isspace(static_cast<unsigned char>(value.front())) ||
+        std::isspace(static_cast<unsigned char>(value.back()))) {
+        return 0;
+    }
+    errno = 0;
     char *end = nullptr;
     const long parsed = strtol(value.c_str(), &end, 10);
-    if (!end || *end != '\0') {
+    if (!end || end == value.c_str() || *end != '\0' || errno == ERANGE ||
+        parsed < std::numeric_limits<int>::min() || parsed > std::numeric_limits<int>::max()) {
         return 0;
     }
     *out_value = static_cast<int>(parsed);

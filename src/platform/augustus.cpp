@@ -1,12 +1,19 @@
 #include "building/building_type_startup_bridge.h"
+#include "../../tools/formation_runtime_test/formation_runtime_test.h"
+#include "city/victory.h"
 #include "core/log.h"
 #include "translation/translation.h"
 #include "game/game.h"
+#include "game/file.h"
+#include "game/Animation.h"
+#include "game/tick.h"
 #include "game/mod_manager.h"
 #include "game/performance_tracker.h"
+#include "figure/figure_runtime_native.h"
 #include "platform/cursor.h"
 #include "platform/joystick.h"
 #include "window/asset_previewer.h"
+#include "window/city.h"
 
 #include "core/file.h"
 #include "game/settings.h"
@@ -34,6 +41,7 @@
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
 #include "platform/vita/vita.h"
+#include "sound/system.h"
 
 #include "SDL.h"
 
@@ -46,6 +54,7 @@
 #include <string.h>
 
 #ifdef _MSC_VER
+#include <crtdbg.h>
 #include <windows.h>
 #endif
 
@@ -72,7 +81,22 @@ static struct {
         uint64_t last_update_time;
     } fps;
     FILE *log_file;
+    int startup_test;
+    int warning_count;
+    int error_count;
 } data = { 1 };
+
+static void show_startup_error(const char *title, const char *message)
+{
+    const char *safe_title = title && *title ? title : "Startup error";
+    const char *safe_message = message && *message ? message : "Unknown startup failure.";
+    if (data.startup_test) {
+        fprintf(stderr, "%s: %s\n", safe_title, safe_message);
+        fflush(stderr);
+        return;
+    }
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, safe_title, safe_message, NULL);
+}
 
 static const char *AUGUSTUS_GRAPHICS_BOOTSTRAP_STAMP_PREFIX = "renderer_resource_bootstrap_v2:";
 
@@ -359,7 +383,13 @@ static void write_log(void *userdata, int category, SDL_LogPriority priority, co
     (void) userdata;
     (void) category;
     char log_text[300] = { 0 };
-    snprintf(log_text, 300, "%s %s\n", priority == SDL_LOG_PRIORITY_ERROR ? "ERROR: " : "INFO: ", message);
+    const char *prefix = priority >= SDL_LOG_PRIORITY_ERROR ? "ERROR: " : priority == SDL_LOG_PRIORITY_WARN ? "WARNING: " : "INFO: ";
+    if (priority >= SDL_LOG_PRIORITY_ERROR) {
+        data.error_count++;
+    } else if (priority == SDL_LOG_PRIORITY_WARN) {
+        data.warning_count++;
+    }
+    snprintf(log_text, 300, "%s %s\n", prefix, message);
     if (data.log_file) {
         write_to_output(data.log_file, log_text);
     }
@@ -367,14 +397,168 @@ static void write_log(void *userdata, int category, SDL_LogPriority priority, co
 #if defined(_MSC_VER) && !defined(NDEBUG)
     OutputDebugStringA(log_text);
 #else
-    write_to_output(stdout, log_text);
+    write_to_output(data.startup_test && priority >= SDL_LOG_PRIORITY_WARN ? stderr : stdout, log_text);
 #endif
+}
+
+static void reset_test_diagnostics(void)
+{
+    data.warning_count = 0;
+    data.error_count = 0;
+}
+
+static bool run_save_soak_ticks(int tick_count)
+{
+    constexpr int SOAK_SPEED_PERCENT = 1000;
+    constexpr int TICKS_PER_RENDER = 1;
+    constexpr int STEADY_STATE_WARMUP_TICKS = 1000;
+    constexpr double REQUIRED_STEADY_STATE_TPS = 1000.0;
+    const int previous_speed = setting_game_speed();
+    setting_set_game_speed(SOAK_SPEED_PERCENT);
+    window_city_show();
+    city_victory_suppress_checks(1);
+    figure_graphics_validate_loaded_figures();
+    const uint64_t frequency = SDL_GetPerformanceFrequency();
+    const uint64_t start = SDL_GetPerformanceCounter();
+    uint64_t interval_start = start;
+    uint64_t interval_simulation_ticks = 0;
+    uint64_t total_simulation_ticks = 0;
+    uint64_t steady_state_simulation_ticks = 0;
+    for (int completed_ticks = 0; completed_ticks < tick_count;) {
+        performance_tracker_begin_frame();
+        const int batch_ticks = tick_count - completed_ticks < TICKS_PER_RENDER ? tick_count - completed_ticks : TICKS_PER_RENDER;
+        Animation::update_timers();
+        const uint64_t simulation_start = SDL_GetPerformanceCounter();
+        for (int tick = 0; tick < batch_ticks; tick++) game_tick_run();
+        const uint64_t simulation_ticks = SDL_GetPerformanceCounter() - simulation_start;
+        interval_simulation_ticks += simulation_ticks;
+        total_simulation_ticks += simulation_ticks;
+        if (completed_ticks >= STEADY_STATE_WARMUP_TICKS) steady_state_simulation_ticks += simulation_ticks;
+        completed_ticks += batch_ticks;
+        window_city_show();
+        game_draw();
+        platform_renderer_render();
+        performance_tracker_record_ticks_processed(batch_ticks);
+        performance_tracker_end_frame();
+        if (completed_ticks % 1000 == 0) {
+            const uint64_t now = SDL_GetPerformanceCounter();
+            const double seconds = static_cast<double>(now - interval_start) / static_cast<double>(frequency);
+            const double simulation_seconds = static_cast<double>(interval_simulation_ticks) / static_cast<double>(frequency);
+            const double interval_wall_tps = seconds > 0.0 ? 1000.0 / seconds : 0.0;
+            const double interval_simulation_tps = simulation_seconds > 0.0 ? 1000.0 / simulation_seconds : 0.0;
+            fprintf(stdout, "Save soak throughput: ticks=%d speed=%d%% interval_wall_tps=%.1f interval_simulation_tps=%.1f\n", completed_ticks, SOAK_SPEED_PERCENT, interval_wall_tps, interval_simulation_tps);
+            fflush(stdout);
+            interval_start = now;
+            interval_simulation_ticks = 0;
+        }
+    }
+    const uint64_t end = SDL_GetPerformanceCounter();
+    const double total_seconds = static_cast<double>(end - start) / static_cast<double>(frequency);
+    const double total_simulation_seconds = static_cast<double>(total_simulation_ticks) / static_cast<double>(frequency);
+    const double steady_state_simulation_seconds = static_cast<double>(steady_state_simulation_ticks) / static_cast<double>(frequency);
+    const double total_wall_tps = total_seconds > 0.0 ? static_cast<double>(tick_count) / total_seconds : 0.0;
+    const double total_simulation_tps = total_simulation_seconds > 0.0 ? static_cast<double>(tick_count) / total_simulation_seconds : 0.0;
+    const int measured_steady_state_ticks = tick_count - STEADY_STATE_WARMUP_TICKS;
+    const double steady_state_simulation_tps = measured_steady_state_ticks > 0 && steady_state_simulation_seconds > 0.0 ?
+        static_cast<double>(measured_steady_state_ticks) / steady_state_simulation_seconds : 0.0;
+    city_victory_suppress_checks(0);
+    setting_set_game_speed(previous_speed);
+    fprintf(stdout, "Save soak completed: ticks=%d speed=%d%% seconds=%.3f average_wall_tps=%.1f average_simulation_tps=%.1f steady_state_simulation_tps=%.1f\n", tick_count, SOAK_SPEED_PERCENT, total_seconds, total_wall_tps, total_simulation_tps, steady_state_simulation_tps);
+    fflush(stdout);
+    if (tick_count >= 3000 && steady_state_simulation_tps < REQUIRED_STEADY_STATE_TPS) {
+        fprintf(stderr, "Vespasian executable save-soak performance failed: required_simulation_tps=%.0f post_warmup_simulation_tps=%.1f ticks=%d warmup_ticks=%d\n", REQUIRED_STEADY_STATE_TPS, steady_state_simulation_tps, tick_count, STEADY_STATE_WARMUP_TICKS);
+        fflush(stderr);
+        return false;
+    }
+    return true;
+}
+
+static int run_single_save_validation(const augustus_args &args, int index)
+{
+    const char *input = args.load_save_tests[index];
+    const char *roundtrip = args.save_roundtrip_test_count ? args.save_roundtrip_tests[index] : nullptr;
+    reset_test_diagnostics();
+    int result = game_file_load_saved_game(input);
+    if (result != FILE_LOAD_SUCCESS) {
+        fprintf(stderr, "Vespasian executable save-load test failed: result=%d file=%s\n", result, input);
+        fflush(stderr);
+        return 4;
+    }
+    const int migration_warnings = data.warning_count;
+    if (data.error_count) {
+        fprintf(stderr, "Vespasian executable save-load emitted errors: errors=%d file=%s\n", data.error_count, input);
+        return 5;
+    }
+    if (args.formation_test) {
+        reset_test_diagnostics();
+        return run_formation_runtime_test() && !data.warning_count && !data.error_count ? 0 : 8;
+    }
+    if (roundtrip) {
+        // Import repairs remain visible, but cannot count as a clean load.
+        // Validate their serialized result before starting the strict soak.
+        reset_test_diagnostics();
+        if (!game_file_write_saved_game(roundtrip) || data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable canonical save-write failed: warnings=%d errors=%d file=%s\n", data.warning_count, data.error_count, roundtrip);
+            return 6;
+        }
+        reset_test_diagnostics();
+        result = game_file_load_saved_game(roundtrip);
+        if (result != FILE_LOAD_SUCCESS || data.warning_count || data.error_count) {
+            fprintf(stderr, "Vespasian executable canonical save-load failed: result=%d warnings=%d errors=%d file=%s\n", result, data.warning_count, data.error_count, roundtrip);
+            return 7;
+        }
+    }
+
+    bool soak_passed = true;
+    if (args.save_soak_ticks) {
+        soak_passed = run_save_soak_ticks(args.save_soak_ticks);
+        log_repeated_messages();
+    }
+    if (!soak_passed || data.warning_count || data.error_count) {
+        fprintf(stderr, "Vespasian executable migrated-save soak failed: migration_warnings=%d warnings=%d errors=%d ticks=%d file=%s\n",
+            migration_warnings, data.warning_count, data.error_count, args.save_soak_ticks, input);
+        fflush(stderr);
+        return 5;
+    }
+    if (roundtrip) {
+        const bool roundtrip_written = game_file_write_saved_game(roundtrip);
+        if (!roundtrip_written || data.error_count || data.warning_count) {
+            fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, input, roundtrip);
+            fflush(stderr);
+            return 6;
+        }
+        reset_test_diagnostics();
+        result = game_file_load_saved_game(roundtrip);
+        if (result != FILE_LOAD_SUCCESS) {
+            fprintf(stderr, "Vespasian executable strict roundtrip reload failed: result=%d file=%s\n", result, roundtrip);
+            fflush(stderr);
+            return 7;
+        }
+        fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, roundtrip);
+        fflush(stdout);
+    }
+    if (data.warning_count || data.error_count) {
+        fprintf(stderr, "Vespasian executable strict roundtrip validation failed: warnings=%d errors=%d file=%s\n", data.warning_count, data.error_count, roundtrip);
+        fflush(stderr);
+        return 7;
+    }
+    fprintf(stdout, "Vespasian executable save-load test passed: ticks=%d file=%s\n", args.save_soak_ticks, input);
+    fflush(stdout);
+    return 0;
+}
+
+static int run_save_validation(const augustus_args &args)
+{
+    int failure = 0;
+    for (int index = 0; index < args.load_save_test_count; index++) {
+        const int result = run_single_save_validation(args, index);
+        if (result) failure = result;
+    }
+    return failure;
 }
 
 static void backup_log(const char *filename, const char *filename_old)
 {
-    // On some platforms (vita, android), not removing the file will not empty it when reopening for writing
-    file_remove(filename_old);
     platform_file_manager_copy_file(filename, filename_old);
 }
 
@@ -390,9 +574,14 @@ static void setup_logging(void)
     SDL_free(pref_dir);
     backup_log(log_file, log_file_old);
 
-    // On some platforms (vita, android), not removing the file will not empty it when reopening for writing
+#if defined(__vita__) || defined(__ANDROID__)
     file_remove(log_file);
+#endif
     data.log_file = file_open(log_file, "wt");
+    if (!data.log_file) {
+        fprintf(stderr, "Unable to open Vespasian log file for writing: %s\n", log_file);
+        fflush(stderr);
+    }
     SDL_LogSetOutputFunction(write_log, NULL);
 }
 
@@ -762,7 +951,7 @@ static void main_loop(void)
     }
 }
 
-static int init_sdl(int enable_joysticks)
+static int init_sdl(int enable_joysticks, int disable_audio)
 {
     SDL_Log("Initializing SDL");
 
@@ -775,9 +964,10 @@ static int init_sdl(int enable_joysticks)
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "0");
 #endif
 
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
+    const Uint32 audio_flags = disable_audio ? 0 : SDL_INIT_AUDIO;
+    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
         // Try starting SDL without joystick support
-        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0) {
+        if (SDL_Init(audio_flags | SDL_INIT_VIDEO) != 0) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
             return 0;
         } else {
@@ -858,11 +1048,7 @@ static int pre_init(const char *custom_data_dir)
         SDL_Log("Loading game from %s", custom_data_dir);
         if (!platform_file_manager_set_base_path(custom_data_dir)) {
             SDL_Log("%s: directory not found", custom_data_dir);
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                "Error",
-                "Vespasian requires the original files from Caesar 3.\n\n"
-                "Please enter the proper directory or copy the files to the selected directory.",
-                NULL);
+            show_startup_error("Error", "Vespasian requires the original files from Caesar 3.\n\nPlease enter the proper directory or copy the files to the selected directory.");
             return 0;
         }
         return pre_init_with_current_base_path();
@@ -919,11 +1105,7 @@ static int pre_init(const char *custom_data_dir)
         user_dir = ask_for_data_dir(1);
     }
 #else
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-        "Vespasian requires the original files from Caesar 3 to run.",
-        "Move the Vespasian executable to the directory containing an existing "
-        "Caesar 3 installation, or run:\nVespasian path-to-c3-directory",
-        NULL);
+    show_startup_error("Vespasian requires the original files from Caesar 3 to run.", "Move the Vespasian executable to the directory containing an existing Caesar 3 installation, or run:\nVespasian path-to-c3-directory");
 #endif
 
     return 0;
@@ -931,6 +1113,7 @@ static int pre_init(const char *custom_data_dir)
 
 static void setup(const augustus_args *args)
 {
+    data.startup_test = args->startup_test || args->load_save_test_count;
     system_setup_crash_handler();
     setup_logging();
 
@@ -939,9 +1122,17 @@ static void setup(const augustus_args *args)
         SDL_Log("Running on: %s", system_OS());
     }
 
-    if (!init_sdl(args->enable_joysticks)) {
+    if (!init_sdl(args->enable_joysticks, args->disable_audio)) {
         SDL_Log("Exiting: SDL init failed");
         exit_with_status(-1);
+    }
+
+    // SDL_GetPrefPath can be unavailable before SDL initialization. Retry here so
+    // startup and configuration failures are captured in the normal log.
+    if (!data.log_file) {
+        setup_logging();
+        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
+        SDL_Log("Running on: %s", system_OS());
     }
 
 #ifdef __vita__
@@ -960,11 +1151,7 @@ static void setup(const augustus_args *args)
         platform_user_path_create_subdirectories();
         if (!mod_manager::load_mod_list()) {
             const char *failure_reason = mod_manager::failure_reason().c_str();
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_ERROR,
-                "Startup error",
-                failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.",
-                NULL);
+            show_startup_error("Startup error", failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.");
             SDL_Log("Failed to load mod list");
             exit_with_status(3);
         }
@@ -974,18 +1161,9 @@ static void setup(const augustus_args *args)
         snprintf(message, sizeof(message),
             "Unable to find the selected mod data.\n\nExpected folder:\n%s",
             building_type_startup_bridge_get_building_type_path());
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing mod", message, NULL);
+        show_startup_error("Missing mod", message);
         SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
         exit_with_status(4);
-    }
-
-    // If starting the log file failed (because, for example, the executable path isn't writable)
-    // try again, placing the log file on the C3 path
-    if (!data.log_file) {
-        setup_logging();
-        // We always want this info
-        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
-        SDL_Log("Running on: %s", system_OS());
     }
 
     if (args->force_windowed && setting_fullscreen()) {
@@ -1006,10 +1184,14 @@ static void setup(const augustus_args *args)
     if (args->cursor_scale_percentage) {
         config_set(CONFIG_SCREEN_CURSOR_SCALE, args->cursor_scale_percentage);
     }
+    if (args->disable_audio) {
+        sound_system_disable();
+        SDL_Log("Audio disabled for this process");
+    }
 
     char title[100];
     encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
-    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id)) {
+    if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id, args->startup_test || args->load_save_test_count)) {
         SDL_Log("Exiting: SDL create window failed");
         exit_with_status(-2);
     }
@@ -1032,7 +1214,7 @@ static void setup(const augustus_args *args)
     if (!result) {
         const char *failure_message = game_get_init_failure_message();
         if (failure_message && *failure_message) {
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Startup error", failure_message, NULL);
+            show_startup_error("Startup error", failure_message);
         }
         SDL_Log("Exiting: game init failed");
         exit_with_status(2);
@@ -1054,7 +1236,27 @@ int main(int argc, char **argv)
 
     log_set_debug_enabled(args.debug);
 
+#ifdef _MSC_VER
+    if (args.startup_test || args.load_save_test_count) {
+        _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+    }
+#endif
+
     setup(&args);
+
+    if (args.load_save_test_count) {
+        const int result = run_save_validation(args);
+        teardown();
+        return result;
+    }
+
+    if (args.startup_test) {
+        fprintf(stdout, "Vespasian executable startup test passed.\n");
+        fflush(stdout);
+        teardown();
+        return 0;
+    }
 
 
 

@@ -24,5 +24,12 @@
             <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_amphitheater_actor" />
         </profile>
     </profiles>
-    <graphics image_group="actor" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Actor" />
+        </default>
+        <corpse>
+            <path value="Walkers\Actor" />
+        </corpse>
+    </graphics>
 </figure>

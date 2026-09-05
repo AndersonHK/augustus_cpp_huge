@@ -6,11 +6,14 @@
 #include "building/building_type.h"
 #include "building/religion.h"
 #include "city/view.h"
+#include "core/image.h"
 #include "map/building.h"
 #include "map/elevation.h"
 #include "map/grid.h"
+#include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
 
 #define MAX_TILES 8
 
@@ -423,18 +426,15 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
         if (map_terrain_is(offset, TERRAIN_GATEHOUSE)) {
-            building *b = map_building_exists_at(offset) ?
-                const_cast<::building *>(map_building_at(offset).record()) :
-                nullptr;
-            if (b) {
+            if (map_building_exists_at(offset)) {
                 Building current = map_building_at(offset);
-                if (current.type && current.type->roadblock().is_wall_gate() &&
-                    b->subtype.orientation == 1 + ((i / 2) & 1)) { // 1,2,1,2
+                if (current.Foundation &&
+                    current.Foundation->passage_axis() == 1 + ((i / 2) & 1)) { // 1,2,1,2
                     tiles[i] = 1;
                 }
             }
         } else if (map_terrain_is(offset, TERRAIN_ACCESS_RAMP)) {
-            tiles[i] = 1;
+            tiles[i] = map_tiles_access_ramp_allows_road_edge(grid_offset, offset);
         } else if (map_terrain_is(offset, TERRAIN_BUILDING)) {
             // The below part is responsible for connecting buildings to roads, without making them passable or roads
             // Any buildings that should visually connect to the road due to passability or other interactions should 
@@ -451,8 +451,8 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(1, 2)) ? 1 : 0;
             }
             if (current.type && current.type->is_warehouse()) {
-                Building main = current.main();
-                building *b_main = const_cast<::building *>(main.record());
+                Building *main = current.Composition ? current.Composition->owner() : &current;
+                building *b_main = main ? const_cast<::building *>(main->record()) : nullptr;
                 if (!b_main) continue; //fallback
                 int base = b_main->grid_offset;
                 tiles[i] = (offset == base) ? 1 : 0;

@@ -9,7 +9,6 @@
 
 #include "window/advisors.h"
 #include "building/building.h"
-#include "building/house.h"
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
@@ -266,8 +265,8 @@ static void draw_society_graph(int full_size, int x, int y)
 static int calculate_total_housing_buildings(void)
 {
     int total_houses = 0;
-    Building::for_each({ .hasHousing = true }, [&total_houses](Building *building) {
-        if (building_house_is_active(*building)) {
+    Building::for_each(BuildingRuntimeList::Housing, [&total_houses](Building *building) {
+        if (building->is_in_use()) {
             total_houses++;
         }
     });

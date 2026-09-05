@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_large_casa">
     <identity name_key="TR_BUILDING_HOUSE_LARGE_CASA" />
-    <model size="1" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="-1" />
         <step value="1" />
         <step_size value="1" />
         <range value="1" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <sound id="house_poor" />
-    <event_data attr="house_large_casa" />
     <graphics>
         <default>
             <path value="Aesthetics\House_Casa" />
@@ -36,8 +35,8 @@
             </options>
         </variant>
     </graphics>
-    <housing path="house_large_casa" capacity="19" evolve_to="house_small_insula" devolve_to="house_small_casa" merge_to="house_large_casa_2x2" />
+    <housing path="house_large_casa" capacity="19" evolve_to="house_small_insula" devolve_to="house_small_casa" merge_to="house_large_casa_2x2" goods_consumption_events_per_month="1" mars_offering_amount="1" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="347" />
+        <spawn spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="347" />
     </spawn_group>
 </building>

@@ -1,2 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<unit key="javelin"><figure type="fort_javelin" /><combat><health value="80" /><attack value="8" /><defense value="4" /><morale value="60" /><armor value="2" /></combat><movement pathing="soldier_land" /><recruit type="javelin" /><abilities><melee /><ranged range="6" projectile="javelin" cooldown="45" damage="8" /></abilities><graphics figure_type="javelin" /></unit>
+<unit key="javelin">
+    <figure type="fort_javelin" />
+    <combat>
+        <health value="80" />
+        <attack value="4" />
+        <defense value="0" />
+        <morale value="60" />
+        <armor value="0" />
+    </combat>
+    <movement pathing="soldier_land" />
+    <recruit type="javelin" />
+    <abilities>
+        <melee engages_adjacent="false" exposed_back_bonus="4"
+               single_line_missile_defense_bonus="4" />
+        <ranged range="10" cooldown="100" damage="20" launch_frame="1" projectile="javelin" />
+    </abilities>
+    <graphics figure_type="javelin" />
+</unit>

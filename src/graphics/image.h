@@ -26,6 +26,9 @@ public:
     RuntimeDrawSlice top_runtime_slice() const;
     int width() const;
     int height() const;
+    int source_pixel_width() const;
+    int source_pixel_height() const;
+    render_logical_size fixed_logical_size() const;
 
     void draw(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
     void draw_top(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
@@ -124,7 +127,7 @@ public:
     void draw_fullscreen_background() const;
     void draw_blurred_fullscreen(int intensity) const;
     void draw_isometric_footprint(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
-    void draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE, render_destination_geometry_policy destination_geometry_policy = RENDER_DESTINATION_GEOMETRY_DEFAULT) const;
     void draw_isometric_top(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
     void draw_isometric_top_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
     void draw_set_isometric_top_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;

@@ -1,2 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<unit key="infantry"><figure type="fort_infantry" /><combat><health value="95" /><attack value="10" /><defense value="7" /><morale value="65" /><armor value="3" /></combat><movement pathing="soldier_land" /><recruit type="infantry" /><abilities><melee /></abilities><graphics figure_type="infantry" /></unit>

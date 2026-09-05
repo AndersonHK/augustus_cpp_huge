@@ -37,3 +37,4 @@ int map_is_bridge(int grid_offset);
 int map_bridge_height(int grid_offset);
 
 void map_bridge_migrate_loaded_native_bridges(void);
+int map_bridge_validate_loaded_native_bridges(void);

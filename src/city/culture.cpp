@@ -4,7 +4,6 @@
 #include "building/building.h"
 #include "building/culture_module.h"
 #include "building/building_type_registry_internal.h"
-#include "building/house.h"
 #include "building/monument.h"
 #include "building/religion.h"
 #include "city/constants.h"
@@ -77,7 +76,10 @@ static void add_capacity(culture_module_capacity &target, const culture_module_c
 
 static int is_main_building(const building *b)
 {
-    return b && building_main(b) == b;
+    const Building *building = b ? Building::get(b->id) : nullptr;
+    return building &&
+        (!building->Composition || !building->Composition->is_child()) &&
+        !building->is_dynamic_bridge_segment();
 }
 
 static int is_total_counted(const building *b)
@@ -102,7 +104,7 @@ static int is_working_counted(const building *b)
     if (building_monument_get_id(b->type)) {
         return building_monument_working(b->type) ? 1 : 0;
     }
-    return building_is_active(b);
+    return Building::get(b->id)->is_active();
 }
 
 static int module_counted_for_building(const building *b, building_type_registry_impl::CultureModuleCountMode count_mode)
@@ -114,7 +116,7 @@ static int module_counted_for_building(const building *b, building_type_registry
             return is_working_counted(b);
         case building_type_registry_impl::CultureModuleCountMode::Active:
         default:
-            return b && is_main_building(b) && building_is_active(b);
+            return b && is_main_building(b) && Building::get(b->id)->is_active();
     }
 }
 
@@ -436,17 +438,19 @@ void city_culture_calculate(void)
     city_data.culture.population_with_venus_access = 0; //venus
 
     int num_houses = 0;
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
         building *b = const_cast<building *>(house->record());
-        if (building_house_is_active(*house)) {
+        if (house->is_in_use()) {
+            const HousingState &state = house->Housing->state();
+            const HousingServiceState &services = state.services;
             num_houses++;
-            city_data.culture.average_entertainment += b->data.house.entertainment;
-            city_data.culture.average_religion += b->data.house.num_gods;
-            city_data.culture.average_education += b->data.house.education;
-            city_data.culture.average_health += b->data.house.health;
+            city_data.culture.average_entertainment += services.entertainment;
+            city_data.culture.average_religion += services.num_gods;
+            city_data.culture.average_education += services.education;
+            city_data.culture.average_health += services.health;
             city_data.culture.average_desirability += b->desirability;
-            if (b->data.house.temple_venus) {
-                city_data.culture.population_with_venus_access += b->house_population;
+            if (services.temple_venus) {
+                city_data.culture.population_with_venus_access += state.population;
             }
         }
     });

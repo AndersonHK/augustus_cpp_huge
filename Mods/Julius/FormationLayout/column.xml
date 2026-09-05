@@ -1,0 +1,19 @@
+<layout key="column" legacy_id="0">
+    <army orientation="0">
+        <position x="0" y="0"/><position x="-3" y="0"/><position x="3" y="0"/>
+        <position x="-8" y="0"/><position x="8" y="0"/><position x="-3" y="8"/><position x="3" y="8"/>
+    </army>
+    <army orientation="1">
+        <position x="0" y="0"/><position x="0" y="-3"/><position x="0" y="3"/>
+        <position x="0" y="-8"/><position x="0" y="8"/><position x="8" y="-3"/><position x="8" y="3"/>
+    </army>
+    <army orientation="2">
+        <position x="0" y="0"/><position x="-3" y="0"/><position x="3" y="0"/>
+        <position x="-8" y="0"/><position x="8" y="0"/><position x="-3" y="-8"/><position x="3" y="-8"/>
+    </army>
+    <army orientation="3">
+        <position x="0" y="0"/><position x="0" y="-3"/><position x="0" y="3"/>
+        <position x="0" y="-8"/><position x="0" y="8"/><position x="-8" y="-3"/><position x="-8" y="3"/>
+    </army>
+    <geometry shape="square" centered="true"/>
+</layout>

@@ -31,5 +31,12 @@
             <pathing mode="smart_service" terrain="roads_highway" effect="entertainment_colosseum_gladiator" />
         </profile>
     </profiles>
-    <graphics image_group="gladiator" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12" payload_frame_count="20">
+            <path value="Warriors\Gladiator" />
+        </default>
+        <corpse>
+            <path value="Warriors\Gladiator" />
+        </corpse>
+    </graphics>
 </figure>

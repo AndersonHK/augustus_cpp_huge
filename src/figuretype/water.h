@@ -16,6 +16,8 @@ public:
 
 	void figure_flotsam_action(Figure *f);
 
+	void figure_flotsam_update_graphics(Figure *f);
+
 	void figure_shipwreck_action(Figure *f);
 
 	void figure_sink_all_ships(void);

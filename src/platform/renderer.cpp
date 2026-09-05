@@ -1,6 +1,7 @@
 #include "renderer.h"
 
 #include "core/calc.h"
+#include "core/log.h"
 #include "core/time.h"
 #include "game/performance_tracker.h"
 #include "graphics/renderer.h"
@@ -18,6 +19,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #if SDL_VERSION_ATLEAST(2, 0, 1)
@@ -80,6 +85,119 @@ typedef struct silhouette_texture {
     struct silhouette_texture *next;
 } silhouette_texture;
 
+struct renderer_command_packet {
+    uint64_t revision = 0;
+    uint64_t resource_revision = 0;
+    std::vector<renderer_command> commands;
+};
+
+struct renderer_command_batch {
+    int first_command = 0;
+    int command_count = 0;
+};
+
+struct prepared_renderer_command_packet {
+    std::shared_ptr<const renderer_command_packet> source;
+    std::vector<renderer_command_batch> batches;
+};
+
+static int renderer_commands_can_batch(const renderer_command &left, const renderer_command &right)
+{
+    if (left.kind != right.kind) return 0;
+    switch (left.kind) {
+        case RENDER_COMMAND_DRAW_MANAGED_IMAGE:
+            return left.managed_image.handle == right.managed_image.handle && left.managed_image.domain == right.managed_image.domain;
+        case RENDER_COMMAND_DRAW_CUSTOM_IMAGE:
+            return left.custom_image == right.custom_image && left.disable_filtering == right.disable_filtering;
+        case RENDER_COMMAND_DRAW_SAVED_IMAGE:
+            return left.texture_id == right.texture_id && left.domain == right.domain;
+        default:
+            return 0;
+    }
+}
+
+static std::shared_ptr<const prepared_renderer_command_packet> prepare_renderer_command_packet(std::shared_ptr<const renderer_command_packet> source)
+{
+    auto prepared = std::make_shared<prepared_renderer_command_packet>();
+    prepared->source = std::move(source);
+    for (int index = 0; index < static_cast<int>(prepared->source->commands.size()); ++index) {
+        if (prepared->batches.empty() || !renderer_commands_can_batch(prepared->source->commands[index - 1], prepared->source->commands[index])) prepared->batches.push_back({ index, 0 });
+        prepared->batches.back().command_count++;
+    }
+    return prepared;
+}
+
+class RendererPreparationPool {
+public:
+    RendererPreparationPool()
+    {
+        unsigned int worker_count = std::thread::hardware_concurrency() / 2;
+        if (!worker_count) worker_count = 1;
+        if (worker_count > 4) worker_count = 4;
+        for (unsigned int index = 0; index < worker_count; ++index) workers_.emplace_back(&RendererPreparationPool::run, this);
+    }
+
+    ~RendererPreparationPool()
+    {
+        {
+            const std::lock_guard<std::mutex> lock(mutex_);
+            stopping_ = true;
+        }
+        work_ready_.notify_all();
+        for (std::thread &worker : workers_) if (worker.joinable()) worker.join();
+    }
+
+    void submit(std::shared_ptr<const renderer_command_packet> packet)
+    {
+        {
+            const std::lock_guard<std::mutex> lock(mutex_);
+            pending_ = std::move(packet);
+        }
+        work_ready_.notify_one();
+    }
+
+    std::shared_ptr<const prepared_renderer_command_packet> wait_for(uint64_t revision)
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        preparation_ready_.wait(lock, [&]() { return stopping_ || (prepared_ && prepared_->source->revision >= revision); });
+        return prepared_ && prepared_->source->revision == revision ? prepared_ : nullptr;
+    }
+
+private:
+    void run()
+    {
+        for (;;) {
+            std::shared_ptr<const renderer_command_packet> packet;
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                work_ready_.wait(lock, [&]() { return stopping_ || pending_; });
+                if (stopping_) return;
+                packet = std::move(pending_);
+            }
+            std::shared_ptr<const prepared_renderer_command_packet> prepared = prepare_renderer_command_packet(std::move(packet));
+            {
+                const std::lock_guard<std::mutex> lock(mutex_);
+                if (!prepared_ || prepared_->source->revision < prepared->source->revision) prepared_ = std::move(prepared);
+            }
+            preparation_ready_.notify_all();
+        }
+    }
+
+    std::mutex mutex_;
+    std::condition_variable work_ready_;
+    std::condition_variable preparation_ready_;
+    std::shared_ptr<const renderer_command_packet> pending_;
+    std::shared_ptr<const prepared_renderer_command_packet> prepared_;
+    std::vector<std::thread> workers_;
+    bool stopping_ = false;
+};
+
+static RendererPreparationPool &renderer_preparation_pool(void)
+{
+    static RendererPreparationPool pool;
+    return pool;
+}
+
 typedef struct managed_image_resource {
     SDL_Texture *texture;
     int width;
@@ -100,8 +218,7 @@ typedef struct {
 } resolved_render_texture;
 
 static void draw_image_request(const render_2d_request *request);
-static render_2d_request make_texture_request(const image *img, float x, float y, color_t color,
-    float logical_width, float logical_height);
+static render_2d_request make_texture_request(const image *img, float x, float y, color_t color, float logical_width, float logical_height);
 static SDL_Texture *get_texture(int texture_id);
 static SDL_Texture *get_silhouette_texture(const image *img);
 
@@ -163,6 +280,14 @@ static struct {
         SDL_Texture *texture;
     } unpacked_images[MAX_UNPACKED_IMAGES];
     std::vector<managed_image_resource> image_resources;
+    std::vector<renderer_command> recorded_commands;
+    std::vector<render_domain> recorded_domain_stack;
+    std::shared_ptr<const renderer_command_packet> published_command_packet;
+    std::mutex published_command_mutex;
+    uint64_t command_snapshot_revision;
+    uint64_t resource_revision;
+    int command_recording;
+    render_domain recording_render_domain;
     graphics_renderer_interface renderer_interface;
     int supports_yuv_textures;
     float city_scale;
@@ -176,6 +301,69 @@ static render_state tooltip_render_state;
 static int tooltip_render_state_valid;
 static render_state render_state_stack[16];
 static int render_state_stack_depth;
+
+static void draw_saved_texture_for_domain(render_domain domain, int texture_id, int x, int y);
+static void draw_custom_texture(custom_image_type type, int x, int y, float scale, int disable_filtering);
+
+static void advance_resource_revision(void)
+{
+    data.resource_revision++;
+    if (!data.resource_revision) data.resource_revision = 1;
+}
+
+static void begin_command_recording(void)
+{
+    data.recorded_commands.clear();
+    data.recorded_domain_stack.clear();
+    data.recording_render_domain = data.active_render_domain;
+    data.command_recording = 1;
+}
+
+static void end_command_recording(void)
+{
+    if (!data.command_recording) return;
+    data.command_recording = 0;
+    data.command_snapshot_revision++;
+    if (!data.command_snapshot_revision) data.command_snapshot_revision = 1;
+    auto packet = std::make_shared<renderer_command_packet>();
+    packet->revision = data.command_snapshot_revision;
+    packet->resource_revision = data.resource_revision;
+    packet->commands = data.recorded_commands;
+    const std::lock_guard<std::mutex> lock(data.published_command_mutex);
+    data.published_command_packet = std::move(packet);
+    renderer_preparation_pool().submit(data.published_command_packet);
+}
+
+static renderer_command_snapshot command_snapshot(void)
+{
+    const std::lock_guard<std::mutex> lock(data.published_command_mutex);
+    const std::shared_ptr<const renderer_command_packet> packet = data.published_command_packet;
+    return packet ? renderer_command_snapshot { packet->revision, packet->resource_revision, packet->commands.empty() ? nullptr : packet->commands.data(), static_cast<int>(packet->commands.size()) } : renderer_command_snapshot {};
+}
+
+static renderer_command_snapshot_handle acquire_command_snapshot(void)
+{
+    const std::lock_guard<std::mutex> lock(data.published_command_mutex);
+    if (!data.published_command_packet) return {};
+    auto *ownership = new std::shared_ptr<const renderer_command_packet>(data.published_command_packet);
+    const renderer_command_packet &packet = **ownership;
+    return { { packet.revision, packet.resource_revision, packet.commands.empty() ? nullptr : packet.commands.data(), static_cast<int>(packet.commands.size()) }, ownership };
+}
+
+static void release_command_snapshot(renderer_command_snapshot_handle *snapshot)
+{
+    if (!snapshot) return;
+    delete static_cast<std::shared_ptr<const renderer_command_packet> *>(snapshot->ownership);
+    *snapshot = {};
+}
+
+static renderer_command &record_command(renderer_command_kind kind)
+{
+    data.recorded_commands.push_back({});
+    renderer_command &command = data.recorded_commands.back();
+    command.kind = kind;
+    return command;
+}
 
 static void save_render_state(render_state *state)
 {
@@ -214,6 +402,11 @@ static void restore_render_state(const render_state *state)
 
 static void push_render_state(void)
 {
+    if (data.command_recording) {
+        record_command(RENDER_COMMAND_PUSH_STATE);
+        data.recorded_domain_stack.push_back(data.recording_render_domain);
+        return;
+    }
     if (data.paused || render_state_stack_depth >= 16) {
         return;
     }
@@ -223,6 +416,13 @@ static void push_render_state(void)
 
 static void pop_render_state(void)
 {
+    if (data.command_recording) {
+        if (data.recorded_domain_stack.empty()) return;
+        record_command(RENDER_COMMAND_POP_STATE);
+        data.recording_render_domain = data.recorded_domain_stack.back();
+        data.recorded_domain_stack.pop_back();
+        return;
+    }
     if (data.paused || render_state_stack_depth <= 0) {
         return;
     }
@@ -242,6 +442,15 @@ static int save_screen_buffer(color_t *pixels, int x, int y, int width, int heig
 
 static void draw_line(int x_start, int x_end, int y_start, int y_end, color_t color)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_LINE);
+        command.x = x_start;
+        command.y = y_start;
+        command.width = x_end;
+        command.height = y_end;
+        command.color = color;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -255,6 +464,15 @@ static void draw_line(int x_start, int x_end, int y_start, int y_end, color_t co
 
 static void draw_rect(int x_start, int x_end, int y_start, int y_end, color_t color)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_RECT);
+        command.x = x_start;
+        command.y = y_start;
+        command.width = x_end;
+        command.height = y_end;
+        command.color = color;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -269,6 +487,15 @@ static void draw_rect(int x_start, int x_end, int y_start, int y_end, color_t co
 
 static void fill_rect(int x_start, int x_end, int y_start, int y_end, color_t color)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_FILL_RECT);
+        command.x = x_start;
+        command.y = y_start;
+        command.width = x_end;
+        command.height = y_end;
+        command.color = color;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -313,6 +540,11 @@ static SDL_ScaleMode configured_scale_mode(void)
 
 static void set_output_scale(float scale)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_SET_OUTPUT_SCALE);
+        command.scale = scale > 0.0f ? scale : 1.0f;
+        return;
+    }
     if (data.paused || !data.renderer) {
         return;
     }
@@ -324,17 +556,31 @@ static void set_output_scale(float scale)
 
 static void set_render_domain(render_domain domain)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_SET_RENDER_DOMAIN);
+        command.domain = domain;
+        data.recording_render_domain = domain;
+        return;
+    }
     data.active_render_domain = domain;
     set_output_scale(scale_for_domain(domain));
 }
 
 static render_domain get_render_domain(void)
 {
-    return data.active_render_domain;
+    return data.command_recording ? data.recording_render_domain : data.active_render_domain;
 }
 
 static void set_clip_rectangle(int x, int y, int width, int height)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_SET_CLIP_RECTANGLE);
+        command.x = x;
+        command.y = y;
+        command.width = width;
+        command.height = height;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -344,6 +590,10 @@ static void set_clip_rectangle(int x, int y, int width, int height)
 
 static void reset_clip_rectangle(void)
 {
+    if (data.command_recording) {
+        record_command(RENDER_COMMAND_RESET_CLIP_RECTANGLE);
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -352,6 +602,14 @@ static void reset_clip_rectangle(void)
 
 static void set_viewport(int x, int y, int width, int height)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_SET_VIEWPORT);
+        command.x = x;
+        command.y = y;
+        command.width = width;
+        command.height = height;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -361,6 +619,10 @@ static void set_viewport(int x, int y, int width, int height)
 
 static void reset_viewport(void)
 {
+    if (data.command_recording) {
+        record_command(RENDER_COMMAND_RESET_VIEWPORT);
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -370,6 +632,10 @@ static void reset_viewport(void)
 
 static void clear_screen(void)
 {
+    if (data.command_recording) {
+        record_command(RENDER_COMMAND_CLEAR);
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -473,7 +739,7 @@ static image_handle request_image_handle(const render_2d_request *request)
     return 0;
 }
 
-static void record_resolved_render_texture(const resolved_render_texture &resolved)
+static void record_resolved_render_texture(const resolved_render_texture &resolved, const image &img)
 {
     performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_SUBMISSIONS, 1);
     switch (resolved.kind) {
@@ -482,6 +748,17 @@ static void record_resolved_render_texture(const resolved_render_texture &resolv
             break;
         case RENDER_TEXTURE_ATLAS_FALLBACK:
             performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_ATLAS_FALLBACK_SUBMISSIONS, 1);
+            switch (static_cast<atlas_type>(img.atlas.id >> IMAGE_ATLAS_BIT_OFFSET)) {
+                case ATLAS_MAIN:
+                    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_LEGACY_MAIN_ATLAS_SUBMISSIONS, 1);
+                    break;
+                case ATLAS_ENEMY:
+                    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_LEGACY_ENEMY_ATLAS_SUBMISSIONS, 1);
+                    break;
+                default:
+                    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_LEGACY_OTHER_ATLAS_SUBMISSIONS, 1);
+                    break;
+            }
             break;
         case RENDER_TEXTURE_SILHOUETTE:
             performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_SILHOUETTE_SUBMISSIONS, 1);
@@ -508,11 +785,14 @@ static resolved_render_texture resolve_render_texture(const render_2d_request *r
         return resolved;
     }
 
-    resolved.texture = get_managed_texture(request_image_handle(request));
+    const image_handle managed_handle = request_image_handle(request);
+    resolved.texture = get_managed_texture(managed_handle);
     if (resolved.texture) {
+        performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_NATIVE_CACHE_HITS, 1);
         resolved.kind = RENDER_TEXTURE_MANAGED;
         return resolved;
     }
+    if (managed_handle > 0) performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_NATIVE_CACHE_MISSES, 1);
 
     resolved.texture = get_texture(request->img->atlas.id);
     resolved.kind = resolved.texture ? RENDER_TEXTURE_ATLAS_FALLBACK : RENDER_TEXTURE_NONE;
@@ -523,6 +803,11 @@ static resolved_render_texture resolve_render_texture(const render_2d_request *r
 static void draw_managed_image_request(const managed_image_request *request)
 {
     if (!request || request->handle <= 0 || request->width <= 0 || request->height <= 0) {
+        return;
+    }
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_MANAGED_IMAGE);
+        command.managed_image = *request;
         return;
     }
 
@@ -574,6 +859,7 @@ static void free_texture_atlas(atlas_type type)
     if (type == ATLAS_EXTRA_ASSET) {
         free_unpacked_assets();
     }
+    advance_resource_revision();
 }
 
 static void free_atlas_data_buffers(atlas_type type)
@@ -713,6 +999,7 @@ static int create_texture_atlas(const image_atlas_data *atlas_data, int delete_b
     if (delete_buffers) {
         free_atlas_data_buffers(atlas_data->type);
     }
+    advance_resource_revision();
     return 1;
 }
 
@@ -854,10 +1141,11 @@ static void draw_texture_request(const render_2d_request *request, const resolve
         *request, *img, data.city_scale, data.auto_force_nearest_filter);
     set_texture_color_and_filter(resolved.texture, request->color, filter);
     const int uses_managed_texture = resolved.kind == RENDER_TEXTURE_MANAGED;
-    record_resolved_render_texture(resolved);
+    record_resolved_render_texture(resolved, *img);
 
     int is_city_scale = fabsf(source_scale_x - data.city_scale) < 0.001f && fabsf(source_scale_y - data.city_scale) < 0.001f;
-    int source_edge_crop = uses_managed_texture ? 0 : is_city_scale && data.should_crop_texture_source_edge ? 1 : 0;
+    int uses_padded_main_atlas = resolved.kind == RENDER_TEXTURE_ATLAS_FALLBACK && (img->atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_MAIN;
+    int source_edge_crop = uses_managed_texture || uses_padded_main_atlas ? 0 : is_city_scale && data.should_crop_texture_source_edge ? 1 : 0;
 
     SDL_Rect src_coords = {
         (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + source_edge_crop,
@@ -897,6 +1185,17 @@ static void draw_image_request(const render_2d_request *request)
     if (!request || !request->img) {
         return;
     }
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_IMAGE);
+        command.image = *request;
+        command.source_image = *request->img;
+        command.source_image.top = nullptr;
+        command.source_image.animation = nullptr;
+        command.source_image.resource_key = nullptr;
+        command.source_image.resource_payload = nullptr;
+        command.image.img = nullptr;
+        return;
+    }
 
     performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_2D_REQUESTS, 1);
 
@@ -908,8 +1207,55 @@ static void draw_image_request(const render_2d_request *request)
     draw_texture_request(request, resolved);
 }
 
-static render_2d_request make_texture_request(const image *img, float x, float y, color_t color,
-    float logical_width, float logical_height)
+static void replay_recorded_commands(void)
+{
+    renderer_command_snapshot_handle snapshot = acquire_command_snapshot();
+    if (!snapshot.ownership) return;
+    if (snapshot.snapshot.resource_revision != data.resource_revision) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Renderer command snapshot resource revision is stale (%llu != %llu)", static_cast<unsigned long long>(snapshot.snapshot.resource_revision), static_cast<unsigned long long>(data.resource_revision));
+        release_command_snapshot(&snapshot);
+        return;
+    }
+    const std::shared_ptr<const prepared_renderer_command_packet> prepared = renderer_preparation_pool().wait_for(snapshot.snapshot.revision);
+    if (!prepared) {
+        release_command_snapshot(&snapshot);
+        return;
+    }
+    const int was_recording = data.command_recording;
+    data.command_recording = 0;
+    for (const renderer_command_batch &batch : prepared->batches) {
+        for (int index = batch.first_command; index < batch.first_command + batch.command_count; ++index) {
+        const renderer_command &command = prepared->source->commands[index];
+        switch (command.kind) {
+            case RENDER_COMMAND_CLEAR: clear_screen(); break;
+            case RENDER_COMMAND_SET_VIEWPORT: set_viewport(command.x, command.y, command.width, command.height); break;
+            case RENDER_COMMAND_RESET_VIEWPORT: reset_viewport(); break;
+            case RENDER_COMMAND_SET_CLIP_RECTANGLE: set_clip_rectangle(command.x, command.y, command.width, command.height); break;
+            case RENDER_COMMAND_RESET_CLIP_RECTANGLE: reset_clip_rectangle(); break;
+            case RENDER_COMMAND_DRAW_LINE: draw_line(command.x, command.width, command.y, command.height, command.color); break;
+            case RENDER_COMMAND_DRAW_RECT: draw_rect(command.x, command.width, command.y, command.height, command.color); break;
+            case RENDER_COMMAND_FILL_RECT: fill_rect(command.x, command.width, command.y, command.height, command.color); break;
+            case RENDER_COMMAND_SET_OUTPUT_SCALE: set_output_scale(command.scale); break;
+            case RENDER_COMMAND_SET_RENDER_DOMAIN: set_render_domain(command.domain); break;
+            case RENDER_COMMAND_PUSH_STATE: push_render_state(); break;
+            case RENDER_COMMAND_POP_STATE: pop_render_state(); break;
+            case RENDER_COMMAND_DRAW_MANAGED_IMAGE: draw_managed_image_request(&command.managed_image); break;
+            case RENDER_COMMAND_DRAW_CUSTOM_IMAGE: draw_custom_texture(command.custom_image, command.x, command.y, command.scale, command.disable_filtering); break;
+            case RENDER_COMMAND_DRAW_SAVED_IMAGE: draw_saved_texture_for_domain(command.domain, command.texture_id, command.x, command.y); break;
+            case RENDER_COMMAND_DRAW_IMAGE: {
+                render_2d_request request = command.image;
+                request.img = &command.source_image;
+                draw_image_request(&request);
+                break;
+            }
+        }
+        }
+    }
+    data.command_recording = was_recording;
+    release_command_snapshot(&snapshot);
+}
+
+static render_2d_request make_texture_request(const image *img, float x, float y, color_t color, float logical_width, float logical_height)
 {
     render_2d_request request = {};
     request.img = img;
@@ -919,7 +1265,7 @@ static render_2d_request make_texture_request(const image *img, float x, float y
     request.logical_width = logical_width;
     request.logical_height = logical_height;
     request.color = color;
-    request.domain = data.active_render_domain;
+    request.domain = get_render_domain();
     request.scaling_policy =
         g_render_2d_pipeline.is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
     return request;
@@ -969,6 +1315,7 @@ static void create_custom_texture(custom_image_type type, int width, int height,
     data.custom_textures[type].img.atlas.id = (ATLAS_CUSTOM << IMAGE_ATLAS_BIT_OFFSET) | type;
     SDL_SetTextureBlendMode(data.custom_textures[type].texture,
         type == CUSTOM_IMAGE_VIDEO ? SDL_BLENDMODE_NONE : SDL_BLENDMODE_BLEND);
+    advance_resource_revision();
 }
 
 static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_texture_width)
@@ -1019,6 +1366,7 @@ static void update_custom_texture(custom_image_type type)
     SDL_QueryTexture(data.custom_textures[type].texture, NULL, NULL, &width, NULL);
     SDL_UpdateTexture(data.custom_textures[type].texture, NULL,
         data.custom_textures[type].buffer, sizeof(color_t) * width);
+    advance_resource_revision();
 #endif
 }
 
@@ -1047,6 +1395,7 @@ static void update_custom_texture_from(custom_image_type type, const color_t *bu
     SDL_Rect rect = { x_offset, y_offset, width, height };
     SDL_UpdateTexture(data.custom_textures[type].texture, &rect, buffer, sizeof(color_t) * width);
 #endif
+    advance_resource_revision();
 }
 
 static void update_custom_texture_yuv(custom_image_type type, const uint8_t *y_data, int y_width,
@@ -1065,6 +1414,7 @@ static void update_custom_texture_yuv(custom_image_type type, const uint8_t *y_d
     }
     SDL_UpdateYUVTexture(data.custom_textures[type].texture, NULL,
         y_data, y_width, cb_data, cb_width, cr_data, cr_width);
+    advance_resource_revision();
 #endif
 }
 
@@ -1260,6 +1610,7 @@ static int save_to_texture_for_domain(render_domain domain, int texture_id, int 
         texture_info->tex_height = texture_height;
     }
 
+    advance_resource_revision();
     return texture_info->id;
 }
 
@@ -1271,6 +1622,14 @@ static int save_to_texture(int texture_id, int x, int y, int width, int height)
 
 static void draw_saved_texture_for_domain(render_domain domain, int texture_id, int x, int y)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_SAVED_IMAGE);
+        command.domain = domain;
+        command.texture_id = texture_id;
+        command.x = x;
+        command.y = y;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -1462,6 +1821,15 @@ static void draw_silhouetted_texture(const image *img, int x, int y, color_t col
 
 static void draw_custom_texture(custom_image_type type, int x, int y, float scale, int disable_filtering)
 {
+    if (data.command_recording) {
+        renderer_command &command = record_command(RENDER_COMMAND_DRAW_CUSTOM_IMAGE);
+        command.custom_image = type;
+        command.x = x;
+        command.y = y;
+        command.scale = scale;
+        command.disable_filtering = disable_filtering;
+        return;
+    }
     if (data.paused) {
         return;
     }
@@ -1490,19 +1858,23 @@ static void release_image_resource(image *img)
         resource.height = 0;
     }
     img->resource_handle = 0;
+    advance_resource_revision();
 }
 
 static void upload_image_resource(image *img, const color_t *pixels, int width, int height)
 {
     if (!img) {
+        log_error("Unable to upload managed image resource", "image metadata unavailable", 0);
         return;
     }
     release_image_resource(img);
-    if (data.paused || !pixels || width <= 0 || height <= 0) {
+    if (!data.renderer || !pixels || width <= 0 || height <= 0) {
+        log_error("Unable to upload managed image resource", !data.renderer ? "renderer unavailable" : !pixels ? "pixels unavailable" : "invalid dimensions", width * height);
         return;
     }
     SDL_Texture *texture = create_texture_from_pixels(pixels, width, height);
     if (!texture) {
+        log_error("Unable to create managed image resource texture", SDL_GetError(), width * height);
         return;
     }
     image_handle handle = reserve_managed_image_resource_slot();
@@ -1511,6 +1883,7 @@ static void upload_image_resource(image *img, const color_t *pixels, int width, 
     resource.width = width;
     resource.height = height;
     img->resource_handle = handle;
+    advance_resource_revision();
 }
 
 static int has_custom_texture(custom_image_type type)
@@ -1637,6 +2010,12 @@ static void create_renderer_interface(void)
     data.renderer_interface.draw_managed_image_request = draw_managed_image_request;
     data.renderer_interface.draw_image_advanced = draw_texture_advanced;
     data.renderer_interface.draw_silhouette = draw_silhouetted_texture;
+    data.renderer_interface.begin_command_recording = begin_command_recording;
+    data.renderer_interface.end_command_recording = end_command_recording;
+    data.renderer_interface.command_snapshot = command_snapshot;
+    data.renderer_interface.acquire_command_snapshot = acquire_command_snapshot;
+    data.renderer_interface.release_command_snapshot = release_command_snapshot;
+    data.renderer_interface.replay_recorded_commands = replay_recorded_commands;
     data.renderer_interface.create_custom_image = create_custom_texture;
     data.renderer_interface.has_custom_image = has_custom_texture;
     data.renderer_interface.get_custom_image_buffer = get_custom_texture_buffer;
@@ -1674,12 +2053,13 @@ static void create_renderer_interface(void)
     graphics_renderer_set_interface(&data.renderer_interface);
 }
 
-int platform_renderer_init(SDL_Window *window)
+int platform_renderer_init(SDL_Window *window, int vsync)
 {
     free_all_textures();
 
     SDL_Log("Creating renderer");
-    data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+    const Uint32 flags = SDL_RENDERER_ACCELERATED | (vsync ? SDL_RENDERER_PRESENTVSYNC : 0);
+    data.renderer = SDL_CreateRenderer(window, -1, flags);
     if (!data.renderer) {
         SDL_Log("Unable to create renderer, trying software renderer: %s", SDL_GetError());
         data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);

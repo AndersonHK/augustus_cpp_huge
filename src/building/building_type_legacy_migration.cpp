@@ -1,4 +1,4 @@
-#include "building/building_record.h"
+#include "building/building_type.h"
 #include "building/building_type_legacy_migration.h"
 
 #include <array>

@@ -1,8 +1,8 @@
-#include "building/building_record.h"
 #include "formation_enemy.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
+#include "building/HousingProfileDef.h"
+#include "building/housing_profile_registry.h"
 #include "building/properties.h"
 #include "city/buildings.h"
 #include "city/figures.h"
@@ -10,27 +10,29 @@
 #include "city/message.h"
 #include "city/military.h"
 #include "core/calc.h"
+#include "core/log.h"
 #include "core/random.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
 #include "figure/formation.h"
 #include "figure/route.h"
-#include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
+#include "map/point.h"
 #include "map/soldier_strength.h"
 #include "map/terrain.h"
 
+#include <optional>
+#include <exception>
 #include <vector>
 
-#define INFINITE 10000
+constexpr int INFINITE_DISTANCE = 10000;
 
 enum class TargetKind {
     End,
     Type,
     Farm,
-    HousingDescending,
-    HousingAtOrAbove
+    Housing
 };
 
 struct TargetSpec {
@@ -39,56 +41,70 @@ struct TargetSpec {
     int level;
 };
 
-#define TARGET_TYPE(id) { TargetKind::Type, id, 0 }
-#define TARGET_FARM() { TargetKind::Farm, nullptr, 0 }
-#define TARGET_HOUSING_DESCENDING() { TargetKind::HousingDescending, nullptr, 0 }
-#define TARGET_HOUSING_AT_OR_ABOVE(min_level) { TargetKind::HousingAtOrAbove, nullptr, min_level }
-#define TARGET_END() { TargetKind::End, nullptr, 0 }
+constexpr TargetSpec target_type(const char *id)
+{
+    return {TargetKind::Type, id, 0};
+}
+
+constexpr TargetSpec target_farm()
+{
+    return {TargetKind::Farm, nullptr, 0};
+}
+
+constexpr TargetSpec target_housing_descending(int min_level = 0)
+{
+    return {TargetKind::Housing, nullptr, min_level};
+}
+
+constexpr TargetSpec target_end()
+{
+    return {TargetKind::End, nullptr, 0};
+}
 
 static const TargetSpec ENEMY_ATTACK_PRIORITY[4][16] = {
     {
-        TARGET_TYPE("granary"), TARGET_TYPE("warehouse"), TARGET_TYPE("market"),
-        TARGET_FARM(), TARGET_END()
+        target_type("granary"), target_type("warehouse"), target_type("market"),
+        target_farm(), target_end()
     },
     {
-        TARGET_TYPE("senate"), TARGET_TYPE("senate_1_unused"),
-        TARGET_TYPE("forum_2_unused"), TARGET_TYPE("forum"), TARGET_END()
+        target_type("senate"), target_type("senate_1_unused"),
+        target_type("forum_2_unused"), target_type("forum"), target_end()
     },
     {
-        TARGET_TYPE("governors_palace"), TARGET_TYPE("governors_villa"), TARGET_TYPE("governors_house"),
-        TARGET_HOUSING_DESCENDING(), TARGET_END()
+        target_type("governors_palace"), target_type("governors_villa"), target_type("governors_house"),
+        target_housing_descending(), target_end()
     },
     {
-        TARGET_TYPE("military_academy"), TARGET_TYPE("prefecture"), TARGET_END()
+        target_type("military_academy"), target_type("prefecture"), target_end()
     }
 };
 
 static const TargetSpec RIOTER_ATTACK_PRIORITY[] = {
-    TARGET_TYPE("governors_palace"),
-    TARGET_TYPE("governors_villa"),
-    TARGET_TYPE("governors_house"),
-    TARGET_TYPE("amphitheater"),
-    TARGET_TYPE("theater"),
-    TARGET_TYPE("hospital"),
-    TARGET_TYPE("academy"),
-    TARGET_TYPE("bathhouse"),
-    TARGET_TYPE("library"),
-    TARGET_TYPE("school"),
-    TARGET_TYPE("doctor"),
-    TARGET_TYPE("gladiator_school"),
-    TARGET_TYPE("actor_colony"),
-    TARGET_TYPE("chariot_maker"),
-    TARGET_TYPE("lion_house"),
-    TARGET_TYPE("barber"),
-    TARGET_TYPE("tavern"),
-    TARGET_TYPE("arena"),
-    TARGET_TYPE("horse_statue"),
-    TARGET_TYPE("legion_statue"),
-    TARGET_TYPE("large_statue"),
-    TARGET_TYPE("medium_statue"),
-    TARGET_TYPE("obelisk"),
-    TARGET_HOUSING_AT_OR_ABOVE(HOUSE_LARGE_VILLA),
-    TARGET_END()
+    target_type("governors_palace"),
+    target_type("governors_villa"),
+    target_type("governors_house"),
+    target_type("amphitheater"),
+    target_type("theater"),
+    target_type("hospital"),
+    target_type("academy"),
+    target_type("bathhouse"),
+    target_type("library"),
+    target_type("school"),
+    target_type("doctor"),
+    target_type("gladiator_school"),
+    target_type("actor_colony"),
+    target_type("chariot_maker"),
+    target_type("lion_house"),
+    target_type("barber"),
+    target_type("tavern"),
+    target_type("arena"),
+    target_type("horse_statue"),
+    target_type("legion_statue"),
+    target_type("large_statue"),
+    target_type("medium_statue"),
+    target_type("obelisk"),
+    target_housing_descending(HOUSE_LARGE_VILLA),
+    target_end()
 };
 
 static int find_reachable_soldier_strength(
@@ -124,234 +140,94 @@ static int find_reachable_soldier_strength(
     return 0;
 }
 
-#define NUM_LAYOUT_FORMATIONS 40
-static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -6, 0, 6, 0, -6, 2, 6, 2, -2, 4, 4, 6, 0},
-        {0, 0, 0, -6, 0, 6, 2, -6, 2, 6, 4, -2, 6, 4, 0},
-        {0, 0, -6, 0, 6, 0, -6, -2, 6, -2, -4, -6, 4, -6, 0},
-        {0, 0, 0, -6, 0, 6, -2, -6, -2, 6, -6, -4, -6, 4, 0},
-    },
-    {
-        {0, 0, -6, 0, 6, 0, -6, 2, 6, 2, -2, 4, 4, 6, 0},
-        {0, 0, 0, -6, 0, 6, 2, -6, 2, 6, 4, -2, 6, 4, 0},
-        {0, 0, -6, 0, 6, 0, -6, -2, 6, -2, -4, -6, 4, -6, 0},
-        {0, 0, 0, -6, 0, 6, -2, -6, -2, 6, -6, -4, -6, 4, 0},
-    },
-    {
-        {0, 0, -6, 0, 6, 0, -6, 2, 6, 2, -2, 4, 4, 6, 0},
-        {0, 0, 0, -6, 0, 6, 2, -6, 2, 6, 4, -2, 6, 4, 0},
-        {0, 0, -6, 0, 6, 0, -6, -2, 6, -2, -4, -6, 4, -6, 0},
-        {0, 0, 0, -6, 0, 6, -2, -6, -2, 6, -6, -4, -6, 4, 0},
-    },
-    {
-        {0, 0, -6, 0, 6, 0, -6, 2, 6, 2, -2, 4, 4, 6, 0},
-        {0, 0, 0, -6, 0, 6, 2, -6, 2, 6, 4, -2, 6, 4, 0},
-        {0, 0, -6, 0, 6, 0, -6, -2, 6, -2, -4, -6, 4, -6, 0},
-        {0, 0, 0, -6, 0, 6, -2, -6, -2, 6, -6, -4, -6, 4, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    },
-    {
-        {0, 0, -4, 0, 4, 0, -12, 0, 12, 0, -4, 12, 4, 12, 0},
-        {0, 0, 0, -4, 0, 4, 0, -12, 0, 12, 12, -4, 12, 4, 0},
-        {0, 0, -4, 0, 4, 0, -12, 0, 12, 0, -4, -12, 4, -12, 0},
-        {0, 0, 0, -4, 0, 4, 0, -12, 0, 12, -12, -4, -12, 4, 0},
-    },
-    {
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, 8, 3, 8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, 8, -3, 8, 3, 0},
-        {0, 0, -3, 0, 3, 0, -8, 0, 8, 0, -3, -8, 3, -8, 0},
-        {0, 0, 0, -3, 0, 3, 0, -8, 0, 8, -8, -3, -8, 3, 0},
-    }
-};
-
-static building *first_active_building_matching(const TargetSpec &target)
+static bool matches_target(const Building &candidate, const TargetSpec &target)
 {
-    building *result = nullptr;
-    Building::for_each([&](Building *candidate_object) {
-        if (result) {
-            return;
-        }
-        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
-            return;
-        }
-        const bool matches = target.kind == TargetKind::Farm ?
-            candidate_object->type && candidate_object->type->is_farm() :
-            candidate_object->matches(target.text_id);
-        if (matches) {
-            result = b;
-        }
-    });
-    return result;
+    return target.kind == TargetKind::Farm ?
+        candidate.type && candidate.type->is_farm() :
+        candidate.matches(target.text_id);
 }
 
-static building *first_active_housing_at_level(int level)
+static Building *select_active_building(
+    const TargetSpec &target,
+    const std::optional<map_point> &origin)
 {
-    building *result = nullptr;
-    Building::for_each({ .hasHousing = true }, [&](Building *candidate_object) {
-        if (result) {
+    Building *selected = nullptr;
+    int selected_distance = INFINITE_DISTANCE;
+    Building::for_each([&](Building *candidate) {
+        if (!candidate || !candidate->is_in_use() || !matches_target(*candidate, target) ||
+            (selected && !origin)) {
             return;
         }
-        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
-        const building_type_registry_impl::BuildingType *definition =
-            candidate_object ? candidate_object->type : nullptr;
-        if (b && b->state == BUILDING_STATE_IN_USE &&
-            definition && definition->housing_level() == level) {
-            result = b;
+        if (!origin) {
+            selected = candidate;
+            return;
+        }
+        const int distance = calc_maximum_distance(origin->x, origin->y, candidate->x(), candidate->y());
+        if (distance < selected_distance) {
+            selected = candidate;
+            selected_distance = distance;
         }
     });
-    return result;
+    return selected;
 }
 
-static building *closest_active_building_matching(const TargetSpec &target, int x, int y, int *min_distance)
+static Building *select_active_housing(
+    int level,
+    const std::optional<map_point> &origin)
 {
-    building *best_building = nullptr;
-    Building::for_each([&](Building *candidate_object) {
-        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
-        if (!b || b->state != BUILDING_STATE_IN_USE) {
+    Building *selected = nullptr;
+    int selected_distance = INFINITE_DISTANCE;
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *candidate) {
+        const building_type_registry_impl::HousingProfileDef *profile =
+            candidate && candidate->Housing ? candidate->Housing->definition().profile : nullptr;
+        if (!candidate || !candidate->is_in_use() || !profile ||
+            profile->compatibility_level != level || (selected && !origin)) {
             return;
         }
-        const bool matches = target.kind == TargetKind::Farm ?
-            candidate_object->type && candidate_object->type->is_farm() :
-            candidate_object->matches(target.text_id);
-        if (!matches) {
+        if (!origin) {
+            selected = candidate;
             return;
         }
-        int distance = calc_maximum_distance(x, y, b->x, b->y);
-        if (distance < *min_distance) {
-            best_building = b;
-            *min_distance = distance;
+        const int distance = calc_maximum_distance(origin->x, origin->y, candidate->x(), candidate->y());
+        if (distance < selected_distance) {
+            selected = candidate;
+            selected_distance = distance;
         }
     });
-    return best_building;
+    return selected;
 }
 
-static building *closest_active_housing_at_level(int level, int x, int y, int *min_distance)
+static Building *select_housing_descending(
+    int min_level,
+    const std::optional<map_point> &origin)
 {
-    building *best_building = nullptr;
-    Building::for_each({ .hasHousing = true }, [&](Building *candidate_object) {
-        building *b = candidate_object ? const_cast<building *>(candidate_object->record()) : nullptr;
-        const building_type_registry_impl::BuildingType *definition = candidate_object ? candidate_object->type : nullptr;
-        if (!b || b->state != BUILDING_STATE_IN_USE ||
-            !definition || definition->housing_level() != level) {
-            return;
-        }
-        int distance = calc_maximum_distance(x, y, b->x, b->y);
-        if (distance < *min_distance) {
-            best_building = b;
-            *min_distance = distance;
-        }
-    });
-    return best_building;
-}
-
-static building *get_best_housing_descending(int min_level)
-{
-    for (int index = building_type_registry_impl::housing_type_level_count() - 1; index >= 0; index--) {
-        int level = building_type_registry_impl::housing_type_level_at(index);
-        if (level < min_level) {
-            continue;
-        }
-        if (building *b = first_active_housing_at_level(level)) {
-            return b;
+    for (int index = building_type_registry_impl::housing_profile_compatibility_level_count() - 1;
+        index >= 0;
+        --index) {
+        const int level = building_type_registry_impl::housing_profile_compatibility_level_at(index);
+        if (level >= min_level) {
+            if (Building *candidate = select_active_housing(level, origin)) {
+                return candidate;
+            }
         }
     }
     return nullptr;
 }
 
-static building *get_closest_housing_descending(int x, int y, int min_level)
+static Building *select_priority_target(
+    const TargetSpec *priority_order,
+    const std::optional<map_point> &origin)
 {
-    for (int index = building_type_registry_impl::housing_type_level_count() - 1; index >= 0; index--) {
-        int level = building_type_registry_impl::housing_type_level_at(index);
-        if (level < min_level) {
-            continue;
-        }
-        int min_distance = INFINITE;
-        if (building *b = closest_active_housing_at_level(level, x, y, &min_distance)) {
-            return b;
-        }
-    }
-    return nullptr;
-}
-
-static building *get_best_building(const TargetSpec *priority_order)
-{
-    for (int i = 0; priority_order[i].kind != TargetKind::End; i++) {
-        const TargetSpec &spec = priority_order[i];
-        if (spec.kind == TargetKind::HousingDescending) {
-            if (building *b = get_best_housing_descending(0)) {
-                return b;
-            }
-        } else if (spec.kind == TargetKind::HousingAtOrAbove) {
-            if (building *b = get_best_housing_descending(spec.level)) {
-                return b;
-            }
-        } else if (building *b = first_active_building_matching(spec)) {
-            return b;
-        }
-    }
-    return nullptr;
-}
-
-static building *get_best_and_closest_building(int x, int y, const TargetSpec *priority_order)
-{
-    for (int i = 0; priority_order[i].kind != TargetKind::End; i++) {
-        const TargetSpec &spec = priority_order[i];
-        if (spec.kind == TargetKind::HousingDescending) {
-            if (building *b = get_closest_housing_descending(x, y, 0)) {
-                return b;
-            }
-        } else if (spec.kind == TargetKind::HousingAtOrAbove) {
-            if (building *b = get_closest_housing_descending(x, y, spec.level)) {
-                return b;
-            }
+    for (int index = 0; priority_order[index].kind != TargetKind::End; ++index) {
+        const TargetSpec &target = priority_order[index];
+        Building *candidate = nullptr;
+        if (target.kind == TargetKind::Housing) {
+            candidate = select_housing_descending(target.level, origin);
         } else {
-            int min_distance = INFINITE;
-            if (building *b = closest_active_building_matching(spec, x, y, &min_distance)) {
-                return b;
-            }
+            candidate = select_active_building(target, origin);
+        }
+        if (candidate) {
+            return candidate;
         }
     }
     return nullptr;
@@ -359,34 +235,33 @@ static building *get_best_and_closest_building(int x, int y, const TargetSpec *p
 
 int formation_rioter_get_target_building(int *x_tile, int *y_tile)
 {
-    building *best_building = get_best_building(RIOTER_ATTACK_PRIORITY);
+    Building *best_building = select_priority_target(RIOTER_ATTACK_PRIORITY, std::nullopt);
     if (!best_building) {
         return 0;
     }
-    *x_tile = best_building->x;
-    *y_tile = best_building->y;
+    *x_tile = best_building->x();
+    *y_tile = best_building->y();
     return best_building->id;
 }
 
 int formation_rioter_get_target_building_for_robbery(int x, int y, int *x_tile, int *y_tile)
 {
-    building *best_building = 0;
-    int closest = INFINITE;
+    Building *best_building = nullptr;
+    int closest = INFINITE_DISTANCE;
 
     static const char *const building_targets[] = { "senate", "forum" };
     for (int i = 0; i < 2; i++) {
         Building::for_each([&](Building *candidate) {
-            building *b = candidate ? const_cast<building *>(candidate->record()) : nullptr;
-            if (!b || b->state != BUILDING_STATE_IN_USE || !candidate->matches(building_targets[i])) {
+            if (!candidate || !candidate->is_in_use() || !candidate->matches(building_targets[i])) {
                 return;
             }
-            int distance = calc_maximum_distance(x, y, b->x, b->y);
+            const int distance = calc_maximum_distance(x, y, candidate->x(), candidate->y());
             if (distance >= 150) {
                 return;
             }
             if (distance < closest) {
                 closest = distance;
-                best_building = b;
+                best_building = candidate;
             }
         });
     }
@@ -394,8 +269,8 @@ int formation_rioter_get_target_building_for_robbery(int x, int y, int *x_tile, 
         return 0;
     }
 
-    *x_tile = best_building->road_access_x;
-    *y_tile = best_building->road_access_y;
+    *x_tile = best_building->road_access_x();
+    *y_tile = best_building->road_access_y();
 
     return best_building->id;
 }
@@ -406,31 +281,33 @@ static int set_enemy_target_building(formation *m)
     if (attack == FORMATION_ATTACK_RANDOM) {
         attack = random_byte() & 3;
     }
-    building *best_building = get_best_and_closest_building(m->x_home, m->y_home, ENEMY_ATTACK_PRIORITY[attack]);
+    const map_point origin = {m->x_home, m->y_home};
+    Building *best_building = select_priority_target(ENEMY_ATTACK_PRIORITY[attack], origin);
 
     if (!best_building) {
         // no target buildings left: take rioter attack priority
-        best_building = get_best_and_closest_building(m->x_home, m->y_home, RIOTER_ATTACK_PRIORITY);
+        best_building = select_priority_target(RIOTER_ATTACK_PRIORITY, origin);
     }
     if (best_building) {
-        Building *best_object = map_building_exists_at(best_building->grid_offset) ?
-            &map_building_at(best_building->grid_offset).main() :
-            nullptr;
-        if (best_object && best_object->matches("warehouse")) {
-            Building *destination = best_object->next();
-            formation_set_destination_building(m, best_building->x + 1, best_building->y, destination);
+        Building *best_object = best_building->Composition ?
+            best_building->Composition->owner() : best_building;
+        if (!best_object) {
+            return 0;
+        }
+        if (best_object->matches("warehouse")) {
+            if (!best_object->Composition || !best_object->Composition->is_owner() ||
+                !best_object->Composition->complete() || best_object->Composition->children().empty()) {
+                return 0;
+            }
+            Building *destination = best_object->Composition->children().front()->building();
+            m->set_destination(best_building->x() + 1, best_building->y(), destination);
         } else {
-            formation_set_destination_building(m, best_building->x, best_building->y, best_object);
+            m->set_destination(best_building->x(), best_building->y(), best_object);
         }
     }
-    return best_building != 0;
+    return best_building != nullptr;
 }
 
-
-static int native_target_can_anchor_search(const building *b)
-{
-    return b->state == BUILDING_STATE_IN_USE;
-}
 
 static int get_structures_on_native_land(int *dst_x, int *dst_y)
 {
@@ -443,23 +320,25 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
         "native_hut",
         "native_hut_alt"
     };
-    int min_distance = INFINITE;
+    int min_distance = INFINITE_DISTANCE;
 
-    for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]) && min_distance == INFINITE; i++) {
+    for (int i = 0;
+        i < sizeof(native_buildings) / sizeof(native_buildings[0]) && min_distance == INFINITE_DISTANCE;
+        ++i) {
         Building::for_each([&](Building *candidate) {
-            building *b = candidate ? const_cast<building *>(candidate->record()) : nullptr;
-            if (!b || !candidate->matches(native_buildings[i]) || !native_target_can_anchor_search(b)) {
+            if (!candidate || !candidate->is_in_use() || !candidate->matches(native_buildings[i])) {
                 return;
             }
-            const building_type_registry_impl::BuildingType *definition =
-                candidate->type;
-            int size = definition ? definition->declared_model_size() : 0;
+            const building_type_registry_impl::BuildingType *definition = candidate->type;
+            int width = definition ? definition->placement_width(candidate->orientation()) : 0;
+            int height = definition ? definition->placement_height(candidate->orientation()) : 0;
+            int size = width > height ? width : height;
             if (size <= 0) {
-                size = building_properties_for_type(b->type)->size;
+                size = 1;
             }
             int radius = size * 3;
             int x_min, y_min, x_max, y_max;
-            map_grid_get_area(b->x, b->y, size, radius, &x_min, &y_min, &x_max, &y_max);
+            map_grid_get_area(candidate->x(), candidate->y(), size, radius, &x_min, &y_min, &x_max, &y_max);
             for (int yy = y_min; yy <= y_max; yy++) {
                 for (int xx = x_min; xx <= x_max; xx++) {
                     if (map_terrain_is(map_grid_offset(xx, yy), TERRAIN_AQUEDUCT | TERRAIN_WALL | TERRAIN_GARDEN)) {
@@ -474,7 +353,7 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
             }
         });
     }
-    return min_distance < INFINITE;
+    return min_distance < INFINITE_DISTANCE;
 }
 
 static void set_native_target_building(formation *m)
@@ -482,7 +361,7 @@ static void set_native_target_building(formation *m)
     int meeting_x, meeting_y;
     city_buildings_main_native_meeting_center(&meeting_x, &meeting_y);
     Building *min_building = nullptr;
-    int min_distance = INFINITE;
+    int min_distance = INFINITE_DISTANCE;
     static const char *const excluded_types[] = {
         "mission_post",
         "native_hut",
@@ -509,30 +388,30 @@ static void set_native_target_building(formation *m)
         "ship_bridge"
     };
     Building::for_each([&](Building *target) {
-        building *b = target ? const_cast<building *>(target->record()) : nullptr;
-        if (!b || b->state != BUILDING_STATE_IN_USE || target->matches("gardens") ||
-            building_type_registry_impl::type_attr_is_any(
-                b->type,
-                excluded_types,
-                sizeof(excluded_types) / sizeof(excluded_types[0]))) {
+        if (!target || !target->is_in_use() || target->matches("gardens")) {
             return;
         }
-        int distance = calc_maximum_distance(meeting_x, meeting_y, b->x, b->y);
+        for (const char *excluded_type : excluded_types) {
+            if (target->matches(excluded_type)) {
+                return;
+            }
+        }
+        const int distance = calc_maximum_distance(meeting_x, meeting_y, target->x(), target->y());
         if (distance < min_distance) {
             min_building = target;
             min_distance = distance;
         }
     });
     if (min_building) {
-        formation_set_destination_building(m, min_building->x(), min_building->y(), min_building);
+        m->set_destination(min_building->x(), min_building->y(), min_building);
     } else {
         int dst_x = 0;
         int dst_y = 0;
         int has_target = get_structures_on_native_land(&dst_x, &dst_y);
         if (has_target) {
-            formation_set_destination_building(m, dst_x, dst_y, nullptr);
+            m->set_destination(dst_x, dst_y, nullptr);
         } else {
-            formation_retreat(m);
+            m->retreat();
         }
     }
 }
@@ -608,10 +487,13 @@ static void mars_kill_enemies(void)
 
 static void get_layout_orientation_offset(const enemy_army *army, const formation *m, int *x_offset, int *y_offset)
 {
-    int layout = army->layout;
-    int legion_index_offset = (2 * m->enemy_legion_index) % NUM_LAYOUT_FORMATIONS;
-    *x_offset = LAYOUT_ORIENTATION_OFFSETS[layout][m->orientation / 2][legion_index_offset];
-    *y_offset = LAYOUT_ORIENTATION_OFFSETS[layout][m->orientation / 2][legion_index_offset + 1];
+    if (!army->layout_definition) {
+        log_error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
+        std::terminate();
+    }
+    const FormationLayoutPosition offset = army->layout_definition->army_offset(m->orientation / 2, m->enemy_legion_index);
+    *x_offset = offset.x;
+    *y_offset = offset.y;
 }
 
 static void update_enemy_movement(formation *m, int roman_distance)
@@ -637,7 +519,9 @@ static void update_enemy_movement(formation *m, int roman_distance)
         advance = 1;
     } else {
         int halt_duration, advance_duration, regroup_duration;
-        if (army->layout == FORMATION_ENEMY_MOB || army->layout == FORMATION_ENEMY12) {
+        if (army->layout_definition &&
+            (army->layout_definition->matches_key("enemy_mob") ||
+                army->layout_definition->matches_key("enemy_12"))) {
             switch (m->enemy_legion_index) {
                 case 0:
                 case 1:
@@ -713,15 +597,15 @@ static void update_enemy_movement(formation *m, int roman_distance)
         mars_kill_enemies();
     }
     if (halt) {
-        formation_set_destination(m, m->x_home, m->y_home);
+        m->set_destination(m->x_home, m->y_home);
     } else if (pursue_target) {
         if (target_formation_id > 0) {
             const formation *target = formation_get(target_formation_id);
             if (target->has_figures()) {
-                formation_set_destination(m, target->x_home, target->y_home);
+                m->set_destination(target->x_home, target->y_home);
             }
         } else {
-            formation_set_destination(m, army->destination_x, army->destination_y);
+            m->set_destination(army->destination_x, army->destination_y, nullptr);
         }
     } else if (regroup) {
         int x_offset, y_offset;
@@ -731,7 +615,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
         map_grid_bound(&x_offset, &y_offset);
         int x_tile, y_tile;
         if (formation_enemy_move_formation_to(m, x_offset, y_offset, &x_tile, &y_tile)) {
-            formation_set_destination(m, x_tile, y_tile);
+            m->set_destination(x_tile, y_tile);
         }
     } else if (advance) {
         int x_offset, y_offset;
@@ -741,7 +625,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
         map_grid_bound(&x_offset, &y_offset);
         int x_tile, y_tile;
         if (formation_enemy_move_formation_to(m, x_offset, y_offset, &x_tile, &y_tile)) {
-            formation_set_destination(m, x_tile, y_tile);
+            m->set_destination(x_tile, y_tile);
         }
     }
 }
@@ -754,25 +638,25 @@ static void update_enemy_formation(formation *m, int *roman_distance)
             army->ignore_roman_soldiers = 1;
         }
     }
-    formation_decrease_monthly_counters(m);
+    m->decrease_monthly_counters();
     if (city_figures_soldiers() <= 0) {
-        formation_clear_monthly_counters(m);
+        m->clear_monthly_counters();
     }
     if (m->has_figure_attacking_live_legion()) {
-        formation_record_fight(m);
+        m->record_fight();
     }
-    if (formation_has_low_morale(m)) {
+    if (m->has_low_morale()) {
         m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         return;
     }
     if (Figure *f = m->first_alive_figure()) {
-        formation_set_home(m, f->x, f->y);
+        m->set_home(f->x, f->y);
     }
     if (!army->formation_id) {
         army->formation_id = m->id;
         army->home_x = m->x_home;
         army->home_y = m->y_home;
-        army->layout = m->layout;
+        army->layout_definition = m->layout_definition;
         *roman_distance = 0;
         const Route::TerrainQuery enemy_route =
             Route::TerrainQuery::enemyLandFrom({ m->x_home, m->y_home }, 300, 100000);
@@ -804,18 +688,13 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     m->wait_ticks++;
     if (!army->started_retreating) {
         if (army->destination_building_id) {
-            Building *destination = nullptr;
-            Building::for_each([&](Building *building) {
-                if (!destination && building && building->id == static_cast<unsigned int>(army->destination_building_id)) {
-                    destination = building;
-                }
-            });
-            formation_set_destination_building(m, army->destination_x, army->destination_y, destination);
+            Building *destination = Building::get(static_cast<unsigned int>(army->destination_building_id));
+            m->set_destination(army->destination_x, army->destination_y, destination);
         } else {
-            formation_set_destination_building(m, army->destination_x, army->destination_y, nullptr);
+            m->set_destination(army->destination_x, army->destination_y);
         }
     } else {
-        formation_retreat(m);
+        m->retreat();
     }
 
     update_enemy_movement(m, *roman_distance);

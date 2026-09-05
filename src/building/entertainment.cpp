@@ -6,6 +6,7 @@
 #include "city/entertainment.h"
 #include "city/games.h"
 #include "city/message.h"
+#include "city/race_bet.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
@@ -60,42 +61,40 @@ void BuildingEntertainment::attach_figure_to_venue(Figure *figure) const
 {
     if (figure) {
         building_runtime *runtime = venue_.runtime_instance();
-        figure->building = runtime ? &runtime->building : nullptr;
+    figure->set_home_building(runtime ? &runtime->building : nullptr);
     }
 }
 
 void BuildingEntertainment::copy_problem_overlay_to_hippodrome_parts() const
 {
-    building *main_record = record();
-    if (!main_record) {
+    BuildingComposition *composition = venue_.Composition;
+    if (!composition || !composition->complete()) {
+        return;
+    }
+    Building *owner = composition->owner();
+    building *owner_record = owner ? const_cast<building *>(owner->record()) : nullptr;
+    if (!owner_record) {
         return;
     }
 
-    building *part = main_record;
-    for (int i = 0; i < 2; i++) {
-        part = building_next(part);
-        if (part && part->id) {
-            part->show_on_problem_overlay = main_record->show_on_problem_overlay;
+    composition->for_each_member([owner_record](Building &part) {
+        building *part_record = const_cast<building *>(part.record());
+        if (part_record) {
+            part_record->show_on_problem_overlay = owner_record->show_on_problem_overlay;
         }
-    }
+    });
 }
 
 int BuildingEntertainment::find_hippodrome_road(map_point &road) const
 {
     building *venue_record = record();
-    return venue_record &&
-        map_has_road_access_hippodrome_rotation(
-            venue_record->x,
-            venue_record->y,
-            &road,
-            venue_record->subtype.orientation);
+    return venue_record && map_has_road_access_building(venue_record->x, venue_record->y, &road);
 }
 
 int BuildingEntertainment::find_venue_road(map_point &road) const
 {
     building *venue_record = record();
-    return venue_record &&
-        map_has_road_access(venue_record->x, venue_record->y, venue_record->size, &road);
+    return venue_record && map_has_road_access_building(venue_record->x, venue_record->y, &road);
 }
 
 void BuildingEntertainment::run_labor_phase(const map_point &road) const
@@ -168,27 +167,51 @@ Figure *BuildingEntertainment::create_roaming_figure(const map_point &road, figu
     return figure;
 }
 
-void BuildingEntertainment::spawn_hippodrome_horses() const
+bool BuildingEntertainment::create_race_participants() const
 {
     building *venue_record = record();
-    if (!venue_record) {
+    const building_type_registry_impl::RaceDefinition *race = venue_.type && venue_.type->has_race() ? &venue_.type->race() : nullptr;
+    if (!venue_record || !race || race->teams.empty()) {
+        return false;
+    }
+
+    std::vector<Figure *> participants(race->teams.size(), nullptr);
+    for (int team = 0; team < static_cast<int>(race->teams.size()); ++team) {
+        const int lane = race->teams[team].lane;
+        participants[team] = Figure::create(race->participant_figure,
+            venue_record->x + race->spawn_x, venue_record->y + race->spawn_y + (lane & 1), DIR_2_RIGHT);
+        if (!participants[team]) {
+            for (Figure *horse : participants) {
+                if (horse) {
+                    horse->remove();
+                }
+            }
+            return false;
+        }
+        participants[team]->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
+        attach_figure_to_venue(participants[team]);
+        participants[team]->resource_id = static_cast<unsigned char>(team);
+        participants[team]->speed_multiplier = static_cast<unsigned char>(race->minimum_speed);
+    }
+    race_bet_start(static_cast<unsigned int>(venue_record->id), static_cast<int>(race->teams.size()));
+    return true;
+}
+
+void BuildingEntertainment::spawn_race_participants()
+{
+    building *venue_record = record();
+    building_runtime *runtime = venue_.runtime_instance();
+    const building_type_registry_impl::RaceDefinition *race = venue_.type && venue_.type->has_race() ? &venue_.type->race() : nullptr;
+    if (!venue_record || !runtime || !race || race_bet_is_active(static_cast<unsigned int>(venue_record->id))) {
         return;
     }
 
-    Figure *horse1 = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 1, DIR_2_RIGHT);
-    if (horse1) {
-        horse1->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
-        attach_figure_to_venue(horse1);
-        horse1->resource_id = 0;
-        horse1->speed_multiplier = 3;
+    const size_t counter_index = venue_.type->spawn_groups().size() + 1;
+    if (!runtime->module_delay_has_elapsed(counter_index, race->start_delay_bands)) {
+        return;
     }
-
-    Figure *horse2 = Figure::create(FIGURE_HIPPODROME_HORSES, venue_record->x + 2, venue_record->y + 2, DIR_2_RIGHT);
-    if (horse2) {
-        horse2->action_state = FIGURE_ACTION_200_HIPPODROME_HORSE_CREATED;
-        attach_figure_to_venue(horse2);
-        horse2->resource_id = 1;
-        horse2->speed_multiplier = 2;
+    if (create_race_participants() && venue_.type->attr_is("hippodrome")) {
+        post_hippodrome_message_if_active();
     }
 }
 
@@ -233,7 +256,7 @@ void BuildingEntertainment::spawn_hippodrome_service()
     }
 
     building *venue_record = record();
-    if (!venue_record || venue_record->prev_part_building_id) {
+    if (!venue_record || (venue_.Composition && venue_.Composition->is_child())) {
         return;
     }
 
@@ -265,10 +288,6 @@ void BuildingEntertainment::spawn_hippodrome_service()
     }
     venue_record->figure_id = charioteer->id();
 
-    if (!city_entertainment_hippodrome_has_race()) {
-        spawn_hippodrome_horses();
-        post_hippodrome_message_if_active();
-    }
 }
 
 void BuildingEntertainment::spawn_colosseum_service()
@@ -336,6 +355,9 @@ void BuildingEntertainment::run_show_countdown()
         ++shows;
     }
     venue_record->data.entertainment.num_shows = static_cast<unsigned char>(shows);
+    if (shows > 0) {
+        venue_.invalidate_graphic();
+    }
 }
 
 void building_entertainment_run_shows(void)

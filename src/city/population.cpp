@@ -1,12 +1,11 @@
 #include "building/building.h"
 #include "building/count.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/house_population.h"
 #include "game/defines.h"
 
 #include "city/population.h"
 
-#include "building/building_record.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -381,15 +380,18 @@ static int calculate_people_per_house_type(void)
     city_data.population.people_in_tents = 0;
     city_data.population.people_in_large_insula_and_above = 0;
     int total = 0;
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
-        building *b = const_cast<building *>(house->record());
-        if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
-            b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
-            !b->house_size) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        if (!house || !house->Housing) {
             return;
         }
-        int pop = b->house_population;
-        int legacy_level = building_house_legacy_level(*house);
+        const int state = house->state_id();
+        if (state == BUILDING_STATE_UNUSED || state == BUILDING_STATE_UNDO ||
+            state == BUILDING_STATE_DELETED_BY_GAME || state == BUILDING_STATE_DELETED_BY_PLAYER) {
+            return;
+        }
+        int pop = house->Housing->state().population;
+        const auto *profile = house->Housing->definition().profile;
+        int legacy_level = profile ? profile->compatibility_level : -1;
         total += pop;
         if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
             city_data.population.people_in_tents += pop;
@@ -400,7 +402,7 @@ static int calculate_people_per_house_type(void)
         if (legacy_level >= HOUSE_LARGE_INSULA) {
             city_data.population.people_in_large_insula_and_above += pop;
         }
-        if (building_house_has_patrician_residents(*house)) {
+        if (house->Housing->has_patrician_residents()) {
             city_data.population.people_in_villas_palaces += pop;
         }
     });

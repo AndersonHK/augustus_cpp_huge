@@ -1,12 +1,12 @@
-#include "assets/augustus_asset_extractor.h"
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+#include "assets/graphics_extraction_client.h"
+#endif
 #include "building/building.h"
-#include "building/image.h"
 #ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
 #include "building/building_type_registry_internal.h"
 #endif
 #include "graphics/image.h"
 #include "graphics/runtime_overlay_images.h"
-#include "map/building_tiles.h"
 #include "map/image.h"
 
 #include "core/file.h"
@@ -14,17 +14,22 @@
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "core/buffer.h"
+#include "core/dir.h"
 #include "core/image_packer.h"
 #include "core/io.h"
 #include "core/log.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
+#include "game/mod_manager.h"
 #include "map/terrain.h"
+#include "platform/file_manager.h"
 #include "scenario/property.h"
 
 
 #include <stdlib.h>
 #include <string.h>
+#include <filesystem>
+#include <string>
 #include <string_view>
 
 #define HEADER_SIZE 20680
@@ -350,6 +355,13 @@ static int prepare_images(buffer *buf, image *images, image_draw_data *draw_data
 static void convert_compressed(buffer *buf, int width, int height, int x_offset, int y_offset,
     int buf_length, color_t *dst, int dst_width);
 
+static constexpr int LEGACY_ATLAS_EDGE_PADDING = 1;
+
+static int atlas_edge_padding(atlas_type type, const image &img)
+{
+    return type == ATLAS_MAIN && img.width > 0 && img.height > 0 ? LEGACY_ATLAS_EDGE_PADDING : 0;
+}
+
 static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *draw_datas,
     int num_images, atlas_type type)
 {
@@ -393,8 +405,9 @@ static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *dra
                 image_crop(img, (const color_t *) draw_data->buffer);
             }
         }
-        data.packer.rects[rect].input.width = img->width;
-        data.packer.rects[rect].input.height = img->height;
+        int padding = atlas_edge_padding(type, *img);
+        data.packer.rects[rect].input.width = img->width + 2 * padding;
+        data.packer.rects[rect].input.height = img->height + 2 * padding;
         if (img->top) {
             draw_data->buffer = malloc(sizeof(color_t) * img->top->width * img->top->height);
             if (draw_data->buffer) {
@@ -410,8 +423,9 @@ static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *dra
                     img->top = 0;
                 } else {
                     rect++;
-                    data.packer.rects[rect].input.width = img->top->width;
-                    data.packer.rects[rect].input.height = img->top->height;
+                    int top_padding = atlas_edge_padding(type, *img->top);
+                    data.packer.rects[rect].input.width = img->top->width + 2 * top_padding;
+                    data.packer.rects[rect].input.height = img->top->height + 2 * top_padding;
                 }
             }
         }
@@ -425,13 +439,15 @@ static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *dra
             continue;
         }
         img->atlas.id = (type << IMAGE_ATLAS_BIT_OFFSET) + data.packer.rects[rect].output.image_index;
-        img->atlas.x_offset = data.packer.rects[rect].output.x;
-        img->atlas.y_offset = data.packer.rects[rect].output.y;
+        int padding = atlas_edge_padding(type, *img);
+        img->atlas.x_offset = data.packer.rects[rect].output.x + padding;
+        img->atlas.y_offset = data.packer.rects[rect].output.y + padding;
         if (img->top) {
             rect++;
             img->top->atlas.id = (type << IMAGE_ATLAS_BIT_OFFSET) + data.packer.rects[rect].output.image_index;
-            img->top->atlas.x_offset = data.packer.rects[rect].output.x;
-            img->top->atlas.y_offset = data.packer.rects[rect].output.y;
+            int top_padding = atlas_edge_padding(type, *img->top);
+            img->top->atlas.x_offset = data.packer.rects[rect].output.x + top_padding;
+            img->top->atlas.y_offset = data.packer.rects[rect].output.y + top_padding;
         }
     }
     return 1;
@@ -540,6 +556,23 @@ static void convert_isometric_footprint(buffer *buf, const image *img, color_t *
     }
 }
 
+static void duplicate_atlas_edge_pixels(const image &img, color_t *dst, int dst_width, int dst_height)
+{
+    if (!dst || img.width <= 0 || img.height <= 0 || img.atlas.x_offset <= 0 || img.atlas.y_offset <= 0 || img.atlas.x_offset + img.width >= dst_width || img.atlas.y_offset + img.height >= dst_height) {
+        return;
+    }
+    int left = img.atlas.x_offset;
+    int right = left + img.width - 1;
+    int top = img.atlas.y_offset;
+    int bottom = top + img.height - 1;
+    for (int y = top; y <= bottom; y++) {
+        dst[y * dst_width + left - 1] = dst[y * dst_width + left];
+        dst[y * dst_width + right + 1] = dst[y * dst_width + right];
+    }
+    memcpy(&dst[(top - 1) * dst_width + left - 1], &dst[top * dst_width + left - 1], (img.width + 2) * sizeof(color_t));
+    memcpy(&dst[(bottom + 1) * dst_width + left - 1], &dst[bottom * dst_width + left - 1], (img.width + 2) * sizeof(color_t));
+}
+
 static void convert_images(image *images, image_draw_data *draw_datas, int size, buffer *buf,
     const image_atlas_data *atlas_data)
 {
@@ -575,6 +608,14 @@ static void convert_images(image *images, image_draw_data *draw_datas, int size,
         } else {
             convert_uncompressed(buf, img->width, img->height, img->atlas.x_offset, img->atlas.y_offset,
                 dst, dst_width);
+        }
+        if (atlas_data->type == ATLAS_MAIN) {
+            int atlas_index = img->atlas.id & IMAGE_ATLAS_BIT_MASK;
+            duplicate_atlas_edge_pixels(*img, dst, dst_width, atlas_data->image_heights[atlas_index]);
+            if (img->top) {
+                int top_atlas_index = img->top->atlas.id & IMAGE_ATLAS_BIT_MASK;
+                duplicate_atlas_edge_pixels(*img->top, atlas_data->buffers[top_atlas_index], atlas_data->image_widths[top_atlas_index], atlas_data->image_heights[top_atlas_index]);
+            }
         }
     }
 }
@@ -757,14 +798,40 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     const char *source_name,
     const image_atlas_data *atlas_data)
 {
-    using namespace vespasian::graphics::extraction;
-    LegacyClimateAtlas climate(images, image_count, group_image_ids, group_count, source_name, atlas_data);
-#ifdef JULIUS_GRAPHICS_EXTRACTOR
-    JuliusExtractor extractor;
-    return extractor.extract(climate).succeeded() ? 1 : 0;
+#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+    (void) images;
+    (void) image_count;
+    (void) group_image_ids;
+    (void) group_count;
+    (void) source_name;
+    (void) atlas_data;
+    log_error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
+    return 0;
 #else
-    RuntimeGraphicsExtractionService service;
-    return service.bootstrapAfterClimateLoad(climate, ExtractorOptions(false, true)).succeeded() ? 1 : 0;
+    graphics_extraction_climate_request_v1 request = {};
+    request.struct_size = sizeof(request);
+    request.abi_version = GRAPHICS_EXTRACTION_ABI_VERSION;
+    request.flags = GRAPHICS_EXTRACTION_WRITE_STAMP;
+    request.images = images;
+    request.image_count = image_count;
+    request.group_image_ids = group_image_ids;
+    request.group_count = group_count;
+    request.source_name = source_name;
+    request.atlas_data = atlas_data;
+    request.mode = GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP;
+    const std::filesystem::path asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
+    const std::string game_root = asset_root.parent_path().string();
+    request.game_root = game_root.c_str();
+    request.augustus_graphics = mod_manager::augustus_graphics_path().c_str();
+    request.julius_graphics = mod_manager::julius_graphics_path().c_str();
+    graphics_extraction_result_v1 result = {};
+    result.struct_size = sizeof(result);
+    const graphics_extraction_status_v1 status = GraphicsExtractionClient().bootstrapClimate(request, result);
+    if (status != GRAPHICS_EXTRACTION_STATUS_SUCCEEDED) {
+        log_error("GraphicsExtractor climate operation failed", source_name, status);
+        return 0;
+    }
+    return 1;
 #endif
 }
 
@@ -780,7 +847,7 @@ static void update_native_images(int old_climate, int new_climate)
     }
     const building_type native_hut_alt = building_type_registry_impl::type_from_attr("native_hut_alt");
     for (Building building : Building::of_type(native_hut_alt)) {
-        map_image_set(building.grid_offset(), building.image_id());
+        building.refresh_graphic();
     }
 
     static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
@@ -790,13 +857,7 @@ static void update_native_images(int old_climate, int new_climate)
             continue;
         }
         for (Building building : Building::of_type(type)) {
-            map_building_tiles_add(
-                building,
-                building.x(),
-                building.y(),
-                building.size(),
-                building.image_id(),
-                TERRAIN_BUILDING);
+            building.refresh_graphic();
         }
     }
 #endif

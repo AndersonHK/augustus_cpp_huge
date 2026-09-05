@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "core/buffer.h"
 
+class Building;
+
 
 #define TERRAIN_LAST_FLAG TERRAIN_HIGHWAY_BOTTOM_RIGHT
 #define TERRAIN_NUM_FLAGS  (21)  // bits
@@ -53,7 +55,7 @@ enum {
     TERRAIN_IMPASSABLE_ENEMY = TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_SHRUB | TERRAIN_GARDEN |
     TERRAIN_ELEVATION | TERRAIN_RUBBLE,
 
-    TERRAIN_IMPASSABLE_WOLF = TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_SHRUB |
+    TERRAIN_IMPASSABLE_HERD = TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_SHRUB |
     TERRAIN_GARDEN | TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |
     TERRAIN_RUBBLE | TERRAIN_WALL_OR_GATEHOUSE,
     
@@ -141,7 +143,10 @@ int map_terrain_is_adjacent_to_wall(int x, int y, int size);
 
 int map_terrain_is_adjacent_to_water(int x, int y, int size);
 
-int map_terrain_get_adjacent_road_or_clear_land(int x, int y, int size, int *x_tile, int *y_tile);
+int map_terrain_get_adjacent_road_or_clear_land(
+    const Building &building,
+    int *x_tile,
+    int *y_tile);
 
 void map_terrain_add_roadblock_road(int x, int y);
 void map_terrain_add_gatehouse_roads(int x, int y, int orientation);
@@ -161,6 +166,7 @@ void map_terrain_save_state_legacy(buffer *buf);
 void map_terrain_migrate_old_bridges(void);
 
 void map_terrain_migrate_old_walls(void);
+int map_terrain_validate_loaded_walls(void);
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer);
 

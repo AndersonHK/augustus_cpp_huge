@@ -3,14 +3,11 @@
 
 #include "assets/assets.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/monument.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type.h"
 #include "city/trade_policy.h"
 #include "core/calc.h"
-#include "map/building_tiles.h"
-#include "map/terrain.h"
 
 #define INFINITE 10000
 #define TIMBER_CONSUMPTION 20
@@ -49,13 +46,7 @@ Building *building_lighthouse_get_storage_destination(Building lighthouse)
     if (resource == RESOURCE_NONE) {
         return nullptr;
     }
-    Building *destination = nullptr;
-    const unsigned int destination_id = info[resource].building_id;
-    Building::for_each([&](Building *building) {
-        if (building->id == destination_id) {
-            destination = building;
-        }
-    });
+    Building *destination = info[resource].source;
     if (destination) {
         lighthouse.set_fetch_inventory_id(resource);
     }
@@ -79,14 +70,9 @@ static void set_lighthouse_graphic(Building lighthouse)
     }
     if (lighthouse.type && lighthouse.type->has_phased_construction()) {
         lighthouse.refresh_graphic();
-    } else {
-        map_building_tiles_add(
-            lighthouse,
-            lighthouse.x(),
-            lighthouse.y(),
-            lighthouse.size(),
-            lighthouse.image_id(),
-            TERRAIN_BUILDING);
+    } else if (lighthouse.Foundation) {
+        lighthouse.Foundation->refresh();
+        lighthouse.refresh_graphic();
     }
 }
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mod>
+    <name value="Augustus" />
+    <description value="Augustus gameplay and content definitions." />
+    <version value="4.0.0" />
+    <dependencies>
+        <mod name="Julius" />
+    </dependencies>
+</mod>

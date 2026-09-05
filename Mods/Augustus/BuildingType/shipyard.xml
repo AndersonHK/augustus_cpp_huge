@@ -1,32 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="shipyard">
     <identity name_key="main_strings.28.74" />
-    <model size="2" cost="100" />
+    <model cost="100" />
     <desirability>
         <value value="-8" />
         <step value="2" />
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="shoreline">
-        <cell rotation="0" x="0" y="0" terrain="water" />
-        <cell rotation="0" x="1" y="0" terrain="water" />
-        <cell rotation="1" x="1" y="0" terrain="water" />
-        <cell rotation="1" x="1" y="1" terrain="water" />
-        <cell rotation="2" x="0" y="1" terrain="water" />
-        <cell rotation="2" x="1" y="1" terrain="water" />
-        <cell rotation="3" x="0" y="0" terrain="water" />
-        <cell rotation="3" x="0" y="1" terrain="water" />
-    </foundation>
+    <foundation path="waterside_2x2" />
     <button group="engineering" order="30" text_key="main_strings.28.74" />
-    <event_data attr="shipyard" />
     <graphics>
         <default>
             <options selection="orientation">
                 <option path="Industry\Shipyard" image="Image_0000" />
-                <option path="Industry\Shipyard" image="Image_0001" />
-                <option path="Industry\Shipyard" image="Image_0002" />
                 <option path="Industry\Shipyard" image="Image_0003" />
+                <option path="Industry\Shipyard" image="Image_0002" />
+                <option path="Industry\Shipyard" image="Image_0001" />
             </options>
         </default>
     </graphics>

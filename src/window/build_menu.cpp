@@ -72,7 +72,6 @@ public:
     void activate() const;
 
 private:
-    building_type cost_type() const;
     const building_type_registry_impl::BuildingType *definition() const;
 
     build_menu_group submenu = SUBMENU_NONE;
@@ -124,7 +123,7 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     menu_item_index = item_index;
     display_index = button_display_index;
     building = building_menu_type(submenu, menu_item_index);
-    type_definition = building_type_registry_impl::definition_for_type(cost_type());
+    type_definition = building_type_registry_impl::definition_for_type(building);
     menu_icon_ref = definition() ? definition()->button_icon_ref() : ImageGroupEntryRef();
     if (!menu_icon_ref.is_bound()) {
         menu_icon_ref = produced_resource_icon(definition());
@@ -338,14 +337,6 @@ static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, in
     image.draw(x + (max_size - scaled_width) / 2, y + (max_size - scaled_height) / 2, COLOR_MASK_NONE, draw_scale);
 }
 
-building_type BuildMenuButton::cost_type() const
-{
-    if (building_type_registry_impl::type_attr_is(building, "draggable_reservoir")) {
-        return building_type_registry_impl::type_from_attr("reservoir");
-    }
-    return building;
-}
-
 const building_type_registry_impl::BuildingType *BuildMenuButton::definition() const
 {
     return type_definition;
@@ -380,17 +371,17 @@ const ImageGroupEntryRef &BuildMenuButton::menu_icon() const
 
 int BuildMenuButton::cost() const
 {
-    return model_get_building(cost_type())->cost;
+    return model_get_building(building)->cost;
 }
 
 int BuildMenuButton::has_rotation_icon() const
 {
-    return building_rotation_type_has_rotations(cost_type());
+    return building_rotation_type_has_rotations(building);
 }
 
 int BuildMenuButton::has_monument_icon() const
 {
-    return building_monument_type_is_monument(cost_type());
+    return building_monument_type_is_monument(building);
 }
 
 int BuildMenuButton::is_auto_cycle() const

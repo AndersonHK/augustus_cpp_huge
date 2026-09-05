@@ -5,8 +5,43 @@
 #define FIGURE_REROUTE_DESTINATION_TICKS 120
 
 constexpr int FIGURE_LEGACY_TILE_PROGRESS_MAX = 15;
-constexpr int FIGURE_TILE_PROGRESS_MAX = FIGURE_LEGACY_TILE_PROGRESS_MAX;
-constexpr int FIGURE_CROSS_COUNTRY_TILE_UNITS = FIGURE_LEGACY_TILE_PROGRESS_MAX;
+constexpr int FIGURE_TILE_PROGRESS_MAX = 128;
+constexpr int FIGURE_NORMAL_MOVEMENT_SPEED = 9;
+constexpr int FIGURE_CROSS_COUNTRY_TILE_UNITS = FIGURE_TILE_PROGRESS_MAX;
+constexpr int FIGURE_MOVEMENT_NORMALIZED_ONE = 65536;
+
+constexpr int figure_movement_legacy_progress_to_runtime(int progress)
+{
+    return progress >= FIGURE_LEGACY_TILE_PROGRESS_MAX ? FIGURE_TILE_PROGRESS_MAX : (progress * FIGURE_TILE_PROGRESS_MAX + FIGURE_LEGACY_TILE_PROGRESS_MAX / 2) / FIGURE_LEGACY_TILE_PROGRESS_MAX;
+}
+
+constexpr int figure_movement_runtime_progress_to_legacy(int progress)
+{
+    return progress >= FIGURE_TILE_PROGRESS_MAX ? FIGURE_LEGACY_TILE_PROGRESS_MAX : (progress * FIGURE_LEGACY_TILE_PROGRESS_MAX + FIGURE_TILE_PROGRESS_MAX / 2) / FIGURE_TILE_PROGRESS_MAX;
+}
+
+constexpr int figure_movement_advance_tile_progress(int progress)
+{
+    const int legacy_progress = figure_movement_runtime_progress_to_legacy(progress);
+    return figure_movement_legacy_progress_to_runtime(legacy_progress + 1);
+}
+
+constexpr int figure_movement_legacy_ticks_to_runtime(int ticks)
+{
+    return (ticks * FIGURE_TILE_PROGRESS_MAX + FIGURE_LEGACY_TILE_PROGRESS_MAX / 2) / FIGURE_LEGACY_TILE_PROGRESS_MAX;
+}
+
+constexpr int figure_movement_normalized_progress(int progress)
+{
+    return progress >= FIGURE_TILE_PROGRESS_MAX ? FIGURE_MOVEMENT_NORMALIZED_ONE : progress * FIGURE_MOVEMENT_NORMALIZED_ONE / FIGURE_TILE_PROGRESS_MAX;
+}
+
+constexpr int figure_movement_normalized_cross_country_offset(int value)
+{
+    int offset = value % FIGURE_CROSS_COUNTRY_TILE_UNITS;
+    if (offset < 0) offset += FIGURE_CROSS_COUNTRY_TILE_UNITS;
+    return offset * FIGURE_MOVEMENT_NORMALIZED_ONE / FIGURE_CROSS_COUNTRY_TILE_UNITS;
+}
 
 constexpr int figure_movement_tile_to_cross_country(int tile)
 {
@@ -20,7 +55,8 @@ constexpr int figure_movement_tile_center_cross_country(int tile)
 
 constexpr int figure_movement_cross_country_to_tile(int value)
 {
-    return value / FIGURE_CROSS_COUNTRY_TILE_UNITS;
+    return value >= 0 ? value / FIGURE_CROSS_COUNTRY_TILE_UNITS :
+        -((-value + FIGURE_CROSS_COUNTRY_TILE_UNITS - 1) / FIGURE_CROSS_COUNTRY_TILE_UNITS);
 }
 
 constexpr int figure_movement_cross_country_tile_offset(int value)
@@ -31,6 +67,30 @@ constexpr int figure_movement_cross_country_tile_offset(int value)
 constexpr bool figure_movement_tile_progress_complete(int progress)
 {
     return progress >= FIGURE_TILE_PROGRESS_MAX;
+}
+
+constexpr bool figure_movement_legacy_progress_round_trip_is_exact()
+{
+    for (int progress = 0; progress <= FIGURE_LEGACY_TILE_PROGRESS_MAX; progress++) {
+        if (figure_movement_runtime_progress_to_legacy(figure_movement_legacy_progress_to_runtime(progress)) != progress) return false;
+    }
+    return true;
+}
+
+constexpr bool figure_movement_legacy_tick_count_is_preserved()
+{
+    int progress = 0;
+    for (int tick = 0; tick < FIGURE_LEGACY_TILE_PROGRESS_MAX - 1; tick++) progress = figure_movement_advance_tile_progress(progress);
+    if (figure_movement_tile_progress_complete(progress)) return false;
+    return figure_movement_tile_progress_complete(figure_movement_advance_tile_progress(progress));
+}
+
+static_assert(figure_movement_legacy_progress_round_trip_is_exact(), "128-unit progress must reproduce every legacy render position");
+static_assert(figure_movement_legacy_tick_count_is_preserved(), "128-unit progress must preserve the legacy 15-tick tile duration");
+
+constexpr FigureMovementDestination figure_movement_destination_for_tile(int x, int y, FigureMovementPlane plane)
+{
+    return {figure_movement_tile_to_cross_country(x), figure_movement_tile_to_cross_country(y), plane};
 }
 
 void figure_movement_init_roaming(Figure *f);
@@ -49,8 +109,7 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
 
 void figure_movement_advance_attack(Figure *f);
 
-void figure_movement_set_cross_country_direction(
-    Figure *f, int x_src, int y_src, int x_dst, int y_dst, int is_missile);
+void figure_movement_set_cross_country_direction(Figure *f, int x_src, int y_src, int x_dst, int y_dst, int is_missile);
 
 void figure_movement_set_cross_country_destination(Figure *f, int x_dst, int y_dst);
 

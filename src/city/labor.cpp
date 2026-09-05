@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
+#include "building/water_access_runtime.h"
 #include "city/culture.h"
 #include "city/god.h"
 
@@ -143,16 +144,12 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
 static int should_have_workers(const Building &building, int category, int check_access)
 {
     const building_type_registry_impl::BuildingType *type = building.type;
-    if (!building.id || !building.is_main_part() || !type ||
+    if (!building.id || (building.Composition && building.Composition->is_child()) ||
+        building.is_dynamic_bridge_segment() || !type ||
         !building.employment_required_workers() || category == LABOR_CATEGORY_NONE) {
         return 0;
     }
-    if (category == LABOR_CATEGORY_ENTERTAINMENT) {
-        const ::building *record = building.record();
-        if (type->is_hippodrome() && record && record->prev_part_building_id) {
-            return 0;
-        }
-    } else if (category == LABOR_CATEGORY_FOOD_PRODUCTION || category == LABOR_CATEGORY_INDUSTRY_COMMERCE) {
+    if (category == LABOR_CATEGORY_FOOD_PRODUCTION || category == LABOR_CATEGORY_INDUSTRY_COMMERCE) {
         if (!type->production_is_enabled()) {
             return 0;
         }
@@ -170,9 +167,22 @@ static int should_have_workers(const Building &building, int category, int check
 
 static void set_building_workers(building *b, int workers)
 {
+    const short value = static_cast<short>(workers);
+    if (b->num_workers == value) {
+        return;
+    }
     city_culture_remove_building_module_capacity(b);
-    b->num_workers = static_cast<short>(workers);
+    b->num_workers = value;
     city_culture_add_building_module_capacity(b);
+    if (Building *building_object = Building::get(b->id)) {
+        building_object->invalidate_graphic();
+        const building_type_registry_impl::BuildingType *definition = building_object->type;
+        if (definition && (definition->water_access().has_provider() ||
+                definition->water_access().has_requirements() ||
+                definition->water_access().requires_open_water())) {
+            water_access_runtime_building_changed(building_object);
+        }
+    }
 }
 
 static void add_building_workers(building *b, int workers)

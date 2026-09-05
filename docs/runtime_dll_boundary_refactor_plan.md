@@ -52,6 +52,8 @@ Current direct tester shape:
 | Project compile graph | `StartupParserTest.vcxproj` now uses curated startup/static-boundary source groups instead of `src\**\*.cpp`. The list keeps startup, XML registries, generated image-group materialization, core file/XML helpers, and minimal platform file/log support while leaving out window/widget/input/editor/sound/app-shell sources and extractor implementation files. `GraphicsDefinition` is now the shared graphics base in `src\graphics\GraphicsDefinition.h/.cpp`; `BuildingGraphics` data/selection methods live in `src\building\BuildingGraphics.h/.cpp`, `FigureGraphics` owns FigureType draw policies in `src\figure\FigureGraphics.h/.cpp`, and `ResourceGraphics` is limited to icon presentation in `src\game\ResourceGraphics.h/.cpp`. XML graphics path/source resolution now lives in `src\assets\xml_path_resolution.cpp`, generated image-copy primitives now live in `src\assets\image_copy.cpp`, pathing mode XML metadata now lives in `src\figure\PathingMode_metadata.cpp`, parser-visible `ProductionMethod` data now stays in `src\building\production_method.cpp` while live production eligibility/progress lives in `src\building\production_method_runtime.cpp`, and parser-visible `Distribution` rules stay in `src\building\distribution.cpp` while live source lookup/acceptance behavior lives in `src\building\distribution_runtime.cpp`. Parser-test builds now fence out live `BuildingGraphics` condition evaluation and construction-phase building-state selection instead of supplying fake live building state, and no longer need runtime `PathingMode` terrain probes. | Split the remaining parser-test shim surfaces into parser-owned sources: generated image materialization still depends on runtime image/atlas loader hooks, and registry cleanup still calls menu/monument cache invalidation hooks until definition loading returns immutable payloads. |
 | Platform/UI shims | `platform_shims.cpp` supplies parser-test no-ops for menu/monument cache invalidation, runtime image/atlas entry points, legacy image lookups, and building/scenario validation bridges. The project no longer links SDL_mixer or SDL_ttf; stale timing, resize/fullscreen, folder-dialog, exit, external-pixel loader, runtime building reset, and terrain/pathing probe hooks are no longer present; SDL2 remains for the current file/log platform helpers. Production-only city finance, mothball, game calendar, shipyard water-spawn, distribution source lookup, storage permission, stockpile, acceptance, live graphics-condition building state, climate/festival, and runtime PathingMode shims are no longer needed by parser-time loading. | Move file/log support into shared-core/parser-owned code so the parser test can eventually drop SDL2 entirely; replace runtime image loader stubs only after generated graphics validation reads a self-contained generated-asset manifest. |
 
+The curated parser boundary remains intentionally small, but it is no longer mistaken for executable-startup coverage. `StartupParserTest` first launches its project-referenced sibling `Vespasian` in CLI startup-test mode, which runs the production SDL renderer and complete `game_init()` path with a hidden window and no game loop. The headless parser phase follows only after that production startup succeeds.
+
 ## Candidate DLLs
 
 ### Graphics Extraction DLL
@@ -159,6 +161,20 @@ Disallowed shared dependencies:
 
 Headers at the DLL boundary should be small, versioned, and mostly plain data. Prefer opaque handles and exported functions over sharing implementation classes across the boundary.
 
+The first concrete shared boundary is `startup/startup_parser_abi.h`. It is a
+C-compatible, versioned request/result contract with explicit flags, reserved
+field validation, fixed caller-owned failure diagnostics, transient step and
+ordered-mod callbacks, and caller-owned environment buffers with complete
+source lengths for truncation detection. Unknown versions, truncated result
+structures, reserved values, and unknown flags fail before parser state
+changes. Both the game bootstrap and `StartupParserTest` call this ABI. The ABI
+adapter delegates to the internal `startup_definition_loader` module; runtime
+callers cannot include registry orchestration or parser-owned result types.
+The current implementation remains a static boundary and still publishes the
+validated definitions into global registries internally. Replacing that final
+static bridge with a transferred immutable definition payload is the remaining
+ownership prerequisite for moving the same ABI implementation into a DLL.
+
 ## Load/Unload Discipline
 
 Each one-shot DLL should be treated as a tool that runs and disappears:
@@ -180,9 +196,10 @@ No runtime object should store pointers to DLL-owned memory. Returned data must 
   - Current state: the facade returns step diagnostics and startup environment facts, but still relies on global registries as the static-boundary bridge.
 - [~] Move parser-only helpers, schema walkers, and cross-reference validators behind that facade.
   - Current state: several parser-visible/runtime-visible seams were split, but generated image materialization and cleanup hooks still expose runtime-shaped dependencies.
-- [ ] Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
+- [~] Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
+  - Current state: the versioned C ABI is exercised by both production startup and `StartupParserTest`; immutable definition payload transfer and DLL load/unload remain.
 - [~] Apply the same treatment to graphics extraction, starting from the standalone Julius and Augustus extractor executables and a shared extraction implementation module.
-  - Current state: Julius/Augustus extraction are separate executable concerns with shared helper code; the explicit DLL boundary is still future work.
+  - Current state: a versioned C ABI owns Augustus extraction and climate-atlas bootstrap requests/results. Runtime climate loading and the standalone Augustus extractor call only that boundary; Julius reaches the same bootstrap ABI after its atlas load. Concrete extractor classes are private to the implementation module. Dynamic DLL loading/unloading remains future work.
 - [ ] Apply the same treatment to save/load migration after current-version runtime ownership is strong enough that bridge data can be discarded immediately after import.
 
 ## Test Harness Pattern

@@ -11,7 +11,7 @@ class BuildingType;
 
 class Production {
 public:
-    Production(const Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
+    Production(Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
 
     const Building &building() const;
 
@@ -41,10 +41,11 @@ private:
     int pending_production_for_stats() const;
     void refresh_images();
 
-    Building building_;
-    Building context_building_;
+    Building &context_building() const;
+    ::building *context_record() const;
+
+    Building &building_;
     ::building *record_ = nullptr;
-    ::building *context_record_ = nullptr;
     const building_type_registry_impl::ProductionMethod *method_ = nullptr;
     size_t method_index_ = 0;
 };

@@ -289,7 +289,6 @@ extern struct city_data_t {
         int32_t hippodrome_shows;
         int32_t hippodrome_no_shows_weighted;
         int32_t venue_needing_shows;
-        int32_t hippodrome_has_race;
         int32_t hippodrome_message_shown;
         int32_t colosseum_message_shown;
     } entertainment;

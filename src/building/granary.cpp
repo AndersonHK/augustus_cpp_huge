@@ -22,6 +22,7 @@
 #include "sound/effect.h"
 
 #include <algorithm>
+#include <functional>
 #include <vector>
 
 #define MAX_GRANARIES 100
@@ -51,7 +52,7 @@ static int is_warehouse_building(const Building &b)
 }
 
 static struct {
-    std::vector<Building> buildings;
+    std::vector<std::reference_wrapper<Building>> buildings;
     int total_storage[RESOURCE_SLOT_COUNT];
 } non_getting_granaries;
 
@@ -239,7 +240,7 @@ int building_granary_count_available_resource(const Building &b, resource_type r
     }
     if (!respect_maintaining ||
         building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_MAINTAINING ||
-        building_storage_get_empty_all(b.id)) {
+        building_storage_get_empty_all(b)) {
         return building_granary_get_amount(b, resource);
     } else {
         return 0;
@@ -268,7 +269,7 @@ static void try_create_cart_to_rome(Building &b, resource_type resource, int loa
         f->action_state = FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED;
         f->resource_id = static_cast<unsigned char>(resource);
         f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
-        f->building = &b;
+    f->set_home_building(&b);
     }
 }
 
@@ -280,7 +281,7 @@ int building_granaries_send_resources_to_rome(resource_type resource, int amount
             break;
         }
         if (b.is_in_use()) {
-            if ((building_storage_get_empty_all(b.id) ||
+            if ((building_storage_get_empty_all(b) ||
                  building_storage_get_state(b, resource, 1) < BUILDING_STORAGE_STATE_GETTING) &&
                 building_storage_get_permission(BUILDING_STORAGE_PERMISSION_CAESAR, b)) {
                 int taken_loads = building_granary_try_remove_resource(b, resource, amount);
@@ -316,7 +317,7 @@ int building_granaries_send_resources_to_rome(resource_type resource, int amount
 int building_granary_maximum_receptible_amount(
     const Building &b, resource_type resource, unsigned int ignore_figure_id)
 {
-    if (b.has_plague() || building_storage_get_empty_all(b.id) ||
+    if (b.has_plague() || building_storage_get_empty_all(b) ||
          !b.is_in_use() || b.resource_amount(RESOURCE_NONE) <= 0) {
         return 0;
     }
@@ -422,12 +423,17 @@ int building_granary_determine_worker_task(const Building &granary)
     return GRANARY_TASK_NONE;
 }
 
-void building_granaries_calculate_stocks(void)
+void building_granaries_invalidate_cached_stocks(void)
 {
     non_getting_granaries.buildings.clear();
     for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
         non_getting_granaries.total_storage[i] = 0;
     }
+}
+
+void building_granaries_calculate_stocks(void)
+{
+    building_granaries_invalidate_cached_stocks();
 
     for (Building &b : Building::of_type(granary_type())) {
         if (!b.is_in_use() || !b.has_cached_road_access() ||
@@ -453,7 +459,8 @@ void building_granaries_calculate_stocks(void)
     }
 }
 
-int building_granary_accepts_storage(const Building &b, resource_type resource, int *understaffed)
+int building_granary_accepts_storage(
+    const Building &b, resource_type resource, int *understaffed, unsigned int ignore_figure_id)
 {
     if (!b.is_in_use() || !is_granary_building(b) ||
         !b.has_cached_road_access() || b.distance_from_entry() <= 0 || b.has_plague()) {
@@ -466,7 +473,7 @@ int building_granary_accepts_storage(const Building &b, resource_type resource, 
         }
         return 0;
     }
-    if (!building_granary_maximum_receptible_amount(b, resource)) {
+    if (!building_granary_maximum_receptible_amount(b, resource, ignore_figure_id)) {
         return 0;
     }
 
@@ -501,7 +508,7 @@ Building *building_granary_get_granary_needing_food(const Building &source, reso
 }
 
 Building *building_granary_for_storing(int x, int y, resource_type resource, int road_network_id,
-    int force_on_stockpile, int *understaffed, map_point *dst)
+    int force_on_stockpile, int *understaffed, map_point *dst, unsigned int reservation_owner_figure_id)
 {
     if (scenario_property_rome_supplies_wheat()) {
         return nullptr;
@@ -517,7 +524,7 @@ Building *building_granary_for_storing(int x, int y, resource_type resource, int
     map_point min_access = { 0, 0 };
     for (Building &b : Building::of_type(granary_type())) {
         if (b.road_network_id() != road_network_id ||
-            !building_granary_accepts_storage(b, resource, understaffed)) {
+            !building_granary_accepts_storage(b, resource, understaffed, reservation_owner_figure_id)) {
             continue;
         }
         map_point access = { 0, 0 };
@@ -709,9 +716,9 @@ void building_granary_warehouse_curse(int big)
             max_building = &b;
         }
     }
-    for (Building *b = building_warehouse_first(); b; b = b->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *b) {
         if (!b->is_in_use() || b->has_plague()) {
-            continue;
+            return;
         }
         int total_stored = 0;
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -724,7 +731,7 @@ void building_granary_warehouse_curse(int big)
             max_stored = total_stored;
             max_building = b;
         }
-    }
+    });
     if (!max_building) {
         return;
     }
@@ -735,7 +742,7 @@ void building_granary_warehouse_curse(int big)
             MESSAGE_FIRE,
             max_building->type ? max_building->type->type() : BUILDING_NONE,
             max_building->grid_offset());
-        building_destroy_by_fire(const_cast<building *>(max_building->record()));
+        max_building->destroy_by_fire();
         sound_effect_play(SOUND_EFFECT_EXPLOSION);
         Route::updateLandTerrain();
     } else {

@@ -65,6 +65,25 @@ Primary references:
 - `src/building/building_runtime_spawn.cpp`
 - `docs/walker_pathing_runtime.md`
 
+## Farm Sites
+
+### Per-Field Meadow Requirement
+
+Label: `Vespasian-only`
+
+Bundled Julius and Augustus preserve the original farm rule: the 2-by-2 farmhouse owner requires at least one meadow tile within three tiles of its origin, while its five declared field children may occupy ordinary land. This is represented by a `meadow_2x2` owner foundation with a site-level meadow requirement and `land_1x1` child foundations.
+
+Vespasian deliberately uses a stricter, more literal composition rule. Its 2-by-2 farmhouse owner requires only land, but each of the five 1-by-1 field children must be placed directly on meadow. The generic composition placement plan validates all six member foundations as one transaction.
+
+Primary references:
+
+- `Mods/Julius/Foundations/meadow_2x2.xml`
+- `Mods/Augustus/Foundations/meadow_2x2.xml`
+- `Mods/Vespasian/Foundations/meadow_1x1.xml`
+- `Mods/Vespasian/BuildingType/*_farm.xml`
+- `Mods/Vespasian/BuildingType/*_farm_field.xml`
+- `src/building/construction_plan.cpp`
+
 ## Time And Walker Range
 
 ### Vespasian Calendar Cadence
@@ -101,6 +120,23 @@ Primary references:
 - `Mods/Julius/FigureType/*.xml`
 - `docs/walker_pathing_runtime.md`
 
+## Hippodrome Racing And Betting
+
+### Four Visible Participants And Actual-Order Settlement
+
+Labels: `Project-wide`, `Bundled Augustus`
+
+Upstream Augustus presents blue, red, white, and green betting choices but retained the original two-racer track animation and selected the financial winner with a separate four-way random roll. This repo creates all four racers atomically, applies small checkpoint pace variations from the serialized game RNG, records their actual finish order, and settles the wager from the first real crossing. Betting is locked while a race is active. A migrated two-racer race may finish visually, but it cannot settle a four-team wager; the wager carries into the next complete field.
+
+The four track figures use distinct combinations of the two inherited Caesar 3 horse appearances and two cart liveries. No extracted sprite duplicate is authored for this divergence.
+
+Primary references:
+
+- `src/building/entertainment.cpp`
+- `src/city/race_bet.cpp`
+- `src/figuretype/animal.cpp`
+- `docs/hippodrome_racing_and_betting.md`
+
 ## Labor And Staffing
 
 ### Broader Vespasian Local Workforce Coverage
@@ -126,6 +162,12 @@ These are likely places to check before claiming the divergence list is complete
 - Building costs, labor counts, and footprint changes in `Mods/Vespasian/BuildingType`.
 - Production rates and resource costs in `Mods/Vespasian/ProductionMethod`.
 - Housing capacity in `Mods/Vespasian/BuildingType`.
-- Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingType`.
+- Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingProfile`.
 - Service and walker lifetime values after each new FigureType migration.
 - Any future upstream Augustus commits that add slow beggar repositioning or other residential walker changes.
+
+## Mathematical Military Formations
+
+All mod stacks now generate tactical shapes mathematically at every capacity. Square recruitment grows outward from the anchor; casualties compact only once idle. Barracks recruit into different available formations in parallel while preserving academy/fort commute delay. Tortoise has distinct compact spacing, and scattered enemy/herd layouts no longer intentionally duplicate stations. See [formation runtime](formation_runtime.md) for geometry, overflow, and validation contracts.
+
+Vespasian alone overrides the scatter/mop-up command with a persistent loose formation outside the fort. Its `FormationLayout/mop_up.xml` declares scatter geometry and disables automatic restoration when idle. Julius and Augustus retain their inherited return to the previous layout when no targets remain.

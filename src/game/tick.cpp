@@ -24,7 +24,6 @@
 #include "graphics/weather.h"
 #include "map/natives.h"
 #include "map/tiles.h"
-#include "map/water_supply.h"
 #include "scenario/earthquake.h"
 #include "scenario/random_event.h"
 #include "widget/minimap.h"
@@ -34,7 +33,7 @@
 #include "game/tick.h"
 
 #include "building/building.h"
-#include "building/dock.h"
+#include "building/water_access_runtime.h"
 #include "building/lighthouse.h"
 #include "city/god.h"
 
@@ -52,6 +51,7 @@
 #include "core/dir.h"
 #include "core/random.h"
 #include "empire/city.h"
+#include "figure/FormationDestination.h"
 #include "figure/formation.h"
 #include "game/time.h"
 #include "game/tutorial.h"
@@ -179,7 +179,7 @@ static void advance_tick(void)
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(19)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        building_dock_update_open_water_access();
+        water_access_runtime_update_open_water_access();
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(20)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_PRODUCTION);
@@ -198,11 +198,7 @@ static void advance_tick(void)
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(27)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        map_water_supply_update_reservoir_fountain();
-    }
-    if (current_tick == game_time_scale_legacy_day_tick_index(28)) {
-        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
-        map_water_supply_update_buildings();
+        water_access_runtime_update();
     }
     if (current_tick == game_time_scale_legacy_day_tick_index(29)) {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FORMATION);
@@ -279,13 +275,15 @@ void game_tick_run(void)
 {
     if (editor_is_active()) {
         random_generate_next(); // update random to randomize native huts
-        figure_action_handle(); // just update the flag figures
+        FormationDestination::advance_graphics();
+        figure_action_handle();
         return;
     }
     random_generate_next();
     game_undo_reduce_time_available();
     building_local_workforce::refresh_access_scores();
     advance_tick();
+    FormationDestination::advance_graphics();
     figure_action_handle();
     scenario_earthquake_process();
     scenario_gladiator_revolt_process();

@@ -27,7 +27,7 @@ private:
 
     int deliver_import_resource(Building &dock);
     int fetch_export_resource(Building &dock, int add_to_bought);
-    void set_cart_graphic();
+    void publish_cart_contents();
     void set_as_idle();
 };
 

@@ -1,5 +1,5 @@
 #include "building/building.h"
-#include "building/building_record.h"
+#include "building/BuildingFoundation.h"
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 #include "map/aqueduct.h"
@@ -45,12 +45,10 @@ static int is_highway_access(int grid_offset, int direction_index)
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         Building &building_object = map_building_at(grid_offset);
-        const building *b = building_object.record();
-        if (b && building_object.type && building_object.type->is_granary()) {
-            return grid_offset == b->grid_offset + map_grid_delta(1, 0) ||
-                grid_offset == b->grid_offset + map_grid_delta(0, 1) ||
-                grid_offset == b->grid_offset + map_grid_delta(2, 1) ||
-                grid_offset == b->grid_offset + map_grid_delta(1, 2);
+        if (building_object.Foundation &&
+            building_object.Foundation->passage_at(grid_offset) !=
+                building_type_registry_impl::FoundationPassage::None) {
+            return 1;
         }
     }
     return 0;
@@ -102,7 +100,7 @@ void city_draw_highway_footprint(int x, int y, float scale, int grid_offset, col
     draw_barrier_image(grid_offset, 2, x, y, scale, color_mask);
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         int aqueduct_image_id = map_tiles_highway_get_aqueduct_image(grid_offset);
-        Image::from_id(aqueduct_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+        Image::from_id(aqueduct_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
     }
     draw_barrier_image(grid_offset, 0, x, y, scale, color_mask);
     draw_barrier_image(grid_offset, 3, x, y, scale, color_mask);

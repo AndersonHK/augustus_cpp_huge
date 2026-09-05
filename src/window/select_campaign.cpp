@@ -1,7 +1,6 @@
 #include "graphics/generic_button.h"
 #include "translation/translation.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/rich_text.h"
@@ -22,7 +21,6 @@
 
 #include "core/dir.h"
 #include "core/direction.h"
-#include "core/image_group.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -112,7 +110,7 @@ static void init(void)
 
 static void draw_background(void)
 {
-    Image::from_id(Image::group(GROUP_MAIN_MENU_BACKGROUND)).draw_fullscreen_background();
+    window_main_menu_draw_background();
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
     lang_text_draw_centered("TR_WINDOW_SELECT_CAMPAIGN", 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));

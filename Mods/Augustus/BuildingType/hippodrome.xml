@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="hippodrome">
     <identity name_key="main_strings.28.32" />
-    <model size="5" cost="3500" />
+    <model cost="3500" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
-  <button group="entertainment" order="60" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
+    <foundation path="land_5x5" />
+    <button group="entertainment" order="60" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
     <flags fire_proof="1" />
     <sound id="hippodrome" mute_on_enemies="true" />
-    <event_data attr="hippodrome" />
     <graphics>
         <default>
             <options selection="build_rotation">
@@ -21,6 +20,10 @@
                 <option path="Health_Culture\Hippodrome_2" image="Image_0004" />
                 <option path="Health_Culture\Hippodrome_1" image="Image_0000" />
             </options>
+            <layer role="spectators_top" path="Health_Culture\Hippodrome_2" image="Image_0006" stage="top" x="147" y="-72"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="2000" /><condition type="orientation" value="top" /></layer>
+            <layer role="spectators_right" path="Health_Culture\Hippodrome_1" image="Image_0008" stage="top" x="58" y="-79"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="2000" /><condition type="orientation" value="right" /></layer>
+            <layer role="spectators_bottom" path="Health_Culture\Hippodrome_2" image="Image_0008" stage="top" x="119" y="-80"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="2000" /><condition type="orientation" value="bottom" /></layer>
+            <layer role="spectators_left" path="Health_Culture\Hippodrome_1" image="Image_0006" stage="top" x="0" y="-72"><condition type="has_workers" /><condition type="race_active" /><condition type="population" operator="gt" threshold="2000" /><condition type="orientation" value="left" /></layer>
         </default>
     </graphics>
     <construction mode="phased" max_count="1">
@@ -77,6 +80,29 @@
             <requirement type="bricks" amount="32" />
         </phase>
     </construction>
+    <race participant="hippodrome_horses" laps="6" ready_ticks="30" minimum_speed="3" maximum_speed="4" speed_roll="4" track_margin="4" lane_spacing="4" start_delay_bands="100:7,75:15,50:30,25:50,1:80">
+        <spawn_point x="2" y="1" />
+        <finish_point x="1" y="1" />
+        <route>
+            <waypoint x="2" y="1" /><waypoint x="3" y="1" /><waypoint x="4" y="1" /><waypoint x="5" y="1" />
+            <waypoint x="6" y="1" /><waypoint x="7" y="1" /><waypoint x="8" y="1" /><waypoint x="9" y="1" />
+            <waypoint x="10" y="1" /><waypoint x="11" y="1" /><waypoint x="12" y="1" /><waypoint x="13" y="2" />
+            <waypoint x="13" y="3" /><waypoint x="12" y="3" /><waypoint x="11" y="3" /><waypoint x="10" y="3" />
+            <waypoint x="9" y="3" /><waypoint x="8" y="3" /><waypoint x="7" y="3" /><waypoint x="6" y="3" />
+            <waypoint x="5" y="3" /><waypoint x="4" y="3" /><waypoint x="3" y="3" /><waypoint x="2" y="2" />
+        </route>
+        <teams>
+            <team id="blue" lane="0" name_key="TR_WINDOW_RACE_BET_BLUE_HORSE" description_key="TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_BLUE_HORSE">
+            <racer path="Walkers\hippodrome_horses" body="horse_blue" vehicle="cart_blue" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+                <portrait path="UI\Hipp_Team_Blue" image="Hipp_Team_Blue" />
+            </team>
+            <team id="red" lane="1" name_key="TR_WINDOW_RACE_BET_RED_HORSE" description_key="TR_WINDOW_RACE_RED_HORSE_DESCRIPTION" tooltip_key="TR_WINDOW_RACE_BET_RED_HORSE">
+            <racer path="Walkers\hippodrome_horses" body="horse_red" vehicle="cart_red" vehicle_offsets="13:-7,18:-1,12:7,0:11,-13:6,-18:-1,-13:-7,0:-12" vehicle_behind="ne,e,w,nw,n" />
+                <portrait path="UI\Hipp_Team_Blue" image="Image_0020" />
+            </team>
+        </teams>
+        <betting enabled="true" window="race_bet" wager_step="10" normal_multiplier="2" festival_multiplier="4" />
+    </race>
     <culture_modules>
         <culture_module path="hippodrome" capacity="1" count="working" />
     </culture_modules>
@@ -87,18 +113,8 @@
             <amount value="50" />
         </labor_seeker>
     </labor>
-    <composed footprint_width="15" footprint_height="5">
-        <part type="hippodrome_middle" role="middle">
-            <offset rotation="0" x="5" y="0" />
-            <offset rotation="1" x="0" y="-5" />
-            <offset rotation="2" x="-5" y="0" />
-            <offset rotation="3" x="0" y="5" />
-        </part>
-        <part type="hippodrome_end" role="end">
-            <offset rotation="0" x="10" y="0" />
-            <offset rotation="1" x="0" y="-10" />
-            <offset rotation="2" x="-10" y="0" />
-            <offset rotation="3" x="0" y="10" />
-        </part>
-    </composed>
+    <composition>
+        <child type="hippodrome_middle" role="middle" x="5" y="0" orientation="inherit_owner" />
+        <child type="hippodrome_end" role="end" x="10" y="0" orientation="inherit_owner" />
+    </composition>
 </building>

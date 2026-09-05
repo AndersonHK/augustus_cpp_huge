@@ -10,6 +10,7 @@
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -30,8 +31,18 @@ constexpr const char *kDefaultModListXml =
 
 struct ModListParseState {
     std::vector<std::string> mods;
-    int error = 0;
-    int saw_root = 0;
+    bool error = false;
+    bool saw_root = false;
+};
+
+struct ModMetadataParseState {
+    mod_manager::ModMetadata metadata;
+    bool error = false;
+    bool saw_root = false;
+    bool saw_name = false;
+    bool saw_description = false;
+    bool saw_version = false;
+    bool saw_dependencies = false;
 };
 
 std::string g_mod_name = "Vespasian";
@@ -46,8 +57,10 @@ std::vector<std::string> g_graphics_paths = {
     "Mods/Augustus/Graphics/",
     "Mods/Vespasian/Graphics/"
 };
+std::vector<mod_manager::ModMetadata> g_mod_metadata;
 std::string g_failure_reason;
 ModListParseState g_parse_state;
+ModMetadataParseState g_metadata_parse_state;
 
 static int stop_on_first_entry(const char *name, long unused)
 {
@@ -75,6 +88,28 @@ static std::string build_mod_path(const std::string &mod_name)
 static std::string build_graphics_path(const std::string &mod_name)
 {
     return build_mod_path(mod_name) + "Graphics/";
+}
+
+static std::string normalized_mod_name(std::string_view name)
+{
+    std::string normalized(name);
+    for (char &ch : normalized) {
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+    return normalized;
+}
+
+static bool valid_mod_name(std::string_view name)
+{
+    if (name.empty() || name == "." || name == "..") return false;
+    for (const unsigned char character : name) {
+        if (character < 32 || character == '/' || character == '\\' || character == ':' ||
+            character == '<' || character == '>' || character == '"' || character == '|' ||
+            character == '?' || character == '*') return false;
+    }
+    return true;
 }
 
 static void rebuild_legacy_selected_mod_paths()
@@ -121,7 +156,7 @@ static int parse_mod_entry()
     }
 
     std::string mod_name = xml_value::trim_copy(xml_parser_get_attribute_string("name"));
-    if (mod_name.empty()) {
+    if (!valid_mod_name(mod_name)) {
         g_parse_state.error = 1;
         log_error("Mod list entry has an invalid name", 0, 0);
         return 0;
@@ -135,6 +170,137 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "mod_list", parse_mod_list_root, nullptr, nullptr, nullptr },
     { "mod", parse_mod_entry, nullptr, "mod_list", nullptr }
 };
+
+static int parse_metadata_root()
+{
+    if (g_metadata_parse_state.saw_root) {
+        g_metadata_parse_state.error = 1;
+        log_error("Duplicate mod metadata root node", 0, 0);
+        return 0;
+    }
+    g_metadata_parse_state.saw_root = 1;
+    return 1;
+}
+
+static int parse_metadata_value()
+{
+    const char *element = xml_parser_get_current_element_name();
+    if (!element || !xml_parser_has_attribute("value")) {
+        g_metadata_parse_state.error = 1;
+        log_error("Mod metadata field is missing required attribute 'value'", element, 0);
+        return 0;
+    }
+    std::string value = xml_value::trim_copy(xml_parser_get_attribute_string("value"));
+    if (value.empty()) {
+        g_metadata_parse_state.error = 1;
+        log_error("Mod metadata field has an empty value", element, 0);
+        return 0;
+    }
+
+    bool *seen = nullptr;
+    std::string *target = nullptr;
+    if (strcmp(element, "name") == 0) {
+        seen = &g_metadata_parse_state.saw_name;
+        target = &g_metadata_parse_state.metadata.name;
+    } else if (strcmp(element, "description") == 0) {
+        seen = &g_metadata_parse_state.saw_description;
+        target = &g_metadata_parse_state.metadata.description;
+    } else if (strcmp(element, "version") == 0) {
+        seen = &g_metadata_parse_state.saw_version;
+        target = &g_metadata_parse_state.metadata.version;
+    }
+    if (!seen || !target || *seen) {
+        g_metadata_parse_state.error = 1;
+        log_error("Duplicate or unsupported mod metadata field", element, 0);
+        return 0;
+    }
+    *seen = 1;
+    *target = std::move(value);
+    return 1;
+}
+
+static int parse_metadata_dependencies()
+{
+    if (g_metadata_parse_state.saw_dependencies) {
+        g_metadata_parse_state.error = 1;
+        log_error("Duplicate mod metadata dependencies node", 0, 0);
+        return 0;
+    }
+    g_metadata_parse_state.saw_dependencies = 1;
+    return 1;
+}
+
+static int parse_metadata_dependency()
+{
+    if (!xml_parser_has_attribute("name")) {
+        g_metadata_parse_state.error = 1;
+        log_error("Mod dependency is missing required attribute 'name'", 0, 0);
+        return 0;
+    }
+    std::string dependency = xml_value::trim_copy(xml_parser_get_attribute_string("name"));
+    if (!valid_mod_name(dependency)) {
+        g_metadata_parse_state.error = 1;
+        log_error("Mod dependency has an invalid name", dependency.c_str(), 0);
+        return 0;
+    }
+    const std::string normalized = normalized_mod_name(dependency);
+    for (const std::string &existing : g_metadata_parse_state.metadata.dependencies) {
+        if (normalized_mod_name(existing) == normalized) {
+            g_metadata_parse_state.error = 1;
+            log_error("Duplicate mod dependency", dependency.c_str(), 0);
+            return 0;
+        }
+    }
+    g_metadata_parse_state.metadata.dependencies.push_back(std::move(dependency));
+    return 1;
+}
+
+static const xml_parser_element MOD_METADATA_XML_ELEMENTS[] = {
+    { "mod", parse_metadata_root, nullptr, nullptr, nullptr },
+    { "name", parse_metadata_value, nullptr, "mod", nullptr },
+    { "description", parse_metadata_value, nullptr, "mod", nullptr },
+    { "version", parse_metadata_value, nullptr, "mod", nullptr },
+    { "dependencies", parse_metadata_dependencies, nullptr, "mod", nullptr },
+    { "mod", parse_metadata_dependency, nullptr, "dependencies", nullptr }
+};
+
+static int finish_metadata_parse(mod_manager::ModMetadata &metadata_out)
+{
+    if (g_metadata_parse_state.error || !g_metadata_parse_state.saw_root ||
+        !g_metadata_parse_state.saw_name || !g_metadata_parse_state.saw_description ||
+        !g_metadata_parse_state.saw_version || !g_metadata_parse_state.saw_dependencies) {
+        return 0;
+    }
+    if (!valid_mod_name(g_metadata_parse_state.metadata.name)) {
+        log_error("Mod metadata has an invalid name", g_metadata_parse_state.metadata.name.c_str(), 0);
+        return 0;
+    }
+    const std::string own_name = normalized_mod_name(g_metadata_parse_state.metadata.name);
+    for (const std::string &dependency : g_metadata_parse_state.metadata.dependencies) {
+        if (normalized_mod_name(dependency) == own_name) {
+            log_error("Mod metadata cannot depend on itself", dependency.c_str(), 0);
+            return 0;
+        }
+    }
+    metadata_out = std::move(g_metadata_parse_state.metadata);
+    return 1;
+}
+
+static int parse_mod_metadata_file(const char *filename, mod_manager::ModMetadata &metadata_out)
+{
+    g_metadata_parse_state = {};
+    const ErrorContextScope scope("Mod metadata XML", filename);
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Mod metadata",
+        MOD_METADATA_XML_ELEMENTS,
+        static_cast<int>(sizeof(MOD_METADATA_XML_ELEMENTS) / sizeof(MOD_METADATA_XML_ELEMENTS[0])));
+    if (!parsed || !finish_metadata_parse(metadata_out)) {
+        error_context_report_error("Invalid mod metadata XML", filename);
+        return 0;
+    }
+    return 1;
+}
 
 static int parse_mod_list_file(const char *filename, std::vector<std::string> &mods_out)
 {
@@ -202,14 +368,11 @@ static int validate_loaded_mod_names(const std::vector<std::string> &mods)
 
     std::unordered_set<std::string> normalized_names;
     for (const std::string &mod_name : mods) {
-        std::string normalized = mod_name;
-        for (char &ch : normalized) {
-            if (ch >= 'A' && ch <= 'Z') {
-                ch = static_cast<char>(ch - 'A' + 'a');
-            }
+        if (!valid_mod_name(mod_name)) {
+            set_failure_reason("Mod list contains an invalid mod name.", mod_name.c_str());
+            return 0;
         }
-
-        if (!normalized_names.insert(normalized).second) {
+        if (!normalized_names.insert(normalized_mod_name(mod_name)).second) {
             set_failure_reason("Mod list contains duplicate mods.", mod_name.c_str());
             return 0;
         }
@@ -222,6 +385,82 @@ static int validate_loaded_mod_names(const std::vector<std::string> &mods)
     }
 
     return 1;
+}
+
+static bool validate_mod_metadata_stack(
+    const std::vector<std::string> &mods,
+    const std::vector<mod_manager::ModMetadata> &metadata,
+    std::string *failure_reason)
+{
+    std::unordered_set<std::string> earlier_mods;
+    if (mods.size() != metadata.size()) {
+        if (failure_reason) *failure_reason = "The active mod stack and metadata list have different lengths.";
+        return false;
+    }
+    for (std::size_t index = 0; index < mods.size(); ++index) {
+        if (metadata[index].name != mods[index]) {
+            if (failure_reason) {
+                *failure_reason = xml_definition::format_failure_reason(
+                    "Mod metadata name must exactly match its mod folder and mod-list entry.", mods[index].c_str());
+            }
+            return false;
+        }
+        for (const std::string &dependency : metadata[index].dependencies) {
+            if (earlier_mods.find(normalized_mod_name(dependency)) == earlier_mods.end()) {
+                if (failure_reason) {
+                    *failure_reason = xml_definition::format_failure_reason(
+                        "Mod dependency is missing or ordered after its dependent mod.", dependency.c_str());
+                }
+                return false;
+            }
+        }
+        earlier_mods.insert(normalized_mod_name(metadata[index].name));
+    }
+    return true;
+}
+
+static bool load_and_validate_mod_metadata(
+    const std::vector<std::string> &mods,
+    std::vector<mod_manager::ModMetadata> &metadata_out)
+{
+    std::vector<mod_manager::ModMetadata> loaded_metadata;
+    loaded_metadata.reserve(mods.size());
+    for (const std::string &mod_name : mods) {
+        const std::string filename = build_mod_path(mod_name) + "mod.xml";
+        mod_manager::ModMetadata metadata;
+        if (!parse_mod_metadata_file(filename.c_str(), metadata)) {
+            set_failure_reason("Failed to load required mod metadata.", filename.c_str());
+            return false;
+        }
+        loaded_metadata.push_back(std::move(metadata));
+    }
+
+    std::string validation_failure;
+    if (!validate_mod_metadata_stack(mods, loaded_metadata, &validation_failure)) {
+        g_failure_reason = std::move(validation_failure);
+        return false;
+    }
+    metadata_out = std::move(loaded_metadata);
+    return true;
+}
+
+static bool names_equal_case_insensitive(std::string_view left, std::string_view right)
+{
+    return normalized_mod_name(left) == normalized_mod_name(right);
+}
+
+static bool select_mod_stack(std::vector<std::string> &mods, std::string_view selected_mod)
+{
+    const auto selected = std::find_if(mods.begin(), mods.end(), [selected_mod](const std::string &mod) {
+        return names_equal_case_insensitive(mod, selected_mod);
+    });
+    if (selected == mods.end()) {
+        const std::string selected_name(selected_mod);
+        set_failure_reason("Selected mod is not present in the ordered mod list.", selected_name.c_str());
+        return false;
+    }
+    mods.erase(selected + 1, mods.end());
+    return true;
 }
 
 } // namespace
@@ -257,11 +496,17 @@ bool load_mod_list()
         return false;
     }
 
-    if (!validate_loaded_mod_names(loaded_mods)) {
+    if (!select_mod_stack(loaded_mods, g_mod_name) || !validate_loaded_mod_names(loaded_mods)) {
+        return false;
+    }
+
+    std::vector<ModMetadata> loaded_metadata;
+    if (!load_and_validate_mod_metadata(loaded_mods, loaded_metadata)) {
         return false;
     }
 
     g_mod_names = std::move(loaded_mods);
+    g_mod_metadata = std::move(loaded_metadata);
     rebuild_mod_lists();
     return true;
 }
@@ -311,6 +556,16 @@ const std::vector<std::string> &graphics_paths()
     return g_graphics_paths;
 }
 
+const std::vector<ModMetadata> &metadata()
+{
+    return g_mod_metadata;
+}
+
+const ModMetadata *selected_metadata()
+{
+    return g_mod_metadata.empty() ? nullptr : &g_mod_metadata.back();
+}
+
 bool validate_mod_path()
 {
     return validate_directory_path(g_mod_path.c_str());
@@ -325,5 +580,30 @@ bool validate_graphics_path()
     }
     return false;
 }
+
+#ifdef STARTUP_PARSER_TEST
+bool parse_metadata_source_for_test(const char *source, ModMetadata &metadata_out)
+{
+    g_metadata_parse_state = {};
+    if (!source || !*source || !xml_parser_init(
+        MOD_METADATA_XML_ELEMENTS,
+        static_cast<int>(sizeof(MOD_METADATA_XML_ELEMENTS) / sizeof(MOD_METADATA_XML_ELEMENTS[0])),
+        1)) {
+        return false;
+    }
+    const int parsed = xml_parser_parse(source, static_cast<unsigned int>(strlen(source)), 1);
+    xml_parser_free();
+    return parsed && finish_metadata_parse(metadata_out);
+}
+
+bool metadata_stack_is_valid_for_test(
+    const std::vector<std::string> &mod_names,
+    const std::vector<ModMetadata> &metadata,
+    std::string *failure_reason)
+{
+    if (failure_reason) failure_reason->clear();
+    return validate_mod_metadata_stack(mod_names, metadata, failure_reason);
+}
+#endif
 
 }

@@ -8,12 +8,13 @@
             <pathing mode="depot_order_route" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics image_asset="ox" base_image_offset="9" direction_stride="12"
-        max_image_offset="12" corpse_image_asset="ox" corpse_base_image_offset="1"
-        cart_mode="resource_load"
-        cart_offsets_x="24,34,29,7,-15,-20,-13,6"
-        cart_offsets_y="-5,6,17,40,15,7,-3,-6"
-        cart_high_load_threshold="8"
-        cart_high_load_y_adjust="-40"
-        cart_direction_3_y_adjust="-20" />
+    <graphics>
+        <default max_image_offset="12" direction_stride="12">
+            <path value="Walkers\ox" />
+        </default>
+        <corpse>
+            <path value="Walkers\ox" />
+        </corpse>
+        <cart mode="resource_load" offsets_x="24,34,29,7,-15,-20,-13,6" offsets_y="-5,6,17,40,15,7,-3,-6" high_load_threshold="8" high_load_y_adjust="-40" direction_3_y_adjust="-20" />
+    </graphics>
 </figure>

@@ -7,11 +7,12 @@
 #include "core/config.h"
 #include "core/image.h"
 #include "figure/combat.h"
+#include "figure/FigureGraphics.h"
 #include "figure/enemy_army.h"
 #include "figure/image.h"
 #include "figure/movement.h"
-#include "figure/properties.h"
 #include "figure/route.h"
+#include "figure/unit_type.h"
 #include "figuretype/missile.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -19,30 +20,12 @@
 #include "map/terrain.h"
 #include "sound/effect.h"
 
-#define BALLISTA_RANGE 15
-#define WATCHTOWER_RANGE 12
-
-static const int BALLISTA_FIRING_OFFSETS[] = {
-    0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-
-static const int TOWER_SENTRY_FIRING_OFFSETS[] = {
-    0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+static const UnitRangedAbility *ranged_ability_for(const Figure &figure)
+{
+    const UnitType *unit =
+        unit_type_registry_impl::find_unit_type(static_cast<figure_type>(figure.type));
+    return unit ? unit->ranged_ability() : nullptr;
+}
 
 void figure_ballista_action(Figure *f)
 {
@@ -83,38 +66,32 @@ void figure_ballista_action(Figure *f)
             if (f->wait_ticks > 20) {
                 f->wait_ticks = 0;
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, BALLISTA_RANGE, &tile)) {
+                const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                if (ranged &&
+                    figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->action_state = FIGURE_ACTION_181_BALLISTA_FIRING;
-                    f->wait_ticks_missile = static_cast<unsigned char>(
-                        figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay);
+                    f->wait_ticks_missile = static_cast<unsigned char>(ranged->cooldown);
                 }
             }
             break;
         case FIGURE_ACTION_181_BALLISTA_FIRING:
             f->wait_ticks_missile++;
-            if (f->wait_ticks_missile > figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay) {
+            if (const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                ranged && f->wait_ticks_missile > ranged->cooldown) {
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, BALLISTA_RANGE, &tile)) {
+                if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->direction =
                         static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
                     f->wait_ticks_missile = 0;
                     int figure_id = f->id();
-                    figure_create_missile(figure_id, f->x, f->y, tile.x, tile.y, FIGURE_BOLT);
+                    figure_create_missile(
+                        figure_id, f->x, f->y, tile.x, tile.y, ranged->projectile_type);
                     sound_effect_play(SOUND_EFFECT_BALLISTA_SHOOT);
                 } else {
                     f->action_state = FIGURE_ACTION_180_BALLISTA_CREATED;
                 }
             }
             break;
-    }
-    int dir = figure_image_direction(f);
-    if (f->action_state == FIGURE_ACTION_181_BALLISTA_FIRING) {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_BALLISTA),
-            dir,
-            BALLISTA_FIRING_OFFSETS[f->wait_ticks_missile / 4]);
-    } else {
-        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_BALLISTA), dir, 0);
     }
 }
 
@@ -131,12 +108,16 @@ static void tower_sentry_pick_target(Figure *f)
     if (f->in_building_wait_ticks) {
         return;
     }
+    const UnitRangedAbility *ranged = ranged_ability_for(*f);
+    if (!ranged) {
+        return;
+    }
 
     f->wait_ticks_next_target++;
     if (f->wait_ticks_next_target >= 40) {
         f->wait_ticks_next_target = 0;
         map_point tile;
-        if (figure_combat_get_missile_target_for_soldier(f, 10, &tile)) {
+        if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
             f->action_state = FIGURE_ACTION_172_TOWER_SENTRY_FIRING;
             f->destination_x = f->x;
             f->destination_y = f->y;
@@ -197,7 +178,7 @@ static void figure_watchtower_archer_spawn(Building &tower)
         return;
     }
     Figure *f = Figure::create(FIGURE_WATCHTOWER_ARCHER, b->x, b->y, DIR_0_TOP);
-    f->building = &tower;
+    f->set_home_building(&tower);
     f->action_state = FIGURE_ACTION_223_ARCHER_GUARDING;
     b->figure_id4 = f->id();
 }
@@ -211,13 +192,13 @@ void figure_tower_sentry_set_image(Figure *f)
         f->select_legacy_directional_frame_image(
             image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
             dir,
-            TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2]);
+            figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else if (f->action_state == FIGURE_ACTION_225_WATCHMAN_SHOOTING) {
         dir = figure_image_normalize_direction(f->attack_direction);
         f->select_legacy_directional_frame_image(
             image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
             dir,
-            TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2]);
+            figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         int image_id = image_group(GROUP_FIGURE_TOWER_SENTRY);
         const int frame_offset = f->attack_image_offset < 16 ? 0 : (f->attack_image_offset - 16) / 2;
@@ -293,14 +274,16 @@ void figure_tower_sentry_action(Figure *f)
         case FIGURE_ACTION_172_TOWER_SENTRY_FIRING:
             figure_movement_move_ticks_tower_sentry(f, 1);
             f->wait_ticks_missile++;
-            if (f->wait_ticks_missile > figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay) {
+            if (const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                ranged && f->wait_ticks_missile > ranged->cooldown) {
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, 10, &tile)) {
+                if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->direction =
                         static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
                     f->wait_ticks_missile = 0;
                     int figure_id = f->id();
-                    figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, FIGURE_JAVELIN);
+                    figure_create_missile(
+                        f->id(), f->x, f->y, tile.x, tile.y, ranged->projectile_type);
                     f = Figure::get(figure_id);
                 } else {
                     f->action_state = FIGURE_ACTION_173_TOWER_SENTRY_RETURNING;
@@ -376,8 +359,8 @@ void figure_tower_sentry_reroute(void)
             map_figure_delete(f);
             f->previous_tile_x = f->x = static_cast<unsigned char>(x_tile);
             f->previous_tile_y = f->y = static_cast<unsigned char>(y_tile);
-            f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(x_tile));
-            f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(y_tile));
+    f->cross_country_x = figure_movement_tile_to_cross_country(x_tile);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y_tile);
             f->grid_offset = static_cast<short>(map_grid_offset(x_tile, y_tile));
             map_figure_add(f);
             f->action_state = FIGURE_ACTION_173_TOWER_SENTRY_RETURNING;
@@ -407,11 +390,15 @@ static void watchman_pick_target(Figure *f)
         f->action_state == FIGURE_ACTION_149_CORPSE) {
         return;
     }
+    const UnitRangedAbility *ranged = ranged_ability_for(*f);
+    if (!ranged) {
+        return;
+    }
     f->wait_ticks_next_target++;
     if (f->wait_ticks_next_target >= 40) {
         f->wait_ticks_next_target = 0;
         map_point tile;
-        if (figure_combat_get_missile_target_for_soldier(f, 10, &tile)) {
+        if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
             f->action_state = FIGURE_ACTION_225_WATCHMAN_SHOOTING;
         }
     }
@@ -455,7 +442,8 @@ void figure_watchman_action(Figure *f)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius_building(
+                        *watchman_building, 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_222_WATCHMAN_RETURNING;
                     f->destination_x = static_cast<unsigned char>(x_road);
                     f->destination_y = static_cast<unsigned char>(y_road);
@@ -474,14 +462,16 @@ void figure_watchman_action(Figure *f)
             break;
         case FIGURE_ACTION_225_WATCHMAN_SHOOTING:
             f->wait_ticks_missile++;
-            if (f->wait_ticks_missile > figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay) {
+            if (const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                ranged && f->wait_ticks_missile > ranged->cooldown) {
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, 10, &tile)) {
+                if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->attack_direction =
                         static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
                     f->wait_ticks_missile = 0;
                     int figure_id = f->id();
-                    figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, FIGURE_JAVELIN);
+                    figure_create_missile(
+                        f->id(), f->x, f->y, tile.x, tile.y, ranged->projectile_type);
                     f = Figure::get(figure_id);
                 } else {
                     f->action_state = FIGURE_ACTION_221_WATCHMAN_PATROLLING;
@@ -511,22 +501,24 @@ void figure_watchtower_archer_action(Figure *f)
             if (f->wait_ticks > 20) {
                 f->wait_ticks = 0;
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, WATCHTOWER_RANGE, &tile)) {
+                const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                if (ranged && figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->action_state = FIGURE_ACTION_224_ARCHER_SHOOTING;
-                    f->wait_ticks_missile = static_cast<unsigned char>(
-                        figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay);
+                    f->wait_ticks_missile = static_cast<unsigned char>(ranged->cooldown);
                 }
             }
             break;
         case FIGURE_ACTION_224_ARCHER_SHOOTING:
             f->wait_ticks_missile++;
-            if (f->wait_ticks_missile > figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay) {
+            if (const UnitRangedAbility *ranged = ranged_ability_for(*f);
+                ranged && f->wait_ticks_missile > ranged->cooldown) {
                 map_point tile;
-                if (figure_combat_get_missile_target_for_soldier(f, WATCHTOWER_RANGE, &tile)) {
+                if (figure_combat_get_missile_target_for_soldier(f, ranged->range, &tile)) {
                     f->direction =
                         static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
                     f->wait_ticks_missile = 0;
-                    figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, FIGURE_FRIENDLY_ARROW);
+                    figure_create_missile(
+                        f->id(), f->x, f->y, tile.x, tile.y, ranged->projectile_type);
                     sound_effect_play(SOUND_EFFECT_ARROW);
                 } else {
                     f->action_state = FIGURE_ACTION_223_ARCHER_GUARDING;
@@ -549,12 +541,10 @@ void figure_kill_tower_sentries_at(int x, int y)
     }
 }
 
-void figure_kill_tower_sentries_in_building(building *b)
+void figure_kill_tower_sentries_in_building(Building &building)
 {
-    for (unsigned int i = 0; i < Figure::count(); i++) {
-        Figure *f = Figure::get(i);
-        if (!f->is_dead() && f->type == FIGURE_TOWER_SENTRY && f->building &&
-            f->building->id == static_cast<unsigned int>(b->id)) {
+    for (Figure *f : Figure::figures_directly_referencing_building(building)) {
+        if (f && !f->is_dead() && f->type == FIGURE_TOWER_SENTRY && f->building.get_ptr() == &building) {
             f->state = FIGURE_STATE_DEAD;
         }
     }

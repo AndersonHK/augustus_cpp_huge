@@ -57,16 +57,7 @@ Building *building_caravanserai_get_storage_destination(Building &caravanserai)
         return nullptr;
     }
     auto destination_for_resource = [&](resource_type resource) -> Building * {
-        const unsigned int destination_id = info[resource].building_id;
-        if (!destination_id) {
-            return nullptr;
-        }
-        Building *destination = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!destination && building->id == destination_id) {
-                destination = building;
-            }
-        });
+        Building *destination = info[resource].source;
         if (destination) {
             caravanserai.set_fetch_inventory_id(resource);
         }

@@ -3,6 +3,11 @@
 #include "building/building_type.h"
 #include "input/keys.h"
 
+inline int building_tool_mode_is_base_drag_selection(
+    const building_type_registry_impl::BuildingType &definition)
+{
+    return definition.tool().is_clear_land() || definition.tool().is_road();
+}
 
 int building_tool_mode_handles_requested_type(building_type requested_type);
 
@@ -15,6 +20,11 @@ int building_tool_mode_is_drag_tool(building_type selection_type);
 building_type building_tool_mode_resolve(
     building_type selection_type,
     building_type compatibility_alias_type,
+    key_modifier_type modifiers);
+
+building_type building_tool_mode_resolve_context(
+    building_type selection_type,
+    building_type_registry_impl::SmartToolContext context,
     key_modifier_type modifiers);
 
 building_type building_tool_mode_resolve_for_tile(

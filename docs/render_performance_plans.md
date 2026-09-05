@@ -23,7 +23,7 @@ Current implemented seams:
 - [~] Collapse normal city draw rows through `CityViewRenderPhase`; deletion/editor phase-major paths remain separate.
 - [~] Carry `Building` objects through some draw phases; broad row command/prepass ownership remains open.
 - [ ] Add renderer seam pixel checks for terrain/water/filter modes before logical-size XML work.
-- [ ] Introduce city render command lists and instance-data abstraction.
+- [~] Introduce city render command lists and instance-data abstraction. The city draw side now builds one row-preserving object-reference command buffer per frame, and sealed revisioned renderer packets, retained snapshots, and off-thread adjacent-texture batch spans are implemented; production city capture and true backend instancing remain.
 - [ ] Move terrain/water/figure/building assets away from atlas fallback into native GPU-friendly resources.
 - [ ] Add Vulkan backend and orthographic z-buffered city renderer.
 - [ ] Add HDR scene target and shader-side lighting/material policies only as an explicit visual milestone with manual review.
@@ -40,8 +40,8 @@ Implementation sequence:
 1. [x] Split `city_draw_main_row` into top/figure/animation buckets.
 2. [x] Add first renderer metrics for request counts, texture-source submissions, texture switches/misses, grid overlays, and visible row/tile counts.
 3. [x] Centralize render-domain and `scale_filter` policy interpretation in `Render2DPipeline`.
-4. [~] Collapse repeated row traversal overhead. Normal city draw rows use `CityViewRenderPhase`; deletion/editor phase-major paths still need an order-safe contract before they can be collapsed.
-5. [ ] Add a city draw command prepass that can carry `Building` objects or direct building pointers.
+4. [x] Collapse repeated row traversal overhead. One `CityViewRenderCommandBuffer` preserves row spans and replays normal, elevated, deletion, ghost, footprint, and custom-overlay phases without recomputing the visible viewport or object heads.
+5. [x] Add a city draw command prepass that carries direct `Building *` and first-`Figure *` references.
 6. [ ] Replace broad graphics signatures with dirty flags or generation counters owned by the building runtime.
 7. [ ] Remove low-risk `Building::from_id` call sites from draw code by carrying object references through the row command path.
 
@@ -59,8 +59,8 @@ Scope:
 - Use worker threads to build command lists or update dirty instance/state buffers, then submit on the render thread.
 
 Implementation sequence:
-1. Add renderer-facing command structs and a recording mode behind the existing draw API.
-2. Batch obvious same-texture UI/terrain/building runs.
+1. [~] Add renderer-facing command structs and a recording mode behind the existing draw API; all ordinary, custom-image, and saved-region draw operations record, while pixel-parity coverage remains.
+2. [~] Batch obvious same-texture UI/terrain/building runs; the preparation pool emits order-preserving managed/custom/saved texture spans, and backend draw-call coalescing remains.
 3. Convert image payload materialization to allocate from shared atlases.
 4. Measure draw-call count, texture switches, and command-list build time. Request/submission and texture-switch metrics exist; command-list build timing is still pending.
 5. Decide whether SDL3 materially improves the command-list backend.
@@ -74,10 +74,10 @@ Goal: make high-resolution, HDR, shaded, large-city rendering viable long term. 
 The design constraint is no longer the original 1 source pixel to 1 logical pixel world. Vespasian should eventually be able to replace legacy art with assets that are 6x larger horizontally and vertically, or 36x the source pixels, while preserving the same logical footprint on screen. That makes CPU-side per-sprite scaling, atlas bleed, immediate-mode draw submission, and movement/render math that assumes integer source-pixel offsets unacceptable as the final architecture.
 
 CityBuilder reference:
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\docs\design\vulkan-migration-plan.md`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\docs\design\renderer.md`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\VulkanRendererSupport.h`
-- `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\RendererPayload.h`
+- `<legacy renderer repository>\docs\design\vulkan-migration-plan.md`
+- `<legacy renderer repository>\docs\design\renderer.md`
+- `<legacy renderer repository>\City Builder\VulkanRendererSupport.h`
+- `<legacy renderer repository>\City Builder\RendererPayload.h`
 
 Platform target:
 - The long-term Vespasian target should be modern Vulkan-capable hardware across
@@ -119,6 +119,8 @@ Hardware rendering targets:
 - Upload native image groups into persistent GPU resources. Atlas fallback may exist only as a temporary compatibility bridge; final rendering should not depend on atlas sub-rect sampling.
 - Prefer texture arrays or descriptor-indexed image tables for image-group frames, terrain variants, figures, buildings, UI, and weather.
 - Use persistent per-object/per-tile instance buffers with revision counters. Dirty objects update their own records; stable objects remain resident.
+- Compile XML paths plus named entries into stable GPU resource/material indices. Gameplay publishes compact semantic state (pose, direction, frame, variant, resource, color, and ordered layers); shader tables turn that state into atlas UVs and layer draws without restoring CPU-side absolute image-ID mutation.
+- Keep simulation decisions on the CPU. Shaders may select declared frames/layers and apply presentation policy, but must not decide gameplay state transitions.
 - Track renderer metrics from day one: draw calls, instance count, texture bindings, descriptor updates, staging bytes, upload waits, command build time, render thread time, and GPU frame time.
 
 Parallelism targets:
@@ -146,8 +148,8 @@ HDR and lighting stretch goals:
 
 Implementation sequence:
 1. Finish the command-list/instance-data abstraction from Plan B so city/world/UI draw calls can be recorded without immediate SDL submission.
-2. Add renderer snapshots with explicit revisions for terrain, buildings, figures, overlays, ghosts, animations, weather, and UI. Rendering reads snapshots, not mutable gameplay structures.
-3. Add a thread-pool-backed preparation stage that builds visible chunk lists, dirty instance buffers, and staging uploads before the render thread submits.
+2. [~] Add renderer snapshots with explicit revisions for terrain, buildings, figures, overlays, ghosts, animations, weather, and UI. Sealed renderer command packets now carry command/resource revisions and retained immutable lifetime; typed world/object snapshots remain.
+3. [~] Add a thread-pool-backed preparation stage that builds visible chunk lists, dirty instance buffers, and staging uploads before the render thread submits. The bounded pool and newest-packet publication path are live for command batching; chunk discovery and staging uploads remain.
 4. Create a Vulkan backend behind the renderer interface, initially for city terrain/building sprites and one screen-space UI pass.
 5. Move native image payloads and extracted legacy images into Vulkan texture arrays or descriptor-indexed image tables. Keep atlas fallback visible as debt and measure every time it is used.
 6. Add per-instance buffers for position, fixed-point logical size, source rectangle/frame index, layer/depth, tint/material ID, animation frame, filter policy, and shader flags.

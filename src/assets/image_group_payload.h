@@ -1,20 +1,16 @@
 #pragma once
 
 #include "assets/image_group_entry.h"
-#include "assets/xml.h"
-
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class ImageGroupPayload {
 public:
-    ImageGroupPayload(std::string key, std::string xml_path, xml_asset_source source);
+    ImageGroupPayload(std::string key, std::string xml_path);
 
     const std::string &key() const;
     const std::string &xml_path() const;
-    xml_asset_source source() const;
-
     void add_entry(std::string internal_key, std::string image_id, ImageGroupEntry entry);
     void set_default_entry(const std::string &internal_key);
     const ImageGroupEntry *entry_for(const char *image_id) const;
@@ -26,7 +22,6 @@ public:
 private:
     std::string key_;
     std::string xml_path_;
-    xml_asset_source source_ = XML_ASSET_SOURCE_AUTO;
     std::unordered_map<std::string, ImageGroupEntry> entries_;
     std::unordered_map<std::string, std::string> named_entry_keys_;
     std::vector<std::string> ordered_entry_keys_;

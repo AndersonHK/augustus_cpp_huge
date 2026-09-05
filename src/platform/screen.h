@@ -2,7 +2,7 @@
 
 
 int platform_screen_get_scale(void);
-int platform_screen_create(const char *title, int dispay_scale_percentage, int display_id);
+int platform_screen_create(const char *title, int display_scale_percentage, int display_id, int hidden);
 void platform_screen_destroy(void);
 
 int platform_screen_resize(int pixel_width, int pixel_height, int save);

@@ -1,5 +1,3 @@
-#
-
 #include "building/building_record.h"
 #include "building/building_type_registry.h"
 #include "building/building_type_registry_internal.h"
@@ -8,9 +6,10 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/culture_module_registry.h"
 #include "building/distribution.h"
+#include "building/FoundationRegistry.h"
 #include "building/god_registry.h"
 #include "building/god_id_bridge.h"
-#include "building/housing_type_registry.h"
+#include "building/housing_profile_registry.h"
 #include "building/production_method_registry.h"
 #include "building/religion_registry.h"
 #include "building/storage_type_registry.h"
@@ -20,28 +19,29 @@
 #include "core/crash_context.h"
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
-#include "game/mod_manager.h"
+#include "game/mod_definition_loader.h"
 
 #include "building/menu.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"
 #include "figure/formation_type.h"
+#include "figure/figure_type_registry_internal.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
+#include <algorithm>
 #include <cctype>
 #include <climits>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <utility>
 
 namespace building_type_registry_impl {
 
-static building_type g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
 constexpr uint16_t LEGACY_BUILDING_THEATER = 31;
 constexpr uint16_t LEGACY_BUILDING_WELL = 92;
 
@@ -59,7 +59,7 @@ static int compare_text(const char *left, const char *right)
 
 static building_type find_building_type_by_attr(const char *type_attr)
 {
-    if (find_housing_type_definition_for_building_path(type_attr)) {
+    if (find_housing_profile_definition_for_legacy_building_path(type_attr)) {
         return BUILDING_NONE;
     }
     if (building_type_legacy_migration_text_id_is_xml_owned(type_attr)) {
@@ -70,56 +70,13 @@ static building_type find_building_type_by_attr(const char *type_attr)
         return static_cast<building_type>(legacy_type);
     }
 
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_properties *properties = building_properties_for_type(type);
-        if (!properties->event_data.attr) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(properties->event_data.attr, type_attr)) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static building_type find_legacy_building_type_by_event_attr(const char *type_attr)
-{
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_properties *properties = building_properties_for_type(type);
-        if (!properties->event_data.attr) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(properties->event_data.attr, type_attr)) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static building_type allocate_dynamic_building_type(const char *type_attr)
-{
-    if (!type_attr || !*type_attr) {
-        return BUILDING_NONE;
-    }
-
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (definition && compare_text(definition->attr(), type_attr) == 0) {
-            return BUILDING_NONE;
+        if (definition && definition->matches_identity(type_attr ? type_attr : "")) {
+            return definition->type();
         }
     }
-
-    while (g_next_dynamic_building_type < BUILDING_TYPE_MAX && g_building_types[g_next_dynamic_building_type]) {
-        g_next_dynamic_building_type = static_cast<building_type>(g_next_dynamic_building_type + 1);
-    }
-    if (g_next_dynamic_building_type >= BUILDING_TYPE_MAX) {
-        return BUILDING_NONE;
-    }
-
-    building_type allocated_type = g_next_dynamic_building_type;
-    g_next_dynamic_building_type = static_cast<building_type>(g_next_dynamic_building_type + 1);
-    return allocated_type;
+    return BUILDING_NONE;
 }
-
 
 static HousingTransitionKind parse_housing_transition_kind(const char *attribute)
 {
@@ -133,31 +90,6 @@ static HousingTransitionKind parse_housing_transition_kind(const char *attribute
         return HousingTransitionKind::MergeTo;
     }
     return HousingTransitionKind::SplitTo;
-}
-
-static int parse_action_state_name(const char *name)
-{
-    struct named_action_state {
-        const char *name;
-        int action_state;
-    };
-    static const named_action_state action_names[] = {
-        { "roaming", FIGURE_ACTION_125_ROAMING },
-        { "engineer_created", FIGURE_ACTION_60_ENGINEER_CREATED },
-        { "prefect_created", FIGURE_ACTION_70_PREFECT_CREATED },
-        { "tax_collector_created", FIGURE_ACTION_40_TAX_COLLECTOR_CREATED },
-        { "entertainer_roaming", FIGURE_ACTION_94_ENTERTAINER_ROAMING },
-        { "entertainer_school_created", FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED },
-        { "work_camp_worker_created", FIGURE_ACTION_203_WORK_CAMP_WORKER_CREATED },
-        { "work_camp_architect_created", FIGURE_ACTION_206_WORK_CAMP_ARCHITECT_CREATED }
-    };
-
-    for (size_t i = 0; i < sizeof(action_names) / sizeof(action_names[0]); i++) {
-        if (name && compare_text(name, action_names[i].name) == 0) {
-            return action_names[i].action_state;
-        }
-    }
-    return 0;
 }
 
 static int parse_figure_list_attribute(const char *value, std::vector<figure_type> &out_figures)
@@ -510,7 +442,24 @@ static int parse_provider_water_access()
     g_parse_state.saw_provider_water_access = 1;
     g_parse_state.parsing_provider_water_access = 1;
     g_parse_state.saw_water_access_rule = 0;
+    if (xml_parser_has_attribute("requires_open_water")) {
+        int required = 0;
+        const char *value = xml_parser_get_attribute_string("requires_open_water");
+        if (!xml_value::parse_bool(value, &required)) {
+            log_error("BuildingType water_access has invalid requires_open_water value", value, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_water_access_requires_open_water(required);
+        g_parse_state.saw_water_access_rule = required;
+    }
     return 1;
+}
+
+int building_type_water_access_open_water_attribute_is_valid_for_test(const char *value)
+{
+    int required = 0;
+    return value && xml_value::parse_bool(value, &required);
 }
 
 static void finish_provider_water_access()
@@ -528,30 +477,36 @@ static void finish_provider_water_access()
 
 static int parse_building_root()
 {
-    if (!xml_parser_has_attribute("type")) {
+    if (g_parse_state.saw_root || !xml_parser_has_attribute("type")) {
         log_error("BuildingType xml is missing required attribute 'type'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    const char *type_attr = xml_parser_get_attribute_string("type");
-    building_type type = find_building_type_by_attr(type_attr);
-    if (type == BUILDING_NONE) {
-        type = allocate_dynamic_building_type(type_attr);
-        if (type == BUILDING_NONE) {
-            log_error("Unable to allocate dynamic BuildingType xml type", type_attr, 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-    }
-    if (g_building_types[type]) {
-        log_error("Duplicate BuildingType xml type", type_attr, 0);
+    std::string type_attr = xml_definition::normalize_path(xml_parser_get_attribute_string("type"));
+    int disabled = 0;
+    if (type_attr.empty() || (xml_parser_has_attribute("disabled") &&
+            !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled))) {
+        log_error("BuildingType xml has invalid identity or disabled value", type_attr.c_str(), 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    g_parse_state.definition = std::make_unique<BuildingType>(type, type_attr);
+    g_parse_state.definition = std::make_unique<BuildingType>(
+        static_cast<building_type>(BUILDING_NONE), std::move(type_attr));
+    g_parse_state.disabled = disabled;
+    g_parse_state.saw_root = 1;
     return 1;
+}
+
+static void parse_building_root_text(const char *text)
+{
+    if (g_parse_state.disabled && !xml_value::trim_copy(text ? text : "").empty()) {
+        g_parse_state.saw_root_text = 1;
+        g_parse_state.error = 1;
+        log_error("Disabled BuildingType tombstone contains text data", g_parse_state.definition ?
+            g_parse_state.definition->attr() : 0, 0);
+    }
 }
 
 static int parse_identity()
@@ -582,6 +537,28 @@ static int parse_identity()
     }
 
     g_parse_state.definition->set_identity_name_key(std::move(key));
+    if (xml_parser_has_attribute("aliases")) {
+        const std::string aliases = xml_parser_get_attribute_string("aliases");
+        size_t start = 0;
+        while (start <= aliases.size()) {
+            const size_t separator = aliases.find('|', start);
+            const std::string segment = aliases.substr(
+                start,
+                separator == std::string::npos ? std::string::npos : separator - start);
+            std::string alias = xml_value::trim_copy(segment.c_str());
+            if (alias.empty() || alias == g_parse_state.definition->attr() ||
+                !g_parse_state.definition->add_identity_alias(std::move(alias))) {
+                log_error("BuildingType identity contains an empty, canonical, or duplicate alias",
+                    g_parse_state.definition->attr(), 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            if (separator == std::string::npos) {
+                break;
+            }
+            start = separator + 1;
+        }
+    }
     g_parse_state.saw_identity = 1;
     return 1;
 }
@@ -599,6 +576,12 @@ static int parse_model()
         return 0;
     }
 
+    if (xml_parser_has_attribute("size")) {
+        log_error("BuildingType model size was removed; geometry belongs to the external FoundationDef",
+            g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
     if (xml_parser_has_attribute("desirability_value") || xml_parser_has_attribute("desirability_step") ||
         xml_parser_has_attribute("desirability_step_size") || xml_parser_has_attribute("desirability_range") ||
         xml_parser_has_attribute("laborers")) {
@@ -610,20 +593,6 @@ static int parse_model()
     int value = 0;
     int has_value = 0;
     int any_value = 0;
-
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "size", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        if (value <= 0) {
-            log_error("Unsupported BuildingType model size", g_parse_state.definition->attr(), value);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_model_size(value);
-        any_value = 1;
-    }
 
     if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "cost", &value, &has_value)) {
         g_parse_state.error = 1;
@@ -754,10 +723,6 @@ static int parse_desirability_range()
         &BuildingType::set_model_desirability_range);
 }
 
-static FoundationCellRequirement parse_foundation_cell_requirement(const char *value, int *ok);
-static FoundationPolicy parse_foundation_policy(const char *value, int *ok);
-static FoundationCellRequirement foundation_policy_requirement(FoundationPolicy policy);
-
 static int parse_foundation()
 {
     if (!g_parse_state.definition) {
@@ -770,214 +735,48 @@ static int parse_foundation()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("policy")) {
-        log_error("BuildingType foundation is missing required attribute 'policy'", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    std::string policy = xml_value::trim_copy(xml_parser_get_attribute_string("policy"));
-    if (policy.empty()) {
-        log_error("Unsupported BuildingType foundation policy", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    int ok = 0;
-    FoundationPolicy policy_type = parse_foundation_policy(policy.c_str(), &ok);
-    if (!ok) {
-        log_error("Unsupported BuildingType foundation policy", policy.c_str(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    FoundationCellRequirement requirement = foundation_policy_requirement(policy_type);
-
-    g_parse_state.definition->set_foundation_policy(std::move(policy), policy_type, requirement);
-    if (xml_parser_has_attribute("open_water")) {
-        int requires_open_water = 0;
-        if (!xml_value::parse_bool(xml_parser_get_attribute_string("open_water"), &requires_open_water)) {
-            log_error("Unsupported BuildingType foundation open_water flag", g_parse_state.definition->attr(), 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_foundation_requires_open_water(requires_open_water);
-    }
-    g_parse_state.saw_foundation = 1;
-    return 1;
-}
-
-static int parse_foundation_terrain()
-{
-    if (!g_parse_state.definition || !g_parse_state.saw_foundation) {
-        log_error("Encountered foundation terrain outside foundation node", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("value")) {
-        log_error("BuildingType foundation terrain is missing required attribute 'value'", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    const char *value = xml_parser_get_attribute_string("value");
-    int flags = 0;
-    if (compare_text(value, "meadow") == 0) {
-        flags = FoundationTerrainMeadow;
-    } else if (compare_text(value, "rock") == 0) {
-        flags = FoundationTerrainRock;
-    } else if (compare_text(value, "tree") == 0) {
-        flags = FoundationTerrainTree;
-    } else if (compare_text(value, "water") == 0) {
-        flags = FoundationTerrainWater;
-    } else if (compare_text(value, "wall") == 0) {
-        flags = FoundationTerrainWall;
-    } else if (compare_text(value, "distant_water") == 0) {
-        flags = FoundationTerrainDistantWater;
-    } else {
-        log_error("Unsupported BuildingType foundation terrain", value, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->add_foundation_required_terrain(flags);
-    return 1;
-}
-
-static FoundationCellRequirement parse_foundation_cell_requirement(const char *value, int *ok)
-{
-    *ok = 1;
-    if (compare_text(value, "land") == 0 || compare_text(value, "clear") == 0) {
-        return FoundationCellRequirement::Land;
-    }
-    if (compare_text(value, "land_or_aqueduct") == 0) {
-        return FoundationCellRequirement::LandOrAqueduct;
-    }
-    if (compare_text(value, "water") == 0) {
-        return FoundationCellRequirement::Water;
-    }
-    if (compare_text(value, "road") == 0) {
-        return FoundationCellRequirement::Road;
-    }
-    if (compare_text(value, "road_or_land") == 0) {
-        return FoundationCellRequirement::RoadOrLand;
-    }
-    if (compare_text(value, "road_or_wall_or_land") == 0) {
-        return FoundationCellRequirement::RoadWallOrLand;
-    }
-    if (compare_text(value, "wall") == 0) {
-        return FoundationCellRequirement::Wall;
-    }
-    if (compare_text(value, "aqueduct") == 0) {
-        return FoundationCellRequirement::Aqueduct;
-    }
-    if (compare_text(value, "any") == 0) {
-        return FoundationCellRequirement::Any;
-    }
-    *ok = 0;
-    return FoundationCellRequirement::Land;
-}
-
-static FoundationPolicy parse_foundation_policy(const char *value, int *ok)
-{
-    *ok = 1;
-    if (compare_text(value, "land") == 0) {
-        return FoundationPolicy::Land;
-    }
-    if (compare_text(value, "road") == 0) {
-        return FoundationPolicy::Road;
-    }
-    if (compare_text(value, "road_or_land") == 0) {
-        return FoundationPolicy::RoadOrLand;
-    }
-    if (compare_text(value, "road_or_wall_or_land") == 0) {
-        return FoundationPolicy::RoadWallOrLand;
-    }
-    if (compare_text(value, "wall") == 0) {
-        return FoundationPolicy::Wall;
-    }
-    if (compare_text(value, "water") == 0) {
-        return FoundationPolicy::Water;
-    }
-    if (compare_text(value, "shoreline") == 0) {
-        return FoundationPolicy::Shoreline;
-    }
-    if (compare_text(value, "aqueduct") == 0) {
-        return FoundationPolicy::Aqueduct;
-    }
-    if (compare_text(value, "custom") == 0) {
-        return FoundationPolicy::Custom;
-    }
-    *ok = 0;
-    return FoundationPolicy::None;
-}
-
-static FoundationCellRequirement foundation_policy_requirement(FoundationPolicy policy)
-{
-    switch (policy) {
-        case FoundationPolicy::Water:
-            return FoundationCellRequirement::Water;
-        case FoundationPolicy::Road:
-            return FoundationCellRequirement::Road;
-        case FoundationPolicy::RoadOrLand:
-            return FoundationCellRequirement::RoadOrLand;
-        case FoundationPolicy::RoadWallOrLand:
-            return FoundationCellRequirement::RoadWallOrLand;
-        case FoundationPolicy::Wall:
-            return FoundationCellRequirement::Wall;
-        case FoundationPolicy::Aqueduct:
-            return FoundationCellRequirement::Aqueduct;
-        default:
-            return FoundationCellRequirement::Land;
-    }
-}
-
-static int parse_foundation_cell()
-{
-    if (!g_parse_state.definition || !g_parse_state.saw_foundation) {
-        log_error("Encountered foundation cell outside foundation node", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("x") || !xml_parser_has_attribute("y") ||
-        !xml_parser_has_attribute("terrain")) {
-        log_error("BuildingType foundation cell is missing required x, y, or terrain attribute",
+    std::string path;
+    if (!xml_definition::parse_required_nonempty_string_attribute("path", &path) ||
+        xml_parser_has_attribute("policy") || xml_parser_has_attribute("open_water")) {
+        log_error("BuildingType foundation requires only an external path; inline policy attributes were removed",
             g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    int x = 0;
-    int y = 0;
-    int has_value = 0;
-    if (!parse_optional_int_attribute("BuildingType foundation cell", "x", &x, &has_value) || !has_value ||
-        !parse_optional_int_attribute("BuildingType foundation cell", "y", &y, &has_value) || !has_value) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    int rotation = -1;
-    if (xml_parser_has_attribute("rotation")) {
-        if (!parse_optional_int_attribute("BuildingType foundation cell", "rotation", &rotation, &has_value) ||
-            !has_value || rotation < 0 || rotation > 3) {
-            log_error("BuildingType foundation cell rotation must be 0, 1, 2, or 3",
-                g_parse_state.definition->attr(), 0);
-            g_parse_state.error = 1;
-            return 0;
+    g_parse_state.definition->set_foundation_reference(xml_definition::normalize_path(path.c_str()));
+    if (xml_parser_has_attribute("replaces")) {
+        const std::string replacements = xml_parser_get_attribute_string("replaces");
+        size_t start = 0;
+        while (start <= replacements.size()) {
+            const size_t separator = replacements.find('|', start);
+            std::string replacement = xml_value::trim_copy(replacements.substr(
+                start,
+                separator == std::string::npos ? std::string::npos : separator - start));
+            if (!g_parse_state.definition->add_foundation_replacement_reference(std::move(replacement))) {
+                log_error("BuildingType foundation contains an empty or duplicate replacement type",
+                    g_parse_state.definition->attr(), 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            if (separator == std::string::npos) {
+                break;
+            }
+            start = separator + 1;
         }
     }
-
-    int ok = 0;
-    FoundationCellRequirement requirement =
-        parse_foundation_cell_requirement(xml_parser_get_attribute_string("terrain"), &ok);
-    if (!ok) {
-        log_error("Unsupported BuildingType foundation cell terrain",
-            xml_parser_get_attribute_string("terrain"), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->add_foundation_cell(x, y, rotation, requirement);
+    g_parse_state.saw_foundation = 1;
     return 1;
+}
+
+int building_type_geometry_attributes_are_valid_for_test(
+    const char *foundation_path,
+    const char *foundation_policy,
+    const char *foundation_open_water,
+    const char *model_size)
+{
+    return foundation_path && *foundation_path &&
+        !foundation_policy && !foundation_open_water && !model_size;
 }
 
 static int parse_button()
@@ -1112,40 +911,20 @@ static int parse_cycle()
     return 1;
 }
 
-static RoadblockKind parse_roadblock_kind(const char *text)
-{
-    if (compare_text(text, "standard") == 0) {
-        return RoadblockKind::Standard;
-    }
-    if (compare_text(text, "storage") == 0) {
-        return RoadblockKind::Storage;
-    }
-    if (compare_text(text, "bridge") == 0) {
-        return RoadblockKind::Bridge;
-    }
-    return RoadblockKind::None;
-}
-
-static RoadblockBridgeType parse_roadblock_bridge_type(const char *text)
+static BridgeType parse_bridge_type(const char *text)
 {
     if (compare_text(text, "low") == 0) {
-        return RoadblockBridgeType::Low;
+        return BridgeType::Low;
     }
     if (compare_text(text, "ship") == 0) {
-        return RoadblockBridgeType::Ship;
+        return BridgeType::Ship;
     }
-    return RoadblockBridgeType::None;
+    return BridgeType::None;
 }
 
-static RoadblockPassageType parse_roadblock_passage_type(const char *text)
+int bridge_definition_attribute_is_valid_for_test(const char *type)
 {
-    if (compare_text(text, "wall_gate") == 0) {
-        return RoadblockPassageType::WallGate;
-    }
-    if (compare_text(text, "center_road") == 0) {
-        return RoadblockPassageType::CenterRoad;
-    }
-    return RoadblockPassageType::None;
+    return type && parse_bridge_type(type) != BridgeType::None;
 }
 
 static RubbleType parse_rubble_type(const char *text)
@@ -1220,72 +999,33 @@ static int parse_rubble()
     return 1;
 }
 
-static int parse_roadblock()
+static int parse_bridge()
 {
     if (!g_parse_state.definition) {
-        log_error("Encountered roadblock definition before building root", 0, 0);
+        log_error("Encountered bridge definition before building root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.saw_roadblock) {
-        log_error("BuildingType xml contains duplicate roadblock nodes", g_parse_state.definition->attr(), 0);
+    if (g_parse_state.saw_bridge) {
+        log_error("BuildingType xml contains duplicate bridge nodes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("kind")) {
-        log_error("BuildingType roadblock is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+    if (!xml_parser_has_attribute("type")) {
+        log_error("BuildingType bridge is missing required attribute 'type'", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
     }
-
-    const char *kind_text = xml_parser_get_attribute_string("kind");
-    RoadblockKind kind = parse_roadblock_kind(kind_text);
-    if (kind == RoadblockKind::None) {
-        log_error("Unsupported BuildingType roadblock kind", kind_text, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    RoadblockBridgeType bridge_type = RoadblockBridgeType::None;
-    if (kind == RoadblockKind::Bridge) {
-        if (!xml_parser_has_attribute("bridge_type")) {
-            log_error("Bridge roadblock is missing required attribute 'bridge_type'", g_parse_state.definition->attr(), 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        const char *bridge_type_text = xml_parser_get_attribute_string("bridge_type");
-        bridge_type = parse_roadblock_bridge_type(bridge_type_text);
-        if (bridge_type == RoadblockBridgeType::None) {
-            log_error("Unsupported bridge roadblock type", bridge_type_text, 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-    } else if (xml_parser_has_attribute("bridge_type")) {
-        log_error("Only bridge roadblocks may define 'bridge_type'", g_parse_state.definition->attr(), 0);
+    const char *type_text = xml_parser_get_attribute_string("type");
+    const BridgeType bridge_type = parse_bridge_type(type_text);
+    if (bridge_type == BridgeType::None) {
+        log_error("Unsupported BuildingType bridge type", type_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    RoadblockPassageType passage_type = RoadblockPassageType::None;
-    if (xml_parser_has_attribute("passage")) {
-        if (kind != RoadblockKind::Standard) {
-            log_error("Only standard roadblocks may define 'passage'", g_parse_state.definition->attr(), 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        const char *passage_text = xml_parser_get_attribute_string("passage");
-        passage_type = parse_roadblock_passage_type(passage_text);
-        if (passage_type == RoadblockPassageType::None) {
-            log_error("Unsupported roadblock passage type", passage_text, 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-    }
-
-    g_parse_state.definition->set_roadblock_kind(kind);
-    g_parse_state.definition->set_roadblock_bridge_type(bridge_type);
-    g_parse_state.definition->set_roadblock_passage_type(passage_type);
-    g_parse_state.saw_roadblock = 1;
+    g_parse_state.definition->set_bridge_type(bridge_type);
+    g_parse_state.saw_bridge = 1;
     return 1;
 }
 
@@ -1469,6 +1209,84 @@ static ConstructionDragRotation parse_tool_drag_rotation(const char *text)
     return ConstructionDragRotation::None;
 }
 
+static SmartToolModifier parse_smart_tool_modifier(const char *text, int *ok)
+{
+    *ok = 0;
+    if (!text) {
+        return SmartToolModifier::Any;
+    }
+    if (compare_text(text, "any") == 0) {
+        *ok = 1;
+        return SmartToolModifier::Any;
+    }
+    if (compare_text(text, "ctrl") == 0 || compare_text(text, "control") == 0) {
+        *ok = 1;
+        return SmartToolModifier::Control;
+    }
+    if (compare_text(text, "shift") == 0) {
+        *ok = 1;
+        return SmartToolModifier::Shift;
+    }
+    return SmartToolModifier::Any;
+}
+
+static SmartToolTarget parse_smart_tool_target(const char *text, int *ok)
+{
+    *ok = 0;
+    if (!text) {
+        return SmartToolTarget::DragArea;
+    }
+    if (compare_text(text, "drag") == 0) {
+        *ok = 1;
+        return SmartToolTarget::DragArea;
+    }
+    if (compare_text(text, "single") == 0) {
+        *ok = 1;
+        return SmartToolTarget::SingleTarget;
+    }
+    return SmartToolTarget::DragArea;
+}
+
+static SmartToolContext parse_smart_tool_context(const char *text, int *ok)
+{
+    *ok = 0;
+    if (!text) {
+        return SmartToolContext::Default;
+    }
+    if (compare_text(text, "default") == 0) {
+        *ok = 1;
+        return SmartToolContext::Default;
+    }
+    if (compare_text(text, "water") == 0) {
+        *ok = 1;
+        return SmartToolContext::HoverWater;
+    }
+    if (compare_text(text, "route") == 0) {
+        *ok = 1;
+        return SmartToolContext::RoutedSegment;
+    }
+    return SmartToolContext::Default;
+}
+
+int smart_tool_mode_attributes_are_valid_for_test(
+    const char *modifier,
+    const char *type,
+    const char *target,
+    int footprint_size,
+    const char *context)
+{
+    int modifier_ok = 0;
+    int target_ok = 0;
+    int context_ok = 0;
+    const SmartToolModifier parsed_modifier = parse_smart_tool_modifier(modifier, &modifier_ok);
+    const SmartToolTarget parsed_target = parse_smart_tool_target(target, &target_ok);
+    const SmartToolContext parsed_context = parse_smart_tool_context(context, &context_ok);
+    (void) parsed_modifier;
+    (void) parsed_context;
+    return modifier_ok && target_ok && context_ok && type && *type && footprint_size > 0 &&
+        (parsed_target != SmartToolTarget::SingleTarget || footprint_size == 1);
+}
+
 static int parse_tool()
 {
     if (!g_parse_state.definition) {
@@ -1524,6 +1342,59 @@ static int parse_tool()
         return 0;
     }
     g_parse_state.saw_tool = 1;
+    return 1;
+}
+
+static int parse_smart_tool_mode()
+{
+    if (!g_parse_state.definition || !g_parse_state.saw_tool) {
+        log_error("Encountered smart-tool mode before tool definition", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("modifier") || !xml_parser_has_attribute("type")) {
+        log_error("Smart-tool mode requires modifier and type", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *modifier_text = xml_parser_get_attribute_string("modifier");
+    const char *target_text = xml_parser_has_attribute("target") ?
+        xml_parser_get_attribute_string("target") : "drag";
+    const char *context_text = xml_parser_has_attribute("context") ?
+        xml_parser_get_attribute_string("context") : "default";
+    std::string type_reference = xml_value::trim_copy(xml_parser_get_attribute_string("type"));
+    int modifier_ok = 0;
+    int target_ok = 0;
+    int context_ok = 0;
+    SmartToolModeDefinition mode;
+    mode.modifier = parse_smart_tool_modifier(modifier_text, &modifier_ok);
+    mode.target = parse_smart_tool_target(target_text, &target_ok);
+    mode.context = parse_smart_tool_context(context_text, &context_ok);
+    int has_footprint = 0;
+    if (!parse_optional_int_attribute(
+            "Smart-tool footprint must be an integer", "footprint", &mode.footprint_size, &has_footprint)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!has_footprint) {
+        mode.footprint_size = 1;
+    }
+    if (!modifier_ok || !target_ok || !context_ok || type_reference.empty() || mode.footprint_size <= 0 ||
+        (mode.target == SmartToolTarget::SingleTarget && mode.footprint_size != 1)) {
+        log_error("Invalid smart-tool mode", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    for (const SmartToolModeDefinition &existing : g_parse_state.definition->tool().smart_tool().modes()) {
+        if (existing.context == mode.context && existing.modifier == mode.modifier) {
+            log_error("Smart-tool contains duplicate context/modifier modes", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    mode.type_reference = std::move(type_reference);
+    g_parse_state.definition->add_tool_smart_mode(std::move(mode));
     return 1;
 }
 
@@ -1700,36 +1571,6 @@ static int parse_sound()
     }
 
     g_parse_state.saw_sound = 1;
-    return 1;
-}
-
-static int parse_event_data()
-{
-    if (!g_parse_state.definition) {
-        log_error("Encountered event_data definition before building root", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (g_parse_state.saw_event_data) {
-        log_error("BuildingType xml contains duplicate event_data nodes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("attr")) {
-        log_error("BuildingType event_data is missing required attribute 'attr'", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    std::string attr = xml_value::trim_copy(xml_parser_get_attribute_string("attr"));
-    if (attr.empty()) {
-        log_error("Unsupported BuildingType event_data attr", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_event_attr(std::move(attr));
-    g_parse_state.saw_event_data = 1;
     return 1;
 }
 
@@ -1920,161 +1761,85 @@ static int parse_composed_rotation(int *out_rotation)
     return 1;
 }
 
-static void set_all_composed_part_offsets(ComposedPartDefinition &part, int x, int y)
+static int parse_composition()
 {
-    for (ComposedPartOffset &offset : part.offsets) {
-        offset = { x, y, 1 };
-    }
-}
-
-static int parse_composed()
-{
-    if (!g_parse_state.definition) {
-        log_error("Encountered composed definition before building root", 0, 0);
+    if (!g_parse_state.definition || g_parse_state.saw_composed) {
+        log_error("Invalid or duplicate BuildingType composition node", 0, 0);
         g_parse_state.error = 1;
         return 0;
-    }
-    if (g_parse_state.saw_composed) {
-        log_error("BuildingType xml contains duplicate composed nodes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("footprint_width") || !xml_parser_has_attribute("footprint_height")) {
-        log_error("BuildingType composed is missing required footprint attributes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    int width = 0;
-    int height = 0;
-    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("footprint_width"), &width) ||
-        !xml_value::parse_int_strict(xml_parser_get_attribute_string("footprint_height"), &height) ||
-        width <= 0 || height <= 0) {
-        log_error("Unsupported BuildingType composed footprint", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_composed_footprint(width, height);
-    if (xml_parser_has_attribute("inherit_orientation")) {
-        int inherit_orientation = 0;
-        if (!xml_value::parse_bool(xml_parser_get_attribute_string("inherit_orientation"), &inherit_orientation)) {
-            log_error("Unsupported BuildingType composed inherit_orientation flag",
-                g_parse_state.definition->attr(), 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_composed_child_inherits_orientation(inherit_orientation);
     }
     g_parse_state.saw_composed = 1;
     g_parse_state.parsing_composed = 1;
     return 1;
 }
 
-static void finish_composed()
+static void finish_composition()
 {
-    if (!g_parse_state.parsing_composed) {
-        return;
-    }
-    if (!g_parse_state.definition || g_parse_state.definition->composition().parts().empty()) {
-        log_error("BuildingType composed is missing part nodes", 0, 0);
+    if (!g_parse_state.definition || !g_parse_state.definition->composition().has_any()) {
+        log_error("BuildingType composition is missing child nodes", 0, 0);
         g_parse_state.error = 1;
     }
     g_parse_state.parsing_composed = 0;
 }
 
-static int parse_composed_main()
-{
-    if (!g_parse_state.definition || !g_parse_state.parsing_composed || g_parse_state.parsing_composed_main ||
-        g_parse_state.parsing_composed_part) {
-        log_error("Encountered composed main outside composed node", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    int x = 0;
-    int y = 0;
-    int has_offset = 0;
-    if (!parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_offset) {
-        for (int rotation = 0; rotation < 4; rotation++) {
-            g_parse_state.definition->set_composed_main_offset(rotation, x, y);
-        }
-    }
-    g_parse_state.parsing_composed_main = 1;
-    return 1;
-}
-
-static void finish_composed_main()
-{
-    g_parse_state.parsing_composed_main = 0;
-}
-
-static int parse_composed_part()
-{
-    if (!g_parse_state.definition || !g_parse_state.parsing_composed || g_parse_state.parsing_composed_main ||
-        g_parse_state.parsing_composed_part) {
-        log_error("Encountered composed part outside composed node", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("type")) {
-        log_error("BuildingType composed part is missing required attribute 'type'", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    std::string type_attr = xml_value::trim_copy(xml_parser_get_attribute_string("type"));
-    std::string role = xml_parser_has_attribute("role") ?
-        xml_value::trim_copy(xml_parser_get_attribute_string("role")) :
-        std::string();
-    if (type_attr.empty()) {
-        log_error("Unsupported BuildingType composed part type", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    ComposedPartDefinition &part = g_parse_state.definition->add_composed_part(std::move(type_attr), std::move(role));
-    int x = 0;
-    int y = 0;
-    int has_offset = 0;
-    if (!parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_offset) {
-        set_all_composed_part_offsets(part, x, y);
-    }
-    g_parse_state.current_composed_part = &part;
-    g_parse_state.parsing_composed_part = 1;
-    return 1;
-}
-
-static void finish_composed_part()
-{
-    if (!g_parse_state.parsing_composed_part) {
-        return;
-    }
-    ComposedPartDefinition *part = g_parse_state.current_composed_part;
-    int has_offset = 0;
-    if (part) {
-        for (const ComposedPartOffset &offset : part->offsets) {
-            has_offset |= offset.has_value;
-        }
-    }
-    if (!part || !has_offset) {
-        log_error("BuildingType composed part is missing offset data", 0, 0);
-        g_parse_state.error = 1;
-    }
-    g_parse_state.current_composed_part = nullptr;
-    g_parse_state.parsing_composed_part = 0;
-}
-
-static int parse_composed_offset()
+static int parse_composition_child()
 {
     if (!g_parse_state.definition || !g_parse_state.parsing_composed ||
-        (!g_parse_state.parsing_composed_main && !g_parse_state.parsing_composed_part)) {
-        log_error("Encountered composed offset outside main/part", 0, 0);
+        g_parse_state.current_composition_child ||
+        !xml_parser_has_attribute("type") || !xml_parser_has_attribute("role")) {
+        log_error("Invalid BuildingType composition child", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string type_reference =
+        xml_definition::normalize_path(xml_parser_get_attribute_string("type"));
+    std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+    if (type_reference.empty() || role.empty()) {
+        log_error("BuildingType composition child has empty type or role", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    CompositionChildDef &child =
+        g_parse_state.definition->composition().add_child(std::move(type_reference), std::move(role));
+    int x = 0;
+    int y = 0;
+    int has_offset = 0;
+    if (!parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_offset) {
+        child.set_canonical_offset(x, y);
+    }
+    if (xml_parser_has_attribute("orientation")) {
+        const char *orientation = xml_parser_get_attribute_string("orientation");
+        if (xml_value::equals(orientation, "inherit_owner")) {
+            child.orientation = CompositionChildOrientation::InheritOwner;
+        } else if (!xml_value::equals(orientation, "canonical")) {
+            log_error("Unsupported composition child orientation", orientation, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    g_parse_state.current_composition_child = &child;
+    return 1;
+}
+
+static void finish_composition_child()
+{
+    CompositionChildDef *child = g_parse_state.current_composition_child;
+    if (!child || !child->has_canonical_offset() || child->has_partial_rotation_overrides()) {
+        log_error("Composition child requires a canonical offset and complete optional overrides", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.current_composition_child = nullptr;
+}
+
+static int parse_composition_offset()
+{
+    if (!g_parse_state.current_composition_child) {
+        log_error("Composition offset appears outside a child", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -2088,16 +1853,7 @@ static int parse_composed_offset()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.parsing_composed_main) {
-        g_parse_state.definition->set_composed_main_offset(rotation, x, y);
-        return 1;
-    }
-    if (!g_parse_state.current_composed_part) {
-        log_error("Encountered composed offset without active part", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    g_parse_state.current_composed_part->offsets[rotation] = { x, y, 1 };
+    g_parse_state.current_composition_child->set_rotation_override(rotation, x, y);
     return 1;
 }
 
@@ -2119,6 +1875,12 @@ static int parse_graphics()
         g_parse_state.has_current_graphics_variant = 0;
         g_parse_state.current_graphics_variant_index = 0;
         g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::ConstructionPhase;
+        const ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+        if (!phase) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.graphics_definition.add_construction_phase(phase->index);
         return 1;
     }
     if (g_parse_state.saw_graphic) {
@@ -2153,18 +1915,17 @@ static void finish_graphics()
     }
 
     if (g_parse_state.current_graphics_target_scope == GraphicsParseTargetScope::ConstructionPhase) {
-        ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
-        if (!phase || (!phase->graphics.has_path() && !phase->graphics.has_options() &&
-            !phase->graphics.is_resource_storage())) {
+        const GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
+        if (!phase || (!phase->has_path() && !phase->has_options() && !phase->is_resource_storage())) {
             log_error("BuildingType construction phase graphics is missing required child node 'path'", 0, 0);
             g_parse_state.error = 1;
         }
-    } else if (!g_parse_state.definition->graphics().has_default_node()) {
+    } else if (!g_parse_state.graphics_definition.has_default_node()) {
         log_error("BuildingType graphics is missing required child node 'default'", 0, 0);
         g_parse_state.error = 1;
-    } else if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options() &&
-        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
+    } else if (!g_parse_state.graphics_definition.default_target().has_path() &&
+        !g_parse_state.graphics_definition.default_target().has_options() &&
+        !g_parse_state.graphics_definition.default_target().is_resource_storage()) {
         log_error("BuildingType graphics is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2292,6 +2053,98 @@ static int parse_construction()
     return 1;
 }
 
+static int parse_graphics_status_icon_values(const char *x_text, const char *y_text, int *x, int *y)
+{
+    return x_text && y_text && x && y &&
+        xml_value::parse_int_strict(x_text, x) &&
+        xml_value::parse_int_strict(y_text, y);
+}
+
+int graphics_status_icon_attributes_are_valid_for_test(const char *x, const char *y)
+{
+    int parsed_x = 0;
+    int parsed_y = 0;
+    return parse_graphics_status_icon_values(x, y, &parsed_x, &parsed_y);
+}
+
+static int parse_graphics_overlay_summary_policy(
+    const char *text,
+    GraphicsOverlaySummaryPolicy *policy)
+{
+    if (!text || !*text || !policy) {
+        return 0;
+    }
+    if (compare_text(text, "composition_owner") == 0) {
+        *policy = GraphicsOverlaySummaryPolicy::CompositionOwner;
+        return 1;
+    }
+    return 0;
+}
+
+int graphics_overlay_summary_policy_is_valid_for_test(const char *mode)
+{
+    GraphicsOverlaySummaryPolicy policy = GraphicsOverlaySummaryPolicy::EveryDrawTile;
+    return parse_graphics_overlay_summary_policy(mode, &policy);
+}
+
+static int parse_graphics_overlay_summary()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics ||
+        g_parse_state.parsing_construction_phase ||
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::None) {
+        log_error("BuildingType graphics overlay_summary must be a direct child of top-level graphics", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.graphics_definition.has_overlay_summary_policy()) {
+        log_error("BuildingType graphics contains duplicate overlay_summary nodes",
+            g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    GraphicsOverlaySummaryPolicy policy = GraphicsOverlaySummaryPolicy::EveryDrawTile;
+    const char *mode = xml_parser_has_attribute("mode") ?
+        xml_parser_get_attribute_string("mode") : nullptr;
+    if (!parse_graphics_overlay_summary_policy(mode, &policy)) {
+        log_error("BuildingType graphics overlay_summary has unsupported mode", mode, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.graphics_definition.set_overlay_summary_policy(policy);
+    return 1;
+}
+
+static int parse_graphics_status_icon()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics ||
+        g_parse_state.parsing_construction_phase ||
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::None) {
+        log_error("BuildingType graphics status_icon must be a direct child of top-level graphics", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int existing_x = 0;
+    int existing_y = 0;
+    if (g_parse_state.graphics_definition.status_icon_anchor(&existing_x, &existing_y)) {
+        log_error("BuildingType graphics contains duplicate status_icon nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *x_text = xml_parser_has_attribute("x") ? xml_parser_get_attribute_string("x") : nullptr;
+    const char *y_text = xml_parser_has_attribute("y") ? xml_parser_get_attribute_string("y") : nullptr;
+    int x = 0;
+    int y = 0;
+    if (!parse_graphics_status_icon_values(x_text, y_text, &x, &y)) {
+        log_error("BuildingType graphics status_icon requires strict integer x and y attributes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.graphics_definition.set_status_icon_anchor(x, y);
+    return 1;
+}
+
 static void finish_construction()
 {
     if (!g_parse_state.parsing_construction) {
@@ -2342,10 +2195,9 @@ static void finish_construction_phase()
     if (!g_parse_state.parsing_construction_phase) {
         return;
     }
-    ConstructionPhase *phase = g_parse_state.definition ? g_parse_state.definition->last_construction_phase() : nullptr;
-    if (!g_parse_state.saw_construction_phase_graphics || !phase ||
-        (!phase->graphics.has_path() && !phase->graphics.has_options() &&
-            !phase->graphics.is_resource_storage())) {
+    const GraphicsTarget *phase_graphics = g_parse_state.graphics_definition.last_construction_phase();
+    if (!g_parse_state.saw_construction_phase_graphics || !phase_graphics ||
+        (!phase_graphics->has_path() && !phase_graphics->has_options() && !phase_graphics->is_resource_storage())) {
         log_error("BuildingType construction phase is missing required graphics", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2408,15 +2260,15 @@ static int parse_graphics_default()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.definition->graphics().has_default_node()) {
+    if (g_parse_state.graphics_definition.has_default_node()) {
         log_error("BuildingType graphics contains duplicate default nodes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    g_parse_state.definition->mark_graphics_default_node();
+    g_parse_state.graphics_definition.mark_default_node();
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Default;
-    GraphicsTarget &target = g_parse_state.definition->default_graphics_target();
+    GraphicsTarget &target = g_parse_state.graphics_definition.default_target();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2447,15 +2299,13 @@ static GraphicsTarget *current_graphics_target()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            return &g_parse_state.definition->default_graphics_target();
+            return &g_parse_state.graphics_definition.default_target();
         case GraphicsParseTargetScope::Variant:
-            return g_parse_state.definition->last_graphics_variant() ?
-                &g_parse_state.definition->last_graphics_variant()->target :
+            return g_parse_state.graphics_definition.last_variant() ?
+                &g_parse_state.graphics_definition.last_variant()->target :
                 nullptr;
         case GraphicsParseTargetScope::ConstructionPhase:
-            return g_parse_state.definition->last_construction_phase() ?
-                &g_parse_state.definition->last_construction_phase()->graphics :
-                nullptr;
+            return g_parse_state.graphics_definition.last_construction_phase();
         case GraphicsParseTargetScope::None:
         default:
             return nullptr;
@@ -2616,8 +2466,6 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::BuildRotation;
     } else if (compare_text(selection, "connectable") == 0) {
         option_selection = GraphicsOptionSelection::Connectable;
-    } else if (compare_text(selection, "storage_load") == 0) {
-        option_selection = GraphicsOptionSelection::StorageLoad;
     } else if (compare_text(selection, "orientation") == 0) {
         option_selection = GraphicsOptionSelection::Orientation;
     } else if (compare_text(selection, "production_progress") == 0) {
@@ -2628,6 +2476,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::GatehouseOrientation;
     } else if (compare_text(selection, "road_crossing") == 0) {
         option_selection = GraphicsOptionSelection::RoadCrossing;
+    } else if (compare_text(selection, "rubble") == 0) {
+        option_selection = GraphicsOptionSelection::Rubble;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -2800,9 +2650,9 @@ static void finish_graphics_default()
     if (!g_parse_state.parsing_graphics) {
         return;
     }
-    if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options() &&
-        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
+    if (!g_parse_state.graphics_definition.default_target().has_path() &&
+        !g_parse_state.graphics_definition.default_target().has_options() &&
+        !g_parse_state.graphics_definition.default_target().is_resource_storage()) {
         log_error("BuildingType graphics default is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2816,7 +2666,7 @@ static int parse_graphics_variant()
         g_parse_state.error = 1;
         return 0;
     }
-    GraphicsVariant &variant = g_parse_state.definition->add_graphics_variant();
+    GraphicsVariant &variant = g_parse_state.graphics_definition.add_variant();
     if (xml_parser_has_attribute("animation")) {
         int enabled = 1;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
@@ -2846,7 +2696,7 @@ static int parse_graphics_variant()
         variant.role = std::move(role);
     }
     g_parse_state.has_current_graphics_variant = 1;
-    g_parse_state.current_graphics_variant_index = g_parse_state.definition->graphics().variants().size() - 1;
+    g_parse_state.current_graphics_variant_index = g_parse_state.graphics_definition.variants().size() - 1;
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Variant;
     return 1;
 }
@@ -2857,7 +2707,7 @@ static void finish_graphics_variant()
         return;
     }
 
-    GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+    GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
     if (!variant || (!variant->target.has_path() && !variant->target.has_options() &&
         !variant->target.is_resource_storage())) {
         log_error("BuildingType graphics variant is missing required child node 'path'", 0, 0);
@@ -2890,11 +2740,11 @@ static int parse_graphics_path()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            g_parse_state.definition->default_graphics_target().set_path(std::move(normalized_path));
+            g_parse_state.graphics_definition.default_target().set_path(std::move(normalized_path));
             break;
         case GraphicsParseTargetScope::Variant:
         {
-            GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+            GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
             if (!variant) {
                 log_error("Encountered graphics path without an active variant", 0, 0);
                 g_parse_state.error = 1;
@@ -2905,13 +2755,13 @@ static int parse_graphics_path()
         }
         case GraphicsParseTargetScope::ConstructionPhase:
         {
-            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
             if (!phase) {
                 log_error("Encountered construction phase graphics path without an active phase", 0, 0);
                 g_parse_state.error = 1;
                 return 0;
             }
-            phase->graphics.set_path(std::move(normalized_path));
+            phase->set_path(std::move(normalized_path));
             break;
         }
         case GraphicsParseTargetScope::None:
@@ -2945,11 +2795,11 @@ static int parse_graphics_image()
 
     switch (g_parse_state.current_graphics_target_scope) {
         case GraphicsParseTargetScope::Default:
-            g_parse_state.definition->default_graphics_target().set_image(std::move(image_id));
+            g_parse_state.graphics_definition.default_target().set_image(std::move(image_id));
             break;
         case GraphicsParseTargetScope::Variant:
         {
-            GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
+            GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
             if (!variant) {
                 log_error("Encountered graphics image without an active variant", 0, 0);
                 g_parse_state.error = 1;
@@ -2960,13 +2810,13 @@ static int parse_graphics_image()
         }
         case GraphicsParseTargetScope::ConstructionPhase:
         {
-            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            GraphicsTarget *phase = g_parse_state.graphics_definition.last_construction_phase();
             if (!phase) {
                 log_error("Encountered construction phase graphics image without an active phase", 0, 0);
                 g_parse_state.error = 1;
                 return 0;
             }
-            phase->graphics.set_image(std::move(image_id));
+            phase->set_image(std::move(image_id));
             break;
         }
         case GraphicsParseTargetScope::None:
@@ -3146,6 +2996,30 @@ static int parse_graphics_condition()
 
         condition.type = GraphicsConditionType::MonumentUpgrade;
         condition.monument_upgrade = upgrade;
+    } else if (type_text && compare_text(type_text, "race_active") == 0) {
+        condition.type = GraphicsConditionType::RaceActive;
+    } else if (type_text && compare_text(type_text, "population") == 0) {
+        const char *operator_text = xml_parser_get_attribute_string("operator");
+        const char *threshold_text = xml_parser_get_attribute_string("threshold");
+        if (!operator_text || !threshold_text || !parse_graphics_comparison(operator_text, &condition.comparison) ||
+            !xml_value::parse_int_strict(threshold_text, &condition.threshold) || condition.threshold < 0) {
+            log_error("BuildingType graphics population condition is invalid", threshold_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Population;
+    } else if (type_text && compare_text(type_text, "orientation") == 0) {
+        const char *value = xml_parser_get_attribute_string("value");
+        if (value && compare_text(value, "top") == 0) condition.orientation = DIR_0_TOP;
+        else if (value && compare_text(value, "right") == 0) condition.orientation = DIR_2_RIGHT;
+        else if (value && compare_text(value, "bottom") == 0) condition.orientation = DIR_4_BOTTOM;
+        else if (value && compare_text(value, "left") == 0) condition.orientation = DIR_6_LEFT;
+        else {
+            log_error("BuildingType graphics orientation condition is invalid", value, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Orientation;
     } else if (type_text && compare_text(type_text, "festival_games") == 0) {
         if (!xml_parser_has_attribute("value")) {
             log_error("BuildingType graphics festival_games condition is missing required attribute 'value'", 0, 0);
@@ -3215,7 +3089,8 @@ static int parse_graphics_condition()
         g_parse_state.current_graphics_layer->add_condition(condition);
         return 1;
     }
-    g_parse_state.definition->add_graphics_variant_condition(condition);
+    GraphicsVariant *variant = g_parse_state.graphics_definition.last_variant();
+    if (variant) variant->conditions.push_back(std::move(condition));
     return 1;
 }
 
@@ -3868,7 +3743,8 @@ static int parse_housing()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->set_housing_reference(std::move(normalized_path));
+    HousingDef &housing = g_parse_state.definition->housing_def();
+    housing.profile_path = std::move(normalized_path);
 
     int capacity = 0;
     int has_capacity = 0;
@@ -3881,7 +3757,22 @@ static int parse_housing()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->set_housing_capacity(capacity);
+    housing.capacity = capacity;
+
+    int goods_consumption_events_per_month = 0;
+    int mars_offering_amount = 0;
+    if (!xml_definition::parse_required_positive_int_attribute(
+            "goods_consumption_events_per_month", &goods_consumption_events_per_month) ||
+        !xml_definition::parse_required_positive_int_attribute(
+            "mars_offering_amount", &mars_offering_amount) ||
+        goods_consumption_events_per_month > 2) {
+        log_error("BuildingType housing is missing required positive balance attributes",
+            g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    housing.goods_consumption_events_per_month = goods_consumption_events_per_month;
+    housing.mars_offering_amount = mars_offering_amount;
 
     const char *transition_attributes[] = {"evolve_to", "devolve_to", "merge_to", "split_to"};
     for (const char *attribute : transition_attributes) {
@@ -3890,7 +3781,7 @@ static int parse_housing()
         }
         std::string transition = xml_value::trim_copy(xml_parser_get_attribute_string(attribute));
         if (!transition.empty()) {
-            g_parse_state.definition->set_housing_transition(parse_housing_transition_kind(attribute), std::move(transition));
+            housing.transition(parse_housing_transition_kind(attribute)).type_path = std::move(transition);
         }
     }
 
@@ -3922,7 +3813,7 @@ static int parse_vacant_lot()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->set_vacant_lot_fill_reference(std::move(fill_to));
+    g_parse_state.definition->housing_def().transition(HousingTransitionKind::VacantLot).type_path = std::move(fill_to);
     g_parse_state.saw_vacant_lot = 1;
     return 1;
 }
@@ -3995,30 +3886,42 @@ static int parse_spawn()
         return 0;
     }
 
-    if (!xml_parser_has_attribute("mode")) {
-        log_error("BuildingType spawn is missing required attribute 'mode'", 0, 0);
+    SpawnPolicy policy;
+    const int has_special_mode = xml_parser_has_attribute("mode");
+    const char *mode_text = has_special_mode ? xml_parser_get_attribute_string("mode") : nullptr;
+    if (!has_special_mode) {
+        policy.special_mode = SpecialSpawnMode::None;
+    } else if (compare_text(mode_text, "temple_supplier") == 0) {
+        policy.special_mode = SpecialSpawnMode::TempleSupplier;
+    } else if (mode_text && compare_text(mode_text, "temple_destination_priest") == 0) {
+        policy.special_mode = SpecialSpawnMode::TempleDestinationPriest;
+    } else if (mode_text && compare_text(mode_text, "temple_mars_mess_hall_priest") == 0) {
+        policy.special_mode = SpecialSpawnMode::TempleMarsMessHallPriest;
+    } else if (mode_text && compare_text(mode_text, "temple_neptune_chariot") == 0) {
+        policy.special_mode = SpecialSpawnMode::TempleNeptuneChariot;
+    } else if (mode_text && compare_text(mode_text, "grand_temple_mars_recruit") == 0) {
+        policy.special_mode = SpecialSpawnMode::GrandTempleMarsRecruit;
+    } else if (mode_text && compare_text(mode_text, "fishing_boat") == 0) {
+        policy.special_mode = SpecialSpawnMode::FishingBoat;
+    } else {
+        log_error("Unsupported BuildingType special spawn mode", mode_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    const char *mode_text = xml_parser_get_attribute_string("mode");
-    SpawnPolicy policy;
-    if (mode_text && compare_text(mode_text, "profiled_figure") == 0) {
-        policy.mode = SpawnMode::FigureSpawn;
-    } else if (mode_text && compare_text(mode_text, "temple_supplier") == 0) {
-        policy.mode = SpawnMode::TempleSupplier;
-    } else if (mode_text && compare_text(mode_text, "temple_destination_priest") == 0) {
-        policy.mode = SpawnMode::TempleDestinationPriest;
-    } else if (mode_text && compare_text(mode_text, "temple_mars_mess_hall_priest") == 0) {
-        policy.mode = SpawnMode::TempleMarsMessHallPriest;
-    } else if (mode_text && compare_text(mode_text, "temple_neptune_chariot") == 0) {
-        policy.mode = SpawnMode::TempleNeptuneChariot;
-    } else if (mode_text && compare_text(mode_text, "grand_temple_mars_recruit") == 0) {
-        policy.mode = SpawnMode::GrandTempleMarsRecruit;
-    } else if (mode_text && compare_text(mode_text, "fishing_boat") == 0) {
-        policy.mode = SpawnMode::FishingBoat;
-    } else {
-        log_error("Unsupported BuildingType spawn mode", mode_text, 0);
+    const int has_spawn_figure = xml_parser_has_attribute("spawn_figure");
+    const int has_profile_attribute = xml_parser_has_attribute("profile");
+    const int has_generic_only_attribute = has_spawn_figure || has_profile_attribute ||
+        xml_parser_has_attribute("action_state") || xml_parser_has_attribute("init_roaming") ||
+        xml_parser_has_attribute("direction") || xml_parser_has_attribute("figure_slot") ||
+        xml_parser_has_attribute("spawn_count");
+    if (has_special_mode && has_generic_only_attribute) {
+        log_error("BuildingType special spawn contains generic figure spawn attributes", mode_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!has_special_mode && (!has_spawn_figure || !has_profile_attribute)) {
+        log_error("BuildingType generic spawn requires spawn_figure and profile", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -4032,32 +3935,10 @@ static int parse_spawn()
         return 0;
     }
 
-    if ((policy.mode == SpawnMode::FigureSpawn || policy.mode == SpawnMode::FishingBoat) &&
-        !xml_parser_has_attribute("spawn_figure")) {
-        log_error("BuildingType spawn is missing required attribute 'spawn_figure'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (xml_parser_has_attribute("spawn_figure")) {
+    if (has_spawn_figure) {
         policy.spawn_figure = figure_type_from_xml_name(xml_parser_get_attribute_string("spawn_figure"));
         if (policy.spawn_figure == FIGURE_NONE) {
             log_error("Unsupported BuildingType spawn spawn_figure", xml_parser_get_attribute_string("spawn_figure"), 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-    }
-
-    const int has_profile_attribute = xml_parser_has_attribute("profile");
-
-    if (policy.mode == SpawnMode::FigureSpawn && !has_profile_attribute && !xml_parser_has_attribute("action_state")) {
-        log_error("BuildingType spawn is missing required attribute 'action_state'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (xml_parser_has_attribute("action_state")) {
-        policy.action_state = parse_action_state_name(xml_parser_get_attribute_string("action_state"));
-        if (!policy.action_state) {
-            log_error("Unsupported BuildingType spawn action_state", xml_parser_get_attribute_string("action_state"), 0);
             g_parse_state.error = 1;
             return 0;
         }
@@ -4079,14 +3960,6 @@ static int parse_spawn()
         if (compare_text(figure_slot_text, "primary") != 0 && compare_text(figure_slot_text, "secondary") != 0 &&
             compare_text(figure_slot_text, "quaternary") != 0 && compare_text(figure_slot_text, "none") != 0) {
             log_error("Unsupported BuildingType spawn figure_slot", figure_slot_text, 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
-    }
-
-    if (xml_parser_has_attribute("init_roaming")) {
-        if (!xml_value::parse_bool(xml_parser_get_attribute_string("init_roaming"), &policy.init_roaming)) {
-            log_error("Unsupported BuildingType spawn init_roaming", xml_parser_get_attribute_string("init_roaming"), 0);
             g_parse_state.error = 1;
             return 0;
         }
@@ -4160,16 +4033,17 @@ static int parse_spawn()
             return 0;
         }
     }
-    if (policy.mode == SpawnMode::FishingBoat &&
+    if (policy.special_mode == SpecialSpawnMode::FishingBoat &&
         (policy.spawn_source == SpawnSource::None || policy.capacity <= 0)) {
         log_error("BuildingType fishing_boat spawn requires spawn_source and positive capacity",
-            xml_parser_get_attribute_string("spawn_figure"), 0);
+            mode_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (policy.mode == SpawnMode::FishingBoat && policy.spawn_figure != FIGURE_FISHING_BOAT) {
-        log_error("BuildingType fishing_boat spawn must use spawn_figure='fishing_boat'",
-            xml_parser_get_attribute_string("spawn_figure"), 0);
+    if (policy.special_mode != SpecialSpawnMode::FishingBoat &&
+        (policy.spawn_source != SpawnSource::None || policy.capacity > 0)) {
+        log_error("BuildingType spawn_source and capacity are valid only for fishing_boat special spawns",
+            mode_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -4251,8 +4125,347 @@ static int parse_spawn()
     return 1;
 }
 
+static int parse_race_positive_attribute(const char *name, int *out_value, int minimum, int maximum)
+{
+    const char *text = xml_parser_get_attribute_string(name);
+    int value = 0;
+    if (!text || !xml_value::parse_int_strict(text, &value) || value < minimum || value > maximum) {
+        log_error("BuildingType race has an invalid numeric attribute", name, value);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    *out_value = value;
+    return 1;
+}
+
+static int parse_race()
+{
+    if (!g_parse_state.definition || g_parse_state.saw_race) {
+        log_error("BuildingType xml contains an invalid or duplicate race module",
+            g_parse_state.definition ? g_parse_state.definition->attr() : nullptr, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string participant;
+    if (!xml_definition::parse_required_nonempty_string_attribute("participant", &participant)) {
+        log_error("BuildingType race requires participant", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    const figure_type participant_type = figure_type_from_xml_name(participant.c_str());
+    if (participant_type == FIGURE_NONE) {
+        log_error("BuildingType race participant is unknown", participant.c_str(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    RaceDefinition &race = g_parse_state.race_definition;
+    race.participant_figure_reference = std::move(participant);
+    race.participant_figure = participant_type;
+    const char *start_delay_bands = xml_parser_get_attribute_string("start_delay_bands");
+    if (!parse_delay_bands_attribute(start_delay_bands, race.start_delay_bands)) {
+        log_error("BuildingType race requires valid start_delay_bands", start_delay_bands, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!parse_race_positive_attribute("laps", &race.laps, 1, 100) ||
+        !parse_race_positive_attribute("ready_ticks", &race.ready_ticks, 0, 10000) ||
+        !parse_race_positive_attribute("minimum_speed", &race.minimum_speed, 1, 32) ||
+        !parse_race_positive_attribute("maximum_speed", &race.maximum_speed, 1, 32) ||
+        !parse_race_positive_attribute("speed_roll", &race.speed_roll, 1, 10000) ||
+        !parse_race_positive_attribute("track_margin", &race.track_margin, 0, 64) ||
+        !parse_race_positive_attribute("lane_spacing", &race.lane_spacing, 1, 64) ||
+        race.maximum_speed < race.minimum_speed) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race = 1;
+    g_parse_state.parsing_race = 1;
+    return 1;
+}
+
+static void finish_race()
+{
+    RaceDefinition &race = g_parse_state.race_definition;
+    if (!g_parse_state.saw_race_spawn || !g_parse_state.saw_race_finish ||
+        !g_parse_state.saw_race_route || !g_parse_state.saw_race_teams || race.route.size() < 2 || race.teams.empty()) {
+        log_error("BuildingType race is missing spawn, finish, route, or teams",
+            g_parse_state.definition ? g_parse_state.definition->attr() : nullptr, 0);
+        g_parse_state.error = 1;
+    }
+    if (race.route.size() >= 2) {
+        const RaceRoutePoint &first = race.route[0];
+        const RaceRoutePoint &second = race.route[1];
+        const int finish_x = first.x - std::clamp(second.x - first.x, -1, 1);
+        const int finish_y = first.y - std::clamp(second.y - first.y, -1, 1);
+        if (race.spawn_x != first.x || race.spawn_y != first.y) {
+            log_error("BuildingType race spawn must equal its first route waypoint", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+        if (race.finish_x != finish_x || race.finish_y != finish_y) {
+            log_error("BuildingType race finish must be one step behind its first route waypoint", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+    }
+    if (race.betting.enabled) {
+        if (race.betting.window.empty()) {
+            log_error("BuildingType betting race requires a window", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+        }
+        for (const RaceTeamDefinition &team : race.teams) {
+            if (team.portrait_path.empty() || team.portrait_image.empty()) {
+                log_error("BuildingType betting race team requires a portrait", team.id.c_str(), 0);
+                g_parse_state.error = 1;
+            }
+        }
+    }
+    for (const RaceTeamDefinition &team : race.teams) {
+        if (race.track_margin + team.lane * race.lane_spacing > 64) {
+            log_error("BuildingType race lane exceeds the supported visual track width", team.id.c_str(), team.lane);
+            g_parse_state.error = 1;
+        }
+    }
+    if (!g_parse_state.error) {
+        g_parse_state.definition->set_race(std::move(race));
+    }
+    g_parse_state.parsing_race = 0;
+}
+
+static int parse_race_spawn_point()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_spawn ||
+        !parse_race_positive_attribute("x", &g_parse_state.race_definition.spawn_x, -64, 64) ||
+        !parse_race_positive_attribute("y", &g_parse_state.race_definition.spawn_y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_spawn = 1;
+    return 1;
+}
+
+static int parse_race_finish_point()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_finish ||
+        !parse_race_positive_attribute("x", &g_parse_state.race_definition.finish_x, -64, 64) ||
+        !parse_race_positive_attribute("y", &g_parse_state.race_definition.finish_y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_finish = 1;
+    return 1;
+}
+
+static int parse_race_route()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_route) {
+        log_error("BuildingType race contains an invalid or duplicate route", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_route = 1;
+    g_parse_state.parsing_race_route = 1;
+    return 1;
+}
+
+static void finish_race_route()
+{
+    if (g_parse_state.race_definition.route.size() < 2) {
+        log_error("BuildingType race route requires at least two waypoints", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_race_route = 0;
+}
+
+static int parse_race_waypoint()
+{
+    RaceRoutePoint point;
+    if (!g_parse_state.parsing_race_route ||
+        !parse_race_positive_attribute("x", &point.x, -64, 64) ||
+        !parse_race_positive_attribute("y", &point.y, -64, 64)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.race_definition.route.push_back(point);
+    return 1;
+}
+
+static int parse_race_teams()
+{
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_teams) {
+        log_error("BuildingType race contains invalid or duplicate teams", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_teams = 1;
+    g_parse_state.parsing_race_teams = 1;
+    return 1;
+}
+
+static void finish_race_teams()
+{
+    if (g_parse_state.race_definition.teams.empty()) {
+        log_error("BuildingType race requires at least one team", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_race_teams = 0;
+}
+
+static int parse_race_team()
+{
+    RaceTeamDefinition team;
+    if (!g_parse_state.parsing_race_teams || g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("id", &team.id) ||
+        !xml_definition::parse_required_nonempty_string_attribute("name_key", &team.name_key) ||
+        !xml_definition::parse_required_nonempty_string_attribute("description_key", &team.description_key) ||
+        !xml_definition::parse_required_nonempty_string_attribute("tooltip_key", &team.tooltip_key) ||
+        !parse_race_positive_attribute("lane", &team.lane, 0, 255)) {
+        log_error("BuildingType race team is missing required attributes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    for (const RaceTeamDefinition &existing : g_parse_state.race_definition.teams) {
+        if (existing.id == team.id || existing.lane == team.lane) {
+            log_error("BuildingType race team id or lane is duplicated", team.id.c_str(), team.lane);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    g_parse_state.current_race_team = std::move(team);
+    g_parse_state.parsing_race_team = 1;
+    return 1;
+}
+
+static void finish_race_team()
+{
+    RaceTeamDefinition &team = g_parse_state.current_race_team;
+    if (team.graphics_path.empty() || team.body_entry.empty()) {
+        log_error("BuildingType race team requires racer graphics", team.id.c_str(), 0);
+        g_parse_state.error = 1;
+    } else {
+        g_parse_state.race_definition.teams.push_back(std::move(team));
+    }
+    g_parse_state.current_race_team = {};
+    g_parse_state.parsing_race_team = 0;
+}
+
+static int parse_race_vehicle_offsets(const char *text, std::array<RaceRoutePoint, 8> &offsets)
+{
+    if (!text || !*text) return 0;
+    std::string list(text);
+    size_t start = 0;
+    for (int direction = 0; direction < 8; ++direction) {
+        const size_t end = list.find(',', start);
+        const std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        const size_t separator = token.find(':');
+        if (separator == std::string::npos || !xml_value::parse_int_strict(token.substr(0, separator).c_str(), &offsets[direction].x) ||
+            !xml_value::parse_int_strict(token.substr(separator + 1).c_str(), &offsets[direction].y) ||
+            offsets[direction].x < -64 || offsets[direction].x > 64 || offsets[direction].y < -64 || offsets[direction].y > 64 ||
+            (direction < 7 && end == std::string::npos) || (direction == 7 && end != std::string::npos)) {
+            return 0;
+        }
+        start = end + 1;
+    }
+    return 1;
+}
+
+static int parse_race_vehicle_behind(const char *text, std::array<int, 8> &behind)
+{
+    if (!text || !*text) return 1;
+    static constexpr const char *directions[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    std::string list(text);
+    size_t start = 0;
+    while (start <= list.size()) {
+        const size_t end = list.find(',', start);
+        const std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        int found = -1;
+        for (int direction = 0; direction < 8; ++direction) {
+            if (token == directions[direction]) found = direction;
+        }
+        if (found < 0 || behind[found]) return 0;
+        behind[found] = 1;
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return 1;
+}
+
+static int parse_race_racer()
+{
+    if (!g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("path", &g_parse_state.current_race_team.graphics_path) ||
+        !xml_definition::parse_required_nonempty_string_attribute("body", &g_parse_state.current_race_team.body_entry)) {
+        log_error("BuildingType race racer requires path and body", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_race_team.graphics_path =
+        xml_definition::normalize_path(g_parse_state.current_race_team.graphics_path.c_str());
+    if (xml_parser_has_attribute("vehicle")) {
+        g_parse_state.current_race_team.vehicle_entry =
+            xml_value::trim_copy(xml_parser_get_attribute_string("vehicle"));
+        if (g_parse_state.current_race_team.vehicle_entry.empty()) {
+            log_error("BuildingType race racer vehicle cannot be empty", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        if (!parse_race_vehicle_offsets(xml_parser_get_attribute_string("vehicle_offsets"),
+                g_parse_state.current_race_team.vehicle_offsets) ||
+            !parse_race_vehicle_behind(xml_parser_get_attribute_string("vehicle_behind"),
+                g_parse_state.current_race_team.vehicle_behind)) {
+            log_error("BuildingType race racer has invalid vehicle offsets or draw order", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    } else if (xml_parser_has_attribute("vehicle_offsets") || xml_parser_has_attribute("vehicle_behind")) {
+        log_error("BuildingType race racer cannot define vehicle placement without a vehicle", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
+static int parse_race_portrait()
+{
+    if (!g_parse_state.parsing_race_team ||
+        !xml_definition::parse_required_nonempty_string_attribute("path", &g_parse_state.current_race_team.portrait_path) ||
+        !xml_definition::parse_required_nonempty_string_attribute("image", &g_parse_state.current_race_team.portrait_image)) {
+        log_error("BuildingType race portrait requires path and image", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_race_team.portrait_path =
+        xml_definition::normalize_path(g_parse_state.current_race_team.portrait_path.c_str());
+    return 1;
+}
+
+static int parse_race_betting()
+{
+    RaceBettingDefinition &betting = g_parse_state.race_definition.betting;
+    if (!g_parse_state.parsing_race || g_parse_state.saw_race_betting || !xml_parser_has_attribute("enabled") ||
+        !xml_value::parse_bool(xml_parser_get_attribute_string("enabled"), &betting.enabled)) {
+        log_error("BuildingType race betting has an invalid enabled attribute", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_race_betting = 1;
+    if (betting.enabled) {
+        if (!xml_definition::parse_required_nonempty_string_attribute("window", &betting.window) ||
+            !parse_race_positive_attribute("wager_step", &betting.wager_step, 1, 1000000) ||
+            !parse_race_positive_attribute("normal_multiplier", &betting.normal_multiplier, 1, 100) ||
+            !parse_race_positive_attribute("festival_multiplier", &betting.festival_multiplier, 1, 100)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+    } else if (xml_parser_has_attribute("window") || xml_parser_has_attribute("wager_step") ||
+        xml_parser_has_attribute("normal_multiplier") || xml_parser_has_attribute("festival_multiplier")) {
+        log_error("Disabled BuildingType race betting cannot define betting parameters", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
 static const xml_parser_element XML_ELEMENTS[] = {
-    { "building", parse_building_root, nullptr, nullptr, nullptr },
+    { "building", parse_building_root, nullptr, nullptr, parse_building_root_text },
     { "identity", parse_identity, nullptr, "building", nullptr },
     { "model", parse_model, nullptr, "building", nullptr },
     { "desirability", parse_desirability, finish_desirability, "building", nullptr },
@@ -4261,27 +4474,24 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "step_size", parse_desirability_step_size, nullptr, "desirability", nullptr },
     { "range", parse_desirability_range, nullptr, "desirability", nullptr },
     { "foundation", parse_foundation, nullptr, "building", nullptr },
-    { "terrain", parse_foundation_terrain, nullptr, "foundation", nullptr },
-    { "cell", parse_foundation_cell, nullptr, "foundation", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
     { "cycle", parse_cycle, nullptr, "building", nullptr },
-    { "roadblock", parse_roadblock, nullptr, "building", nullptr },
+    { "bridge", parse_bridge, nullptr, "building", nullptr },
     { "rubble", parse_rubble, nullptr, "building", nullptr },
     { "tile", parse_tile, finish_tile, "building", nullptr },
     { "tool", parse_tool, nullptr, "building", nullptr },
+    { "mode", parse_smart_tool_mode, nullptr, "tool", nullptr },
     { "temple", parse_temple, nullptr, "building", nullptr },
     { "sound", parse_sound, nullptr, "building", nullptr },
-    { "event_data", parse_event_data, nullptr, "building", nullptr },
     { "market", parse_market, nullptr, "building", nullptr },
     { "flags", parse_flags, nullptr, "building", nullptr },
     { "military", parse_military, finish_military, "building", nullptr },
     { "formation", parse_military_formation, nullptr, "military", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
-    { "composed", parse_composed, finish_composed, "building", nullptr },
-    { "main", parse_composed_main, finish_composed_main, "composed", nullptr },
-    { "part", parse_composed_part, finish_composed_part, "composed", nullptr },
-    { "offset", parse_composed_offset, nullptr, "main|part", nullptr },
+    { "composition", parse_composition, finish_composition, "building", nullptr },
+    { "child", parse_composition_child, finish_composition_child, "composition", nullptr },
+    { "offset", parse_composition_offset, nullptr, "child", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
     { "construction", parse_construction, finish_construction, "building", nullptr },
     { "phase", parse_construction_phase, finish_construction_phase, "construction", nullptr },
@@ -4292,6 +4502,8 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "requirement", parse_construction_requirement, nullptr, "phase|construction", nullptr },
     { "node", parse_provider_water_access_node, nullptr, "water_access", nullptr },
     { "default", parse_graphics_default, finish_graphics_default, "graphics", nullptr },
+    { "status_icon", parse_graphics_status_icon, nullptr, "graphics", nullptr },
+    { "overlay_summary", parse_graphics_overlay_summary, nullptr, "graphics", nullptr },
     { "variant", parse_graphics_variant, finish_graphics_variant, "graphics", nullptr },
     { "path", parse_graphics_path, nullptr, "default|variant|graphics", nullptr },
     { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
@@ -4315,7 +4527,17 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "housing", parse_housing, nullptr, "building", nullptr },
     { "vacant_lot", parse_vacant_lot, nullptr, "building", nullptr },
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
-    { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
+    { "spawn", parse_spawn, nullptr, "spawn_group", nullptr },
+    { "race", parse_race, finish_race, "building", nullptr },
+    { "spawn_point", parse_race_spawn_point, nullptr, "race", nullptr },
+    { "finish_point", parse_race_finish_point, nullptr, "race", nullptr },
+    { "route", parse_race_route, finish_race_route, "race", nullptr },
+    { "waypoint", parse_race_waypoint, nullptr, "route", nullptr },
+    { "teams", parse_race_teams, finish_race_teams, "race", nullptr },
+    { "team", parse_race_team, finish_race_team, "teams", nullptr },
+    { "racer", parse_race_racer, nullptr, "team", nullptr },
+    { "portrait", parse_race_portrait, nullptr, "team", nullptr },
+    { "betting", parse_race_betting, nullptr, "race", nullptr }
 };
 
 static int starts_with_token(const char *cursor, const char *end, const char *token)
@@ -4382,6 +4604,69 @@ static int buffer_has_building_root(const std::vector<char> &buffer)
     cursor += strlen("<building");
     return cursor < end &&
         (*cursor == '>' || *cursor == '/' || std::isspace(static_cast<unsigned char>(*cursor)));
+}
+
+static int disabled_building_root_has_only_identity_attributes(const std::vector<char> &buffer)
+{
+    const char *start = buffer.data();
+    const char *end = start + buffer.size();
+    const char *cursor = skip_xml_preamble(start, end);
+    if (!starts_with_token(cursor, end, "<building")) {
+        return 0;
+    }
+    cursor += strlen("<building");
+    int saw_type = 0;
+    int saw_disabled = 0;
+    while (cursor < end) {
+        while (cursor < end && std::isspace(static_cast<unsigned char>(*cursor))) {
+            ++cursor;
+        }
+        if (cursor >= end || *cursor == '>' || *cursor == '/') {
+            return cursor < end && saw_type && saw_disabled;
+        }
+
+        const char *name_start = cursor;
+        while (cursor < end && !std::isspace(static_cast<unsigned char>(*cursor)) &&
+            *cursor != '=' && *cursor != '>' && *cursor != '/') {
+            ++cursor;
+        }
+        const std::string name(name_start, cursor);
+        if (name == "type") {
+            if (saw_type) {
+                return 0;
+            }
+            saw_type = 1;
+        } else if (name == "disabled") {
+            if (saw_disabled) {
+                return 0;
+            }
+            saw_disabled = 1;
+        } else {
+            return 0;
+        }
+        while (cursor < end && std::isspace(static_cast<unsigned char>(*cursor))) {
+            ++cursor;
+        }
+        if (cursor >= end || *cursor != '=') {
+            return 0;
+        }
+        ++cursor;
+        while (cursor < end && std::isspace(static_cast<unsigned char>(*cursor))) {
+            ++cursor;
+        }
+        if (cursor >= end || (*cursor != '\'' && *cursor != '"')) {
+            return 0;
+        }
+        const char quote = *cursor++;
+        while (cursor < end && *cursor != quote) {
+            ++cursor;
+        }
+        if (cursor >= end) {
+            return 0;
+        }
+        ++cursor;
+    }
+    return 0;
 }
 
 // Input: one authored graphics target from a BuildingType plus a short scope label for logging.
@@ -4578,39 +4863,27 @@ static int validate_graphics_target_entry(
     return 1;
 }
 
-// Input: one parsed BuildingType definition that may contain native runtime graphics targets.
-// Output: true when all required targets resolve; invalid top-level graphics are cleared so runtime rendering falls back safely.
-static int validate_runtime_graphics_or_clear(BuildingType &definition)
+// Input: one parsed BuildingType definition with module-owned native graphics targets.
+// Output: true only when every target resolves. Invalid authored graphics reject startup.
+static int validate_runtime_graphics(const BuildingType &definition)
 {
-    int valid = 1;
     if (definition.has_graphic()) {
-        valid = validate_graphics_target_entry(definition, definition.graphics().default_target(), "default");
-
-        if (valid) {
-            const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
-            for (size_t i = 0; i < variants.size(); i++) {
-                char scope[64];
-                snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
-                if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
-                    valid = 0;
-                    break;
-                }
+        if (!validate_graphics_target_entry(definition, definition.graphics().default_target(), "default")) return 0;
+        const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
+        for (size_t i = 0; i < variants.size(); i++) {
+            char scope[64];
+            snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
+            if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
+                return 0;
             }
-        }
-
-        if (!valid) {
-            definition.clear_graphics();
         }
     }
 
-    if (definition.has_phased_construction()) {
-        const std::vector<ConstructionPhase> &phases = definition.construction().phases();
-        for (const ConstructionPhase &phase : phases) {
-            char scope[64];
-            snprintf(scope, sizeof(scope), "construction.phase[%d]", phase.index);
-            if (!validate_graphics_target_entry(definition, phase.graphics, scope)) {
-                return 0;
-            }
+    for (const ConstructionPhaseGraphics &phase : definition.graphics().construction_phases()) {
+        char scope[64];
+        snprintf(scope, sizeof(scope), "construction.phase[%d]", phase.phase);
+        if (!validate_graphics_target_entry(definition, phase.target, scope)) {
+            return 0;
         }
     }
 
@@ -4692,22 +4965,23 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
         definition.set_distribution(distribution);
     }
 
-    if (!definition.housing_reference_path().empty()) {
-        const HousingType *housing_type = find_housing_type_definition(definition.housing_reference_path().c_str());
-        if (!housing_type) {
+    HousingDef &housing = definition.housing_def();
+    if (!housing.profile_path.empty()) {
+        const HousingProfileDef *profile = find_housing_profile_definition(housing.profile_path.c_str());
+        if (!profile) {
             char detail[512];
             snprintf(
                 detail,
                 sizeof(detail),
                 "building=%s housing_path=%s file=%s",
                 definition.attr(),
-                definition.housing_reference_path().c_str(),
+                housing.profile_path.c_str(),
                 filename ? filename : "");
             error_context_report_error("Unable to resolve BuildingType housing reference.", detail);
             log_error("Unable to resolve BuildingType housing reference", detail, 0);
             return 0;
         }
-        definition.set_housing_type(housing_type);
+        housing.profile = profile;
     }
 
     if (!definition.temple_religion_reference_path().empty()) {
@@ -4765,7 +5039,15 @@ static int validate_runtime_class_nodes(const BuildingType &definition)
     return 1;
 }
 
-static int parse_definition_buffer(const char *filename, const std::vector<char> &buffer)
+struct ParsedBuildingTypeDefinition {
+    std::unique_ptr<BuildingType> definition;
+    int disabled = 0;
+};
+
+static int parse_definition_buffer(
+    const char *filename,
+    const std::vector<char> &buffer,
+    ParsedBuildingTypeDefinition &result)
 {
     ErrorContextScope error_scope("building_type_registry.parse_definition", filename);
 
@@ -4780,40 +5062,38 @@ static int parse_definition_buffer(const char *filename, const std::vector<char>
     // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
-        g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_roadblock ||
+        g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_bridge ||
         g_parse_state.saw_rubble || g_parse_state.saw_tile || g_parse_state.saw_tool ||
-        g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
+        g_parse_state.saw_temple || g_parse_state.saw_sound ||
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_military ||
         g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_culture_modules ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
         g_parse_state.saw_housing || g_parse_state.saw_vacant_lot ||
-        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access || g_parse_state.saw_composed;
-    if (!parsed || g_parse_state.error || !g_parse_state.definition ||
-        !has_supported_node) {
-        if (!has_supported_node) {
+        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access || g_parse_state.saw_composed ||
+        g_parse_state.saw_race;
+    if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition ||
+        (!g_parse_state.disabled && !has_supported_node) ||
+        (g_parse_state.disabled && (has_supported_node || g_parse_state.saw_root_text ||
+            !disabled_building_root_has_only_identity_attributes(buffer)))) {
+        if (!g_parse_state.disabled && !has_supported_node) {
             log_error("BuildingType xml is missing a supported node", filename, 0);
+        } else if (g_parse_state.disabled && has_supported_node) {
+            log_error("Disabled BuildingType tombstone must contain only type and disabled", filename, 0);
         }
         return 0;
     }
-
-    if (!validate_runtime_graphics_or_clear(*g_parse_state.definition)) {
-        return 0;
-    }
-    if (!resolve_runtime_references(*g_parse_state.definition, filename)) {
-        return 0;
-    }
-    if (!validate_runtime_class_nodes(*g_parse_state.definition)) {
-        return 0;
-    }
-    g_building_types[g_parse_state.definition->type()] = std::move(g_parse_state.definition);
+    g_parse_state.definition->set_graphics(std::move(g_parse_state.graphics_definition));
+    result.definition = std::move(g_parse_state.definition);
+    result.disabled = g_parse_state.disabled;
     return 1;
 }
 
 static int resolve_housing_transition(BuildingType &definition, HousingTransitionKind kind, const char *name)
 {
-    const std::string &text_id = definition.housing_transition_reference(kind);
+    HousingTransitionDef &transition = definition.housing_def().transition(kind);
+    const std::string &text_id = transition.type_path;
     if (text_id.empty()) {
         return 1;
     }
@@ -4821,9 +5101,6 @@ static int resolve_housing_transition(BuildingType &definition, HousingTransitio
     building_type target = runtime_id_from_text(text_id.c_str());
     if (target == BUILDING_NONE) {
         target = find_building_type_by_attr(text_id.c_str());
-        if (target == BUILDING_NONE) {
-            target = find_legacy_building_type_by_event_attr(text_id.c_str());
-        }
         if (target == BUILDING_NONE) {
             char detail[512];
             snprintf(detail, sizeof(detail), "building=%s transition=%s target=%s",
@@ -4833,13 +5110,27 @@ static int resolve_housing_transition(BuildingType &definition, HousingTransitio
         }
     }
 
-    definition.set_housing_transition_type(kind, target);
+    transition.type = definition_for_type(target);
+    if (!transition.type || !transition.type->has_housing()) {
+        error_context_report_error("BuildingType housing transition target has no HousingDef.", text_id.c_str());
+        return 0;
+    }
+    if (kind == HousingTransitionKind::SplitTo) {
+        const FoundationDef *foundation = transition.type->foundation_def();
+        if (!foundation || foundation->cells().size() != 1) {
+            error_context_report_error(
+                "BuildingType housing split_to target must have a one-cell FoundationDef.",
+                text_id.c_str());
+            return 0;
+        }
+    }
     return 1;
 }
 
 static int resolve_vacant_lot_fill_type(BuildingType &definition)
 {
-    const std::string &text_id = definition.vacant_lot_fill_reference();
+    HousingTransitionDef &transition = definition.housing_def().transition(HousingTransitionKind::VacantLot);
+    const std::string &text_id = transition.type_path;
     if (text_id.empty()) {
         return 1;
     }
@@ -4847,14 +5138,12 @@ static int resolve_vacant_lot_fill_type(BuildingType &definition)
     building_type target = runtime_id_from_text(text_id.c_str());
     if (target == BUILDING_NONE) {
         target = find_building_type_by_attr(text_id.c_str());
-        if (target == BUILDING_NONE) {
-            target = find_legacy_building_type_by_event_attr(text_id.c_str());
-        }
     }
 
     const BuildingType *target_definition = definition_for_type(target);
+    const FoundationDef *target_foundation = target_definition ? target_definition->foundation_def() : nullptr;
     if (target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
-        target_definition->declared_model_size() != 1) {
+        !target_foundation || target_foundation->cells().size() != 1) {
         char detail[512];
         snprintf(detail, sizeof(detail), "building=%s fill_to=%s",
             definition.attr(), text_id.c_str());
@@ -4862,7 +5151,7 @@ static int resolve_vacant_lot_fill_type(BuildingType &definition)
         return 0;
     }
 
-    definition.set_vacant_lot_fill_type(target);
+    transition.type = definition_for_type(target);
     return 1;
 }
 
@@ -4871,11 +5160,33 @@ static building_type resolve_building_type_reference(const std::string &text_id)
     building_type target = runtime_id_from_text(text_id.c_str());
     if (target == BUILDING_NONE) {
         target = find_building_type_by_attr(text_id.c_str());
-        if (target == BUILDING_NONE) {
-            target = find_legacy_building_type_by_event_attr(text_id.c_str());
-        }
     }
     return target;
+}
+
+static int resolve_smart_tool_references()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_smart_tools");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition) {
+            continue;
+        }
+        const std::vector<SmartToolModeDefinition> &modes = definition->tool().smart_tool().modes();
+        for (std::size_t index = 0; index < modes.size(); ++index) {
+            const building_type target = resolve_building_type_reference(modes[index].type_reference);
+            const BuildingType *target_definition = definition_for_type(target);
+            if (target == BUILDING_NONE || !target_definition) {
+                char detail[512];
+                snprintf(detail, sizeof(detail), "tool=%s target=%s",
+                    definition->attr(), modes[index].type_reference.c_str());
+                error_context_report_error("SmartToolDef target type does not exist.", detail);
+                return 0;
+            }
+            definition->resolve_tool_smart_mode_type(index, target_definition);
+        }
+    }
+    return 1;
 }
 
 static int resolve_rubble_decay_references()
@@ -4931,190 +5242,55 @@ static int resolve_construction_references()
     return 1;
 }
 
-static int model_size_for_definition(const BuildingType &definition)
+static int resolve_native_composition_references()
 {
-    const int declared_size = definition.declared_model_size();
-    if (declared_size > 0) {
-        return declared_size;
-    }
-    const building_properties *properties = building_properties_for_type(definition.type());
-    return properties && properties->size > 0 ? properties->size : 1;
-}
+    ErrorContextScope error_scope("building_type_registry.resolve_native_compositions");
 
-static int model_size_for_type(building_type type)
-{
-    const BuildingType *definition = definition_for_type(type);
-    if (definition) {
-        return model_size_for_definition(*definition);
-    }
-    const building_properties *properties = building_properties_for_type(type);
-    return properties && properties->size > 0 ? properties->size : 1;
-}
-
-static int append_composed_cells(
-    std::vector<int> &cells,
-    int x,
-    int y,
-    int size,
-    const char *building_attr,
-    const char *part_attr,
-    int rotation)
-{
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            const int cell = (y + dy) * 128 + x + dx;
-            for (int existing : cells) {
-                if (existing == cell) {
-                    char detail[512];
-                    snprintf(
-                        detail,
-                        sizeof(detail),
-                        "building=%s part=%s rotation=%d x=%d y=%d",
-                        building_attr ? building_attr : "",
-                        part_attr ? part_attr : "",
-                        rotation,
-                        x + dx,
-                        y + dy);
-                    error_context_report_error("BuildingType composed parts overlap.", detail);
-                    log_error("BuildingType composed parts overlap", detail, 0);
-                    return 0;
-                }
-            }
-            cells.push_back(cell);
-        }
-    }
-    return 1;
-}
-
-static void include_composed_bounds(int x, int y, int size, int *min_x, int *min_y, int *max_x, int *max_y)
-{
-    if (x < *min_x) {
-        *min_x = x;
-    }
-    if (y < *min_y) {
-        *min_y = y;
-    }
-    if (x + size > *max_x) {
-        *max_x = x + size;
-    }
-    if (y + size > *max_y) {
-        *max_y = y + size;
-    }
-}
-
-static int validate_composed_footprint_bounds(
-    const BuildingType &definition,
-    int rotation,
-    int min_x,
-    int min_y,
-    int max_x,
-    int max_y)
-{
-    const ComposedBuildingDefinition &composition = definition.composition();
-    const int allowed_width = rotation % 2 ? composition.footprint_height() : composition.footprint_width();
-    const int allowed_height = rotation % 2 ? composition.footprint_width() : composition.footprint_height();
-    const int occupied_width = max_x - min_x;
-    const int occupied_height = max_y - min_y;
-    if (occupied_width <= allowed_width && occupied_height <= allowed_height) {
-        return 1;
-    }
-
-    char detail[512];
-    snprintf(
-        detail,
-        sizeof(detail),
-        "building=%s rotation=%d occupied=%dx%d allowed=%dx%d bounds=(%d,%d)-(%d,%d)",
-        definition.attr(),
-        rotation,
-        occupied_width,
-        occupied_height,
-        allowed_width,
-        allowed_height,
-        min_x,
-        min_y,
-        max_x,
-        max_y);
-    error_context_report_error("BuildingType composed parts exceed declared footprint.", detail);
-    log_error("BuildingType composed parts exceed declared footprint", detail, 0);
-    return 0;
-}
-
-static int validate_composed_part_cells(const BuildingType &definition)
-{
-    if (!definition.has_composition()) {
-        return 1;
-    }
-
-    const ComposedBuildingDefinition &composition = definition.composition();
-    const int main_size = model_size_for_definition(definition);
-    for (int rotation = 0; rotation < 4; rotation++) {
-        std::vector<int> occupied_cells;
-        const ComposedPartOffset main_offset = composition.main_offset_for_rotation(rotation);
-        int min_x = main_offset.x;
-        int min_y = main_offset.y;
-        int max_x = main_offset.x + main_size;
-        int max_y = main_offset.y + main_size;
-        if (!append_composed_cells(occupied_cells, main_offset.x, main_offset.y, main_size,
-                definition.attr(), "main", rotation)) {
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (definition &&
+            definition->graphics().overlay_summary_policy() ==
+                GraphicsOverlaySummaryPolicy::CompositionOwner &&
+            !definition->has_composition()) {
+            log_error("BuildingType composition_owner overlay summary requires a composition",
+                definition->attr(), definition->type());
             return 0;
         }
-        for (const ComposedPartDefinition &part : composition.parts()) {
-            const int child_size = model_size_for_type(part.type);
-            const ComposedPartOffset part_offset = part.offset_for_rotation(rotation);
-            if (!part_offset.has_value) {
-                char detail[512];
-                snprintf(detail, sizeof(detail), "building=%s part=%s rotation=%d",
-                    definition.attr(), part.type_attr.c_str(), rotation);
-                error_context_report_error("BuildingType composed part is missing a rotation offset.", detail);
-                return 0;
-            }
-            if (!append_composed_cells(occupied_cells, part_offset.x, part_offset.y, child_size,
-                    definition.attr(), part.type_attr.c_str(), rotation)) {
-                return 0;
-            }
-            include_composed_bounds(part_offset.x, part_offset.y, child_size, &min_x, &min_y, &max_x, &max_y);
-        }
-        if (!validate_composed_footprint_bounds(definition, rotation, min_x, min_y, max_x, max_y)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static int resolve_composed_building_references()
-{
-    ErrorContextScope error_scope("building_type_registry.resolve_composed_buildings");
-
-    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
         if (!definition || !definition->has_composition()) {
             continue;
         }
-        const std::vector<ComposedPartDefinition> &parts = definition->composition().parts();
-        for (size_t i = 0; i < parts.size(); i++) {
-            const std::string &part_type_attr = parts[i].type_attr;
-            building_type part_type = resolve_building_type_reference(part_type_attr);
-            const BuildingType *part_definition = definition_for_type(part_type);
-            if (part_type == BUILDING_NONE || !part_definition) {
-                char detail[512];
-                snprintf(detail, sizeof(detail), "building=%s part=%s",
-                    definition->attr(), part_type_attr.c_str());
-                error_context_report_error("BuildingType composed part type does not exist.", detail);
-                log_error("Unable to resolve BuildingType composed part", detail, 0);
-                return 0;
-            }
-            if (part_type == definition->type() || part_definition->has_composition()) {
-                char detail[512];
-                snprintf(detail, sizeof(detail), "building=%s part=%s",
-                    definition->attr(), part_type_attr.c_str());
-                error_context_report_error("BuildingType composed recursion is not supported.", detail);
-                log_error("BuildingType composed recursion is not supported", detail, 0);
-                return 0;
-            }
-            definition->set_composed_part_type(i, part_type);
-            definition->inherit_labor_category(part_definition->labor_category());
-        }
-        if (!validate_composed_part_cells(*definition)) {
+        if (definition->has_housing()) {
+            log_error("BuildingType cannot combine housing with fixed composition",
+                definition->attr(), definition->type());
             return 0;
+        }
+        for (CompositionChildDef &child : definition->composition().children()) {
+            const building_type child_type = resolve_building_type_reference(child.type_reference);
+            child.type = definition_for_type(child_type);
+            if (!child.type) {
+                log_error("Unable to resolve CompositionDef child type",
+                    child.type_reference.c_str(), definition->type());
+                return 0;
+            }
+            if (child.type->has_housing()) {
+                log_error("BuildingType composition cannot contain a housing child",
+                    child.type_reference.c_str(), definition->type());
+                return 0;
+            }
+            definition->inherit_labor_category(child.type->labor_category());
+        }
+    }
+
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_composition()) {
+            continue;
+        }
+        for (int rotation = 0; rotation < 4; ++rotation) {
+            const CompositionLayoutResult layout = build_composition_layout(
+                definition.get(), definition->composition(), 0, 0, rotation, resolve_composition_foundation);
+            if (!layout.valid()) {
+                log_error("Invalid BuildingType CompositionDef", layout.detail.c_str(), definition->type());
+                return 0;
+            }
         }
     }
     return 1;
@@ -5155,146 +5331,437 @@ static int resolve_housing_transitions()
 
     building_type vacant_lot_target = building_type_registry_impl::vacant_lot_occupancy_type();
     const BuildingType *target_definition = definition_for_type(vacant_lot_target);
+    const FoundationDef *target_foundation = target_definition ? target_definition->foundation_def() : nullptr;
     if (vacant_lot_target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
-        target_definition->declared_model_size() != 1) {
+        !target_foundation || target_foundation->cells().size() != 1) {
         error_context_report_error(
             "BuildingType housing vacant-lot fill target does not exist.",
-            "target=first_housing_level size=1");
+            "target=first_housing_profile foundation_cells=1");
         return 0;
     }
 
     return 1;
 }
 
-static std::string building_type_category_path(const char *folder)
+static int resolve_foundation_references()
 {
-    return mod_manager::mod_path() + folder + "/";
+    ErrorContextScope error_scope("building_type_registry.resolve_foundation_references");
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || definition->foundation_reference_path().empty()) {
+            continue;
+        }
+        const FoundationDef *foundation =
+            find_foundation_definition(definition->foundation_reference_path().c_str());
+        if (!foundation) {
+            log_error("Unable to resolve BuildingType foundation reference",
+                definition->foundation_reference_path().c_str(), definition->type());
+            return 0;
+        }
+        if (definition->water_access().requires_open_water() && !foundation->has_water_requirement()) {
+            log_error("BuildingType requires open water but its Foundation has no water cells",
+                definition->attr(), definition->type());
+            return 0;
+        }
+        definition->set_foundation_definition(foundation);
+    }
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition) {
+            continue;
+        }
+        for (const std::string &reference : definition->foundation_replacement_reference_paths()) {
+            const building_type replacement_type = resolve_building_type_reference(reference);
+            const BuildingType *replacement = definition_for_type(replacement_type);
+            const FoundationDef *replacement_foundation = replacement ? replacement->foundation_def() : nullptr;
+            if (!replacement || !replacement_foundation || replacement_foundation->cells().size() != 1) {
+                char detail[512];
+                snprintf(detail, sizeof(detail), "building=%s replaces=%s",
+                    definition->attr(), reference.c_str());
+                error_context_report_error(
+                    "BuildingType foundation replacement target must resolve to a one-cell BuildingType.", detail);
+                return 0;
+            }
+            definition->add_foundation_replacement_type(replacement);
+        }
+    }
+    return 1;
 }
 
-static int load_building_type_definitions_from_path(
-    const char *path,
-    int require_building_files,
-    int allow_non_building_files,
-    int *loaded_count)
+static int validate_identity_uniqueness()
 {
-    int path_building_file_count = 0;
-    const bool loaded = xml_definition::for_each_definition_file(
-        path ? path : "",
-        "BuildingType",
-        require_building_files != 0,
-        [&](const xml_definition::DefinitionFile &file, const std::string &) {
+    ErrorContextScope error_scope("building_type_registry.validate_identity_uniqueness");
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition) {
+            continue;
+        }
+        for (const std::string &alias : definition->identity().aliases()) {
+            for (const std::unique_ptr<BuildingType> &other : g_building_types) {
+                if (!other || other.get() == definition.get()) {
+                    continue;
+                }
+                if (other->matches_identity(alias)) {
+                    char detail[512];
+                    snprintf(detail, sizeof(detail), "identity=%s alias=%s conflicts_with=%s",
+                        definition->attr(), alias.c_str(), other->attr());
+                    error_context_report_error("BuildingType identity alias is not globally unique.", detail);
+                    return 0;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+struct LayeredBuildingTypeDefinition {
+    ParsedBuildingTypeDefinition parsed;
+    mod_definition::DefinitionSource source;
+    int allocation_category = 0;
+};
+
+using LayeredBuildingTypeDefinitions = std::map<std::string, LayeredBuildingTypeDefinition>;
+
+struct StagedBuildingTypeRegistry {
+    std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> definitions;
+    mod_definition::DefinitionOverlayTracker overlays;
+};
+
+static int category_order(const std::string &category)
+{
+    if (category == "BuildingType") {
+        return 0;
+    }
+    if (category == "Tiles") {
+        return 1;
+    }
+    return 2;
+}
+
+static building_type fixed_runtime_type_for_identity(const char *type_attr)
+{
+    if (!type_attr || !*type_attr || find_housing_profile_definition_for_legacy_building_path(type_attr) ||
+        !building_type_legacy_migration_text_id_is_xml_owned(type_attr)) {
+        return BUILDING_NONE;
+    }
+    const uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(type_attr);
+    if (legacy_type == LEGACY_BUILDING_THEATER || legacy_type == LEGACY_BUILDING_WELL ||
+        legacy_type <= BUILDING_NONE || legacy_type >= BUILDING_TYPE_MAX) {
+        return BUILDING_NONE;
+    }
+    return static_cast<building_type>(legacy_type);
+}
+
+static int stage_building_type_definition(
+    LayeredBuildingTypeDefinitions &winners,
+    mod_definition::DefinitionOverlayTracker &overlays,
+    ParsedBuildingTypeDefinition parsed,
+    const mod_definition::DefinitionSource &source,
+    std::string *failure_reason)
+{
+    const std::string stable_id = parsed.definition ? parsed.definition->attr() : "";
+    if (!overlays.apply(stable_id, parsed.disabled != 0, source)) {
+        if (failure_reason) {
+            *failure_reason = overlays.failure_reason();
+        }
+        log_error("Unable to layer BuildingType definition", overlays.failure_reason().c_str(), 0);
+        return 0;
+    }
+    const auto existing = winners.find(stable_id);
+    const int allocation_category = existing == winners.end() ?
+        category_order(source.category) : existing->second.allocation_category;
+    winners[stable_id] = {std::move(parsed), source, allocation_category};
+    return 1;
+}
+
+static int materialize_building_type_winners(
+    LayeredBuildingTypeDefinitions &winners,
+    mod_definition::DefinitionOverlayTracker overlays,
+    StagedBuildingTypeRegistry &staged,
+    std::string *failure_reason)
+{
+    std::vector<LayeredBuildingTypeDefinition *> ordered;
+    ordered.reserve(winners.size());
+    for (auto &entry : winners) {
+        if (!entry.second.parsed.disabled) {
+            ordered.push_back(&entry.second);
+        }
+    }
+    std::sort(ordered.begin(), ordered.end(), [](const LayeredBuildingTypeDefinition *left,
+        const LayeredBuildingTypeDefinition *right) {
+        const int left_category = left->allocation_category;
+        const int right_category = right->allocation_category;
+        if (left_category != right_category) {
+            return left_category < right_category;
+        }
+        const int identity_order = compare_text(
+            left->parsed.definition->attr(), right->parsed.definition->attr());
+        if (identity_order != 0) {
+            return identity_order < 0;
+        }
+        return left->source.normalized_definition_path < right->source.normalized_definition_path;
+    });
+
+    building_type next_dynamic = BUILDING_DYNAMIC_TYPE_FIRST;
+    for (LayeredBuildingTypeDefinition *winner : ordered) {
+        BuildingType *definition = winner->parsed.definition.get();
+        building_type type = fixed_runtime_type_for_identity(definition->attr());
+        if (type == BUILDING_NONE) {
+            while (next_dynamic < BUILDING_TYPE_MAX && staged.definitions[next_dynamic]) {
+                next_dynamic = static_cast<building_type>(next_dynamic + 1);
+            }
+            type = next_dynamic;
+            if (next_dynamic < BUILDING_TYPE_MAX) {
+                next_dynamic = static_cast<building_type>(next_dynamic + 1);
+            }
+        }
+        if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX || staged.definitions[type]) {
+            const std::string detail = std::string("Unable to assign effective BuildingType runtime id: ") +
+                definition->attr() + " from " + winner->source.describe();
+            if (failure_reason) {
+                *failure_reason = detail;
+            }
+            log_error("Unable to materialize BuildingType winner", detail.c_str(), 0);
+            return 0;
+        }
+        definition->assign_runtime_type(type);
+        staged.definitions[type] = std::move(winner->parsed.definition);
+    }
+    staged.overlays = std::move(overlays);
+    return 1;
+}
+
+static int build_layered_building_type_registry(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    StagedBuildingTypeRegistry &staged,
+    std::string *failure_reason)
+{
+    LayeredBuildingTypeDefinitions winners;
+    mod_definition::DefinitionOverlayTracker overlays;
+    int saw_primary_category_definition = 0;
+    if (!mod_definition::for_each_definition_file(
+            layers,
+            {"BuildingType", "Tiles", "BuildingTypeMenu"},
+            "BuildingType",
+            true,
+            [&](const mod_definition::DefinitionSource &source) {
             std::vector<char> buffer;
-            if (!xml_definition::load_file_to_buffer(file.full_path.c_str(), buffer, file.full_path.c_str())) {
+            if (!xml_definition::load_file_to_buffer(
+                    source.full_path.c_str(), buffer, source.full_path.c_str())) {
                 return false;
             }
             if (!buffer_has_building_root(buffer)) {
-                if (!allow_non_building_files) {
-                    log_error("BuildingType xml root is not <building>", file.full_path.c_str(), 0);
-                    return false;
+                const std::string detail = "BuildingType xml root is not <building>: " + source.describe();
+                if (failure_reason) {
+                    *failure_reason = detail;
                 }
-                return true;
-            }
-            if (!parse_definition_buffer(file.full_path.c_str(), buffer)) {
-                log_error("Unable to parse BuildingType xml", file.full_path.c_str(), 0);
+                log_error("BuildingType xml root is not <building>", source.full_path.c_str(), 0);
                 return false;
             }
-            path_building_file_count++;
-            if (loaded_count) {
-                (*loaded_count)++;
+            ParsedBuildingTypeDefinition parsed;
+            if (!parse_definition_buffer(source.full_path.c_str(), buffer, parsed)) {
+                if (failure_reason) {
+                    *failure_reason = "Unable to parse BuildingType xml: " + source.describe();
+                }
+                log_error("Unable to parse BuildingType xml", source.full_path.c_str(), 0);
+                return false;
             }
-            return true;
-        });
-    if (!loaded) {
+            if (source.category == "BuildingType") {
+                saw_primary_category_definition = 1;
+            }
+            return stage_building_type_definition(
+                winners, overlays, std::move(parsed), source, failure_reason) != 0;
+        },
+        nullptr,
+        failure_reason)) {
         return 0;
     }
-
-    if (require_building_files && path_building_file_count <= 0) {
-        log_error("No BuildingType <building> xml files found in", path, 0);
+    if (!saw_primary_category_definition) {
+        const std::string detail = "No BuildingType xml files found in the BuildingType category of the mod stack.";
+        if (failure_reason) {
+            *failure_reason = detail;
+        }
+        log_error(detail.c_str(), 0, 0);
         return 0;
+    }
+    return materialize_building_type_winners(
+        winners, std::move(overlays), staged, failure_reason);
+}
+
+static int validate_final_winner_definitions(
+    StagedBuildingTypeRegistry &staged,
+    std::string *failure_reason)
+{
+    for (std::unique_ptr<BuildingType> &definition : staged.definitions) {
+        if (!definition) {
+            continue;
+        }
+        const mod_definition::DefinitionOverlayEntry *source = staged.overlays.find(definition->attr());
+        const char *filename = source ? source->source.full_path.c_str() : definition->attr();
+        if (definition->has_race()) {
+            const RaceDefinition &race = definition->race();
+            static constexpr const char *direction_suffixes[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+            if (!figure_type_registry_impl::definition_for(race.participant_figure)) {
+                if (failure_reason) *failure_reason = std::string("Race participant FigureType is unresolved: ") + race.participant_figure_reference;
+                return 0;
+            }
+            for (const RaceTeamDefinition &team : race.teams) {
+                for (const char *suffix : direction_suffixes) {
+                    const std::string body_entry = team.body_entry + "_" + suffix;
+                    if (!ImageGroupEntryRef::from_group(team.graphics_path, body_entry).runtime_slice().is_valid()) {
+                        if (failure_reason) *failure_reason = std::string("Race team body graphics are unresolved: ") + team.id + " direction=" + suffix;
+                        return 0;
+                    }
+                    if (!team.vehicle_entry.empty()) {
+                        const std::string vehicle_entry = team.vehicle_entry + "_" + suffix;
+                        if (!ImageGroupEntryRef::from_group(team.graphics_path, vehicle_entry).runtime_slice().is_valid()) {
+                            if (failure_reason) *failure_reason = std::string("Race team vehicle graphics are unresolved: ") + team.id + " direction=" + suffix;
+                            return 0;
+                        }
+                    }
+                }
+                if (race.betting.enabled &&
+                    !ImageGroupEntryRef::from_group(team.portrait_path, team.portrait_image).runtime_slice().is_valid()) {
+                    if (failure_reason) *failure_reason = std::string("Race team portrait is unresolved: ") + team.id;
+                    return 0;
+                }
+            }
+        }
+        if (!validate_runtime_graphics(*definition) ||
+            !resolve_runtime_references(*definition, filename) ||
+            !validate_runtime_class_nodes(*definition)) {
+            if (failure_reason && failure_reason->empty()) {
+                *failure_reason = std::string("Unable to validate final BuildingType winner: ") +
+                    definition->attr();
+            }
+            return 0;
+        }
     }
     return 1;
 }
 
+static int resolve_staged_building_type_registry(
+    StagedBuildingTypeRegistry &staged,
+    std::string *failure_reason)
+{
+    if (!validate_final_winner_definitions(staged, failure_reason)) {
+        return 0;
+    }
+    std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> previous = std::move(g_building_types);
+    g_building_types = std::move(staged.definitions);
+    const int resolved =
+        validate_identity_uniqueness() &&
+        resolve_foundation_references() &&
+        resolve_smart_tool_references() &&
+        resolve_housing_transitions() &&
+        resolve_rubble_decay_references() &&
+        resolve_construction_references() &&
+        resolve_native_composition_references();
+    staged.definitions = std::move(g_building_types);
+    g_building_types = std::move(previous);
+    if (!resolved && failure_reason && failure_reason->empty()) {
+        *failure_reason = "Unable to resolve final BuildingType overlay winners.";
+    }
+    return resolved;
 }
+
+}
+
+namespace {
+
+std::string g_building_type_registry_failure_reason;
+
+int fail_building_type_registry(const char *summary, const char *detail = nullptr)
+{
+    g_building_type_registry_failure_reason = summary ? summary : "Unable to load BuildingType definitions.";
+    if (detail && *detail) {
+        g_building_type_registry_failure_reason += "\n\n";
+        g_building_type_registry_failure_reason += detail;
+    }
+    return 0;
+}
+
+} // namespace
 
 int building_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
-
-    refresh_building_type_path();
-
-    clear_xml_runtime_property_fields();
-    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
-        definition.reset();
-    }
-    g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
+    g_building_type_registry_failure_reason.clear();
 
     if (!water_access_type_registry_load()) {
         log_error("Unable to load WaterAccessType xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load WaterAccessType definitions.",
+            water_access_type_registry_get_failure_reason());
     }
     if (!god_registry_load()) {
         log_error("Unable to load God xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load God definitions.", god_registry_get_failure_reason());
     }
     if (!religion_registry_load()) {
         log_error("Unable to load Religion xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load Religion definitions.", religion_registry_get_failure_reason());
     }
     if (!culture_module_registry_load()) {
         log_error("Unable to load CultureModule xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load CultureModule definitions.",
+            culture_module_registry_get_failure_reason());
     }
     if (!storage_type_registry_load()) {
         log_error("Unable to load StorageType xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load StorageType definitions.",
+            storage_type_registry_get_failure_reason());
     }
     if (!distribution_registry_load()) {
         log_error("Unable to load Distribution xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load Distribution definitions.",
+            distribution_registry_get_failure_reason());
     }
     if (!production_method_registry_load()) {
         log_error("Unable to load ProductionMethod xml definitions", 0, 0);
-        return 0;
+        return fail_building_type_registry("Unable to load ProductionMethod definitions.");
     }
-    if (!housing_type_registry_load()) {
-        log_error("Unable to load HousingType xml definitions", 0, 0);
+    if (!housing_profile_registry_load()) {
+        log_error("Unable to load HousingProfile xml definitions", 0, 0);
+        return fail_building_type_registry("Unable to load HousingProfile definitions.");
+    }
+    if (!foundation_registry_load()) {
+        log_error("Unable to load Foundation xml definitions", 0, 0);
+        return fail_building_type_registry("Unable to load Foundation definitions.");
+    }
+    std::vector<mod_definition::DefinitionLayer> layers;
+    std::string failure_reason;
+    if (!mod_definition::configured_layers(layers, &failure_reason)) {
+        log_error("Unable to configure BuildingType definition layers", failure_reason.c_str(), 0);
+        return fail_building_type_registry("Unable to configure BuildingType definition layers.", failure_reason.c_str());
+    }
+    if (!building_type_registry_load_layers(layers, &failure_reason)) {
+        return fail_building_type_registry("Unable to load BuildingType definitions.", failure_reason.c_str());
+    }
+    return 1;
+}
+
+const char *building_type_registry_get_failure_reason(void)
+{
+    return g_building_type_registry_failure_reason.c_str();
+}
+
+int building_type_registry_load_layers(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    std::string *failure_reason)
+{
+    using namespace building_type_registry_impl;
+    g_building_type_registry_failure_reason.clear();
+    StagedBuildingTypeRegistry staged;
+    if (!build_layered_building_type_registry(layers, staged, failure_reason) ||
+        !resolve_staged_building_type_registry(staged, failure_reason)) {
+        if (failure_reason && !failure_reason->empty()) {
+            g_building_type_registry_failure_reason = *failure_reason;
+        } else {
+            g_building_type_registry_failure_reason = "Unable to load BuildingType definitions.";
+        }
         return 0;
     }
 
-    int loaded_building_type_count = 0;
-    if (!load_building_type_definitions_from_path(g_building_type_path.c_str(), 1, 0, &loaded_building_type_count)) {
-        return 0;
-    }
-
-    std::string tiles_path = building_type_category_path("Tiles");
-    if (xml_definition::directory_exists(tiles_path.c_str()) &&
-        !load_building_type_definitions_from_path(tiles_path.c_str(), 0, 0, &loaded_building_type_count)) {
-        return 0;
-    }
-
-    std::string menu_path = building_type_category_path("BuildingTypeMenu");
-    if (xml_definition::directory_exists(menu_path.c_str()) &&
-        !load_building_type_definitions_from_path(menu_path.c_str(), 0, 0, &loaded_building_type_count)) {
-        return 0;
-    }
-
-    if (!resolve_housing_transitions()) {
-        log_error("Unable to resolve BuildingType housing transitions", 0, 0);
-        return 0;
-    }
-    if (!resolve_rubble_decay_references()) {
-        log_error("Unable to resolve BuildingType rubble decay references", 0, 0);
-        return 0;
-    }
-    if (!resolve_construction_references()) {
-        log_error("Unable to resolve BuildingType construction references", 0, 0);
-        return 0;
-    }
-    if (!resolve_composed_building_references()) {
-        log_error("Unable to resolve BuildingType composed references", 0, 0);
-        return 0;
-    }
+    clear_xml_runtime_property_fields();
+    g_building_types = std::move(staged.definitions);
+    g_building_type_overlays = std::move(staged.overlays);
     building_type_startup_bridge_apply_model_overrides();
     god_id_bridge_reset_for_runtime();
     building_type_id_bridge_reset_for_runtime();
@@ -5303,3 +5770,53 @@ int building_type_registry_load(void)
     building_menu_invalidate_catalog();
     return 1;
 }
+
+#ifdef STARTUP_PARSER_TEST
+int building_type_registry_layers_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *query_identity,
+    building_type_layer_test_result *result,
+    std::string *failure_reason)
+{
+    using namespace building_type_registry_impl;
+    StagedBuildingTypeRegistry staged;
+    if (!build_layered_building_type_registry(layers, staged, failure_reason) ||
+        !validate_final_winner_definitions(staged, failure_reason)) {
+        return 0;
+    }
+    std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> previous = std::move(g_building_types);
+    g_building_types = std::move(staged.definitions);
+    const int foundations_resolved = resolve_foundation_references();
+    staged.definitions = std::move(g_building_types);
+    g_building_types = std::move(previous);
+    if (!foundations_resolved) {
+        if (failure_reason && failure_reason->empty()) {
+            *failure_reason = "Unable to resolve BuildingType foundation references.";
+        }
+        return 0;
+    }
+
+    if (result) {
+        *result = {};
+        result->queried_runtime_type = BUILDING_NONE;
+        result->queried_source_layer = -1;
+        result->active_count = static_cast<int>(staged.overlays.active_count());
+        result->suppressed_count = static_cast<int>(staged.overlays.suppressed_count());
+        const std::string identity = xml_definition::normalize_path(query_identity);
+        const mod_definition::DefinitionOverlayEntry *overlay = staged.overlays.find(identity);
+        if (overlay) {
+            result->queried_disabled = overlay->disabled ? 1 : 0;
+            result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+        }
+        for (const std::unique_ptr<BuildingType> &definition : staged.definitions) {
+            if (!definition || identity != definition->attr()) {
+                continue;
+            }
+            result->queried_runtime_type = definition->type();
+            result->queried_cost = definition->model().has_cost() ? definition->model().cost() : 0;
+            break;
+        }
+    }
+    return 1;
+}
+#endif

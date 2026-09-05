@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="main_menu" base_width="640" base_height="480" escape_action="hotkey.escape" load_file_action="game.load">
+    <widget type="panel" id="screen_clear" phase="background" coordinate_space="screen" style="solid" color="black" x="0" y="0" width="640" height="480" stretch_width="true" stretch_height="true" />
+    <widget type="image" id="background" phase="background" coordinate_space="dialog" x="0" y="0" image_collection="14" image_offset="0" />
+
+    <widget type="text_button" id="new_career" action="career.new" style="large_label" label_type="0" x="192" y="100" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.1" font="normal_green" />
+    <widget type="text_button" id="load_game" action="game.load" style="large_label" label_type="0" x="192" y="140" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.2" font="normal_green" />
+    <widget type="text_button" id="construction_kit" action="construction_kit.open" style="large_label" label_type="0" x="192" y="180" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.3" font="normal_green" />
+    <widget type="text_button" id="assignment_editor" action="assignment_editor.open" style="large_label" label_type="0" x="192" y="220" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.9.8" font="normal_green" />
+    <widget type="text_button" id="options" action="options.open" style="large_label" label_type="0" x="192" y="260" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.2.0" font="normal_green" />
+    <widget type="text_button" id="exit" action="application.exit" style="large_label" label_type="0" x="192" y="300" width="256" height="25" text_offset_y="7" text_alignment="center" translation="main_strings.30.5" font="normal_green" />
+
+    <widget type="panel" id="compact_version_border" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" style="solid" color="black" x="10" y="450" height="20" width_from_text="compact_version" width_adjust="14" max_screen_height="500" visible_if_side_margin_lt_text="compact_version" side_margin_text_padding="18" />
+    <widget type="panel" id="compact_version_fill" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" style="solid" color="white" x="11" y="451" height="18" width_from_text="compact_version" width_adjust="12" max_screen_height="500" visible_if_side_margin_lt_text="compact_version" side_margin_text_padding="18" />
+    <widget type="label" id="compact_version" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" binding="system.version" text="Julius v" x="18" y="456" width="220" height="14" font="small_plain" color="black" max_screen_height="500" visible_if_side_margin_lt_text="compact_version" side_margin_text_padding="18" />
+    <widget type="label" id="wide_version" phase="background" visible_when="main_menu" coordinate_space="screen" anchor_y="bottom" binding="system.version" text="Julius v" x="18" y="456" width="220" height="14" font="small_plain" color="light_gray" max_screen_height="500" visible_if_side_margin_lt_text="compact_version" side_margin_text_padding="18" invert_visibility_condition="true" />
+</window>

@@ -21,6 +21,7 @@ public:
     static RouteAccessSelector fromRoad(
         const map_point &source_road,
         int max_distance,
+        const RoutePolicy &route_policy,
         RouteAccessSelectorContext &context);
 
     explicit operator bool() const;
@@ -33,13 +34,13 @@ private:
     RouteAccessSelector(
         const map_point &source_road,
         int max_distance,
+        bool allow_highways,
         Route::DistanceQuery route_query,
         RouteAccessSelectorContext &context);
 
     int houseAccessAreaTouchesSourceNetwork(const Building &house) const;
-    int houseRecordIsLiveLaborSource(const building *house) const;
     void recordNetworkPrune() const;
-    Route::RoadResult findHouseAccessRoad(const Building &house, const building &house_record) const;
+    Route::RoadResult findHouseAccessRoad(const Building &house) const;
     HouseRouteSelection bestSelection(
         const HouseRouteSelection &current,
         Building &house,
@@ -48,6 +49,7 @@ private:
     RouteAccessSelectorContext *context_ = nullptr;
     map_point source_ = { 0, 0 };
     int max_distance_ = 0;
+    bool allow_highways_ = false;
     Route::DistanceQuery route_query_;
 };
 

@@ -4,7 +4,6 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
-#include "building/house_population.h"
 #include "city/map.h"
 #include "city/population.h"
 #include "core/calc.h"
@@ -24,17 +23,18 @@ static struct {
 
 static int house_is_valid(const Building &house, const Figure &migrant)
 {
-    if (!house.id || !house.is_in_use() || !house.has_house_size() || house.has_plague()) {
+    if (!house.id || !house.is_in_use() || !house.Housing || house.has_plague()) {
         return 0;
     }
-    if (house.immigrant_figure_id() == migrant.id()) {
+    const HousingState &state = house.Housing->state();
+    if (state.immigrant_figure_id == migrant.id()) {
         return 1;
     }
     return migrant.immigrant_building &&
         migrant.destination_building &&
         migrant.immigrant_building->id == house.id &&
         migrant.destination_building->id == house.id &&
-        house.house_population_room() >= migrant.migrant_num_people;
+        state.population_room >= migrant.migrant_num_people;
 }
 
 static Building *migrant_house_target(Figure &migrant)
@@ -42,25 +42,48 @@ static Building *migrant_house_target(Figure &migrant)
     Building *target = migrant.last_destination_id > 0 ?
         Building::get(static_cast<unsigned int>(migrant.last_destination_id)) :
         nullptr;
-    if (target) {
-        migrant.immigrant_building = target;
-        migrant.destination_building = target;
-        migrant.last_destination_id = static_cast<int>(target->id);
+    if (!target || !target->Housing ||
+        (target->Housing->state().immigrant_figure_id &&
+            target->Housing->state().immigrant_figure_id != migrant.id())) {
+        return nullptr;
     }
+    if (migrant.immigrant_building && migrant.immigrant_building != target &&
+        migrant.immigrant_building->Housing) {
+        migrant.immigrant_building->Housing->clear_immigrant_if_matches(migrant);
+    }
+    migrant.set_immigrant_building(target);
+    migrant.set_destination_building(target);
+    migrant.set_last_destination_building(target);
+    target->Housing->track_immigrant(migrant);
     return target;
 }
 
-static void set_migrant_house(Figure &migrant, Building &house)
+static bool set_migrant_house(Figure &migrant, Building &house)
 {
-    house.set_immigrant_figure_id(migrant.id());
-    migrant.immigrant_building = &house;
-    migrant.destination_building = &house;
-    migrant.last_destination_id = static_cast<int>(house.id);
+    if (!house.Housing) {
+        return false;
+    }
+    if (house.Housing->state().immigrant_figure_id &&
+        house.Housing->state().immigrant_figure_id != migrant.id()) {
+        return false;
+    }
+    if (migrant.immigrant_building && migrant.immigrant_building != &house &&
+        migrant.immigrant_building->Housing) {
+        migrant.immigrant_building->Housing->clear_immigrant_if_matches(migrant);
+    }
+    if (!migrant.set_immigrant_building(&house) || !migrant.set_destination_building(&house)) {
+        return false;
+    }
+    migrant.set_last_destination_building(&house);
+    house.Housing->track_immigrant(migrant);
+    return house.Housing->state().immigrant_figure_id == migrant.id();
 }
 
 static void send_homeless_to_house(Figure &homeless, Building &house, int road_x, int road_y)
 {
-    set_migrant_house(homeless, house);
+    if (!set_migrant_house(homeless, house)) {
+        return;
+    }
     homeless.action_state = FIGURE_ACTION_8_HOMELESS_GOING_TO_HOUSE;
     homeless.destination_x = static_cast<unsigned char>(road_x);
     homeless.destination_y = static_cast<unsigned char>(road_y);
@@ -69,8 +92,9 @@ static void send_homeless_to_house(Figure &homeless, Building &house, int road_x
 
 static void add_migrant_people_to_house(Figure &migrant, Building &house, int homeless)
 {
-    const int capacity = house_population_get_capacity(house);
-    const int old_population = house.house_population();
+    const int capacity = house.Housing->effective_capacity();
+    HousingState &state = house.Housing->state();
+    const int old_population = state.population;
     int room = capacity - old_population;
     if (room < 0) {
         room = 0;
@@ -78,9 +102,9 @@ static void add_migrant_people_to_house(Figure &migrant, Building &house, int ho
     if (room < migrant.migrant_num_people) {
         migrant.migrant_num_people = static_cast<unsigned char>(room);
     }
-    house.set_house_population(old_population + migrant.migrant_num_people);
-    house.set_house_population_room(capacity - house.house_population());
-    house.set_immigrant_figure_id(0);
+    state.population = static_cast<int16_t>(old_population + migrant.migrant_num_people);
+    state.population_room = static_cast<int16_t>(capacity - state.population);
+    house.Housing->clear_immigrant_reference();
     if (homeless) {
         city_population_add_homeless(migrant.migrant_num_people);
         game_undo_disable();
@@ -97,17 +121,21 @@ void migrant_create_immigrant(Building &house, int num_people)
     const map_tile *entry = city_map_entry_point();
     Figure *f = Figure::create(FIGURE_IMMIGRANT, entry->x, entry->y, DIR_0_TOP);
     f->action_state = FIGURE_ACTION_1_IMMIGRANT_CREATED;
-    set_migrant_house(*f, house);
+    if (!set_migrant_house(*f, house)) {
+        f->remove();
+        return;
+    }
     f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(
-        10 + (house.house_figure_generation_delay() & 0x7f)));
+        10 + (house.Housing->state().figure_generation_delay & 0x7f)));
     f->migrant_num_people = static_cast<unsigned char>(num_people);
 }
 
 void migrant_create_emigrant(Building &house, int num_people)
 {
     city_population_remove(num_people);
-    if (num_people < house.house_population()) {
-        house.set_house_population(house.house_population() - num_people);
+    HousingState &state = house.Housing->state();
+    if (num_people < state.population) {
+        state.population = static_cast<int16_t>(state.population - num_people);
     } else {
         building_house_change_to_vacant_lot(house);
     }
@@ -139,12 +167,6 @@ Figure *migrant_create_homeless(Building &house, int num_people)
 static void update_direction_and_image(Figure *f)
 {
     figure_image_update(f, image_group(GROUP_FIGURE_MIGRANT));
-    if (f->action_state == FIGURE_ACTION_2_IMMIGRANT_ARRIVING ||
-        f->action_state == FIGURE_ACTION_6_EMIGRANT_LEAVING) {
-        int dir = figure_image_direction(f);
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_MIGRANT_CART) + dir);
-        figure_image_set_cart_offset(f, (dir + 4) % 8);
-    }
 }
 
 static Building *closest_house_with_room(int x, int y)
@@ -156,9 +178,13 @@ static Building *closest_house_with_room(int x, int y)
     int available_houses = 0;
     int min_dist = 1000;
     Building *closest = nullptr;
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
-        if (!house->is_in_use() || !house->has_house_size() || house->has_plague() ||
-            house->distance_from_entry() <= 0 || house->house_population_room() <= 0 || house->immigrant_figure_id()) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        if (!house->is_in_use() || !house->Housing || house->has_plague()) {
+            return;
+        }
+        const HousingState &state = house->Housing->state();
+        if (house->distance_from_entry() <= 0 || state.population_room <= 0 ||
+            state.immigrant_figure_id) {
             return;
         }
         const int dist = calc_maximum_distance(x, y, house->x(), house->y());
@@ -216,7 +242,7 @@ void figure_immigrant_action(Figure *f)
                     break;
                 case DIR_FIGURE_REROUTE: Route::remove(f); break;
                 case DIR_FIGURE_LOST:
-                    house->set_immigrant_figure_id(0);
+                    house->Housing->clear_immigrant_reference();
                     house->set_distance_from_entry(0);
                     f->state = FIGURE_STATE_DEAD;
                     break;
@@ -305,7 +331,7 @@ void figure_homeless_action(Figure *f)
                 Building *house = closest_house_with_room(f->x, f->y);
                 if (house) {
                     int x_road, y_road;
-                    if (map_closest_road_within_radius(house->x(), house->y(), house->size(), 2, &x_road, &y_road)) {
+                    if (map_closest_road_within_radius_building(*house, 2, &x_road, &y_road)) {
                         send_homeless_to_house(*f, *house, x_road, y_road);
                     } else {
                         f->state = FIGURE_STATE_DEAD;
@@ -331,7 +357,7 @@ void figure_homeless_action(Figure *f)
                 f->action_state = FIGURE_ACTION_7_HOMELESS_CREATED;
                 f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(30));
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
-                house->set_immigrant_figure_id(0);
+                house->Housing->clear_immigrant_reference();
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_9_HOMELESS_ENTERING_HOUSE;
@@ -349,9 +375,7 @@ void figure_homeless_action(Figure *f)
                 f->state = FIGURE_STATE_DEAD;
             } else if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 f->state = FIGURE_STATE_DEAD;
-                if (house->type && house->type->has_housing() && !house->has_plague()) {
-                    add_migrant_people_to_house(*f, *house, 1);
-                }
+                add_migrant_people_to_house(*f, *house, 1);
             }
             break;
         }
@@ -369,7 +393,7 @@ void figure_homeless_action(Figure *f)
                 Building *house = closest_house_with_room(f->x, f->y);
                 int x_road, y_road;
                 if (house &&
-                    map_closest_road_within_radius(house->x(), house->y(), house->size(), 2, &x_road, &y_road)) {
+                    map_closest_road_within_radius_building(*house, 2, &x_road, &y_road)) {
                     send_homeless_to_house(*f, *house, x_road, y_road);
                     Route::remove(f);
                 }

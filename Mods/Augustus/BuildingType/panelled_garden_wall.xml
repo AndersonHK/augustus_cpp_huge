@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="panelled_garden_wall">
     <identity name_key="TR_BUILDING_PANELLED_GARDEN_WALL" />
-    <model size="1" cost="12" />
+    <model cost="12" />
     <desirability>
         <value value="3" />
         <step value="1" />
         <step_size value="-1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <tool kind="draggable_building" drag_terrain="land_or_road" rotation="path" />
     <button group="parks" order="260" text_key="TR_BUILDING_PANELLED_GARDEN_WALL" />
-    <event_data attr="panelled_garden_wall" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>

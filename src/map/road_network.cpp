@@ -4,6 +4,7 @@
 #include "figure/PathingMode.h"
 #include "map/data.h"
 #include "map/grid.h"
+#include "map/tiles.h"
 
 #include <string.h>
 
@@ -43,7 +44,9 @@ static int mark_road_network(int grid_offset, uint8_t network_id)
         next_offset = -1;
         for (int i = 0; i < 4; i++) {
             int new_offset = grid_offset + ADJACENT_OFFSETS[i];
-            if (figure_type_registry_impl::PathingMode::citizenIsPassable(new_offset) && !network.items[new_offset]) {
+            if (figure_type_registry_impl::PathingMode::citizenIsPassable(new_offset) &&
+                map_tiles_access_ramp_allows_road_edge(grid_offset, new_offset) &&
+                !network.items[new_offset]) {
                 if (figure_type_registry_impl::PathingMode::citizenIsRoadLike(new_offset) ||
                     figure_type_registry_impl::PathingMode::citizenIsHighway(new_offset)) {
                     network.items[new_offset] = network_id;

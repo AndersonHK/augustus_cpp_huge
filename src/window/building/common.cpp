@@ -1,5 +1,5 @@
 #include "building/building.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/local_workforce.h"
 #include "building/production_method.h"
 #include "building/building_type_registry_internal.h"
@@ -157,7 +157,11 @@ void window_building_draw_employment(building_info_context *c, int y_offset)
     if (!c->building) {
         return;
     }
-    Building current = c->building->main();
+    Building *owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!owner) {
+        return;
+    }
+    Building current = *owner;
     building *b = const_cast<building *>(current.record());
     if (!b) {
         return;
@@ -171,7 +175,11 @@ void window_building_draw_employment_without_house_cover(building_info_context *
     if (!c->building) {
         return;
     }
-    Building current = c->building->main();
+    Building *owner = c->building->Composition ? c->building->Composition->owner() : c->building;
+    if (!owner) {
+        return;
+    }
+    Building current = *owner;
     building *b = const_cast<building *>(current.record());
     if (!b) {
         return;
@@ -432,10 +440,9 @@ int window_building_draw_production_rows(building_info_context *c, int y_offset,
         c, *c->building->type, y_offset, flags, seen_outputs, seen_inputs);
 
     if (c->building->type->has_composition()) {
-        for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building->type->composition().parts()) {
-            const building_type_registry_impl::BuildingType *part_type =
-                building_type_registry_impl::definition_for_type(part.type);
+        for (const building_type_registry_impl::CompositionChildDef &part :
+            c->building->type->composition().children()) {
+            const building_type_registry_impl::BuildingType *part_type = part.type;
             if (part_type) {
                 consumed_height += draw_production_rows_for_type(
                     c, *part_type, y_offset + consumed_height, flags, seen_outputs, seen_inputs);
@@ -457,10 +464,9 @@ int window_building_draw_production_outputs_inline(building_info_context *c, int
     int consumed_width = draw_production_outputs_inline_for_type(c, *c->building->type, x, y, seen_outputs);
 
     if (c->building->type->has_composition()) {
-        for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building->type->composition().parts()) {
-            const building_type_registry_impl::BuildingType *part_type =
-                building_type_registry_impl::definition_for_type(part.type);
+        for (const building_type_registry_impl::CompositionChildDef &part :
+            c->building->type->composition().children()) {
+            const building_type_registry_impl::BuildingType *part_type = part.type;
             if (part_type) {
                 const int part_x = x + consumed_width + (consumed_width ? 12 : 0);
                 int part_width = draw_production_outputs_inline_for_type(
@@ -488,10 +494,9 @@ int window_building_has_figure_delivery_output(building_info_context *c)
     }
 
     if (c->building->type->has_composition()) {
-        for (const building_type_registry_impl::ComposedPartDefinition &part :
-            c->building->type->composition().parts()) {
-            const building_type_registry_impl::BuildingType *part_type =
-                building_type_registry_impl::definition_for_type(part.type);
+        for (const building_type_registry_impl::CompositionChildDef &part :
+            c->building->type->composition().children()) {
+            const building_type_registry_impl::BuildingType *part_type = part.type;
             if (part_type && has_figure_delivery_output_for_type(c, *part_type)) {
                 return 1;
             }
@@ -692,7 +697,7 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
         ImageGroupEntryRef::from_group("UI\\Risk_Widget_Cross", "Risk_Widget_Cross");
 
     // Health risk
-    if (b->house_size && b->house_population) {
+    if (c->building->Housing && c->building->Housing->state().population) {
         graphics_draw_inset_rect(x_offset - 28, y_offset, 24, 24,
             COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
         health_icon.draw(x_offset - 28, y_offset, get_color_for_risk(b->sickness_level / 10));
@@ -710,8 +715,10 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     // Damage risk
     graphics_draw_inset_rect(x_offset + 28, y_offset, 24, 24,
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-    int house_level = building_house_legacy_level(*c->building);
-    if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
+    const auto *profile = c->building->Housing ? c->building->Housing->definition().profile : nullptr;
+    int house_level = profile ? profile->compatibility_level : -1;
+    if (b->fire_proof || (c->building->Housing &&
+            house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
         collapse_icon.draw(x_offset + 28, y_offset);
         cross_icon.draw(x_offset + 28, y_offset);
     } else {
@@ -733,7 +740,7 @@ void window_building_get_risks_tooltip(
     const mouse *m = mouse_get();
 
     // Health tooltip
-    if (b->house_size && b->house_population) {
+    if (c->building->Housing && c->building->Housing->state().population) {
         if (m->x >= c->risk_icons.x_offset - 28 && m->x < c->risk_icons.x_offset - 4 &&
             m->y >= c->risk_icons.y_offset && m->y < c->risk_icons.y_offset + 24) {
             static const translation_key sickness_tooltips[] = {

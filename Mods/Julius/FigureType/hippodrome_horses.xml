@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="hippodrome_horses">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="cross_country" terrain="any" />
+        </profile>
+    </profiles>
+    <graphics>
+        <default>
+            <path value="Walkers\hippodrome_horses" />
+        </default>
+    </graphics>
+</figure>

@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="plaza">
     <identity name_key="main_strings.28.38" />
-    <model size="1" cost="15" />
+    <model cost="15" />
     <desirability>
         <value value="4" />
         <step value="1" />
         <step_size value="-2" />
         <range value="2" />
     </desirability>
-    <foundation policy="road" />
+    <foundation path="plaza_1x1" />
     <button group="engineering" order="20" text_key="main_strings.28.38" />
-    <event_data attr="plaza" />
     <tile kind="plaza" refresh="plaza" placement="plaza" />
     <graphics>
         <default>

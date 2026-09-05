@@ -17,7 +17,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
-#include "figure/figure_type_registry_internal.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/trader.h"
 #include "figuretype/trader.h"
 #include "game/resource.h"
@@ -111,8 +111,8 @@ int Docker::store_destination_map_point(const Building *destination, map_point *
         // go to center of granary
         map_point_store_result(destination->x() + 1, destination->y() + 1, dst);
     } else if (destination->has_cached_road_access() == 1) {
-        map_point_store_result(destination->x(), destination->y(), dst);
-    } else if (!map_has_road_access_warehouse(destination->x(), destination->y(), dst)) {
+        destination->cached_road_access_point(dst);
+    } else if (!map_has_road_access_building(destination->x(), destination->y(), dst)) {
         return 0;
     }
     return 1;
@@ -134,15 +134,14 @@ Building *Docker::closest_import_storage_for_resource(int x, int y, const Buildi
 {
     int min_distance = INFINITE;
     Building *closest_storage = nullptr;
-    for (Building *storage = building_warehouse_first(); storage; storage = storage->next_of_type()) {
-
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *storage) {
         if (is_invalid_destination(storage, dock) ||
             !building_warehouse_maximum_receptible_amount(*storage, resource)) {
-            continue;
+            return;
         }
         const int distance_penalty = 32 - 2 * building_warehouse_maximum_receptible_amount(*storage, resource);
         if (distance_penalty == 32) {
-            continue;
+            return;
         }
         int distance = storage->max_distance_to(x, y);
         // prefer emptier warehouse
@@ -151,7 +150,7 @@ Building *Docker::closest_import_storage_for_resource(int x, int y, const Buildi
             min_distance = distance;
             closest_storage = storage;
         }
-    }
+    });
     if (resource_is_food(resource)) {
         for (Building *storage = building_granary_first(); storage; storage = storage->next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
@@ -211,13 +210,13 @@ Building *Docker::closest_export_storage_for_resource(int x, int y, const Buildi
 {
     int min_distance = INFINITE;
     Building *closest_storage = nullptr;
-    for (Building *storage = building_warehouse_first(); storage; storage = storage->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *storage) {
         if (is_invalid_destination(storage, dock)) {
-            continue;
+            return;
         }
         const int distance_penalty = 32 - 2 * building_warehouse_get_available_amount(*storage, resource);
         if (distance_penalty == 32) {
-            continue;
+            return;
         }
         int distance = storage->max_distance_to(x, y);
         // prefer fuller warehouse
@@ -226,7 +225,7 @@ Building *Docker::closest_export_storage_for_resource(int x, int y, const Buildi
             min_distance = distance;
             closest_storage = storage;
         }
-    }
+    });
     if (resource_is_food(resource) && config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
         for (Building *storage = building_granary_first(); storage; storage = storage->next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
@@ -306,7 +305,7 @@ int Docker::deliver_import_resource(Building &dock)
     if (destination_building != destination) {
         Route::remove(this);
     }
-    destination_building = destination;
+    set_destination_building(destination);
     wait_ticks = 0;
     destination_x = static_cast<unsigned char>(tile.x);
     destination_y = static_cast<unsigned char>(tile.y);
@@ -334,7 +333,7 @@ int Docker::fetch_export_resource(Building &dock, int add_to_bought)
     if (destination_building != destination) {
         Route::remove(this);
     }
-    destination_building = destination;
+    set_destination_building(destination);
     action_state = FIGURE_ACTION_136_DOCKER_EXPORT_GOING_TO_STORAGE;
     wait_ticks = 0;
     destination_x = static_cast<unsigned char>(tile.x);
@@ -343,18 +342,20 @@ int Docker::fetch_export_resource(Building &dock, int add_to_bought)
     return 1;
 }
 
-void Docker::set_cart_graphic()
+void Docker::publish_cart_contents()
 {
-    select_legacy_cart_overlay_base_image(resource_id != RESOURCE_NONE ?
-        figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0) :
-        image_group(GROUP_FIGURE_CARTPUSHER_CART));
+    if (resource_id != RESOURCE_NONE) {
+        figure_runtime_graphics_show_resource_cart(this);
+    } else {
+        figure_runtime_graphics_show_empty_cart(this);
+    }
 }
 
 void Docker::set_as_idle()
 {
     action_state = FIGURE_ACTION_132_DOCKER_IDLING;
     resource_id = RESOURCE_NONE;
-    destination_building = nullptr;
+    set_destination_building(nullptr);
     wait_ticks = 0;
     loads_sold_or_carrying = 0;
 }
@@ -365,17 +366,15 @@ void Docker::docker_action()
     Building *dock = f->building;
 
     figure_image_increase_offset(f, 12);
-    f->clear_legacy_cart_overlay_image();
+    figure_runtime_graphics_begin_update(f);
     if (!dock || !dock->is_in_use()) {
         f->state = FIGURE_STATE_DEAD;
-        f->destination_building = nullptr;
-        f->clear_legacy_image();
+        f->set_destination_building(nullptr);
         return;
     }
     if (!dock->matches("dock")) {
         f->state = FIGURE_STATE_DEAD;
-        f->destination_building = nullptr;
-        f->clear_legacy_image();
+        f->set_destination_building(nullptr);
         return;
     }
     dock->decrement_dock_num_ships();
@@ -411,7 +410,7 @@ void Docker::docker_action()
                 if (f->wait_ticks >= 0) {
                     f->action_state = FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE;
                     f->wait_ticks = 0;
-                    f->set_cart_graphic();
+                    f->publish_cart_contents();
                     dock->set_dock_queued_docker_id(0);
                 }
             } else {
@@ -433,7 +432,7 @@ void Docker::docker_action()
             }
             break;
         case FIGURE_ACTION_134_DOCKER_EXPORT_QUEUE:
-            f->set_cart_graphic();
+            f->publish_cart_contents();
             if (dock->dock_queued_docker_id() <= 0) {
                 dock->set_dock_queued_docker_id(f->id());
                 f->wait_ticks = 0;
@@ -443,8 +442,7 @@ void Docker::docker_action()
                 f->wait_ticks++;
                 if (f->wait_ticks >= game_time_scale_legacy_day_ticks(80)) {
                     f->set_as_idle();
-                    f->clear_legacy_image();
-                    f->clear_legacy_cart_overlay_image();
+                    figure_runtime_graphics_hide_cart(f);
                     dock->set_dock_queued_docker_id(0);
                 }
             }
@@ -455,7 +453,7 @@ void Docker::docker_action()
             f->image_offset = 0;
             break;
         case FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE:
-            f->set_cart_graphic();
+            f->publish_cart_contents();
             figure_movement_move_ticks(f, 1);
             f->loads_sold_or_carrying = 1;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
@@ -472,7 +470,7 @@ void Docker::docker_action()
             }
             break;
         case FIGURE_ACTION_136_DOCKER_EXPORT_GOING_TO_STORAGE:
-            f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART)); // empty
+            figure_runtime_graphics_show_empty_cart(f);
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_140_DOCKER_EXPORT_AT_STORAGE;
@@ -487,7 +485,7 @@ void Docker::docker_action()
             }
             break;
         case FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING:
-            f->set_cart_graphic();
+            f->publish_cart_contents();
             figure_movement_move_ticks(f, 1);
             f->loads_sold_or_carrying = 1;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
@@ -504,9 +502,9 @@ void Docker::docker_action()
             break;
         case FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING:
             if (f->resource_id != RESOURCE_NONE) {
-                f->set_cart_graphic(); // cart with a resource if imports failed
+                f->publish_cart_contents(); // cart with a resource if imports failed
             } else {
-                f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART)); // empty cart
+                figure_runtime_graphics_show_empty_cart(f);
             }
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
@@ -518,7 +516,7 @@ void Docker::docker_action()
             }
             break;
         case FIGURE_ACTION_139_DOCKER_IMPORT_AT_STORAGE:
-            f->set_cart_graphic();
+            f->publish_cart_contents();
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 Figure *ship = valid_trade_ship_for_dock(*dock);
@@ -546,7 +544,7 @@ void Docker::docker_action()
             f->image_offset = 0;
             break;
         case FIGURE_ACTION_140_DOCKER_EXPORT_AT_STORAGE:
-            f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART)); // empty
+            figure_runtime_graphics_show_empty_cart(f);
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 Figure *ship = valid_trade_ship_for_dock(*dock);
@@ -574,13 +572,8 @@ void Docker::docker_action()
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);
-        f->clear_legacy_cart_overlay_image();
     } else {
         f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
-    }
-    f->finalize_legacy_cartpusher_overlay_image(dir);
-    if (!f->cart_image_id) {
-        f->clear_legacy_image();
     }
 }
 

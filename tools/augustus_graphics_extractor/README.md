@@ -30,7 +30,7 @@ Recommended clean test command from the repo root:
 
 ```powershell
 .\x64\Release\AugustusGraphicsExtractor.exe `
-    --game-root 'D:\Games\GOG Games\Caesar 3' `
+    --game-root '<game install path>' `
     --julius-graphics 'x64\Release\Mods\Julius\Graphics' `
     --output 'x64\Release\Mods\Augustus\Graphics' `
     --extract-julius-first

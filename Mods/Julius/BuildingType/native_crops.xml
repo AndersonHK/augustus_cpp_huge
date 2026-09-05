@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_crops">
     <identity name_key="main_strings.41.93" />
-    <model size="1" cost="0" />
+    <model cost="0" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <flags fire_proof="1" />
     <sound id="wheat_farm" always_play="true" />
-    <event_data attr="native_crops" />
     <graphics>
         <default>
             <path value="Industry\Farm_Crops" />

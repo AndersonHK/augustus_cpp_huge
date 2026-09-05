@@ -136,13 +136,6 @@ struct RoutePolicy {
         return permission.value_or(PERMISSION_NONE);
     }
 
-    bool needsBoundedRoadGardenDistanceField(int max_tiles) const
-    {
-        return max_tiles > 0 &&
-            isCitizenRoadGarden() &&
-            directionLimit() == 4;
-    }
-
     bool isWater() const
     {
         return kind == RoutePolicyKind::WaterBoat ||

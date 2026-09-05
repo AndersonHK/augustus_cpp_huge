@@ -5,21 +5,22 @@
 #include "building/building_fwd.h"
 
 #include <cstddef>
-#include <memory>
 #include <vector>
+
+class Figure;
 
 class BuildingStorage {
 public:
-    BuildingStorage(::building *building, const building_type_registry_impl::StorageType *type, size_t slot_index)
-        : building_(building)
+    BuildingStorage(Building &owner, const building_type_registry_impl::StorageType *type, size_t slot_index)
+        : owner_(&owner)
         , type_(type)
         , slot_index_(slot_index)
     {
     }
 
-    ::building *building() const
+    Building *owner() const
     {
-        return building_;
+        return owner_;
     }
 
     const building_type_registry_impl::StorageType *type() const
@@ -34,27 +35,26 @@ public:
 
     int handles_resource(resource_type resource) const;
     int amount(resource_type resource) const;
-    int reserved_inbound(resource_type resource);
-    int available_space(resource_type resource);
+    int reserved_inbound(resource_type resource) const;
+    int available_space(resource_type resource) const;
     int add(resource_type resource, int amount);
     int remove_loads(resource_type resource, int max_loads);
-    int reserve_inbound_load(resource_type resource, unsigned int figure_id);
-    void release_inbound(unsigned int figure_id);
-    int receive_inbound_loads(resource_type resource, int loads, unsigned int figure_id);
+    int reserve_inbound_load(resource_type resource, Figure &figure);
+    void release_inbound(const Figure &figure);
+    void release_all_inbound();
+    int receive_inbound_loads(resource_type resource, int loads, Figure &figure);
 
 private:
     struct InboundReservation {
-        unsigned int figure_id = 0;
+        Figure *figure = nullptr;
         resource_type resource = RESOURCE_NONE;
         int amount = 0;
     };
 
-    InboundReservation *reservation_for(unsigned int figure_id);
+    InboundReservation *reservation_for(const Figure &figure);
     void release_inbound(InboundReservation *reservation);
-    int reservation_is_current(const InboundReservation &reservation) const;
-    void prune_inbound_reservations();
 
-    ::building *building_ = nullptr;
+    Building *owner_ = nullptr;
     const building_type_registry_impl::StorageType *type_ = nullptr;
     size_t slot_index_ = 0;
     std::vector<InboundReservation> inbound_reservations_;
@@ -62,11 +62,11 @@ private:
 
 namespace storage_runtime_impl {
 
-extern std::vector<std::vector<std::unique_ptr<BuildingStorage>>> g_city_storage_slots;
-
 void reset();
 void initialize_city();
-BuildingStorage *get_or_create(::building *building, size_t slot_index);
-size_t get_slot_count(::building *building);
+BuildingStorage *get_or_create(Building &building, size_t slot_index);
+const BuildingStorage *get_or_create(const Building &building, size_t slot_index);
+size_t get_slot_count(const Building &building);
+void release_all_reservations(const Building &building);
 
 }

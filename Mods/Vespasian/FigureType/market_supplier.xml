@@ -8,11 +8,12 @@
             <pathing mode="storage_fetch" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics
-        path_pattern="Walkers\marketbuyer_{dir}_{frame}"
-        image_pattern="marketbuyer_{dir}_{frame}"
-        corpse_path_pattern="Walkers\marketbuyer_death_{frame}"
-        corpse_image_pattern="marketbuyer_death_{frame}"
-        corpse_frame_count="5"
-        max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Market_Buyer" />
+        </default>
+        <corpse frame_count="5">
+            <path value="Walkers\Market_Buyer" />
+        </corpse>
+    </graphics>
 </figure>

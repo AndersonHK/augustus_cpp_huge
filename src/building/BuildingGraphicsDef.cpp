@@ -10,11 +10,13 @@
 #include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/monument.h"
+#include "building/rotation.h"
 #include "building/properties.h"
 #include "city/festival.h"
+#include "city/race_bet.h"
+#include "city/population.h"
 #include "core/calc.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -29,13 +31,55 @@
 #endif
 #include "core/crash_context.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdio>
+#include <exception>
 #include <memory>
 #include <utility>
 
 namespace building_type_registry_impl {
+
+int graphics_orientation_option_index(
+    int building_orientation,
+    int view_orientation,
+    int option_count)
+{
+    if (option_count <= 0) {
+        return 0;
+    }
+    const int orientation = (4 + building_orientation - view_orientation / 2) % 4;
+    return (orientation < 0 ? orientation + 4 : orientation) % option_count;
+}
+
+int graphics_farm_field_option_index(int percentage, int field_index, int option_count)
+{
+    if (option_count <= 0) {
+        return 0;
+    }
+    percentage = std::max(0, std::min(percentage, 100));
+    field_index = std::max(0, std::min(field_index, 4));
+
+    // The legacy farm renderer spread twenty growth steps across five fields.
+    // Preserve that visual progression while selecting named XML options.
+    const int growth = percentage / 5;
+    const int common_stage = growth / 5;
+    const int advanced_fields = growth % 5;
+    return std::min(common_stage + (field_index < advanced_fields ? 1 : 0), option_count - 1);
+}
+
+int graphics_overlay_summary_draws(
+    GraphicsOverlaySummaryPolicy policy,
+    int is_composed,
+    int is_owner,
+    int is_draw_tile)
+{
+    if (policy == GraphicsOverlaySummaryPolicy::CompositionOwner) {
+        return !is_composed || (is_owner && is_draw_tile);
+    }
+    return 1;
+}
 
 namespace {
 
@@ -78,7 +122,13 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
 #else
     const auto condition_state_for = [](const Building &building) {
         const ::building *record = building.record();
-        return record && record->id ? building.composition_owner() : building;
+        if (!record || !record->id) {
+            return building;
+        }
+        Building *owner = building.type && building.type->bridge().is_bridge() ?
+            &building.dynamic_bridge_owner() :
+            (building.Composition ? building.Composition->owner() : const_cast<Building *>(&building));
+        return owner ? *owner : building;
     };
     const Building state = condition_state_for(building);
     int matches = 0;
@@ -126,6 +176,15 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             break;
         case GraphicsConditionType::MonumentUpgrade:
             matches = state.monument_upgrade_level() == condition.monument_upgrade;
+            break;
+        case GraphicsConditionType::RaceActive:
+            matches = race_bet_is_active(state.id);
+            break;
+        case GraphicsConditionType::Population:
+            matches = graphics_compare_int(city_population(), condition.comparison, condition.threshold);
+            break;
+        case GraphicsConditionType::Orientation:
+            matches = building_rotation_get_building_orientation(state.orientation()) == condition.orientation;
             break;
         case GraphicsConditionType::FestivalGames:
             matches = city_festival_games_active() == condition.festival_games;
@@ -186,16 +245,6 @@ void BuildingGraphicsDef::reset_resource_storage_images()
     g_resource_storage_images = {};
 }
 
-void GraphicsLayer::set_path(std::string path)
-{
-    path_ = std::move(path);
-}
-
-void GraphicsLayer::set_image(std::string image)
-{
-    image_ = std::move(image);
-}
-
 void GraphicsLayer::set_role(std::string role)
 {
     role_ = std::move(role);
@@ -231,26 +280,6 @@ GraphicsLayerOption &GraphicsLayer::add_option()
 void GraphicsLayer::add_condition(GraphicsCondition condition)
 {
     conditions_.push_back(std::move(condition));
-}
-
-int GraphicsLayer::has_path() const
-{
-    return !path_.empty();
-}
-
-const char *GraphicsLayer::path() const
-{
-    return path_.c_str();
-}
-
-int GraphicsLayer::has_image() const
-{
-    return !image_.empty();
-}
-
-const char *GraphicsLayer::image() const
-{
-    return image_.c_str();
 }
 
 int GraphicsLayer::has_role() const
@@ -349,16 +378,6 @@ GraphicsLayer GraphicsLayer::resolved_option(unsigned char variant) const
     return resolved;
 }
 
-void GraphicsTarget::set_path(std::string path)
-{
-    path_ = std::move(path);
-}
-
-void GraphicsTarget::set_image(std::string image)
-{
-    image_ = std::move(image);
-}
-
 void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
 {
     option_selection_ = selection;
@@ -394,26 +413,6 @@ GraphicsLayer &GraphicsTarget::add_layer()
 {
     layers_.emplace_back();
     return layers_.back();
-}
-
-int GraphicsTarget::has_path() const
-{
-    return !path_.empty();
-}
-
-const char *GraphicsTarget::path() const
-{
-    return path_.c_str();
-}
-
-int GraphicsTarget::has_image() const
-{
-    return !image_.empty();
-}
-
-const char *GraphicsTarget::image() const
-{
-    return image_.c_str();
 }
 
 GraphicsOptionSelection GraphicsTarget::option_selection() const
@@ -464,12 +463,25 @@ const std::vector<GraphicsLayer> &GraphicsTarget::layers() const
     return layers_;
 }
 
+int GraphicsTarget::has_layer_role(const char *role) const
+{
+    if (!role || !*role) {
+        return 0;
+    }
+    for (const GraphicsLayer &layer : layers_) {
+        if (layer.role_is(role)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
 {
     auto inherit_layer_paths = [](GraphicsTarget &target) {
         for (GraphicsLayer &layer : target.layers_) {
             if (!layer.has_path()) {
-                layer.set_path(target.path_);
+                layer.set_path(target.path());
             }
         }
     };
@@ -483,18 +495,18 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     // Options are authored as partial targets. Materialize one effective target so
     // the renderer and validator can keep using the normal path/image lookup path.
     GraphicsTarget resolved = options_[variant % options_.size()];
+    if (!resolved.terrain_foundation_) {
+        resolved.terrain_foundation_ = terrain_foundation_;
+    }
     if (resolved.no_draw()) {
         resolved.layers_.clear();
         return resolved;
     }
     if (!resolved.has_path()) {
-        resolved.set_path(path_);
+        resolved.set_path(path());
     }
     if (resolved.layers_.empty()) {
         resolved.layers_ = layers_;
-    }
-    if (!resolved.terrain_foundation_) {
-        resolved.terrain_foundation_ = terrain_foundation_;
     }
     inherit_layer_paths(resolved);
     if (!animation_enabled_) {
@@ -520,6 +532,39 @@ int GraphicsVariant::matches(const Building &building) const
 GraphicsTarget &BuildingGraphicsDef::default_target()
 {
     return default_target_;
+}
+
+void BuildingGraphicsDef::set_status_icon_anchor(int x, int y)
+{
+    has_status_icon_anchor_ = 1;
+    status_icon_anchor_x_ = x;
+    status_icon_anchor_y_ = y;
+}
+
+void BuildingGraphicsDef::set_overlay_summary_policy(GraphicsOverlaySummaryPolicy policy)
+{
+    overlay_summary_policy_ = policy;
+    has_overlay_summary_policy_ = 1;
+}
+
+GraphicsOverlaySummaryPolicy BuildingGraphicsDef::overlay_summary_policy() const
+{
+    return overlay_summary_policy_;
+}
+
+int BuildingGraphicsDef::has_overlay_summary_policy() const
+{
+    return has_overlay_summary_policy_;
+}
+
+int BuildingGraphicsDef::status_icon_anchor(int *x, int *y) const
+{
+    if (!has_status_icon_anchor_ || !x || !y) {
+        return 0;
+    }
+    *x = status_icon_anchor_x_;
+    *y = status_icon_anchor_y_;
+    return 1;
 }
 
 const GraphicsTarget &BuildingGraphicsDef::default_target() const
@@ -548,6 +593,30 @@ const GraphicsVariant *BuildingGraphicsDef::last_variant() const
     return variants_.empty() ? nullptr : &variants_.back();
 }
 
+GraphicsTarget &BuildingGraphicsDef::add_construction_phase(int phase)
+{
+    construction_phases_.push_back({ phase, {} });
+    return construction_phases_.back().target;
+}
+
+GraphicsTarget *BuildingGraphicsDef::last_construction_phase()
+{
+    return construction_phases_.empty() ? nullptr : &construction_phases_.back().target;
+}
+
+const GraphicsTarget *BuildingGraphicsDef::construction_phase(int phase) const
+{
+    for (const ConstructionPhaseGraphics &phase_graphics : construction_phases_) {
+        if (phase_graphics.phase == phase) return &phase_graphics.target;
+    }
+    return nullptr;
+}
+
+const std::vector<ConstructionPhaseGraphics> &BuildingGraphicsDef::construction_phases() const
+{
+    return construction_phases_;
+}
+
 int BuildingGraphicsDef::has_path() const
 {
     return default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage();
@@ -570,6 +639,11 @@ const std::vector<GraphicsVariant> &BuildingGraphicsDef::variants() const
 
 const GraphicsTarget *BuildingGraphicsDef::resolve_target(const Building &building) const
 {
+#ifndef STARTUP_PARSER_TEST
+    if (building.monument_phase() != MONUMENT_FINISHED && building.monument_phase() >= MONUMENT_START) {
+        if (const GraphicsTarget *phase = construction_phase(building.monument_phase())) return phase;
+    }
+#endif
     for (const GraphicsVariant &variant : variants_) {
         if (!variant.role.empty()) {
             continue;
@@ -595,7 +669,13 @@ building_runtime *runtime_for_building(Building building, std::unique_ptr<buildi
         if (!building.record() || !building.record()->id) {
             return nullptr;
         }
-        owner = building.main();
+        Building *resolved_owner = building.type && building.type->bridge().is_bridge() ?
+            &building.dynamic_bridge_owner() :
+            (building.Composition ? building.Composition->owner() : &building);
+        if (!resolved_owner) {
+            return nullptr;
+        }
+        owner = *resolved_owner;
     }
     if (!owner.type) {
         return nullptr;
@@ -629,7 +709,7 @@ int production_progress_options_in_target(const GraphicsTarget &target)
     return 0;
 }
 
-void log_missing_runtime_stage_slice(const char *stage, const Building &building)
+[[noreturn]] void report_missing_runtime_stage_slice(const char *stage, const Building &building)
 {
     char detail[256];
     if (building.type) {
@@ -644,14 +724,18 @@ void log_missing_runtime_stage_slice(const char *stage, const Building &building
         snprintf(detail, sizeof(detail), "building=null stage=%s", stage ? stage : "");
     }
 
-    error_context_report_error("Native building draw stage had no drawable slice. Falling back to legacy rendering.", detail);
+    error_context_report_fatal_error_dialog(
+        "Building graphics invariant violated",
+        "Native building draw stage had no drawable slice.",
+        detail);
+    std::terminate();
 }
 
 }
 
 int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Footprint);
         }
@@ -660,7 +744,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("footprint_cache", building);
     }
 
     if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
@@ -670,8 +754,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
         if (!runtime->cached_graphics_uses_terrain_foundation()) {
             const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
             if (!footprint) {
-                log_missing_runtime_stage_slice("footprint", building);
-                return 0;
+                report_missing_runtime_stage_slice("footprint", building);
             }
             runtime_texture_draw(
                 *footprint,
@@ -689,7 +772,7 @@ int BuildingGraphicsDef::draw_footprint(Building building, const BuildingDrawCon
 
 int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Top);
         }
@@ -698,7 +781,7 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("top_cache", building);
     }
 
     if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
@@ -729,7 +812,7 @@ int BuildingGraphicsDef::draw_top(Building building, const BuildingDrawContext &
 
 int BuildingGraphicsDef::draw_animation(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
+    if (const GraphicsTarget *target = resolve_target(building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage(building, ctx, GraphicsLayerStage::Animation);
         }
@@ -738,7 +821,7 @@ int BuildingGraphicsDef::draw_animation(Building building, const BuildingDrawCon
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
-        return 0;
+        report_missing_runtime_stage_slice("animation_cache", building);
     }
 
     if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
@@ -784,54 +867,9 @@ int BuildingGraphicsDef::draw_resource_storage(Building building, const Building
     return 1;
 }
 
-int BuildingGraphicsDef::gatehouse_overlay_draw_tile_matches(
-    Building building,
-    int grid_offset,
-    int view_orientation) const
+int BuildingGraphicsDef::draws_mothball_status(Building building) const
 {
-    if (!building.matches("gatehouse")) {
-        return 0;
-    }
-    const int gate_orientation = building.orientation();
-    if (gate_orientation != 1 && gate_orientation != 2) {
-        return 0;
-    }
-    const int gatehouse_draw_tile_by_orientation[] = { EDGE_X1Y1, EDGE_X0Y1, EDGE_X0Y0, EDGE_X1Y0 };
-    if (view_orientation < DIR_0_TOP || view_orientation > DIR_6_LEFT || view_orientation % 2) {
-        return 0;
-    }
-    return map_property_multi_tile_xy(grid_offset) == gatehouse_draw_tile_by_orientation[view_orientation / 2];
-}
-
-int BuildingGraphicsDef::draw_gatehouse_overlay(
-    Building building,
-    const BuildingDrawContext &ctx,
-    int view_orientation) const
-{
-    if (!gatehouse_overlay_draw_tile_matches(building, ctx.grid_offset, view_orientation)) {
-        return 0;
-    }
-
-    std::unique_ptr<building_runtime> temporary_runtime;
-    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
-    if (!runtime) {
-        return 0;
-    }
-    return runtime->draw_cached_graphic_layer_role(
-        "gatehouse_overlay",
-        ctx.grid_offset,
-        ctx.x,
-        ctx.y,
-        ctx.color_mask,
-        ctx.scale);
-}
-
-int BuildingGraphicsDef::draws_mothball_status_at(Building building, int grid_offset) const
-{
-    if (!building.is_main_part()) {
-        return 0;
-    }
-    if (building.type && building.type->is_farm() && map_property_multi_tile_size(grid_offset) == 1) {
+    if ((building.Composition && building.Composition->is_child()) || building.is_dynamic_bridge_segment()) {
         return 0;
     }
     return 1;
@@ -839,39 +877,27 @@ int BuildingGraphicsDef::draws_mothball_status_at(Building building, int grid_of
 
 int BuildingGraphicsDef::mothball_status_icon_offset(
     Building building,
-    int grid_offset,
     int icon_width,
     int icon_height,
     int *x,
     int *y) const
 {
-    if (!x || !y || !draws_mothball_status_at(building, grid_offset)) {
+    if (!x || !y || !draws_mothball_status(building)) {
         return 0;
     }
 
-    *x = 0;
-    *y = 0;
-    if (building.type && building.type->is_warehouse()) {
-        *x += 21;
-        *y -= 60;
-    } else if (building.type && building.type->is_granary()) {
-        *x += 83;
-        *y -= 120;
-    } else if (building.matches("fountain")) {
-        *x += 20;
-        *y -= 15;
-    } else if (building.type && building.type->is_farm()) {
-        *x += 50;
-        *y -= 50;
-    } else {
-        const Image &building_image = Image::from_id(building.image_id());
-        *x = (building_image.width() - icon_width) / 2;
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime || !runtime->resolve_graphics_cache()) {
+        report_missing_runtime_stage_slice("status_icon_cache", building);
+    }
+    if (!status_icon_anchor(x, y)) {
+        const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
+        *x = ((footprint ? footprint->width : 0) - icon_width) / 2;
         *y = (-icon_height / 2) + 10;
     }
-
-    const Image &building_image = Image::from_id(building.image_id());
-    if (const Image *top = building_image.top()) {
-        *y -= top->original_height();
+    if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
+        *y -= top->height;
     }
     return 1;
 }
@@ -891,26 +917,19 @@ int BuildingGraphicsDef::production_progress_option_count() const
 
 int BuildingGraphicsDef::draws_overlay_summary_at(Building building, int grid_offset, int view_orientation) const
 {
-    if (building.size() != 3 || !building.type || !building.type->is_farm()) {
-        return 1;
+    const BuildingGraphicsDef *policy_definition = this;
+    if (building.Composition && building.Composition->is_child()) {
+        Building *owner = building.Composition->owner();
+        if (owner && owner->type) {
+            policy_definition = &owner->type->graphics();
+        }
     }
-    if (!map_property_is_draw_tile(grid_offset)) {
-        return 0;
-    }
-
-    const int tile_position = map_property_multi_tile_xy(grid_offset);
-    switch (view_orientation) {
-        case DIR_0_TOP:
-            return tile_position == EDGE_X0Y2;
-        case DIR_2_RIGHT:
-            return tile_position == EDGE_X0Y0;
-        case DIR_4_BOTTOM:
-            return tile_position == EDGE_X2Y0;
-        case DIR_6_LEFT:
-            return tile_position == EDGE_X2Y2;
-        default:
-            return 0;
-    }
+    (void) view_orientation;
+    return graphics_overlay_summary_draws(
+        policy_definition->overlay_summary_policy(),
+        building.Composition && building.Composition->is_composed(),
+        building.Composition && building.Composition->is_owner(),
+        map_property_is_draw_tile(grid_offset));
 }
 
 #endif

@@ -1,29 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_mounted">
     <identity name_key="TR_BUILDING_FORT_MOUNTED" />
-    <model size="3" cost="1000" />
+    <model cost="1000" />
     <desirability>
         <value value="-20" />
         <step value="2" />
         <step_size value="2" />
         <range value="8" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
     <button group="forts" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
-    <event_data attr="fort_mounted" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <military>
         <formation key="legacy_mounted_4x4" />
     </military>
+    <graphics>
+        <default>
+            <path value="Military\Fort" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>
-    <composed footprint_width="7" footprint_height="7">
-        <part type="fort_ground" role="mustering_ground">
-            <offset rotation="0" x="3" y="-1" />
-            <offset rotation="1" x="-1" y="-4" />
-            <offset rotation="2" x="-4" y="0" />
-            <offset rotation="3" x="0" y="3" />
-        </part>
-    </composed>
+    <composition>
+        <child type="fort_ground" role="mustering_ground" x="3" y="-1" />
+    </composition>
 </building>

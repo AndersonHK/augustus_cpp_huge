@@ -12,7 +12,6 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.inspect_save_trade import SaveParser, UNCOMPRESSED
 
-DEFAULT_SAVE = Path(r"D:\Games\GOG Games\Caesar 3\savegames\Procurator Attempt 1 11.svv")
 HIPPO_OFFSETS = {
     0: ((5, 0), (10, 0)),
     1: ((0, -5), (0, -10)),
@@ -147,7 +146,7 @@ def patch_save(path):
 
 def main():
     ap = argparse.ArgumentParser(description="Fix Procurator Attempt 1 7 fish requests and hippodrome orientation.")
-    ap.add_argument("save", nargs="?", type=Path, default=DEFAULT_SAVE)
+    ap.add_argument("save", type=Path, help="Path to the save file to repair.")
     args = ap.parse_args()
 
     path = args.save

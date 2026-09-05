@@ -78,11 +78,12 @@ typedef struct {
     int in_use;
     int building_id;
     building_storage storage;
+    Building *runtime_building; // Hydrated runtime owner; never serialized.
 } data_storage;
 
 typedef struct {
     int needed;
-    unsigned int building_id;
+    Building *source; // Runtime selection result; never serialized.
     int min_distance;
 } resource_storage_info;
 
@@ -99,13 +100,6 @@ void building_storage_clear_all(void);
 int building_storage_create(int building_id);
 
 /**
- * Return building id for a storage.
- * @param storage_id Storage id
- * @return building_id, 0 if storage is invalid.
- */
-int building_storage_get_building_id(int storage_id);
-
-/**
  * Restores a building storage after undoing destruction.
  * @param storage_id Storage id
  * @return storage id, 0 when storage already used.
@@ -117,14 +111,6 @@ int building_storage_restore(int storage_id);
  * @param storage_id Storage id
  */
 void building_storage_delete(int storage_id);
-
-/**
- * Changes the building id for a storage.
- * @param storage_id Storage id
- * @param building_id New building id
- * @return 1 on success, 0 on failure
- */
-int building_storage_change_building(int storage_id, int building_id);
 
 /**
  * Gets the size of the storages array.
@@ -233,9 +219,9 @@ void building_storage_toggle_empty_all(int storage_id);
 
 /**
  * Check the empty all flag for the storage
- * @param building_id Building id
+ * @param building Building whose storage is queried
  */
-int building_storage_get_empty_all(int building_id);
+int building_storage_get_empty_all(const Building &building);
 
 /**
  * Resets building id's for all storages
@@ -265,9 +251,9 @@ void building_storage_load_state(buffer *buf, int version);
 
 /**
  * returns number of different resources currently stored in the building. returns 0 if no valid storage found.
- * @param building_id The building id to check
+ * @param building The building to check
  */
-int building_storage_count_stored_resource_types(int building_id);
+int building_storage_count_stored_resource_types(const Building &building);
 
 /* STORAGE API HELPERS*/
 

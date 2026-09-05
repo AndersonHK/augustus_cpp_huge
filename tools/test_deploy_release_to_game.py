@@ -49,11 +49,11 @@ class DeployReleaseTests(unittest.TestCase):
             "extracted",
         )
         write_file(
-            self.source_mods / "Julius" / "Graphics" / "Mod_Authored" / "Bridge.xml",
+            self.source_mods / "Julius" / "Graphics" / "Terrain" / "low_bridge_images.xml",
             "new bridge",
         )
         write_file(
-            self.target_mods / "Julius" / "Graphics" / "Mod_Authored" / "Bridge.xml",
+            self.target_mods / "Julius" / "Graphics" / "Terrain" / "low_bridge_images.xml",
             "old bridge",
         )
         write_file(
@@ -78,7 +78,7 @@ class DeployReleaseTests(unittest.TestCase):
             "extracted",
         )
         self.assertEqual(
-            (self.target_mods / "Julius" / "Graphics" / "Mod_Authored" / "Bridge.xml").read_text(encoding="utf-8"),
+            (self.target_mods / "Julius" / "Graphics" / "Terrain" / "low_bridge_images.xml").read_text(encoding="utf-8"),
             "new bridge",
         )
         self.assertEqual(

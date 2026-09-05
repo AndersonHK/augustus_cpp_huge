@@ -9,8 +9,23 @@
 
 #include <stdio.h>
 
+static int disabled;
+
+void sound_system_disable(void)
+{
+    disabled = 1;
+}
+
+int sound_system_is_disabled(void)
+{
+    return disabled;
+}
+
 void sound_system_init(void)
 {
+    if (disabled) {
+        return;
+    }
     sound_device_open();
     sound_device_init_channels();
 
@@ -22,5 +37,8 @@ void sound_system_init(void)
 
 void sound_system_shutdown(void)
 {
+    if (disabled) {
+        return;
+    }
     sound_device_close();
 }

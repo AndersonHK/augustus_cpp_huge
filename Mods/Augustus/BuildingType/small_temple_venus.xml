@@ -2,18 +2,17 @@
 <building type="small_temple_venus">
     <identity name_key="TR_BUILDING_SMALL_TEMPLE_VENUS_NAME" />
     <temple religion="small_temple_venus" />
-    <model size="2" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="4" />
         <step value="2" />
         <step_size value="6" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <button group="small_temples" order="50" icon="Health_Culture\Temple_Venus" icon_image="Image_0000" text_key="TR_BUILDING_SMALL_TEMPLE_VENUS_NAME" />
     <cycle group="small_temples" order="50" steps="1" />
     <sound id="temple_venus" />
-    <event_data attr="small_temple_venus" />
     <distribution path="venus_temple" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>
@@ -33,9 +32,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn mode="profiled_figure" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary"
-            init_roaming="true" profile="venus_service" />
+        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="venus_service" />
     </spawn_group>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="temple_supplier" />

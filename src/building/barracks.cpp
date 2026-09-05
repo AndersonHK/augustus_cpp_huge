@@ -2,12 +2,14 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/storage.h"
 #include "core/config.h"
 #include "city/buildings.h"
+#include "city/data_private.h"
 #include "city/military.h"
 #include "city/resource.h"
 #include "core/calc.h"
@@ -16,6 +18,7 @@
 #include "figure/formation.h"
 #include "map/grid.h"
 #include "map/road_access.h"
+#include "game/time.h"
 
 #define INFINITE 10000
 
@@ -106,16 +109,10 @@ static int has_recruitment_priority(int current_type, int legion_type, int prior
 
 int Barracks::can_recruit_soldier_for(const formation &legion) const
 {
-    if (!legion.in_use || !legion.is_legion) {
+    if (!legion.can_receive_recruit()) {
         return 0;
     }
-    if (legion.in_distant_battle || legion.legion_recruit_type == LEGION_RECRUIT_NONE) {
-        return 0;
-    }
-    if (legion.num_figures >= legion.barracks_recruit_capacity()) {
-        return 0;
-    }
-    if (legion.formation_type() && legion.formation_type()->primary_unit_requires_weapon() &&
+    if (legion.recruit_requires_weapon() &&
         resource_amount(resource_weapons()) <= 0) {
         return 0;
     }
@@ -158,8 +155,9 @@ int Barracks::closest_legion_needing_soldiers() const
         int dist = max_distance_to(m->x, m->y);
 
         // find closest one by priority
-        if (has_recruitment_priority(recruit_type, m->legion_recruit_type, required_recruitment, dist, min_distance)) {
-            recruit_type = m->legion_recruit_type;
+        const int candidate_recruit_type = m->declared_recruit_type();
+        if (has_recruitment_priority(recruit_type, candidate_recruit_type, required_recruitment, dist, min_distance)) {
+            recruit_type = candidate_recruit_type;
             min_distance = dist;
             min_formation_id = m->id;
         }
@@ -206,9 +204,11 @@ int Barracks::create_soldier(int x, int y)
         formation *m = formation_get(formation_id);
         const int fills_last_open_slot = m->num_figures + 1 >= m->barracks_recruit_capacity();
         Figure *f = Figure::create(static_cast<figure_type>(m->figure_type), x, y, DIR_0_TOP);
+        if (!f) return 0;
         f->formation_id = static_cast<short>(formation_id);
-        f->formation_at_rest = 1;
-        if (m->formation_type() && m->formation_type()->primary_unit_requires_weapon()) {
+        f->formation_at_rest = 0;
+        m->publish_figure(*f);
+        if (m->recruit_requires_weapon()) {
             if (resource_amount(resource_weapons()) > 0) {
                 add_resource(resource_weapons(), -1);
             }
@@ -284,6 +284,118 @@ int Barracks::create_tower_sentry(int x, int y)
         return 0;
     }
     tower->set_primary_figure_id(f->id());
-    f->building = tower;
+    if (!f->set_home_building(tower)) {
+        tower->set_primary_figure_id(0);
+        f->remove();
+        return 0;
+    }
     return 1;
+}
+
+static int barracks_recruitment_delay(const Building &building)
+{
+    const int percentage = calc_percentage(
+        building.employment_worker_count(), building.employment_required_workers());
+    int delay_days = -1;
+    if (percentage >= 100) {
+        delay_days = 8;
+    } else if (percentage >= 75) {
+        delay_days = 12;
+    } else if (percentage >= 50) {
+        delay_days = 16;
+    } else if (percentage >= 25) {
+        delay_days = 32;
+    } else if (percentage >= 1) {
+        delay_days = 48;
+    }
+    if (delay_days < 0) {
+        return -1;
+    }
+    if (city_data.mess_hall.food_stress_cumulative > 20) {
+        delay_days += city_data.mess_hall.food_stress_cumulative - 20;
+    }
+    return game_time_scale_legacy_day_ticks(delay_days);
+}
+
+void Barracks::spawn_recruitment()
+{
+    building *b = const_cast<building *>(record());
+    building_runtime *runtime = runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (!map_has_road_access_building(b->x, b->y, &road)) {
+        return;
+    }
+    runtime->run_labor_phase_if_defined(road);
+    const int spawn_delay = barracks_recruitment_delay(*this);
+    if (spawn_delay < 0) {
+        return;
+    }
+    b->figure_spawn_delay++;
+    if (b->figure_spawn_delay <= spawn_delay) {
+        return;
+    }
+    b->figure_spawn_delay = 0;
+    map_has_road_access_building(b->x, b->y, &road);
+    switch (priority()) {
+        case PRIORITY_FORT:
+        case PRIORITY_FORT_JAVELIN:
+        case PRIORITY_FORT_MOUNTED:
+        case PRIORITY_FORT_AUXILIA_INFANTRY:
+        case PRIORITY_FORT_AUXILIA_ARCHERY:
+            if (!create_soldier(road.x, road.y)) {
+                create_tower_sentry(road.x, road.y);
+            }
+            break;
+        default:
+            if (!create_tower_sentry(road.x, road.y)) {
+                create_soldier(road.x, road.y);
+            }
+            break;
+    }
+}
+
+void building_military_spawn_tower(Building &tower)
+{
+    building *b = const_cast<building *>(tower.record());
+    building_runtime *runtime = tower.runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (!map_has_road_access_building(b->x, b->y, &road)) {
+        return;
+    }
+    runtime->run_labor_phase_if_defined(road);
+    if (b->num_workers > 0 && !b->figure_id4 && b->figure_id) {
+        Figure *ballista = Figure::create(FIGURE_BALLISTA, b->x, b->y, DIR_0_TOP);
+        if (!ballista) {
+            return;
+        }
+        b->figure_id4 = ballista->id();
+        if (!ballista->set_home_building(&tower)) {
+            b->figure_id4 = 0;
+            ballista->remove();
+            return;
+        }
+        ballista->action_state = FIGURE_ACTION_180_BALLISTA_CREATED;
+    }
+}
+
+void building_military_run_academy(Building &academy)
+{
+    building *b = const_cast<building *>(academy.record());
+    building_runtime *runtime = academy.runtime_instance();
+    if (!b || !runtime) {
+        return;
+    }
+    runtime->check_labor_problem();
+    map_point road;
+    if (map_has_road_access_building(b->x, b->y, &road)) {
+        runtime->run_labor_phase_if_defined(road);
+    }
 }

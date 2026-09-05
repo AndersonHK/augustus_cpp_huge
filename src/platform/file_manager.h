@@ -110,6 +110,9 @@ FILE *platform_file_manager_open_asset(const char *asset, const char *mode);
  */
 int platform_file_manager_close_file(FILE *stream);
 
+/** Flushes buffered file contents through the operating-system file handle. */
+int platform_file_manager_flush_file(FILE *stream);
+
 
 /**
  * Removes a file
@@ -135,6 +138,9 @@ int platform_file_manager_create_directory(const char *name, const char *locatio
  * @return 1 if copying was successful, 0 otherwise
  */
 int platform_file_manager_copy_file(const char *src, const char *dst);
+
+/** Atomically replaces dst with src when both paths are on the same filesystem. */
+int platform_file_manager_replace_file(const char *src, const char *dst);
 
 /**
  * Copies a directory recursively

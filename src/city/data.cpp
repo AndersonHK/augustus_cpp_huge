@@ -647,7 +647,7 @@ static void save_main_data(buffer *main, int keyed_resources)
     }
     buffer_write_i32(main, city_data.houses.missing.second_wine);
     buffer_write_i32(main, city_data.religion.neptune_sank_ships);
-    buffer_write_i32(main, city_data.entertainment.hippodrome_has_race);
+    buffer_write_i32(main, 0); // Retired hippodrome_has_race save slot.
     buffer_write_i32(main, city_data.entertainment.hippodrome_message_shown);
     buffer_write_i32(main, city_data.entertainment.colosseum_message_shown);
     buffer_write_i32(main, city_data.migration.emigration_message_shown);
@@ -1201,7 +1201,7 @@ static void load_main_data(buffer *main, int version, int keyed_resources)
     }
     city_data.houses.missing.second_wine = buffer_read_i32(main);
     city_data.religion.neptune_sank_ships = buffer_read_i32(main);
-    city_data.entertainment.hippodrome_has_race = buffer_read_i32(main);
+    buffer_read_i32(main); // Retired hippodrome_has_race save slot.
     city_data.entertainment.hippodrome_message_shown = buffer_read_i32(main);
     city_data.entertainment.colosseum_message_shown = buffer_read_i32(main);
     city_data.migration.emigration_message_shown = buffer_read_i32(main);

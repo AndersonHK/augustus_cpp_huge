@@ -1,7 +1,7 @@
 # Runtime Refactor Working Memory
 
 Snapshot: 2026-06-27 object-owned runtime doctrine update
-Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+Workspace: `<repository checkout>`
 
 ## Public Data Versus Methods
 

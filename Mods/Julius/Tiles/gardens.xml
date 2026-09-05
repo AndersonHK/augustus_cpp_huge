@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gardens">
     <identity name_key="main_strings.28.39" />
-    <model size="1" cost="12" />
+    <model cost="12" />
     <desirability>
         <value value="3" />
         <step value="1" />
         <step_size value="-1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
-    <button group="engineering" order="10" text_key="main_strings.28.39" />
+    <foundation path="garden_1x1" />
+    <button group="administration" order="0" text_key="main_strings.28.39" />
     <cycle group="gardens" order="10" steps="1" />
-    <event_data attr="gardens" />
     <tile kind="garden" refresh="garden" placement="garden" />
     <graphics>
         <default>

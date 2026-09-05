@@ -175,3 +175,5 @@ enum {
 
 void figure_action_handle(void);
 
+void figure_action_refresh_graphics(Figure *f);
+

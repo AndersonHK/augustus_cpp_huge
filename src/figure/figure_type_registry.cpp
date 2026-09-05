@@ -1,13 +1,16 @@
 #
 
 #include "figure/figure_type_registry_internal.h"
+#include "figure/figure_type_registry.h"
 
 #include "assets/image_group_payload.h"
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
+#include "core/direction.h"
 #include "core/xml_value.h"
 #include "figure/action.h"
-#include "game/mod_manager.h"
+#include "figure/runtime_profile_identity.h"
+#include "game/mod_definition_loader.h"
 
 #include "core/log.h"
 #include "building/properties.h"
@@ -15,12 +18,14 @@
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -30,7 +35,9 @@
 namespace figure_type_registry_impl {
 
 std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
+std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_graphics_only;
 std::string g_failure_reason;
+mod_definition::DefinitionOverlayTracker g_figure_type_overlays;
 
 static int building_reference_is_any_or_empty(const std::string &reference)
 {
@@ -165,8 +172,22 @@ const std::vector<EntertainmentVenueTarget> &FigureTypeProfile::venue_targets() 
     return venue_targets_;
 }
 
+void FigureTypeProfile::set_explicit_spawn_behavior(const ProfileSpawnBehavior &spawn_behavior)
+{
+    explicit_spawn_behavior_ = spawn_behavior;
+    has_explicit_spawn_behavior_ = true;
+}
+
+bool FigureTypeProfile::has_explicit_spawn_behavior() const
+{
+    return has_explicit_spawn_behavior_;
+}
+
 ProfileSpawnBehavior FigureTypeProfile::spawn_behavior() const
 {
+    if (has_explicit_spawn_behavior_) {
+        return explicit_spawn_behavior_;
+    }
     switch (native_class_id_) {
         case NativeClassId::EngineerService:
             return { FIGURE_ACTION_60_ENGINEER_CREATED, true, false };
@@ -266,40 +287,31 @@ const MovementProfile &FigureTypeDefinition::movement_profile() const
 
 void FigureTypeDefinition::set_graphics(const FigureGraphics &graphics_definition)
 {
-    graphics_ = graphics_definition;
+    graphics_ = std::make_shared<const FigureGraphics>(graphics_definition);
 }
 
 const FigureGraphics &FigureTypeDefinition::graphics() const
 {
-    return graphics_;
+    static const FigureGraphics empty_graphics;
+    return graphics_ ? *graphics_ : empty_graphics;
 }
 
 int FigureTypeDefinition::cache_graphics_bindings()
 {
-    return graphics_.cache_native_payload_bindings(*this);
+    FigureGraphics cached_graphics = graphics();
+    if (!cached_graphics.cache_native_payload_bindings(*this)) return 0;
+    graphics_ = std::make_shared<const FigureGraphics>(std::move(cached_graphics));
+    return 1;
 }
 
-const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding(
-    GraphicsTargetRole role,
-    int direction_index,
-    int frame) const
+const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding(GraphicsTargetRole role, int direction_index, int frame) const
 {
-    return graphics_.cached_target_binding(role, direction_index, frame);
+    return graphics().cached_target_binding(role, direction_index, frame);
 }
 
-const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding_for_state(
-    int figure_action_state,
-    int wait_ticks,
-    int image_offset,
-    int corpse_frame_offset,
-    int direction_index) const
+const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding_for_state(int figure_action_state, int wait_ticks, int image_offset, int corpse_frame_offset, int direction_index) const
 {
-    return graphics_.cached_target_binding_for_state(
-        figure_action_state,
-        wait_ticks,
-        image_offset,
-        corpse_frame_offset,
-        direction_index);
+    return graphics().cached_target_binding_for_state(figure_action_state, wait_ticks, image_offset, corpse_frame_offset, direction_index);
 }
 
 void FigureTypeDefinition::set_pathing_policy(const PathingPolicy &pathing_policy)
@@ -374,43 +386,24 @@ void set_failure_reason(const char *message, const char *detail)
     g_failure_reason = xml_definition::format_failure_reason(message, detail);
 }
 
-static void append_unique_candidate_path(std::vector<std::string> &paths, const char *mod_path)
-{
-    if (!mod_path || !*mod_path) {
-        return;
-    }
-
-    std::string candidate = std::string(mod_path) + "FigureType/";
-    for (const std::string &existing : paths) {
-        if (existing == candidate) {
-            return;
-        }
-    }
-    paths.push_back(std::move(candidate));
-}
-
-std::vector<std::string> build_candidate_definition_paths()
-{
-    std::vector<std::string> paths;
-    append_unique_candidate_path(paths, mod_manager::mod_path().c_str());
-
-    const auto &mod_names = mod_manager::mod_names();
-    const auto &mod_paths = mod_manager::mod_paths();
-    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
-        const std::string &name = mod_names[i];
-        if (xml_value::equals(name.c_str(), "Augustus") || xml_value::equals(name.c_str(), "Julius")) {
-            append_unique_candidate_path(paths, mod_paths[i].c_str());
-        }
-    }
-    return paths;
-}
-
 const FigureTypeDefinition *definition_for(figure_type type)
 {
     if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) {
         return nullptr;
     }
     return g_figure_types[type].get();
+}
+
+const FigureGraphics *graphics_for(figure_type type)
+{
+    if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) {
+        return nullptr;
+    }
+    if (const FigureTypeDefinition *graphics_only = g_figure_graphics_only[type].get()) {
+        return &graphics_only->graphics();
+    }
+    const FigureTypeDefinition *definition = definition_for(type);
+    return definition ? &definition->graphics() : nullptr;
 }
 
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id)
@@ -559,57 +552,44 @@ static int parse_terrain_usage_name(const char *name)
     return -1;
 }
 
-static int parse_image_group_name(const char *name)
+int action_state_from_xml_name(const char *name)
 {
-    struct NamedGroup {
-        std::string_view name;
-        int image_group_id;
-    };
-
-    static constexpr std::array<NamedGroup, 23> kImageGroups = { {
-        { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
-        { "engineer", GROUP_FIGURE_ENGINEER },
-        { "prefect", GROUP_FIGURE_PREFECT },
-        { "priest", GROUP_FIGURE_PRIEST },
-        { "doctor", GROUP_FIGURE_DOCTOR_SURGEON },
-        { "surgeon", GROUP_FIGURE_DOCTOR_SURGEON },
-        { "tax_collector", GROUP_FIGURE_TAX_COLLECTOR },
-        { "missionary", GROUP_FIGURE_MISSIONARY },
-        { "patrician", GROUP_FIGURE_PATRICIAN },
-        { "beggar", GROUP_FIGURE_HOMELESS },
-        { "market_lady", GROUP_FIGURE_MARKET_LADY },
-        { "market_supplier", GROUP_FIGURE_MARKET_LADY },
-        { "delivery_boy", GROUP_FIGURE_DELIVERY_BOY },
-        { "actor", GROUP_FIGURE_ACTOR },
-        { "gladiator", GROUP_FIGURE_GLADIATOR },
-        { "lion_tamer", GROUP_FIGURE_LION_TAMER },
-        { "lion_tamer_whip", GROUP_FIGURE_LION_TAMER_WHIP },
-        { "charioteer", GROUP_FIGURE_CHARIOTEER },
-        { "teacher_librarian", GROUP_FIGURE_TEACHER_LIBRARIAN },
-        { "barber", GROUP_FIGURE_BARBER },
-        { "bathhouse_worker", GROUP_FIGURE_BATHHOUSE_WORKER },
-        { "school_child", GROUP_FIGURE_SCHOOL_CHILD },
-        { "ship", GROUP_FIGURE_SHIP }
-    } };
-
-    for (const NamedGroup &entry : kImageGroups) {
-        if (xml_value::equals(name, entry.name)) {
-            return entry.image_group_id;
-        }
+    if (xml_value::equals(name, "corpse")) {
+        return FIGURE_ACTION_149_CORPSE;
     }
-    return 0;
-}
-
-static asset_id parse_image_asset_name(const char *name)
-{
-    if (xml_value::equals(name, "ox")) {
-        return ASSET_OX;
+    if (xml_value::equals(name, "prefect_going_to_fire")) {
+        return FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE;
     }
-    return ASSET_MAX_KEY;
-}
-
-static int parse_action_state_name(const char *name)
-{
+    if (xml_value::equals(name, "prefect_at_fire")) {
+        return FIGURE_ACTION_75_PREFECT_AT_FIRE;
+    }
+    if (xml_value::equals(name, "roaming")) {
+        return FIGURE_ACTION_125_ROAMING;
+    }
+    if (xml_value::equals(name, "supplier_returning")) {
+        return FIGURE_ACTION_146_SUPPLIER_RETURNING;
+    }
+    if (xml_value::equals(name, "fishing_boat_fishing")) {
+        return FIGURE_ACTION_192_FISHING_BOAT_FISHING;
+    }
+    if (xml_value::equals(name, "immigrant_arriving")) {
+        return FIGURE_ACTION_2_IMMIGRANT_ARRIVING;
+    }
+    if (xml_value::equals(name, "emigrant_leaving")) {
+        return FIGURE_ACTION_6_EMIGRANT_LEAVING;
+    }
+    if (xml_value::equals(name, "ballista_created")) {
+        return FIGURE_ACTION_180_BALLISTA_CREATED;
+    }
+    if (xml_value::equals(name, "ballista_firing")) {
+        return FIGURE_ACTION_181_BALLISTA_FIRING;
+    }
+    if (xml_value::equals(name, "tax_collector_created")) {
+        return FIGURE_ACTION_40_TAX_COLLECTOR_CREATED;
+    }
+    if (xml_value::equals(name, "work_camp_worker_created")) {
+        return FIGURE_ACTION_203_WORK_CAMP_WORKER_CREATED;
+    }
     if (xml_value::equals(name, "work_camp_architect_working")) {
         return FIGURE_ACTION_208_WORK_CAMP_ARCHITECT_WORKING_ON_MONUMENT;
     }
@@ -669,142 +649,178 @@ static int validate_depot_cart_graphics(
         return 1;
     }
 
-    if (!graphics_definition.has_legacy_resource_cart_graphics()) {
+    if (!graphics_definition.has_resource_cart_graphics()) {
         *parse_error = true;
         std::string detail = "figure=";
         detail += definition->attr();
         detail += " profile=* context=cart";
         set_failure_reason(
-            "Depot cart pusher graphics requires image_asset, corpse_image_asset, and cart_mode resource_load.",
+            "Depot cart pusher graphics requires complete base/corpse sources and cart_mode resource_load.",
             detail.c_str());
-        log_error("Depot cart pusher graphics requires image_asset, corpse_image_asset, and cart_mode resource_load",
+        log_error("Depot cart pusher graphics requires complete base/corpse sources and cart_mode resource_load",
             detail.c_str(), 0);
         return 0;
     }
     return 1;
 }
 
-static int graphics_target_has_image_without_path(const std::string &path, const std::string &image)
+static int parse_int_attribute_strict(const char *name, int &out_value)
 {
-    return path.empty() && !image.empty();
+    const std::string text = xml_value::trim_copy(xml_parser_get_attribute_string(name));
+    return xml_value::parse_int_strict(std::string_view(text), &out_value);
 }
 
-static road_service_effect parse_service_effect_name(const char *name)
+static int parse_overlay_visible_actions(const char *text, std::vector<int> &out_actions)
 {
-    if (!name || xml_value::equals(name, "none")) {
-        return ROAD_SERVICE_EFFECT_NONE;
+    std::string remaining = xml_value::trim_copy(text);
+    if (remaining == "any") {
+        return 1;
     }
-    if (xml_value::equals(name, "labor")) {
-        return ROAD_SERVICE_EFFECT_LABOR;
+    while (!remaining.empty()) {
+        const std::size_t comma = remaining.find(',');
+        const std::string token = xml_value::trim_copy(
+            comma == std::string::npos ? remaining : remaining.substr(0, comma));
+        int action = action_state_from_xml_name(token.c_str());
+        if (!action && (!xml_value::parse_int_strict(std::string_view(token), &action) ||
+                action <= 0 || action > std::numeric_limits<unsigned char>::max())) {
+            out_actions.clear();
+            return 0;
+        }
+        if (std::find(out_actions.begin(), out_actions.end(), action) != out_actions.end()) {
+            out_actions.clear();
+            return 0;
+        }
+        out_actions.push_back(action);
+        if (comma == std::string::npos) {
+            return 1;
+        }
+        remaining = remaining.substr(comma + 1);
     }
-    if (xml_value::equals(name, "academy")) {
-        return ROAD_SERVICE_EFFECT_ACADEMY;
-    }
-    if (xml_value::equals(name, "library")) {
-        return ROAD_SERVICE_EFFECT_LIBRARY;
-    }
-    if (xml_value::equals(name, "barber")) {
-        return ROAD_SERVICE_EFFECT_BARBER;
-    }
-    if (xml_value::equals(name, "bathhouse")) {
-        return ROAD_SERVICE_EFFECT_BATHHOUSE;
-    }
-    if (xml_value::equals(name, "school")) {
-        return ROAD_SERVICE_EFFECT_SCHOOL;
-    }
-    if (xml_value::equals(name, "damage_risk")) {
-        return ROAD_SERVICE_EFFECT_DAMAGE_RISK;
-    }
-    if (xml_value::equals(name, "fire_risk")) {
-        return ROAD_SERVICE_EFFECT_FIRE_RISK;
-    }
-    if (xml_value::equals(name, "religion_ceres")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_CERES;
-    }
-    if (xml_value::equals(name, "religion_neptune")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE;
-    }
-    if (xml_value::equals(name, "religion_mercury")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_MERCURY;
-    }
-    if (xml_value::equals(name, "religion_mars")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_MARS;
-    }
-    if (xml_value::equals(name, "religion_venus")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_VENUS;
-    }
-    if (xml_value::equals(name, "religion_pantheon")) {
-        return ROAD_SERVICE_EFFECT_RELIGION_PANTHEON;
-    }
-    if (xml_value::equals(name, "entertainment_theater")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
-    }
-    if (xml_value::equals(name, "entertainment_amphitheater_actor")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_ACTOR;
-    }
-    if (xml_value::equals(name, "entertainment_amphitheater_gladiator")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_GLADIATOR;
-    }
-    if (xml_value::equals(name, "entertainment_arena_gladiator")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_GLADIATOR;
-    }
-    if (xml_value::equals(name, "entertainment_arena_lion")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_LION;
-    }
-    if (xml_value::equals(name, "entertainment_colosseum_gladiator")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR;
-    }
-    if (xml_value::equals(name, "entertainment_colosseum_lion")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION;
-    }
-    if (xml_value::equals(name, "entertainment_hippodrome")) {
-        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME;
-    }
-    if (xml_value::equals(name, "market_goods")) {
-        return ROAD_SERVICE_EFFECT_MARKET_GOODS;
-    }
-    if (xml_value::equals(name, "doctor")) {
-        return ROAD_SERVICE_EFFECT_DOCTOR;
-    }
-    if (xml_value::equals(name, "surgeon")) {
-        return ROAD_SERVICE_EFFECT_SURGEON;
-    }
-    if (xml_value::equals(name, "tax_collector")) {
-        return ROAD_SERVICE_EFFECT_TAX_COLLECTOR;
-    }
-    return ROAD_SERVICE_EFFECT_NONE;
+    out_actions.clear();
+    return 0;
 }
 
-static bool is_known_service_effect_name(const char *name)
+static int parse_bounded_int_list(
+    const char *text,
+    int minimum,
+    int maximum,
+    std::vector<int> &out_values)
 {
-    return !name ||
-        xml_value::equals(name, "none") ||
-        xml_value::equals(name, "labor") ||
-        xml_value::equals(name, "academy") ||
-        xml_value::equals(name, "library") ||
-        xml_value::equals(name, "barber") ||
-        xml_value::equals(name, "bathhouse") ||
-        xml_value::equals(name, "school") ||
-        xml_value::equals(name, "damage_risk") ||
-        xml_value::equals(name, "fire_risk") ||
-        xml_value::equals(name, "religion_ceres") ||
-        xml_value::equals(name, "religion_neptune") ||
-        xml_value::equals(name, "religion_mercury") ||
-        xml_value::equals(name, "religion_mars") ||
-        xml_value::equals(name, "religion_venus") ||
-        xml_value::equals(name, "religion_pantheon") ||
-        xml_value::equals(name, "entertainment_theater") ||
-        xml_value::equals(name, "entertainment_amphitheater_actor") ||
-        xml_value::equals(name, "entertainment_amphitheater_gladiator") ||
-        xml_value::equals(name, "entertainment_arena_gladiator") ||
-        xml_value::equals(name, "entertainment_arena_lion") ||
-        xml_value::equals(name, "entertainment_colosseum_gladiator") ||
-        xml_value::equals(name, "entertainment_colosseum_lion") ||
-        xml_value::equals(name, "entertainment_hippodrome") ||
-        xml_value::equals(name, "market_goods") ||
-        xml_value::equals(name, "doctor") ||
-        xml_value::equals(name, "surgeon") ||
-        xml_value::equals(name, "tax_collector");
+    std::string remaining = text ? text : "";
+    out_values.clear();
+    while (!remaining.empty()) {
+        const size_t comma = remaining.find(',');
+        const std::string token = comma == std::string::npos ? remaining : remaining.substr(0, comma);
+        const std::string trimmed = xml_value::trim_copy(token);
+        int value = 0;
+        if (!xml_value::parse_int_strict(std::string_view(trimmed), &value) ||
+            value < minimum || value > maximum || out_values.size() >= 128) {
+            out_values.clear();
+            return 0;
+        }
+        out_values.push_back(value);
+        if (comma == std::string::npos) {
+            return 1;
+        }
+        remaining = remaining.substr(comma + 1);
+    }
+    out_values.clear();
+    return 0;
+}
+
+static FigureMissileLauncherCursor parse_missile_launcher_cursor(const char *name)
+{
+    if (xml_value::equals(name, "attack_image_offset")) {
+        return FigureMissileLauncherCursor::AttackImageOffset;
+    }
+    if (xml_value::equals(name, "missile_wait_ticks")) {
+        return FigureMissileLauncherCursor::MissileWaitTicks;
+    }
+    return FigureMissileLauncherCursor::None;
+}
+
+static FigureResourceCartSource parse_resource_cart_source(const char *name)
+{
+    if (xml_value::equals(name, "resource_id")) {
+        return FigureResourceCartSource::ResourceId;
+    }
+    if (xml_value::equals(name, "collecting_item_on_action")) {
+        return FigureResourceCartSource::CollectingItemOnAction;
+    }
+    return FigureResourceCartSource::None;
+}
+
+static int parse_resource_cart_load_mode(
+    const char *name,
+    FigureResourceCartLoadMode &out_mode)
+{
+    if (xml_value::equals(name, "fixed_one")) {
+        out_mode = FigureResourceCartLoadMode::FixedOne;
+        return 1;
+    }
+    if (xml_value::equals(name, "carried_loads")) {
+        out_mode = FigureResourceCartLoadMode::CarriedLoads;
+        return 1;
+    }
+    if (xml_value::equals(name, "carried_or_one")) {
+        out_mode = FigureResourceCartLoadMode::CarriedOrOne;
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_resource_cart_state_source(
+    const char *name,
+    FigureResourceCartStateSource &out_source)
+{
+    if (xml_value::equals(name, "action")) {
+        out_source = FigureResourceCartStateSource::Action;
+        return 1;
+    }
+    if (xml_value::equals(name, "runtime_state")) {
+        out_source = FigureResourceCartStateSource::RuntimeState;
+        return 1;
+    }
+    return 0;
+}
+
+static int graphics_target_has_image_without_path(const GraphicsAssetReference &target)
+{
+    return !target.has_path() && target.has_image();
+}
+
+static bool parse_service_effect_name(const char *name, road_service_effect &effect)
+{
+    static constexpr std::array<std::pair<std::string_view, road_service_effect>, 27> kEffects = { {
+        { "none", ROAD_SERVICE_EFFECT_NONE }, { "labor", ROAD_SERVICE_EFFECT_LABOR },
+        { "academy", ROAD_SERVICE_EFFECT_ACADEMY }, { "library", ROAD_SERVICE_EFFECT_LIBRARY },
+        { "barber", ROAD_SERVICE_EFFECT_BARBER }, { "bathhouse", ROAD_SERVICE_EFFECT_BATHHOUSE },
+        { "school", ROAD_SERVICE_EFFECT_SCHOOL }, { "damage_risk", ROAD_SERVICE_EFFECT_DAMAGE_RISK },
+        { "fire_risk", ROAD_SERVICE_EFFECT_FIRE_RISK }, { "religion_ceres", ROAD_SERVICE_EFFECT_RELIGION_CERES },
+        { "religion_neptune", ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE }, { "religion_mercury", ROAD_SERVICE_EFFECT_RELIGION_MERCURY },
+        { "religion_mars", ROAD_SERVICE_EFFECT_RELIGION_MARS }, { "religion_venus", ROAD_SERVICE_EFFECT_RELIGION_VENUS },
+        { "religion_pantheon", ROAD_SERVICE_EFFECT_RELIGION_PANTHEON }, { "entertainment_theater", ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER },
+        { "entertainment_amphitheater_actor", ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_ACTOR },
+        { "entertainment_amphitheater_gladiator", ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_GLADIATOR },
+        { "entertainment_arena_gladiator", ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_GLADIATOR },
+        { "entertainment_arena_lion", ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_LION },
+        { "entertainment_colosseum_gladiator", ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR },
+        { "entertainment_colosseum_lion", ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION },
+        { "entertainment_hippodrome", ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME },
+        { "market_goods", ROAD_SERVICE_EFFECT_MARKET_GOODS }, { "doctor", ROAD_SERVICE_EFFECT_DOCTOR },
+        { "surgeon", ROAD_SERVICE_EFFECT_SURGEON }, { "tax_collector", ROAD_SERVICE_EFFECT_TAX_COLLECTOR }
+    } };
+    if (!name) {
+        effect = ROAD_SERVICE_EFFECT_NONE;
+        return true;
+    }
+    for (const auto &[id, value] : kEffects) {
+        if (xml_value::equals(name, id)) {
+            effect = value;
+            return true;
+        }
+    }
+    return false;
 }
 
 static EntertainmentShowSlot parse_show_slot_name(const char *name)
@@ -830,9 +846,12 @@ struct ParseState {
     FigureTypeProfile *current_profile = nullptr;
     FigureGraphics graphics_definition;
     GraphicsTargetKind current_graphics_target = GraphicsTargetKind::None;
+    bool disabled = false;
+    bool graphics_only = false;
     bool saw_root = false;
     bool saw_profiles = false;
     bool saw_profile_native = false;
+    bool saw_profile_spawn = false;
     bool saw_profile_owner = false;
     bool saw_profile_movement = false;
     bool saw_profile_pathing = false;
@@ -844,7 +863,42 @@ struct ParseState {
     bool error = false;
 };
 
+struct StagedFigureType {
+    std::unique_ptr<FigureTypeDefinition> definition;
+    mod_definition::DefinitionSource source;
+    bool disabled = false;
+    bool graphics_only = false;
+    bool saw_profiles = false;
+    bool saw_graphics = false;
+};
+
+struct FigureIdentityReservation {
+    figure_type type = FIGURE_NONE;
+    std::string attr;
+    mod_definition::DefinitionSource source;
+};
+
+struct StagedFigureTypes {
+    std::array<std::optional<StagedFigureType>, FIGURE_TYPE_MAX> runtime_winners;
+    std::array<std::optional<StagedFigureType>, FIGURE_TYPE_MAX> graphics_winners;
+    std::array<bool, FIGURE_TYPE_MAX> disabled{};
+    std::array<std::optional<FigureIdentityReservation>, FIGURE_TYPE_MAX> slots;
+    std::unordered_map<std::string, FigureIdentityReservation> ids;
+    mod_definition::DefinitionOverlayTracker overlays;
+    std::string failure_reason;
+};
+
 static ParseState g_parse_state;
+
+static int parse_enabled_content(const char *element)
+{
+    if (!g_parse_state.saw_root || g_parse_state.disabled) {
+        g_parse_state.error = true;
+        log_error("Disabled FigureType definition must contain only its root identity", element, 0);
+        return 0;
+    }
+    return 1;
+}
 
 static FigureTypeProfile *current_profile_or_error(const char *node_name)
 {
@@ -877,13 +931,38 @@ static int parse_definition_root()
         return 0;
     }
 
+    int disabled = 0;
+    if (xml_parser_has_attribute("disabled") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
+        g_parse_state.error = true;
+        log_error("FigureType root has invalid Boolean attribute 'disabled'", type_attr, 0);
+        return 0;
+    }
+    int graphics_only = 0;
+    if (xml_parser_has_attribute("graphics_only") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("graphics_only"), &graphics_only)) {
+        g_parse_state.error = true;
+        log_error("FigureType root has invalid Boolean attribute 'graphics_only'", type_attr, 0);
+        return 0;
+    }
+    if (disabled && graphics_only) {
+        g_parse_state.error = true;
+        log_error("Disabled FigureType root cannot declare graphics_only", type_attr, 0);
+        return 0;
+    }
+
     g_parse_state.definition = std::make_unique<FigureTypeDefinition>(type, type_attr ? type_attr : "");
+    g_parse_state.disabled = disabled != 0;
+    g_parse_state.graphics_only = graphics_only != 0;
     g_parse_state.saw_root = true;
     return 1;
 }
 
 static int parse_profiles_node()
 {
+    if (!parse_enabled_content("profiles")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         g_parse_state.error = true;
         return 0;
@@ -902,6 +981,9 @@ static int parse_profiles_node()
 
 static int parse_profile_node()
 {
+    if (!parse_enabled_content("profile")) {
+        return 0;
+    }
     if (!g_parse_state.definition || !g_parse_state.saw_profiles) {
         g_parse_state.error = true;
         log_error("FigureType profile appears before profiles node", 0, 0);
@@ -914,6 +996,11 @@ static int parse_profile_node()
     }
 
     const char *profile_id = xml_parser_get_attribute_string("id");
+    if (!profile_id || !profile_id[0] || std::strlen(profile_id) >= FIGURE_RUNTIME_PROFILE_ID_CAPACITY) {
+        g_parse_state.error = true;
+        log_error("FigureType profile id must fit the exact saved identity field", profile_id, 0);
+        return 0;
+    }
     if (g_parse_state.definition->profile(profile_id)) {
         g_parse_state.error = true;
         log_error("FigureType profile id is duplicated", profile_id, 0);
@@ -922,6 +1009,7 @@ static int parse_profile_node()
 
     g_parse_state.current_profile = &g_parse_state.definition->add_profile(profile_id ? profile_id : "");
     g_parse_state.saw_profile_native = false;
+    g_parse_state.saw_profile_spawn = false;
     g_parse_state.saw_profile_owner = false;
     g_parse_state.saw_profile_movement = false;
     g_parse_state.saw_profile_pathing = false;
@@ -952,6 +1040,12 @@ static void finish_profile_node()
         log_error("FigureType venue seeker native class must use venue_seeker pathing",
             g_parse_state.current_profile->id(), 0);
     }
+    if (g_parse_state.current_profile->has_explicit_spawn_behavior() &&
+        g_parse_state.current_profile->native_class() != NativeClassId::LegacyAction) {
+        g_parse_state.error = true;
+        log_error("FigureType explicit spawn behavior is valid only for legacy_action profiles",
+            g_parse_state.current_profile->id(), 0);
+    }
     if (g_parse_state.current_profile->native_class() == NativeClassId::DepotCartPusher) {
         const OwnerBinding &owner = g_parse_state.current_profile->owner_binding();
         if (owner.slot != FigureSlot::None ||
@@ -968,6 +1062,9 @@ static void finish_profile_node()
 
 static int parse_native_node()
 {
+    if (!parse_enabled_content("native")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("native");
     if (!profile) {
         return 0;
@@ -997,6 +1094,9 @@ static int parse_native_node()
 
 static int parse_owner_node()
 {
+    if (!parse_enabled_content("owner")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("owner");
     if (!profile) {
         return 0;
@@ -1042,6 +1142,9 @@ static int parse_owner_node()
 
 static int parse_movement_node()
 {
+    if (!parse_enabled_content("movement")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("movement");
     if (!profile) {
         return 0;
@@ -1085,17 +1188,48 @@ static int parse_movement_node()
     return 1;
 }
 
-static int parse_graphics_logical_dimension(const char *attribute_name, render_logical_unit &out_value)
+static int parse_spawn_node()
 {
-    const int pixels = xml_parser_get_attribute_int(attribute_name);
-    const int max_pixels =
-        std::numeric_limits<render_logical_unit>::max() / RENDER_LOGICAL_UNITS_PER_PIXEL;
-    if (pixels <= 0 || pixels > max_pixels) {
-        g_parse_state.error = true;
-        log_error("FigureType graphics logical size requires positive pixel dimensions", attribute_name, 0);
+    if (!parse_enabled_content("spawn")) {
         return 0;
     }
-    out_value = static_cast<render_logical_unit>(pixels * RENDER_LOGICAL_UNITS_PER_PIXEL);
+    FigureTypeProfile *profile = current_profile_or_error("spawn");
+    if (!profile) {
+        return 0;
+    }
+    if (g_parse_state.saw_profile_spawn) {
+        g_parse_state.error = true;
+        log_error("FigureType profile contains duplicate spawn nodes", profile->id(), 0);
+        return 0;
+    }
+    if (!xml_parser_has_attribute("action_state")) {
+        g_parse_state.error = true;
+        log_error("FigureType spawn node is missing required action_state", profile->id(), 0);
+        return 0;
+    }
+
+    ProfileSpawnBehavior spawn_behavior;
+    spawn_behavior.action_state = action_state_from_xml_name(xml_parser_get_attribute_string("action_state"));
+    spawn_behavior.has_action_state = spawn_behavior.action_state != 0;
+    if (!spawn_behavior.has_action_state) {
+        g_parse_state.error = true;
+        log_error("FigureType spawn node has an unknown action_state",
+            xml_parser_get_attribute_string("action_state"), 0);
+        return 0;
+    }
+    if (xml_parser_has_attribute("init_roaming")) {
+        int init_roaming = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("init_roaming"), &init_roaming)) {
+            g_parse_state.error = true;
+            log_error("FigureType spawn node has an invalid init_roaming",
+                xml_parser_get_attribute_string("init_roaming"), 0);
+            return 0;
+        }
+        spawn_behavior.init_roaming = init_roaming != 0;
+    }
+
+    profile->set_explicit_spawn_behavior(spawn_behavior);
+    g_parse_state.saw_profile_spawn = true;
     return 1;
 }
 
@@ -1106,109 +1240,38 @@ static int graphics_parse_error(const char *message, const char *detail = nullpt
     return 0;
 }
 
-static int parse_graphics_sprite_offset(FigureGraphics &graphics_definition)
+static int reject_figure_type_sprite_offsets()
 {
     const bool has_sprite_offset_x = xml_parser_has_attribute("sprite_offset_x");
     const bool has_sprite_offset_y = xml_parser_has_attribute("sprite_offset_y");
-    if (has_sprite_offset_x != has_sprite_offset_y) {
-        return graphics_parse_error(
-            "FigureType graphics sprite offset requires both sprite_offset_x and sprite_offset_y");
-    }
-    if (!has_sprite_offset_x) {
-        return 1;
-    }
-    if (graphics_definition.has_sprite_offset) {
-        return graphics_parse_error("FigureType graphics sprite offset is duplicated");
-    }
-    graphics_definition.has_sprite_offset = 1;
-    graphics_definition.sprite_offset_x = xml_parser_get_attribute_int("sprite_offset_x");
-    graphics_definition.sprite_offset_y = xml_parser_get_attribute_int("sprite_offset_y");
-    return 1;
+    if (!has_sprite_offset_x && !has_sprite_offset_y) return 1;
+    return graphics_parse_error("FigureType cannot own image offsets; declare them on the referenced graphics assetlist entry");
 }
 
-static int parse_graphics_logical_size(FigureGraphics &graphics_definition)
+static int reject_figure_type_asset_dimensions()
 {
-    const bool has_logical_width = xml_parser_has_attribute("logical_width");
-    const bool has_logical_height = xml_parser_has_attribute("logical_height");
-    if (has_logical_width != has_logical_height) {
-        return graphics_parse_error(
-            "FigureType graphics logical size requires both logical_width and logical_height");
-    }
-    if (!has_logical_width) {
-        return 1;
-    }
-    if (graphics_definition.has_fixed_logical_size()) {
-        return graphics_parse_error("FigureType graphics logical size is duplicated");
-    }
-    return parse_graphics_logical_dimension("logical_width", graphics_definition.fixed_logical_size.width) &&
-        parse_graphics_logical_dimension("logical_height", graphics_definition.fixed_logical_size.height);
-}
-
-static int parse_graphics_default_source_attributes(
-    FigureGraphics &graphics_definition,
-    const char *image_group_attr,
-    const char *image_asset_attr,
-    const char *path_attr,
-    const char *image_attr)
-{
-    const bool has_image_group = image_group_attr && xml_parser_has_attribute(image_group_attr);
-    const bool has_image_asset = image_asset_attr && xml_parser_has_attribute(image_asset_attr);
-    const bool has_path_pattern = path_attr && xml_parser_has_attribute(path_attr);
-    const bool has_image_pattern = image_attr && xml_parser_has_attribute(image_attr);
-    const int source_count =
-        (has_image_group ? 1 : 0) +
-        (has_image_asset ? 1 : 0) +
-        (has_path_pattern || has_image_pattern ? 1 : 0);
-    if (!source_count) {
-        return 1;
-    }
-    if (graphics_definition.default_source_count()) {
-        return graphics_parse_error("FigureType graphics default target is duplicated");
-    }
-    if (source_count != 1) {
-        return graphics_parse_error(
-            "FigureType graphics node must choose exactly one image_group, image_asset, or path/image pattern");
-    }
-    if (has_path_pattern != has_image_pattern) {
-        return graphics_parse_error(
-            "FigureType graphics path pattern requires both path_pattern and image_pattern");
-    }
-    if (has_image_group) {
-        graphics_definition.image_group = parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
-        if (!graphics_definition.image_group) {
-            return graphics_parse_error(
-                "FigureType graphics node has an unknown image_group",
-                xml_parser_get_attribute_string(image_group_attr));
-        }
-    } else if (has_image_asset) {
-        graphics_definition.image_asset = parse_image_asset_name(xml_parser_get_attribute_string(image_asset_attr));
-        if (graphics_definition.image_asset == ASSET_MAX_KEY) {
-            return graphics_parse_error(
-                "FigureType graphics node has an unknown image_asset",
-                xml_parser_get_attribute_string(image_asset_attr));
-        }
-    } else {
-        graphics_definition.path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-        graphics_definition.image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-        if (graphics_definition.path_pattern.empty() || graphics_definition.image_pattern.empty()) {
-            return graphics_parse_error(
-                "FigureType graphics path pattern requires non-empty path_pattern and image_pattern");
-        }
-    }
-    return 1;
+    if (!xml_parser_has_attribute("logical_width") && !xml_parser_has_attribute("logical_height") && !xml_parser_has_attribute("logical_units_per_source_pixel")) return 1;
+    return graphics_parse_error("FigureType cannot own source or logical image dimensions; declare them on the referenced graphics assetlist entry");
 }
 
 static int parse_graphics_default_options(FigureGraphics &graphics_definition)
 {
+    if (xml_parser_has_attribute("allow_empty") && !xml_value::parse_bool(xml_parser_get_attribute_string("allow_empty"), &graphics_definition.default_allows_empty)) {
+        return graphics_parse_error("FigureType graphics default target has an invalid allow_empty value");
+    }
     if (xml_parser_has_attribute("max_image_offset")) {
         graphics_definition.max_image_offset = xml_parser_get_attribute_int("max_image_offset");
         if (graphics_definition.max_image_offset <= 0) {
             return graphics_parse_error("FigureType graphics node requires a positive max_image_offset");
         }
     }
+    if (xml_parser_has_attribute("payload_frame_count")) {
+        graphics_definition.payload_frame_count = xml_parser_get_attribute_int("payload_frame_count");
+        if (graphics_definition.payload_frame_count <= 0) return graphics_parse_error("FigureType graphics node requires a positive payload_frame_count");
+    }
     if (xml_parser_has_attribute("base_image_offset")) {
-        graphics_definition.image_group_offset = xml_parser_get_attribute_int("base_image_offset");
-        if (graphics_definition.image_group_offset < 0) {
+        graphics_definition.default_entry_offset = xml_parser_get_attribute_int("base_image_offset");
+        if (graphics_definition.default_entry_offset < 0) {
             return graphics_parse_error("FigureType graphics node requires a non-negative base_image_offset");
         }
     }
@@ -1227,56 +1290,12 @@ static int parse_graphics_default_options(FigureGraphics &graphics_definition)
     return 1;
 }
 
-static int parse_graphics_action_source_attributes(
-    FigureGraphics &graphics_definition,
-    const char *image_group_attr,
-    const char *path_attr,
-    const char *image_attr)
-{
-    const bool has_image_group = image_group_attr && xml_parser_has_attribute(image_group_attr);
-    const bool has_path_pattern = path_attr && xml_parser_has_attribute(path_attr);
-    const bool has_image_pattern = image_attr && xml_parser_has_attribute(image_attr);
-    const int source_count =
-        (has_image_group ? 1 : 0) +
-        (has_path_pattern || has_image_pattern ? 1 : 0);
-    if (!source_count) {
-        return 1;
-    }
-    if (graphics_definition.action_source_count()) {
-        return graphics_parse_error("FigureType action graphics target is duplicated");
-    }
-    if (source_count != 1) {
-        return graphics_parse_error(
-            "FigureType action graphics target must choose exactly one image_group or path/image pattern");
-    }
-    if (has_path_pattern != has_image_pattern) {
-        return graphics_parse_error(
-            "FigureType action graphics requires both path_pattern and image_pattern");
-    }
-
-    if (has_image_group) {
-        graphics_definition.action_image_group = parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
-        if (!graphics_definition.action_image_group) {
-            return graphics_parse_error(
-                "FigureType graphics node has an unknown action image_group",
-                xml_parser_get_attribute_string(image_group_attr));
-        }
-    } else {
-        graphics_definition.action_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-        graphics_definition.action_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-        if (graphics_definition.action_path_pattern.empty() || graphics_definition.action_image_pattern.empty()) {
-            return graphics_parse_error("FigureType graphics node has invalid action graphics attributes");
-        }
-    }
-    return 1;
-}
-
 static int parse_graphics_action_state(FigureGraphics &graphics_definition, const char *state_attr)
 {
     if (!xml_parser_has_attribute(state_attr)) {
         return graphics_parse_error("FigureType action graphics requires a state");
     }
-    graphics_definition.action_state = parse_action_state_name(xml_parser_get_attribute_string(state_attr));
+    graphics_definition.action_state = action_state_from_xml_name(xml_parser_get_attribute_string(state_attr));
     if (!graphics_definition.action_state) {
         return graphics_parse_error(
             "FigureType graphics node has invalid action graphics attributes",
@@ -1297,61 +1316,11 @@ static int parse_graphics_action_wait_ticks(FigureGraphics &graphics_definition,
     return 1;
 }
 
-static int parse_graphics_corpse_source_attributes(
-    FigureGraphics &graphics_definition,
-    const char *image_group_attr,
-    const char *image_asset_attr,
-    const char *path_attr,
-    const char *image_attr)
+static int parse_graphics_action_missile_wait_ticks(FigureGraphics &graphics_definition, const char *wait_attr)
 {
-    const bool has_corpse_image_group = image_group_attr && xml_parser_has_attribute(image_group_attr);
-    const bool has_corpse_image_asset = image_asset_attr && xml_parser_has_attribute(image_asset_attr);
-    const bool has_corpse_path_pattern = path_attr && xml_parser_has_attribute(path_attr);
-    const bool has_corpse_image_pattern = image_attr && xml_parser_has_attribute(image_attr);
-    const int corpse_source_count =
-        (has_corpse_image_group ? 1 : 0) +
-        (has_corpse_image_asset ? 1 : 0) +
-        (has_corpse_path_pattern || has_corpse_image_pattern ? 1 : 0);
-    if (!corpse_source_count) {
-        return 1;
-    }
-    if (graphics_definition.corpse_source_count()) {
-        return graphics_parse_error("FigureType corpse graphics target is duplicated");
-    }
-    if (corpse_source_count > 1) {
-        return graphics_parse_error("FigureType graphics node must choose only one corpse image source");
-    }
-    if (has_corpse_path_pattern != has_corpse_image_pattern) {
-        return graphics_parse_error(
-            "FigureType corpse graphics path pattern requires both path_pattern and image_pattern");
-    }
-    if (has_corpse_image_group) {
-        graphics_definition.corpse_image_group =
-            parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
-        if (!graphics_definition.corpse_image_group) {
-            return graphics_parse_error(
-                "FigureType graphics node has an unknown corpse_image_group",
-                xml_parser_get_attribute_string(image_group_attr));
-        }
-    }
-    if (has_corpse_path_pattern) {
-        graphics_definition.corpse_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-        graphics_definition.corpse_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-        if (graphics_definition.corpse_path_pattern.empty() || graphics_definition.corpse_image_pattern.empty()) {
-            return graphics_parse_error(
-                "FigureType corpse graphics path pattern requires non-empty path_pattern and image_pattern");
-        }
-    }
-    if (has_corpse_image_asset) {
-        graphics_definition.corpse_image_asset =
-            parse_image_asset_name(xml_parser_get_attribute_string(image_asset_attr));
-        if (graphics_definition.corpse_image_asset == ASSET_MAX_KEY) {
-            return graphics_parse_error(
-                "FigureType graphics node has an unknown corpse_image_asset",
-                xml_parser_get_attribute_string(image_asset_attr));
-        }
-    }
-    return 1;
+    if (!xml_parser_has_attribute(wait_attr)) return 1;
+    graphics_definition.action_min_missile_wait_ticks = xml_parser_get_attribute_int(wait_attr);
+    return graphics_definition.action_min_missile_wait_ticks >= 0 ? 1 : graphics_parse_error("FigureType graphics node requires non-negative min_missile_wait_ticks");
 }
 
 static int parse_graphics_corpse_options(
@@ -1360,8 +1329,8 @@ static int parse_graphics_corpse_options(
     const char *frame_count_attr)
 {
     if (xml_parser_has_attribute(base_offset_attr)) {
-        graphics_definition.corpse_image_group_offset = xml_parser_get_attribute_int(base_offset_attr);
-        if (graphics_definition.corpse_image_group_offset < 0) {
+        graphics_definition.corpse_entry_offset = xml_parser_get_attribute_int(base_offset_attr);
+        if (graphics_definition.corpse_entry_offset < 0) {
             return graphics_parse_error("FigureType graphics node requires a non-negative corpse base_image_offset");
         }
     }
@@ -1421,81 +1390,19 @@ static int parse_graphics_cart_attributes(
 
 static int parse_graphics_default_attributes(FigureGraphics &graphics_definition)
 {
-    return parse_graphics_default_source_attributes(
-            graphics_definition, "image_group", "image_asset", "path_pattern", "image_pattern") &&
-        parse_graphics_sprite_offset(graphics_definition) &&
-        parse_graphics_logical_size(graphics_definition) &&
+    if (xml_parser_has_attribute("image_group") || xml_parser_has_attribute("image_asset") || xml_parser_has_attribute("path_pattern") || xml_parser_has_attribute("image_pattern") || xml_parser_has_attribute("assetlist") || xml_parser_has_attribute("runtime_selected_image_group") || xml_parser_has_attribute("runtime_selected_source")) {
+        return graphics_parse_error("FigureType graphics sources must use nested path/image value nodes");
+    }
+    return reject_figure_type_sprite_offsets() &&
+        reject_figure_type_asset_dimensions() &&
         parse_graphics_default_options(graphics_definition);
-}
-
-static int parse_graphics_legacy_action_attributes(FigureGraphics &graphics_definition)
-{
-    const bool has_action_state = xml_parser_has_attribute("action_state");
-    const bool has_action_path_pattern = xml_parser_has_attribute("action_path_pattern");
-    const bool has_action_image_pattern = xml_parser_has_attribute("action_image_pattern");
-    if (!has_action_state && !has_action_path_pattern && !has_action_image_pattern) {
-        return 1;
-    }
-    if (g_parse_state.saw_graphics_action) {
-        return graphics_parse_error("FigureType action graphics target is duplicated");
-    }
-    if (has_action_state != has_action_path_pattern || has_action_state != has_action_image_pattern) {
-        return graphics_parse_error(
-            "FigureType action graphics requires action_state, action_path_pattern, and action_image_pattern");
-    }
-    if (!parse_graphics_action_state(graphics_definition, "action_state") ||
-        !parse_graphics_action_source_attributes(
-            graphics_definition, nullptr, "action_path_pattern", "action_image_pattern") ||
-        !parse_graphics_action_wait_ticks(graphics_definition, "action_min_wait_ticks")) {
-        return 0;
-    }
-    g_parse_state.saw_graphics_action = true;
-    return 1;
-}
-
-static int parse_graphics_legacy_corpse_attributes(FigureGraphics &graphics_definition)
-{
-    const int source_count_before = graphics_definition.corpse_source_count();
-    if (!parse_graphics_corpse_source_attributes(
-            graphics_definition,
-            "corpse_image_group",
-            "corpse_image_asset",
-            "corpse_path_pattern",
-            "corpse_image_pattern") ||
-        !parse_graphics_corpse_options(graphics_definition, "corpse_base_image_offset", "corpse_frame_count")) {
-        return 0;
-    }
-    if (!source_count_before && graphics_definition.corpse_source_count()) {
-        g_parse_state.saw_graphics_corpse = true;
-    }
-    return 1;
-}
-
-static int parse_graphics_legacy_cart_attributes(FigureGraphics &graphics_definition)
-{
-    if (!xml_parser_has_attribute("cart_mode")) {
-        return 1;
-    }
-    if (g_parse_state.saw_graphics_cart) {
-        return graphics_parse_error("FigureType cart graphics target is duplicated");
-    }
-    if (!parse_graphics_cart_attributes(
-            graphics_definition,
-            "cart_mode",
-            "cart_offsets_x",
-            "cart_offsets_y",
-            "cart_high_load_threshold",
-            "cart_high_load_y_adjust",
-            "cart_direction_3_y_adjust",
-            0)) {
-        return 0;
-    }
-    g_parse_state.saw_graphics_cart = true;
-    return 1;
 }
 
 static int parse_graphics_node()
 {
+    if (!parse_enabled_content("graphics")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         g_parse_state.error = true;
         return 0;
@@ -1508,20 +1415,15 @@ static int parse_graphics_node()
 
     g_parse_state.graphics_definition = {};
     g_parse_state.saw_graphics = true;
-    if (!parse_graphics_default_attributes(g_parse_state.graphics_definition) ||
-        !parse_graphics_legacy_action_attributes(g_parse_state.graphics_definition) ||
-        !parse_graphics_legacy_corpse_attributes(g_parse_state.graphics_definition) ||
-        !parse_graphics_legacy_cart_attributes(g_parse_state.graphics_definition)) {
-        return 0;
-    }
-    if (g_parse_state.graphics_definition.default_source_count()) {
-        g_parse_state.saw_graphics_default = true;
-    }
+    if (xml_parser_has_attribute("assetlist") || xml_parser_has_attribute("image_group") || xml_parser_has_attribute("image_asset") || xml_parser_has_attribute("path_pattern") || xml_parser_has_attribute("image_pattern") || xml_parser_has_attribute("runtime_selected_image_group") || xml_parser_has_attribute("runtime_selected_source") || xml_parser_has_attribute("action_path_pattern") || xml_parser_has_attribute("corpse_path_pattern") || xml_parser_has_attribute("cart_mode") || xml_parser_has_attribute("max_image_offset")) return graphics_parse_error("FigureType graphics node accepts no source or policy attributes; use nested targets");
     return 1;
 }
 
 static int parse_graphics_default_node()
 {
+    if (!parse_enabled_content("default")) {
+        return 0;
+    }
     if (!g_parse_state.saw_graphics || g_parse_state.current_graphics_target != GraphicsTargetKind::None) {
         return graphics_parse_error("FigureType graphics default target appears outside graphics");
     }
@@ -1538,6 +1440,9 @@ static int parse_graphics_default_node()
 
 static int parse_graphics_action_node()
 {
+    if (!parse_enabled_content("action")) {
+        return 0;
+    }
     if (!g_parse_state.saw_graphics || g_parse_state.current_graphics_target != GraphicsTargetKind::None) {
         return graphics_parse_error("FigureType graphics action target appears outside graphics");
     }
@@ -1548,9 +1453,9 @@ static int parse_graphics_action_node()
         !parse_graphics_action_state(g_parse_state.graphics_definition, "state")) {
         return 0;
     }
-    if (!parse_graphics_action_source_attributes(
-            g_parse_state.graphics_definition, "image_group", "path_pattern", "image_pattern") ||
-        !parse_graphics_action_wait_ticks(g_parse_state.graphics_definition, "min_wait_ticks")) {
+    if (xml_parser_has_attribute("image_group") || xml_parser_has_attribute("path_pattern") || xml_parser_has_attribute("image_pattern")) return graphics_parse_error("FigureType action graphics source must use nested path/image value nodes");
+    if (!parse_graphics_action_wait_ticks(g_parse_state.graphics_definition, "min_wait_ticks") ||
+        !parse_graphics_action_missile_wait_ticks(g_parse_state.graphics_definition, "min_missile_wait_ticks")) {
         return 0;
     }
     g_parse_state.saw_graphics_action = true;
@@ -1560,19 +1465,17 @@ static int parse_graphics_action_node()
 
 static int parse_graphics_corpse_node()
 {
+    if (!parse_enabled_content("corpse")) {
+        return 0;
+    }
     if (!g_parse_state.saw_graphics || g_parse_state.current_graphics_target != GraphicsTargetKind::None) {
         return graphics_parse_error("FigureType graphics corpse target appears outside graphics");
     }
     if (g_parse_state.saw_graphics_corpse) {
         return graphics_parse_error("FigureType corpse graphics target is duplicated");
     }
-    if (!parse_graphics_corpse_source_attributes(
-            g_parse_state.graphics_definition,
-            "image_group",
-            "image_asset",
-            "path_pattern",
-            "image_pattern") ||
-        !parse_graphics_corpse_options(g_parse_state.graphics_definition, "base_image_offset", "frame_count")) {
+    if (xml_parser_has_attribute("image_group") || xml_parser_has_attribute("image_asset") || xml_parser_has_attribute("path_pattern") || xml_parser_has_attribute("image_pattern")) return graphics_parse_error("FigureType corpse graphics source must use nested path/image value nodes");
+    if (!parse_graphics_corpse_options(g_parse_state.graphics_definition, "base_image_offset", "frame_count")) {
         return 0;
     }
     g_parse_state.saw_graphics_corpse = true;
@@ -1582,6 +1485,9 @@ static int parse_graphics_corpse_node()
 
 static int parse_graphics_cart_node()
 {
+    if (!parse_enabled_content("cart")) {
+        return 0;
+    }
     if (!g_parse_state.saw_graphics) {
         return graphics_parse_error("FigureType graphics cart target appears outside graphics");
     }
@@ -1603,6 +1509,379 @@ static int parse_graphics_cart_node()
     return 1;
 }
 
+static int parse_graphics_overlay_node()
+{
+    if (!parse_enabled_content("overlay")) {
+        return 0;
+    }
+    const bool has_path = xml_parser_has_attribute("path");
+    if (!g_parse_state.saw_graphics || !has_path || xml_parser_has_attribute("image_group")) {
+        return graphics_parse_error("FigureType graphics overlay appears outside graphics");
+    }
+    if (!xml_parser_has_attribute("role") ||
+        !xml_parser_has_attribute("direction") ||
+        !xml_parser_has_attribute("frame") ||
+        !xml_parser_has_attribute("direction_stride") ||
+        !xml_parser_has_attribute("resource_base_offset") ||
+        !xml_parser_has_attribute("resource_stride") ||
+        !xml_parser_has_attribute("offsets_x") ||
+        !xml_parser_has_attribute("offsets_y") ||
+        !xml_parser_has_attribute("actions") ||
+        !xml_parser_has_attribute("hide_on_corpse")) {
+        return graphics_parse_error("FigureType graphics overlay is missing required attributes");
+    }
+
+    FigureGraphicsOverlay overlay;
+    overlay.role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+    overlay.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    if (overlay.role.empty() || overlay.path.empty()) {
+        return graphics_parse_error("FigureType graphics overlay has an invalid role or source");
+    }
+
+    const char *direction = xml_parser_get_attribute_string("direction");
+    if (xml_value::equals(direction, "static")) {
+        overlay.direction = FigureOverlayDirection::Static;
+    } else if (xml_value::equals(direction, "figure")) {
+        overlay.direction = FigureOverlayDirection::Figure;
+    } else {
+        return graphics_parse_error("FigureType graphics overlay has an invalid direction", direction);
+    }
+
+    const char *frame = xml_parser_get_attribute_string("frame");
+    if (xml_value::equals(frame, "static")) {
+        overlay.frame = FigureOverlayFrame::Static;
+    } else if (xml_value::equals(frame, "figure")) {
+        overlay.frame = FigureOverlayFrame::Figure;
+    } else {
+        return graphics_parse_error("FigureType graphics overlay has an invalid frame", frame);
+    }
+
+    if (!parse_int_attribute_strict("direction_stride", overlay.direction_frame_stride) ||
+        !parse_int_attribute_strict("resource_base_offset", overlay.resource_base_image_offset) ||
+        !parse_int_attribute_strict("resource_stride", overlay.resource_stride) ||
+        !parse_int_array_8(xml_parser_get_attribute_string("offsets_x"), overlay.offsets_x) ||
+        !parse_int_array_8(xml_parser_get_attribute_string("offsets_y"), overlay.offsets_y) ||
+        !parse_overlay_visible_actions(
+            xml_parser_get_attribute_string("actions"), overlay.visible_actions) ||
+        !xml_value::parse_bool(
+            xml_parser_get_attribute_string("hide_on_corpse"),
+            &overlay.hide_on_corpse)) {
+        return graphics_parse_error("FigureType graphics overlay has invalid arithmetic, visibility, or corpse data");
+    }
+    if (!g_parse_state.graphics_definition.add_overlay(std::move(overlay))) {
+        return graphics_parse_error("FigureType graphics overlay is invalid or duplicates a role/action");
+    }
+    return 1;
+}
+
+static int parse_graphics_standard_node()
+{
+    if (!parse_enabled_content("standard")) {
+        return 0;
+    }
+    if (!g_parse_state.saw_graphics || !g_parse_state.definition ||
+        g_parse_state.definition->type() != FIGURE_FORT_STANDARD) {
+        return graphics_parse_error("FigureType standard graphics is valid only for fort_standard");
+    }
+    if (!xml_parser_has_attribute("moving_frame_divisor")) {
+        return graphics_parse_error("FigureType standard graphics is missing moving_frame_divisor");
+    }
+    const std::string icon_path = xml_parser_has_attribute("icon_path") ? xml_value::trim_copy(xml_parser_get_attribute_string("icon_path")) : std::string();
+    const int moving_frame_count = xml_parser_has_attribute("moving_frame_count") ? xml_parser_get_attribute_int("moving_frame_count") : 8;
+    if (!g_parse_state.graphics_definition.configure_standard(xml_parser_get_attribute_int("moving_frame_divisor"), moving_frame_count, icon_path)) {
+        return graphics_parse_error("FigureType standard graphics is duplicated or has an invalid frame divisor");
+    }
+    return 1;
+}
+
+static int parse_graphics_standard_flag_node()
+{
+    if (!parse_enabled_content("flag")) {
+        return 0;
+    }
+    const bool has_path = xml_parser_has_attribute("path");
+    if (!g_parse_state.graphics_definition.standard().enabled || !has_path || xml_parser_has_attribute("image_group") ||
+        !xml_parser_has_attribute("unit") ||
+        !xml_parser_has_attribute("moving_base") ||
+        !xml_parser_has_attribute("halted_frame")) {
+        return graphics_parse_error("FigureType standard flag is outside standard or missing required attributes");
+    }
+
+    FigureStandardFlagGraphics flag;
+    flag.unit_type = figure_type_from_xml_name(xml_parser_get_attribute_string("unit"));
+    flag.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    flag.moving_base_offset = xml_parser_get_attribute_int("moving_base");
+    flag.halted_frame_offset = xml_parser_get_attribute_int("halted_frame");
+    if (!g_parse_state.graphics_definition.add_standard_flag(std::move(flag))) {
+        return graphics_parse_error("FigureType standard flag is invalid or duplicates a unit");
+    }
+    return 1;
+}
+
+static int parse_graphics_missile_launcher_node()
+{
+    if (!parse_enabled_content("missile_launcher")) {
+        return 0;
+    }
+    if (!g_parse_state.saw_graphics ||
+        !xml_parser_has_attribute("cursor") ||
+        !xml_parser_has_attribute("frame_divisor") ||
+        !xml_parser_has_attribute("frames") ||
+        !xml_parser_has_attribute("after_frame")) {
+        return graphics_parse_error(
+            "FigureType missile-launcher graphics is outside graphics or missing required attributes");
+    }
+
+    const FigureMissileLauncherCursor cursor =
+        parse_missile_launcher_cursor(xml_parser_get_attribute_string("cursor"));
+    int frame_divisor = 0;
+    int after_frame = 0;
+    const std::string frame_divisor_text =
+        xml_value::trim_copy(xml_parser_get_attribute_string("frame_divisor"));
+    const std::string after_frame_text =
+        xml_value::trim_copy(xml_parser_get_attribute_string("after_frame"));
+    std::vector<int> frames;
+    if (cursor == FigureMissileLauncherCursor::None ||
+        !xml_value::parse_int_strict(frame_divisor_text, &frame_divisor) ||
+        !xml_value::parse_int_strict(after_frame_text, &after_frame) ||
+        frame_divisor <= 0 || frame_divisor > 255 ||
+        after_frame < -1 || after_frame > 255 ||
+        !parse_bounded_int_list(
+            xml_parser_get_attribute_string("frames"), -1, 255, frames) ||
+        !g_parse_state.graphics_definition.configure_missile_launcher(
+            cursor, frame_divisor, std::move(frames), after_frame)) {
+        return graphics_parse_error(
+            "FigureType missile-launcher graphics is duplicated or invalid");
+    }
+    return 1;
+}
+
+static int parse_graphics_resource_cart_node()
+{
+    if (!parse_enabled_content("resource_cart")) {
+        return 0;
+    }
+    const bool has_empty_path = xml_parser_has_attribute("empty_path");
+    if (!g_parse_state.saw_graphics || !has_empty_path || xml_parser_has_attribute("empty_image_group") ||
+        !xml_parser_has_attribute("resource_source") ||
+        !xml_parser_has_attribute("resource_action") ||
+        !xml_parser_has_attribute("load_mode") ||
+        !xml_parser_has_attribute("state_source") ||
+        !xml_parser_has_attribute("suppress_body_when_hidden") ||
+        !xml_parser_has_attribute("lift_food_at_loads") ||
+        !xml_parser_has_attribute("lift_food_y_adjust") ||
+        !xml_parser_has_attribute("offsets_x") ||
+        !xml_parser_has_attribute("offsets_y") ||
+        !xml_parser_has_attribute("hide_on_corpse")) {
+        return graphics_parse_error(
+            "FigureType resource-cart graphics is outside graphics or missing required attributes");
+    }
+
+    FigureResourceCartGraphics resource_cart;
+    resource_cart.empty_path = xml_value::trim_copy(xml_parser_get_attribute_string("empty_path"));
+    resource_cart.resource_source =
+        parse_resource_cart_source(xml_parser_get_attribute_string("resource_source"));
+    const char *resource_action = xml_parser_get_attribute_string("resource_action");
+    resource_cart.resource_action = action_state_from_xml_name(resource_action);
+    if (!resource_cart.resource_action) {
+        const std::string resource_action_text = xml_value::trim_copy(resource_action);
+        if (!xml_value::parse_int_strict(resource_action_text, &resource_cart.resource_action) ||
+            resource_cart.resource_action < 0 ||
+            resource_cart.resource_action > std::numeric_limits<unsigned char>::max()) {
+            return graphics_parse_error("FigureType resource-cart graphics has an invalid resource_action");
+        }
+    }
+    const std::string lift_food_text =
+        xml_value::trim_copy(xml_parser_get_attribute_string("lift_food_at_loads"));
+    const std::string lift_food_y_text =
+        xml_value::trim_copy(xml_parser_get_attribute_string("lift_food_y_adjust"));
+    if (resource_cart.empty_path.empty() ||
+        resource_cart.resource_source == FigureResourceCartSource::None ||
+        (resource_cart.resource_source == FigureResourceCartSource::CollectingItemOnAction &&
+            resource_cart.resource_action <= 0) ||
+        !parse_resource_cart_load_mode(
+            xml_parser_get_attribute_string("load_mode"), resource_cart.load_mode) ||
+        !parse_resource_cart_state_source(
+            xml_parser_get_attribute_string("state_source"), resource_cart.state_source) ||
+        !xml_value::parse_bool(
+            xml_parser_get_attribute_string("suppress_body_when_hidden"),
+            &resource_cart.suppress_body_when_hidden) ||
+        !xml_value::parse_int_strict(lift_food_text, &resource_cart.lift_food_at_loads) ||
+        resource_cart.lift_food_at_loads < 0 ||
+        resource_cart.lift_food_at_loads > std::numeric_limits<unsigned char>::max() ||
+        !xml_value::parse_int_strict(lift_food_y_text, &resource_cart.lift_food_y_adjust) ||
+        resource_cart.lift_food_y_adjust < std::numeric_limits<signed char>::min() ||
+        resource_cart.lift_food_y_adjust > std::numeric_limits<signed char>::max() ||
+        !parse_int_array_8(xml_parser_get_attribute_string("offsets_x"), resource_cart.offsets_x) ||
+        !parse_int_array_8(xml_parser_get_attribute_string("offsets_y"), resource_cart.offsets_y) ||
+        !xml_value::parse_bool(
+            xml_parser_get_attribute_string("hide_on_corpse"), &resource_cart.hide_on_corpse) ||
+        !g_parse_state.graphics_definition.configure_resource_cart(std::move(resource_cart))) {
+        return graphics_parse_error("FigureType resource-cart graphics is duplicated or invalid");
+    }
+    return 1;
+}
+
+static int parse_graphics_directional_node()
+{
+    if (!parse_enabled_content("directional")) {
+        return 0;
+    }
+    const bool has_path = xml_parser_has_attribute("path");
+    if (!g_parse_state.saw_graphics || !has_path || xml_parser_has_attribute("image_group") ||
+        !xml_parser_has_attribute("default_base_offset") ||
+        !xml_parser_has_attribute("view_adjustments") ||
+        !xml_parser_has_attribute("frame_divisor") ||
+        !xml_parser_has_attribute("frame_stride")) {
+        return graphics_parse_error(
+            "FigureType directional graphics is outside graphics or missing required attributes");
+    }
+
+    FigureDirectionalGraphics directional;
+    directional.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    if (directional.path.empty() ||
+        !parse_int_attribute_strict("default_base_offset", directional.default_base_image_offset) ||
+        !parse_int_attribute_strict("view_adjustments", directional.view_adjustments) ||
+        !parse_int_attribute_strict("frame_divisor", directional.frame_divisor) ||
+        !parse_int_attribute_strict("frame_stride", directional.frame_stride) ||
+        !g_parse_state.graphics_definition.configure_directional(std::move(directional))) {
+        return graphics_parse_error("FigureType directional graphics is duplicated or invalid");
+    }
+    return 1;
+}
+
+static int parse_graphics_directional_pose_node()
+{
+    if (!parse_enabled_content("pose")) {
+        return 0;
+    }
+    if (!xml_parser_has_attribute("role") ||
+        !xml_parser_has_attribute("action") ||
+        !xml_parser_has_attribute("base_offset")) {
+        return graphics_parse_error("FigureType directional pose is missing required attributes");
+    }
+
+    FigureDirectionalPoseGraphics pose;
+    pose.role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+    pose.action_state = action_state_from_xml_name(xml_parser_get_attribute_string("action"));
+    if (!parse_int_attribute_strict("base_offset", pose.base_image_offset) ||
+        !g_parse_state.graphics_definition.add_directional_pose(std::move(pose))) {
+        return graphics_parse_error("FigureType directional pose is invalid or duplicates a role/action");
+    }
+    return 1;
+}
+
+static int parse_graphics_state_layer_node()
+{
+    if (!parse_enabled_content("state")) {
+        return 0;
+    }
+    const bool has_path = xml_parser_has_attribute("path");
+    if (!g_parse_state.saw_graphics || !has_path || xml_parser_has_attribute("image_group") ||
+        !xml_parser_has_attribute("role") ||
+        !xml_parser_has_attribute("action") ||
+        !xml_parser_has_attribute("base_offset") ||
+        !xml_parser_has_attribute("direction") ||
+        !xml_parser_has_attribute("view_adjustments") ||
+        !xml_parser_has_attribute("frame") ||
+        !xml_parser_has_attribute("frame_divisor") ||
+        !xml_parser_has_attribute("direction_stride")) {
+        return graphics_parse_error("FigureType graphics state layer is outside graphics or missing required attributes");
+    }
+
+    FigureGraphicsStateLayer state_layer;
+    state_layer.role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+    state_layer.action_state = action_state_from_xml_name(xml_parser_get_attribute_string("action"));
+    state_layer.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    state_layer.base_image_offset = xml_parser_get_attribute_int("base_offset");
+    state_layer.view_adjustments = xml_parser_get_attribute_int("view_adjustments");
+    state_layer.frame_divisor = xml_parser_get_attribute_int("frame_divisor");
+    state_layer.direction_frame_stride = xml_parser_get_attribute_int("direction_stride");
+
+    const char *direction = xml_parser_get_attribute_string("direction");
+    if (xml_value::equals(direction, "movement")) {
+        state_layer.direction = FigureStateDirection::Movement;
+    } else if (xml_value::equals(direction, "attack")) {
+        state_layer.direction = FigureStateDirection::Attack;
+    } else {
+        return graphics_parse_error("FigureType graphics state layer has an invalid direction", direction);
+    }
+
+    const char *frame = xml_parser_get_attribute_string("frame");
+    if (xml_value::equals(frame, "static")) {
+        state_layer.frame = FigureStateFrame::Static;
+    } else if (xml_value::equals(frame, "image_offset")) {
+        state_layer.frame = FigureStateFrame::ImageOffset;
+    } else if (xml_value::equals(frame, "missile_launcher")) {
+        state_layer.frame = FigureStateFrame::MissileLauncher;
+    } else {
+        return graphics_parse_error("FigureType graphics state layer has an invalid frame", frame);
+    }
+
+    if (!g_parse_state.graphics_definition.add_state_layer(std::move(state_layer))) {
+        return graphics_parse_error("FigureType graphics state layer is invalid or duplicates a role/action");
+    }
+    return 1;
+}
+
+static int parse_graphics_map_flag_node()
+{
+    if (!parse_enabled_content("map_flag")) {
+        return 0;
+    }
+    if (!g_parse_state.saw_graphics || !g_parse_state.definition ||
+        g_parse_state.definition->type() != FIGURE_MAP_FLAG ||
+        !xml_parser_has_attribute("resource_min") ||
+        !xml_parser_has_attribute("resource_max_exclusive") ||
+        !xml_parser_has_attribute("base_direction") ||
+        !xml_parser_has_attribute("view_adjustments") ||
+        !xml_parser_has_attribute("frame_divisor") ||
+        !xml_parser_has_attribute("frame_stride") ||
+        !xml_parser_has_attribute("number_x") ||
+        !xml_parser_has_attribute("number_y")) {
+        return graphics_parse_error("FigureType map-flag graphics is outside map_flag or missing required attributes");
+    }
+    GraphicsPoint number_offset;
+    number_offset.x = xml_parser_get_attribute_int("number_x");
+    number_offset.y = xml_parser_get_attribute_int("number_y");
+    if (!g_parse_state.graphics_definition.configure_map_flag(
+            xml_parser_get_attribute_int("resource_min"),
+            xml_parser_get_attribute_int("resource_max_exclusive"),
+            xml_parser_get_attribute_int("base_direction"),
+            xml_parser_get_attribute_int("view_adjustments"),
+            xml_parser_get_attribute_int("frame_divisor"),
+            xml_parser_get_attribute_int("frame_stride"),
+            number_offset)) {
+        return graphics_parse_error("FigureType map-flag graphics is duplicated or invalid");
+    }
+    return 1;
+}
+
+static int parse_graphics_map_flag_marker_node()
+{
+    if (!parse_enabled_content("marker")) {
+        return 0;
+    }
+    const bool has_path = xml_parser_has_attribute("path");
+    if (!g_parse_state.graphics_definition.map_flag().enabled || !has_path || xml_parser_has_attribute("image_group") ||
+        !xml_parser_has_attribute("resource_min") ||
+        !xml_parser_has_attribute("resource_max_exclusive") ||
+        !xml_parser_has_attribute("image_offset") ||
+        !xml_parser_has_attribute("number_base")) {
+        return graphics_parse_error("FigureType map-flag marker is outside map_flag or missing required attributes");
+    }
+    FigureMapFlagMarkerGraphics marker;
+    marker.resource_min = xml_parser_get_attribute_int("resource_min");
+    marker.resource_max_exclusive = xml_parser_get_attribute_int("resource_max_exclusive");
+    marker.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    marker.image_offset = xml_parser_get_attribute_int("image_offset");
+    marker.number_base = xml_parser_get_attribute_int("number_base");
+    if (!g_parse_state.graphics_definition.add_map_flag_marker(std::move(marker))) {
+        return graphics_parse_error("FigureType map-flag marker is invalid or overlaps another marker");
+    }
+    return 1;
+}
+
 static int parse_graphics_target_value_node(int path_node)
 {
     if (g_parse_state.current_graphics_target == GraphicsTargetKind::None) {
@@ -1618,98 +1897,110 @@ static int parse_graphics_target_value_node(int path_node)
     }
 
     FigureGraphics &graphics_definition = g_parse_state.graphics_definition;
+    GraphicsTargetRole role = GraphicsTargetRole::Default;
     switch (g_parse_state.current_graphics_target) {
         case GraphicsTargetKind::Default:
-            if (graphics_definition.image_group || graphics_definition.image_asset != ASSET_MAX_KEY) {
-                return graphics_parse_error("FigureType graphics default target source is duplicated");
-            }
-            if (path_node) {
-                if (!graphics_definition.path_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics default path is duplicated");
-                }
-                graphics_definition.path_pattern = std::move(value);
-            } else {
-                if (!graphics_definition.image_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics default image is duplicated");
-                }
-                graphics_definition.image_pattern = std::move(value);
-            }
-            return 1;
+            role = GraphicsTargetRole::Default;
+            break;
         case GraphicsTargetKind::Action:
-            if (graphics_definition.action_image_group) {
-                return graphics_parse_error("FigureType graphics action target source is duplicated");
-            }
-            if (path_node) {
-                if (!graphics_definition.action_path_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics action path is duplicated");
-                }
-                graphics_definition.action_path_pattern = std::move(value);
-            } else {
-                if (!graphics_definition.action_image_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics action image is duplicated");
-                }
-                graphics_definition.action_image_pattern = std::move(value);
-            }
-            return 1;
+            role = GraphicsTargetRole::Action;
+            break;
         case GraphicsTargetKind::Corpse:
-            if (graphics_definition.corpse_image_group || graphics_definition.corpse_image_asset != ASSET_MAX_KEY) {
-                return graphics_parse_error("FigureType graphics corpse target source is duplicated");
-            }
-            if (path_node) {
-                if (!graphics_definition.corpse_path_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics corpse path is duplicated");
-                }
-                graphics_definition.corpse_path_pattern = std::move(value);
-            } else {
-                if (!graphics_definition.corpse_image_pattern.empty()) {
-                    return graphics_parse_error("FigureType graphics corpse image is duplicated");
-                }
-                graphics_definition.corpse_image_pattern = std::move(value);
-            }
-            return 1;
+            role = GraphicsTargetRole::Corpse;
+            break;
         case GraphicsTargetKind::None:
         default:
             return graphics_parse_error("FigureType graphics path/image target is invalid");
     }
+
+    GraphicsAssetReference &target = graphics_definition.asset_target(role);
+    if (path_node) {
+        if (target.has_path()) return graphics_parse_error("FigureType graphics target path is duplicated");
+        target.set_path(std::move(value));
+        if (!target.has_logical_asset_path()) return graphics_parse_error("FigureType graphics path must be a logical asset XML path without a file extension", target.path());
+    } else {
+        if (target.has_image()) return graphics_parse_error("FigureType graphics target image is duplicated");
+        target.set_image(std::move(value));
+    }
+    return 1;
 }
 
 static int parse_graphics_path_node()
 {
+    if (!parse_enabled_content("path")) {
+        return 0;
+    }
     return parse_graphics_target_value_node(1);
 }
 
 static int parse_graphics_image_node()
 {
-    return parse_graphics_target_value_node(0);
+    if (!parse_enabled_content("image")) {
+        return 0;
+    }
+    return graphics_parse_error("FigureType graphics targets address asset XML paths only; image selectors are not supported");
 }
 
 static int validate_graphics_target_policy()
 {
     const FigureGraphics &graphics_definition = g_parse_state.graphics_definition;
-    if (graphics_definition.default_source_count() != 1 ||
-        graphics_target_has_image_without_path(graphics_definition.path_pattern, graphics_definition.image_pattern)) {
+    const int specialized_policy_count =
+        (graphics_definition.missile_launcher().enabled() ? 1 : 0) +
+        (graphics_definition.resource_cart().enabled ? 1 : 0) +
+        (graphics_definition.directional().enabled ? 1 : 0);
+    const int specialized_policy_only =
+        graphics_definition.default_source_count() == 0 &&
+        specialized_policy_count == 1 &&
+        graphics_definition.action_source_count() == 0 &&
+        graphics_definition.corpse_source_count() == 0 &&
+        graphics_definition.overlays().empty() &&
+        graphics_definition.state_layers().empty() &&
+        !graphics_definition.standard().enabled &&
+        !graphics_definition.map_flag().enabled &&
+        graphics_definition.cart_mode == CartGraphicsMode::None;
+    const int state_sources_only =
+        graphics_definition.default_source_count() == 0 &&
+        specialized_policy_count <= 1 &&
+        graphics_definition.action_source_count() == 0 &&
+        graphics_definition.corpse_source_count() == 0 &&
+        graphics_definition.overlays().empty() &&
+        !graphics_definition.state_layers().empty() &&
+        !graphics_definition.standard().enabled &&
+        !graphics_definition.map_flag().enabled &&
+        graphics_definition.cart_mode == CartGraphicsMode::None;
+    if ((!specialized_policy_only && !state_sources_only && graphics_definition.default_source_count() != 1) ||
+        graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Default))) {
         return graphics_parse_error(
-            "FigureType graphics node must choose exactly one image_group, image_asset, or path target");
+            "FigureType graphics node must choose one default source, state-owned sources, or one specialized policy-only target");
     }
     if (g_parse_state.saw_graphics_action) {
         if (graphics_definition.action_source_count() != 1 ||
-            graphics_target_has_image_without_path(
-                graphics_definition.action_path_pattern,
-                graphics_definition.action_image_pattern)) {
+            graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Action))) {
             return graphics_parse_error("FigureType action graphics requires one complete source");
         }
-        if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state) {
-            return graphics_parse_error("FigureType native action graphics requires a state");
+        if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state && !graphics_definition.action_min_missile_wait_ticks) {
+            return graphics_parse_error("FigureType native action graphics requires a state or missile-wait threshold");
         }
     }
     if (graphics_definition.corpse_source_count() > 1 ||
-        graphics_target_has_image_without_path(
-            graphics_definition.corpse_path_pattern,
-            graphics_definition.corpse_image_pattern)) {
+        graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Corpse))) {
         return graphics_parse_error("FigureType corpse graphics target has an image without a path");
     }
     if (g_parse_state.saw_graphics_corpse && graphics_definition.corpse_source_count() != 1) {
         return graphics_parse_error("FigureType corpse graphics target requires a source");
+    }
+    if (graphics_definition.standard().enabled && graphics_definition.standard().flags.empty()) {
+        return graphics_parse_error("FigureType standard graphics requires at least one flag");
+    }
+    if (graphics_definition.map_flag().enabled && !graphics_definition.map_flag().covers_authored_range()) {
+        return graphics_parse_error("FigureType map-flag markers must cover the complete authored resource range");
+    }
+    for (const FigureGraphicsStateLayer &state_layer : graphics_definition.state_layers()) {
+        if (state_layer.frame == FigureStateFrame::MissileLauncher &&
+            !graphics_definition.missile_launcher().enabled()) {
+            return graphics_parse_error(
+                "FigureType state graphics uses missile_launcher frame policy without a missile_launcher definition");
+        }
     }
     return validate_depot_cart_graphics(
         g_parse_state.definition.get(),
@@ -1723,28 +2014,22 @@ static int validate_current_graphics_target_policy()
     switch (g_parse_state.current_graphics_target) {
         case GraphicsTargetKind::Default:
             if (graphics_definition.default_source_count() != 1 ||
-                graphics_target_has_image_without_path(
-                    graphics_definition.path_pattern,
-                    graphics_definition.image_pattern)) {
+                graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Default))) {
                 return graphics_parse_error("FigureType graphics default target requires one complete source");
             }
             return 1;
         case GraphicsTargetKind::Action:
             if (graphics_definition.action_source_count() != 1 ||
-                graphics_target_has_image_without_path(
-                    graphics_definition.action_path_pattern,
-                    graphics_definition.action_image_pattern)) {
+                graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Action))) {
                 return graphics_parse_error("FigureType action graphics target requires one complete source");
             }
-            if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state) {
-                return graphics_parse_error("FigureType native action graphics requires a state");
+            if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state && !graphics_definition.action_min_missile_wait_ticks) {
+                return graphics_parse_error("FigureType native action graphics requires a state or missile-wait threshold");
             }
             return 1;
         case GraphicsTargetKind::Corpse:
             if (graphics_definition.corpse_source_count() != 1 ||
-                graphics_target_has_image_without_path(
-                    graphics_definition.corpse_path_pattern,
-                    graphics_definition.corpse_image_pattern)) {
+                graphics_target_has_image_without_path(graphics_definition.asset_target(GraphicsTargetRole::Corpse))) {
                 return graphics_parse_error("FigureType corpse graphics target requires one complete source");
             }
             return 1;
@@ -1778,6 +2063,9 @@ static void finish_graphics_node()
 
 static int parse_pathing_node()
 {
+    if (!parse_enabled_content("pathing")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("pathing");
     if (!profile) {
         return 0;
@@ -1798,13 +2086,6 @@ static int parse_pathing_node()
         log_error("FigureType pathing node has an unknown mode", xml_parser_get_attribute_string("mode"), 0);
         return 0;
     }
-    if (xml_parser_has_attribute("effect") &&
-        !is_known_service_effect_name(xml_parser_get_attribute_string("effect"))) {
-        g_parse_state.error = true;
-        log_error("FigureType pathing node has an unknown effect", xml_parser_get_attribute_string("effect"), 0);
-        return 0;
-    }
-
     PathingPolicy pathing_policy;
     pathing_policy.mode = mode;
     const int terrain_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("terrain"));
@@ -1815,7 +2096,11 @@ static int parse_pathing_node()
     }
     pathing_policy.terrain = PathingMode::terrainFromLegacyUsage(terrain_usage);
     const char *effect_text = xml_parser_get_attribute_string("effect");
-    pathing_policy.effect = parse_service_effect_name(effect_text);
+    if (!parse_service_effect_name(effect_text, pathing_policy.effect)) {
+        g_parse_state.error = true;
+        log_error("FigureType pathing node has an unknown effect", effect_text, 0);
+        return 0;
+    }
 
     // Smart service pathing compares road-tile history for one explicit service effect.
     if (!pathing_policy.hasRequiredServiceEffect()) {
@@ -1839,6 +2124,9 @@ static int parse_pathing_node()
 
 static int parse_venue_targets_node()
 {
+    if (!parse_enabled_content("venue_targets")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("venue_targets");
     if (!profile) {
         return 0;
@@ -1863,6 +2151,9 @@ static int parse_venue_targets_node()
 
 static int parse_venue_node()
 {
+    if (!parse_enabled_content("venue")) {
+        return 0;
+    }
     FigureTypeProfile *profile = current_profile_or_error("venue");
     if (!profile) {
         return 0;
@@ -1888,11 +2179,12 @@ static int parse_venue_node()
     return 1;
 }
 
-static const std::array<xml_parser_element, 16> XML_ELEMENTS = { {
+static const xml_parser_element XML_ELEMENTS[] = {
     { "figure", parse_definition_root, nullptr, nullptr, nullptr },
     { "profiles", parse_profiles_node, nullptr, "figure", nullptr },
     { "profile", parse_profile_node, finish_profile_node, "profiles", nullptr },
     { "native", parse_native_node, nullptr, "profile", nullptr },
+    { "spawn", parse_spawn_node, nullptr, "profile", nullptr },
     { "owner", parse_owner_node, nullptr, "profile", nullptr },
     { "movement", parse_movement_node, nullptr, "profile", nullptr },
     { "graphics", parse_graphics_node, finish_graphics_node, "figure", nullptr },
@@ -1900,51 +2192,157 @@ static const std::array<xml_parser_element, 16> XML_ELEMENTS = { {
     { "action", parse_graphics_action_node, finish_graphics_target_node, "graphics", nullptr },
     { "corpse", parse_graphics_corpse_node, finish_graphics_target_node, "graphics", nullptr },
     { "cart", parse_graphics_cart_node, nullptr, "graphics", nullptr },
+    { "overlay", parse_graphics_overlay_node, nullptr, "graphics", nullptr },
+    { "standard", parse_graphics_standard_node, nullptr, "graphics", nullptr },
+    { "flag", parse_graphics_standard_flag_node, nullptr, "standard", nullptr },
+    { "missile_launcher", parse_graphics_missile_launcher_node, nullptr, "graphics", nullptr },
+    { "resource_cart", parse_graphics_resource_cart_node, nullptr, "graphics", nullptr },
+    { "directional", parse_graphics_directional_node, nullptr, "graphics", nullptr },
+    { "pose", parse_graphics_directional_pose_node, nullptr, "directional", nullptr },
+    { "state", parse_graphics_state_layer_node, nullptr, "graphics", nullptr },
+    { "map_flag", parse_graphics_map_flag_node, nullptr, "graphics", nullptr },
+    { "marker", parse_graphics_map_flag_marker_node, nullptr, "map_flag", nullptr },
     { "path", parse_graphics_path_node, nullptr, "default|action|corpse", nullptr },
     { "image", parse_graphics_image_node, nullptr, "default|action|corpse", nullptr },
     { "pathing", parse_pathing_node, nullptr, "profile", nullptr },
     { "venue_targets", parse_venue_targets_node, nullptr, "profile", nullptr },
     { "venue", parse_venue_node, nullptr, "venue_targets", nullptr }
-} };
+};
 
-static int parse_definition_file(const char *filename)
+static int parse_definition_buffer(
+    const char *filename,
+    const std::vector<char> &buffer,
+    StagedFigureType *out_definition)
 {
     g_parse_state = {};
     const ErrorContextScope scope("FigureType XML", filename);
-    const int parsed = xml_definition::parse_file(
+    const int parsed = xml_definition::parse_buffer(
         filename,
         "FigureType",
-        XML_ELEMENTS.data(),
-        static_cast<int>(XML_ELEMENTS.size()));
+        XML_ELEMENTS,
+        static_cast<int>(std::size(XML_ELEMENTS)),
+        buffer);
     if (!parsed) {
-        set_failure_reason("Failed to parse FigureType definition.", filename);
         return 0;
     }
 
     if (g_parse_state.error ||
         !g_parse_state.saw_root ||
-        !g_parse_state.saw_profiles ||
-        !g_parse_state.saw_graphics ||
-        !g_parse_state.definition ||
-        g_parse_state.definition->profiles().empty() ||
-        !g_parse_state.definition->default_profile()) {
+        !g_parse_state.definition) {
         error_context_report_error("Invalid FigureType XML", filename);
-        set_failure_reason("Failed to parse FigureType definition.", filename);
         return 0;
     }
 
     figure_type type = g_parse_state.definition->type();
     if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) {
-        set_failure_reason("FigureType definition has an invalid figure id.", filename);
         return 0;
     }
 
-    if (!g_parse_state.definition->cache_graphics_bindings()) {
+    if (out_definition) {
+        out_definition->definition = std::move(g_parse_state.definition);
+        out_definition->disabled = g_parse_state.disabled;
+        out_definition->graphics_only = g_parse_state.graphics_only;
+        out_definition->saw_profiles = g_parse_state.saw_profiles;
+        out_definition->saw_graphics = g_parse_state.saw_graphics;
+    }
+    return 1;
+}
+
+static int parse_definition_file(
+    const mod_definition::DefinitionSource &source,
+    StagedFigureType *out_definition)
+{
+    std::vector<char> buffer;
+    if (!xml_definition::load_file_to_buffer(source.full_path.c_str(), buffer, "FigureType")) {
         return 0;
     }
+    return parse_definition_buffer(source.full_path.c_str(), buffer, out_definition);
+}
 
-    if (!g_figure_types[type]) {
-        g_figure_types[type] = std::move(g_parse_state.definition);
+static int stage_definition(StagedFigureTypes &staged, StagedFigureType definition)
+{
+    if (!definition.definition) {
+        staged.failure_reason = "FigureType definition is missing its root identity.";
+        return 0;
+    }
+    const figure_type type = definition.definition->type();
+    const std::string attr = definition.definition->attr();
+    const std::optional<FigureIdentityReservation> &slot_identity = staged.slots[type];
+    if (slot_identity && slot_identity->attr != attr) {
+        staged.failure_reason = "FigureType runtime slot is already owned by '" + slot_identity->attr +
+            "' from " + slot_identity->source.full_path + "; " + definition.source.full_path +
+            " cannot replace it with alias '" + attr + "'.";
+        return 0;
+    }
+    const auto id_identity = staged.ids.find(attr);
+    if (id_identity != staged.ids.end() && id_identity->second.type != type) {
+        staged.failure_reason = "FigureType id '" + attr + "' changes runtime slot between " +
+            id_identity->second.source.full_path + " and " + definition.source.full_path + ".";
+        return 0;
+    }
+    if (!staged.overlays.apply(attr, definition.disabled, definition.source)) {
+        staged.failure_reason = staged.overlays.failure_reason();
+        return 0;
+    }
+    if (!slot_identity) {
+        FigureIdentityReservation identity{type, attr, definition.source};
+        staged.slots[type] = identity;
+        staged.ids.emplace(attr, std::move(identity));
+    }
+    staged.disabled[type] = definition.disabled;
+    if (definition.disabled) {
+        staged.runtime_winners[type].reset();
+        staged.graphics_winners[type].reset();
+    } else if (definition.graphics_only) {
+        staged.graphics_winners[type] = std::move(definition);
+    } else {
+        staged.runtime_winners[type] = std::move(definition);
+        staged.graphics_winners[type].reset();
+    }
+    return 1;
+}
+
+static int validate_runtime_winner(StagedFigureTypes &staged, StagedFigureType &winner)
+{
+    FigureTypeDefinition &definition = *winner.definition;
+    if (!winner.saw_profiles || !winner.saw_graphics || definition.profiles().empty() ||
+        !definition.default_profile()) {
+        staged.failure_reason = "Final runtime FigureType definition is incomplete: " + winner.source.full_path;
+        return 0;
+    }
+    if (!definition.cache_graphics_bindings()) {
+        staged.failure_reason = "Final runtime FigureType definition has invalid graphics: " + winner.source.full_path;
+        return 0;
+    }
+    return 1;
+}
+
+static int validate_graphics_winner(StagedFigureTypes &staged, StagedFigureType &winner)
+{
+    FigureTypeDefinition &definition = *winner.definition;
+    if (!winner.saw_graphics || winner.saw_profiles || !definition.profiles().empty()) {
+        staged.failure_reason = "Final graphics-only FigureType definition is incomplete: " + winner.source.full_path;
+        return 0;
+    }
+    if (!definition.cache_graphics_bindings()) {
+        staged.failure_reason = "Final graphics-only FigureType definition has invalid graphics: " + winner.source.full_path;
+        return 0;
+    }
+    return 1;
+}
+
+static int validate_final_winners(StagedFigureTypes &staged)
+{
+    for (std::size_t type = 0; type < staged.runtime_winners.size(); ++type) {
+        if (staged.disabled[type]) {
+            continue;
+        }
+        std::optional<StagedFigureType> &runtime = staged.runtime_winners[type];
+        std::optional<StagedFigureType> &graphics = staged.graphics_winners[type];
+        if ((runtime && !validate_runtime_winner(staged, *runtime)) ||
+            (graphics && !validate_graphics_winner(staged, *graphics))) {
+            return 0;
+        }
     }
     return 1;
 }
@@ -1969,7 +2367,7 @@ static int validate_building_spawn_profile_references()
 
                 const FigureTypeDefinition *figure_definition = definition_for(policy.spawn_figure);
                 const FigureTypeProfile *figure_profile = profile_for(policy.spawn_figure, policy.profile.c_str());
-                if (figure_definition && figure_profile) {
+                if (figure_definition && figure_profile && figure_profile->spawn_behavior().has_action_state) {
                     continue;
                 }
 
@@ -1979,8 +2377,8 @@ static int validate_building_spawn_profile_references()
                 detail += figure_definition ? figure_definition->attr() : std::to_string(static_cast<int>(policy.spawn_figure));
                 detail += " profile=";
                 detail += policy.profile;
-                set_failure_reason("BuildingType spawn FigureType profile is missing.", detail.c_str());
-                log_error("BuildingType spawn FigureType profile is missing", detail.c_str(), 0);
+                set_failure_reason("BuildingType spawn FigureType profile is missing or cannot initialize a spawned figure.", detail.c_str());
+                log_error("BuildingType spawn FigureType profile is missing or cannot initialize a spawned figure", detail.c_str(), 0);
                 return 0;
             }
         }
@@ -1995,66 +2393,254 @@ const char *figure_type_registry_get_failure_reason(void)
     return figure_type_registry_impl::g_failure_reason.c_str();
 }
 
+const char *figure_type_definition_source_path(const char *type_attr)
+{
+    if (!type_attr || !*type_attr) {
+        return nullptr;
+    }
+    const mod_definition::DefinitionOverlayEntry *entry =
+        figure_type_registry_impl::g_figure_type_overlays.find(type_attr);
+    return entry ? entry->source.full_path.c_str() : nullptr;
+}
+
+int figure_type_definition_is_suppressed(const char *type_attr)
+{
+    if (!type_attr || !*type_attr) {
+        return 0;
+    }
+    const mod_definition::DefinitionOverlayEntry *entry =
+        figure_type_registry_impl::g_figure_type_overlays.find(type_attr);
+    return entry && entry->disabled;
+}
+
 void figure_type_registry_reset(void)
 {
     figure_type_registry_impl::g_failure_reason.clear();
+    figure_type_registry_impl::g_figure_type_overlays.clear();
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
         figure_type_registry_impl::g_figure_types) {
+        definition.reset();
+    }
+    for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
+        figure_type_registry_impl::g_figure_graphics_only) {
         definition.reset();
     }
 }
 
 int figure_type_registry_load(void)
 {
-    figure_type_registry_reset();
+    using namespace figure_type_registry_impl;
 
-    // Definitions are resolved by precedence: selected mod first, then Augustus,
-    // then Julius. The first loaded definition for a figure type wins.
-    const std::vector<std::string> candidate_paths = figure_type_registry_impl::build_candidate_definition_paths();
-    int found_any_definition_file = 0;
-
-    for (const std::string &path : candidate_paths) {
-        if (!xml_definition::directory_exists(path.c_str())) {
-            continue;
-        }
-
-        bool found_in_path = false;
-        if (!xml_definition::for_each_definition_file(
-            path,
+    StagedFigureTypes staged;
+    std::string enumeration_failure;
+    if (!mod_definition::for_each_configured_definition_file(
+            {"FigureType"},
             "FigureType",
-            false,
-            [](const xml_definition::DefinitionFile &file, const std::string &) {
-                if (figure_type_registry_impl::parse_definition_file(file.full_path.c_str())) {
-                    return true;
+            true,
+            [&](const mod_definition::DefinitionSource &source) {
+                StagedFigureType definition;
+                definition.source = source;
+                if (!parse_definition_file(source, &definition)) {
+                    staged.failure_reason = "Unable to parse FigureType xml: " + source.full_path;
+                    return false;
                 }
-                log_error("Unable to parse FigureType xml", file.full_path.c_str(), 0);
-                return false;
+                return stage_definition(staged, std::move(definition)) != 0;
             },
-            &found_in_path)) {
-            return 0;
+            nullptr,
+            &enumeration_failure)) {
+        g_failure_reason = staged.failure_reason.empty() ? enumeration_failure : staged.failure_reason;
+        return 0;
+    }
+    if (!validate_final_winners(staged)) {
+        g_failure_reason = staged.failure_reason;
+        return 0;
+    }
+    std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> published;
+    std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> published_graphics_only;
+    for (std::size_t type = 0; type < staged.runtime_winners.size(); ++type) {
+        if (!staged.disabled[type] && staged.runtime_winners[type]) {
+            published[type] = std::move(staged.runtime_winners[type]->definition);
         }
-        if (found_in_path) {
-            found_any_definition_file = 1;
+        if (!staged.disabled[type] && staged.graphics_winners[type]) {
+            published_graphics_only[type] = std::move(staged.graphics_winners[type]->definition);
         }
     }
+    g_figure_types = std::move(published);
+    g_figure_graphics_only = std::move(published_graphics_only);
+    g_figure_type_overlays = std::move(staged.overlays);
+    g_failure_reason.clear();
+    return 1;
+}
 
-    if (!found_any_definition_file) {
-        std::string detail;
-        for (size_t i = 0; i < candidate_paths.size(); i++) {
-            if (i) {
-                detail += "\n";
-            }
-            detail += candidate_paths[i];
-        }
-        figure_type_registry_impl::set_failure_reason(
-            "No FigureType xml files were found in the configured mod precedence.",
-            detail.c_str());
-        log_error("No FigureType xml files found in configured mod precedence", 0, 0);
+#ifdef STARTUP_PARSER_TEST
+int figure_type_layered_definition_buffers_are_valid_for_test(
+    const figure_type_layer_test_input *inputs,
+    int input_count,
+    const char *query_attr,
+    figure_type_layer_test_result *result)
+{
+    using namespace figure_type_registry_impl;
+    if (!inputs || input_count < 0) {
         return 0;
     }
 
+    StagedFigureTypes staged;
+    for (int index = 0; index < input_count; ++index) {
+        const figure_type_layer_test_input &input = inputs[index];
+        const char *xml = input.xml ? input.xml : "";
+        std::vector<char> buffer(xml, xml + std::strlen(xml));
+
+        StagedFigureType definition;
+        definition.source.layer_index = input.layer_index < 0 ? 0 : static_cast<std::size_t>(input.layer_index);
+        definition.source.mod_name = input.mod_name ? input.mod_name : "";
+        definition.source.full_path = input.source_path ? input.source_path : "FigureTypeLayerTest.xml";
+        definition.source.file_name = definition.source.full_path;
+        definition.source.category = "FigureType";
+        if (!parse_definition_buffer(definition.source.full_path.c_str(), buffer, &definition) ||
+            !stage_definition(staged, std::move(definition))) {
+            return 0;
+        }
+    }
+    if (!validate_final_winners(staged)) {
+        return 0;
+    }
+
+    if (result) {
+        *result = {};
+        result->active_count = static_cast<int>(staged.overlays.active_count());
+        result->suppressed_count = static_cast<int>(staged.overlays.suppressed_count());
+        result->queried_source_layer = -1;
+        const std::string attr = query_attr ? query_attr : "";
+        const mod_definition::DefinitionOverlayEntry *overlay = staged.overlays.find(attr);
+        const auto identity = staged.ids.find(attr);
+        if (overlay && identity != staged.ids.end()) {
+            result->queried_disabled = overlay->disabled ? 1 : 0;
+            result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+            const figure_type type = identity->second.type;
+            const std::optional<StagedFigureType> &runtime = staged.runtime_winners[type];
+            const std::optional<StagedFigureType> &graphics = staged.graphics_winners[type];
+            if (!staged.disabled[type] && runtime && runtime->definition) {
+                if (const FigureTypeProfile *profile = runtime->definition->default_profile()) {
+                    result->queried_max_roam_length = profile->movement_profile().max_roam_length;
+                }
+                const FigureTypeDefinition *graphics_definition =
+                    graphics && graphics->definition ? graphics->definition.get() : runtime->definition.get();
+                const std::vector<FigureGraphicsOverlay> &overlays = graphics_definition->graphics().overlays();
+                result->queried_overlay_count = static_cast<int>(overlays.size());
+                if (!overlays.empty()) {
+                    const FigureGraphicsOverlay &overlay_definition = overlays.front();
+                    result->queried_overlay_has_path = !overlay_definition.path.empty();
+                    result->queried_overlay_follows_direction =
+                        overlay_definition.direction == FigureOverlayDirection::Figure;
+                    result->queried_overlay_follows_frame =
+                        overlay_definition.frame == FigureOverlayFrame::Figure;
+                    result->queried_overlay_action_count =
+                        static_cast<int>(overlay_definition.visible_actions.size());
+                    result->queried_overlay_resource_stride = overlay_definition.resource_stride;
+                    result->queried_overlay_direction_stride = overlay_definition.direction_frame_stride;
+                    result->queried_overlay_hide_on_corpse = overlay_definition.hide_on_corpse;
+                    result->queried_overlay_sample_image_offset =
+                        overlay_definition.legacy_image_offset(3, 4, 2);
+                    const GraphicsPoint sample_offset = overlay_definition.legacy_draw_offset(3);
+                    result->queried_overlay_sample_x_offset = sample_offset.x;
+                    result->queried_overlay_sample_y_offset = sample_offset.y;
+                }
+                const FigureStandardGraphics &standard = graphics_definition->graphics().standard();
+                result->queried_standard_enabled = standard.enabled;
+                result->queried_standard_flag_count = static_cast<int>(standard.flags.size());
+                result->queried_standard_moving_frame_divisor = standard.moving_frame_divisor;
+                result->queried_standard_sample_moving_offset =
+                    standard.flag_image_offset(FIGURE_FORT_LEGIONARY, 0, 10);
+                result->queried_standard_sample_halted_offset =
+                    standard.flag_image_offset(FIGURE_FORT_LEGIONARY, 1, 10);
+                const FigureGraphics &graphics = graphics_definition->graphics();
+                result->queried_state_layer_count = static_cast<int>(graphics.state_layers().size());
+                if (const FigureGraphicsStateLayer *going =
+                        graphics.state_layer_for_action(FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE)) {
+                    result->queried_bucket_going_has_path = !going->path.empty();
+                    result->queried_bucket_going_sample_offset = going->legacy_image_offset(5, 2, 3);
+                }
+                if (const FigureGraphicsStateLayer *at_fire =
+                        graphics.state_layer_for_action(FIGURE_ACTION_75_PREFECT_AT_FIRE)) {
+                    result->queried_bucket_at_fire_has_path = !at_fire->path.empty();
+                    result->queried_bucket_at_fire_sample_offset = at_fire->legacy_image_offset(7, 2, 6);
+                }
+                if (const FigureGraphicsStateLayer *idle =
+                        graphics.state_layer_for_action(FIGURE_ACTION_180_BALLISTA_CREATED)) {
+                    result->queried_ballista_idle_has_path = !idle->path.empty();
+                    result->queried_ballista_idle_sample_offset = idle->legacy_image_offset(5, 2, 6);
+                }
+                if (const FigureGraphicsStateLayer *firing =
+                        graphics.state_layer_for_action(FIGURE_ACTION_181_BALLISTA_FIRING)) {
+                    result->queried_ballista_firing_has_path = !firing->path.empty();
+                    result->queried_ballista_firing_uses_missile_launcher =
+                        firing->frame == FigureStateFrame::MissileLauncher;
+                    result->queried_ballista_firing_sample_offset = firing->legacy_image_offset(5, 2, 6);
+                }
+                const FigureMapFlagGraphics &map_flag = graphics.map_flag();
+                result->queried_map_flag_enabled = map_flag.enabled;
+                result->queried_map_flag_marker_count = static_cast<int>(map_flag.markers.size());
+                result->queried_map_flag_sample_base_offset = map_flag.legacy_base_image_offset(2, 6);
+                if (const FigureMapFlagMarkerGraphics *invasion = map_flag.marker_for(4)) {
+                    result->queried_map_flag_invasion_has_path = !invasion->path.empty();
+                    result->queried_map_flag_invasion_image_offset = invasion->image_offset;
+                }
+                result->queried_map_flag_invasion_number = map_flag.number_for(11);
+                if (const FigureMapFlagMarkerGraphics *fishing = map_flag.marker_for(21)) {
+                    result->queried_map_flag_fishing_has_path = !fishing->path.empty();
+                }
+                result->queried_map_flag_fishing_number = map_flag.number_for(21);
+                if (const FigureMapFlagMarkerGraphics *herd = map_flag.marker_for(25)) {
+                    result->queried_map_flag_herd_image_offset = herd->image_offset;
+                }
+                result->queried_map_flag_number_x = map_flag.number_offset.x;
+                result->queried_map_flag_number_y = map_flag.number_offset.y;
+                const FigureMissileLauncherGraphics &launcher = graphics.missile_launcher();
+                result->queried_missile_launcher_enabled = launcher.enabled();
+                result->queried_missile_launcher_uses_attack_cursor =
+                    launcher.cursor == FigureMissileLauncherCursor::AttackImageOffset;
+                result->queried_missile_launcher_uses_wait_cursor =
+                    launcher.cursor == FigureMissileLauncherCursor::MissileWaitTicks;
+                result->queried_missile_launcher_frame_divisor = launcher.frame_divisor;
+                result->queried_missile_launcher_frame_count = static_cast<int>(launcher.frames.size());
+                result->queried_missile_launcher_after_frame = launcher.after_frame;
+                result->queried_missile_launcher_sample_start = launcher.frame_for(0, 0);
+                result->queried_missile_launcher_sample_middle = launcher.frame_for(20, 20);
+                result->queried_missile_launcher_sample_last = launcher.frame_for(30, 60);
+                result->queried_missile_launcher_sample_after = launcher.frame_for(32, 128);
+                const FigureResourceCartGraphics &resource_cart = graphics.resource_cart();
+                result->queried_resource_cart_enabled = resource_cart.enabled;
+                result->queried_resource_cart_empty_has_path = !resource_cart.empty_path.empty();
+                result->queried_resource_cart_collecting_item_source =
+                    resource_cart.resource_source == FigureResourceCartSource::CollectingItemOnAction;
+                result->queried_resource_cart_resource_action = resource_cart.resource_action;
+                result->queried_resource_cart_fixed_one_load =
+                    resource_cart.load_mode == FigureResourceCartLoadMode::FixedOne;
+                result->queried_resource_cart_carried_or_one_load =
+                    resource_cart.load_mode == FigureResourceCartLoadMode::CarriedOrOne;
+                result->queried_resource_cart_runtime_state =
+                    resource_cart.state_source == FigureResourceCartStateSource::RuntimeState;
+                result->queried_resource_cart_suppress_body_when_hidden =
+                    resource_cart.suppress_body_when_hidden;
+                result->queried_resource_cart_lift_food_at_loads = resource_cart.lift_food_at_loads;
+                result->queried_resource_cart_lift_food_y_adjust = resource_cart.lift_food_y_adjust;
+                result->queried_resource_cart_hide_on_corpse = resource_cart.hide_on_corpse;
+                result->queried_resource_cart_sample_x = resource_cart.offsets_x[3];
+                result->queried_resource_cart_sample_y = resource_cart.offsets_y[3];
+                const FigureDirectionalGraphics &directional = graphics.directional();
+                result->queried_directional_enabled = directional.enabled;
+                result->queried_directional_has_path = !directional.path.empty();
+                result->queried_directional_pose_count = static_cast<int>(directional.poses.size());
+                result->queried_directional_default_sample_offset =
+                    directional.image_offset_for(0, 6, 2, 7);
+                result->queried_directional_pose_sample_offset =
+                    directional.image_offset_for(FIGURE_ACTION_192_FISHING_BOAT_FISHING, 6, 2, 7);
+            }
+        }
+    }
     return 1;
 }
+#endif
 
 int figure_type_registry_resolve_building_references(void)
 {

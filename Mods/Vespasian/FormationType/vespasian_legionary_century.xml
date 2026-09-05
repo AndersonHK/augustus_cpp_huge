@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<formation key="vespasian_legionary_century" recruit_capacity="64">
+    <grid width="8" height="8" station_alignment="scaled_tile_anchor" />
+    <combat distant_battle_strength="2" trained_distant_battle_bonus="1" curse_weight_per_figure="2" />
+    <slot fill="all" unit="legionary" />
+</formation>

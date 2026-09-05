@@ -1,11 +1,10 @@
 #include "translation/translation.h"
 #include "housing.h"
 
-#include "building/count.h"
-#include "building/building_type_registry_internal.h"
-#include "building/house.h"
+#include "building/building.h"
+#include "building/HousingProfileDef.h"
+#include "building/housing_profile_registry.h"
 #include "building/house_population.h"
-#include "building/properties.h"
 #include "city/migration.h"
 #include "city/population.h"
 #include "city/resource.h"
@@ -22,11 +21,44 @@
 #include "game/ResourceGraphics.h"
 #include "graphics/image.h"
 
+#include <vector>
+
 #define ADVISOR_HEIGHT 27
 
-static building_type housing_type_for_level(int level_id)
+struct HousingAdvisorRow {
+    int compatibility_level = -1;
+    const building_type_registry_impl::HousingProfileDef *profile = nullptr;
+    int occupied_residences = 0;
+};
+
+static std::vector<HousingAdvisorRow> collect_housing_rows()
 {
-    return building_type_registry_impl::building_type_for_housing_level(level_id, 1);
+    std::vector<HousingAdvisorRow> rows;
+    const int level_count = building_type_registry_impl::housing_profile_compatibility_level_count();
+    rows.reserve(level_count);
+    for (int index = 0; index < level_count; ++index) {
+        const int level = building_type_registry_impl::housing_profile_compatibility_level_at(index);
+        const auto *profile =
+            building_type_registry_impl::find_housing_profile_definition_for_compatibility_level(level);
+        if (level >= 0 && profile) {
+            rows.push_back({level, profile, 0});
+        }
+    }
+
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        const HousingModule &housing = *house->Housing;
+        if (!housing.is_occupied()) {
+            return;
+        }
+        const int level = housing.definition().profile->compatibility_level;
+        for (HousingAdvisorRow &row : rows) {
+            if (row.compatibility_level == level) {
+                ++row.occupied_residences;
+                return;
+            }
+        }
+    });
+    return rows;
 }
 
 static void draw_housing_table(void)
@@ -46,25 +78,23 @@ static void draw_housing_table(void)
     int total_residences = 0;
     int houses_using_goods[RESOURCE_SLOT_COUNT] = { 0 };
 
-    const int housing_level_count = building_type_registry_impl::housing_type_level_count();
-    for (int index = 0; index < housing_level_count; index++) {
-        int level_id = building_type_registry_impl::housing_type_level_at(index);
-        if (level_id < 0) {
-            continue;
-        }
-        house_level level = static_cast<house_level>(level_id);
-        building_type type = housing_type_for_level(level_id);
-        if (type <= BUILDING_NONE) {
-            continue;
-        }
-        int residences_at_level = building_count_active(type);
+    const std::vector<HousingAdvisorRow> housing_rows = collect_housing_rows();
+    for (const HousingAdvisorRow &row : housing_rows) {
+        const int level_id = row.compatibility_level;
+        const int residences_at_level = row.occupied_residences;
         if (!residences_at_level) {
             continue;
         }
         total_residences += residences_at_level;
 
         for (unsigned int i = 0; i < list.size; i++) {
-            if (model_house_uses_inventory(level, list.items[i])) {
+            const auto &requirements = row.profile->requirements;
+            const resource_type resource = list.items[i];
+            const bool required = resource == resource_wine() ? requirements.wine > 0 :
+                resource == resource_oil() ? requirements.oil > 0 :
+                resource == resource_furniture() ? requirements.furniture > 0 :
+                resource == resource_pottery() ? requirements.pottery > 0 : false;
+            if (required) {
                 houses_using_goods[list.items[i]] += residences_at_level;
             }
         }

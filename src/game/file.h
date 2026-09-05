@@ -7,7 +7,8 @@ enum {
     FILE_LOAD_SUCCESS = 1,
     FILE_LOAD_DOES_NOT_EXIST = 0,
     FILE_LOAD_INCOMPATIBLE_VERSION = -1,
-    FILE_LOAD_WRONG_FILE_FORMAT = -2
+    FILE_LOAD_WRONG_FILE_FORMAT = -2,
+    FILE_LOAD_VALIDATION_FAILED = -3
 };
 
 /**
@@ -30,7 +31,7 @@ int game_file_start_scenario_by_name(const uint8_t *scenario_name);
 /**
  * Load saved game
  * @param filename File to load
- * @return 1, 0 for "file does not exist", -1 for "incompatible version", -2 for "invalid file format"
+ * @return FILE_LOAD_SUCCESS or a specific FILE_LOAD_* failure reason
  */
 int game_file_load_saved_game(const char *filename);
 

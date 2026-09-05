@@ -50,7 +50,10 @@ typedef struct {
 } resource_data;
 
 
-void resource_init(void);
+int resource_init(void);
+const char *resource_get_failure_reason(void);
+const char *resource_definition_source_path(const char *text_id);
+int resource_definition_is_suppressed(const char *text_id);
 
 int resource_is_food(resource_type resource);
 int resource_is_raw_material(resource_type resource);
@@ -107,4 +110,29 @@ resource_type resource_troops(void);
 
 void production_rates_load(buffer *buf);
 void production_rates_save(buffer *buf);
+
+#ifdef STARTUP_PARSER_TEST
+typedef struct {
+    const char *xml;
+    int layer_index;
+    const char *mod_name;
+    const char *source_path;
+} resource_layer_test_input;
+
+typedef struct {
+    int active_count;
+    int suppressed_count;
+    int queried_slot;
+    int queried_disabled;
+    int queried_buy;
+    int queried_sell;
+    int queried_source_layer;
+} resource_layer_test_result;
+
+int resource_layered_definition_buffers_are_valid_for_test(
+    const resource_layer_test_input *inputs,
+    int input_count,
+    const char *query_id,
+    resource_layer_test_result *result);
+#endif
 

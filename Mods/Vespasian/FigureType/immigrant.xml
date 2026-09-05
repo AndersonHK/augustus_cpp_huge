@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="immigrant" graphics_only="true">
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Migrant" />
+        </default>
+        <corpse>
+            <path value="Walkers\Migrant" />
+        </corpse>
+        <overlay role="cart" path="Walkers\Migrant_Cart" direction="figure" frame="static" direction_stride="8" resource_base_offset="0" resource_stride="0" actions="immigrant_arriving" offsets_x="-13,-18,-13,0,13,18,12,0" offsets_y="6,-1,-7,-12,-7,-1,7,11" hide_on_corpse="true" />
+    </graphics>
+</figure>

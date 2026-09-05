@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Walkers\Trade_Caravan" inherits="Walkers\Group_130" logical_units_per_source_pixel="96">
+</assetlist>

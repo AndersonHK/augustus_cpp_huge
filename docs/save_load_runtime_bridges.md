@@ -2,7 +2,7 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, runtime structs, module state, and compatibility records. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
 
 Long-term migration direction: hardcoded legacy-id bridges should eventually move into mod-owned XML declarations, described in `docs/mod_owned_compatibility_bridge_plan.md`. That future bridge belongs to startup/save-load boundaries; normal runtime should continue to consume resolved objects and string-owned definitions.
 
@@ -18,7 +18,7 @@ The live-save entry points are in `src/game/file_io.cpp`.
 6. `savegame_load_from_state(&savegame_data.state, save_version)` loads `resource_id_bridge_save_table_load_state()` after scenario core data and before scenario requests, figures, city data, buildings, or other resource-bearing payloads are decoded.
 7. `clear_savegame_pieces()` frees the temporary file-piece buffers after the data has been consumed.
 
-`savegame_load_from_state()` does not finish all runtime rebinding by itself. The larger game-load path in `src/game/file.c` calls `building_runtime_initialize_city_graphics_cache()` and `figure_runtime_initialize_city()` after the world has finished loading. That second phase currently rebuilds lazy C++ `Building`/`building_runtime` objects, native graphics bindings, native storage/production objects, and native figure controllers over the compatibility arrays restored by `savegame_load_from_state()`.
+`savegame_load_from_state()` does not finish all runtime rebinding by itself. The larger game-load path in `src/game/file.cpp` calls `building_runtime_initialize_city_graphics_cache()` and `figure_runtime_initialize_city()` after the world has finished loading. That second phase currently rebuilds lazy C++ `Building`/`building_runtime` objects, native graphics bindings, native storage/production objects, and native figure controllers over the compatibility arrays restored by `savegame_load_from_state()`.
 
 This is transitional. The target save bridge is not "runtime mutates the save record forever." The target is:
 
@@ -69,6 +69,12 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7` | Water access type save table | Bridge synthesizes the shared legacy water access text ids and resolves them through the active mod's XML numeric ids. |
 | `SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8` | Resource save table | Bridge synthesizes the legacy raw resource-id maps and resolves them through active `Resources` XML text ids. |
 | `SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE = 0xb8` | Keyed city/building resource state | Current saves use table-backed resource save ids in dynamic city/building resource payloads; old flat arrays remain load-only compatibility. |
+| `SAVE_GAME_LAST_NO_GOD_TYPE_TABLE = 0xb9` | God type save table | Older saves synthesize the legacy god identity mapping. |
+| `SAVE_GAME_LAST_NO_MEDICINE_TAX_ROAD_SERVICE_HISTORY = 0xba` | Medicine and tax service-history effects | Missing appended history grids start at zero. |
+| `SAVE_GAME_LAST_FIXED_FORMATION_ROSTER = 0xbb` | Dynamic formation roster | Older saves load the fixed compatibility roster and materialize current formation storage. |
+| `SAVE_GAME_LAST_NO_FOUNDATION_TERRAIN_DELTAS = 0xbf` | Foundation terrain-delta state | Older saves reconstruct conservative foundation state from the loaded city surface. |
+| `SAVE_GAME_LAST_LEGACY_FIGURE_MOVEMENT_GRAIN = 0xc0` | Current figure movement grain | Legacy progress values are migrated during figure load. |
+| `SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS = 0xc1` through `SAVE_GAME_LAST_UNNOTIFIED_RUNTIME_RELATIONSHIPS = 0xc5` | Strict native surface, profile, ownership, and relationship invariants | The load bridge repairs recoverable old relationships, reports each repair, and writes a clean current round trip. |
 
 Other broad gates still shape the bridge path:
 
@@ -214,7 +220,7 @@ After identity is resolved, the loader fills legacy struct fields exactly in sav
 
 Each live rubble tile is an independent size-1 `Building`; rubble tiles from one destroyed building are deliberately not connected through `prev_part_building_id` / `next_part_building_id`. Their shared reconstruction identity is only the logical construction grid offset, original orientation, and a resolved pointer to the original immutable `BuildingType`. Footprint dimensions and composed parts are always derived from that type rather than copied into rubble state.
 
-The pointer is runtime-only. `write_rubble_type_data()` persists it as a save-local BuildingType id, and `read_rubble_type_data()` resolves that id back to the active `BuildingType*` before staging `RubbleState` for runtime hydration. Current saves write the type id, logical grid offset, and orientation. Saves through `0xbd` stored a main-tile grid offset plus a redundant square size, while version `0xbe` stored a logical `x/y` rectangle; the load bridge consumes both shapes and discards their copied dimensions. The minimal format is versioned at `SAVE_GAME_CURRENT_VERSION = 0xbf`.
+The pointer is runtime-only. `write_rubble_type_data()` persists it as a save-local BuildingType id, and `read_rubble_type_data()` resolves that id back to the active `BuildingType*` before staging `RubbleState` for runtime hydration. Current saves write the type id, logical grid offset, and orientation. Saves through `0xbd` stored a main-tile grid offset plus a redundant square size, while version `0xbe` stored a logical `x/y` rectangle; the load bridge consumes both shapes and discards their copied dimensions. The minimal rubble-origin format was introduced after `0xbe`; later save versions retain it while adding unrelated bridge data.
 
 Repair is owned by the selected rubble `Building`. It uses the resolved type and origin to construct one repair-aware `ConstructionPlacementPlan`, expands every XML-composed part at the saved rotation, permits replacement only of rubble with the same identity, and produces the exact remaining-rubble clear cost. Successful repair creates a fresh building from its current definition and retires every matching rubble record; ordinary clear-land remains tile-local. Legacy shared rubble records are converted to the same independent-tile model during load so gameplay code has no second repair path.
 
@@ -251,7 +257,7 @@ That final fan-out writes BuildingType data back into legacy systems:
 
 - `model_get_building(definition->type())` receives cost, desirability, and labor values.
 - `building_properties_apply_xml_model_size()` updates legacy footprint size fields.
-- `building_properties_apply_xml_event_attr()` updates legacy event attrs.
+- Building scenario/XML identity is the canonical root `type`; rare historical names are resolved from `<identity aliases="...">`. There is no `building_properties` event-identity copy.
 - `building_properties_apply_xml_sound_id()` updates city sound fields.
 - XML flags update legacy property fields such as fireproof, desirability-range drawing, and Venus bonus.
 
@@ -306,6 +312,8 @@ Monument deliveries are separate dynamic state. `building_monument_delivery_load
 ## Figure Runtime Bridge
 
 Figures persist as legacy `array(figure)` records. `figure_load_state()` resets `figure_runtime`, reads the saved array record size when present, allocates the figure array, and fills each `figure` with legacy state.
+
+Figure-to-figure relationships require a two-pass load. The first pass stages saved ids for target, targeted-by, attacker, and opponent roles while every figure slot is reset and populated. The second pass attaches those relationships only after all target objects are stable, validates each target, and normalizes the combat tuple (`num_attackers`, attacker slots, opponent, and action). Connecting a forward reference during the first pass is invalid: resetting the later target slot disconnects it with `EndpointReassigned`, which can leave the peer's serialized combat counters out of sync with its now-empty relationship handles. A stale saved id is cleared with a bridge warning, and any recoverable combat normalization is warned and written cleanly on the current-version round trip.
 
 Native FigureType runtime state is not persisted as C++ objects. It is rebuilt after load:
 

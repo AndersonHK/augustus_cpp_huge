@@ -1,4 +1,3 @@
-#include "building/building_record.h"
 #include "building/storage_type.h"
 
 #include <utility>

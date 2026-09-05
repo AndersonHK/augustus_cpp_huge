@@ -11,15 +11,16 @@
 #include "city/view.h"
 #include "figure/action.h"
 #include "figure/combat.h"
+#include "figure/FigureGraphics.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/formation.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/PathingMode.h"
 #include "figure/route.h"
-#include "figuretype/editor.h"
 #include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
+#include "game/defines.h"
 #include "graphics/image.h"
 #include "graphics/text.h"
 #include "map/building.h"
@@ -50,6 +51,7 @@
 #include "sound/effect.h"
 
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -84,6 +86,12 @@ const char *warrior_direction_suffix(int direction)
     static constexpr const char *suffixes[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
     direction = clamp_frame(direction, 0, 7);
     return suffixes[direction];
+}
+
+const char *semantic_warrior_direction_suffix(int direction)
+{
+    static constexpr const char *suffixes[] = { "NE", "E", "SE", "S", "SW", "W", "NW", "N" };
+    return suffixes[clamp_frame(direction, 0, 7)];
 }
 
 int soldier_native_direction(const Figure *f)
@@ -127,26 +135,6 @@ int enemy_missile_native_direction(const Figure *f)
     return figure_image_normalize_direction(direction);
 }
 
-int simple_legacy_image_group_draw_request_type(figure_type type)
-{
-    switch (type) {
-        case FIGURE_ENGINEER:
-        case FIGURE_DOCTOR:
-        case FIGURE_SURGEON:
-        case FIGURE_TAX_COLLECTOR:
-        case FIGURE_BATHHOUSE_WORKER:
-        case FIGURE_BARBER:
-        case FIGURE_TEACHER:
-        case FIGURE_LIBRARIAN:
-        case FIGURE_SCHOOL_CHILD:
-        case FIGURE_PRIEST:
-        case FIGURE_LABOR_SEEKER:
-            return 1;
-        default:
-            return 0;
-    }
-}
-
 int legacy_xml_default_draw_direction(const Figure &figure)
 {
     int direction = figure.direction - city_view_orientation();
@@ -180,49 +168,87 @@ const ImageGroupEntry *native_entry(const char *group, const char *image)
     return payload ? payload->entry_for(image) : nullptr;
 }
 
-const ImageGroupEntry *native_warrior_entry(const Figure *f)
+struct NativeWarriorFrame {
+    const ImageGroupEntry *entry = nullptr;
+    int animation_frame = 0;
+};
+
+NativeWarriorFrame native_warrior_frame(const Figure *f, const figure_type_registry_impl::FigureGraphics *graphics)
 {
     if (!f) {
-        return nullptr;
+        return {};
     }
 
     char name[64];
+    int animation_frame = 0;
     switch (f->type) {
         case FIGURE_FORT_INFANTRY: {
-            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-                std::snprintf(name, sizeof(name), "auxinf_death_%02d",
-                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
-            } else {
+            if (!graphics || !graphics->has_native_payload()) {
                 const char *direction = warrior_direction_suffix(soldier_native_direction(f));
-                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-                    const int frame = f->attack_image_offset < 14 ?
-                        1 :
-                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                    std::snprintf(name, sizeof(name), "auxinf_death_%02d", clamp_frame(
+                        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1, 1, 8));
+                } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    const int frame = f->attack_image_offset < 14 ? 1 : clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
                     std::snprintf(name, sizeof(name), "auxinf_f_%s_%02d", direction, frame);
                 } else {
-                    std::snprintf(name, sizeof(name), "auxinf_%s_%02d", direction,
-                        clamp_frame(f->image_offset + 1, 1, 12));
+                    std::snprintf(name, sizeof(name), "auxinf_%s_%02d", direction, clamp_frame(f->image_offset + 1, 1, 12));
+                }
+                break;
+            }
+            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                std::snprintf(name, sizeof(name), "Death");
+                animation_frame = clamp_frame(
+                    figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1, 1, 8);
+            } else {
+                const char *direction = semantic_warrior_direction_suffix(soldier_native_direction(f));
+                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    animation_frame = f->attack_image_offset < 14 ?
+                        1 :
+                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                    std::snprintf(name, sizeof(name), "Attack_%s", direction);
+                } else {
+                    animation_frame = clamp_frame(f->image_offset + 1, 1, 12);
+                    std::snprintf(name, sizeof(name), "Move_%s", direction);
                 }
             }
             break;
         }
         case FIGURE_FORT_ARCHER: {
-            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-                std::snprintf(name, sizeof(name), "auxarch_death_%02d",
-                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
-            } else {
+            if (!graphics || !graphics->has_native_payload()) {
                 const char *direction = warrior_direction_suffix(soldier_native_direction(f));
-                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-                    const int frame = f->attack_image_offset < 14 ?
-                        1 :
-                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                    std::snprintf(name, sizeof(name), "auxarch_death_%02d", clamp_frame(
+                        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1, 1, 8));
+                } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    const int frame = f->attack_image_offset < 14 ? 1 : clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
                     std::snprintf(name, sizeof(name), "auxarch_fm_%s_%02d", direction, frame);
                 } else if (f->action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
-                    const int frame = clamp_frame(figure_image_missile_launcher_offset(const_cast<Figure *>(f)), 0, 4) + 1;
+                    const int frame = clamp_frame(figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f), 0, 4) + 1;
                     std::snprintf(name, sizeof(name), "auxarch_fr_%s_%02d", direction, frame);
                 } else {
-                    std::snprintf(name, sizeof(name), "auxarch_%s_%02d", direction,
-                        clamp_frame(f->image_offset + 1, 1, 12));
+                    std::snprintf(name, sizeof(name), "auxarch_%s_%02d", direction, clamp_frame(f->image_offset + 1, 1, 12));
+                }
+                break;
+            }
+            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                std::snprintf(name, sizeof(name), "Death");
+                animation_frame = clamp_frame(
+                    figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1, 1, 8);
+            } else {
+                const char *direction = semantic_warrior_direction_suffix(soldier_native_direction(f));
+                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    animation_frame = f->attack_image_offset < 14 ?
+                        1 :
+                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                    std::snprintf(name, sizeof(name), "Melee_%s", direction);
+                } else if (f->action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
+                    animation_frame = clamp_frame(
+                        figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f), 0, 4) + 1;
+                    std::snprintf(name, sizeof(name), "Ranged_%s", direction);
+                } else {
+                    animation_frame = clamp_frame(f->image_offset + 1, 1, 12);
+                    std::snprintf(name, sizeof(name), "Move_%s", direction);
                 }
             }
             break;
@@ -230,11 +256,15 @@ const ImageGroupEntry *native_warrior_entry(const Figure *f)
         case FIGURE_ENEMY_CATAPULT: {
             if (f->action_state == FIGURE_ACTION_149_CORPSE) {
                 std::snprintf(name, sizeof(name), "catapult_death_%02d",
-                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
+                    clamp_frame(
+                        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1,
+                        1,
+                        8));
             } else {
                 const char *direction = warrior_direction_suffix(enemy_missile_native_direction(f));
                 if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL) {
-                    const int frame = clamp_frame(figure_image_missile_launcher_offset(const_cast<Figure *>(f)) + 1, 1, 8);
+                    const int frame = clamp_frame(
+                        figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f) + 1, 1, 8);
                     if (frame == 1) {
                         std::snprintf(name, sizeof(name), "catapult_fe_%s_01", direction);
                     } else {
@@ -251,37 +281,16 @@ const ImageGroupEntry *native_warrior_entry(const Figure *f)
                 warrior_direction_suffix(missile_native_direction(f)));
             break;
         default:
-            return nullptr;
+            return {};
     }
 
+    if (graphics && graphics->has_native_payload() &&
+        (f->type == FIGURE_FORT_INFANTRY || f->type == FIGURE_FORT_ARCHER)) {
+        return { graphics->asset_entry(GraphicsTargetRole::Default, name), animation_frame };
+    }
     char group[96];
     std::snprintf(group, sizeof(group), "Warriors\\%s", name);
-    return native_entry(group, name);
-}
-
-const ImageGroupEntry *native_auxiliary_standard_flag(const Figure *f, const formation *m)
-{
-    if (!f || f->type != FIGURE_FORT_STANDARD || !m) {
-        return nullptr;
-    }
-    const char *prefix = nullptr;
-    if (m->figure_type == FIGURE_FORT_INFANTRY) {
-        prefix = "auxinf";
-    } else if (m->figure_type == FIGURE_FORT_ARCHER) {
-        prefix = "auxarch";
-    } else {
-        return nullptr;
-    }
-
-    char name[32];
-    if (m->is_halted) {
-        std::snprintf(name, sizeof(name), "%s_banner_0", prefix);
-    } else {
-        std::snprintf(name, sizeof(name), "%s_banner_%02d", prefix, clamp_frame(f->image_offset / 2 + 1, 1, 8));
-    }
-    char group[64];
-    std::snprintf(group, sizeof(group), "UI\\%s", name);
-    return native_entry(group, name);
+    return { native_entry(group, name), animation_frame };
 }
 
 void set_sprite_offset_from_image(FigureGraphicDrawRequest &request, const Image &image)
@@ -302,8 +311,8 @@ const Image &prepare_legacy_draw_image(FigureGraphicDrawRequest &request, int im
 int set_legacy_base_draw_request_image(FigureGraphicDrawRequest &request, int image_id)
 {
     const Image &base_image = prepare_legacy_draw_image(request, image_id);
-    request.base_slice = base_image.runtime_slice();
-    return request.base_slice.is_valid();
+    request.set_base_slice(base_image.runtime_slice());
+    return request.has_base_slice();
 }
 
 static int set_base_draw_request_from_entry(FigureGraphicDrawRequest &request, const ImageGroupEntry &entry)
@@ -312,7 +321,7 @@ static int set_base_draw_request_from_entry(FigureGraphicDrawRequest &request, c
     if (!slice || !slice->is_valid()) {
         return 0;
     }
-    request.base_slice = *slice;
+    request.set_base_slice(*slice);
     if (entry.has_sprite_offset()) {
         request.sprite_offset_x = entry.sprite_offset_x();
         request.sprite_offset_y = entry.sprite_offset_y();
@@ -328,70 +337,12 @@ static int set_base_draw_request_from_binding(
     if (!slice.is_valid()) {
         return 0;
     }
-    request.base_slice = slice;
+    request.set_base_slice(slice);
     if (binding.entry && binding.entry->has_sprite_offset()) {
         request.sprite_offset_x = binding.entry->sprite_offset_x();
         request.sprite_offset_y = binding.entry->sprite_offset_y();
     }
     return 1;
-}
-
-static void apply_policy_draw_size(
-    const figure_type_registry_impl::FigureGraphics &policy,
-    FigureGraphicDrawRequest &request)
-{
-    if (!policy.has_fixed_logical_size()) {
-        return;
-    }
-    request.fixed_logical_size = policy.fixed_logical_size;
-    request.scaling_policy = policy.scaling_policy;
-}
-
-struct HippodromeHorseDrawOffset {
-    int max_wait_ticks;
-    int x;
-    int y;
-};
-
-void hippodrome_horse_draw_offset(const Figure &f, int &x, int &y)
-{
-    static constexpr int MAX_WAIT_TICKS = 2147483647;
-    static constexpr HippodromeHorseDrawOffset TOP[] = {
-        {10, 10, -2}, {11, 10, -10}, {12, 10, -18}, {13, 10, -16},
-        {20, 10, -14}, {21, 10, -10}, {MAX_WAIT_TICKS, 10, -2},
-    };
-    static constexpr HippodromeHorseDrawOffset RIGHT[] = {
-        {9, -10, -12}, {10, -10, 4}, {11, -15, 2}, {13, -15, 0},
-        {20, -10, -2}, {21, -10, -6}, {MAX_WAIT_TICKS, -10, -12},
-    };
-    static constexpr HippodromeHorseDrawOffset BOTTOM[] = {
-        {9, 20, 4}, {10, 30, 4}, {11, 30, -4}, {13, 20, -6},
-        {20, 20, -12}, {21, 20, -10}, {MAX_WAIT_TICKS, 20, -2},
-    };
-    static constexpr HippodromeHorseDrawOffset LEFT[] = {
-        {9, -10, -12}, {10, -10, 4}, {11, -10, 2}, {13, -10, 0},
-        {20, -10, -2}, {21, -10, -6}, {MAX_WAIT_TICKS, -10, -12},
-    };
-
-    const HippodromeHorseDrawOffset *offsets = TOP;
-    switch (city_view_orientation()) {
-        case DIR_2_RIGHT:
-            offsets = RIGHT;
-            break;
-        case DIR_4_BOTTOM:
-            offsets = BOTTOM;
-            break;
-        case DIR_6_LEFT:
-            offsets = LEFT;
-            break;
-    }
-    for (int i = 0; i < 7; i++) {
-        if (f.wait_ticks_missile <= offsets[i].max_wait_ticks) {
-            x += offsets[i].x;
-            y += offsets[i].y;
-            return;
-        }
-    }
 }
 
 bool owner_state_matches(const building *owner, const figure_type_registry_impl::OwnerBinding &owner_binding)
@@ -478,7 +429,9 @@ Building *runtime_building_for_id(unsigned int building_id)
 
 bool owner_road_access(const building &owner, map_point &road)
 {
-    return map_closest_road_within_radius(owner.x, owner.y, owner.size, 2, &road.x, &road.y) != 0;
+    const Building *owner_building = Building::get(owner.id);
+    return owner_building && map_closest_road_within_radius_building(
+        *owner_building, 2, &road.x, &road.y) != 0;
 }
 
 bool send_to_owner_road(Figure *f, const building &owner, int action_state)
@@ -496,7 +449,7 @@ bool send_to_owner_road(Figure *f, const building &owner, int action_state)
     f->action_state = static_cast<unsigned char>(action_state);
     f->destination_x = static_cast<unsigned char>(road.x);
     f->destination_y = static_cast<unsigned char>(road.y);
-    f->destination_building = nullptr;
+    f->set_destination_building(nullptr);
     Route::remove(f);
     return true;
 }
@@ -546,123 +499,99 @@ bool is_road_history_tile(int grid_offset)
     return figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset);
 }
 
-class GenericFigureGraphics {
+class XmlFigureGraphics {
 public:
-    explicit GenericFigureGraphics(const figure_type_registry_impl::FigureTypeDefinition &definition)
-        : type_(definition.type())
-        , policy_(definition.graphics())
+    explicit XmlFigureGraphics(const figure_type_registry_impl::FigureTypeDefinition &definition)
+        : policy_(definition.graphics())
     {
     }
 
-    int draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
+    explicit XmlFigureGraphics(const figure_type_registry_impl::FigureGraphics &graphics)
+        : policy_(graphics)
     {
-        reset_draw_request(request);
-        if (!f || !request) {
-            return 0;
-        }
-        if (!policy_.has_native_payload()) {
-            return legacy_image_group_draw_request_for(f, request);
-        }
-        return native_payload_draw_request_for(f, request);
+    }
+
+    int draw_request_for(const Figure &figure, FigureGraphicDrawRequest &request) const
+    {
+        return policy_.has_native_payload() && native_payload_draw_request_for(figure, request);
     }
 
 private:
-    int native_payload_draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
+    int native_payload_draw_request_for(const Figure &figure, FigureGraphicDrawRequest &request) const
     {
-        const figure_type_registry_impl::GraphicsTargetBinding *binding = target_for(f);
-        if (!binding) {
+        const figure_type_registry_impl::FigureGraphicsState *state = figure_runtime_graphics_state(const_cast<Figure *>(&figure));
+        if (state && state->default_entry_hidden()) {
+            request.allows_empty = 1;
             return 1;
         }
-        if (!binding->is_complete()) {
-            log_graphics_issue_once("Figure graphics target is incomplete.", f, binding->path, binding->image);
-        }
-        if (!binding->is_resolved() || !set_base_draw_request_from_binding(*request, *binding)) {
-            log_graphics_issue_once(
-                "Figure graphics image could not be resolved.",
-                f,
-                binding->path,
-                binding->path + " image=" + binding->image);
-            return 1;
-        }
-        apply_policy_draw_size(policy_, *request);
-
-        if (!binding->uses_animation() && !binding->entry->has_sprite_offset()) {
-            if (policy_.has_sprite_offset) {
-                request->sprite_offset_x = policy_.sprite_offset_x;
-                request->sprite_offset_y = policy_.sprite_offset_y;
-            } else {
-                log_graphics_issue_once(
-                    "Figure graphics sprite offset is missing.",
-                    f,
-                    binding->path,
-                    binding->path + " image=" + binding->image);
+        const char *selected_entry = state ? state->selected_default_entry() : nullptr;
+        if (selected_entry) {
+            const ImageGroupEntry *entry = policy_.asset_entry(GraphicsTargetRole::Default, selected_entry);
+            if (!entry) return 0;
+            const int selected_frame = state->selected_default_frame();
+            if (selected_frame > 0) {
+                if (!entry->has_animation()) return 0;
+                const RuntimeDrawSlice slice = entry->animation().frame_slice_at_offset(selected_frame, 0);
+                if (!slice.is_valid()) return 0;
+                request.set_base_slice(slice);
+                request.sprite_offset_x = entry->animation().sprite_offset_x();
+                request.sprite_offset_y = entry->animation().sprite_offset_y();
+            } else if (!set_base_draw_request_from_entry(request, *entry)) {
+                return 0;
             }
-            return 1;
+            const GraphicsPoint default_offset = state->selected_default_offset();
+            // City placement subtracts the sprite anchor. A positive semantic draw offset
+            // therefore reduces that anchor so the base and every relative layer move
+            // together in the positive direction, matching the legacy composite draw.
+            request.sprite_offset_x -= default_offset.x;
+            request.sprite_offset_y -= default_offset.y;
+            request.required_layer_count = static_cast<int>(state->selected_layers().size());
+            for (const figure_type_registry_impl::FigureGraphicsState::SelectedLayer &selected_layer : state->selected_layers()) {
+                const ImageGroupEntry *layer_entry = policy_.asset_entry(GraphicsTargetRole::Default, selected_layer.entry.c_str());
+                if (!layer_entry) {
+                    request.missing_layer_role = selected_layer.role;
+                    return 0;
+                }
+                RuntimeDrawSlice layer_slice;
+                if (selected_layer.frame > 0) {
+                    if (!layer_entry->has_animation()) {
+                        request.missing_layer_role = selected_layer.role;
+                        return 0;
+                    }
+                    layer_slice = layer_entry->animation().frame_slice_at_offset(selected_layer.frame, 0);
+                } else if (layer_entry->footprint()) {
+                    layer_slice = *layer_entry->footprint();
+                }
+                FigureGraphicDrawLayer layer;
+                layer.slice = layer_slice;
+                layer.x_offset = selected_layer.offset.x;
+                layer.y_offset = selected_layer.offset.y;
+                layer.draw_before_base = selected_layer.draw_before_base;
+                if (!request.add_layer(layer)) {
+                    request.missing_layer_role = selected_layer.role;
+                    return 0;
+                }
+            }
+            return request.layer_count == request.required_layer_count;
         }
-
-        return 1;
+        const figure_type_registry_impl::GraphicsTargetBinding *binding = target_for(figure);
+        return binding && binding->is_complete() && binding->is_resolved() && set_base_draw_request_from_binding(request, *binding);
     }
 
-    int legacy_image_group_draw_request_for(const Figure *f, FigureGraphicDrawRequest *request) const
+    const figure_type_registry_impl::GraphicsTargetBinding *target_for(const Figure &figure) const
     {
-        if (!simple_legacy_image_group_draw_request_type(type_) ||
-            !policy_.has_legacy_default_source() ||
-            f->cart_image_id) {
-            return 0;
-        }
-
-        const int image_id = policy_.legacy_image_id_for_figure_direction(
-            *f,
-            legacy_xml_default_draw_direction(*f));
-        if (!set_legacy_base_draw_request_image(*request, image_id)) {
-            return 0;
-        }
-        apply_policy_draw_size(policy_, *request);
-        return 1;
-    }
-
-    const figure_type_registry_impl::GraphicsTargetBinding *target_for(const Figure *f) const
-    {
-        if (f->action_state == FIGURE_ACTION_149_CORPSE && !policy_.has_corpse_native_payload()) {
-            log_graphics_issue_once("Figure graphics corpse target is missing.", f, "", "corpse_path_pattern");
+        if (figure.action_state == FIGURE_ACTION_149_CORPSE && !policy_.has_corpse_native_payload()) {
             return nullptr;
         }
-        const figure_type_registry_impl::GraphicsTargetBinding *binding =
-            policy_.cached_target_binding_for_figure(*f);
-        if (!binding) {
-            log_graphics_issue_once("Figure graphics cached binding is missing.", f, "", "native_binding_cache");
-        }
-        return binding;
+        return policy_.cached_target_binding_for_figure(figure);
     }
 
-    static void log_graphics_issue_once(
-        const char *message,
-        const Figure *f,
-        const std::string &path,
-        const std::string &detail)
-    {
-        static std::unordered_set<std::string> logged;
-        char key[512];
-        snprintf(
-            key,
-            sizeof(key),
-            "%s|figure=%d|path=%s|detail=%s",
-            message ? message : "",
-            f ? f->id() : 0,
-            path.c_str(),
-            detail.c_str());
-        if (!logged.insert(key).second) {
-            return;
-        }
-        error_context_report_error(message, detail.c_str());
-    }
-
-    figure_type type_ = FIGURE_NONE;
     const figure_type_registry_impl::FigureGraphics &policy_;
 };
 
 static int warrior_graphic_draw_request_for_figure(
     const Figure *f,
+    const figure_type_registry_impl::FigureGraphics *graphics,
     FigureGraphicDrawRequest *request)
 {
     reset_draw_request(request);
@@ -670,74 +599,165 @@ static int warrior_graphic_draw_request_for_figure(
         return 0;
     }
 
-    const ImageGroupEntry *entry = native_warrior_entry(f);
-    if (!entry) {
+    const NativeWarriorFrame frame = native_warrior_frame(f, graphics);
+    if (!frame.entry) {
         return 0;
     }
-
-    set_base_draw_request_from_entry(*request, *entry);
+    if (frame.animation_frame <= 0) {
+        return set_base_draw_request_from_entry(*request, *frame.entry);
+    }
+    if (!frame.entry->has_animation()) {
+        request->required_layer_count = 1;
+        request->missing_layer_role = "warrior_animation";
+        return 1;
+    }
+    const RuntimeDrawSlice slice = frame.entry->animation().frame_slice_at_offset(frame.animation_frame, 0);
+    if (!slice.is_valid()) {
+        request->required_layer_count = 1;
+        request->missing_layer_role = "warrior_animation_frame";
+        return 1;
+    }
+    request->set_base_slice(slice);
+    request->sprite_offset_x = frame.entry->animation().sprite_offset_x();
+    request->sprite_offset_y = frame.entry->animation().sprite_offset_y();
     return 1;
 }
 
-static int fort_standard_graphic_draw_request_for_figure(
+static int core_soldier_graphic_draw_request_for_figure(
     const Figure *f,
+    const figure_type_registry_impl::FigureGraphics *graphics,
     FigureGraphicDrawRequest *request)
 {
     reset_draw_request(request);
-    if (!f || !request || f->type != FIGURE_FORT_STANDARD || !f->cart_image_id) {
+    if (!f || !request || !f->image_id) {
         return 0;
     }
 
-    const Image &base_image = prepare_legacy_draw_image(*request, f->image_id);
-
-    const formation *m = formation_get(f->formation_id);
-    if (!m || m->in_distant_battle) {
-        return 1;
+    int source_image_base = 0;
+    switch (f->type) {
+        case FIGURE_FORT_JAVELIN:
+            source_image_base = image_group(GROUP_BUILDING_FORT_JAVELIN);
+            break;
+        case FIGURE_FORT_MOUNTED:
+            source_image_base = image_group(GROUP_FIGURE_FORT_MOUNTED);
+            break;
+        case FIGURE_FORT_LEGIONARY:
+            source_image_base = image_group(GROUP_BUILDING_FORT_LEGIONARY);
+            break;
+        default:
+            return 0;
     }
 
-    request->add_layer(figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
-    if (const ImageGroupEntry *native_flag = native_auxiliary_standard_flag(f, m)) {
-        const figure_type_registry_impl::FigureGraphicsLayer flag_layer =
-            figure_type_registry_impl::FigureGraphics::native_entry_layer_above(*native_flag, 0);
-        if (request->add_layer(flag_layer)) {
-            request->add_layer(
-                figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(
-                    m->legion_flag_id,
-                    flag_layer.height));
-        }
-        return 1;
+    if (!graphics || !graphics->has_native_payload()) {
+        return set_legacy_base_draw_request_image(*request, f->image_id);
     }
-
-    const figure_type_registry_impl::FigureGraphicsLayer flag_layer =
-        figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(f->cart_image_id, 0);
-    request->add_layer(flag_layer);
-    request->add_layer(
-        figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(
-            m->legion_flag_id,
-            flag_layer.height));
+    const int entry_offset = f->image_id - source_image_base;
+    char entry_name[32];
+    std::snprintf(entry_name, sizeof(entry_name), "Image_%04d", entry_offset);
+    const ImageGroupEntry *entry = entry_offset >= 0 ? graphics->asset_entry(GraphicsTargetRole::Default, entry_name) : nullptr;
+    if (entry) {
+        return set_base_draw_request_from_entry(*request, *entry);
+    }
+    request->required_layer_count = 1;
+    request->missing_layer_role = "core_soldier_atlas";
     return 1;
 }
 
-static int map_flag_graphic_draw_request_for_figure(
+static int projectile_graphic_draw_request_for_figure(
     const Figure *f,
+    const figure_type_registry_impl::FigureGraphics *graphics,
     FigureGraphicDrawRequest *request)
 {
     reset_draw_request(request);
-    if (!f || !request || f->type != FIGURE_MAP_FLAG || !f->cart_image_id) {
+    if (!f || !request) {
         return 0;
     }
 
-    const Image &base_image = prepare_legacy_draw_image(*request, f->image_id);
-    request->add_layer(figure_type_registry_impl::FigureGraphics::image_layer(base_image, {}, 0));
+    switch (f->type) {
+        case FIGURE_ARROW:
+        case FIGURE_JAVELIN:
+        case FIGURE_BOLT:
+        case FIGURE_SPEAR:
+        case FIGURE_FRIENDLY_ARROW:
+            break;
+        case FIGURE_CATAPULT_MISSILE:
+            request->allows_empty = 1;
+            return 1;
+        default:
+            return 0;
+    }
 
-    request->add_layer(figure_type_registry_impl::FigureGraphics::legacy_image_layer_above(f->cart_image_id, 0));
-    request->map_flag_number_overlay.set_from_resource_id(f->resource_id);
+    if (!f->image_id) {
+        request->required_layer_count = 1;
+        request->missing_layer_role = "projectile_source_frame";
+        return 1;
+    }
+    if (!graphics || !graphics->has_native_payload()) {
+        return set_legacy_base_draw_request_image(*request, f->image_id);
+    }
+
+    const int entry_offset = f->image_id - image_group(GROUP_FIGURE_MISSILE);
+    char entry_name[32];
+    std::snprintf(entry_name, sizeof(entry_name), "Image_%04d", entry_offset);
+    const ImageGroupEntry *entry = entry_offset >= 0 ?
+        graphics->asset_entry(GraphicsTargetRole::Default, entry_name) : nullptr;
+    if (entry) {
+        return set_base_draw_request_from_entry(*request, *entry);
+    }
+    request->required_layer_count = 1;
+    request->missing_layer_role = "projectile_atlas";
     return 1;
 }
 
-static int enemy_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request)
+static int add_graphics_layers(
+    FigureGraphicDrawRequest &request,
+    const figure_type_registry_impl::FigureGraphicsLayerSet &layers)
+{
+    request.sprite_offset_x = layers.sprite_offset.x;
+    request.sprite_offset_y = layers.sprite_offset.y;
+    for (int index = 0; index < layers.count; ++index) {
+        if (!request.add_layer(layers.layers[index])) return 0;
+    }
+    return layers.count > 0;
+}
+
+static int standard_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
+{
+    const formation *m = formation_get(figure.formation_id);
+    if (!m) {
+        request.allows_empty = 1;
+        return 1;
+    }
+    const figure_type unit_type = static_cast<figure_type>(m->figure_type);
+    if (!graphics.standard().flag_for(unit_type)) {
+        return 0;
+    }
+    if (m->in_distant_battle) {
+        request.allows_empty = 1;
+        return 1;
+    }
+
+    const int pole_frame = std::clamp(20 - m->morale / 5, 0, 20);
+    return add_graphics_layers(request, graphics.standard_layers(
+        unit_type, m->is_halted, m->legion_flag_id, pole_frame, figure.image_offset));
+}
+
+static int map_flag_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
+{
+    if (!add_graphics_layers(request, graphics.legacy_map_flag_layers(figure))) return 0;
+    request.map_flag_number_overlay.set(
+        graphics.map_flag().number_for(figure.resource_id),
+        graphics.map_flag().number_offset);
+    return 1;
+}
+
+static int enemy_graphic_draw_request_for_figure(const Figure *f, FigureGraphicDrawRequest *request)
 {
     reset_draw_request(request);
     if (!f || !request || !f->is_enemy_image || f->cart_image_id || !f->image_id) {
@@ -750,23 +770,63 @@ static int enemy_graphic_draw_request_for_figure(
     return request->layer_count > 0;
 }
 
-static int figure_graphics_draw_request_for_figure(
-    const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    FigureGraphicDrawRequest *request)
+static int overlay_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
 {
-    reset_draw_request(request);
-    if (!definition || !request) {
-        return 0;
+    if (!XmlFigureGraphics(graphics).draw_request_for(figure, request) || !request.has_base_slice()) return 0;
+    for (const figure_type_registry_impl::FigureGraphicsOverlay &overlay : graphics.overlays()) {
+        const figure_type_registry_impl::FigureGraphicsLayer layer = graphics.legacy_overlay_layer(figure, overlay);
+        if (layer.is_valid() && !request.add_layer(layer)) return 0;
     }
-    return GenericFigureGraphics(*definition).draw_request_for(f, request);
+    return 1;
 }
 
-bool update_legacy_figure_graphics_image_state(
-    Figure &figure,
-    const figure_type_registry_impl::FigureTypeDefinition *definition)
+static int resource_cart_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
 {
-    return definition && definition->graphics().apply_legacy_image_state(figure);
+    const figure_type_registry_impl::FigureGraphicsState *state =
+        figure_runtime_graphics_state(const_cast<Figure *>(&figure));
+    const figure_type_registry_impl::FigureResourceCartPresentation presentation =
+        graphics.resource_cart_presentation(figure, state);
+    if (presentation == figure_type_registry_impl::FigureResourceCartPresentation::Hidden) {
+        if (graphics.resource_cart().suppress_body_when_hidden) {
+            request.allows_empty = 1;
+            return 1;
+        }
+    return XmlFigureGraphics(graphics).draw_request_for(figure, request) && request.has_base_slice();
+    }
+
+    const figure_type_registry_impl::FigureGraphicsLayer cart =
+        graphics.resource_cart_layer(figure, state);
+    return cart.is_valid() &&
+        XmlFigureGraphics(graphics).draw_request_for(figure, request) &&
+        request.has_base_slice() && request.add_layer(cart);
+}
+
+static int directional_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
+{
+    const figure_type_registry_impl::FigureGraphicsLayer layer = graphics.directional_layer(figure);
+    if (!layer.is_valid()) return 0;
+    request.set_base_slice(layer.slice);
+    const GraphicsPoint sprite_offset = graphics.directional_sprite_offset(figure);
+    request.sprite_offset_x = sprite_offset.x;
+    request.sprite_offset_y = sprite_offset.y;
+    return 1;
+}
+
+static int state_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics &graphics,
+    FigureGraphicDrawRequest &request)
+{
+    return add_graphics_layers(request, graphics.legacy_state_layers(figure));
 }
 
 class RoamingServiceFigure : public NativeFigure {
@@ -821,7 +881,6 @@ public:
                     }
                 }
             }
-            update_legacy_figure_graphics_image_state(*f, definition());
             return 1;
         }
 
@@ -863,7 +922,6 @@ public:
                 return 0;
         }
 
-        update_legacy_figure_graphics_image_state(*f, definition());
         return 1;
     }
 };
@@ -886,7 +944,6 @@ public:
             building *owner = mutable_record(f->building);
             if (!owner || !owner->id || !owner_binding_matches(f, owner, owner_binding)) {
                 f->state = FIGURE_STATE_DEAD;
-                update_image(f);
                 return 1;
             }
         }
@@ -902,12 +959,10 @@ public:
 
         if (profile()->pathing_policy().mode == &figure_type_registry_impl::StandStill) {
             execute_stand_still(f, movement);
-            update_image(f);
             return 1;
         }
         if (profile()->pathing_policy().mode != &figure_type_registry_impl::TransientWander) {
             retire_unsupported_native_state(f, "transient_wanderer");
-            update_image(f);
             return 1;
         }
 
@@ -940,7 +995,6 @@ public:
                 break;
         }
 
-        update_image(f);
         return 1;
     }
 
@@ -1003,10 +1057,6 @@ private:
         }
     }
 
-    void update_image(Figure *f) const
-    {
-        update_legacy_figure_graphics_image_state(*f, definition());
-    }
 };
 
 class DepotCartGraphics {
@@ -1022,17 +1072,15 @@ public:
             f.direction < 8 ? f.direction : f.previous_tile_direction);
         const figure_type_registry_impl::FigureGraphics &graphics = definition_.graphics();
 
-        if (f.action_state == FIGURE_ACTION_149_CORPSE) {
-            return set_legacy_base_draw_request_image(
-                request,
-                graphics.legacy_corpse_image_id(figure_image_corpse_offset(const_cast<Figure *>(&f))));
+        int has_base = 0;
+        if (graphics.has_native_payload()) {
+            const figure_type_registry_impl::GraphicsTargetBinding *binding = graphics.cached_target_binding_for_figure(f);
+            has_base = binding && set_base_draw_request_from_binding(request, *binding);
+        } else if (f.action_state == FIGURE_ACTION_149_CORPSE) {
+            has_base = set_legacy_base_draw_request_image(request, graphics.legacy_corpse_image_id(figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f.wait_ticks)));
+        } else {
+            has_base = set_legacy_base_draw_request_image(request, graphics.legacy_direction_major_frame_image_id(dir, f.image_offset));
         }
-
-        const int has_base = set_legacy_base_draw_request_image(
-            request,
-            graphics.legacy_direction_major_frame_image_id(
-                figure_image_normalize_direction(dir),
-                f.image_offset));
 
         if (!has_cart_layer(f)) {
             return has_base;
@@ -1077,36 +1125,26 @@ static int depot_cart_graphic_draw_request_for_figure(
         return 0;
     }
     const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
-    if (!graphics.has_legacy_resource_cart_graphics()) {
+    if (!graphics.has_resource_cart_graphics()) {
         return 0;
     }
     return DepotCartGraphics(*definition).draw_request_for(*f, *request);
 }
 
-static int hippodrome_horse_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request)
+static int xml_graphic_draw_request(
+    const Figure &figure,
+    const figure_type_registry_impl::FigureGraphics *graphics,
+    FigureGraphicDrawRequest &request)
 {
-    reset_draw_request(request);
-    if (!f || !request || f->type != FIGURE_HIPPODROME_HORSES || !f->cart_image_id) {
-        return 0;
-    }
-
-    const Image &base_image = figure_type_registry_impl::FigureGraphics::legacy_image(f->image_id);
-    set_sprite_offset_from_image(*request, base_image);
-
-    int x_offset = 0;
-    int y_offset = 0;
-    hippodrome_horse_draw_offset(*f, x_offset, y_offset);
-
-    request->add_layer(
-        figure_type_registry_impl::FigureGraphics::image_layer(base_image, { x_offset, y_offset }));
-    request->add_layer(
-        figure_type_registry_impl::FigureGraphics::legacy_cart_overlay_layer(
-            *f,
-            { x_offset + f->x_offset_cart, y_offset + f->y_offset_cart },
-            f->y_offset_cart < 0));
-    return request->layer_count > 0;
+    reset_draw_request(&request);
+    if (!graphics) return 0;
+    if (graphics->standard().enabled) return standard_graphic_draw_request(figure, *graphics, request);
+    if (graphics->map_flag().enabled) return map_flag_graphic_draw_request(figure, *graphics, request);
+    if (graphics->resource_cart().enabled) return resource_cart_graphic_draw_request(figure, *graphics, request);
+    if (graphics->directional().enabled) return directional_graphic_draw_request(figure, *graphics, request);
+    if (graphics->state_layer_for_action(figure.action_state)) return state_graphic_draw_request(figure, *graphics, request);
+    if (!graphics->overlays().empty()) return overlay_graphic_draw_request(figure, *graphics, request);
+    return XmlFigureGraphics(*graphics).draw_request_for(figure, request);
 }
 
 class DepotStorageEndpoint {
@@ -1135,7 +1173,7 @@ public:
 
     bool active() const
     {
-        return building_is_active(building_);
+        return building_object_ && building_object_->is_active();
     }
 
     bool accepts(resource_type resource) const
@@ -1210,7 +1248,7 @@ public:
                 map_point_store_result(building_->x, building_->y, &point);
                 return true;
             }
-            return map_has_road_access_warehouse(building_->x, building_->y, &point) != 0;
+            return map_has_road_access_building(building_->x, building_->y, &point) != 0;
         }
         point.x = building_->road_access_x;
         point.y = building_->road_access_y;
@@ -1381,7 +1419,7 @@ private:
         if (!destination.road_access(road_access)) {
             return false;
         }
-        f.destination_building = destination.object();
+    f.set_destination_building(destination.object());
         f.destination_x = static_cast<unsigned char>(road_access.x);
         f.destination_y = static_cast<unsigned char>(road_access.y);
         f.action_state = static_cast<unsigned char>(action_state);
@@ -1645,7 +1683,6 @@ public:
         building *owner = mutable_record(f->building);
         if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
             f->state = FIGURE_STATE_DEAD;
-            update_image(f);
             return 1;
         }
 
@@ -1673,7 +1710,6 @@ public:
                 break;
         }
 
-        update_image(f);
         return 1;
     }
 
@@ -1766,7 +1802,7 @@ private:
     static int change_destination(Figure *f, Building *destination)
     {
         Route::remove(f);
-        f->destination_building = destination;
+    f->set_destination_building(destination);
         if (!destination) {
             return 0;
         }
@@ -1785,8 +1821,7 @@ private:
     static bool is_better_destination(Figure *f, resource_type resource, resource_storage_info *info)
     {
         Building *old_destination = f->destination_building;
-        building *old_destination_record = mutable_record(old_destination);
-        if (!building_is_active(old_destination_record)) {
+        if (!old_destination->is_active()) {
             return true;
         }
         if (old_destination->type && old_destination->type->is_granary() &&
@@ -1798,6 +1833,7 @@ private:
             return true;
         }
 
+        building *old_destination_record = mutable_record(old_destination);
         const int old_distance = building_dist(f->x, f->y, 1, 1, old_destination_record);
         return info->min_distance <= old_distance / 2;
     }
@@ -1817,7 +1853,7 @@ private:
             return 0;
         }
 
-        Building *current_item_storage = runtime_building_for_id(info[item].building_id);
+        Building *current_item_storage = info[item].source;
         if (market == current_item_storage ||
             f->destination_building == current_item_storage) {
             return 1;
@@ -1835,8 +1871,7 @@ private:
 
         market_object.set_fetch_inventory_id(fetch_inventory);
         f->collecting_item_id = static_cast<unsigned char>(fetch_inventory);
-        Building *fetch_storage = runtime_building_for_id(info[fetch_inventory].building_id);
-        return change_destination(f, fetch_storage);
+        return change_destination(f, info[fetch_inventory].source);
     }
 
     static void move_to_storage(Figure *f, int roam_ticks)
@@ -1900,10 +1935,6 @@ private:
         }
     }
 
-    void update_image(Figure *f) const
-    {
-        update_legacy_figure_graphics_image_state(*f, definition());
-    }
 };
 
 class DeliveryFollowerFigure : public NativeFigure {
@@ -1946,7 +1977,6 @@ public:
         if (leader->is_ghost && !leader->height_adjusted_ticks) {
             f->is_ghost = 1;
         }
-        update_image(f);
         return 1;
     }
 
@@ -1969,12 +1999,6 @@ private:
         }
     }
 
-    void update_image(Figure *f) const
-    {
-        definition()->graphics().apply_legacy_image_state_for_direction(
-            *f,
-            f->direction < 8 ? f->direction : f->previous_tile_direction);
-    }
 };
 
 class FishingBoatFigure : public NativeFigure {
@@ -2002,7 +2026,6 @@ public:
         building *owner = mutable_record(f->building);
         if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
             f->state = FIGURE_STATE_DEAD;
-            update_image(f);
             return 1;
         }
 
@@ -2065,14 +2088,7 @@ public:
                 break;
         }
 
-        update_image(f);
         return 1;
-    }
-
-private:
-    void update_image(Figure *f) const
-    {
-        update_legacy_figure_graphics_image_state(*f, definition());
     }
 };
 
@@ -2328,7 +2344,7 @@ private:
             // cross outer rubble and extinguish an interior tile with no adjacent road access.
             f->destination_x = ruin->x;
             f->destination_y = ruin->y;
-            f->destination_building = ruin_building;
+    f->set_destination_building(ruin_building);
             Route::remove(f);
             ruin->figure_id4 = f->id();
             return true;
@@ -2394,8 +2410,11 @@ protected:
             venue ? building_type_registry_impl::definition_for_type(venue->type) : nullptr;
         const bool is_hippodrome = definition && definition->is_hippodrome();
         const bool is_colosseum = definition && definition->attr_is("colosseum");
+        const Building *venue_building = venue ? Building::get(venue->id) : nullptr;
+        const bool is_composition_child = venue_building && venue_building->Composition &&
+            venue_building->Composition->is_child();
         return venue &&
-            (!is_hippodrome || !venue->prev_part_building_id) &&
+            !is_composition_child &&
             ((!is_colosseum && !is_hippodrome) ||
                 venue->monument.phase == MONUMENT_FINISHED);
     }
@@ -2432,6 +2451,13 @@ protected:
             default:
                 break;
         }
+        if (Building *building_object = Building::get(venue->id)) {
+            Building *owner = building_object->Composition ?
+                building_object->Composition->owner() : building_object;
+            if (owner) {
+                owner->invalidate_graphic();
+            }
+        }
     }
 
     void update_show_for_arrival(Figure *f) const
@@ -2439,8 +2465,11 @@ protected:
         if (!f->destination_building) {
             return;
         }
-        Building &main_venue = f->destination_building->main();
-        building *venue = mutable_record(&main_venue);
+        Building *main_venue = f->destination_building;
+        if (main_venue->Composition) {
+            main_venue = main_venue->Composition->owner();
+        }
+        building *venue = mutable_record(main_venue);
         if (!is_finished_venue(venue)) {
             return;
         }
@@ -2555,7 +2584,6 @@ public:
         }
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART));
         f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
@@ -2579,7 +2607,6 @@ public:
         switch (f->action_state) {
             case FIGURE_ACTION_150_ATTACK:
                 figure_combat_handle_attack(f);
-                figure_image_increase_offset(f, 32);
                 break;
             case FIGURE_ACTION_149_CORPSE:
                 figure_combat_handle_corpse(f);
@@ -2643,7 +2670,6 @@ public:
         }
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
-        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_CARTPUSHER_CART));
         f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
@@ -2714,6 +2740,7 @@ private:
         Building *venue = nullptr;
         map_point road = { 0, 0 };
         int route_distance = 0;
+        int priority_distance = 0;
         int show_days = 0;
         int score = 0;
     };
@@ -2758,7 +2785,7 @@ private:
 
                 const Route::RoadResult route =
                     route_query.findAccessRoad(
-                        *venue_record,
+                        venue,
                         2,
                         profile()->movement_profile().max_roam_length,
                         true);
@@ -2770,10 +2797,12 @@ private:
                 candidate.venue = &venue;
                 candidate.road = route.road;
                 candidate.route_distance = route.distance;
+                candidate.priority_distance = calc_maximum_distance(f->x, f->y, venue_record->x, venue_record->y);
                 candidate.show_days = show_days(venue_record, target.show_slot);
-                // Match the legacy weighting, but use route distance so the score
-                // reflects the path walkers actually take through the road network.
-                candidate.score = 2 * candidate.show_days + candidate.route_distance;
+                // The show-day weight is calibrated to legacy tile distance. Full
+                // route cost remains the reachability test and tie-breaker, but
+                // mixing it into this score can permanently starve empty venues.
+                candidate.score = 2 * candidate.show_days + candidate.priority_distance;
                 if (candidate_is_better(candidate, best)) {
                     best = candidate;
                 }
@@ -2784,7 +2813,7 @@ private:
             return false;
         }
 
-        f->destination_building = best.venue;
+        f->set_destination_building(best.venue);
         f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
         f->destination_x = static_cast<unsigned char>(best.road.x);
         f->destination_y = static_cast<unsigned char>(best.road.y);
@@ -2834,41 +2863,42 @@ std::unique_ptr<NativeFigure> make_controller(
 
 } // namespace figure_runtime_native_impl
 
-void FigureMapFlagNumberOverlay::set_from_resource_id(int resource_id)
+void FigureMapFlagNumberOverlay::set(int number, GraphicsPoint offset)
 {
-    number_ = number_from_resource_id(resource_id);
+    number_ = number;
+    offset_ = offset;
 }
 
-void FigureMapFlagNumberOverlay::draw(int x, int y, float scale) const
+void FigureMapFlagNumberOverlay::draw(int x, int y, float scale, render_logical_unit logical_units_per_source_pixel) const
 {
     if (number_ <= 0) {
         return;
     }
 
-    int pixel_size = static_cast<int>(font_definition_for(FONT_NORMAL_PLAIN)->line_height * scale);
+    const float presentation_scale = logical_units_per_source_pixel > 0 ? static_cast<float>(logical_units_per_source_pixel) / static_cast<float>(RENDER_LOGICAL_UNITS_PER_PIXEL) : 1.0f;
+    int pixel_size = std::max(1, static_cast<int>(roundf(font_definition_for(FONT_NORMAL_PLAIN)->line_height * scale * presentation_scale)));
     text_draw_number(
         number_,
         '@',
         0,
-        x + kXOffset,
-        y + kYOffset,
+        x + static_cast<int>(roundf(offset_.x * presentation_scale)),
+        y + static_cast<int>(roundf(offset_.y * presentation_scale)),
         FONT_NORMAL_PLAIN,
         pixel_size,
         COLOR_WHITE);
 }
 
-int FigureMapFlagNumberOverlay::number_from_resource_id(int resource_id)
+render_logical_unit FigureGraphicDrawRequest::logical_units_per_source_pixel() const
 {
-    if (resource_id >= MAP_FLAG_INVASION_MIN && resource_id < MAP_FLAG_INVASION_MAX) {
-        return resource_id - MAP_FLAG_INVASION_MIN + 1;
+    if (base_slice_.width <= 0 || base_slice_.height <= 0 ||
+        base_slice_.fixed_logical_size.width <= 0 || base_slice_.fixed_logical_size.height <= 0 ||
+        base_slice_.fixed_logical_size.width % base_slice_.width != 0 ||
+        base_slice_.fixed_logical_size.height % base_slice_.height != 0) {
+        return game_defines_legacy_figure_logical_units_per_source_pixel();
     }
-    if (resource_id >= MAP_FLAG_FISHING_MIN && resource_id < MAP_FLAG_FISHING_MAX) {
-        return resource_id - MAP_FLAG_FISHING_MIN + 1;
-    }
-    if (resource_id >= MAP_FLAG_HERD_MIN && resource_id < MAP_FLAG_HERD_MAX) {
-        return resource_id - MAP_FLAG_HERD_MIN + 1;
-    }
-    return 0;
+    const render_logical_unit horizontal_units = base_slice_.fixed_logical_size.width / base_slice_.width;
+    const render_logical_unit vertical_units = base_slice_.fixed_logical_size.height / base_slice_.height;
+    return horizontal_units > 0 && horizontal_units == vertical_units ? horizontal_units : 0;
 }
 
 bool FigureGraphicDrawRequest::add_layer(const FigureGraphicDrawLayer &layer)
@@ -2894,19 +2924,46 @@ bool FigureGraphicDrawRequest::add_layer(const figure_type_registry_impl::Figure
     return add_layer(draw_layer);
 }
 
+bool FigureGraphicDrawRequest::has_drawable_content() const
+{
+    return has_base_slice() || layer_count > 0;
+}
+
+bool FigureGraphicDrawRequest::is_semantically_complete() const
+{
+    return allows_empty || (has_drawable_content() &&
+        (!required_layer_count || layer_count == required_layer_count));
+}
+
+int FigureGraphicDrawRequest::scaled_offset(int offset) const
+{
+    const render_logical_unit units = logical_units_per_source_pixel();
+    return units > 0 ? static_cast<int>(roundf(static_cast<float>(offset) * units / static_cast<float>(RENDER_LOGICAL_UNITS_PER_PIXEL))) : offset;
+}
+
+int FigureGraphicDrawRequest::scaled_sprite_offset_x() const
+{
+    return scaled_offset(sprite_offset_x);
+}
+
+int FigureGraphicDrawRequest::scaled_sprite_offset_y() const
+{
+    return scaled_offset(sprite_offset_y);
+}
+
 void FigureGraphicDrawRequest::draw(int x, int y, color_t color_mask, float scale) const
 {
     draw_layers(x, y, color_mask, scale, 1);
-    draw_runtime_slice(
-        base_slice,
-        x,
-        y,
-        color_mask,
-        scale,
-        fixed_logical_size,
-        scaling_policy);
+    draw_runtime_slice(base_slice_, x, y, color_mask, scale, scaling_policy);
     draw_layers(x, y, color_mask, scale, 0);
-    map_flag_number_overlay.draw(x, y, scale);
+    map_flag_number_overlay.draw(x, y, scale, logical_units_per_source_pixel());
+}
+
+void FigureGraphicDrawRequest::draw_with_baseline_at_tile_center(int tile_x, int tile_y, color_t color_mask, float scale) const
+{
+    constexpr int legacy_tile_center_x = 29;
+    draw(tile_x + legacy_tile_center_x - scaled_sprite_offset_x(),
+        tile_y + FIGURE_LEGACY_TILE_PROGRESS_MAX - scaled_sprite_offset_y(), color_mask, scale);
 }
 
 void FigureGraphicDrawRequest::draw_layers(
@@ -2921,14 +2978,7 @@ void FigureGraphicDrawRequest::draw_layers(
         if ((layer.draw_before_base != 0) != (draw_before_base != 0)) {
             continue;
         }
-        draw_runtime_slice(
-            layer.slice,
-            x + layer.x_offset,
-            y + layer.y_offset,
-            layer.use_figure_color_mask ? color_mask : COLOR_MASK_NONE,
-            scale,
-            layer.fixed_logical_size,
-            layer.scaling_policy);
+        draw_runtime_slice(layer.slice, x + scaled_offset(layer.x_offset), y + scaled_offset(layer.y_offset), layer.use_figure_color_mask ? color_mask : COLOR_MASK_NONE, scale, layer.scaling_policy);
     }
 }
 
@@ -2938,19 +2988,25 @@ void FigureGraphicDrawRequest::draw_runtime_slice(
     int y,
     color_t color,
     float scale,
-    render_logical_size fixed_logical_size,
     render_scaling_policy scaling_policy)
 {
     if (!slice.is_valid()) {
         return;
     }
 
+    render_logical_size fixed_logical_size = slice.fixed_logical_size;
+    if (fixed_logical_size.width <= 0 || fixed_logical_size.height <= 0) {
+        const render_logical_unit units = game_defines_legacy_figure_logical_units_per_source_pixel();
+        fixed_logical_size = {slice.width * units, slice.height * units};
+    }
     if (fixed_logical_size.width > 0 && fixed_logical_size.height > 0) {
         RuntimeTextureDrawRequest request = {};
         request.slice = slice;
         request.x = scale ? static_cast<float>(x) / scale : static_cast<float>(x);
         request.y = scale ? static_cast<float>(y) / scale : static_cast<float>(y);
-        request.fixed_logical_size = fixed_logical_size;
+        request.fixed_logical_size = scale > 0.0f ? render_logical_size {
+            static_cast<render_logical_unit>(roundf(fixed_logical_size.width / scale)),
+            static_cast<render_logical_unit>(roundf(fixed_logical_size.height / scale)) } : fixed_logical_size;
         request.color = color;
         request.domain = graphics_renderer()->get_render_domain();
         request.scaling_policy = scaling_policy;
@@ -2962,14 +3018,9 @@ void FigureGraphicDrawRequest::draw_runtime_slice(
 
 namespace {
 
-struct FigureGraphicsDebugCounters {
-    unsigned long long facade_draw_requests = 0;
-    unsigned long long legacy_fallback_draws = 0;
-    unsigned long long image_from_id_fallback_draws = 0;
-};
-
 FigureGraphicsDebugCounters g_figure_graphics_debug_counters;
-std::unordered_set<int> g_logged_image_from_id_fallback_types;
+std::unordered_set<unsigned long long> g_logged_unresolved_draw_states;
+std::unordered_set<unsigned long long> g_logged_incomplete_composites;
 std::unordered_set<unsigned long long> g_logged_failed_enemy_graphics;
 
 void log_failed_enemy_graphics_once(const Figure &figure)
@@ -2992,59 +3043,93 @@ void log_failed_enemy_graphics_once(const Figure &figure)
     error_context_report_error("Enemy graphics lookup produced no drawable enemy-atlas image.", detail);
 }
 
-void log_image_from_id_fallback_once(const Figure &figure)
+void log_unresolved_draw_request_once(const Figure &figure)
 {
-    if (!g_logged_image_from_id_fallback_types.insert(figure.type).second) {
-        return;
-    }
+    const unsigned long long key =
+        (static_cast<unsigned long long>(static_cast<unsigned int>(figure.type)) << 32) |
+        static_cast<unsigned int>(figure.action_state);
+    if (!g_logged_unresolved_draw_states.insert(key).second) return;
 
-    char detail[192];
+    const figure_type_registry_impl::FigureGraphicsState *graphics_state = figure_runtime_graphics_state(const_cast<Figure *>(&figure));
+    const char *selected_entry = graphics_state ? graphics_state->selected_default_entry() : nullptr;
+    const char *profile = figure.runtime_profile_id();
+    char detail[384];
     snprintf(
         detail,
         sizeof(detail),
-        "figure_type=%d image_id=%d cart_image_id=%d",
+        "figure_type=%d profile=%s selected_entry=%s selected_frame=%d image_id=%d cart_image_id=%d action_state=%d direction=%d image_offset=%d",
         figure.type,
+        profile && *profile ? profile : "*",
+        selected_entry ? selected_entry : "<none>",
+        graphics_state ? graphics_state->selected_default_frame() : 0,
         figure.image_id,
-        figure.cart_image_id);
-    error_context_report_info("Figure graphics legacy Image::from_id fallback.", detail);
+        figure.cart_image_id,
+        figure.action_state,
+        figure.direction,
+        figure.image_offset);
+    error_context_report_error("Figure graphics request is unresolved;", detail);
 }
 
-void record_debug_draw_result(const Figure &figure, bool used_facade_draw_request)
+void log_incomplete_composite_once(const Figure &figure, const FigureGraphicDrawRequest &request)
 {
-    if (used_facade_draw_request) {
-        g_figure_graphics_debug_counters.facade_draw_requests++;
-        return;
-    }
+    const unsigned long long key =
+        (static_cast<unsigned long long>(static_cast<unsigned int>(figure.type)) << 32) |
+        static_cast<unsigned int>(figure.action_state);
+    if (!g_logged_incomplete_composites.insert(key).second) return;
+    const char *profile = figure.runtime_profile_id();
+    char detail[320];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "figure_type=%d profile=%s action_state=%d resource_id=%d direction=%d image_offset=%d layers=%d required_layers=%d missing_role=%s",
+        figure.type,
+        profile && *profile ? profile : "*",
+        figure.action_state,
+        figure.resource_id,
+        figure.direction,
+        figure.image_offset,
+        request.layer_count,
+        request.required_layer_count,
+        request.missing_layer_role.empty() ? "<unknown>" : request.missing_layer_role.c_str());
+    error_context_report_error("Figure graphics composite is incomplete;", detail);
+}
 
-    g_figure_graphics_debug_counters.legacy_fallback_draws++;
-    g_figure_graphics_debug_counters.image_from_id_fallback_draws++;
-    log_image_from_id_fallback_once(figure);
+void record_debug_draw_result(const Figure &figure, bool handled, const FigureGraphicDrawRequest &request)
+{
+    if (handled && request.is_semantically_complete()) {
+        g_figure_graphics_debug_counters.facade_draw_requests++;
+    } else if (request.required_layer_count) {
+        g_figure_graphics_debug_counters.incomplete_composite_requests++;
+        log_incomplete_composite_once(figure, request);
+    } else {
+        g_figure_graphics_debug_counters.unresolved_draw_requests++;
+        log_unresolved_draw_request_once(figure);
+    }
 }
 
 bool resolve_figure_graphic_draw_request(const Figure &figure, FigureGraphicDrawRequest &request)
 {
     const Figure *f = &figure;
-    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, &request)) {
-        return true;
-    }
-    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, &request)) {
-        return true;
-    }
-    if (figure_runtime_native_impl::map_flag_graphic_draw_request_for_figure(f, &request)) {
-        return true;
-    }
-
     const figure_type_registry_impl::FigureTypeDefinition *definition =
         figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    const figure_type_registry_impl::FigureGraphics *graphics =
+        figure_type_registry_impl::FigureGraphics::for_type(static_cast<figure_type>(f->type));
+    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, graphics, &request)) {
+        return true;
+    }
+    if (figure_runtime_native_impl::core_soldier_graphic_draw_request_for_figure(f, graphics, &request)) {
+        return true;
+    }
+    if (figure_runtime_native_impl::projectile_graphic_draw_request_for_figure(f, graphics, &request)) {
+        return true;
+    }
     if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, &request)) {
         return true;
     }
-    if (figure_runtime_native_impl::figure_graphics_draw_request_for_figure(f, definition, &request)) {
+    if (figure_runtime_native_impl::xml_graphic_draw_request(*f, graphics, request)) {
         return true;
     }
-    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, &request)) {
-        return true;
-    }
+    if (request.required_layer_count) return false;
     if (figure_runtime_native_impl::enemy_graphic_draw_request_for_figure(f, &request)) {
         return true;
     }
@@ -3054,28 +3139,41 @@ bool resolve_figure_graphic_draw_request(const Figure &figure, FigureGraphicDraw
         // atlas, where the same number may identify terrain such as a road tile.
         log_failed_enemy_graphics_once(*f);
         figure_runtime_native_impl::reset_draw_request(&request);
+        request.allows_empty = 1;
         return true;
     }
     figure_runtime_native_impl::reset_draw_request(&request);
-    if (!f->cart_image_id ||
-        !figure_type_registry_impl::FigureGraphics::uses_legacy_cart_overlay(static_cast<figure_type>(f->type))) {
-        return false;
-    }
-
-    const int has_base =
-        figure_runtime_native_impl::set_legacy_base_draw_request_image(request, f->image_id);
-    request.add_layer(
-        figure_type_registry_impl::FigureGraphics::legacy_cart_overlay_layer(
-            *f,
-            { f->x_offset_cart, f->y_offset_cart }));
-    return has_base != 0;
+    return false;
 }
 
 } // namespace
 
 bool figure_graphics_resolve_draw_request(const Figure &figure, FigureGraphicDrawRequest &request)
 {
-    const bool used_facade_draw_request = resolve_figure_graphic_draw_request(figure, request);
-    record_debug_draw_result(figure, used_facade_draw_request);
-    return used_facade_draw_request;
+    const bool handled = resolve_figure_graphic_draw_request(figure, request);
+    record_debug_draw_result(figure, handled, request);
+    return handled && request.is_semantically_complete();
+}
+
+bool figure_graphics_validate_loaded_figures()
+{
+    bool valid = true;
+    for (unsigned int id = 1; id < Figure::count(); id++) {
+        const Figure *figure = Figure::get(id);
+        if (figure->state != FIGURE_STATE_ALIVE || figure->type == FIGURE_NONE) continue;
+
+        FigureGraphicDrawRequest request = {};
+        if (!figure_graphics_resolve_draw_request(*figure, request)) valid = false;
+    }
+    return valid;
+}
+
+FigureGraphicsDebugCounters figure_graphics_debug_counters()
+{
+    return g_figure_graphics_debug_counters;
+}
+
+void figure_graphics_reset_debug_counters()
+{
+    g_figure_graphics_debug_counters = {};
 }

@@ -1,4 +1,5 @@
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "government.h"
 
 #include "building/building.h"
@@ -9,7 +10,9 @@ void building_government_distribute_treasury(void)
     int units = 0;
     building *senate = nullptr;
     Building::for_each([&](Building *building) {
-        if (!building->is_in_use() || !building->is_main_part()) {
+        if (!building->is_in_use() ||
+            (building->Composition && building->Composition->is_child()) ||
+            building->is_dynamic_bridge_segment()) {
             return;
         }
         ::building *b = const_cast<::building *>(building->record());
@@ -30,8 +33,9 @@ void building_government_distribute_treasury(void)
         remainder = treasury - units * amount_per_unit;
     }
 
-    if (senate && senate->state == BUILDING_STATE_IN_USE && !senate->house_size && senate->num_workers > 0) {
-        senate->tax_income_or_storage = 8 * amount_per_unit + remainder;
+    if (senate && senate->state == BUILDING_STATE_IN_USE &&
+        !building_type_registry_impl::type_has_housing(senate->type) && senate->num_workers > 0) {
+        senate->collected_tax_income = 8 * amount_per_unit + remainder;
         remainder = 0;
     }
 
@@ -40,10 +44,10 @@ void building_government_distribute_treasury(void)
             return;
         }
         ::building *b = const_cast<::building *>(building->record());
-        if (b->state != BUILDING_STATE_IN_USE || b->house_size || b->num_workers <= 0) {
+        if (b->state != BUILDING_STATE_IN_USE || building->Housing || b->num_workers <= 0) {
             return;
         }
-        b->tax_income_or_storage = amount_per_unit + remainder;
+        b->collected_tax_income = amount_per_unit + remainder;
         remainder = 0;
     });
 }

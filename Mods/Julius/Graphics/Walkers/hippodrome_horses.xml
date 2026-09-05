@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="Walkers\hippodrome_horses">
+    <image id="horse_blue_ne" group="Walkers\Group_217" image="Image_0000">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_217" image="Image_0000" />
+            <frame group="Walkers\Group_217" image="Image_0008" />
+            <frame group="Walkers\Group_217" image="Image_0016" />
+            <frame group="Walkers\Group_217" image="Image_0024" />
+            <frame group="Walkers\Group_217" image="Image_0032" />
+            <frame group="Walkers\Group_217" image="Image_0040" />
+            <frame group="Walkers\Group_217" image="Image_0048" />
+            <frame group="Walkers\Group_217" image="Image_0056" />
+        </animation>
+    </image>
+    <image id="cart_blue_ne" group="Walkers\Group_219" image="Image_0000" />
+    <image id="horse_blue_e" group="Walkers\Group_217" image="Image_0001">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_217" image="Image_0001" />
+            <frame group="Walkers\Group_217" image="Image_0009" />
+            <frame group="Walkers\Group_217" image="Image_0017" />
+            <frame group="Walkers\Group_217" image="Image_0025" />
+            <frame group="Walkers\Group_217" image="Image_0033" />
+            <frame group="Walkers\Group_217" image="Image_0041" />
+            <frame group="Walkers\Group_217" image="Image_0049" />
+            <frame group="Walkers\Group_217" image="Image_0057" />
+        </animation>
+    </image>
+    <image id="cart_blue_e" group="Walkers\Group_219" image="Image_0001" />
+    <image id="horse_blue_se" group="Walkers\Group_217" image="Image_0002">
+        <animation x="13" y="16">
+            <frame group="Walkers\Group_217" image="Image_0002" />
+            <frame group="Walkers\Group_217" image="Image_0010" />
+            <frame group="Walkers\Group_217" image="Image_0018" />
+            <frame group="Walkers\Group_217" image="Image_0026" />
+            <frame group="Walkers\Group_217" image="Image_0034" />
+            <frame group="Walkers\Group_217" image="Image_0042" />
+            <frame group="Walkers\Group_217" image="Image_0050" />
+            <frame group="Walkers\Group_217" image="Image_0058" />
+        </animation>
+    </image>
+    <image id="cart_blue_se" group="Walkers\Group_219" image="Image_0002" />
+    <image id="horse_blue_s" group="Walkers\Group_217" image="Image_0003">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_217" image="Image_0003" />
+            <frame group="Walkers\Group_217" image="Image_0011" />
+            <frame group="Walkers\Group_217" image="Image_0019" />
+            <frame group="Walkers\Group_217" image="Image_0027" />
+            <frame group="Walkers\Group_217" image="Image_0035" />
+            <frame group="Walkers\Group_217" image="Image_0043" />
+            <frame group="Walkers\Group_217" image="Image_0051" />
+            <frame group="Walkers\Group_217" image="Image_0059" />
+        </animation>
+    </image>
+    <image id="cart_blue_s" group="Walkers\Group_219" image="Image_0003" />
+    <image id="horse_blue_sw" group="Walkers\Group_217" image="Image_0004">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_217" image="Image_0004" />
+            <frame group="Walkers\Group_217" image="Image_0012" />
+            <frame group="Walkers\Group_217" image="Image_0020" />
+            <frame group="Walkers\Group_217" image="Image_0028" />
+            <frame group="Walkers\Group_217" image="Image_0036" />
+            <frame group="Walkers\Group_217" image="Image_0044" />
+            <frame group="Walkers\Group_217" image="Image_0052" />
+            <frame group="Walkers\Group_217" image="Image_0060" />
+        </animation>
+    </image>
+    <image id="cart_blue_sw" group="Walkers\Group_219" image="Image_0004" />
+    <image id="horse_blue_w" group="Walkers\Group_217" image="Image_0005">
+        <animation x="13" y="16">
+            <frame group="Walkers\Group_217" image="Image_0005" />
+            <frame group="Walkers\Group_217" image="Image_0013" />
+            <frame group="Walkers\Group_217" image="Image_0021" />
+            <frame group="Walkers\Group_217" image="Image_0029" />
+            <frame group="Walkers\Group_217" image="Image_0037" />
+            <frame group="Walkers\Group_217" image="Image_0045" />
+            <frame group="Walkers\Group_217" image="Image_0053" />
+            <frame group="Walkers\Group_217" image="Image_0061" />
+        </animation>
+    </image>
+    <image id="cart_blue_w" group="Walkers\Group_219" image="Image_0005" />
+    <image id="horse_blue_nw" group="Walkers\Group_217" image="Image_0006">
+        <animation x="11" y="16">
+            <frame group="Walkers\Group_217" image="Image_0006" />
+            <frame group="Walkers\Group_217" image="Image_0014" />
+            <frame group="Walkers\Group_217" image="Image_0022" />
+            <frame group="Walkers\Group_217" image="Image_0030" />
+            <frame group="Walkers\Group_217" image="Image_0038" />
+            <frame group="Walkers\Group_217" image="Image_0046" />
+            <frame group="Walkers\Group_217" image="Image_0054" />
+            <frame group="Walkers\Group_217" image="Image_0062" />
+        </animation>
+    </image>
+    <image id="cart_blue_nw" group="Walkers\Group_219" image="Image_0006" />
+    <image id="horse_blue_n" group="Walkers\Group_217" image="Image_0007">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_217" image="Image_0007" />
+            <frame group="Walkers\Group_217" image="Image_0015" />
+            <frame group="Walkers\Group_217" image="Image_0023" />
+            <frame group="Walkers\Group_217" image="Image_0031" />
+            <frame group="Walkers\Group_217" image="Image_0039" />
+            <frame group="Walkers\Group_217" image="Image_0047" />
+            <frame group="Walkers\Group_217" image="Image_0055" />
+            <frame group="Walkers\Group_217" image="Image_0063" />
+        </animation>
+    </image>
+    <image id="cart_blue_n" group="Walkers\Group_219" image="Image_0007" />
+    <image id="horse_red_ne" group="Walkers\Group_218" image="Image_0000">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_218" image="Image_0000" />
+            <frame group="Walkers\Group_218" image="Image_0008" />
+            <frame group="Walkers\Group_218" image="Image_0016" />
+            <frame group="Walkers\Group_218" image="Image_0024" />
+            <frame group="Walkers\Group_218" image="Image_0032" />
+            <frame group="Walkers\Group_218" image="Image_0040" />
+            <frame group="Walkers\Group_218" image="Image_0048" />
+            <frame group="Walkers\Group_218" image="Image_0056" />
+        </animation>
+    </image>
+    <image id="cart_red_ne" group="Walkers\Group_220" image="Image_0000" />
+    <image id="horse_red_e" group="Walkers\Group_218" image="Image_0001">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_218" image="Image_0001" />
+            <frame group="Walkers\Group_218" image="Image_0009" />
+            <frame group="Walkers\Group_218" image="Image_0017" />
+            <frame group="Walkers\Group_218" image="Image_0025" />
+            <frame group="Walkers\Group_218" image="Image_0033" />
+            <frame group="Walkers\Group_218" image="Image_0041" />
+            <frame group="Walkers\Group_218" image="Image_0049" />
+            <frame group="Walkers\Group_218" image="Image_0057" />
+        </animation>
+    </image>
+    <image id="cart_red_e" group="Walkers\Group_220" image="Image_0001" />
+    <image id="horse_red_se" group="Walkers\Group_218" image="Image_0002">
+        <animation x="13" y="16">
+            <frame group="Walkers\Group_218" image="Image_0002" />
+            <frame group="Walkers\Group_218" image="Image_0010" />
+            <frame group="Walkers\Group_218" image="Image_0018" />
+            <frame group="Walkers\Group_218" image="Image_0026" />
+            <frame group="Walkers\Group_218" image="Image_0034" />
+            <frame group="Walkers\Group_218" image="Image_0042" />
+            <frame group="Walkers\Group_218" image="Image_0050" />
+            <frame group="Walkers\Group_218" image="Image_0058" />
+        </animation>
+    </image>
+    <image id="cart_red_se" group="Walkers\Group_220" image="Image_0002" />
+    <image id="horse_red_s" group="Walkers\Group_218" image="Image_0003">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_218" image="Image_0003" />
+            <frame group="Walkers\Group_218" image="Image_0011" />
+            <frame group="Walkers\Group_218" image="Image_0019" />
+            <frame group="Walkers\Group_218" image="Image_0027" />
+            <frame group="Walkers\Group_218" image="Image_0035" />
+            <frame group="Walkers\Group_218" image="Image_0043" />
+            <frame group="Walkers\Group_218" image="Image_0051" />
+            <frame group="Walkers\Group_218" image="Image_0059" />
+        </animation>
+    </image>
+    <image id="cart_red_s" group="Walkers\Group_220" image="Image_0003" />
+    <image id="horse_red_sw" group="Walkers\Group_218" image="Image_0004">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_218" image="Image_0004" />
+            <frame group="Walkers\Group_218" image="Image_0012" />
+            <frame group="Walkers\Group_218" image="Image_0020" />
+            <frame group="Walkers\Group_218" image="Image_0028" />
+            <frame group="Walkers\Group_218" image="Image_0036" />
+            <frame group="Walkers\Group_218" image="Image_0044" />
+            <frame group="Walkers\Group_218" image="Image_0052" />
+            <frame group="Walkers\Group_218" image="Image_0060" />
+        </animation>
+    </image>
+    <image id="cart_red_sw" group="Walkers\Group_220" image="Image_0004" />
+    <image id="horse_red_w" group="Walkers\Group_218" image="Image_0005">
+        <animation x="13" y="16">
+            <frame group="Walkers\Group_218" image="Image_0005" />
+            <frame group="Walkers\Group_218" image="Image_0013" />
+            <frame group="Walkers\Group_218" image="Image_0021" />
+            <frame group="Walkers\Group_218" image="Image_0029" />
+            <frame group="Walkers\Group_218" image="Image_0037" />
+            <frame group="Walkers\Group_218" image="Image_0045" />
+            <frame group="Walkers\Group_218" image="Image_0053" />
+            <frame group="Walkers\Group_218" image="Image_0061" />
+        </animation>
+    </image>
+    <image id="cart_red_w" group="Walkers\Group_220" image="Image_0005" />
+    <image id="horse_red_nw" group="Walkers\Group_218" image="Image_0006">
+        <animation x="11" y="16">
+            <frame group="Walkers\Group_218" image="Image_0006" />
+            <frame group="Walkers\Group_218" image="Image_0014" />
+            <frame group="Walkers\Group_218" image="Image_0022" />
+            <frame group="Walkers\Group_218" image="Image_0030" />
+            <frame group="Walkers\Group_218" image="Image_0038" />
+            <frame group="Walkers\Group_218" image="Image_0046" />
+            <frame group="Walkers\Group_218" image="Image_0054" />
+            <frame group="Walkers\Group_218" image="Image_0062" />
+        </animation>
+    </image>
+    <image id="cart_red_nw" group="Walkers\Group_220" image="Image_0006" />
+    <image id="horse_red_n" group="Walkers\Group_218" image="Image_0007">
+        <animation x="12" y="16">
+            <frame group="Walkers\Group_218" image="Image_0007" />
+            <frame group="Walkers\Group_218" image="Image_0015" />
+            <frame group="Walkers\Group_218" image="Image_0023" />
+            <frame group="Walkers\Group_218" image="Image_0031" />
+            <frame group="Walkers\Group_218" image="Image_0039" />
+            <frame group="Walkers\Group_218" image="Image_0047" />
+            <frame group="Walkers\Group_218" image="Image_0055" />
+            <frame group="Walkers\Group_218" image="Image_0063" />
+        </animation>
+    </image>
+    <image id="cart_red_n" group="Walkers\Group_220" image="Image_0007" />
+</assetlist>

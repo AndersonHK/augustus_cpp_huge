@@ -1,7 +1,7 @@
 # Building Graphics Runtime Working Memory
 
 Snapshot: 2026-06-26 docs refresh over older building-graphics notes
-Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+Workspace: `<repository checkout>`
 
 ## 2026-06-26 building object surface checkpoint
 - `src/building/building.h` is the public `Building` object/class header. Do not recreate `src/building/building_object.h` or add compatibility-split object headers.
@@ -257,7 +257,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `docs/building_type_legacy_reference_ledger.md`
 - `docs/save_load_runtime_bridges.md`
 - `Mods/Vespasian/BuildingType/_README.md`
-- `Mods/Vespasian/HousingType/_README.md`
+- `Mods/Vespasian/HousingProfile/_README.md`
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
 - `src/building/building_runtime_graphics.cpp`

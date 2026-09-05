@@ -26,6 +26,7 @@
 #include "core/image.h"
 #include "figure/combat.h"
 #include "figure/enemy_army.h"
+#include "figure/FigureGraphics.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
@@ -36,24 +37,22 @@
 #include "sound/effect.h"
 
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <limits>
 #include <memory>
 #include <vector>
-
-namespace figure_runtime_native_impl {
-bool update_legacy_figure_graphics_image_state(
-    Figure &figure,
-    const figure_type_registry_impl::FigureTypeDefinition *definition);
-}
 
 namespace {
 
 struct RuntimeEntry {
     Figure *data = nullptr;
     unsigned short created_sequence = 0;
+    figure_type type = FIGURE_NONE;
     const figure_type_registry_impl::FigureTypeDefinition *definition = nullptr;
+    const figure_type_registry_impl::FigureGraphics *graphics = nullptr;
     const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
+    figure_type_registry_impl::FigureGraphicsState graphics_state;
     std::unique_ptr<figure_runtime_native_impl::NativeFigure> controller;
 };
 
@@ -83,15 +82,13 @@ int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
     return entry.data == f && entry.created_sequence == f->created_sequence;
 }
 
-const char *profile_id_for_priest_owner(const Figure *f)
+const char *profile_id_for_priest_owner(const Building *owner)
 {
-    if (!f || !f->building) {
+    if (!owner) {
         return nullptr;
     }
 
-    // Legacy saves do not persist XML profile bindings. Priest recovery keeps
-    // the old temple-to-god mapping, then the recovered profile owns the effect.
-    const building_type_registry_impl::BuildingType *type = f->building->type;
+    const building_type_registry_impl::BuildingType *type = owner->type;
     if (!type) {
         return nullptr;
     }
@@ -116,19 +113,18 @@ const char *profile_id_for_priest_owner(const Figure *f)
     return nullptr;
 }
 
-const char *infer_profile_id(const Figure *f)
+const char *translate_legacy_profile_id(const Figure *f, const Building *owner)
 {
     if (!f) {
         return nullptr;
     }
 
-    // Loaded saves only have legacy action/owner fields, so this is a compatibility bridge.
-    // New XML spawns bind the exact profile at creation and do not rely on this inference.
+    // This is used only while translating explicitly versioned pre-profile-identity saves.
     switch (f->type) {
         case FIGURE_LABOR_SEEKER:
             return f->collecting_item_id ? "validation" : "acquisition";
         case FIGURE_PRIEST:
-            return profile_id_for_priest_owner(f);
+            return profile_id_for_priest_owner(owner);
         case FIGURE_PATRICIAN:
             return "house_roamer";
         case FIGURE_BEGGAR:
@@ -154,10 +150,10 @@ const char *infer_profile_id(const Figure *f)
                     return "venue_seeker";
                 case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
                 case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
-                    if (!f->building) {
+                    if (!owner) {
                         return nullptr;
                     }
-                    const building_type_registry_impl::BuildingType *building_type = f->building->type;
+                    const building_type_registry_impl::BuildingType *building_type = owner->type;
                     if (f->type == FIGURE_ACTOR) {
                         return building_type && building_type->attr_is("amphitheater") ?
                             "amphitheater_service" :
@@ -192,9 +188,6 @@ const char *infer_profile_id(const Figure *f)
 
 RuntimeEntry *bind_entry(Figure *f)
 {
-    // Save files and legacy spawners only persist figure fields, not the
-    // XML profile pointer. Rebinding lazily here lets loaded figures recover
-    // their controller the first tick they execute.
     if (!f || !f->id()) {
         return nullptr;
     }
@@ -204,22 +197,43 @@ RuntimeEntry *bind_entry(Figure *f)
         return nullptr;
     }
 
+    const figure_type type = static_cast<figure_type>(f->type);
+    const char *profile_id = f->runtime_profile_id();
+    if (entry_matches_figure(*entry, f) && entry->type == type && entry->graphics &&
+        ((!entry->profile && (!profile_id || !*profile_id)) ||
+            (entry->profile && profile_id && std::strcmp(entry->profile->id(), profile_id) == 0))) {
+        return entry;
+    }
     const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    if (!definition) {
+        figure_type_registry_impl::definition_for(type);
+    const figure_type_registry_impl::FigureGraphics *graphics =
+        figure_type_registry_impl::FigureGraphics::for_type(type);
+    const bool figure_changed = !entry_matches_figure(*entry, f);
+    if (figure_changed) {
         *entry = RuntimeEntry();
-        return nullptr;
+        entry->data = f;
+        entry->created_sequence = f->created_sequence;
+    }
+    entry->type = type;
+    entry->graphics = graphics;
+    entry->graphics_state.bind(*f, graphics);
+
+    if (!definition) {
+        entry->definition = nullptr;
+        entry->profile = nullptr;
+        entry->controller.reset();
+        return graphics ? entry : nullptr;
     }
 
     const figure_type_registry_impl::FigureTypeProfile *profile = entry->profile;
-    if (!entry_matches_figure(*entry, f) || entry->definition != definition || !profile) {
-        profile = definition->profile(infer_profile_id(f));
-    }
-    if (!profile) {
-        profile = definition->default_profile();
+    if (figure_changed || entry->definition != definition || !profile) {
+        profile = profile_id && *profile_id ? definition->profile(profile_id) : definition->default_profile();
+        if (profile && (!profile_id || !*profile_id) && !f->set_runtime_profile_id(profile->id())) {
+            profile = nullptr;
+        }
     }
 
-    if (!entry_matches_figure(*entry, f) ||
+    if (figure_changed ||
         entry->definition != definition ||
         entry->profile != profile) {
         entry->data = f;
@@ -235,8 +249,7 @@ RuntimeEntry *bind_entry(Figure *f)
     }
 
     if (!entry->profile) {
-        *entry = RuntimeEntry();
-        return nullptr;
+        entry->controller.reset();
     }
     return entry;
 }
@@ -257,33 +270,13 @@ void record_service_history(road_service_effect effect, int grid_offset)
     }
 }
 
-const figure_type_registry_impl::FigureTypeProfile *profile_for_figure(const Figure *f)
+void log_loaded_owner_error(const char *message, const Figure &figure, const figure_type_registry_impl::FigureTypeProfile *profile, unsigned int saved_owner_id)
 {
-    if (!f) {
-        return nullptr;
-    }
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    if (!definition) {
-        return nullptr;
-    }
-    const figure_type_registry_impl::FigureTypeProfile *profile = definition->profile(infer_profile_id(f));
-    return profile ? profile : definition->default_profile();
-}
-
-void log_loaded_owner_repair(
-    const char *message,
-    const Figure &figure,
-    const figure_type_registry_impl::FigureTypeProfile *profile,
-    unsigned int saved_owner_id)
-{
-    char detail[256];
-    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u",
-        figure.id(),
-        static_cast<unsigned int>(figure.type),
-        profile ? profile->id() : "<none>",
-        saved_owner_id);
-    log_warning(message, detail, 0);
+    const Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
+    const building *record = owner ? owner->record() : nullptr;
+    char detail[384];
+    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u owner_type=%d owner_state=%d owner_primary=%u owner_secondary=%u owner_quaternary=%u", figure.id(), static_cast<unsigned int>(figure.type), profile ? profile->id() : "<none>", saved_owner_id, record ? record->type : 0, record ? record->state : 0, record ? record->figure_id : 0, record ? record->figure_id2 : 0, record ? record->figure_id4 : 0);
+    log_error(message, detail, 0);
 }
 
 static void write_debug_json_string(FILE *file, const char *text)
@@ -380,7 +373,7 @@ void figure_runtime_reset()
     g_runtime_entries.clear();
 }
 
-bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, Building **resolved_owner)
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, Building **resolved_owner)
 {
     if (resolved_owner) {
         *resolved_owner = nullptr;
@@ -389,23 +382,86 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
         return false;
     }
 
-    const figure_type_registry_impl::FigureTypeProfile *profile = profile_for_figure(f);
-    if (profile && !profile->requires_owner()) {
-        if (saved_owner_id) {
-            log_loaded_owner_repair(
-                "Discarding saved owner reference for ownerless figure",
-                *f,
-                profile,
-                saved_owner_id);
+    Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
+    if (saved_owner_id && (!owner || !owner->id)) {
+        if (!allow_legacy_owner_reference_repair && !allow_delayed_owner_binding_bridge) {
+            log_loaded_owner_error("Figure has an invalid serialized owner reference", *f, nullptr, saved_owner_id);
+            return false;
         }
-        return true;
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
+        log_warning("Repairing invalid serialized figure owner reference", detail, 0);
+        owner = nullptr;
+        saved_owner_id = 0;
     }
 
-    Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
-    if (!profile) {
-        if (saved_owner_id && !owner) {
-            log_loaded_owner_repair("Discarding invalid saved figure owner reference", *f, nullptr, saved_owner_id);
+    const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
+    const char *profile_id = f->runtime_profile_id();
+    if (definition && !definition->profiles().empty()) {
+        if ((!profile_id || !*profile_id) && allow_legacy_profile_translation) {
+            const char *translated_id = translate_legacy_profile_id(f, owner);
+            profile = translated_id ? definition->profile(translated_id) : definition->default_profile();
+            if (!profile || !f->set_runtime_profile_id(profile->id())) {
+                log_loaded_owner_error("Legacy figure profile identity could not be translated", *f, profile, saved_owner_id);
+                return false;
+            }
+        } else if (profile_id && *profile_id) {
+            profile = definition->profile(profile_id);
         }
+        if (!profile) {
+            log_loaded_owner_error("Figure has a missing or invalid serialized profile identity", *f, nullptr, saved_owner_id);
+            return false;
+        }
+    } else if (profile_id && *profile_id) {
+        log_loaded_owner_error("Figure serialized a profile identity without a runtime profile definition", *f, nullptr, saved_owner_id);
+        return false;
+    }
+
+    if (profile && profile->requires_owner() && !owner && allow_delayed_owner_binding_bridge) {
+        Building *slot_owner = nullptr;
+        bool ambiguous = false;
+        Building::for_each([&](Building *candidate) {
+            if (!candidate || !candidate->record() ||
+                !figure_runtime_native_impl::owner_binding_matches(f, candidate->record(), profile->owner_binding())) {
+                return;
+            }
+            if (slot_owner) {
+                ambiguous = true;
+                return;
+            }
+            slot_owner = candidate;
+        });
+        if (slot_owner && !ambiguous) {
+            owner = slot_owner;
+            saved_owner_id = static_cast<unsigned int>(slot_owner->id);
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Migrating delayed figure owner binding from its exact building slot", detail, 0);
+        }
+    }
+
+    if (profile && !profile->requires_owner()) {
+        if (!saved_owner_id) {
+            return true;
+        }
+        if (owner && figure_runtime_native_impl::owner_binding_matches(f, owner->record(), profile->owner_binding())) {
+            if (resolved_owner) {
+                *resolved_owner = owner;
+            }
+            return true;
+        }
+        if (allow_legacy_owner_reference_repair) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Discarding invalid optional owner reference from legacy figure profile", detail, 0);
+            return true;
+        }
+        log_loaded_owner_error("Optional figure owner reference failed save validation", *f, profile, saved_owner_id);
+        return false;
+    }
+
+    if (!profile) {
         if (resolved_owner) {
             *resolved_owner = owner;
         }
@@ -415,7 +471,14 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
     const building *owner_record = owner ? owner->record() : nullptr;
     if (!owner_record ||
         !figure_runtime_native_impl::owner_binding_matches(f, owner_record, profile->owner_binding())) {
-        log_loaded_owner_repair("Removing loaded figure with invalid required owner", *f, profile, saved_owner_id);
+        if (allow_legacy_owner_reference_repair || allow_delayed_owner_binding_bridge) {
+            char detail[320];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
+            log_warning("Discarding legacy transient figure whose required owner cannot be recovered", detail, 0);
+            f->remove();
+            return true;
+        }
+        log_loaded_owner_error("Figure required-owner invariant failed during save validation", *f, profile, saved_owner_id);
         return false;
     }
 
@@ -435,6 +498,7 @@ void figure_runtime_initialize_city()
             continue;
         }
         bind_entry(f);
+        figure_action_refresh_graphics(f);
     }
 }
 
@@ -468,6 +532,9 @@ static int figure_runtime_bind_profile(Figure *f, const char *profile_id)
     if (!profile) {
         return 0;
     }
+    if (!f->set_runtime_profile_id(profile->id())) {
+        return 0;
+    }
 
     RuntimeEntry *entry = entry_for_id(f->id());
     if (!entry) {
@@ -476,8 +543,11 @@ static int figure_runtime_bind_profile(Figure *f, const char *profile_id)
 
     entry->data = f;
     entry->created_sequence = f->created_sequence;
+    entry->type = static_cast<figure_type>(f->type);
     entry->definition = definition;
     entry->profile = profile;
+    entry->graphics = figure_type_registry_impl::FigureGraphics::for_type(entry->type);
+    entry->graphics_state.bind(*f, entry->graphics);
     entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
     return profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction ||
         entry->controller ? 1 : 0;
@@ -503,7 +573,7 @@ Figure *figure_runtime_create_profiled(
 
     Figure *f = Figure::create(type, x, y, dir);
 
-    f->building = profile->requires_owner() ? &owner : nullptr;
+    f->set_home_building(profile->requires_owner() ? &owner : nullptr);
     const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
     if (spawn_behavior.has_action_state) {
         f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);
@@ -586,15 +656,92 @@ figure_type_registry_impl::PathingMode::RoutePolicySelection figure_runtime_rout
     return selection;
 }
 
-int figure_runtime_update_graphics(Figure *f)
+void figure_runtime_graphics_begin_update(Figure *f)
 {
     RuntimeEntry *entry = bind_entry(f);
-    if (!entry || !entry->definition) {
-        return 0;
+    if (entry) {
+        entry->graphics_state.begin_update();
     }
-    return figure_runtime_native_impl::update_legacy_figure_graphics_image_state(
-        *f,
-        entry->definition) ? 1 : 0;
+}
+
+void figure_runtime_graphics_select_default_entry(Figure *f, const char *image_id)
+{
+    figure_runtime_graphics_select_default_entry_frame(f, image_id, 0);
+}
+
+void figure_runtime_graphics_select_default_entry_frame(Figure *f, const char *image_id, int one_based_frame)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry && image_id && *image_id && one_based_frame >= 0) {
+        entry->graphics_state.select_default_entry(image_id, one_based_frame);
+    }
+}
+
+void figure_runtime_graphics_set_default_offset(Figure *f, int x, int y)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) entry->graphics_state.set_default_offset({ x, y });
+}
+
+void figure_runtime_graphics_add_required_layer(Figure *f, const char *role, const char *image_id, int one_based_frame, int x, int y, int draw_before_base)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry && role && *role && image_id && *image_id && one_based_frame >= 0) {
+        entry->graphics_state.add_required_layer(role, image_id, one_based_frame, { x, y }, draw_before_base);
+    }
+}
+
+void figure_runtime_graphics_select_directional_entry_frame(Figure *f, const char *state_id, int direction, int one_based_frame)
+{
+    if (!state_id || !*state_id) return;
+    std::string image_id = state_id;
+    image_id += '_';
+    image_id += graphics_direction8_suffix(figure_image_normalize_direction(direction));
+    figure_runtime_graphics_select_default_entry_frame(f, image_id.c_str(), one_based_frame);
+}
+
+void figure_runtime_graphics_select_corpse_entry(Figure *f, const char *image_id)
+{
+    if (!f) return;
+    figure_runtime_graphics_select_default_entry_frame(f, image_id, figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks) + 1);
+}
+
+void figure_runtime_graphics_hide_default_entry(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.hide_default_entry();
+    }
+}
+
+void figure_runtime_graphics_show_empty_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.show_empty_cart();
+    }
+}
+
+void figure_runtime_graphics_show_resource_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.show_resource_cart();
+    }
+}
+
+void figure_runtime_graphics_hide_cart(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (entry) {
+        entry->graphics_state.hide_cart();
+    }
+}
+
+const figure_type_registry_impl::FigureGraphicsState *figure_runtime_graphics_state(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    return entry ? &entry->graphics_state : nullptr;
 }
 
 int figure_runtime_choose_roaming_direction(

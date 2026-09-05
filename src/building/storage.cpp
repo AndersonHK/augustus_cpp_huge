@@ -95,28 +95,21 @@ void building_storage_reset_building_ids(void)
 {
     for (data_storage &storage : storages) {
         storage.building_id = 0;
+        storage.runtime_building = nullptr;
     }
 
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (!definition || (!definition->is_granary() && !definition->is_warehouse())) {
-            continue;
-        }
-        building_type type = definition->type();
-        for (Building *b = Building::first_of_type(type); b; b = b->next_of_type()) {
-            if (b->state_id() == BUILDING_STATE_UNUSED) {
-                continue;
-            }
-            if (b->storage_id) {
-                data_storage *storage = storage_at(b->storage_id);
-                if (storage && storage->building_id) {
-                    // storage is already connected to a building: corrupt, create new
-                    b->set_storage_id(building_storage_create(b->id));
-                } else if (storage) {
-                    storage->building_id = b->id;
-                }
+    Building::for_each(BuildingRuntimeList::Storage, [&](Building *b) {
+        if (b->storage_id) {
+            data_storage *storage = storage_at(b->storage_id);
+            if (storage && storage->building_id) {
+                // storage is already connected to a building: corrupt, create new
+                b->set_storage_id(building_storage_create(b->id));
+            } else if (storage) {
+                storage->building_id = b->id;
+                storage->runtime_building = b;
             }
         }
-    }
+    });
 }
 
 int building_storage_create(int building_id)
@@ -135,6 +128,7 @@ int building_storage_create(int building_id)
     }
     storage->in_use = 1;
     storage->building_id = building_id;
+    storage->runtime_building = Building::get(static_cast<unsigned int>(building_id));
     for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         //default the storage quantity to max
         storage->storage.resource_state[r].quantity = BUILDING_STORAGE_QUANTITY_MAX;
@@ -146,12 +140,6 @@ int building_storage_create(int building_id)
         building_storage_accept_all(storage->id);
     }
     return storage->id;
-}
-
-int building_storage_get_building_id(int storage_id)
-{
-    data_storage *storage = storage_at(storage_id);
-    return storage ? storage->building_id : 0;
 }
 
 int building_storage_restore(int storage_id)
@@ -166,28 +154,16 @@ int building_storage_restore(int storage_id)
         return 0;
     }
     storages[storage_id].in_use = 1;
+    storages[storage_id].runtime_building =
+        Building::get(static_cast<unsigned int>(storages[storage_id].building_id));
     return storage_id;
-}
-
-int building_storage_change_building(int storage_id, int building_id)
-{
-    data_storage *storage = storage_at(storage_id);
-    if (!storage) {
-        return 0;
-    }
-    Building *building = Building::get(static_cast<unsigned int>(building_id));
-    if (!building) {
-        return 0;
-    }
-    storage->building_id = building_id;
-    building->set_storage_id(storage_id); // set for the main entry
-    return 1;
 }
 
 void building_storage_delete(int storage_id)
 {
     if (data_storage *storage = storage_at(storage_id)) {
         storage->in_use = 0;
+        storage->runtime_building = nullptr;
         trim_storages();
     }
 }
@@ -216,28 +192,23 @@ void building_storage_toggle_empty_all(int storage_id)
     }
 }
 
-int building_storage_get_empty_all(int building_id)
+int building_storage_get_empty_all(const Building &building)
 {
-    Building *building = Building::get(static_cast<unsigned int>(building_id));
-    if (!building) {
-        return 0;
-    }
-    unsigned int storage_id = building->storage_id;
+    unsigned int storage_id = building.storage_id;
     if (storage_id >= storages.size()) {
         return 0;
     }
     return storages[storage_id].storage.empty_all;
 }
 
-int building_storage_count_stored_resource_types(int building_id)
+int building_storage_count_stored_resource_types(const Building &building)
 {
-    Building *building = Building::get(static_cast<unsigned int>(building_id));
-    if (!building || !building->storage_id) {
+    if (!building.storage_id) {
         return 0;
     }
     int stored_types_count = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (building->resource_amount(r) > 0) {
+        if (building.resource_amount(r) > 0) {
             stored_types_count++;
         }
     }
@@ -350,6 +321,7 @@ void building_storage_toggle_permission(building_storage_permission_states p, Bu
     int permission_bit = 1 << p;
     if (data_storage *storage = storage_at(b.storage_id)) {
         storage->storage.permissions ^= permission_bit;
+        b.invalidate_graphic();
     }
 }
 
@@ -368,11 +340,15 @@ void building_storage_set_permission(building_storage_permission_states p, Build
         return;
     }
     int *permissions = &storage->storage.permissions;
+    const int previous = *permissions;
 
     if (enable) {
         *permissions |= permission_bit;
     } else {
         *permissions &= ~permission_bit;
+    }
+    if (*permissions != previous) {
+        b.invalidate_graphic();
     }
 }
 
@@ -774,20 +750,15 @@ void building_storage_load_state(buffer *buf, int version)
     }
 
     // fix granary storage
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (!definition || !definition->is_granary()) {
-            continue;
+    Building::for_each(BuildingRuntimeList::Granaries, [](Building *b) {
+        int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+            int amount = b->resource_amount(r) / 100;
+            b->set_resource_amount(r, amount);
+            granary_free_space -= amount;
         }
-        for (Building *b = Building::first_of_type(definition->type()); b; b = b->next_of_type()) {
-            int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
-            for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-                int amount = b->resource_amount(r) / 100;
-                b->set_resource_amount(r, amount);
-                granary_free_space -= amount;
-            }
-            b->set_resource_amount(RESOURCE_NONE, granary_free_space);
-        }
-    }
+        b->set_resource_amount(RESOURCE_NONE, granary_free_space);
+    });
 
     resize_storages(highest_id_in_use + 1);
 }

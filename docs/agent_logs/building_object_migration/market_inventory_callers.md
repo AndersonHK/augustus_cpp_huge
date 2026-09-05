@@ -30,7 +30,7 @@
   - `src/figuretype/supplier.cpp`: includes `building/building.h` and `building/market.h` before the legacy `extern "C"` block; market supplier recalculation now calls object-only market service APIs and `Building::set_fetch_inventory_id(...)`.
 - `git diff --check -- src/figure/figure_runtime_native.cpp src/figure/phrase.cpp src/figuretype/supplier.cpp docs/agent_logs/building_object_migration/market_inventory_callers.md`
   - Result: only Git CRLF normalization warnings for `src/figure/figure_runtime_native.cpp` and `src/figuretype/supplier.cpp`.
-- `& 'D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /m:1 /v:quiet /clp:ErrorsOnly /nologo`
+- `& '<MSBuild path>' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /m:1 /v:quiet /clp:ErrorsOnly /nologo`
   - Result: failed in broader migration code before a clean project build.
   - No errors from this slice were observed in the visible MSBuild output.
   - Current visible failures outside this slice include object-only/raw-call mismatches in `src/building/dock.cpp`, `src/building/warehouse.cpp`, `src/building/construction_building.cpp`, `src/building/building.cpp`, `src/building/building_runtime_spawn.cpp`, and `src/building/figure.cpp`; missing replacement helpers in `src/building/image.cpp`, `src/building/monument.cpp`, `src/building/building_type.cpp`, and `src/building/figure.cpp`; a `Production::record_` const/raw mismatch in `src/building/production.cpp`; `BuildingType` visibility errors in `src/building/production.h`; and undeclared local record variables in `src/building/animations.cpp`.

@@ -14,15 +14,17 @@
 #include "map/figure.h"
 
 #include "building/building_record.h"
+#include "building/BuildingGeometry.h"
 #include "building/destruction.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/property.h"
 #include "map/random.h"
 #include "map/routing.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
+#include "map/water_navigation.h"
 
 static void advance_tick(Figure *f)
 {
@@ -162,7 +164,9 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
     }
     int target_grid_offset = f->grid_offset + map_grid_direction_delta(f->direction);
     if (f->is_boat) {
-        if (!map_terrain_is(target_grid_offset, TERRAIN_WATER)) {
+        const WaterNavigationProfile profile = f->is_boat == 2 ?
+            WaterNavigationProfile::Flotsam : WaterNavigationProfile::Boat;
+        if (!water_navigation::is_passable(target_grid_offset, profile)) {
             f->direction = DIR_FIGURE_REROUTE;
         }
     } else if (f->terrain_usage == TERRAIN_USAGE_ENEMY) {
@@ -180,18 +184,20 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         if (!Route::wallIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
         }
+    } else if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+        f->direction = DIR_FIGURE_REROUTE;
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
         if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
             Building &building_obj = map_building_at(target_grid_offset);
             building *b = const_cast<::building *>(building_obj.record());
-            if (roaming_enabled && b && building_obj.type && building_obj.type->is_granary()) {
-                if (map_road_get_granary_inner_road_tiles_count(b) < 3) {
+            if (roaming_enabled && b && map_building_has_internal_passage(b)) {
+                if (map_road_get_internal_passage_tiles_count(b) < 3) {
                     f->direction = DIR_FIGURE_REROUTE; // do not roam into dead-end granaries
                 }
             }
             Roadblock roadblock(building_obj);
             if (roadblock.kind() != ROADBLOCK_NONE) {
-                if (!roadblock.has_permission(figure_runtime_roadblock_permission(f))) {
+                if (!roadblock.allows_at(target_grid_offset, figure_runtime_roadblock_permission(f))) {
                     f->direction = DIR_FIGURE_REROUTE;
                 }
             }
@@ -206,7 +212,8 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             nullptr;
         building *b = building_obj ? const_cast<::building *>(building_obj->record()) : nullptr;
         if (building_obj && Roadblock(*building_obj).kind() != ROADBLOCK_NONE) {
-            if (!Roadblock(*building_obj).has_permission(figure_runtime_roadblock_permission(f))) {
+            if (!Roadblock(*building_obj).allows_at(
+                    target_grid_offset, figure_runtime_roadblock_permission(f))) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
@@ -228,7 +235,7 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
     }
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -310,20 +317,27 @@ static bool terrain_is_path_for_roaming_figure(const Figure *f, int grid_offset)
     return map_terrain_is(grid_offset, terrain_mask) != 0;
 }
 
-static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadblock_permission permission)
+static bool is_valid_road_for_roaming(
+    const Figure *f,
+    int source_grid_offset,
+    int target_grid_offset,
+    roadblock_permission permission)
 {
-    const bool is_path = terrain_is_path_for_roaming_figure(f, grid_offset);
-    if (!is_path && !map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!map_tiles_access_ramp_allows_road_edge(source_grid_offset, target_grid_offset)) {
         return false;
     }
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    const bool is_path = terrain_is_path_for_roaming_figure(f, target_grid_offset);
+    if (!is_path && !map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+        return false;
+    }
+    if (!map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
         return true;
     }
 
-    if (!map_building_exists_at(grid_offset)) {
+    if (!map_building_exists_at(target_grid_offset)) {
         return false;
     }
-    Building &building_obj = map_building_at(grid_offset);
+    Building &building_obj = map_building_at(target_grid_offset);
     building *b = const_cast<::building *>(building_obj.record());
     if (!b) {
         return false;
@@ -331,19 +345,9 @@ static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadbloc
 
     Roadblock roadblock(building_obj);
     if (roadblock.kind() != ROADBLOCK_NONE) {
-        return is_path && roadblock.has_permission(permission);
+        return is_path && roadblock.allows_at(target_grid_offset, permission);
     }
 
-    // Granaries mix road and non-road building tiles; walkers should only roam
-    // across the internal cross when it connects to at least two exits.
-    if (building_obj.type && building_obj.type->is_granary()) {
-        return figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset) &&
-            map_road_get_granary_inner_road_tiles_count(b) >= 3;
-    }
-    if (building_obj.type && building_obj.type->is_warehouse()) {
-        return figure_type_registry_impl::PathingMode::citizenIsPassableTerrain(grid_offset) ||
-            figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset);
-    }
     return false;
 }
 
@@ -355,10 +359,10 @@ static int get_adjacent_road_tiles_for_roaming(
 {
     road_tiles[1] = road_tiles[3] = road_tiles[5] = road_tiles[7] = 0;
 
-    road_tiles[0] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, -1), permission) ? 1 : 0;
-    road_tiles[2] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 0), permission) ? 1 : 0;
-    road_tiles[4] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, 1), permission) ? 1 : 0;
-    road_tiles[6] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 0), permission) ? 1 : 0;
+    road_tiles[0] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(0, -1), permission) ? 1 : 0;
+    road_tiles[2] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, 0), permission) ? 1 : 0;
+    road_tiles[4] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(0, 1), permission) ? 1 : 0;
+    road_tiles[6] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, 0), permission) ? 1 : 0;
 
     return road_tiles[0] + road_tiles[2] + road_tiles[4] + road_tiles[6];
 }
@@ -369,10 +373,10 @@ static int get_diagonal_road_tiles_for_roaming(
     int *road_tiles,
     roadblock_permission permission)
 {
-    road_tiles[1] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, -1), permission) ? 1 : 0;
-    road_tiles[3] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 1), permission) ? 1 : 0;
-    road_tiles[5] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 1), permission) ? 1 : 0;
-    road_tiles[7] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, -1), permission) ? 1 : 0;
+    road_tiles[1] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, -1), permission) ? 1 : 0;
+    road_tiles[3] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(1, 1), permission) ? 1 : 0;
+    road_tiles[5] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, 1), permission) ? 1 : 0;
+    road_tiles[7] = is_valid_road_for_roaming(f, grid_offset, grid_offset + map_grid_delta(-1, -1), permission) ? 1 : 0;
 
     int max_stretch = 0;
     int stretch = 0;
@@ -399,7 +403,8 @@ static void roam_set_direction(Figure *f, roadblock_permission permission)
     int road_offset_dir1 = 0;
     int road_dir1 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(
+                f, grid_offset, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir1 = dir;
             break;
         }
@@ -412,7 +417,8 @@ static void roam_set_direction(Figure *f, roadblock_permission permission)
     int road_offset_dir2 = 0;
     int road_dir2 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(
+                f, grid_offset, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir2 = dir;
             break;
         }
@@ -437,9 +443,9 @@ void figure_movement_move_ticks(Figure *f, int num_ticks)
     walk_ticks(f, num_ticks, 0);
 }
 
-void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int tick_percentage)
+int Figure::consume_movement_ticks(int num_ticks, int tick_percentage)
 {
-    int progress = f->progress_to_next_tick + tick_percentage;
+    int progress = progress_to_next_tick + tick_percentage;
 
     if (progress >= 100) {
         progress -= 100;
@@ -448,16 +454,90 @@ void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int ti
         progress += 100;
         num_ticks--;
     }
-    f->progress_to_next_tick = static_cast<char>(progress);
+    progress_to_next_tick = static_cast<char>(progress);
+
+    return num_ticks;
+}
+
+void figure_movement_move_ticks_with_percentage(Figure *f, int num_ticks, int tick_percentage)
+{
+    num_ticks = f->consume_movement_ticks(num_ticks, tick_percentage);
 
     walk_ticks(f, num_ticks, 0);
+}
+
+FigureMovementResult Figure::move_ticks_cross_country_to(
+    FigureMovementDestination destination, int num_ticks, int tick_percentage)
+{
+    figure_movement_set_cross_country_direction(this, cross_country_x, cross_country_y, destination.x, destination.y, 0);
+    if (cross_country_x == destination.x && cross_country_y == destination.y) {
+        direction = DIR_FIGURE_AT_DESTINATION;
+        return FigureMovementResult::Arrived;
+    }
+    figure_movement_move_ticks_cross_country(this, consume_movement_ticks(num_ticks, tick_percentage));
+    if (cross_country_x == destination.x && cross_country_y == destination.y) {
+        if (direction < DIR_8_NONE) previous_tile_direction = direction;
+        direction = DIR_FIGURE_AT_DESTINATION;
+        return FigureMovementResult::Arrived;
+    }
+    return FigureMovementResult::Moving;
+}
+
+FigureMovementResult Figure::move_ticks_to(
+    FigureMovementDestination destination, int num_ticks, int tick_percentage)
+{
+    const int destination_tile_x = figure_movement_cross_country_to_tile(destination.x);
+    const int destination_tile_y = figure_movement_cross_country_to_tile(destination.y);
+    if (!map_grid_is_inside(destination_tile_x, destination_tile_y, 0)) {
+        Route::remove(this);
+        return FigureMovementResult::Blocked;
+    }
+    destination_x = static_cast<unsigned char>(destination_tile_x);
+    destination_y = static_cast<unsigned char>(destination_tile_y);
+    destination_grid_offset = static_cast<short>(map_grid_offset(destination_tile_x, destination_tile_y));
+    set_movement_plane(destination.plane);
+
+    if (use_cross_country) {
+        if (x == destination_tile_x && y == destination_tile_y) {
+            return move_ticks_cross_country_to(destination, num_ticks, tick_percentage);
+        }
+
+        const FigureMovementDestination route_entry = figure_movement_destination_for_tile(x, y, destination.plane);
+        const FigureMovementResult entry_result = move_ticks_cross_country_to(route_entry, num_ticks, tick_percentage);
+        if (entry_result == FigureMovementResult::Arrived) {
+            use_cross_country = 0;
+            progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
+            direction = DIR_FIGURE_REROUTE;
+            Route::remove(this);
+            return FigureMovementResult::Moving;
+        }
+        return entry_result;
+    }
+
+    figure_movement_move_ticks_with_percentage(this, num_ticks, tick_percentage);
+    if (direction == DIR_FIGURE_REROUTE) {
+        // A stale route is a request to rebuild on the next movement step,
+        // including the transition from exact local movement to tile routing.
+        Route::remove(this);
+        return FigureMovementResult::Moving;
+    }
+    if (direction == DIR_FIGURE_LOST) {
+        Route::remove(this);
+        return FigureMovementResult::Blocked;
+    }
+    if (direction != DIR_FIGURE_AT_DESTINATION) return FigureMovementResult::Moving;
+
+    cross_country_x = figure_movement_tile_to_cross_country(x);
+    cross_country_y = figure_movement_tile_to_cross_country(y);
+    use_cross_country = 1;
+    return move_ticks_cross_country_to(destination, 0, 0);
 }
 
 void figure_movement_move_ticks_tower_sentry(Figure *f, int num_ticks)
 {
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -477,7 +557,7 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
     }
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -485,6 +565,12 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
             f->direction = static_cast<signed char>(calc_general_direction(f->x, f->y,
                 leader->previous_tile_x, leader->previous_tile_y));
             if (f->direction >= 8) {
+                break;
+            }
+            const int target_grid_offset =
+                f->grid_offset + map_grid_direction_delta(f->direction);
+            if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+                f->direction = DIR_FIGURE_REROUTE;
                 break;
             }
             f->previous_tile_direction = f->direction;
@@ -518,7 +604,7 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
 
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -526,6 +612,12 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
             f->direction = static_cast<signed char>(calc_general_direction(f->x, f->y,
                 leader->previous_tile_x, leader->previous_tile_y));
             if (f->direction >= 8) {
+                break;
+            }
+            const int target_grid_offset =
+                f->grid_offset + map_grid_direction_delta(f->direction);
+            if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
+                f->direction = DIR_FIGURE_REROUTE;
                 break;
             }
             f->previous_tile_direction = f->direction;
@@ -556,7 +648,7 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
     // no destination: walk to end of tile and pick a direction
     while (num_ticks > 0) {
         num_ticks--;
-        f->progress_on_tile++;
+        f->progress_on_tile = static_cast<unsigned char>(figure_movement_advance_tile_progress(f->progress_on_tile));
         if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
@@ -679,14 +771,14 @@ void figure_movement_advance_attack(Figure *f)
 void figure_movement_set_cross_country_direction(Figure *f, int x_src, int y_src, int x_dst, int y_dst, int is_missile)
 {
     // all x/y are in FIGURE_CROSS_COUNTRY_TILE_UNITS per tile
-    f->cc_destination_x = static_cast<short>(x_dst);
-    f->cc_destination_y = static_cast<short>(y_dst);
-    f->cc_delta_x = static_cast<short>((x_src > x_dst) ? (x_src - x_dst) : (x_dst - x_src));
-    f->cc_delta_y = static_cast<short>((y_src > y_dst) ? (y_src - y_dst) : (y_dst - y_src));
+    f->cc_destination_x = x_dst;
+    f->cc_destination_y = y_dst;
+    f->cc_delta_x = (x_src > x_dst) ? (x_src - x_dst) : (x_dst - x_src);
+    f->cc_delta_y = (y_src > y_dst) ? (y_src - y_dst) : (y_dst - y_src);
     if (f->cc_delta_x < f->cc_delta_y) {
-        f->cc_delta_xy = static_cast<short>(2 * f->cc_delta_x - f->cc_delta_y);
+        f->cc_delta_xy = 2 * f->cc_delta_x - f->cc_delta_y;
     } else if (f->cc_delta_y < f->cc_delta_x) {
-        f->cc_delta_xy = static_cast<short>(2 * f->cc_delta_y - f->cc_delta_x);
+        f->cc_delta_xy = 2 * f->cc_delta_y - f->cc_delta_x;
     } else { // equal
         f->cc_delta_xy = 0;
     }
@@ -718,9 +810,7 @@ void figure_movement_set_cross_country_destination(Figure *f, int x_dst, int y_d
 {
     f->destination_x = static_cast<unsigned char>(x_dst);
     f->destination_y = static_cast<unsigned char>(y_dst);
-    figure_movement_set_cross_country_direction(
-        f, f->cross_country_x, f->cross_country_y,
-        figure_movement_tile_to_cross_country(x_dst), figure_movement_tile_to_cross_country(y_dst), 0);
+    figure_movement_set_cross_country_direction(f, f->cross_country_x, f->cross_country_y, figure_movement_tile_to_cross_country(x_dst), figure_movement_tile_to_cross_country(y_dst), 0);
 }
 
 static void cross_country_update_delta(Figure *f)
@@ -782,6 +872,7 @@ int figure_movement_move_ticks_cross_country(Figure *f, int num_ticks)
 {
     map_figure_delete(f);
     bool is_at_destination = false;
+    num_ticks = figure_movement_legacy_ticks_to_runtime(num_ticks);
     while (num_ticks > 0) {
         num_ticks--;
         if (f->missile_height > 0) {
@@ -811,8 +902,8 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
 {
     int height = 0;
     Figure *f = Figure::get(0); // abuse unused figure 0 as scratch
-    f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(x_src));
-    f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(y_src));
+    f->cross_country_x = figure_movement_tile_to_cross_country(x_src);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y_src);
     const int source_grid_offset = map_grid_offset(x_src, y_src);
     Building *source_building = map_building_exists_at(source_grid_offset) ?
         &map_building_at(source_grid_offset) :
@@ -845,8 +936,27 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
             if (map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_GATEHOUSE | TERRAIN_TREE)) {
                 break;
             }
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_property_multi_tile_size(grid_offset) > 1) {
-                if (!map_building_exists_at(grid_offset) || !map_building_at(grid_offset).matches("fort_ground")) {
+            if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+                if (!map_building_exists_at(grid_offset)) {
+                    break;
+                }
+                Building &tile_building = map_building_at(grid_offset);
+                if (tile_building.matches("fort_ground")) {
+                    continue;
+                }
+                if (!tile_building.Foundation ||
+                    !tile_building.Foundation->state().is_published()) {
+                    break;
+                }
+                const building_type_registry_impl::FoundationState &state =
+                    tile_building.Foundation->state();
+                const building_type_registry_impl::BuildingGeometry geometry =
+                    building_type_registry_impl::BuildingGeometry::from_foundation(
+                        tile_building.Foundation->definition(),
+                        state.origin_x(),
+                        state.origin_y(),
+                        state.rotation());
+                if (!geometry.valid() || geometry.occupies_multiple_cells()) {
                     break;
                 }
             }

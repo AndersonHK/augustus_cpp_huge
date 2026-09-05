@@ -1,31 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="native_hut_alt">
     <identity name_key="TR_BUILDING_NATIVE_HUT_ALT" />
-    <model size="1" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_1x1" />
     <sound id="native_hut" />
-    <event_data attr="native_hut_alt" />
     <flags fire_proof="1" />
     <graphics>
         <default>
-            <path value="Terrain_Maps\Native_Hut_Central_01" />
-            <image value="Native_Hut_Central_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Central_01" image="Native_Hut_Central_01" />
+                <option path="Terrain_Maps\Native_Hut_Central_02" image="Native_Hut_Central_02" />
+            </options>
         </default>
         <variant>
             <condition type="climate" value="northern" />
-            <path value="Terrain_Maps\Native_Hut_Northern_01" />
-            <image value="Native_Hut_Northern_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Northern_01" image="Native_Hut_Northern_01" />
+                <option path="Terrain_Maps\Native_Hut_Northern_02" image="Native_Hut_Northern_02" />
+            </options>
         </variant>
         <variant>
             <condition type="climate" value="desert" />
-            <path value="Terrain_Maps\Native_Hut_Southern_01" />
-            <image value="Native_Hut_Southern_01" />
+            <options selection="stable_variant">
+                <option path="Terrain_Maps\Native_Hut_Southern_01" image="Native_Hut_Southern_01" />
+                <option path="Terrain_Maps\Native_Hut_Southern_02" image="Native_Hut_Southern_02" />
+            </options>
         </variant>
     </graphics>
     <labor>

@@ -5,6 +5,13 @@
 
 #include <string_view>
 
+#ifdef STARTUP_PARSER_TEST
+#include "game/mod_definition_loader.h"
+
+#include <string>
+#include <vector>
+#endif
+
 enum class FontSurfaceSemantic {
     Body = 0,
     Header = 1,
@@ -48,3 +55,23 @@ int font_vector_runtime_draw_utf8(
     color_t color,
     int pixel_size,
     unsigned style_flags);
+
+#ifdef STARTUP_PARSER_TEST
+struct font_vector_layer_test_result {
+    int found_pack = 0;
+    int family_count = 0;
+    int surface_count = 0;
+    int queried_family_defined = 0;
+    std::string queried_regular_face;
+    int queried_surface_defined = 0;
+    std::string queried_surface_family_id;
+    int queried_surface_logical_size = 0;
+};
+
+int font_vector_runtime_layers_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *family_id,
+    font_t surface,
+    font_vector_layer_test_result *result,
+    std::string *failure_reason = nullptr);
+#endif

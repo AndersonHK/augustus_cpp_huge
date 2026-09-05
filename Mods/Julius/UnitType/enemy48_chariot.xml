@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="enemy48_chariot">
+    <figure type="enemy48_chariot" />
+    <combat><health value="120" /><attack value="15" /><defense value="4" /><armor value="4" /></combat>
+    <abilities><melee exposed_back_bonus="4" /></abilities>
+</unit>

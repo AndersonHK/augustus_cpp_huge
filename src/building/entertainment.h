@@ -12,6 +12,7 @@ class BuildingEntertainment {
 public:
     explicit BuildingEntertainment(const Building &venue);
 
+    void spawn_race_participants();
     void spawn_hippodrome_service();
     void spawn_colosseum_service();
     void run_show_countdown();
@@ -29,7 +30,7 @@ private:
     int delay_has_elapsed(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     Figure *create_charioteer(const map_point &road, const char *profile_id, int fallback_action) const;
     Figure *create_roaming_figure(const map_point &road, figure_type type) const;
-    void spawn_hippodrome_horses() const;
+    bool create_race_participants() const;
     void spawn_execution_lion_tamers(const map_point &road) const;
     void post_hippodrome_message_if_active() const;
     void post_colosseum_message_if_active() const;

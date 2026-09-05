@@ -8,7 +8,8 @@
 #include "figure/properties.h"
 #include "figure/route.h"
 #include "figure/sound.h"
-#include "game/difficulty.h"
+#include "figure/unit_type.h"
+#include "game/settings.h"
 #include "map/figure.h"
 #include "sound/effect.h"
 
@@ -20,6 +21,11 @@ static figure_type type_of(const Figure &f)
 static const figure_properties *properties_for(const Figure &f)
 {
     return figure_properties_for_type(type_of(f));
+}
+
+static const UnitType *unit_type_for(const Figure &f)
+{
+    return unit_type_registry_impl::find_unit_type(type_of(f));
 }
 
 static figure_category_mask category_for(const Figure &f)
@@ -70,13 +76,56 @@ static void resume_activity_after_attack(Figure *f)
     Route::remove(f);
 }
 
+static void normalize_attack_relationships(Figure *f)
+{
+    if (!f || f->action_state != FIGURE_ACTION_150_ATTACK) {
+        return;
+    }
+    if (!f->attacker1.save_id() && f->attacker2.save_id()) {
+        f->attacker1.retarget(f->attacker2.get());
+        f->attacker2.clear();
+    }
+    if (!f->opponent.save_id() && f->attacker1.save_id()) {
+        f->opponent.retarget(f->attacker1.get());
+    }
+    if (!f->opponent.save_id()) {
+        resume_activity_after_attack(f);
+        return;
+    }
+    f->num_attackers = static_cast<unsigned char>(f->attacker1.save_id() ? 1 : 0);
+    if (f->attacker2.save_id()) {
+        f->num_attackers++;
+    }
+}
+
+void figure_combat_relationship_removed(Figure *f, Figure *removed)
+{
+    if (!f || !removed) {
+        return;
+    }
+    if (f->opponent.save_id() && &f->opponent.get() == removed) {
+        f->opponent.clear();
+    }
+    if (f->attacker1.save_id() && &f->attacker1.get() == removed) {
+        f->attacker1.clear();
+    }
+    if (f->attacker2.save_id() && &f->attacker2.get() == removed) {
+        f->attacker2.clear();
+    }
+    normalize_attack_relationships(f);
+}
+
+void figure_combat_migrate_legacy_relationships(Figure *f)
+{
+    normalize_attack_relationships(f);
+}
+
 static void hit_opponent(Figure *f)
 {
     const formation *m = formation_get(f->formation_id);
     Figure *opponent = &f->opponent.get();
     formation *opponent_formation = formation_get(opponent->formation_id);
 
-    const figure_properties *props = properties_for(*f);
     const figure_properties *opponent_props = properties_for(*opponent);
     const figure_category_mask cat = opponent_props->category;
     if (cat & FIGURE_CATEGORY_CITIZEN || cat & FIGURE_CATEGORY_CRIMINAL) {
@@ -84,62 +133,53 @@ static void hit_opponent(Figure *f)
     } else {
         f->attack_image_offset = 0;
     }
-    int figure_attack = props->attack_value;
-    int opponent_defense = opponent_props->defense_value;
+    const UnitType *attacker_unit = unit_type_for(*f);
+    const UnitType *defender_unit = unit_type_for(*opponent);
+    int figure_attack = attacker_unit ?
+        attacker_unit->combat_stats().attack_for_difficulty(setting_difficulty()) :
+        figure_attack_value_for_type(type_of(*f));
+    int opponent_defense = figure_defense_value_for_type(type_of(*opponent));
+    const bool attacker_has_formation = m && m->owns_figure(*f);
+    const bool defender_has_formation = opponent_formation && opponent_formation->owns_figure(*opponent);
+    if (attacker_has_formation) {
+        figure_attack = m->modified_combat_value(FormationCombatStat::MeleeAttack, figure_attack);
+    }
+    if (defender_has_formation) {
+        opponent_defense = opponent_formation->modified_combat_value(FormationCombatStat::MeleeDefense, opponent_defense);
+    }
+    const UnitMeleeAbility *attacker_melee = attacker_unit ? attacker_unit->melee_ability() : nullptr;
+    const UnitMeleeAbility *defender_melee = defender_unit ? defender_unit->melee_ability() : nullptr;
 
     // attack modifiers
-    if (f->type == FIGURE_WOLF) {
-        figure_attack = difficulty_adjust_wolf_attack(figure_attack);
-    }
-    if (opponent->opponent.save_id() != f->id() && m->figure_type != FIGURE_FORT_LEGIONARY &&
+    if (opponent->opponent.save_id() != f->id() &&
             attack_is_same_direction(f->attack_direction, opponent->attack_direction)) {
-        figure_attack += 4; // attack opponent on the (exposed) back
-        sound_effect_play(SOUND_EFFECT_SWORD_SWING);
+        const int exposed_back_bonus = attacker_melee ? attacker_melee->exposed_back_bonus : 4;
+        figure_attack += exposed_back_bonus;
+        if (exposed_back_bonus) {
+            sound_effect_play(SOUND_EFFECT_SWORD_SWING);
+        }
     }
-    if (m->is_halted && m->figure_type == FIGURE_FORT_LEGIONARY &&
-            attack_is_same_direction(f->attack_direction, m->direction)) {
-        figure_attack += 4; // coordinated formation attack bonus
-    }
-    if (m->is_halted && m->figure_type == FIGURE_FORT_INFANTRY &&
+    if (attacker_has_formation && attacker_melee && m->is_halted &&
         attack_is_same_direction(f->attack_direction, m->direction)) {
-        figure_attack += 2; // coordinated formation attack bonus
+        figure_attack += attacker_melee->halted_attack_bonus;
     }
-    if (m->is_charging && m->figure_type == FIGURE_FORT_MOUNTED) {
-        figure_attack += 4; // charging bonus for mounted units
-    }
-    if (m->is_charging && m->figure_type == FIGURE_FORT_INFANTRY) {
-        figure_attack += 2; // charging bonus for sword infantry
+    if (attacker_has_formation && attacker_melee && m->is_charging) {
+        figure_attack += attacker_melee->charge_attack_bonus;
     }
 
     // defense modifiers
-    if (opponent_formation->is_halted &&
-            (opponent_formation->figure_type == FIGURE_FORT_LEGIONARY ||
-                opponent_formation->figure_type == FIGURE_ENEMY_CAESAR_LEGIONARY)) {
+    if (defender_has_formation && opponent_formation->is_halted && defender_melee) {
         if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction)) {
-            opponent_defense -= 4; // opponent not attacking in coordinated formation
-        } else if (opponent_formation->layout == FORMATION_COLUMN) {
-            opponent_defense += 5;
-        } else if (opponent_formation->layout == FORMATION_DOUBLE_LINE_1 ||
-                   opponent_formation->layout == FORMATION_DOUBLE_LINE_2) {
-            opponent_defense += 2;
+            opponent_defense -= defender_melee->exposed_defense_penalty;
+        } else if (opponent_formation->uses_layout("column")) {
+            opponent_defense += defender_melee->column_defense_bonus;
+        } else if (opponent_formation->uses_layout("double_line_1") ||
+            opponent_formation->uses_layout("double_line_2")) {
+            opponent_defense += defender_melee->double_line_defense_bonus;
         }
     }
 
-    // defense modifiers
-    if (opponent_formation->is_halted &&
-            (opponent_formation->figure_type == FIGURE_FORT_INFANTRY)) {
-        if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction)) {
-            opponent_defense -= 2; // opponent not attacking in coordinated formation
-        } else if (opponent_formation->layout == FORMATION_COLUMN) {
-            opponent_defense += 3;
-        } else if (opponent_formation->layout == FORMATION_DOUBLE_LINE_1 ||
-                   opponent_formation->layout == FORMATION_DOUBLE_LINE_2) {
-            opponent_defense += 1;
-        }
-    }
-
-
-    int max_damage = opponent_props->max_damage;
+    int max_damage = figure_damage_limit_for_type(type_of(*opponent));
     int net_attack = figure_attack - opponent_defense;
     if (net_attack < 0) {
         net_attack = 0;
@@ -151,7 +191,9 @@ static void hit_opponent(Figure *f)
         opponent->action_state = FIGURE_ACTION_149_CORPSE;
         opponent->wait_ticks = 0;
         figure_play_die_sound(opponent);
-        formation_update_morale_after_death(opponent_formation);
+        if (defender_has_formation) {
+            opponent_formation->update_morale_after_death();
+        }
     }
 }
 
@@ -228,7 +270,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     return 0;
 }
 
-int figure_combat_get_target_for_wolf(int x, int y, int max_distance)
+int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance)
 {
     int min_figure_id = 0;
     int min_distance = 10000;
@@ -239,7 +281,6 @@ int figure_combat_get_target_for_wolf(int x, int y, int max_distance)
         }
         switch (f->type) {
             case FIGURE_EXPLOSION:
-            case FIGURE_FORT_STANDARD:
             case FIGURE_TRADE_SHIP:
             case FIGURE_FISHING_BOAT:
             case FIGURE_MAP_FLAG:
@@ -320,10 +361,10 @@ static int is_valid_missile_target(Figure *f, formation *l)
     if (!f->is_herd()) {
         return 0;
     }
-    if (f->type == FIGURE_WOLF || config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
+    if (f->is_aggressive_herd() || config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
         return 1;
     }
-    if (l->target_formation_id && l->target_formation_id == f->formation_id) {
+    if (l->target_formation.save_id() == f->formation_id) {
         return 1;
     }
     return 0;
@@ -375,9 +416,11 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
         if (f->is_dead() || !f->type) {
             continue;
         }
+        if (f->is_herd()) {
+            continue;
+        }
         switch (f->type) {
             case FIGURE_EXPLOSION:
-            case FIGURE_FORT_STANDARD:
             case FIGURE_MAP_FLAG:
             case FIGURE_FLOTSAM:
             case FIGURE_INDIGENOUS_NATIVE:
@@ -392,9 +435,6 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
             case FIGURE_CREATURE:
             case FIGURE_FISH_GULLS:
             case FIGURE_SHIPWRECK:
-            case FIGURE_SHEEP:
-            case FIGURE_WOLF:
-            case FIGURE_ZEBRA:
             case FIGURE_SPEAR:
                 continue;
         }
@@ -429,7 +469,7 @@ static int can_attack_animal(figure_category_mask category, figure_category_mask
     if (config_get(CONFIG_GP_CH_AUTO_KILL_ANIMALS)) {
         return 1;
     }
-    if ((l->target_formation_id && l->target_formation_id == opponent->formation_id) ||
+    if (l->target_formation.save_id() == opponent->formation_id ||
         (opponent_category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL)) {
         return 1;
     }

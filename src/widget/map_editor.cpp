@@ -1,10 +1,12 @@
 #include "city/warning.h"
+#include "building/building.h"
 #include "translation/translation.h"
 #include "editor/tool.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/menu.h"
 #include "map/image.h"
+#include "map/building.h"
 #include "map/image_context.h"
 #include "widget/city_figure.h"
 #include "widget/city_draw.h"
@@ -124,7 +126,16 @@ static void draw_footprint(int x, int y, int grid_offset)
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    const int surface_tile = building && building->is_surface_terrain_tile();
+    if (building && building->Graphics().uses_terrain_foundation()) {
+        city_draw_terrain_foundation_footprint(grid_offset, x, y, color_mask, draw_context.scale);
+    }
+    if (building && !surface_tile) {
+        building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale });
+    } else if (!city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, draw_context.scale)) {
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
+    }
 
     if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID))) {
         city_draw_grid_overlay(x, y, draw_context.scale);
@@ -154,12 +165,18 @@ static void draw_top(int x, int y, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
     }
-    int image_id = map_image_at(grid_offset);
     color_t color_mask = 0;
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (building && !building->is_surface_terrain_tile()) {
+        building->draw_top({ x, y, grid_offset, color_mask, draw_context.scale });
+        building->draw_animation({ x, y, grid_offset, color_mask, draw_context.scale });
+    } else if (!city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+        Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(
+            x, y, color_mask, draw_context.scale);
+    }
 }
 
 static void draw_flags(int x, int y, int grid_offset)

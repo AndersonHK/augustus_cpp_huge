@@ -1,9 +1,6 @@
-#include "building/building_record.h"
 #include "grid.h"
 
-#include "building/building.h"
 #include "core/log.h"
-#include "map/building.h"
 #include "map/data.h"
 
 #include <stdlib.h>
@@ -191,53 +188,6 @@ grid_slice *map_grid_get_grid_slice_rectangle(int start_grid_offset, int width, 
         }
     }
     return allocate_grid_slice_memory_from_offsets(tmp, count);
-}
-
-grid_slice *map_grid_get_grid_slice_house(unsigned int building_id, int check_rubble)
-{
-    int tmp[MAX_SLICE_SIZE];
-    int count = 0;
-
-    Building *building = nullptr;
-    Building::for_each([&](Building *candidate) {
-        if (!building && candidate && candidate->id == building_id) {
-            building = candidate;
-        }
-    });
-    if (!building) {
-        return allocate_grid_slice_memory_from_offsets(tmp, count);
-    }
-
-    const ::building *b = building->record();
-    if (!b) {
-        return allocate_grid_slice_memory_from_offsets(tmp, count);
-    }
-
-    int starting_x = map_grid_offset_to_x(b->grid_offset);
-    int starting_y = map_grid_offset_to_y(b->grid_offset);
-    for (int i = 0; i < 4; i++) // max house size is 4x4
-    {
-        for (int j = 0; j < 4; j++) {
-            if (count >= MAX_SLICE_SIZE) {
-                return allocate_grid_slice_memory_from_offsets(tmp, count);
-            }
-            int offset = map_grid_offset(starting_x + j, starting_y + i);
-            int matches_building = check_rubble
-                ? map_building_rubble_building_id(offset) == building_id
-                : map_building_exists_at(offset) && map_building_at(offset).id == building_id;
-            if (matches_building) {
-                tmp[count++] = offset;
-                continue;
-            }
-        }
-    }
-    return allocate_grid_slice_memory_from_offsets(tmp, count);
-}
-
-grid_slice *map_grid_get_grid_slice_square(int start_grid_offset, int size)
-{
-    grid_slice *slice = map_grid_get_grid_slice_rectangle(start_grid_offset, size, size);
-    return slice;
 }
 
 grid_slice *map_grid_get_grid_slice_ring(int center_grid_offset, int inner_radius, int outer_radius)

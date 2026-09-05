@@ -1,0 +1,216 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Warriors\Auxiliary_Infantry" logical_units_per_source_pixel="96">
+    <image id="Move_NE" group="Warriors\auxinf_ne_01" image="auxinf_ne_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_ne_01" image="auxinf_ne_01" />
+            <frame group="Warriors\auxinf_ne_02" image="auxinf_ne_02" />
+            <frame group="Warriors\auxinf_ne_03" image="auxinf_ne_03" />
+            <frame group="Warriors\auxinf_ne_04" image="auxinf_ne_04" />
+            <frame group="Warriors\auxinf_ne_05" image="auxinf_ne_05" />
+            <frame group="Warriors\auxinf_ne_06" image="auxinf_ne_06" />
+            <frame group="Warriors\auxinf_ne_07" image="auxinf_ne_07" />
+            <frame group="Warriors\auxinf_ne_08" image="auxinf_ne_08" />
+            <frame group="Warriors\auxinf_ne_09" image="auxinf_ne_09" />
+            <frame group="Warriors\auxinf_ne_10" image="auxinf_ne_10" />
+            <frame group="Warriors\auxinf_ne_11" image="auxinf_ne_11" />
+            <frame group="Warriors\auxinf_ne_12" image="auxinf_ne_12" />
+        </animation>
+    </image>
+    <image id="Move_E" group="Warriors\auxinf_e_01" image="auxinf_e_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_e_01" image="auxinf_e_01" />
+            <frame group="Warriors\auxinf_e_02" image="auxinf_e_02" />
+            <frame group="Warriors\auxinf_e_03" image="auxinf_e_03" />
+            <frame group="Warriors\auxinf_e_04" image="auxinf_e_04" />
+            <frame group="Warriors\auxinf_e_05" image="auxinf_e_05" />
+            <frame group="Warriors\auxinf_e_06" image="auxinf_e_06" />
+            <frame group="Warriors\auxinf_e_07" image="auxinf_e_07" />
+            <frame group="Warriors\auxinf_e_08" image="auxinf_e_08" />
+            <frame group="Warriors\auxinf_e_09" image="auxinf_e_09" />
+            <frame group="Warriors\auxinf_e_10" image="auxinf_e_10" />
+            <frame group="Warriors\auxinf_e_11" image="auxinf_e_11" />
+            <frame group="Warriors\auxinf_e_12" image="auxinf_e_12" />
+        </animation>
+    </image>
+    <image id="Move_SE" group="Warriors\auxinf_se_01" image="auxinf_se_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_se_01" image="auxinf_se_01" />
+            <frame group="Warriors\auxinf_se_02" image="auxinf_se_02" />
+            <frame group="Warriors\auxinf_se_03" image="auxinf_se_03" />
+            <frame group="Warriors\auxinf_se_04" image="auxinf_se_04" />
+            <frame group="Warriors\auxinf_se_05" image="auxinf_se_05" />
+            <frame group="Warriors\auxinf_se_06" image="auxinf_se_06" />
+            <frame group="Warriors\auxinf_se_07" image="auxinf_se_07" />
+            <frame group="Warriors\auxinf_se_08" image="auxinf_se_08" />
+            <frame group="Warriors\auxinf_se_09" image="auxinf_se_09" />
+            <frame group="Warriors\auxinf_se_10" image="auxinf_se_10" />
+            <frame group="Warriors\auxinf_se_11" image="auxinf_se_11" />
+            <frame group="Warriors\auxinf_se_12" image="auxinf_se_12" />
+        </animation>
+    </image>
+    <image id="Move_S" group="Warriors\auxinf_s_01" image="auxinf_s_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_s_01" image="auxinf_s_01" />
+            <frame group="Warriors\auxinf_s_02" image="auxinf_s_02" />
+            <frame group="Warriors\auxinf_s_03" image="auxinf_s_03" />
+            <frame group="Warriors\auxinf_s_04" image="auxinf_s_04" />
+            <frame group="Warriors\auxinf_s_05" image="auxinf_s_05" />
+            <frame group="Warriors\auxinf_s_06" image="auxinf_s_06" />
+            <frame group="Warriors\auxinf_s_07" image="auxinf_s_07" />
+            <frame group="Warriors\auxinf_s_08" image="auxinf_s_08" />
+            <frame group="Warriors\auxinf_s_09" image="auxinf_s_09" />
+            <frame group="Warriors\auxinf_s_10" image="auxinf_s_10" />
+            <frame group="Warriors\auxinf_s_11" image="auxinf_s_11" />
+            <frame group="Warriors\auxinf_s_12" image="auxinf_s_12" />
+        </animation>
+    </image>
+    <image id="Move_SW" group="Warriors\auxinf_sw_01" image="auxinf_sw_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_sw_01" image="auxinf_sw_01" />
+            <frame group="Warriors\auxinf_sw_02" image="auxinf_sw_02" />
+            <frame group="Warriors\auxinf_sw_03" image="auxinf_sw_03" />
+            <frame group="Warriors\auxinf_sw_04" image="auxinf_sw_04" />
+            <frame group="Warriors\auxinf_sw_05" image="auxinf_sw_05" />
+            <frame group="Warriors\auxinf_sw_06" image="auxinf_sw_06" />
+            <frame group="Warriors\auxinf_sw_07" image="auxinf_sw_07" />
+            <frame group="Warriors\auxinf_sw_08" image="auxinf_sw_08" />
+            <frame group="Warriors\auxinf_sw_09" image="auxinf_sw_09" />
+            <frame group="Warriors\auxinf_sw_10" image="auxinf_sw_10" />
+            <frame group="Warriors\auxinf_sw_11" image="auxinf_sw_11" />
+            <frame group="Warriors\auxinf_sw_12" image="auxinf_sw_12" />
+        </animation>
+    </image>
+    <image id="Move_W" group="Warriors\auxinf_w_01" image="auxinf_w_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_w_01" image="auxinf_w_01" />
+            <frame group="Warriors\auxinf_w_02" image="auxinf_w_02" />
+            <frame group="Warriors\auxinf_w_03" image="auxinf_w_03" />
+            <frame group="Warriors\auxinf_w_04" image="auxinf_w_04" />
+            <frame group="Warriors\auxinf_w_05" image="auxinf_w_05" />
+            <frame group="Warriors\auxinf_w_06" image="auxinf_w_06" />
+            <frame group="Warriors\auxinf_w_07" image="auxinf_w_07" />
+            <frame group="Warriors\auxinf_w_08" image="auxinf_w_08" />
+            <frame group="Warriors\auxinf_w_09" image="auxinf_w_09" />
+            <frame group="Warriors\auxinf_w_10" image="auxinf_w_10" />
+            <frame group="Warriors\auxinf_w_11" image="auxinf_w_11" />
+            <frame group="Warriors\auxinf_w_12" image="auxinf_w_12" />
+        </animation>
+    </image>
+    <image id="Move_NW" group="Warriors\auxinf_nw_01" image="auxinf_nw_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_nw_01" image="auxinf_nw_01" />
+            <frame group="Warriors\auxinf_nw_02" image="auxinf_nw_02" />
+            <frame group="Warriors\auxinf_nw_03" image="auxinf_nw_03" />
+            <frame group="Warriors\auxinf_nw_04" image="auxinf_nw_04" />
+            <frame group="Warriors\auxinf_nw_05" image="auxinf_nw_05" />
+            <frame group="Warriors\auxinf_nw_06" image="auxinf_nw_06" />
+            <frame group="Warriors\auxinf_nw_07" image="auxinf_nw_07" />
+            <frame group="Warriors\auxinf_nw_08" image="auxinf_nw_08" />
+            <frame group="Warriors\auxinf_nw_09" image="auxinf_nw_09" />
+            <frame group="Warriors\auxinf_nw_10" image="auxinf_nw_10" />
+            <frame group="Warriors\auxinf_nw_11" image="auxinf_nw_11" />
+            <frame group="Warriors\auxinf_nw_12" image="auxinf_nw_12" />
+        </animation>
+    </image>
+    <image id="Move_N" group="Warriors\auxinf_n_01" image="auxinf_n_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_n_01" image="auxinf_n_01" />
+            <frame group="Warriors\auxinf_n_02" image="auxinf_n_02" />
+            <frame group="Warriors\auxinf_n_03" image="auxinf_n_03" />
+            <frame group="Warriors\auxinf_n_04" image="auxinf_n_04" />
+            <frame group="Warriors\auxinf_n_05" image="auxinf_n_05" />
+            <frame group="Warriors\auxinf_n_06" image="auxinf_n_06" />
+            <frame group="Warriors\auxinf_n_07" image="auxinf_n_07" />
+            <frame group="Warriors\auxinf_n_08" image="auxinf_n_08" />
+            <frame group="Warriors\auxinf_n_09" image="auxinf_n_09" />
+            <frame group="Warriors\auxinf_n_10" image="auxinf_n_10" />
+            <frame group="Warriors\auxinf_n_11" image="auxinf_n_11" />
+            <frame group="Warriors\auxinf_n_12" image="auxinf_n_12" />
+        </animation>
+    </image>
+    <image id="Attack_NE" group="Warriors\auxinf_f_ne_01" image="auxinf_f_ne_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_ne_01" image="auxinf_f_ne_01" />
+            <frame group="Warriors\auxinf_f_ne_02" image="auxinf_f_ne_02" />
+            <frame group="Warriors\auxinf_f_ne_03" image="auxinf_f_ne_03" />
+            <frame group="Warriors\auxinf_f_ne_04" image="auxinf_f_ne_04" />
+            <frame group="Warriors\auxinf_f_ne_05" image="auxinf_f_ne_05" />
+        </animation>
+    </image>
+    <image id="Attack_E" group="Warriors\auxinf_f_e_01" image="auxinf_f_e_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_e_01" image="auxinf_f_e_01" />
+            <frame group="Warriors\auxinf_f_e_02" image="auxinf_f_e_02" />
+            <frame group="Warriors\auxinf_f_e_03" image="auxinf_f_e_03" />
+            <frame group="Warriors\auxinf_f_e_04" image="auxinf_f_e_04" />
+            <frame group="Warriors\auxinf_f_e_05" image="auxinf_f_e_05" />
+        </animation>
+    </image>
+    <image id="Attack_SE" group="Warriors\auxinf_f_se_01" image="auxinf_f_se_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_se_01" image="auxinf_f_se_01" />
+            <frame group="Warriors\auxinf_f_se_02" image="auxinf_f_se_02" />
+            <frame group="Warriors\auxinf_f_se_03" image="auxinf_f_se_03" />
+            <frame group="Warriors\auxinf_f_se_04" image="auxinf_f_se_04" />
+            <frame group="Warriors\auxinf_f_se_05" image="auxinf_f_se_05" />
+        </animation>
+    </image>
+    <image id="Attack_S" group="Warriors\auxinf_f_s_01" image="auxinf_f_s_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_s_01" image="auxinf_f_s_01" />
+            <frame group="Warriors\auxinf_f_s_02" image="auxinf_f_s_02" />
+            <frame group="Warriors\auxinf_f_s_03" image="auxinf_f_s_03" />
+            <frame group="Warriors\auxinf_f_s_04" image="auxinf_f_s_04" />
+            <frame group="Warriors\auxinf_f_s_05" image="auxinf_f_s_05" />
+        </animation>
+    </image>
+    <image id="Attack_SW" group="Warriors\auxinf_f_sw_01" image="auxinf_f_sw_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_sw_01" image="auxinf_f_sw_01" />
+            <frame group="Warriors\auxinf_f_sw_02" image="auxinf_f_sw_02" />
+            <frame group="Warriors\auxinf_f_sw_03" image="auxinf_f_sw_03" />
+            <frame group="Warriors\auxinf_f_sw_04" image="auxinf_f_sw_04" />
+            <frame group="Warriors\auxinf_f_sw_05" image="auxinf_f_sw_05" />
+        </animation>
+    </image>
+    <image id="Attack_W" group="Warriors\auxinf_f_w_01" image="auxinf_f_w_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_w_01" image="auxinf_f_w_01" />
+            <frame group="Warriors\auxinf_f_w_02" image="auxinf_f_w_02" />
+            <frame group="Warriors\auxinf_f_w_03" image="auxinf_f_w_03" />
+            <frame group="Warriors\auxinf_f_w_04" image="auxinf_f_w_04" />
+            <frame group="Warriors\auxinf_f_w_05" image="auxinf_f_w_05" />
+        </animation>
+    </image>
+    <image id="Attack_NW" group="Warriors\auxinf_f_nw_01" image="auxinf_f_nw_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_nw_01" image="auxinf_f_nw_01" />
+            <frame group="Warriors\auxinf_f_nw_02" image="auxinf_f_nw_02" />
+            <frame group="Warriors\auxinf_f_nw_03" image="auxinf_f_nw_03" />
+            <frame group="Warriors\auxinf_f_nw_04" image="auxinf_f_nw_04" />
+            <frame group="Warriors\auxinf_f_nw_05" image="auxinf_f_nw_05" />
+        </animation>
+    </image>
+    <image id="Attack_N" group="Warriors\auxinf_f_n_01" image="auxinf_f_n_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_f_n_01" image="auxinf_f_n_01" />
+            <frame group="Warriors\auxinf_f_n_02" image="auxinf_f_n_02" />
+            <frame group="Warriors\auxinf_f_n_03" image="auxinf_f_n_03" />
+            <frame group="Warriors\auxinf_f_n_04" image="auxinf_f_n_04" />
+            <frame group="Warriors\auxinf_f_n_05" image="auxinf_f_n_05" />
+        </animation>
+    </image>
+    <image id="Death" group="Warriors\auxinf_death_01" image="auxinf_death_01">
+        <animation x="26" y="29">
+            <frame group="Warriors\auxinf_death_01" image="auxinf_death_01" />
+            <frame group="Warriors\auxinf_death_02" image="auxinf_death_02" />
+            <frame group="Warriors\auxinf_death_03" image="auxinf_death_03" />
+            <frame group="Warriors\auxinf_death_04" image="auxinf_death_04" />
+            <frame group="Warriors\auxinf_death_05" image="auxinf_death_05" />
+            <frame group="Warriors\auxinf_death_06" image="auxinf_death_06" />
+            <frame group="Warriors\auxinf_death_07" image="auxinf_death_07" />
+            <frame group="Warriors\auxinf_death_08" image="auxinf_death_08" />
+        </animation>
+    </image>
+</assetlist>

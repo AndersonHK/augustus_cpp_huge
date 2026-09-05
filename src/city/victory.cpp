@@ -18,6 +18,7 @@ static struct {
     int state;
     int force_win;
     int force_lose;
+    int suppress_checks;
 } data;
 
 void city_victory_reset(void)
@@ -121,6 +122,9 @@ static int determine_victory_state(void)
 
 void city_victory_check(void)
 {
+    if (data.suppress_checks) {
+        return;
+    }
     if (scenario_is_open_play() && !data.force_win && !data.force_lose) {
         return;
     }
@@ -158,6 +162,11 @@ void city_victory_check(void)
             data.force_lose = 0;
         }
     }
+}
+
+void city_victory_suppress_checks(int suppress)
+{
+    data.suppress_checks = suppress;
 }
 
 void city_victory_update_months_to_govern(void)

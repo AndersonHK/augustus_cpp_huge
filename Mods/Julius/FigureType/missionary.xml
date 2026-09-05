@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="missionary" graphics_only="true">
+    <graphics>
+        <default>
+            <path value="Walkers\Group_230" />
+        </default>
+        <corpse>
+            <path value="Walkers\Group_230" />
+        </corpse>
+    </graphics>
+</figure>

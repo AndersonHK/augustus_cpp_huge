@@ -10,7 +10,7 @@ from pathlib import Path
 def default_dump_path() -> Path:
     appdata = os.environ.get("APPDATA")
     if appdata:
-        return Path(appdata) / "augustus" / "augustus" / "vespasian-runtime-crash-dump.json"
+        return Path(appdata) / "augustus" / "Vespasian" / "vespasian-runtime-crash-dump.json"
     return Path("vespasian-runtime-crash-dump.json")
 
 
@@ -26,7 +26,7 @@ def attr_counts(items: list[dict], key: str) -> str:
 
 def summarize_buildings(buildings: list[dict]) -> None:
     live = [building for building in buildings if building.get("state")]
-    houses = [building for building in live if building.get("house", {}).get("house_size")]
+    houses = [building for building in live if building.get("house", {}).get("has_module")]
     rubble = [building for building in live if building.get("rubble", {}).get("is_rubble")]
     missing_type = [building for building in live if not building.get("type_attr")]
     mismatched_slots = [

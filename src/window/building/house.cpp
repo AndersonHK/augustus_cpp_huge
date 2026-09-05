@@ -1,5 +1,5 @@
 #include "building/building.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/local_workforce.h"
 #include "city/sentiment.h"
 #include "game/ResourceGraphics.h"
@@ -14,6 +14,7 @@
 #include "building/building_record.h"
 #include "city/constants.h"
 #include "city/finance.h"
+#include "city/resource.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/string.h"
@@ -50,8 +51,9 @@ static void draw_vacant_lot(building_info_context *c)
 static void draw_population_info(building_info_context *c, int y_offset)
 {
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
+    const HousingState &state = c->building->Housing->state();
     int icon = 13;
-    if (building_house_has_plebeian_residents(*c->building)) {
+    if (c->building->Housing->has_plebeian_residents()) {
         icon++;
     }
 
@@ -67,16 +69,16 @@ static void draw_population_info(building_info_context *c, int y_offset)
     const int workers_text_y = text_y + line_height + line_padding;
 
     icon_image.draw(icon_x, icon_y);
-    int width = text_draw_number(b->house_population, '@', " ", text_x, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    int width = text_draw_number(state.population, '@', " ", text_x, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     width += lang_text_draw("main_strings.127.20", text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 
-    if (b->house_population_room < 0) {
-        width += text_draw_number(-b->house_population_room, '@', " ",
+    if (state.population_room < 0) {
+        width += text_draw_number(-state.population_room, '@', " ",
             text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         width += lang_text_draw("main_strings.127.21", text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-    } else if (b->house_population_room > 0 && !b->has_plague) {
+    } else if (state.population_room > 0 && !b->has_plague) {
         width += lang_text_draw("main_strings.127.22", text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        width += text_draw_number(b->house_population_room, '@', " ",
+        width += text_draw_number(state.population_room, '@', " ",
             text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }
     width = text_draw_number(
@@ -86,9 +88,9 @@ static void draw_population_info(building_info_context *c, int y_offset)
 
 static void draw_tax_info(building_info_context *c, int y_offset)
 {
-    building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
-    if (b->house_tax_coverage) {
-        int pct = calc_adjust_with_percentage(b->tax_income_or_storage / 2, city_finance_tax_percentage());
+    const HousingState &state = c->building->Housing->state();
+    if (state.tax_coverage) {
+        int pct = calc_adjust_with_percentage(state.tax_income / 2, city_finance_tax_percentage());
         int width = lang_text_draw("main_strings.127.24", c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         width += lang_text_draw_amount(current_string_amount_key(8, 0, pct), pct, c->x_offset + 36 + width, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         lang_text_draw("main_strings.127.25", c->x_offset + 36 + width, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -99,8 +101,8 @@ static void draw_tax_info(building_info_context *c, int y_offset)
 
 static void draw_happiness_info(building_info_context *c, int y_offset)
 {
-    building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
-    int happiness = b->sentiment.house_happiness;
+    const HousingState &state = c->building->Housing->state();
+    int happiness = state.happiness;
     static const translation_key sentiment_keys[] = {
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
@@ -121,7 +123,7 @@ static void draw_happiness_info(building_info_context *c, int y_offset)
     }
     text_draw(translation_for(sentiment_keys[sentiment_index]), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 
-    int message = b->house_sentiment_message;
+    int message = state.sentiment_message;
     switch (message) {
         case LOW_MOOD_CAUSE_NO_JOBS:
             text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_UNEMPLOYMENT"),
@@ -169,12 +171,13 @@ void window_building_draw_house(building_info_context *c)
     c->advisor_button = ADVISOR_HOUSING;
     c->help_id = 56;
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
-    if (b->house_population <= 0) {
+    if (c->building->Housing->state().population <= 0) {
         draw_vacant_lot(c);
         return;
     }
     window_building_play_sound(c, "wavs/housing.wav");
-    int level = building_house_legacy_level(*c->building);
+    const auto *profile = c->building->Housing->definition().profile;
+    int level = profile ? profile->compatibility_level : -1;
     if (level < HOUSE_MIN) {
         level = HOUSE_SMALL_TENT;
     }
@@ -192,8 +195,7 @@ void window_building_draw_house(building_info_context *c)
     int y_amount = 263;
 
     // food inventory
-    const model_house *house_model = building_house_get_model(*c->building);
-    if (house_model && house_model->food_types) {
+    if (profile && profile->requirements.food_types) {
         const resource_list *list = city_resource_get_available_foods();
         int total_food_types = 0;
         int total_food_amount = 0;
@@ -267,19 +269,20 @@ void window_building_draw_house(building_info_context *c)
     if (b->has_plague) {
         lang_text_draw_multiline("TR_BUILDING_HOUSE_DISEASE_DESC",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    } else if (b->data.house.evolve_text_id == 62) {
-        int width = lang_text_draw(current_string_key(127, 40 + b->data.house.evolve_text_id), c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    } else if (c->building->Housing->state().evolve_text_id == 62) {
+        const int evolve_text_id = c->building->Housing->state().evolve_text_id;
+        int width = lang_text_draw(current_string_key(127, 40 + evolve_text_id), c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         width += text_draw(lang_get_building_type_string(c->worst_desirability_building_type), c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_RED);
         text_draw((uint8_t *) ")", c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        lang_text_draw_multiline(current_string_key(127, 41 + b->data.house.evolve_text_id), c->x_offset + 32, c->y_offset + 72, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    } else if (b->data.house.evolve_text_id == 67) { // latrine devolve
+        lang_text_draw_multiline(current_string_key(127, 41 + evolve_text_id), c->x_offset + 32, c->y_offset + 72, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    } else if (c->building->Housing->state().evolve_text_id == 67) { // latrine devolve
         lang_text_draw_multiline("TR_BUILDING_LATRINES_MISSING_DEVOLVE",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    } else if (b->data.house.evolve_text_id == 68) { // latrine evolve
+    } else if (c->building->Housing->state().evolve_text_id == 68) { // latrine evolve
         lang_text_draw_multiline("TR_BUILDING_LATRINES_MISSING_EVOLVE",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_multiline(current_string_key(127, 40 + b->data.house.evolve_text_id), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline(current_string_key(127, 40 + c->building->Housing->state().evolve_text_id), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 }
 
@@ -294,8 +297,9 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
 
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
 
-    const model_house *house_model = building_house_get_model(*c->building);
-    if (!house_model || !house_model->food_types) {
+    const auto *profile = c->building && c->building->Housing ?
+        c->building->Housing->definition().profile : nullptr;
+    if (!profile || !profile->requirements.food_types) {
         return 0;
     }
     const resource_list *list = city_resource_get_available_foods();

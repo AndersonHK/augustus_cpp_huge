@@ -1,6 +1,6 @@
 #include "building/building.h"
 #include "translation/translation.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
@@ -49,13 +49,18 @@ static int get_column_height_none(const building *b)
 
 static Building *runtime_building_for_overlay_record(const building *b)
 {
-    return b && map_building_exists_at(b->grid_offset) ? &map_building_at(b->grid_offset).main() : nullptr;
+    if (!b || !map_building_exists_at(b->grid_offset)) {
+        return nullptr;
+    }
+    Building &building = map_building_at(b->grid_offset);
+    return building.Composition ? building.Composition->owner() : &building;
 }
 
 static int show_house_level(const building *b, int level)
 {
     Building *house = runtime_building_for_overlay_record(b);
-    return house && building_house_legacy_level(*house) == level;
+    const auto *profile = house && house->Housing ? house->Housing->definition().profile : nullptr;
+    return profile && profile->compatibility_level == level;
 }
 
 static int show_house_level_range(const building *b, int min_level, int max_level)
@@ -64,7 +69,8 @@ static int show_house_level_range(const building *b, int min_level, int max_leve
     if (!house) {
         return 0;
     }
-    int level = building_house_legacy_level(*house);
+    const auto *profile = house->Housing ? house->Housing->definition().profile : nullptr;
+    int level = profile ? profile->compatibility_level : -1;
     return level >= min_level && level <= max_level;
 }
 

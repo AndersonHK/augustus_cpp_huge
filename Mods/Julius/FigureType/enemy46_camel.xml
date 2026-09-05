@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="enemy46_camel" graphics_only="true">
+    <graphics>
+        <missile_launcher cursor="attack_image_offset" frame_divisor="2" frames="0,1,2,3,4,4,4,4,4,4,5,5,5,5,5,5" after_frame="0" />
+    </graphics>
+</figure>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="FX\explosion">
+    <image id="cloud" group="FX\Group_102" image="Image_0000">
+        <animation>
+            <frame group="FX\Group_102" image="Image_0000" />
+            <frame group="FX\Group_102" image="Image_0001" />
+            <frame group="FX\Group_102" image="Image_0002" />
+            <frame group="FX\Group_102" image="Image_0003" />
+            <frame group="FX\Group_102" image="Image_0004" />
+            <frame group="FX\Group_102" image="Image_0005" />
+            <frame group="FX\Group_102" image="Image_0006" />
+            <frame group="FX\Group_102" image="Image_0007" />
+        </animation>
+    </image>
+</assetlist>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="rock_2x2" width="2" height="2" rotates="false" site_requires="rock">
+    <profile symbol="L" requires="land" adds="building" />
+    <rows><row cells="LL" /><row cells="LL" /></rows>
+</foundation>
+

@@ -1,17 +1,16 @@
-#
-
 #include "building/god_registry.h"
 
-#include "core/crash_context.h"
-#include "core/xml_definition.h"
-#include "core/xml_value.h"
 #include "city/god.h"
-#include "game/mod_manager.h"
-
+#include "core/crash_context.h"
 #include "core/log.h"
+#include "core/xml_definition.h"
 #include "core/xml_parser.h"
+#include "core/xml_value.h"
+#include "game/mod_definition_loader.h"
 
-#include <algorithm>
+#include <array>
+#include <cstring>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -20,23 +19,25 @@
 
 namespace building_type_registry_impl {
 
-std::string g_god_path;
-
 namespace {
 
 struct ParseState {
     std::unique_ptr<God> definition;
-    int saw_legacy = 0;
-    int error = 0;
+    bool disabled = false;
+    bool saw_root = false;
+    bool saw_legacy = false;
+    bool error = false;
 };
 
 std::unordered_map<std::string, std::unique_ptr<God>> g_gods;
 std::vector<const God *> g_runtime_gods;
+mod_definition::DefinitionOverlayTracker g_definition_sources;
+std::string g_failure_reason;
 ParseState g_parse_state;
 
 god_type parse_god_type(const char *value)
 {
-    std::string text = xml_value::trim_copy(value ? value : "");
+    const std::string text = xml_value::trim_copy(value ? value : "");
     if (text == "ceres") {
         return GOD_CERES;
     }
@@ -55,75 +56,71 @@ god_type parse_god_type(const char *value)
     return GOD_ALL;
 }
 
-GodBlessingType parse_blessing_type(const char *value, int *ok)
+GodBlessingType parse_blessing_type(const char *value, bool &valid)
 {
-    std::string text = xml_value::trim_copy(value ? value : "");
+    const std::string text = xml_value::trim_copy(value ? value : "");
     if (text == "neptune_trade_bonus") {
-        *ok = 1;
+        valid = true;
         return GodBlessingType::NeptuneTradeBonus;
     }
     if (text == "venus_employment") {
-        *ok = 1;
+        valid = true;
         return GodBlessingType::VenusEmployment;
     }
-    *ok = 0;
+    valid = false;
     return GodBlessingType::NeptuneTradeBonus;
 }
 
 int parse_root()
 {
-    if (!g_parse_state.definition) {
-        g_parse_state.definition = std::make_unique<God>(std::string());
-    }
-    if (!xml_parser_has_attribute("legacy")) {
-        log_error("God xml is missing required attribute 'legacy'", 0, 0);
-        g_parse_state.error = 1;
+    if (!g_parse_state.definition || g_parse_state.saw_root ||
+        !xml_parser_has_attribute("legacy")) {
+        log_error("God xml is missing its legacy identity or has duplicate roots", 0, 0);
+        g_parse_state.error = true;
         return 0;
     }
 
     const char *legacy_text = xml_parser_get_attribute_string("legacy");
-    god_type type = parse_god_type(legacy_text);
-    if (type == GOD_ALL) {
-        log_error("Unsupported God legacy value", legacy_text, 0);
-        g_parse_state.error = 1;
+    const god_type legacy_type = parse_god_type(legacy_text);
+    int disabled = 0;
+    if (legacy_type == GOD_ALL ||
+        (xml_parser_has_attribute("disabled") &&
+            !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled))) {
+        log_error("Unsupported God legacy identity or disabled value", legacy_text, 0);
+        g_parse_state.error = true;
         return 0;
     }
 
-    g_parse_state.definition->set_legacy_type(type);
-    g_parse_state.saw_legacy = 1;
+    g_parse_state.definition->set_legacy_type(legacy_type);
+    g_parse_state.disabled = disabled != 0;
+    g_parse_state.saw_legacy = true;
+    g_parse_state.saw_root = true;
     return 1;
 }
 
 int parse_blessing()
 {
-    if (!g_parse_state.definition) {
-        log_error("Encountered God blessing before root", 0, 0);
-        g_parse_state.error = 1;
+    if (g_parse_state.disabled) {
+        log_error("Disabled God tombstone contains definition data", "blessing", 0);
+        g_parse_state.error = true;
         return 0;
     }
-    if (!xml_parser_has_attribute("type")) {
-        log_error("God blessing is missing required attribute 'type'", g_parse_state.definition->path(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("months")) {
-        log_error("God blessing is missing required attribute 'months'", g_parse_state.definition->path(), 0);
-        g_parse_state.error = 1;
+    if (!g_parse_state.definition || !xml_parser_has_attribute("type") ||
+        !xml_parser_has_attribute("months")) {
+        log_error("God blessing is missing required attributes", 0, 0);
+        g_parse_state.error = true;
         return 0;
     }
 
-    int valid_type = 0;
-    GodBlessingType blessing_type = parse_blessing_type(xml_parser_get_attribute_string("type"), &valid_type);
-    if (!valid_type) {
-        log_error("Unsupported God blessing type", xml_parser_get_attribute_string("type"), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
+    bool valid_type = false;
+    const GodBlessingType blessing_type =
+        parse_blessing_type(xml_parser_get_attribute_string("type"), valid_type);
     int months = 0;
-    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("months"), &months) || months < 0) {
-        log_error("Unsupported God blessing months", xml_parser_get_attribute_string("months"), 0);
-        g_parse_state.error = 1;
+    if (!valid_type ||
+        !xml_value::parse_int_strict(xml_parser_get_attribute_string("months"), &months) ||
+        months < 0) {
+        log_error("Unsupported God blessing", xml_parser_get_attribute_string("type"), months);
+        g_parse_state.error = true;
         return 0;
     }
 
@@ -136,54 +133,177 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "blessing", parse_blessing, nullptr, "god", nullptr }
 };
 
-int parse_definition_file(const char *filename, const char *definition_path)
+struct ParsedDefinition {
+    std::unique_ptr<God> definition;
+    bool disabled = false;
+};
+
+bool parse_definition_buffer(
+    const char *filename,
+    const char *definition_path,
+    const std::vector<char> &buffer,
+    ParsedDefinition &result,
+    std::string *failure_reason)
 {
     ErrorContextScope error_scope("god_registry.parse_definition", filename);
-
+    const std::string stable_id = xml_definition::normalize_path(definition_path);
     g_parse_state = {};
-    g_parse_state.definition = std::make_unique<God>(definition_path ? definition_path : "");
-    const int parsed = xml_definition::parse_file(
+    g_parse_state.definition = std::make_unique<God>(stable_id);
+    const bool parsed = xml_definition::parse_buffer(
         filename,
         "God",
         XML_ELEMENTS,
-        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
-    if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_legacy) {
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
+        buffer);
+    if (!parsed || stable_id.empty() || g_parse_state.error || !g_parse_state.saw_root ||
+        !g_parse_state.saw_legacy || !g_parse_state.definition) {
+        const std::string detail = xml_definition::format_failure_reason(
+            "Unable to parse God xml.", filename);
         log_error("Unable to parse God xml", filename, 0);
         error_context_report_error("Unable to parse God xml.", filename);
-        return 0;
+        if (failure_reason) {
+            *failure_reason = detail;
+        }
+        return false;
     }
 
-    const std::string key = g_parse_state.definition->path();
-    if (g_gods.find(key) != g_gods.end()) {
-        log_error("Duplicate God definition path", key.c_str(), 0);
-        error_context_report_error("Duplicate God definition path.", key.c_str());
-        return 0;
-    }
-
-    g_gods.emplace(key, std::move(g_parse_state.definition));
-    return 1;
+    result.definition = std::move(g_parse_state.definition);
+    result.disabled = g_parse_state.disabled;
+    return true;
 }
 
-void assign_runtime_ids()
+bool parse_definition_file(
+    const mod_definition::DefinitionSource &source,
+    ParsedDefinition &result,
+    std::string *failure_reason)
 {
-    std::vector<std::string> paths;
-    paths.reserve(g_gods.size());
-    for (const auto &entry : g_gods) {
-        paths.push_back(entry.first);
+    std::vector<char> buffer;
+    if (!xml_definition::load_file_to_buffer(source.full_path.c_str(), buffer, "God")) {
+        if (failure_reason) {
+            *failure_reason = xml_definition::format_failure_reason(
+                "Unable to load God xml.", source.full_path.c_str());
+        }
+        return false;
     }
-    std::sort(paths.begin(), paths.end());
+    return parse_definition_buffer(
+        source.full_path.c_str(),
+        source.normalized_definition_path.c_str(),
+        buffer,
+        result,
+        failure_reason);
+}
 
-    g_runtime_gods.clear();
-    g_runtime_gods.reserve(paths.size());
-    int runtime_id = 0;
-    for (const std::string &path : paths) {
-        auto found = g_gods.find(path);
-        if (found == g_gods.end() || !found->second) {
+struct StableIdentity {
+    god_type legacy_type = GOD_ALL;
+    mod_definition::DefinitionSource source;
+};
+
+struct LayeredDefinition {
+    ParsedDefinition parsed;
+    mod_definition::DefinitionSource source;
+};
+
+struct StagedRegistry {
+    mod_definition::DefinitionOverlayTracker overlay;
+    std::map<std::string, StableIdentity> identities;
+    std::map<std::string, LayeredDefinition> winners;
+    std::unordered_map<std::string, std::unique_ptr<God>> definitions;
+    std::vector<const God *> runtime_gods;
+};
+
+bool stage_definition(
+    StagedRegistry &staged,
+    ParsedDefinition parsed,
+    const mod_definition::DefinitionSource &source,
+    std::string *failure_reason)
+{
+    const std::string stable_id = parsed.definition ? parsed.definition->path() : "";
+    const god_type legacy_type = parsed.definition ? parsed.definition->legacy_type() : GOD_ALL;
+    const auto identity = staged.identities.find(stable_id);
+    if (identity != staged.identities.end() && identity->second.legacy_type != legacy_type) {
+        const std::string detail = "God '" + stable_id + "' changes legacy identity from " +
+            std::to_string(identity->second.legacy_type) + " in " + identity->second.source.describe() +
+            " to " + std::to_string(legacy_type) + " in " + source.describe() + '.';
+        log_error("God replacement changes stable legacy identity", detail.c_str(), 0);
+        error_context_report_error("God replacement changes stable legacy identity.", detail.c_str());
+        if (failure_reason) {
+            *failure_reason = detail;
+        }
+        return false;
+    }
+    if (identity == staged.identities.end()) {
+        staged.identities.emplace(stable_id, StableIdentity{legacy_type, source});
+    }
+
+    if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
+        log_error("Unable to layer God definition", staged.overlay.failure_reason().c_str(), 0);
+        error_context_report_error("Unable to layer God definition.", staged.overlay.failure_reason().c_str());
+        if (failure_reason) {
+            *failure_reason = staged.overlay.failure_reason();
+        }
+        return false;
+    }
+    staged.winners[stable_id] = {std::move(parsed), source};
+    return true;
+}
+
+bool materialize_winners(StagedRegistry &staged, std::string *failure_reason)
+{
+    std::array<const LayeredDefinition *, GOD_ALL> legacy_owners = {};
+    for (const auto &entry : staged.winners) {
+        const LayeredDefinition &winner = entry.second;
+        if (winner.parsed.disabled) {
             continue;
         }
-        found->second->set_runtime_id(runtime_id++);
-        g_runtime_gods.push_back(found->second.get());
+        const god_type legacy_type = winner.parsed.definition->legacy_type();
+        const LayeredDefinition *existing = legacy_owners[static_cast<std::size_t>(legacy_type)];
+        if (existing) {
+            const std::string detail = "God legacy identity " + std::to_string(legacy_type) +
+                " is claimed by both " + existing->source.describe() + " and " + winner.source.describe() + '.';
+            log_error("Duplicate active God legacy identity", detail.c_str(), legacy_type);
+            error_context_report_error("Duplicate active God legacy identity.", detail.c_str());
+            if (failure_reason) {
+                *failure_reason = detail;
+            }
+            return false;
+        }
+        legacy_owners[static_cast<std::size_t>(legacy_type)] = &winner;
     }
+
+    int runtime_id = 0;
+    for (auto &entry : staged.winners) {
+        LayeredDefinition &winner = entry.second;
+        if (winner.parsed.disabled) {
+            continue;
+        }
+        winner.parsed.definition->set_runtime_id(runtime_id++);
+        God *definition = winner.parsed.definition.get();
+        staged.runtime_gods.push_back(definition);
+        staged.definitions.emplace(entry.first, std::move(winner.parsed.definition));
+    }
+    return true;
+}
+
+bool build_layered_registry(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    StagedRegistry &staged,
+    std::string *failure_reason)
+{
+    if (!mod_definition::for_each_definition_file(
+            layers,
+            {"Gods"},
+            "God",
+            true,
+            [&](const mod_definition::DefinitionSource &source) {
+                ParsedDefinition parsed;
+                return parse_definition_file(source, parsed, failure_reason) &&
+                    stage_definition(staged, std::move(parsed), source, failure_reason);
+            },
+            nullptr,
+            failure_reason)) {
+        return false;
+    }
+    return materialize_winners(staged, failure_reason);
 }
 
 } // namespace
@@ -207,10 +327,9 @@ const God *find_god_definition(god_type legacy_type)
 
 const God *find_god_definition_by_runtime_id(int runtime_id)
 {
-    if (runtime_id < 0 || runtime_id >= static_cast<int>(g_runtime_gods.size())) {
-        return nullptr;
-    }
-    return g_runtime_gods[static_cast<size_t>(runtime_id)];
+    return runtime_id >= 0 && runtime_id < static_cast<int>(g_runtime_gods.size())
+        ? g_runtime_gods[static_cast<std::size_t>(runtime_id)]
+        : nullptr;
 }
 
 const God *god_definition_at_runtime_index(int index)
@@ -225,31 +344,156 @@ int god_definition_count(void)
 
 } // namespace building_type_registry_impl
 
-const char *god_registry_get_god_path(void)
-{
-    building_type_registry_impl::g_god_path = mod_manager::mod_path() + "Gods/";
-    return building_type_registry_impl::g_god_path.c_str();
-}
-
 int god_registry_load(void)
 {
+    std::vector<mod_definition::DefinitionLayer> layers;
+    std::string failure_reason;
+    if (!mod_definition::configured_layers(layers, &failure_reason)) {
+        log_error("Unable to configure God definition layers", failure_reason.c_str(), 0);
+        building_type_registry_impl::g_failure_reason = failure_reason;
+        return 0;
+    }
+    return god_registry_load_layers(layers, &failure_reason);
+}
+
+int god_registry_load_layers(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    std::string *failure_reason)
+{
     using namespace building_type_registry_impl;
+    StagedRegistry staged;
+    std::string local_failure;
+    std::string *out_failure = failure_reason ? failure_reason : &local_failure;
+    if (!build_layered_registry(layers, staged, out_failure)) {
+        g_failure_reason = *out_failure;
+        return 0;
+    }
+    g_gods = std::move(staged.definitions);
+    g_runtime_gods = std::move(staged.runtime_gods);
+    g_definition_sources = std::move(staged.overlay);
+    g_failure_reason.clear();
+    return 1;
+}
 
-    god_registry_get_god_path();
-    g_gods.clear();
-    g_runtime_gods.clear();
+const char *god_registry_get_failure_reason(void)
+{
+    return building_type_registry_impl::g_failure_reason.c_str();
+}
 
-    if (!xml_definition::for_each_definition_file(
-        g_god_path,
-        "God",
-        true,
-        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
-            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
-        })) {
+const char *god_definition_source_path(const char *path)
+{
+    const std::string stable_id = xml_definition::normalize_path(path);
+    const mod_definition::DefinitionOverlayEntry *entry =
+        building_type_registry_impl::g_definition_sources.find(stable_id);
+    return entry ? entry->source.full_path.c_str() : nullptr;
+}
+
+int god_definition_is_suppressed(const char *path)
+{
+    const std::string stable_id = xml_definition::normalize_path(path);
+    const mod_definition::DefinitionOverlayEntry *entry =
+        building_type_registry_impl::g_definition_sources.find(stable_id);
+    return entry && entry->disabled;
+}
+
+#ifdef STARTUP_PARSER_TEST
+namespace {
+
+void fill_layer_test_result(
+    const building_type_registry_impl::StagedRegistry &staged,
+    const char *query_path,
+    god_layer_test_result *result)
+{
+    if (!result) {
+        return;
+    }
+    *result = {};
+    result->active_count = static_cast<int>(staged.overlay.active_count());
+    result->suppressed_count = static_cast<int>(staged.overlay.suppressed_count());
+    result->queried_source_layer = -1;
+    result->queried_legacy_type = GOD_ALL;
+    result->queried_runtime_id = -1;
+    result->runtime_count = static_cast<int>(staged.runtime_gods.size());
+
+    const std::string stable_id = xml_definition::normalize_path(query_path);
+    const mod_definition::DefinitionOverlayEntry *overlay = staged.overlay.find(stable_id);
+    if (overlay) {
+        result->queried_disabled = overlay->disabled ? 1 : 0;
+        result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+    }
+    const auto definition = staged.definitions.find(stable_id);
+    if (definition != staged.definitions.end() && definition->second) {
+        result->queried_legacy_type = definition->second->legacy_type();
+        result->queried_runtime_id = definition->second->runtime_id();
+        result->queried_neptune_blessing_months =
+            definition->second->blessing_months(GodBlessingType::NeptuneTradeBonus);
+        return;
+    }
+    const auto identity = staged.identities.find(stable_id);
+    if (identity != staged.identities.end()) {
+        result->queried_legacy_type = identity->second.legacy_type;
+    }
+}
+
+} // namespace
+
+int god_layered_definition_buffers_are_valid_for_test(
+    const god_layer_test_input *inputs,
+    int input_count,
+    const char *query_path,
+    god_layer_test_result *result)
+{
+    using namespace building_type_registry_impl;
+    if (!inputs || input_count < 0) {
         return 0;
     }
 
-    assign_runtime_ids();
+    StagedRegistry staged;
+    std::string failure_reason;
+    for (int index = 0; index < input_count; ++index) {
+        const god_layer_test_input &input = inputs[index];
+        const char *xml = input.xml ? input.xml : "";
+        std::vector<char> buffer(xml, xml + std::strlen(xml));
 
+        mod_definition::DefinitionSource source;
+        source.layer_index = input.layer_index < 0 ? 0 : static_cast<std::size_t>(input.layer_index);
+        source.mod_name = input.mod_name ? input.mod_name : "";
+        source.category = "Gods";
+        source.full_path = input.source_path ? input.source_path : "GodLayerTest.xml";
+        source.file_name = source.full_path;
+        source.normalized_definition_path = xml_definition::normalize_path(input.definition_path);
+        source.registry_relative_path = "Gods\\" + source.normalized_definition_path;
+
+        ParsedDefinition parsed;
+        if (!parse_definition_buffer(
+                source.full_path.c_str(),
+                source.normalized_definition_path.c_str(),
+                buffer,
+                parsed,
+                &failure_reason) ||
+            !stage_definition(staged, std::move(parsed), source, &failure_reason)) {
+            return 0;
+        }
+    }
+    if (!materialize_winners(staged, &failure_reason)) {
+        return 0;
+    }
+    fill_layer_test_result(staged, query_path, result);
     return 1;
 }
+
+int god_layered_definition_files_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *query_path,
+    god_layer_test_result *result,
+    std::string *failure_reason)
+{
+    using namespace building_type_registry_impl;
+    StagedRegistry staged;
+    if (!build_layered_registry(layers, staged, failure_reason)) {
+        return 0;
+    }
+    fill_layer_test_result(staged, query_path, result);
+    return 1;
+}
+#endif

@@ -728,7 +728,7 @@ static void button_ok_cancel(int is_ok, int param2)
                 window_plain_message_dialog_show("TR_SAVEGAME_LARGER_VERSION_TITLE",
                     "TR_SAVEGAME_LARGER_VERSION_MESSAGE", 1);
                 return;
-            } else if (result == FILE_LOAD_WRONG_FILE_FORMAT) {
+            } else if (result == FILE_LOAD_WRONG_FILE_FORMAT || result == FILE_LOAD_VALIDATION_FAILED) {
                 window_plain_message_dialog_show("TR_SAVE_DIALOG_INVALID_FILE",
                     "TR_SAVE_DIALOG_INVALID_FILE_DESC", 1);
                 return;

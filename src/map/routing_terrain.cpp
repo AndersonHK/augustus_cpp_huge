@@ -7,7 +7,6 @@
 #include "core/direction.h"
 #include "core/image.h"
 #include "figure/route.h"
-#include "map/bridge.h"
 #include "map/building.h"
 #include "map/data.h"
 #include "map/image.h"
@@ -18,6 +17,7 @@
 #include "map/terrain.h"
 
 static void update_land_terrain_noncitizen(void);
+static int get_land_type_citizen_aqueduct(int grid_offset);
 
 static int is_road_surface(int terrain)
 {
@@ -27,19 +27,6 @@ static int is_road_surface(int terrain)
 static int is_noncitizen_clearable_surface(int terrain)
 {
     return terrain & (TERRAIN_GARDEN | TERRAIN_RUBBLE | TERRAIN_AQUEDUCT);
-}
-
-static int is_granary_cross_tile(int grid_offset)
-{
-    switch (map_property_multi_tile_xy(grid_offset)) {
-        case EDGE_X1Y0:
-        case EDGE_X0Y1:
-        case EDGE_X1Y1:
-        case EDGE_X2Y1:
-        case EDGE_X1Y2:
-            return 1;
-    }
-    return 0;
 }
 
 static int is_reservoir_connector_tile(int grid_offset)
@@ -84,7 +71,6 @@ static int is_native_blocker(building_type type)
 void Route::updateAllTerrain(void)
 {
     Route::updateLandTerrain();
-    Route::updateWaterTerrain();
     Route::updateWallTerrain();
 }
 
@@ -103,25 +89,29 @@ static int get_land_type_citizen_building(int grid_offset)
     building *b = const_cast<::building *>(current.record());
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    if (current.type && current.type->is_warehouse()) {
+    if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
+        // The road/highway surface below an aqueduct remains traversable.
+        type = CITIZEN_1_HIGHWAY;
+    } else if ((terrain & TERRAIN_AQUEDUCT) && is_road_surface(terrain)) {
         type = CITIZEN_0_ROAD;
-    } else if (current.type && current.type->roadblock().is_wall_gate()) {
+    } else if (terrain & TERRAIN_AQUEDUCT) {
+        type = get_land_type_citizen_aqueduct(grid_offset);
+    } else if ((terrain & TERRAIN_RUBBLE) && current.Rubble && current.Rubble->is_rubble()) {
+        // Runtime-backed rubble also carries TERRAIN_BUILDING so that each piece can
+        // retain its origin and burning state. It remains citizen-passable terrain.
+        type = CITIZEN_2_PASSABLE_TERRAIN;
+    } else if (current.Foundation && current.Foundation->passage_at(grid_offset) !=
+            building_type_registry_impl::FoundationPassage::None) {
         if (terrain & TERRAIN_HIGHWAY) {
             type = CITIZEN_1_HIGHWAY;
         } else {
             type = CITIZEN_0_ROAD;
         }
-    } else if (current.type && current.type->has_roadblock()) {
-        type = CITIZEN_0_ROAD;
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant
         type = GATE_0_TRANSFORMABLE;
     } else if (building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = CITIZEN_2_PASSABLE_TERRAIN;
-    } else if (current.type && current.type->is_granary()) {
-        if (is_granary_cross_tile(grid_offset)) {
-            type = CITIZEN_0_ROAD;
-        }
     } else if (building_type_registry_impl::type_attr_is(b->type, "reservoir")) {
         if (is_reservoir_connector_tile(grid_offset)) {
             type = CITIZEN_N4_RESERVOIR_CONNECTOR; // aqueduct connect points
@@ -159,25 +149,28 @@ void Route::updateCitizenLandTerrain(void)
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             int terrain = map_terrain_get(grid_offset);
-            if (is_road_surface(terrain)) {
-                terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
-            } else if (terrain & TERRAIN_HIGHWAY) {
-                terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
-            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
-                terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
-            } else if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
+            if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
                 if (!map_building_exists_at(grid_offset)) {
                     // shouldn't happen
                     terrain_land_noncitizen.items[grid_offset] = CITIZEN_4_CLEAR_TERRAIN; // BUG: should be citizen?
                     map_terrain_remove(grid_offset, TERRAIN_BUILDING);
                     map_image_set(grid_offset, (map_random_get(grid_offset) & 7) + image_group(GROUP_TERRAIN_GRASS_1));
                     map_property_mark_draw_tile(grid_offset);
-                    map_property_set_multi_tile_size(grid_offset, 1);
+                    map_property_set_legacy_multi_tile_size(grid_offset, 1);
                     continue;
                 }
+                // A building's declared foundation passage is authoritative.
+                // This also keeps old saves with stale underlying ROAD bits
+                // from making non-passage building tiles traversable.
                 terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_building(grid_offset));
+            } else if (is_road_surface(terrain)) {
+                terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
+            } else if (terrain & TERRAIN_HIGHWAY) {
+                terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
             } else if (terrain & TERRAIN_AQUEDUCT) {
                 terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_aqueduct(grid_offset));
+            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
+                terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & TERRAIN_NOT_CLEAR) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_N1_BLOCKED;
             } else {
@@ -195,19 +188,17 @@ static int get_land_type_noncitizen(int grid_offset)
     int type = NONCITIZEN_1_BUILDING;
     Building current = map_building_at(grid_offset);
     building *b = const_cast<::building *>(current.record());
-    if ((current.type && current.type->is_warehouse()) ||
+    const int terrain = map_terrain_get(grid_offset);
+    if (((terrain & TERRAIN_AQUEDUCT) &&
+            (is_road_surface(terrain) || (terrain & TERRAIN_HIGHWAY))) ||
+        (current.Foundation && current.Foundation->passage_at(grid_offset) !=
+            building_type_registry_impl::FoundationPassage::None) ||
         building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
         type = NONCITIZEN_0_PASSABLE;
     } else if (is_native_blocker(b->type)) {
         type = NONCITIZEN_N1_BLOCKED;
     } else if (building_is_fort(b->type)) {
         type = NONCITIZEN_5_FORT;
-    } else if (current.type && current.type->is_granary()) {
-        if (is_granary_cross_tile(grid_offset)) { // granary cross always passable
-            type = NONCITIZEN_0_PASSABLE;
-        }
-    } else if (current.type && current.type->has_roadblock()) {
-        type = NONCITIZEN_0_PASSABLE;
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant
         type = GATE_0_TRANSFORMABLE;
@@ -240,45 +231,6 @@ static void update_land_terrain_noncitizen(void)
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_N1_BLOCKED;
             } else {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
-            }
-        }
-    }
-}
-
-static int is_surrounded_by_water(int grid_offset)
-{
-    return map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WATER) &&
-        map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WATER) &&
-        map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WATER) &&
-        map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WATER);
-}
-
-void Route::updateWaterTerrain(void)
-{
-    map_grid_init_i8(terrain_water.items, -1);
-    int grid_offset = map_data.start_offset;
-    for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
-        for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_WATER) && is_surrounded_by_water(grid_offset)) {
-                if (x > 0 && x < map_data.width - 1 &&
-                    y > 0 && y < map_data.height - 1) {
-                    switch (map_bridge_legacy_section_at(grid_offset)) {
-                        case 5:
-                        case 6: // low bridge middle section
-                            terrain_water.items[grid_offset] = WATER_N3_LOW_BRIDGE;
-                            break;
-                        case 13: // ship bridge pillar
-                            terrain_water.items[grid_offset] = WATER_N1_BLOCKED;
-                            break;
-                        default:
-                            terrain_water.items[grid_offset] = WATER_0_PASSABLE;
-                            break;
-                    }
-                } else {
-                    terrain_water.items[grid_offset] = WATER_N2_MAP_EDGE;
-                }
-            } else {
-                terrain_water.items[grid_offset] = WATER_N1_BLOCKED;
             }
         }
     }

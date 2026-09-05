@@ -2,20 +2,35 @@
 #include "terrain.h"
 
 #include "building/building.h"
+#include "building/BuildingGeometry.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
+#include "building/water_access_runtime.h"
 #include "city/map.h"
 #include "core/direction.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/ring.h"
 #include "map/sprite.h"
+#include "map/water_navigation.h"
 
 static grid_u32 terrain_grid;
 static grid_u32 terrain_grid_backup;
+
+static bool water_membership_differs(const uint32_t *other)
+{
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; ++grid_offset) {
+        if ((terrain_grid.items[grid_offset] & TERRAIN_WATER) !=
+            (other[grid_offset] & TERRAIN_WATER)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 const terrain_flags_array *map_terrain_to_array(int grid_offset)
 {
@@ -91,17 +106,41 @@ int map_terrain_get_from_buffer_32(buffer *buf, int grid_offset)
 
 void map_terrain_set(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
+    const bool water_changed =
+        (old_terrain & static_cast<uint32_t>(TERRAIN_WATER)) !=
+        (static_cast<uint32_t>(terrain) & static_cast<uint32_t>(TERRAIN_WATER));
     terrain_grid.items[grid_offset] = terrain;
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
+    water_access_runtime_terrain_changed(grid_offset, static_cast<int>(old_terrain), terrain);
 }
 
 void map_terrain_add(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
+    const bool water_changed =
+        (terrain & TERRAIN_WATER) && !(old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] |= terrain;
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
+    water_access_runtime_terrain_changed(
+        grid_offset, static_cast<int>(old_terrain), static_cast<int>(terrain_grid.items[grid_offset]));
 }
 
 void map_terrain_remove(int grid_offset, int terrain)
 {
+    const uint32_t old_terrain = terrain_grid.items[grid_offset];
+    const bool water_changed =
+        (terrain & TERRAIN_WATER) && (old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] &= ~terrain;
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
+    water_access_runtime_terrain_changed(
+        grid_offset, static_cast<int>(old_terrain), static_cast<int>(terrain_grid.items[grid_offset]));
 }
 
 void map_terrain_add_with_radius(int x, int y, int size, int radius, int terrain)
@@ -130,7 +169,19 @@ void map_terrain_remove_with_radius(int x, int y, int size, int radius, int terr
 
 void map_terrain_remove_all(int terrain)
 {
+    bool water_changed = false;
+    if (terrain & TERRAIN_WATER) {
+        for (const std::uint32_t value : terrain_grid.items) {
+            if (value & TERRAIN_WATER) {
+                water_changed = true;
+                break;
+            }
+        }
+    }
     map_grid_and_u32(terrain_grid.items, ~terrain);
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
 }
 
 int map_terrain_count_directly_adjacent_with_type(int grid_offset, int terrain)
@@ -346,15 +397,20 @@ int map_terrain_is_adjacent_to_water(int x, int y, int size)
     return 0;
 }
 
-int map_terrain_get_adjacent_road_or_clear_land(int x, int y, int size, int *x_tile, int *y_tile)
+int map_terrain_get_adjacent_road_or_clear_land(
+    const Building &building,
+    int *x_tile,
+    int *y_tile)
 {
-    int base_offset = map_grid_offset(x, y);
-    for (const int *tile_delta = map_grid_adjacent_offsets(size); *tile_delta; tile_delta++) {
-        int grid_offset = base_offset + *tile_delta;
+    const building_type_registry_impl::BuildingGeometry geometry =
+        building_type_registry_impl::BuildingGeometry::query(building);
+    for (const building_type_registry_impl::BuildingGeometryPoint &candidate :
+        geometry.access_candidates()) {
+        const int grid_offset = map_grid_offset(candidate.x, candidate.y);
         if (map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_RUBBLE | TERRAIN_GARDEN | TERRAIN_HIGHWAY) ||
             !map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
-            *x_tile = map_grid_offset_to_x(grid_offset);
-            *y_tile = map_grid_offset_to_y(grid_offset);
+            *x_tile = candidate.x;
+            *y_tile = candidate.y;
             return 1;
         }
     }
@@ -439,12 +495,26 @@ void map_terrain_backup(void)
 
 void map_terrain_restore(void)
 {
+    const bool water_changed = water_membership_differs(terrain_grid_backup.items);
     map_grid_copy_u32(terrain_grid_backup.items, terrain_grid.items);
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
 }
 
 void map_terrain_clear(void)
 {
+    bool water_changed = false;
+    for (const uint32_t value : terrain_grid.items) {
+        if (value & TERRAIN_WATER) {
+            water_changed = true;
+            break;
+        }
+    }
     map_grid_clear_u32(terrain_grid.items);
+    if (water_changed) {
+        water_navigation::invalidate_topology();
+    }
 }
 
 void map_terrain_init_outside_map(void)
@@ -461,6 +531,7 @@ void map_terrain_init_outside_map(void)
             }
         }
     }
+    water_navigation::invalidate_topology();
 }
 
 void map_terrain_save_state(buffer *buf)
@@ -517,7 +588,7 @@ static int old_save_bridge_tile(int grid_offset)
         map_terrain_is(grid_offset, TERRAIN_WATER);
 }
 
-static int old_save_bridge_tile_has_composed_record(int grid_offset)
+static int old_save_bridge_tile_has_segment_chain_record(int grid_offset)
 {
     if (!old_save_bridge_tile(grid_offset) || !map_is_bridge(grid_offset) || !map_building_exists_at(grid_offset)) {
         return 0;
@@ -525,7 +596,8 @@ static int old_save_bridge_tile_has_composed_record(int grid_offset)
 
     Building &building = map_building_at(grid_offset);
     const ::building *record = building.record();
-    return building.type && building.type->roadblock().is_bridge() && record &&
+    // Dynamic bridges are the sole live runtime owner of record-chain links.
+    return building.type && building.type->bridge().is_bridge() && record &&
         (record->prev_part_building_id || record->next_part_building_id);
 }
 
@@ -613,7 +685,7 @@ void map_terrain_migrate_old_bridges(void)
             if (!map_grid_is_valid_offset(grid_offset)) {
                 continue;
             }
-            if (old_save_bridge_tile(grid_offset) && !old_save_bridge_tile_has_composed_record(grid_offset)) {
+            if (old_save_bridge_tile(grid_offset) && !old_save_bridge_tile_has_segment_chain_record(grid_offset)) {
                 // Find true start of the old bridge
                 // Only process tiles that are part of a legacy bridge and haven't been upgraded yet 
                 int axis, dir;
@@ -630,6 +702,7 @@ void map_terrain_migrate_old_bridges(void)
             }
         }
     }
+    water_navigation::invalidate_topology();
 }
 
 void map_terrain_migrate_old_walls(void)
@@ -668,6 +741,37 @@ void map_terrain_migrate_old_walls(void)
     }
 }
 
+int map_terrain_validate_loaded_walls(void)
+{
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; ++grid_offset) {
+        if (!map_grid_is_valid_offset(grid_offset) || !map_terrain_is(grid_offset, TERRAIN_WALL)) {
+            continue;
+        }
+        if (!map_building_exists_at(grid_offset)) {
+            log_error("Current save wall terrain has no building record", 0, grid_offset);
+            return 0;
+        }
+        Building &wall = map_building_at(grid_offset);
+        const building *record = wall.record();
+        if (!record || !record->id || !wall.matches("wall") || record->grid_offset != grid_offset || record->x != map_grid_offset_to_x(grid_offset) || record->y != map_grid_offset_to_y(grid_offset)) {
+            log_error("Current save wall terrain does not exactly match its wall building record", 0, grid_offset);
+            return 0;
+        }
+    }
+    int valid = 1;
+    Building::for_each([&valid](Building *candidate) {
+        if (!valid || !candidate || !candidate->matches("wall")) {
+            return;
+        }
+        const building *record = candidate->record();
+        if (!record || !map_grid_is_valid_offset(record->grid_offset) || !map_terrain_is(record->grid_offset, TERRAIN_WALL) || !map_building_exists_at(record->grid_offset) || map_building_at(record->grid_offset).record() != record) {
+            log_error("Current save contains an orphaned wall building record", 0, record ? record->id : 0);
+            valid = 0;
+        }
+    });
+    return valid;
+}
+
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer)
 {
     if (expanded_terrain_data) {
@@ -676,4 +780,5 @@ void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *imag
         map_grid_load_state_u16_to_u32(terrain_grid.items, buf);
     }
     determine_original_trees(images, legacy_image_buffer);
+    water_navigation::invalidate_topology();
 }

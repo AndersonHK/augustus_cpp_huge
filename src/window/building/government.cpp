@@ -28,7 +28,7 @@ void window_building_draw_forum(building_info_context *c)
 
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
     int width = lang_text_draw("main_strings.106.2", c->x_offset + 44, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_amount(current_string_amount_key(8, 0, b->tax_income_or_storage), b->tax_income_or_storage, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_amount(current_string_amount_key(8, 0, b->collected_tax_income), b->collected_tax_income, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (!c->has_road_access) {
         window_building_draw_description_at(c, 72, 69, 25);
@@ -63,7 +63,7 @@ void window_building_draw_senate(building_info_context *c)
 
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
     int width = lang_text_draw("main_strings.105.2", c->x_offset + 44, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_amount(current_string_amount_key(8, 0, b->tax_income_or_storage), b->tax_income_or_storage, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_amount(current_string_amount_key(8, 0, b->collected_tax_income), b->collected_tax_income, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (!c->has_road_access) {
         window_building_draw_description_at(c, 72, 69, 25);

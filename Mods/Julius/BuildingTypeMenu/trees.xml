@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="trees">
-    <identity name_key="TR_BUILDING_MENU_TREES" />
-    <event_data attr="trees|all_trees" />
+    <identity name_key="TR_BUILDING_MENU_TREES" aliases="all_trees" />
 </building>

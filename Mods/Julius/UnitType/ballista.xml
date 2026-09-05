@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="ballista">
+    <figure type="ballista" />
+    <combat><health value="100" /><attack value="0" /><defense value="0" /><armor value="0" /></combat>
+    <abilities>
+        <ranged range="15" cooldown="200" damage="200" launch_frame="1" projectile="bolt" />
+    </abilities>
+</unit>

@@ -37,6 +37,10 @@ struct building_construction_assessment {
  * @param exact_coordinates If 1, x and y are used as exact coordinates without any offset adjustments
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
+// Publishes a prevalidated routed batch without rebuilding any placement plan.
+// The complete batch rolls back if any owner cannot be materialized.
+int building_construction_publish_placement_batch(
+    const std::vector<building_construction::ConstructionPlacementPlan> &placements);
 // Assesses and places a repair through the same exact XML-composed footprint.
 building_construction_assessment building_construction_assess_repair(
     const building_type_registry_impl::BuildingType &definition,
@@ -59,8 +63,6 @@ int building_construction_show_placement_warning(
     int exact_coordinates,
     int force_place);
 int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
-int building_construction_is_granary_cross_tile(int tile_no);
-int building_construction_is_warehouse_corner(int tile_no);
 
 /**
  *@brief Uses building_construction_place to fill all vacant lots in the specified area

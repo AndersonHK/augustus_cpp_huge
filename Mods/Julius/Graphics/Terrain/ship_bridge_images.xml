@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="Terrain\ship_bridge_images">
+    <image id="ramp_top" width="82" height="83" logical_width="9840" logical_height="9960" isometric="false" x="-3" y="-50">
+        <layer src="Admin_Logistics\Bridge\Image_0011" part="top" />
+    </image>
+    <image id="ramp_right" width="87" height="61" logical_width="10440" logical_height="7320" isometric="false" x="-1" y="-12">
+        <layer src="Admin_Logistics\Bridge\Image_0006" part="top" />
+    </image>
+    <image id="ramp_bottom" width="86" height="62" logical_width="10320" logical_height="7440" isometric="false" x="-30" y="-12">
+        <layer src="Admin_Logistics\Bridge\Image_0009" part="top" />
+    </image>
+    <image id="ramp_left" width="82" height="83" logical_width="9840" logical_height="9960" isometric="false" x="-23" y="-53">
+        <layer src="Admin_Logistics\Bridge\Image_0008" part="top" />
+    </image>
+    <image id="deck_vertical" width="52" height="38" logical_width="6240" logical_height="4560" isometric="false" y="-37">
+        <layer src="Admin_Logistics\Bridge\Image_0010" part="top" />
+    </image>
+    <image id="deck_horizontal" width="52" height="38" logical_width="6240" logical_height="4560" isometric="false" x="7" y="-38">
+        <layer src="Admin_Logistics\Bridge\Image_0007" part="top" />
+    </image>
+    <image id="pier_vertical" width="53" height="73" logical_width="6360" logical_height="8760" isometric="false" y="-38">
+        <layer src="Admin_Logistics\Bridge\Image_0013" part="top" />
+    </image>
+    <image id="pier_horizontal" width="52" height="70" logical_width="6240" logical_height="8400" isometric="false" x="7" y="-38">
+        <layer src="Admin_Logistics\Bridge\Image_0012" part="top" />
+    </image>
+</assetlist>

@@ -1,6 +1,6 @@
 # Release Deploy Tool
 
-`tools/deploy_release_to_game.py` deploys the current local Release build into the installed Caesar 3 folder. A full deploy refreshes Mods and the runtime executable. A runtime-only deploy copies only the Release executable/debug-symbol pair for code-only testing.
+`tools/deploy_release_to_game.py` deploys the current local Release build into the installed Caesar 3 folder. A full deploy refreshes Mods and the runtime artifacts. A runtime-only deploy copies only the executable, operation-loaded DLLs, and available debug symbols for code-only testing.
 
 The tool discovers the game folder from the Windows registry and prints the registry source and resolved game folder before it does any file work. It does not contain a hardcoded game path. Registry names and paths are handled as Unicode; localized game titles are not normalized to ASCII.
 
@@ -10,7 +10,7 @@ The deploy only proceeds when all of these checks pass:
 
 - A valid Caesar 3 install folder is found from the registry.
 - The game folder contains Caesar 3 markers: `c3.exe` and either `c3.eng` or `c3_mm.eng`.
-- `x64/Release/Vespasian.exe` exists.
+- `x64/Release/Vespasian.exe`, `GraphicsExtractor.dll`, and `VespasianLoadSave.dll` exist.
 
 Full deploys also check:
 
@@ -18,7 +18,7 @@ Full deploys also check:
 - The target `Mods` folder is not a symlink, junction, or reparse point.
 - The repo `Mods` folder contains exactly three folders: `Augustus`, `Julius`, and `Vespasian`.
 
-After those checks pass, a full deploy moves existing target mod folders into a per-run backup folder, copies the repo mod folders in their place, restores from backup on failure when possible, copies `x64/Release/Vespasian.exe`, and copies `x64/Release/Vespasian.pdb` when that file exists. Runtime-only deploys skip all Mods validation and replacement.
+After those checks pass, a full deploy creates a small per-run backup of source-managed content, replaces ordinary mod files, and overlays authored `Graphics` files while preserving runtime-extracted graphics and extraction metadata in place. It verifies both the authored copies and hashes of every preserved extraction file, restores the managed content on failure when possible, then copies `x64/Release/Vespasian.exe`, the Extractor and Load/Save DLLs, and any matching debug symbols. The backup is removed after a verified deployment. Runtime-only deploys skip all Mods validation and overlay work.
 
 ## Usage
 

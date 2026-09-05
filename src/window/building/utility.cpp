@@ -39,16 +39,7 @@ static struct {
 
 static Building *runtime_building_for_id(unsigned int building_id)
 {
-    if (!building_id) {
-        return nullptr;
-    }
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building && building->id == building_id) {
-            found = building;
-        }
-    });
-    return found;
+    return Building::get(building_id);
 }
 
 static Building *rubble_building_from_context(building_info_context *c)
@@ -178,11 +169,10 @@ void window_building_draw_prefect(building_info_context *c)
 
 static int affect_all_button_state(void)
 {
-    building *b = data.building ? const_cast<building *>(data.building->record()) : nullptr;
-    if (!b) {
+    if (!data.building) {
         return ACCEPT_ALL;
     }
-    if (b->data.roadblock.exceptions) {
+    if (Roadblock(*data.building).exceptions()) {
         return REJECT_ALL;
     } else {
         return ACCEPT_ALL;

@@ -7,16 +7,18 @@
 #include "building/building_type_registry_internal.h"
 #include "building/local_workforce.h"
 #include "building/monument.h"
-#include "building/production_method.h"
 #include "building/properties.h"
 #include "city/emperor.h"
+#include "city/race_bet.h"
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
+#include "figure/combat.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
+#include "figure/formation.h"
 #include "figure/movement.h"
 #include "figure/name.h"
 #include "figure/route.h"
@@ -26,6 +28,7 @@
 #include "figuretype/cartpusher.h"
 #include "figuretype/depot.h"
 #include "figuretype/enemy.h"
+#include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
 #include "figuretype/trader.h"
 #include "figuretype/water.h"
@@ -45,6 +48,9 @@
 #include "window/building/common.h"
 
 #include <cstdlib>
+#include <algorithm>
+#include <exception>
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -103,7 +109,34 @@ namespace {
 
 constexpr int kFigureArraySizeStep = 1000;
 constexpr int kFigureOriginalBufferSize = 128;
-constexpr int kFigureCurrentBufferSize = 170;
+constexpr int kFigureLastNoExactProfileIdentityBufferSize = 184;
+constexpr int kFigureCurrentBufferSize = kFigureLastNoExactProfileIdentityBufferSize + static_cast<int>(FIGURE_RUNTIME_PROFILE_ID_CAPACITY);
+
+static int32_t migrate_legacy_cross_country_unit(int value)
+{
+    const int64_t scaled = static_cast<int64_t>(value) * FIGURE_CROSS_COUNTRY_TILE_UNITS;
+    return static_cast<int32_t>(scaled >= 0 ? (scaled + FIGURE_LEGACY_TILE_PROGRESS_MAX / 2) / FIGURE_LEGACY_TILE_PROGRESS_MAX : (scaled - FIGURE_LEGACY_TILE_PROGRESS_MAX / 2) / FIGURE_LEGACY_TILE_PROGRESS_MAX);
+}
+
+static bool figure_progress_is_action_timer(const Figure &f)
+{
+    if (f.action_state == FIGURE_ACTION_150_ATTACK) {
+        return true;
+    }
+    switch (f.type) {
+        case FIGURE_EXPLOSION:
+        case FIGURE_ARROW:
+        case FIGURE_JAVELIN:
+        case FIGURE_BOLT:
+        case FIGURE_FISH_GULLS:
+        case FIGURE_SPEAR:
+        case FIGURE_FRIENDLY_ARROW:
+        case FIGURE_CATAPULT_MISSILE:
+            return true;
+        default:
+            return false;
+    }
+}
 // around 12 bytes left free in the current buffer size - save version 0xa7, August 2025
 
 struct FigureStore {
@@ -114,7 +147,15 @@ struct FigureStore {
         unsigned int immigrant_building_id = 0;
         unsigned int destination_building_id = 0;
     };
+    struct PendingFigureRefs {
+        unsigned int target_figure_id = 0;
+        unsigned int targeted_by_figure_id = 0;
+        unsigned int attacker1_id = 0;
+        unsigned int attacker2_id = 0;
+        unsigned int opponent_id = 0;
+    };
     std::vector<PendingBuildingRefs> pending_building_refs;
+    std::vector<PendingFigureRefs> pending_figure_refs;
 };
 
 FigureStore data;
@@ -127,18 +168,19 @@ Figure *invalid_figure()
     return data.figures.front().get();
 }
 
-unsigned int save_id_for(const Building *building)
-{
-    return building ? building->id : 0;
-}
-
 Building *loaded_building_ref(unsigned int id)
 {
     return Building::get(id);
 }
 
-Building *loaded_optional_building_ref(const Figure &figure, unsigned int id, const char *relation)
+bool loaded_optional_building_ref(
+    const Figure &figure,
+    unsigned int &id,
+    const char *relation,
+    int save_version,
+    Building **out)
 {
+    *out = nullptr;
     Building *building = loaded_building_ref(id);
     if (id && !building) {
         char detail[256];
@@ -147,16 +189,19 @@ Building *loaded_optional_building_ref(const Figure &figure, unsigned int id, co
             static_cast<unsigned int>(figure.type),
             relation ? relation : "<unknown>",
             id);
-        log_warning("Discarding invalid saved figure building reference", detail, 0);
+        if (save_version < SAVE_GAME_CURRENT_VERSION) {
+            log_warning("Clearing invalid legacy figure building reference", detail, 0);
+            id = 0;
+            return true;
+        }
+        log_error("Loaded save contains an invalid figure building reference", detail, 0);
+        return false;
     }
-    return building;
+    *out = building;
+    return true;
 }
 
-void store_pending_building_refs(
-    unsigned int figure_id,
-    unsigned int building_id,
-    unsigned int immigrant_building_id,
-    unsigned int destination_building_id)
+void store_pending_building_refs(unsigned int figure_id, unsigned int building_id, unsigned int immigrant_building_id, unsigned int destination_building_id)
 {
     if (data.pending_building_refs.size() <= figure_id) {
         data.pending_building_refs.resize(figure_id + 1);
@@ -164,13 +209,23 @@ void store_pending_building_refs(
     data.pending_building_refs[figure_id] = { building_id, immigrant_building_id, destination_building_id };
 }
 
-void read_figure_relation(FigureRelation &relation, unsigned int id)
+bool resolve_loaded_figure_relation(Figure &owner, FigureRelation &relation, unsigned int id, const char *role)
 {
-    if (!id || id >= Figure::count()) {
+    if (!id) {
         relation.clear();
-        return;
+        return true;
     }
-    relation.retarget(*Figure::get(id));
+    Figure *target = id < Figure::count() ? Figure::get(id) : nullptr;
+    if (!target || target->id() != id || !target->state) {
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u relation=%s saved_figure_id=%u",
+            owner.id(), static_cast<unsigned int>(owner.type), role, id);
+        log_warning("Clearing stale saved figure relationship", detail, 0);
+        relation.clear();
+        return false;
+    }
+    relation.retarget(*target);
+    return true;
 }
 
 int get_resource_id(figure_type type, int resource)
@@ -191,121 +246,243 @@ int get_resource_id(figure_type type, int resource)
     }
 }
 
-int clear_known_building_refs_for_figure(Figure &figure)
+void clear_known_building_refs_for_figure(Figure &figure)
 {
-    int cleared = 0;
     if (figure.building) {
-        cleared |= figure.building->clear_figure_slot_if_matches(figure.id());
+        figure.building->clear_figure_slot_if_matches(figure.id());
     }
     if (figure.destination_building) {
-        cleared |= figure.destination_building->clear_figure_slot_if_matches(figure.id());
+        figure.destination_building->clear_figure_slot_if_matches(figure.id());
     }
-    if (figure.immigrant_building) {
-        cleared |= figure.immigrant_building->clear_figure_slot_if_matches(figure.id());
+    if (figure.immigrant_building && figure.immigrant_building->Housing) {
+        figure.immigrant_building->Housing->clear_immigrant_if_matches(figure);
     }
-    return cleared;
 }
 
-int figure_may_be_tracked_by_building_slot(const Figure &figure)
+bool last_destination_is_figure_id(figure_type type)
 {
-    if (figure.building || figure.destination_building || figure.immigrant_building) {
-        return 1;
-    }
-    switch (static_cast<figure_type>(figure.type)) {
-        case FIGURE_LABOR_SEEKER:
-        case FIGURE_MARKET_SUPPLIER:
-        case FIGURE_PRIEST_SUPPLIER:
-        case FIGURE_BARKEEP_SUPPLIER:
-        case FIGURE_MESS_HALL_SUPPLIER:
-        case FIGURE_CARAVANSERAI_SUPPLIER:
-        case FIGURE_LIGHTHOUSE_SUPPLIER:
-        case FIGURE_SURGEON:
-        case FIGURE_DOCTOR:
-        case FIGURE_BALLISTA:
-        case FIGURE_WATCHTOWER_ARCHER:
-        case FIGURE_PRIEST:
-        case FIGURE_ACTOR:
-        case FIGURE_GLADIATOR:
-        case FIGURE_LION_TAMER:
-        case FIGURE_CHARIOTEER:
-        case FIGURE_WATCHMAN:
-        case FIGURE_MESS_HALL_FORT_SUPPLIER:
-        case FIGURE_WAREHOUSEMAN:
-        case FIGURE_CART_PUSHER:
-        case FIGURE_WORK_CAMP_ARCHITECT:
-        case FIGURE_WORK_CAMP_WORKER:
-        case FIGURE_WORK_CAMP_SLAVE:
-            return 1;
+    switch (type) {
+        case FIGURE_ARROW:
+        case FIGURE_JAVELIN:
+        case FIGURE_FRIENDLY_ARROW:
+        case FIGURE_BOLT:
+        case FIGURE_CATAPULT_MISSILE:
+        case FIGURE_SPEAR:
+            return true;
         default:
-            return 0;
+            return false;
     }
 }
 
-void clear_any_building_refs_for_figure(const Figure &figure)
-{
-    const unsigned int figure_id = figure.id();
-    Building::for_each([figure_id](Building *building) {
-        building->clear_figure_slot_if_matches(figure_id);
-    });
-}
-
-int loaded_figure_id_is_alive(unsigned int figure_id)
+Figure *loaded_live_figure(unsigned int figure_id)
 {
     if (!figure_id || figure_id >= Figure::count()) {
-        return 0;
+        return nullptr;
     }
-    const Figure *figure = Figure::get(figure_id);
-    return figure && figure->id() == figure_id && figure->state == FIGURE_STATE_ALIVE;
+    Figure *figure = Figure::get(figure_id);
+    return figure && figure->id() == figure_id && figure->state == FIGURE_STATE_ALIVE ? figure : nullptr;
 }
 
-int building_uses_output_cart_slot(const ::building *b)
+int loaded_figure_is_owned_by(unsigned int figure_id, const Building &owner)
 {
-    if (!b || b->state != BUILDING_STATE_IN_USE) {
-        return 0;
-    }
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(b->type);
-    if (!definition) {
-        return 0;
-    }
-    for (const building_type_registry_impl::ProductionMethod *method : definition->production_methods()) {
-        if (method && method->is_figure_delivery_output()) {
-            return 1;
-        }
-    }
-    return 0;
+    Figure *figure = loaded_live_figure(figure_id);
+    return figure && figure->home_building_id() == static_cast<unsigned int>(owner.id);
 }
 
-void clear_dead_loaded_producer_cart_slots()
+void repair_loaded_building_figure_slots()
 {
-    Building::for_each({ .hasProductionMethod = true }, [](Building *building) {
+    Building::for_each([](Building *building) {
         ::building *b = const_cast<::building *>(building->record());
-        if (!building_uses_output_cart_slot(b)) {
-            return;
+        if (!b) return;
+
+        const auto clear_invalid_relation = [building](unsigned int &figure_id, const char *relation) {
+            Figure *figure = loaded_live_figure(figure_id);
+            const unsigned int building_id = building->id;
+            if (!figure_id || (figure && (figure->home_building_id() == building_id || figure->immigrant_building_id() == building_id || figure->destination_building_id() == building_id))) return;
+            char detail[256];
+            snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u", building_id, relation, figure_id);
+            log_warning("Repairing stale building figure slot from saved runtime state", detail, 0);
+            figure_id = 0;
+        };
+        clear_invalid_relation(b->figure_id, "figure_id");
+        clear_invalid_relation(b->figure_id2, "figure_id2");
+        clear_invalid_relation(b->figure_id4, "figure_id4");
+
+        const bool is_dock = building->matches("dock");
+        const bool is_depot = building->matches("depot");
+        if (is_dock || is_depot) {
+            for (unsigned int &cartpusher_id : b->data.distribution.cartpusher_ids) {
+                Figure *cart = loaded_live_figure(cartpusher_id);
+                const figure_type expected_type = is_dock ? FIGURE_DOCKER : FIGURE_DEPOT_CART_PUSHER;
+                if (!cartpusher_id || (cart && cart->type == expected_type && loaded_figure_is_owned_by(cartpusher_id, *building))) continue;
+                char detail[256];
+                snprintf(detail, sizeof(detail), "building_id=%u relation=distribution_cart saved_figure_id=%u", static_cast<unsigned int>(building->id), cartpusher_id);
+                log_warning("Repairing stale distribution cart slot from saved runtime state", detail, 0);
+                cartpusher_id = 0;
+            }
         }
-        if (b->figure_id && !loaded_figure_id_is_alive(b->figure_id)) {
-            b->figure_id = 0;
+        if (building->matches("wharf")) {
+            const auto clear_invalid_boat = [building](unsigned int &figure_id, const char *relation) {
+                Figure *boat = loaded_live_figure(figure_id);
+                if (!figure_id || (boat && boat->type == FIGURE_FISHING_BOAT && loaded_figure_is_owned_by(figure_id, *building))) return;
+                char detail[256];
+                snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u", static_cast<unsigned int>(building->id), relation, figure_id);
+                log_warning("Repairing stale fishing boat slot from saved runtime state", detail, 0);
+                figure_id = 0;
+            };
+            clear_invalid_boat(b->data.industry.fishing_boat_id, "primary_fishing_boat");
+            clear_invalid_boat(b->data.industry.second_fishing_boat_id, "secondary_fishing_boat");
         }
     });
 }
 
-void resolve_loaded_migrant_house_refs()
+bool validate_loaded_building_figure_slots()
 {
-    Building::for_each({ .hasHousing = true }, [](Building *house) {
-        const unsigned int migrant_id = house ? house->immigrant_figure_id() : 0;
-        if (!migrant_id || migrant_id >= Figure::count()) {
+    bool valid = true;
+    Building::for_each([&valid](Building *building) {
+        if (!valid) {
+            return;
+        }
+        ::building *b = const_cast<::building *>(building->record());
+        if (!b) {
+            return;
+        }
+        const auto validate_relation = [building](unsigned int figure_id, const char *relation) {
+            Figure *figure = loaded_live_figure(figure_id);
+            const unsigned int building_id = building->id;
+            if (figure_id && (!figure ||
+                (figure->home_building_id() != building_id &&
+                    figure->immigrant_building_id() != building_id &&
+                    figure->destination_building_id() != building_id))) {
+                char detail[256];
+                snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u",
+                    building_id, relation, figure_id);
+                log_error("Loaded save contains an invalid building figure slot", detail, 0);
+                return false;
+            }
+            return true;
+        };
+        if (!validate_relation(b->figure_id, "figure_id") ||
+            !validate_relation(b->figure_id2, "figure_id2") ||
+            !validate_relation(b->figure_id4, "figure_id4")) {
+            valid = false;
             return;
         }
 
-        Figure *figure = Figure::get(migrant_id);
-        if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE) {
-            return;
+        const bool is_dock = building->matches("dock");
+        const bool is_depot = building->matches("depot");
+        if (is_dock || is_depot) {
+            for (unsigned int cartpusher_id : b->data.distribution.cartpusher_ids) {
+                Figure *cart = loaded_live_figure(cartpusher_id);
+                const figure_type expected_type = is_dock ? FIGURE_DOCKER : FIGURE_DEPOT_CART_PUSHER;
+                if (cartpusher_id && (!cart || cart->type != expected_type ||
+                    !loaded_figure_is_owned_by(cartpusher_id, *building))) {
+                    char detail[256];
+                    snprintf(detail, sizeof(detail), "building_id=%u relation=distribution_cart saved_figure_id=%u",
+                        static_cast<unsigned int>(building->id), cartpusher_id);
+                    log_error("Loaded save contains an invalid distribution cart figure slot", detail, 0);
+                    valid = false;
+                    return;
+                }
+            }
         }
-
-        figure->immigrant_building = house;
-        figure->destination_building = house;
-        figure->last_destination_id = static_cast<int>(house->id);
+        if (building->matches("wharf")) {
+            Figure *primary_boat = loaded_live_figure(b->data.industry.fishing_boat_id);
+            if (b->data.industry.fishing_boat_id && (!primary_boat ||
+                primary_boat->type != FIGURE_FISHING_BOAT ||
+                !loaded_figure_is_owned_by(b->data.industry.fishing_boat_id, *building))) {
+                log_error("Loaded save contains an invalid primary fishing boat slot", 0, building->id);
+                valid = false;
+                return;
+            }
+            Figure *secondary_boat = loaded_live_figure(b->data.industry.second_fishing_boat_id);
+            if (b->data.industry.second_fishing_boat_id && (!secondary_boat ||
+                secondary_boat->type != FIGURE_FISHING_BOAT ||
+                !loaded_figure_is_owned_by(b->data.industry.second_fishing_boat_id, *building))) {
+                log_error("Loaded save contains an invalid secondary fishing boat slot", 0, building->id);
+                valid = false;
+            }
+        }
     });
+    return valid;
+}
+
+bool validate_loaded_migrant_house_refs()
+{
+    bool valid = true;
+    Building::for_each(BuildingRuntimeList::Housing, [&valid](Building *house) {
+        if (!valid || !house || !house->Housing) {
+            return;
+        }
+        const unsigned int migrant_id = house->Housing->state().immigrant_figure_id;
+        if (!migrant_id) {
+            return;
+        }
+        Figure *figure = Figure::get(migrant_id);
+        if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE ||
+            (figure->type != FIGURE_IMMIGRANT && figure->type != FIGURE_HOMELESS)) {
+            log_error("Loaded save contains an invalid housing immigrant figure reference", 0, house->id);
+            valid = false;
+            return;
+        }
+        if (figure->immigrant_building != house || figure->destination_building != house ||
+            figure->last_destination_id != static_cast<int>(house->id)) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "house_id=%u saved_figure_id=%u immigrant_id=%u destination_id=%u last_destination_id=%u",
+                static_cast<unsigned int>(house->id), migrant_id, figure->immigrant_building_id(),
+                figure->destination_building_id(), static_cast<unsigned int>(figure->last_destination_id));
+            log_error("Loaded save contains inconsistent migrant and housing references", detail, 0);
+            valid = false;
+            return;
+        }
+    });
+    return valid;
+}
+
+bool repair_loaded_migrant_house_refs(int save_version)
+{
+    if (save_version >= SAVE_GAME_CURRENT_VERSION) {
+        return true;
+    }
+
+    bool repaired = true;
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+        if (!repaired || !house || !house->Housing) {
+            return;
+        }
+        const unsigned int migrant_id = house->Housing->state().immigrant_figure_id;
+        if (!migrant_id) {
+            return;
+        }
+        Figure *figure = Figure::get(migrant_id);
+        if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE ||
+            (figure->type != FIGURE_IMMIGRANT && figure->type != FIGURE_HOMELESS) ||
+            migrant_id >= data.pending_building_refs.size()) {
+            char detail[192];
+            snprintf(detail, sizeof(detail), "house_id=%u saved_figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
+            log_warning("Clearing unrecoverable legacy housing immigrant reference", detail, 0);
+            house->Housing->clear_immigrant_reference();
+            return;
+        }
+
+        if (figure->immigrant_building == house && figure->destination_building == house &&
+            figure->last_destination_id == static_cast<int>(house->id)) {
+            return;
+        }
+
+        FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[migrant_id];
+        refs.immigrant_building_id = static_cast<unsigned int>(house->id);
+        refs.destination_building_id = static_cast<unsigned int>(house->id);
+        if (!figure->set_immigrant_building(house) || !figure->set_destination_building(house) ||
+            !figure->set_last_destination_building(house)) {
+            repaired = false;
+            return;
+        }
+        char detail[256];
+        snprintf(detail, sizeof(detail), "house_id=%u figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
+        log_warning("Repairing legacy migrant and housing relationship", detail, 0);
+    });
+    return repaired;
 }
 
 void trim_dead_tail()
@@ -363,18 +540,18 @@ void save_figure(buffer *buf, const Figure &f)
     buffer_write_u8(buf, f.roam_random_counter);
     buffer_write_i8(buf, f.roam_turn_direction);
     buffer_write_i8(buf, f.roam_ticks_until_next_turn);
-    buffer_write_i16(buf, f.cross_country_x);
-    buffer_write_i16(buf, f.cross_country_y);
-    buffer_write_i16(buf, f.cc_destination_x);
-    buffer_write_i16(buf, f.cc_destination_y);
-    buffer_write_i16(buf, f.cc_delta_x);
-    buffer_write_i16(buf, f.cc_delta_y);
-    buffer_write_i16(buf, f.cc_delta_xy);
+    buffer_write_i32(buf, f.cross_country_x);
+    buffer_write_i32(buf, f.cross_country_y);
+    buffer_write_i32(buf, f.cc_destination_x);
+    buffer_write_i32(buf, f.cc_destination_y);
+    buffer_write_i32(buf, f.cc_delta_x);
+    buffer_write_i32(buf, f.cc_delta_y);
+    buffer_write_i32(buf, f.cc_delta_xy);
     buffer_write_u8(buf, f.cc_direction);
     buffer_write_u8(buf, f.speed_multiplier);
-    buffer_write_u32(buf, save_id_for(f.building));
-    buffer_write_u32(buf, save_id_for(f.immigrant_building));
-    buffer_write_u32(buf, save_id_for(f.destination_building));
+    buffer_write_u32(buf, f.home_building_id());
+    buffer_write_u32(buf, f.immigrant_building_id());
+    buffer_write_u32(buf, f.destination_building_id());
     buffer_write_u32(buf, f.formation_id);
     buffer_write_u8(buf, f.index_in_formation);
     buffer_write_u8(buf, f.formation_at_rest);
@@ -415,6 +592,9 @@ void save_figure(buffer *buf, const Figure &f)
     buffer_write_i32(buf, f.opponent.save_id());
     buffer_write_i16(buf, f.last_visited_index);
     buffer_write_i16(buf, static_cast<int16_t>(f.last_destination_id));
+    std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
+    memcpy(profile_id.data(), f.runtime_profile_id(), strlen(f.runtime_profile_id()));
+    buffer_write_raw(buf, profile_id.data(), profile_id.size());
 }
 
 void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
@@ -465,6 +645,9 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.wait_ticks = buffer_read_i16(buf);
     f.action_state = buffer_read_u8(buf);
     f.progress_on_tile = buffer_read_u8(buf);
+    if (version <= SAVE_GAME_LAST_LEGACY_FIGURE_MOVEMENT_GRAIN && !figure_progress_is_action_timer(f)) {
+        f.progress_on_tile = static_cast<unsigned char>(figure_movement_legacy_progress_to_runtime(f.progress_on_tile));
+    }
     if (version <= SAVE_GAME_LAST_STATIC_PATHS_AND_ROUTES) {
         f.routing_path_id = buffer_read_i16(buf);
         f.routing_path_current_tile = buffer_read_i16(buf);
@@ -482,13 +665,23 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.roam_random_counter = buffer_read_u8(buf);
     f.roam_turn_direction = buffer_read_i8(buf);
     f.roam_ticks_until_next_turn = buffer_read_i8(buf);
-    f.cross_country_x = buffer_read_i16(buf);
-    f.cross_country_y = buffer_read_i16(buf);
-    f.cc_destination_x = buffer_read_i16(buf);
-    f.cc_destination_y = buffer_read_i16(buf);
-    f.cc_delta_x = buffer_read_i16(buf);
-    f.cc_delta_y = buffer_read_i16(buf);
-    f.cc_delta_xy = buffer_read_i16(buf);
+    if (version <= SAVE_GAME_LAST_LEGACY_FIGURE_MOVEMENT_GRAIN) {
+        f.cross_country_x = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cross_country_y = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cc_destination_x = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cc_destination_y = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cc_delta_x = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cc_delta_y = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+        f.cc_delta_xy = migrate_legacy_cross_country_unit(buffer_read_i16(buf));
+    } else {
+        f.cross_country_x = buffer_read_i32(buf);
+        f.cross_country_y = buffer_read_i32(buf);
+        f.cc_destination_x = buffer_read_i32(buf);
+        f.cc_destination_y = buffer_read_i32(buf);
+        f.cc_delta_x = buffer_read_i32(buf);
+        f.cc_delta_y = buffer_read_i32(buf);
+        f.cc_delta_xy = buffer_read_i32(buf);
+    }
     f.cc_direction = buffer_read_u8(buf);
     f.speed_multiplier = buffer_read_u8(buf);
 
@@ -539,26 +732,35 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.trader_id = buffer_read_u8(buf);
     f.wait_ticks_next_target = buffer_read_u8(buf);
     f.dont_draw_elevated = buffer_read_u8(buf);
-    read_figure_relation(f.target_figure, buffer_read_u16(buf));
-    read_figure_relation(f.targeted_by_figure, buffer_read_u16(buf));
+    FigureStore::PendingFigureRefs &figure_refs = data.pending_figure_refs[f.id()];
+    figure_refs.target_figure_id = buffer_read_u16(buf);
+    figure_refs.targeted_by_figure_id = buffer_read_u16(buf);
     f.created_sequence = buffer_read_u16(buf);
     f.target_figure_created_sequence = buffer_read_u16(buf);
     f.figures_on_same_tile_index = buffer_read_u8(buf);
     f.num_attackers = buffer_read_u8(buf);
     if (version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        read_figure_relation(f.attacker1, buffer_read_i16(buf));
-        read_figure_relation(f.attacker2, buffer_read_i16(buf));
-        read_figure_relation(f.opponent, buffer_read_i16(buf));
+        figure_refs.attacker1_id = static_cast<unsigned int>(buffer_read_i16(buf));
+        figure_refs.attacker2_id = static_cast<unsigned int>(buffer_read_i16(buf));
+        figure_refs.opponent_id = static_cast<unsigned int>(buffer_read_i16(buf));
     } else {
-        read_figure_relation(f.attacker1, buffer_read_i32(buf));
-        read_figure_relation(f.attacker2, buffer_read_i32(buf));
-        read_figure_relation(f.opponent, buffer_read_i32(buf));
+        figure_refs.attacker1_id = static_cast<unsigned int>(buffer_read_i32(buf));
+        figure_refs.attacker2_id = static_cast<unsigned int>(buffer_read_i32(buf));
+        figure_refs.opponent_id = static_cast<unsigned int>(buffer_read_i32(buf));
     }
     if (version > SAVE_GAME_LAST_GLOBAL_BUILDING_INFO) {
         f.last_visited_index = buffer_read_i16(buf);
     }
     if (version > SAVE_GAME_LAST_GRANARY_WAREHOUSE_NON_ROADBLOCKS) {
         f.last_destination_id = buffer_read_i16(buf);
+    }
+    if (version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY && figure_buf_size >= kFigureCurrentBufferSize) {
+        std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
+        buffer_read_raw(buf, profile_id.data(), profile_id.size());
+        const bool terminated = memchr(profile_id.data(), 0, profile_id.size()) != nullptr;
+        if (!terminated || !f.set_runtime_profile_id(profile_id.data())) {
+            f.set_runtime_profile_id("__invalid_profile_identity__");
+        }
     }
     if (figure_buf_size > kFigureCurrentBufferSize) {
         buffer_skip(buf, figure_buf_size - kFigureCurrentBufferSize);
@@ -567,42 +769,44 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
 
 } // namespace
 
+FigureRelation::FigureRelation(Figure *owner, const char *role) : owner_(owner), relationship_(role) {}
+
+FigureRelation &FigureRelation::operator=(const FigureRelation &)
+{
+    if (owner_) {
+        relationship_.clear(*owner_, RelationshipDisconnectReason::EndpointReassigned);
+    }
+    return *this;
+}
+
 Figure &FigureRelation::get()
 {
-    return *figure_;
+    return relationship_.get();
 }
 
 const Figure &FigureRelation::get() const
 {
-    return *figure_;
+    return relationship_.get();
 }
 
 void FigureRelation::retarget(Figure &figure)
 {
-    figure_ = &figure;
+    relationship_.retarget(*owner_, &figure);
 }
 
 void FigureRelation::clear()
 {
-    figure_ = nullptr;
+    relationship_.clear(*owner_);
 }
 
 unsigned int FigureRelation::save_id() const
 {
-    return figure_ ? figure_->id() : 0;
+    return relationship_ ? relationship_->id() : 0;
 }
 
 unsigned int FigureRelation::debug_known_id() const
 {
-    if (!figure_) {
-        return 0;
-    }
-    for (size_t i = 0; i < data.figures.size(); ++i) {
-        if (data.figures[i].get() == figure_) {
-            return data.figures[i]->id();
-        }
-    }
-    return 0;
+    return save_id();
 }
 
 Figure::Figure(unsigned int slot)
@@ -617,6 +821,7 @@ unsigned int Figure::id() const
 
 void Figure::reset(unsigned int slot)
 {
+    clear_building_references();
     *this = Figure();
     slot_ = slot;
 }
@@ -632,6 +837,184 @@ Figure *Figure::get(unsigned int id)
 unsigned int Figure::count()
 {
     return static_cast<unsigned int>(data.figures.size());
+}
+
+bool Figure::set_building_reference(ObjectRelationship<Figure, Building> &relationship, Building *target)
+{
+    if (target && (!id() || !target->id || Building::get(target->id) != target)) {
+        return false;
+    }
+    relationship.retarget(*this, target);
+    return true;
+}
+
+bool Figure::set_home_building(Building *owner)
+{
+    Building *previous = building;
+    if (!set_building_reference(building, owner)) {
+        return false;
+    }
+    if (previous && previous != owner) {
+        previous->clear_figure_slot_if_matches(id());
+    }
+    return true;
+}
+
+bool Figure::set_immigrant_building(Building *house)
+{
+    if (house && ((type != FIGURE_IMMIGRANT && type != FIGURE_HOMELESS) || !house->Housing ||
+        (house->Housing->state().immigrant_figure_id &&
+            house->Housing->state().immigrant_figure_id != id()))) {
+        return false;
+    }
+    return set_building_reference(immigrant_building, house);
+}
+
+bool Figure::set_destination_building(Building *destination)
+{
+    return set_building_reference(destination_building, destination);
+}
+
+bool Figure::set_last_destination_building(Building *destination)
+{
+    if (!set_building_reference(last_destination_building_, destination)) {
+        return false;
+    }
+    last_destination_id = destination ? static_cast<int>(destination->id) : 0;
+    return true;
+}
+
+void Figure::set_last_destination_figure_id(unsigned int figure_id)
+{
+    last_destination_building_.clear(*this);
+    last_destination_id = static_cast<int>(figure_id);
+}
+
+bool Figure::clear_last_destination_building_if_matches(const Building &target)
+{
+    if (last_destination_building_.get_ptr() != &target) {
+        return false;
+    }
+    set_last_destination_building(nullptr);
+    return true;
+}
+
+unsigned int Figure::home_building_id() const
+{
+    return building ? static_cast<unsigned int>(building->id) : 0;
+}
+
+unsigned int Figure::immigrant_building_id() const
+{
+    return immigrant_building ? static_cast<unsigned int>(immigrant_building->id) : 0;
+}
+
+unsigned int Figure::destination_building_id() const
+{
+    return destination_building ? static_cast<unsigned int>(destination_building->id) : 0;
+}
+
+const char *Figure::runtime_profile_id() const
+{
+    return runtime_profile_id_.data();
+}
+
+bool Figure::set_runtime_profile_id(const char *profile_id)
+{
+    runtime_profile_id_.fill(0);
+    if (!profile_id) {
+        return true;
+    }
+    const size_t length = strlen(profile_id);
+    if (length >= runtime_profile_id_.size()) {
+        return false;
+    }
+    memcpy(runtime_profile_id_.data(), profile_id, length);
+    return true;
+}
+
+bool Figure::references_building(const Building &target) const
+{
+    return building.get_ptr() == &target || immigrant_building.get_ptr() == &target ||
+        destination_building.get_ptr() == &target || last_destination_building_.get_ptr() == &target;
+}
+
+void Figure::clear_building_references()
+{
+    set_home_building(nullptr);
+    set_immigrant_building(nullptr);
+    set_destination_building(nullptr);
+    set_last_destination_building(nullptr);
+}
+
+void Figure::on_relationship_event(const RelationshipEvent &event)
+{
+    if (event.type != RelationshipEventType::Disconnected || event.reason != RelationshipDisconnectReason::EndpointRemoved || !state) {
+        return;
+    }
+    if (Figure *removed = dynamic_cast<Figure *>(event.other)) {
+        if (&event.relationship == &opponent.relationship_ || &event.relationship == &attacker1.relationship_ ||
+            &event.relationship == &attacker2.relationship_) {
+            figure_combat_relationship_removed(this, removed);
+        } else if (&event.relationship == &target_figure.relationship_) {
+            Route::remove(this);
+            direction = DIR_FIGURE_REROUTE;
+        }
+        return;
+    }
+    if (&event.relationship == &building) {
+        if (type == FIGURE_FISHING_BOAT) {
+            FishingBoat::from(*this).sink();
+        } else {
+            remove();
+        }
+        return;
+    }
+    if (&event.relationship == &immigrant_building) {
+        remove();
+        return;
+    }
+    if (&event.relationship != &destination_building) {
+        return;
+    }
+
+    Route::remove(this);
+    wait_ticks = 0;
+    if (type == FIGURE_LABOR_SEEKER) {
+        building_local_workforce::labor_seeker_failed(this);
+    } else if (type == FIGURE_TRADE_SHIP) {
+        figure_trade_ship_destination_removed(*this, *static_cast<Building *>(event.other));
+    } else if (type == FIGURE_WAREHOUSEMAN) {
+        action_state = FIGURE_ACTION_233_WAREHOUSEMAN_RECONSIDER_TARGET;
+    } else if (type == FIGURE_CART_PUSHER) {
+        action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
+    } else {
+        direction = DIR_FIGURE_REROUTE;
+    }
+}
+
+std::vector<Figure *> Figure::figures_referencing_building(const Building &building)
+{
+    std::vector<Figure *> figures;
+    for (Relationship *relationship : building.relationships()) {
+        Figure *figure = dynamic_cast<Figure *>(relationship->other_endpoint(building));
+        if (figure && figure->state && std::find(figures.begin(), figures.end(), figure) == figures.end()) {
+            figures.push_back(figure);
+        }
+    }
+    return figures;
+}
+
+std::vector<Figure *> Figure::figures_directly_referencing_building(const Building &building)
+{
+    std::vector<Figure *> direct;
+    for (Figure *figure : figures_referencing_building(building)) {
+        if (figure->building.get_ptr() == &building || figure->immigrant_building.get_ptr() == &building ||
+            figure->destination_building.get_ptr() == &building) {
+            direct.push_back(figure);
+        }
+    }
+    return direct;
 }
 
 static void write_debug_json_string(FILE *file, const char *text)
@@ -787,8 +1170,8 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
     f->source_x = f->destination_x = f->previous_tile_x = f->x = static_cast<unsigned char>(x);
     f->source_y = f->destination_y = f->previous_tile_y = f->y = static_cast<unsigned char>(y);
     f->grid_offset = static_cast<short>(map_grid_offset(x, y));
-    f->cross_country_x = static_cast<short>(figure_movement_tile_to_cross_country(x));
-    f->cross_country_y = static_cast<short>(figure_movement_tile_to_cross_country(y));
+    f->cross_country_x = figure_movement_tile_to_cross_country(x);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y);
     f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
     f->progress_to_next_tick = 0;
     f->dont_draw_elevated = 0;
@@ -813,7 +1196,13 @@ void Figure::remove()
         building_local_workforce::remove_labor_seeker(*this);
     }
     release_destination_reservations();
-    const int cleared_known_slot = clear_known_building_refs_for_figure(*this);
+    if (formation_id) {
+        formation *owner = formation_get(formation_id);
+        if (owner && owner->in_use) {
+            owner->unpublish_figure(*this);
+        }
+    }
+    clear_known_building_refs_for_figure(*this);
     switch (type) {
         case FIGURE_DOCKER:
         case FIGURE_DEPOT_CART_PUSHER:
@@ -825,7 +1214,6 @@ void Figure::remove()
             city_emperor_mark_soldier_killed();
             break;
         case FIGURE_EXPLOSION:
-        case FIGURE_FORT_STANDARD:
         case FIGURE_ARROW:
         case FIGURE_JAVELIN:
         case FIGURE_FRIENDLY_ARROW:
@@ -850,9 +1238,8 @@ void Figure::remove()
         default:
             break;
     }
-    if (!cleared_known_slot && figure_may_be_tracked_by_building_slot(*this)) {
-        clear_any_building_refs_for_figure(*this);
-    }
+    clear_building_references();
+    disconnect_relationships(RelationshipDisconnectReason::EndpointRemoved);
     if (empire_city_id) {
         empire_city_remove_trader(empire_city_id, id());
     }
@@ -871,8 +1258,8 @@ void Figure::release_destination_reservations()
     if (!destination_building) {
         return;
     }
-    destination_building->release_input_storage_reservation(id());
-    destination_building->release_legacy_storage_reservation(id());
+    destination_building->release_input_storage_reservation(*this);
+    destination_building->release_legacy_storage_reservation(*this);
 }
 
 int Figure::retarget_building(Building &from, Building &to)
@@ -882,25 +1269,32 @@ int Figure::retarget_building(Building &from, Building &to)
     if (!from_id || !to_id || from_id == to_id) {
         return 0;
     }
+    if (immigrant_building && immigrant_building->id == from_id && !to.Housing) {
+        return 0;
+    }
 
     int changed = 0;
     int destination_changed = 0;
     if (building && building->id == from_id) {
-        building = &to;
+        set_home_building(&to);
         changed = 1;
     }
     if (immigrant_building && immigrant_building->id == from_id) {
-        immigrant_building = &to;
+        if (immigrant_building->Housing) {
+            immigrant_building->Housing->clear_immigrant_if_matches(*this);
+        }
+        set_immigrant_building(&to);
         changed = 1;
         destination_changed = 1;
     }
     if (destination_building && destination_building->id == from_id) {
-        destination_building = &to;
+        release_destination_reservations();
+        set_destination_building(&to);
         changed = 1;
         destination_changed = 1;
     }
-    if (last_destination_id == static_cast<int>(from_id)) {
-        last_destination_id = static_cast<int>(to_id);
+    if (last_destination_building_.get_ptr() == &from) {
+        set_last_destination_building(&to);
         changed = 1;
     }
     if (destination_changed) {
@@ -926,8 +1320,8 @@ int Figure::is_dead() const
 
 int Figure::is_enemy() const
 {
-    return (type >= FIGURE_ENEMY43_SPEAR && type <= FIGURE_ENEMY_CAESAR_LEGIONARY) ||
-        type == FIGURE_ENEMY_CATAPULT;
+    const FormationType *definition = formation_type_registry_impl::find_spawn_formation(static_cast<figure_type>(type));
+    return definition && definition->spawn.role == FormationSpawnRole::Enemy;
 }
 
 int Figure::is_melee_enemy() const
@@ -988,7 +1382,21 @@ int Figure::is_legion() const
 
 int Figure::is_herd() const
 {
-    return type >= FIGURE_SHEEP && type <= FIGURE_ZEBRA;
+    const FormationType *definition = formation_type_registry_impl::find_spawn_formation(static_cast<figure_type>(type));
+    return definition && definition->spawn.role == FormationSpawnRole::Herd;
+}
+
+int Figure::is_aggressive_herd() const
+{
+    if (!is_herd()) {
+        return 0;
+    }
+    formation *owner = formation_get(formation_id);
+    if (!owner || !owner->owns_figure(*this)) {
+        log_error("Herd member has an invalid formation relationship", 0, static_cast<int>(id()));
+        std::terminate();
+    }
+    return owner->is_aggressive_herd();
 }
 
 int Figure::is_category(figure_category_mask category_mask) const
@@ -1146,66 +1554,31 @@ int Figure::target_is_alive() const
     return !target.is_dead() && target.created_sequence == target_figure_created_sequence;
 }
 
-int Figure::legacy_corpse_image_id(int base_image_id) const
-{
-    return base_image_id + figure_image_corpse_offset(const_cast<Figure *>(this));
-}
-
-int Figure::legacy_frame_image_id(int base_image_id, int frame_offset) const
-{
-    return base_image_id + frame_offset;
-}
-
-int Figure::legacy_static_frame_image_id(int base_image_id, int frame_count) const
-{
-    if (frame_count <= 0) {
-        return base_image_id;
-    }
-    return base_image_id + static_cast<int>(id() % static_cast<unsigned int>(frame_count));
-}
-
-int Figure::legacy_directional_frame_image_id(
-    int base_image_id,
-    int frame_direction,
-    int frame_offset,
-    int frame_stride) const
-{
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    return base_image_id + normalized_direction + frame_stride * frame_offset;
-}
-
-int Figure::legacy_image_id_for_direction_major_frame(
-    int base_image_id,
-    int frame_direction,
-    int frame_offset,
-    int direction_stride) const
-{
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    return base_image_id + normalized_direction * direction_stride + frame_offset;
-}
-
 void Figure::select_legacy_corpse_image(int base_image_id)
 {
-    image_id = legacy_corpse_image_id(base_image_id);
+    image_id = base_image_id +
+        figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(wait_ticks);
 }
 
 void Figure::select_legacy_frame_image(int base_image_id, int frame_offset)
 {
-    image_id = legacy_frame_image_id(base_image_id, frame_offset);
+    image_id = base_image_id + frame_offset;
 }
 
 void Figure::select_legacy_static_frame_image(int base_image_id, int frame_count)
 {
-    image_id = legacy_static_frame_image_id(base_image_id, frame_count);
+    image_id = frame_count > 0 ?
+        base_image_id + static_cast<int>(id() % static_cast<unsigned int>(frame_count)) :
+        base_image_id;
 }
 
 void Figure::select_legacy_directional_frame_image(
     int base_image_id,
-    int frame_direction,
+    int normalized_direction,
     int frame_offset,
     int frame_stride)
 {
-    image_id = legacy_directional_frame_image_id(base_image_id, frame_direction, frame_offset, frame_stride);
+    image_id = base_image_id + normalized_direction + frame_stride * frame_offset;
 }
 
 void Figure::select_legacy_default_or_corpse_image(int base_image_id)
@@ -1236,47 +1609,14 @@ void Figure::clear_legacy_cart_overlay_image()
     cart_image_id = 0;
 }
 
-void Figure::select_legacy_cart_overlay_base_image(int base_image_id)
-{
-    cart_image_id = base_image_id;
-}
-
-void Figure::select_legacy_cart_overlay_image(int base_image_id, int frame_direction)
-{
-    if (!base_image_id) {
-        clear_legacy_cart_overlay_image();
-        return;
-    }
-
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    cart_image_id = base_image_id + normalized_direction + 8 * image_offset;
-    figure_image_set_cart_offset(this, normalized_direction);
-}
-
-void Figure::finalize_legacy_cartpusher_overlay_image(int frame_direction, bool lift_full_food_load)
-{
-    if (!cart_image_id) {
-        return;
-    }
-
-    const int normalized_direction = figure_image_normalize_direction(frame_direction);
-    if (figure_type_registry_impl::FigureGraphics::resource_cart_marker_is(cart_image_id)) {
-        cart_image_id = figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(normalized_direction);
-    } else {
-        cart_image_id += normalized_direction;
-    }
-    figure_image_set_cart_offset(this, normalized_direction);
-    if (lift_full_food_load) {
-        y_offset_cart -= 40;
-    }
-}
-
 void Figure::init_scenario()
 {
     figure_runtime_reset();
+    race_bet_reset_runtime();
     map_road_service_history_clear();
     data.figures.clear();
     data.pending_building_refs.clear();
+    data.pending_figure_refs.clear();
     data.figures.reserve(kFigureArraySizeStep);
     data.figures.push_back(std::make_unique<Figure>(0));
     data.created_sequence = 0;
@@ -1296,7 +1636,6 @@ void Figure::kill_all()
             case FIGURE_MAP_FLAG:
             case FIGURE_FISH_GULLS:
             case FIGURE_SHIPWRECK:
-            case FIGURE_FORT_STANDARD:
                 break;
         }
     }
@@ -1319,6 +1658,7 @@ void Figure::save_state(buffer *list, buffer *seq)
 void Figure::load_state(buffer *list, buffer *seq, int version)
 {
     figure_runtime_reset();
+    race_bet_reset_runtime();
     data.created_sequence = buffer_read_i32(seq);
 
     int figure_buf_size = kFigureOriginalBufferSize;
@@ -1331,8 +1671,10 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
     const int figures_to_load = static_cast<int>(buf_size / figure_buf_size);
     data.figures.clear();
     data.pending_building_refs.clear();
+    data.pending_figure_refs.clear();
     data.figures.reserve(figures_to_load > 0 ? figures_to_load : 1);
     data.pending_building_refs.resize(figures_to_load > 0 ? figures_to_load : 1);
+    data.pending_figure_refs.resize(figures_to_load > 0 ? figures_to_load : 1);
     for (int i = 0; i < figures_to_load; i++) {
         data.figures.push_back(std::make_unique<Figure>(static_cast<unsigned int>(i)));
     }
@@ -1348,58 +1690,114 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
             highest_id_in_use = i;
         }
     }
+    for (size_t i = 0; i < data.figures.size(); ++i) {
+        Figure *figure = data.figures[i].get();
+        if (!figure || !figure->state) {
+            continue;
+        }
+        const FigureStore::PendingFigureRefs &refs = data.pending_figure_refs[i];
+        resolve_loaded_figure_relation(*figure, figure->target_figure, refs.target_figure_id, "target_figure");
+        resolve_loaded_figure_relation(*figure, figure->targeted_by_figure, refs.targeted_by_figure_id, "targeted_by_figure");
+        resolve_loaded_figure_relation(*figure, figure->attacker1, refs.attacker1_id, "attacker1");
+        resolve_loaded_figure_relation(*figure, figure->attacker2, refs.attacker2_id, "attacker2");
+        resolve_loaded_figure_relation(*figure, figure->opponent, refs.opponent_id, "opponent");
+
+        const unsigned int attacker1_before = figure->attacker1.save_id();
+        const unsigned int attacker2_before = figure->attacker2.save_id();
+        const unsigned int opponent_before = figure->opponent.save_id();
+        const unsigned int num_attackers_before = figure->num_attackers;
+        const unsigned int action_before = figure->action_state;
+        figure_combat_migrate_legacy_relationships(figure);
+        if (attacker1_before != figure->attacker1.save_id() || attacker2_before != figure->attacker2.save_id() ||
+            opponent_before != figure->opponent.save_id() || num_attackers_before != figure->num_attackers ||
+            action_before != figure->action_state) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_num_attackers=%u saved_opponent_id=%u",
+                figure->id(), static_cast<unsigned int>(figure->type), num_attackers_before, opponent_before);
+            log_warning("Repairing inconsistent saved combat relationships", detail, 0);
+        }
+    }
     data.figures.resize(highest_id_in_use + 1);
     if (data.pending_building_refs.size() > data.figures.size()) {
         data.pending_building_refs.resize(data.figures.size());
     }
+    if (data.pending_figure_refs.size() > data.figures.size()) {
+        data.pending_figure_refs.resize(data.figures.size());
+    }
     invalid_figure();
 }
 
-void Figure::resolve_loaded_building_references()
+bool Figure::resolve_loaded_building_references(int save_version)
 {
-    std::vector<unsigned int> invalid_figures;
     const size_t count = data.pending_building_refs.size() < data.figures.size() ?
         data.pending_building_refs.size() : data.figures.size();
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count && i < data.figures.size(); i++) {
         Figure *f = data.figures[i].get();
         if (!f) {
             continue;
         }
         FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
-        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, &f->building)) {
-            f->building = nullptr;
-            f->immigrant_building = nullptr;
-            f->destination_building = nullptr;
-            invalid_figures.push_back(static_cast<unsigned int>(i));
+        Building *owner = nullptr;
+        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, &owner) ||
+            !f->set_home_building(owner)) {
+            log_error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
+            return false;
+        }
+        if (!f->state) {
+            refs = {};
             continue;
         }
-        if (!f->building) {
-            refs.building_id = 0;
+        if (owner) refs.building_id = static_cast<unsigned int>(owner->id);
+        else if (save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES) refs.building_id = 0;
+        Building *immigrant = nullptr;
+        Building *destination = nullptr;
+        if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", save_version, &immigrant) ||
+            !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", save_version, &destination)) {
+            log_error("Loaded save failed strict optional figure building reference validation", 0, static_cast<int>(i));
+            return false;
         }
-        f->immigrant_building = loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant");
-        f->destination_building = loaded_optional_building_ref(*f, refs.destination_building_id, "destination");
-        if (!f->immigrant_building) {
+        if (!f->set_immigrant_building(immigrant)) {
+            if (save_version >= SAVE_GAME_CURRENT_VERSION) {
+                log_error("Loaded save failed strict immigrant building relationship validation", 0, static_cast<int>(i));
+                return false;
+            }
+            char detail[192];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), refs.immigrant_building_id);
+            log_warning("Clearing conflicting legacy immigrant building relationship", detail, 0);
             refs.immigrant_building_id = 0;
+            f->set_immigrant_building(nullptr);
         }
-        if (!f->destination_building) {
-            refs.destination_building_id = 0;
+        if (!f->set_destination_building(destination)) {
+            log_error("Loaded save failed strict destination building relationship validation", 0, static_cast<int>(i));
+            return false;
         }
-        if ((f->type == FIGURE_IMMIGRANT || f->type == FIGURE_HOMELESS) && f->last_destination_id <= 0) {
-            const unsigned int house_id = refs.destination_building_id ?
-                refs.destination_building_id :
-                refs.immigrant_building_id;
-            if (house_id) {
-                f->last_destination_id = static_cast<int>(house_id);
+        if (f->last_destination_id > 0 &&
+            !last_destination_is_figure_id(static_cast<figure_type>(f->type))) {
+            Building *last_destination = loaded_building_ref(static_cast<unsigned int>(f->last_destination_id));
+            if (!last_destination || !f->set_last_destination_building(last_destination)) {
+                if (save_version < SAVE_GAME_CURRENT_VERSION) {
+                    char detail[192];
+                    snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), static_cast<unsigned int>(f->last_destination_id));
+                    log_warning("Clearing invalid legacy last-destination building reference", detail, 0);
+                    f->set_last_destination_building(nullptr);
+                    continue;
+                }
+                log_error("Loaded save contains an invalid last-destination building reference", 0, f->last_destination_id);
+                return false;
             }
         }
     }
-    for (auto it = invalid_figures.rbegin(); it != invalid_figures.rend(); ++it) {
-        if (Figure *figure = Figure::get(*it)) {
-            figure->remove();
-        }
+    if (!repair_loaded_migrant_house_refs(save_version)) {
+        log_error("Loaded save failed legacy migrant and housing relationship repair", 0, 0);
+        return false;
     }
-    resolve_loaded_migrant_house_refs();
-    // Saved ids remain available until the final saved-game initialization pass,
-    // because building runtime initialization can rebuild Building wrappers.
-    clear_dead_loaded_producer_cart_slots();
+    repair_loaded_building_figure_slots();
+    if (!validate_loaded_migrant_house_refs() || !validate_loaded_building_figure_slots()) {
+        return false;
+    }
+    data.pending_building_refs.clear();
+    data.pending_building_refs.shrink_to_fit();
+    data.pending_figure_refs.clear();
+    data.pending_figure_refs.shrink_to_fit();
+    return true;
 }

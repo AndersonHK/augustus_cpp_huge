@@ -1,7 +1,7 @@
 # Renderer Resource Refactor Working Memory
 
 Snapshot: 2026-06-26 docs refresh over older renderer/resource notes
-Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+Workspace: `<repository checkout>`
 
 ## 2026-06-26 maintenance checkpoint
 - Treat this file as long-term renderer/resource memory. Current implementation contracts should still be verified against source before editing, especially around atlas fallback and managed image handles.
@@ -37,7 +37,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - `Mods\Julius\Graphics` exists.
   - `Mods\Augustus\Graphics` exists.
   - `Mods\Vespasian\Graphics` does not exist.
-- Historical clean sample baseline from `D:\Games\GOG Games\Caesar 3\assets\Graphics` at the 2026-06-05 checkpoint. Newer climate-aware extraction counts are recorded in `docs/_codex_building_graphics_runtime_working_memory.md` under the 2026-06-21 checkpoint:
+- Historical clean sample baseline from `<game install path>\assets\Graphics` at the 2026-06-05 checkpoint. Newer climate-aware extraction counts are recorded in `docs/_codex_building_graphics_runtime_working_memory.md` under the 2026-06-21 checkpoint:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
   - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.

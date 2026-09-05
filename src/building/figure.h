@@ -12,7 +12,6 @@ public:
     void generate();
 
 private:
-    Building *working_pantheon();
     int type_is_basic_temple(building_type type);
     int type_uses_native_spawn(building_type type);
     int figure_belongs_to_building(const Figure *figure, const building *owner);
@@ -39,23 +38,13 @@ private:
     void create_roaming_figure(building *record, int x, int y, figure_type type);
     void spawn_figure_warehouse(building *record);
     void spawn_figure_granary(building *record);
-    void spawn_figure_tower(building *record);
     void spawn_figure_market(building *record);
-    void spawn_figure_grand_temple_mars(building *record);
     void spawn_figure_tavern(building *record);
-    void spawn_figure_temple(building *record);
     void spawn_figure_senate_forum(building *record);
-    void spawn_figure_mission_post(building *record);
     void spawn_figure_industry(building *record);
     void spawn_figure_dock(building *record);
-    void spawn_figure_native_hut(building *record);
-    void spawn_figure_native_meeting(building *record);
-    void spawn_figure_barracks(building *record);
-    void spawn_figure_military_academy(building *record);
-    void spawn_figure_fort_supplier(building *fort);
     void spawn_figure_mess_hall(building *record);
     void spawn_figure_depot(building *record);
-    void advance_native_crop_graphics(building *record);
     int building_uses_runtime_spawn(const building *record);
 };
 

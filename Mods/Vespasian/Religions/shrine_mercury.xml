@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<religion>
-    <god path="mercury" />
-    <tier value="shrine" />
-    <capacity amount="50" />
-</religion>

@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="roadblock">
     <identity name_key="TR_BUILDING_ROADBLOCK" />
-    <model size="1" cost="12" />
+    <model cost="12" />
     <desirability>
         <value value="0" />
         <step value="0" />
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="road" />
+    <foundation path="roadblock_1x1" />
     <tool kind="roadblock" />
-    <event_data attr="roadblock" />
-    <roadblock kind="standard" />
     <tile kind="roadblock" refresh="plaza" />
     <graphics>
         <default>

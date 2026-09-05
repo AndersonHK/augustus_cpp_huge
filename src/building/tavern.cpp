@@ -21,13 +21,7 @@ Building *Tavern::storage_destination()
         return nullptr;
     }
 
-    Building *destination = nullptr;
-    const unsigned int destination_id = info[fetch_resource].building_id;
-    Building::for_each([&](Building *building) {
-        if (!destination && building->id == destination_id) {
-            destination = building;
-        }
-    });
+    Building *destination = info[fetch_resource].source;
     if (destination) {
         set_fetch_inventory_id(fetch_resource);
     }

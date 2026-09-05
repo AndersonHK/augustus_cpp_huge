@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<religion>
-    <god path="neptune" />
-    <tier value="small" />
-    <capacity amount="750" />
-</religion>

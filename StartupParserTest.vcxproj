@@ -12,12 +12,50 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tools\startup_parser_test\main.cpp" />
+    <ClCompile Include="tools\startup_parser_test\building_graphics_contract_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\building_type_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\plague_runtime_contract_test.cpp" />
     <ClCompile Include="tools\startup_parser_test\miniz_impl.c" />
     <ClCompile Include="src\assets\image_group_entry.cpp" />
     <ClCompile Include="src\assets\image_group_payload*.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
     <ClCompile Include="src\assets\xml_path_resolution.cpp" />
     <ClCompile Include="src\building\building_type*.cpp" />
+    <ClCompile Include="src\building\CompositionDef.cpp" />
+    <ClCompile Include="src\building\CompositionHydration.cpp" />
+    <ClCompile Include="src\building\CompositionPlacementAccounting.cpp" />
+    <ClCompile Include="src\building\CompositionTypeReplacement.cpp" />
+    <ClCompile Include="src\building\FoundationDef.cpp" />
+    <ClCompile Include="src\building\FoundationRegistry.cpp" />
+    <ClCompile Include="src\building\FoundationState.cpp" />
+    <ClCompile Include="src\building\FoundationStateSaveBridge.cpp" />
+    <ClCompile Include="src\building\RoadblockState.cpp" />
+    <ClCompile Include="src\building\HousingDef.cpp" />
+    <ClCompile Include="src\building\HousingProfileDef.cpp" />
+    <ClCompile Include="src\building\HousingStateBridge.cpp" />
+    <ClCompile Include="src\building\HousingTransitionPlanner.cpp" />
+    <ClCompile Include="src\building\PlacementRotationSelection.cpp" />
+    <ClCompile Include="src\building\housing_profile_registry.cpp" />
+    <ClCompile Include="tools\startup_parser_test\FoundationDefTest.cpp" />
+    <ClCompile Include="tools\startup_parser_test\culture_module_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\foundation_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\god_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\distribution_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\housing_transition_planner_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\housing_profile_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\mod_definition_loader_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\mod_metadata_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\production_method_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\resource_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\religion_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\water_access_type_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\storage_type_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\unit_type_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\formation_type_registry_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\font_vector_runtime_layering_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\graphics_extraction_boundary_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\vespasian_graphics_source_contract_test.cpp" />
+    <ClCompile Include="tools\startup_parser_test\figure_type_registry_layering_test.cpp" />
     <ClCompile Include="src\building\RubbleDef.cpp" />
     <ClCompile Include="src\building\culture_module.cpp" />
     <ClCompile Include="src\building\culture_module_registry.cpp" />
@@ -25,9 +63,8 @@
     <ClCompile Include="src\building\distribution_registry.cpp" />
     <ClCompile Include="src\building\god_id_bridge.cpp" />
     <ClCompile Include="src\building\god_registry.cpp" />
+    <ClCompile Include="src\building\BuildingGraphicsState.cpp" />
     <ClCompile Include="src\building\BuildingGraphicsDef.cpp" />
-    <ClCompile Include="src\building\housing_type.cpp" />
-    <ClCompile Include="src\building\housing_type_registry.cpp" />
     <ClCompile Include="src\building\production_method.cpp" />
     <ClCompile Include="src\building\production_method_registry.cpp" />
     <ClCompile Include="src\building\properties.cpp" />
@@ -41,15 +78,23 @@
     <ClCompile Include="src\figure\PathingMode_metadata.cpp" />
     <ClCompile Include="src\figure\FigureGraphics.cpp" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_type.cpp" />
     <ClCompile Include="src\figure\formation_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_layout.cpp" />
+    <ClCompile Include="src\figure\formation_layout_registry.cpp" />
+    <ClCompile Include="src\figure\formation_member_movement_plan.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_client.cpp" />
     <ClCompile Include="src\figure\unit_type_registry.cpp" />
     <ClCompile Include="src\game\Animation.cpp" />
     <ClCompile Include="src\game\defines.cpp" />
     <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\game\mod_definition_loader.cpp" />
     <ClCompile Include="src\game\resource.cpp" />
     <ClCompile Include="src\game\ResourceGraphics.cpp" />
     <ClCompile Include="src\game\resource_id_bridge.cpp" />
     <ClCompile Include="src\graphics\GraphicsDefinition.cpp" />
+    <ClCompile Include="src\graphics\declarative_window.cpp" />
+    <ClCompile Include="src\graphics\font_vector_runtime.cpp" />
     <ClCompile Include="src\graphics\image.cpp" />
     <ClCompile Include="src\graphics\image_group_entry_ref.cpp" />
     <ClCompile Include="src\graphics\renderer.cpp" />
@@ -64,6 +109,7 @@
     <ClCompile Include="src\startup\startup_parser_figure_image_boundary.cpp" />
     <ClCompile Include="src\startup\startup_parser_graphics_boundary.cpp" />
     <ClCompile Include="src\startup\startup_parser_validation_boundary.cpp" />
+    <ClCompile Include="src\startup\startup_definition_loader.cpp" />
     <ClCompile Include="src\startup\startup_parser.cpp" />
     <ClCompile Include="src\translation\*.cpp" />
     <ClCompile Include="ext\spng\spng.c" />
@@ -143,6 +189,18 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="Vespasian.vcxproj">
+      <Project>{97d2cb33-8ded-4e9c-9650-7165dee085c0}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="GraphicsExtractor.vcxproj">
+      <Project>{4b1435bb-86c6-47ec-9d40-31c955b1bfd4}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

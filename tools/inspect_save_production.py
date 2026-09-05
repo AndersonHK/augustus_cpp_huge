@@ -49,6 +49,7 @@ FIGURE_OFFSETS = {
     "resource_id": 15,
     "state": 18,
     "action_state_before_attack": 20,
+    "direction": 21,
     "x": 24,
     "y": 25,
     "grid_offset": 30,
@@ -57,6 +58,7 @@ FIGURE_OFFSETS = {
     "destination_grid_offset": 34,
     "source_x": 36,
     "source_y": 37,
+    "wait_ticks": 42,
     "action_state": 44,
     "progress_on_tile": 45,
     "routing_path_id": 46,
@@ -74,6 +76,12 @@ FIGURE_OFFSETS = {
     "created_sequence": 134,
     "last_destination_id": 154,
 }
+
+# kFigureCurrentBufferSize reserves room for future fields, but save_figure()
+# currently writes these 156 bytes contiguously without advancing over the
+# unused tail before serializing the next figure.
+CURRENT_FIGURE_BUFFER_SIZE = 170
+CURRENT_FIGURE_SERIALIZED_SIZE = 156
 
 RAW_MATERIALS = {
     "wheat",
@@ -194,6 +202,10 @@ def figure_record_count(parser):
     return record_size, (len(data) - 4) // record_size
 
 
+def figure_record_stride(record_size):
+    return CURRENT_FIGURE_SERIALIZED_SIZE if record_size == CURRENT_FIGURE_BUFFER_SIZE else record_size
+
+
 def decode_figure(parser, figure_id):
     data = parser.pieces["figures"]
     record_size, count = figure_record_count(parser)
@@ -202,7 +214,7 @@ def decode_figure(parser, figure_id):
     if figure_id >= count:
         return {"id": figure_id, "exists": False, "reason": f"outside figure table count {count}"}
 
-    start = 4 + figure_id * record_size
+    start = 4 + figure_id * figure_record_stride(record_size)
     record = data[start:start + record_size]
     nonzero = any(record)
     if not nonzero:
@@ -218,6 +230,7 @@ def decode_figure(parser, figure_id):
         "state": state,
         "action_state": u8(record, FIGURE_OFFSETS["action_state"]),
         "action_state_before_attack": u8(record, FIGURE_OFFSETS["action_state_before_attack"]),
+        "direction": i8(record, FIGURE_OFFSETS["direction"]),
         "resource_id": u8(record, FIGURE_OFFSETS["resource_id"]),
         "resource": u8(record, FIGURE_OFFSETS["resource_id"]),
         "loads_sold_or_carrying": u8(record, FIGURE_OFFSETS["loads_sold_or_carrying"]),
@@ -226,6 +239,7 @@ def decode_figure(parser, figure_id):
         "y": u8(record, FIGURE_OFFSETS["y"]),
         "source_x": u8(record, FIGURE_OFFSETS["source_x"]),
         "source_y": u8(record, FIGURE_OFFSETS["source_y"]),
+        "wait_ticks": i16(record, FIGURE_OFFSETS["wait_ticks"]),
         "destination_x": u8(record, FIGURE_OFFSETS["destination_x"]),
         "destination_y": u8(record, FIGURE_OFFSETS["destination_y"]),
         "grid_offset": i16(record, FIGURE_OFFSETS["grid_offset"]),
@@ -330,6 +344,7 @@ def format_figure(parser, figure, building_count):
     return (
         f"id={figure['id']} exists=yes alive(current)={'yes' if figure.get('alive') else 'no'} "
         f"type={figure.get('type')} state={figure.get('state')} action={figure.get('action_state')} "
+        f"direction={figure.get('direction')} wait={figure.get('wait_ticks')} "
         f"source_building={format_building_ref(figure.get('building_id'), building_count)} "
         f"destination_building={format_building_ref(figure.get('destination_building_id'), building_count)} "
         f"last_destination={format_building_ref(figure.get('last_destination_id'), building_count)} "

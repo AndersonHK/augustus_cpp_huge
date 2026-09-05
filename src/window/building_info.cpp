@@ -5,6 +5,7 @@
 #include "building/roadblock.h"
 
 #include "building_info.h"
+#include "window/building_info_screen.h"
 
 #include "assets/assets.h"
 #include "building/culture.h"
@@ -320,7 +321,7 @@ static void adjust_height_for_storage_buildings(building_info_context *c)
     if (!b || !b->storage_id) {
         return;
     }
-    int stored_types = building_storage_count_stored_resource_types(c->building->id);
+    int stored_types = building_storage_count_stored_resource_types(*c->building);
     int y_offset_blocks = 0;
 
     if (!b->has_plague && c->has_road_access) {
@@ -407,11 +408,9 @@ static void init(int grid_offset)
     } else if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
         if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
             context.terrain_type = TERRAIN_INFO_PLAZA;
-        }
-        if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
+        } else if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
             context.terrain_type = TERRAIN_INFO_EARTHQUAKE;
-        }
-        if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+        } else if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
             context.terrain_type = TERRAIN_INFO_GARDEN;
         }
     } else if (map_terrain_is(grid_offset, TERRAIN_TREE)) {
@@ -447,9 +446,14 @@ static void init(int grid_offset)
         building *b = selected_building;
         building_type btype = static_cast<building_type>(b->type);
         Building &selected_part = *selected_runtime_building;
-        Building &main_part = selected_part.main();
-        if (main_part.id && main_part.id != selected_part.id) {
-            if (building *main_record = const_cast<building *>(main_part.record())) {
+        Building *main_part = selected_part.type && selected_part.type->bridge().is_bridge() ?
+            &selected_part.dynamic_bridge_owner() :
+            (selected_part.Composition ? selected_part.Composition->owner() : &selected_part);
+        if (!main_part) {
+            return;
+        }
+        if (main_part->id && main_part->id != selected_part.id) {
+            if (building *main_record = const_cast<building *>(main_part->record())) {
                 b = main_record;
                 btype = static_cast<building_type>(b->type);
             }
@@ -459,7 +463,7 @@ static void init(int grid_offset)
             context.formation_id = b->formation_id;
         }
 
-        context.building = &main_part;
+        context.building = main_part;
         Building &current_building = *context.building;
         const BuildingType *type_definition = current_building.type;
         context.worker_percentage = calc_percentage(
@@ -470,30 +474,21 @@ static void init(int grid_offset)
             if (Barracks(current_building).unmanned_tower(nullptr)) {
                 context.barracks_soldiers_requested++;
             }
-        } else if (b->house_size) {
+        } else if (current_building.Housing) {
             const Building &house = current_building;
             context.worst_desirability_building_type =
                 building_house_determine_worst_desirability_building_type(house);
             building_house_determine_evolve_text(house, context.worst_desirability_building_type);
         }
-        // TODO: this information should be derived from b->has_road_access.
-        // Context information should not differ from building properties.
-        if (type_definition && type_definition->is_granary()) {
-            context.has_road_access = map_has_road_access_granary(b->x, b->y, 0);
-        } else if (building_type_registry_impl::type_attr_is(btype, "hippodrome")) {
-            context.has_road_access = map_has_road_access_hippodrome_rotation(b->x, b->y, 0, b->subtype.orientation);
-        } else if (type_definition && type_definition->is_warehouse()) {
-            context.has_road_access = map_has_road_access_warehouse(b->x, b->y, 0);
-            const Building &warehouse = current_building;
-            context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
+        context.has_road_access = current_building.has_road_access(nullptr);
+        if (type_definition && type_definition->is_storage()) {
+            if (type_definition->is_warehouse()) {
+                const Building &warehouse = current_building;
+                context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
+            }
         } else if (building_type_registry_impl::type_attr_is(btype, "cart_depot")) {
-            context.has_road_access = map_has_road_access(b->x, b->y, b->size, 0);
             game_state_set_overlay(OVERLAY_STORAGES);
             window_building_depot_init_main(current_building);
-        } else if (building_monument_is_unfinished_monument(b)) {
-            context.has_road_access = map_has_road_access_monument_construction(b->x, b->y, b->size);
-        } else {
-            context.has_road_access = current_building.has_road_access(nullptr);
         }
         figure_roamer_preview_reset(b->type);
         figure_roamer_preview_create(b->type, b->x, b->y);
@@ -547,17 +542,11 @@ static void init(int grid_offset)
             continue;
         }
         Figure *f = Figure::get(figure_id);
-        if (f->type == FIGURE_FORT_STANDARD || f->is_legion()) {
+        if (f->is_legion()) {
             context.type = BUILDING_INFO_LEGION;
             context.formation_id = f->formation_id;
             const formation *m = formation_get(context.formation_id);
-            if (m->figure_type != FIGURE_FORT_LEGIONARY && m->figure_type != FIGURE_FORT_INFANTRY) {
-                context.formation_types = 5;
-            } else if (m->has_military_training) {
-                context.formation_types = 4;
-            } else {
-                context.formation_types = 3;
-            }
+            context.formation_types = m->available_layout_count();
             break;
         }
     }
@@ -624,9 +613,11 @@ static void draw_background(void)
             return;
         }
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
-        if (type_definition.has_housing()) {
+        if (current_building.Housing) {
             window_building_draw_house(&context);
         } else if (type_definition.has_farm_panel()) {
             window_building_draw_farm(&context, farm_panel_output_resource(type_definition));
@@ -672,11 +663,10 @@ static void draw_background(void)
             } else {
                 window_building_draw_mess_hall(&context);
             }
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
                 window_building_draw_roadblock_orders(&context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_STORAGE ||
-                     context.show_special_orders == SPECIAL_ORDERS_GENERIC) {
+            } else if (screen.id() == BuildingInfoScreenId::StorageOrders) {
                 window_building_draw_storage_orders(&context);
             } else {
                 window_building_draw_storage(&context);
@@ -889,6 +879,8 @@ static void draw_foreground(void)
     if (context.type == BUILDING_INFO_BUILDING && b && current_building_ptr && current_building_ptr->type) {
         const Building &current_building = *current_building_ptr;
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
@@ -899,11 +891,10 @@ static void draw_foreground(void)
 
         if (type_definition.is_lighthouse() && b->monument.phase == MONUMENT_FINISHED) {
             window_building_draw_lighthouse_foreground(&context);
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
                 window_building_draw_roadblock_orders_foreground(&context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_STORAGE ||
-                     context.show_special_orders == SPECIAL_ORDERS_GENERIC) {
+            } else if (screen.id() == BuildingInfoScreenId::StorageOrders) {
                 window_building_draw_storage_orders_foreground(&context);
             } else {
                 window_building_draw_storage_foreground(&context);
@@ -1041,6 +1032,8 @@ static int handle_specific_building_info_mouse(const mouse *m)
             return 0;
         }
         const BuildingType &type_definition = *current_building.type;
+        const BuildingInfoScreenSelection screen =
+            BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
 
@@ -1055,12 +1048,18 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 }
                 return window_building_handle_mouse_distributor(m, &context);
             }
-        } else if (Roadblock(current_building).kind() == ROADBLOCK_STANDARD) {
-            if (context.show_special_orders) {
-                return window_building_handle_mouse_roadblock_orders(m, &context);
-            } else {
-                return window_building_handle_mouse_roadblock_button(m, &context);
+        } else if (screen.isStorageFamily()) {
+            if (screen.id() == BuildingInfoScreenId::StorageOrders) {
+                return window_building_handle_mouse_storage_orders(m, &context);
             }
+            if (screen.id() == BuildingInfoScreenId::StorageRoadblockOrders) {
+                return window_building_handle_mouse_roadblock_orders(m, &context);
+            }
+            return window_building_handle_mouse_storage(m, &context);
+        } else if (screen.isFoundationRoadblockFamily()) {
+            return screen.id() == BuildingInfoScreenId::FoundationRoadblockOrders ?
+                window_building_handle_mouse_roadblock_orders(m, &context) :
+                window_building_handle_mouse_roadblock_button(m, &context);
         } else if (is_dock) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_distributor_orders(m, &context);
@@ -1075,15 +1074,6 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 return window_building_handle_mouse_grand_temple_mars(m, &context, temple);
             }
             return window_building_handle_mouse_grand_temple(m, &context, temple);
-        } else if (type_definition.is_storage()) {
-            if (context.show_special_orders == SPECIAL_ORDERS_GENERIC ||
-                context.show_special_orders == SPECIAL_ORDERS_STORAGE) {
-                return window_building_handle_mouse_storage_orders(m, &context);
-            } else if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
-                return window_building_handle_mouse_roadblock_orders(m, &context);
-            } else {
-                return window_building_handle_mouse_storage(m, &context);
-            }
         } else if (building_type_registry_impl::type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2) {
                 window_building_handle_mouse_depot_select_source(m, &context);
@@ -1204,7 +1194,7 @@ static void get_tooltip(tooltip_context *c)
         if (building_is_raw_resource_producer(type_definition) || type_definition->is_farm()) {
             window_building_primary_product_producer_stockpiling_tooltip(&translation);
         } else if ((context.type == BUILDING_INFO_BUILDING && context.show_special_orders) ||
-            type_definition->roadblock().is_bridge()) {
+                type_definition->bridge().is_bridge()) {
             //bridges are technically terrain, but they have special orders
             if (type_definition->is_storage()) {
                 if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
@@ -1217,7 +1207,7 @@ static void get_tooltip(tooltip_context *c)
             } else if (type_definition->has_distribution()) {
                 window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
             }
-        } else if (type_definition && type_definition->has_housing()) {
+        } else if (current_building && current_building->Housing) {
             precomposed_text = window_building_house_get_tooltip(&context);
         } else if (type_definition->is_storage()) {
             window_building_storage_get_tooltip_distribution_permissions(&translation);

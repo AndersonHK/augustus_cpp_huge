@@ -1,6 +1,9 @@
 #include "graphics/GraphicsDefinition.h"
 
+#include "assets/image_group_payload.h"
+
 #include <cstdio>
+#include <utility>
 
 int GraphicsOrientation::normalized_quarter_turns() const
 {
@@ -150,6 +153,72 @@ int graphics_compare_int(int value, GraphicComparison comparison, int threshold)
         default:
             return 0;
     }
+}
+
+void GraphicsAssetReference::set_path(std::string path)
+{
+    path_ = std::move(path);
+    clear_cached_asset_binding();
+}
+
+void GraphicsAssetReference::set_image(std::string image)
+{
+    image_ = std::move(image);
+    clear_cached_asset_binding();
+}
+
+int GraphicsAssetReference::has_path() const
+{
+    return !path_.empty();
+}
+
+const char *GraphicsAssetReference::path() const
+{
+    return path_.c_str();
+}
+
+int GraphicsAssetReference::has_image() const
+{
+    return !image_.empty();
+}
+
+const char *GraphicsAssetReference::image() const
+{
+    return image_.c_str();
+}
+
+int GraphicsAssetReference::has_logical_asset_path() const
+{
+    if (path_.empty() || path_.front() == '\\' || path_.front() == '/' || path_.find(':') != std::string::npos) return 0;
+    if (path_.find('/') != std::string::npos || path_.find("..") != std::string::npos) return 0;
+    const size_t leaf = path_.find_last_of('\\');
+    return path_.find('.', leaf == std::string::npos ? 0 : leaf + 1) == std::string::npos;
+}
+
+void GraphicsAssetReference::clear_cached_asset_binding()
+{
+    payload_ = nullptr;
+    entry_ = nullptr;
+}
+
+int GraphicsAssetReference::cache_asset_binding()
+{
+    clear_cached_asset_binding();
+    if (!has_logical_asset_path() || !image_group_payload_load(path_.c_str())) return 0;
+    payload_ = image_group_payload_get(path_.c_str());
+    if (!payload_) return 0;
+    entry_ = image_.empty() ? payload_->default_entry() : payload_->entry_for(image_.c_str());
+    return entry_ ? 1 : 0;
+}
+
+const ImageGroupPayload *GraphicsAssetReference::cached_payload() const
+{
+    return payload_;
+}
+
+const ImageGroupEntry *GraphicsAssetReference::cached_entry() const
+{
+    return entry_;
 }
 
 GraphicsDefinition::GraphicsDefinition(GraphicsDefinitionKind kind)

@@ -87,7 +87,7 @@ Update: the internal runtime functions take `Building` by value instead of `cons
 
 ## Build Commands And Results
 
-- `& 'D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
+- `& '<MSBuild path>' .\Vespasian.vcxproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo`
   - First run failed on two local `production_runtime.cpp` constness errors caused by passing `Building` as `const &`.
   - After switching internal runtime functions to take `Building` by value, rerun failed only on broader repo missing `building_*` declarations in other files such as `house_population.cpp`, `house.cpp`, `destruction.cpp`, `warehouse.cpp`, `monument.cpp`, and similar. No remaining errors were reported for this production/industry scope.
   - Final rerun after moving the raw-record helper out of `production.h` still failed only outside this scope. Additional external blockers include duplicate extern "C" overload declarations in headers such as `storage.h`, `distribution.h`, `granary.h`, and `warehouse.h`.

@@ -4,7 +4,7 @@ int city_sound_update_march_enemy(void);
 
 int city_sound_update_march_horse(void);
 
-int city_sound_update_march_wolf(void);
+int city_sound_update_herd_movement(void);
 
 int city_sound_update_shoot_arrow(void);
 

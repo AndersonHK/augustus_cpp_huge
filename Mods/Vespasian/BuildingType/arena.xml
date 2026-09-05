@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="arena">
     <identity name_key="TR_BUILDING_ARENA" />
-    <model size="3" cost="500" />
+    <model cost="500" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="entertainment" order="30" icon="Health_Culture\Arena_OFF" text_key="TR_BUILDING_ARENA" />
     <sound id="arena" mute_on_enemies="true" />
-    <event_data attr="arena" />
     <culture_modules>
         <culture_module path="arena" capacity="2500" upgrade_bonus="500" count="active" />
     </culture_modules>
@@ -44,11 +43,9 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:6,75:12,50:20,25:40,1:70" existing_figure="gladiator,lion_tamer">
-        <spawn mode="profiled_figure" spawn_figure="lion_tamer"
-            action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="lion_tamer" direction="top" figure_slot="primary"
             graphic_timing="before_successful_spawn" condition="days1_positive" block_on_success="true" profile="arena_service" />
-        <spawn mode="profiled_figure" spawn_figure="gladiator"
-            action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="gladiator" direction="top" figure_slot="primary"
             graphic_timing="before_successful_spawn" condition="days1_not_positive" block_on_success="true" profile="arena_service" />
     </spawn_group>
 </building>

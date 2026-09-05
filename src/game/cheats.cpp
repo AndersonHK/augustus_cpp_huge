@@ -378,27 +378,22 @@ static void game_cheat_destroy_building(uint8_t *args)
     int building_id = 0;
     int index = parse_integer(args, &building_id);
     index += parse_integer(args + index, &destroy_type);
-    building *target_record = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!target_record && building && static_cast<int>(building->id) == building_id) {
-            target_record = const_cast<::building *>(building->record());
-        }
-    });
-    if (!target_record) {
+    Building *target = building_id > 0 ? Building::get(static_cast<unsigned int>(building_id)) : nullptr;
+    if (!target) {
         return;
     }
     switch (destroy_type) {
         case 0:
-            building_destroy_by_collapse(target_record);
+            target->destroy_by_collapse();
             break;
         case 1:
-            building_destroy_by_fire(target_record);
+            target->destroy_by_fire();
             break;
         case 2:
-            building_destroy_without_rubble(target_record);
+            target->destroy_without_rubble();
             break;
         case 3:
-            building_destroy_by_earthquake(target_record);
+            target->destroy_by_collapse();
             break;
         default:
             break;

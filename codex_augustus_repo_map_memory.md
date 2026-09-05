@@ -1,7 +1,7 @@
 # Codex Augustus repository map and implementation memory
 
 Snapshot: 2026-06-27
-Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
+Workspace: <repository checkout>
 
 ## Top-level layout that matters now
 - `src/` - main game source tree
@@ -298,17 +298,17 @@ Water access motive:
 - `src/graphics/ui_primitives.cpp`
 - `src/widget/top_menu.cpp`
 
-## Native BuildingType / HousingType map
+## Native BuildingType / HousingProfile map
 - `Mods/Vespasian/BuildingType/_README.md`
   - current XML contract for BuildingType identity, model, foundation, button, sound, event data, flags, water access, state refresh, graphics/options, construction, labor, storage, production, housing, and spawns
 - `docs/water_access_runtime.md`
   - current architecture and call chains for WaterAccessType XML, BuildingType water rules, fixed-point propagation, aqueduct/reservoir behavior, overlays, save bridges, and compatibility mirrors
-- `Mods/Vespasian/HousingType/_README.md`
+- `Mods/Vespasian/HousingProfile/_README.md`
   - current XML contract for residential requirements, resident class, prosperity, tax multiplier, and legacy house-level compatibility
 - `research/caesar3_julius_housing_progression_defaults.md`
   - Caesar III / Julius house capacities, footprints, service gates, desirability thresholds, graphics references, and tuning degrees of freedom
 - `research/caesar3_housing_balance_play_analysis.md`
-  - patrician non-labor, plebeian labor base, tier-efficiency heuristics, and goods/service friction for HousingType/BuildingType tuning
+  - patrician non-labor, plebeian labor base, tier-efficiency heuristics, and goods/service friction for HousingProfile/BuildingType tuning
 - `docs/building_type_legacy_reference_ledger.md`
   - cleanup queue for remaining building-type enum references and whether each path is migrated, bridged, retained, or still needs a future phase
 - `docs/save_load_runtime_bridges.md`
@@ -316,7 +316,7 @@ Water access motive:
 - `docs/gameplay_divergences_from_augustus.md`
   - living gameplay ledger for project-wide, bundled-Augustus, and Vespasian-only differences from upstream Augustus
 - Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, capacity, graphics, transitions, and runtime identity.
-- HousingType owns shared residential requirement/tax/prosperity data and resident class.
+- HousingProfile owns shared residential requirement/tax/prosperity data and resident class.
 - Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
 Pattern:

@@ -1,13 +1,18 @@
-#include "game/mod_manager.h"
+#include "game/mod_definition_loader.h"
+#ifndef STARTUP_PARSER_TEST
 #include "graphics/graphics.h"
 #include "graphics/runtime_texture.h"
+#endif
 
 #include "graphics/font_vector_runtime.h"
 
 #include "core/file.h"
+#ifndef STARTUP_PARSER_TEST
 #include "core/encoding.h"
+#endif
 #include "core/log.h"
 #include "core/xml_parser.h"
+#ifndef STARTUP_PARSER_TEST
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 
@@ -21,6 +26,7 @@
 #else
 #error "SDL_ttf.h was not found. Add SDL_ttf to the include path."
 #endif
+#endif
 
 #include <algorithm>
 #include <array>
@@ -28,6 +34,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#ifdef STARTUP_PARSER_TEST
+#include <filesystem>
+#endif
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -38,7 +47,9 @@ namespace {
 
 constexpr int XML_BUFFER_SIZE = 1024;
 constexpr int XML_TOTAL_ELEMENTS = 8;
+#ifndef STARTUP_PARSER_TEST
 constexpr color_t kOpaqueWhite = 0xffffffff;
+#endif
 
 enum class FaceVariant {
     Regular = 0,
@@ -78,6 +89,7 @@ struct SurfaceConfig {
     FontSurfaceSemantic semantic = FontSurfaceSemantic::Body;
 };
 
+#ifndef STARTUP_PARSER_TEST
 struct SizedFont {
     TTF_Font *handle = nullptr;
     int ascent = 0;
@@ -94,18 +106,22 @@ struct GlyphCacheEntry {
     int maxy = 0;
     int advance = 0;
 };
+#endif
 
 struct RuntimeState {
+#ifndef STARTUP_PARSER_TEST
     int active = 0;
     int ttf_initialized = 0;
     int cached_ui_scale = 0;
+#endif
     std::string failure_reason;
     std::string loaded_pack_path;
-    std::string base_dir;
     std::unordered_map<std::string, FamilyConfig> families;
     std::array<SurfaceConfig, FONT_TYPES_MAX> surfaces = {};
+#ifndef STARTUP_PARSER_TEST
     std::unordered_map<std::string, SizedFont> sized_fonts;
     std::unordered_map<std::string, GlyphCacheEntry> glyphs;
+#endif
 };
 
 struct ParseState {
@@ -116,11 +132,13 @@ struct ParseState {
     int saw_root = 0;
 };
 
+#ifndef STARTUP_PARSER_TEST
 struct DrawColors {
     color_t main = COLOR_BLACK;
     color_t shadow = COLOR_MASK_NONE;
     int has_shadow = 0;
 };
+#endif
 
 RuntimeState g_runtime;
 ParseState g_parse;
@@ -234,6 +252,7 @@ std::string resolve_face_path(const std::string &base_dir, const char *src)
     return append_path_component(base_dir, src);
 }
 
+#ifndef STARTUP_PARSER_TEST
 std::string make_font_cache_key(const std::string &face_path, int pixel_size)
 {
     return face_path + "|" + std::to_string(pixel_size);
@@ -243,6 +262,7 @@ std::string make_glyph_cache_key(const std::string &face_path, int pixel_size, u
 {
     return face_path + "|" + std::to_string(pixel_size) + "|" + std::to_string(codepoint);
 }
+#endif
 
 int font_from_name(const std::string &name, font_t *font)
 {
@@ -279,9 +299,10 @@ void set_parse_error(const char *message, const char *detail = nullptr)
     } else {
         failure = message ? message : "";
     }
-    g_runtime.failure_reason = failure;
     if (g_parse.target) {
         g_parse.target->failure_reason = failure;
+    } else {
+        g_runtime.failure_reason = failure;
     }
 }
 
@@ -316,6 +337,10 @@ int xml_start_family_element(void)
         set_parse_error("A <family> entry in fonts.xml has an empty id.");
         return 0;
     }
+    if (g_parse.target->families.find(family.id) != g_parse.target->families.end()) {
+        set_parse_error("fonts.xml contains a duplicate family id.", family.id.c_str());
+        return 0;
+    }
 
     g_parse.current_family_id = family.id;
     g_parse.target->families[family.id] = std::move(family);
@@ -337,20 +362,26 @@ int set_current_family_face(FaceVariant variant)
     }
 
     std::string resolved = resolve_face_path(g_parse.base_dir, src);
+    std::string *face = nullptr;
     switch (variant) {
         case FaceVariant::Regular:
-            family->faces.regular = resolved;
+            face = &family->faces.regular;
             break;
         case FaceVariant::Bold:
-            family->faces.bold = resolved;
+            face = &family->faces.bold;
             break;
         case FaceVariant::Italic:
-            family->faces.italic = resolved;
+            face = &family->faces.italic;
             break;
         case FaceVariant::BoldItalic:
-            family->faces.bold_italic = resolved;
+            face = &family->faces.bold_italic;
             break;
     }
+    if (!face || !face->empty()) {
+        set_parse_error("A font family contains a duplicate face variant.", family->id.c_str());
+        return 0;
+    }
+    *face = std::move(resolved);
     return 1;
 }
 
@@ -392,10 +423,23 @@ int xml_start_fallback_element(void)
     FallbackRule rule;
     rule.family_id = trim_copy(fallback_family);
     free(fallback_family);
+    if (rule.family_id.empty()) {
+        set_parse_error("A <fallback> entry has an empty family attribute.");
+        return 0;
+    }
     const char *locale = xml_parser_get_attribute_string("locale");
     const char *script = xml_parser_get_attribute_string("script");
     rule.locale = trim_copy(locale ? locale : "");
     rule.script = trim_copy(script ? script : "");
+    const auto equivalent = [&rule](const FallbackRule &existing) {
+        return existing.family_id == rule.family_id &&
+            to_lower_copy(existing.locale) == to_lower_copy(rule.locale) &&
+            to_lower_copy(existing.script) == to_lower_copy(rule.script);
+    };
+    if (std::find_if(family->fallbacks.begin(), family->fallbacks.end(), equivalent) != family->fallbacks.end()) {
+        set_parse_error("A font family contains a duplicate fallback rule.", family->id.c_str());
+        return 0;
+    }
     family->fallbacks.push_back(std::move(rule));
     return 1;
 }
@@ -425,6 +469,12 @@ int xml_start_surface_element(void)
     }
 
     SurfaceConfig &surface = g_parse.target->surfaces[font];
+    if (surface.defined) {
+        set_parse_error("fonts.xml contains a duplicate surface id.", id);
+        free(id);
+        free(family_id);
+        return 0;
+    }
     surface.defined = 1;
     surface.font = font;
     surface.family_id = trim_copy(family_id);
@@ -440,6 +490,7 @@ int xml_start_surface_element(void)
     return 1;
 }
 
+#ifndef STARTUP_PARSER_TEST
 void release_glyph_cache()
 {
     for (auto &entry : g_runtime.glyphs) {
@@ -464,7 +515,6 @@ void release_runtime_state()
     release_font_cache();
     g_runtime.families.clear();
     g_runtime.loaded_pack_path.clear();
-    g_runtime.base_dir.clear();
     g_runtime.cached_ui_scale = 0;
     g_runtime.active = 0;
 }
@@ -947,9 +997,18 @@ int measure_space_for_surface(SurfaceConfig &surface)
     }
     return width;
 }
+#endif
 
 int validate_runtime(RuntimeState &runtime)
 {
+    const auto face_exists = [](const std::string &path) {
+#ifdef STARTUP_PARSER_TEST
+        std::error_code error;
+        return std::filesystem::is_regular_file(path, error);
+#else
+        return file_exists(path.c_str(), NOT_LOCALIZED) != 0;
+#endif
+    };
     for (int i = 0; i < FONT_TYPES_MAX; ++i) {
         SurfaceConfig &surface = runtime.surfaces[i];
         if (!surface.defined) {
@@ -968,7 +1027,7 @@ int validate_runtime(RuntimeState &runtime)
         }
 
         const FamilyConfig &family = family_it->second;
-        if (family.faces.regular.empty() || !file_exists(family.faces.regular.c_str(), NOT_LOCALIZED)) {
+        if (family.faces.regular.empty() || !face_exists(family.faces.regular)) {
             runtime.failure_reason = std::string("The regular face for family '") + family.id + "' could not be found.";
             return 0;
         }
@@ -978,9 +1037,9 @@ int validate_runtime(RuntimeState &runtime)
                 runtime.failure_reason = std::string("Family '") + family.id + "' is missing bold, italic, or bold_italic faces required for body text.";
                 return 0;
             }
-            if (!file_exists(family.faces.bold.c_str(), NOT_LOCALIZED)
-                || !file_exists(family.faces.italic.c_str(), NOT_LOCALIZED)
-                || !file_exists(family.faces.bold_italic.c_str(), NOT_LOCALIZED)) {
+            if (!face_exists(family.faces.bold)
+                || !face_exists(family.faces.italic)
+                || !face_exists(family.faces.bold_italic)) {
                 runtime.failure_reason = std::string("One or more styled faces for family '") + family.id + "' could not be found.";
                 return 0;
             }
@@ -997,19 +1056,18 @@ int validate_runtime(RuntimeState &runtime)
     return 1;
 }
 
-int parse_font_pack(const std::string &pack_path, const std::string &base_dir, RuntimeState &runtime)
+int parse_font_pack_layer(const std::string &pack_path, const std::string &base_dir, RuntimeState &runtime)
 {
     runtime = {};
-    runtime.base_dir = base_dir;
     runtime.loaded_pack_path = pack_path;
 
     g_parse = {};
     g_parse.target = &runtime;
     g_parse.base_dir = base_dir;
-    g_runtime.failure_reason.clear();
 
     if (!xml_parser_init(kXmlElements, XML_TOTAL_ELEMENTS, 1)) {
         runtime.failure_reason = "Failed to initialize the fonts.xml parser.";
+        g_parse = {};
         return 0;
     }
 
@@ -1017,6 +1075,7 @@ int parse_font_pack(const std::string &pack_path, const std::string &base_dir, R
     if (!file) {
         xml_parser_free();
         runtime.failure_reason = std::string("Failed to open fonts.xml.\n\n") + pack_path;
+        g_parse = {};
         return 0;
     }
 
@@ -1035,90 +1094,136 @@ int parse_font_pack(const std::string &pack_path, const std::string &base_dir, R
     file_close(file);
     xml_parser_free();
 
-    if (!parsed || g_parse.error || !g_parse.saw_root) {
+    const int valid = parsed && !g_parse.error && g_parse.saw_root;
+    g_parse = {};
+    if (!valid) {
         if (runtime.failure_reason.empty()) {
             runtime.failure_reason = std::string("Failed to parse fonts.xml.\n\n") + pack_path;
         }
         return 0;
     }
-
-    return validate_runtime(runtime);
+    return 1;
 }
 
-std::vector<std::pair<std::string, std::string>> candidate_pack_paths()
+int compose_font_pack_layers(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    RuntimeState &runtime,
+    int *found_any)
 {
-    std::vector<std::pair<std::string, std::string>> paths;
-    auto append_candidate = [&paths](const char *mod_path) {
-        if (!mod_path || !*mod_path) {
-            return;
+    runtime = {};
+    int any = 0;
+    if (found_any) *found_any = 0;
+
+    for (std::size_t layer_index = 0; layer_index < layers.size(); ++layer_index) {
+        const std::vector<mod_definition::DefinitionLayer> one_layer = {layers[layer_index]};
+        mod_definition::LayeredFileSource pack;
+        if (!mod_definition::find_nearest_file(one_layer, "Fonts/fonts.xml", &pack)) {
+            continue;
         }
-        const std::string base_dir = append_path_component(mod_path, "Fonts");
-        const std::string pack_path = append_path_component(base_dir, "fonts.xml");
-        for (const auto &existing : paths) {
-            if (existing.first == pack_path) {
-                return;
+        any = 1;
+
+        RuntimeState parsed;
+        const std::string base_dir = append_path_component(pack.mod_root, "Fonts");
+        if (!parse_font_pack_layer(pack.full_path, base_dir, parsed)) {
+            runtime.failure_reason = parsed.failure_reason;
+            return 0;
+        }
+
+        for (auto &entry : parsed.families) {
+            runtime.families.insert_or_assign(entry.first, std::move(entry.second));
+        }
+        for (int font = 0; font < FONT_TYPES_MAX; ++font) {
+            if (parsed.surfaces[font].defined) {
+                runtime.surfaces[font] = std::move(parsed.surfaces[font]);
             }
         }
-        paths.emplace_back(pack_path, base_dir);
-    };
-
-    append_candidate(mod_manager::mod_path().c_str());
-
-    const auto &mod_names = mod_manager::mod_names();
-    const auto &mod_paths = mod_manager::mod_paths();
-    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
-        if (string_equals_case_insensitive(mod_names[i].c_str(), "Augustus")) {
-            append_candidate(mod_paths[i].c_str());
-        }
+        runtime.loaded_pack_path = std::move(parsed.loaded_pack_path);
     }
-    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
-        if (string_equals_case_insensitive(mod_names[i].c_str(), "Julius")) {
-            append_candidate(mod_paths[i].c_str());
-        }
-    }
-    return paths;
+
+    if (found_any) *found_any = any;
+    if (!any) return 1;
+    return validate_runtime(runtime);
 }
 
 } // namespace
 
+#ifndef STARTUP_PARSER_TEST
 bool font_vector_runtime_load_pack()
 {
     font_vector_runtime_reset();
     g_runtime.failure_reason.clear();
 
-    const std::vector<std::pair<std::string, std::string>> candidates = candidate_pack_paths();
-    for (const auto &candidate : candidates) {
-        if (!file_exists(candidate.first.c_str(), NOT_LOCALIZED)) {
-            continue;
-        }
+    std::vector<mod_definition::DefinitionLayer> layers;
+    if (!mod_definition::configured_layers(layers, &g_runtime.failure_reason)) {
+        return false;
+    }
 
-        RuntimeState parsed;
-        if (!parse_font_pack(candidate.first, candidate.second, parsed)) {
-            g_runtime.failure_reason = parsed.failure_reason.empty() ? g_runtime.failure_reason : parsed.failure_reason;
-            return false;
-        }
-
-        if (!ensure_ttf_initialized()) {
-            return false;
-        }
-
-        g_runtime.families = std::move(parsed.families);
-        g_runtime.surfaces = std::move(parsed.surfaces);
-        g_runtime.base_dir = parsed.base_dir;
-        g_runtime.loaded_pack_path = parsed.loaded_pack_path;
-        g_runtime.active = 1;
-        g_runtime.cached_ui_scale = screen_scale_percentage();
-
-        for (int i = 0; i < FONT_TYPES_MAX; ++i) {
-            g_runtime.surfaces[i].space_width = measure_space_for_surface(g_runtime.surfaces[i]);
-        }
-        release_font_cache();
+    RuntimeState parsed;
+    int found_any = 0;
+    if (!compose_font_pack_layers(layers, parsed, &found_any)) {
+        g_runtime.failure_reason = parsed.failure_reason;
+        return false;
+    }
+    if (!found_any) {
+        // Vector fonts are optional. An absent pack retains the legacy sprite fonts.
         return true;
     }
 
+    if (!ensure_ttf_initialized()) {
+        return false;
+    }
+
+    g_runtime.families = std::move(parsed.families);
+    g_runtime.surfaces = std::move(parsed.surfaces);
+    g_runtime.loaded_pack_path = parsed.loaded_pack_path;
+    g_runtime.active = 1;
+    g_runtime.cached_ui_scale = screen_scale_percentage();
+
+    for (int i = 0; i < FONT_TYPES_MAX; ++i) {
+        g_runtime.surfaces[i].space_width = measure_space_for_surface(g_runtime.surfaces[i]);
+    }
+    release_font_cache();
     return true;
 }
+#endif
 
+#ifdef STARTUP_PARSER_TEST
+int font_vector_runtime_layers_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *family_id,
+    font_t surface,
+    font_vector_layer_test_result *result,
+    std::string *failure_reason)
+{
+    RuntimeState parsed;
+    int found_pack = 0;
+    if (!compose_font_pack_layers(layers, parsed, &found_pack)) {
+        if (failure_reason) *failure_reason = parsed.failure_reason;
+        return 0;
+    }
+    if (failure_reason) failure_reason->clear();
+    if (!result) return 1;
+
+    *result = {};
+    result->found_pack = found_pack;
+    result->family_count = static_cast<int>(parsed.families.size());
+    result->surface_count = static_cast<int>(std::count_if(
+        parsed.surfaces.begin(), parsed.surfaces.end(), [](const SurfaceConfig &entry) { return entry.defined; }));
+    const auto family = parsed.families.find(family_id ? family_id : "");
+    if (family != parsed.families.end()) {
+        result->queried_family_defined = 1;
+        result->queried_regular_face = family->second.faces.regular;
+    }
+    if (surface >= 0 && surface < FONT_TYPES_MAX && parsed.surfaces[surface].defined) {
+        result->queried_surface_defined = 1;
+        result->queried_surface_family_id = parsed.surfaces[surface].family_id;
+        result->queried_surface_logical_size = parsed.surfaces[surface].logical_size;
+    }
+    return 1;
+}
+#endif
+
+#ifndef STARTUP_PARSER_TEST
 void font_vector_runtime_reset()
 {
     release_runtime_state();
@@ -1410,3 +1515,4 @@ int font_vector_runtime_draw_utf8(
 
     return static_cast<int>(std::lround(current_x - x));
 }
+#endif

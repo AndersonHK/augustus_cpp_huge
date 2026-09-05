@@ -3,7 +3,7 @@
 #include "building/production_method_registry.h"
 
 #include "core/crash_context.h"
-#include "game/mod_manager.h"
+#include "game/mod_definition_loader.h"
 
 #include "core/log.h"
 #include "core/xml_definition.h"
@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <climits>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -21,12 +22,21 @@
 
 namespace building_type_registry_impl {
 
-std::string g_production_method_path;
-
 namespace {
+
+mod_definition::DefinitionOverlayTracker g_production_method_overlays;
+
+struct PendingProductionInput {
+    std::string resource;
+    int amount = 0;
+};
 
 struct ParseState {
     std::unique_ptr<ProductionMethod> definition;
+    std::string output_resource;
+    std::vector<PendingProductionInput> inputs;
+    bool disabled = false;
+    int saw_root = 0;
     int saw_kind = 0;
     int saw_output = 0;
     int saw_batch_size = 0;
@@ -38,6 +48,16 @@ struct ParseState {
 
 std::unordered_map<std::string, std::unique_ptr<ProductionMethod>> g_production_methods;
 ParseState g_parse_state;
+
+int reject_tombstone_content(const char *node)
+{
+    if (!g_parse_state.disabled) {
+        return 0;
+    }
+    log_error("Disabled ProductionMethod tombstone contains definition data", node, 0);
+    g_parse_state.error = 1;
+    return 1;
+}
 
 ProductionOutputEffect parse_output_effect_name(const char *name)
 {
@@ -160,14 +180,28 @@ int validate_definition(const ProductionMethod &definition, const char *filename
 
 int parse_root()
 {
-    if (!g_parse_state.definition) {
-        g_parse_state.definition = std::make_unique<ProductionMethod>(std::string());
+    if (!g_parse_state.definition || g_parse_state.saw_root) {
+        log_error("ProductionMethod has an invalid or duplicate root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
     }
+    int disabled = 0;
+    if (xml_parser_has_attribute("disabled") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
+        log_error("ProductionMethod has an invalid disabled value", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.disabled = disabled != 0;
+    g_parse_state.saw_root = 1;
     return 1;
 }
 
 int parse_kind()
 {
+    if (reject_tombstone_content("kind")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod kind before root", 0, 0);
         g_parse_state.error = 1;
@@ -201,6 +235,9 @@ int parse_kind()
 
 int parse_output()
 {
+    if (reject_tombstone_content("output")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod output before root", 0, 0);
         g_parse_state.error = 1;
@@ -226,13 +263,12 @@ int parse_output()
 
     if (has_resource) {
         const char *resource_text = xml_parser_get_attribute_string("resource");
-        const resource_type resource = resource_type_from_xml_attr(resource_text);
-        if (resource == RESOURCE_NONE) {
-            log_error("Unsupported ProductionMethod output resource", resource_text, 0);
+        g_parse_state.output_resource = xml_value::trim_copy(resource_text ? resource_text : "");
+        if (g_parse_state.output_resource.empty()) {
+            log_error("ProductionMethod output resource must not be empty", resource_text, 0);
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->set_output_resource(resource);
         if (xml_parser_has_attribute("destination")) {
             ProductionOutputDestination destination = ProductionOutputDestination::BuildingStorage;
             const char *destination_text = xml_parser_get_attribute_string("destination");
@@ -282,6 +318,9 @@ int parse_output()
 
 int parse_batch_size()
 {
+    if (reject_tombstone_content("batch_size")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod batch_size before root", 0, 0);
         g_parse_state.error = 1;
@@ -312,6 +351,9 @@ int parse_batch_size()
 
 int parse_cart_loads()
 {
+    if (reject_tombstone_content("cart_loads")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod cart_loads before root", 0, 0);
         g_parse_state.error = 1;
@@ -357,6 +399,9 @@ int parse_cart_loads()
 
 int parse_cart_capacity()
 {
+    if (reject_tombstone_content("cart_capacity")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod cart_capacity before root", 0, 0);
         g_parse_state.error = 1;
@@ -385,6 +430,9 @@ int parse_cart_capacity()
 
 int parse_treasury_cost()
 {
+    if (reject_tombstone_content("treasury_cost")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod treasury_cost before root", 0, 0);
         g_parse_state.error = 1;
@@ -415,6 +463,9 @@ int parse_treasury_cost()
 
 int parse_climate_bonuses()
 {
+    if (reject_tombstone_content("climate_bonuses")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod climate_bonuses before root", 0, 0);
         g_parse_state.error = 1;
@@ -425,6 +476,9 @@ int parse_climate_bonuses()
 
 int parse_climate_bonus()
 {
+    if (reject_tombstone_content("bonus")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod climate bonus before root", 0, 0);
         g_parse_state.error = 1;
@@ -463,6 +517,9 @@ int parse_climate_bonus()
 
 int parse_input()
 {
+    if (reject_tombstone_content("input")) {
+        return 0;
+    }
     if (!g_parse_state.definition) {
         log_error("Encountered ProductionMethod input before root", 0, 0);
         g_parse_state.error = 1;
@@ -480,9 +537,9 @@ int parse_input()
     }
 
     const char *resource_text = xml_parser_get_attribute_string("resource");
-    const resource_type resource = resource_type_from_xml_attr(resource_text);
-    if (resource == RESOURCE_NONE) {
-        log_error("Unsupported ProductionMethod input resource", resource_text, 0);
+    const std::string resource = xml_value::trim_copy(resource_text ? resource_text : "");
+    if (resource.empty()) {
+        log_error("ProductionMethod input resource must not be empty", resource_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -494,7 +551,7 @@ int parse_input()
         return 0;
     }
 
-    g_parse_state.definition->add_input({ resource, amount });
+    g_parse_state.inputs.push_back({resource, amount});
     return 1;
 }
 
@@ -511,38 +568,176 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "input", parse_input, nullptr, "production_method", nullptr }
 };
 
-int parse_definition_file(const char *filename, const char *definition_path)
+struct ParsedDefinition {
+    std::unique_ptr<ProductionMethod> definition;
+    std::string output_resource;
+    std::vector<PendingProductionInput> inputs;
+    bool disabled = false;
+};
+
+int parse_definition_buffer(
+    const char *filename,
+    const char *definition_path,
+    const std::vector<char> &buffer,
+    ParsedDefinition &result,
+    std::string *failure_reason)
 {
     ErrorContextScope error_scope("production_method_registry.parse_definition", filename);
 
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<ProductionMethod>(definition_path ? definition_path : "");
-    const int parsed = xml_definition::parse_file(
+    const int parsed = xml_definition::parse_buffer(
         filename,
         "ProductionMethod",
         XML_ELEMENTS,
-        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
-    if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_kind || !g_parse_state.saw_output) {
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
+        buffer);
+    const bool complete_definition = g_parse_state.saw_kind && g_parse_state.saw_output;
+    if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition ||
+        (!g_parse_state.disabled && !complete_definition)) {
         char detail[512];
         snprintf(detail, sizeof(detail), "file=%s path=%s", filename, definition_path ? definition_path : "");
         error_context_report_error("Unable to parse ProductionMethod xml.", detail);
-        return 0;
-    }
-    if (!validate_definition(*g_parse_state.definition, filename, definition_path)) {
-        return 0;
-    }
-
-    const std::string key = g_parse_state.definition->path();
-    if (g_production_methods.find(key) != g_production_methods.end()) {
-        char detail[512];
-        snprintf(detail, sizeof(detail), "file=%s path=%s", filename, key.c_str());
-        log_error("Duplicate ProductionMethod definition path", key.c_str(), 0);
-        error_context_report_error("Duplicate ProductionMethod definition path.", detail);
+        if (failure_reason) {
+            *failure_reason = xml_definition::format_failure_reason(
+                "Unable to parse ProductionMethod xml.", detail);
+        }
         return 0;
     }
 
-    g_production_methods.emplace(key, std::move(g_parse_state.definition));
+    result.definition = std::move(g_parse_state.definition);
+    result.output_resource = std::move(g_parse_state.output_resource);
+    result.inputs = std::move(g_parse_state.inputs);
+    result.disabled = g_parse_state.disabled;
     return 1;
+}
+
+int parse_definition_file(
+    const char *filename,
+    const char *definition_path,
+    ParsedDefinition &result,
+    std::string *failure_reason)
+{
+    std::vector<char> buffer;
+    if (!xml_definition::load_file_to_buffer(filename, buffer, "ProductionMethod")) {
+        if (failure_reason) {
+            *failure_reason = xml_definition::format_failure_reason(
+                "Unable to load ProductionMethod xml.", filename);
+        }
+        return 0;
+    }
+    return parse_definition_buffer(filename, definition_path, buffer, result, failure_reason);
+}
+
+struct LayeredDefinition {
+    ParsedDefinition parsed;
+    mod_definition::DefinitionSource source;
+};
+
+struct StagedRegistry {
+    mod_definition::DefinitionOverlayTracker overlay;
+    std::map<std::string, LayeredDefinition> winners;
+    std::unordered_map<std::string, std::unique_ptr<ProductionMethod>> definitions;
+};
+
+bool stage_definition(
+    StagedRegistry &staged,
+    ParsedDefinition parsed,
+    const mod_definition::DefinitionSource &source,
+    std::string *failure_reason)
+{
+    const std::string stable_id = parsed.definition ? parsed.definition->path() : "";
+    if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
+        log_error("Unable to layer ProductionMethod definition", staged.overlay.failure_reason().c_str(), 0);
+        error_context_report_error(
+            "Unable to layer ProductionMethod definition.", staged.overlay.failure_reason().c_str());
+        if (failure_reason) {
+            *failure_reason = staged.overlay.failure_reason();
+        }
+        return false;
+    }
+    staged.winners[stable_id] = {std::move(parsed), source};
+    return true;
+}
+
+bool fail_reference(
+    const char *kind,
+    const std::string &name,
+    const LayeredDefinition &winner,
+    std::string *failure_reason)
+{
+    const std::string detail = "ProductionMethod '" + std::string(winner.parsed.definition->path()) +
+        "' from " + winner.source.describe() + " has an unknown " + kind + " resource '" + name + "'.";
+    log_error("Unsupported ProductionMethod resource reference", detail.c_str(), 0);
+    error_context_report_error("Unsupported ProductionMethod resource reference.", detail.c_str());
+    if (failure_reason) {
+        *failure_reason = detail;
+    }
+    return false;
+}
+
+bool resolve_winners(StagedRegistry &staged, std::string *failure_reason)
+{
+    for (auto &entry : staged.winners) {
+        LayeredDefinition &winner = entry.second;
+        ParsedDefinition &parsed = winner.parsed;
+        if (parsed.disabled) {
+            continue;
+        }
+
+        if (!parsed.output_resource.empty()) {
+            const resource_type resource = resource_type_from_xml_attr(parsed.output_resource.c_str());
+            if (resource == RESOURCE_NONE) {
+                return fail_reference("output", parsed.output_resource, winner, failure_reason);
+            }
+            parsed.definition->set_output_resource(resource);
+        }
+        for (const PendingProductionInput &input : parsed.inputs) {
+            const resource_type resource = resource_type_from_xml_attr(input.resource.c_str());
+            if (resource == RESOURCE_NONE) {
+                return fail_reference("input", input.resource, winner, failure_reason);
+            }
+            parsed.definition->add_input({resource, input.amount});
+        }
+
+        if (!validate_definition(
+                *parsed.definition,
+                winner.source.full_path.c_str(),
+                winner.source.normalized_definition_path.c_str())) {
+            if (failure_reason) {
+                *failure_reason = "Invalid ProductionMethod winner: " + winner.source.describe();
+            }
+            return false;
+        }
+        staged.definitions.emplace(entry.first, std::move(parsed.definition));
+    }
+    return true;
+}
+
+bool build_layered_registry(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    StagedRegistry &staged,
+    std::string *failure_reason)
+{
+    if (!mod_definition::for_each_definition_file(
+            layers,
+            {"ProductionMethod"},
+            "ProductionMethod",
+            true,
+            [&](const mod_definition::DefinitionSource &source) {
+                ParsedDefinition parsed;
+                return parse_definition_file(
+                           source.full_path.c_str(),
+                           source.normalized_definition_path.c_str(),
+                           parsed,
+                           failure_reason) &&
+                    stage_definition(staged, std::move(parsed), source, failure_reason);
+            },
+            nullptr,
+            failure_reason)) {
+        return false;
+    }
+    return resolve_winners(staged, failure_reason);
 }
 
 } // namespace
@@ -613,27 +808,138 @@ void reset_production_overrides()
 
 } // namespace building_type_registry_impl
 
-const char *production_method_registry_get_production_method_path(void)
-{
-    building_type_registry_impl::g_production_method_path = mod_manager::mod_path() + "ProductionMethod/";
-    return building_type_registry_impl::g_production_method_path.c_str();
-}
-
 int production_method_registry_load(void)
 {
-    using namespace building_type_registry_impl;
-
-    production_method_registry_get_production_method_path();
-    g_production_methods.clear();
-
-    return xml_definition::for_each_definition_file(
-        g_production_method_path,
-        "ProductionMethod",
-        false,
-        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
-            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
-        });
+    std::vector<mod_definition::DefinitionLayer> layers;
+    std::string failure_reason;
+    if (!mod_definition::configured_layers(layers, &failure_reason)) {
+        log_error("Unable to configure ProductionMethod definition layers", failure_reason.c_str(), 0);
+        return 0;
+    }
+    return production_method_registry_load_layers(layers, &failure_reason);
 }
+
+int production_method_registry_load_layers(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    std::string *failure_reason)
+{
+    using namespace building_type_registry_impl;
+    StagedRegistry staged;
+    if (!build_layered_registry(layers, staged, failure_reason)) {
+        return 0;
+    }
+    g_production_methods = std::move(staged.definitions);
+    g_production_method_overlays = std::move(staged.overlay);
+    return 1;
+}
+
+const char *production_method_definition_source_path(const char *path)
+{
+    const std::string normalized = xml_definition::normalize_path(path);
+    const mod_definition::DefinitionOverlayEntry *entry =
+        building_type_registry_impl::g_production_method_overlays.find(normalized);
+    return entry ? entry->source.full_path.c_str() : nullptr;
+}
+
+int production_method_definition_is_suppressed(const char *path)
+{
+    const std::string normalized = xml_definition::normalize_path(path);
+    const mod_definition::DefinitionOverlayEntry *entry =
+        building_type_registry_impl::g_production_method_overlays.find(normalized);
+    return entry && entry->disabled;
+}
+
+#ifdef STARTUP_PARSER_TEST
+namespace {
+
+void fill_layer_test_result(
+    const building_type_registry_impl::StagedRegistry &staged,
+    const char *query_path,
+    production_method_layer_test_result *result)
+{
+    if (!result) {
+        return;
+    }
+    *result = {};
+    result->active_count = static_cast<int>(staged.overlay.active_count());
+    result->suppressed_count = static_cast<int>(staged.overlay.suppressed_count());
+    result->queried_source_layer = -1;
+
+    const std::string path = xml_definition::normalize_path(query_path);
+    const mod_definition::DefinitionOverlayEntry *overlay = staged.overlay.find(path);
+    if (overlay) {
+        result->queried_disabled = overlay->disabled ? 1 : 0;
+        result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
+    }
+    const auto found = staged.definitions.find(path);
+    if (found != staged.definitions.end() && found->second) {
+        result->queried_production_per_month = found->second->base_monthly_production();
+        result->queried_input_count = static_cast<int>(found->second->inputs().size());
+    }
+}
+
+} // namespace
+
+int production_method_layered_definition_buffers_are_valid_for_test(
+    const production_method_layer_test_input *inputs,
+    int input_count,
+    const char *query_path,
+    production_method_layer_test_result *result)
+{
+    using namespace building_type_registry_impl;
+    if (!inputs || input_count < 0) {
+        return 0;
+    }
+
+    StagedRegistry staged;
+    std::string failure_reason;
+    for (int index = 0; index < input_count; ++index) {
+        const production_method_layer_test_input &input = inputs[index];
+        const char *xml = input.xml ? input.xml : "";
+        std::vector<char> buffer(xml, xml + std::strlen(xml));
+
+        mod_definition::DefinitionSource source;
+        source.layer_index = input.layer_index < 0 ? 0 : static_cast<std::size_t>(input.layer_index);
+        source.mod_name = input.mod_name ? input.mod_name : "";
+        source.category = "ProductionMethod";
+        source.full_path = input.source_path ? input.source_path : "ProductionMethodLayerTest.xml";
+        source.file_name = source.full_path;
+        source.normalized_definition_path = xml_definition::normalize_path(input.definition_path);
+        source.registry_relative_path = "ProductionMethod\\" + source.normalized_definition_path;
+
+        ParsedDefinition parsed;
+        if (!parse_definition_buffer(
+                source.full_path.c_str(),
+                source.normalized_definition_path.c_str(),
+                buffer,
+                parsed,
+                &failure_reason) ||
+            !stage_definition(staged, std::move(parsed), source, &failure_reason)) {
+            return 0;
+        }
+    }
+    if (!resolve_winners(staged, &failure_reason)) {
+        return 0;
+    }
+    fill_layer_test_result(staged, query_path, result);
+    return 1;
+}
+
+int production_method_layered_definition_files_are_valid_for_test(
+    const std::vector<mod_definition::DefinitionLayer> &layers,
+    const char *query_path,
+    production_method_layer_test_result *result,
+    std::string *failure_reason)
+{
+    using namespace building_type_registry_impl;
+    StagedRegistry staged;
+    if (!build_layered_registry(layers, staged, failure_reason)) {
+        return 0;
+    }
+    fill_layer_test_result(staged, query_path, result);
+    return 1;
+}
+#endif
 
 int production_method_registry_production_per_month_for_resource(resource_type resource)
 {

@@ -14,14 +14,11 @@
 #include "window/editor/map.h"
 #include "game.h"
 
-#include "building/building_type_registry.h"
 #include "building/building_runtime.h"
-#include "figure/figure_type_registry.h"
-#include "figure/formation_type.h"
-#include "figure/unit_type.h"
-#include "game/defines.h"
+#include "building/building_type_registry_internal.h"
 #include "game/performance_tracker.h"
 #include "graphics/declarative_window.h"
+#include "startup/startup_parser_abi.h"
 
 #include "game/settings.h"
 #include "game/campaign.h"
@@ -183,45 +180,40 @@ int game_init(void)
         return 0;
     }
     if (!declarative_window_registry_load()) {
-        set_init_failure_message("Failed to load UI window definitions.", declarative_window_registry_get_failure_reason());
+        const char *failure_reason = declarative_window_registry_get_failure_reason();
+        set_init_failure_message("Failed to load UI window definitions.", failure_reason);
         errlog("unable to load UI window definitions");
+        if (failure_reason && *failure_reason) {
+            errlog(failure_reason);
+        }
         return 0;
     }
 
-    model_reset();
-    resource_init();
-
-    if (!game_defines_load()) {
-        set_init_failure_message("Failed to load gameplay defines.", game_defines_get_failure_reason());
-        errlog("unable to load gameplay defines");
+    startup_parser_request_v1 startup_request = {};
+    startup_request.struct_size = sizeof(startup_request);
+    startup_request.abi_version = STARTUP_PARSER_ABI_VERSION;
+    startup_parser_result_v1 startup_result = {};
+    startup_result.struct_size = sizeof(startup_result);
+    if (startup_parser_run_v1(&startup_request, &startup_result) != STARTUP_PARSER_STATUS_SUCCEEDED) {
+        const std::string failure_step = startup_result.failure_step;
+        const std::string failure_message = startup_result.failure_message;
+        const std::string summary = failure_step.empty()
+            ? "Failed to load startup definitions."
+            : "Failed to load " + failure_step + ".";
+        set_init_failure_message(summary.c_str(),
+            failure_message.empty() ? nullptr : failure_message.c_str());
+        errlog("unable to load startup definitions");
         return 0;
     }
-
-    building_properties_init();
-    if (!figure_type_registry_load()) {
-        set_init_failure_message("Failed to load FigureType definitions.", figure_type_registry_get_failure_reason());
-        errlog("unable to load FigureType xml definitions");
-        return 0;
-    }
-    if (!unit_type_registry_load()) {
-        set_init_failure_message("Failed to load UnitType definitions.", unit_type_registry_get_failure_reason());
-        errlog("unable to load UnitType xml definitions");
-        return 0;
-    }
-    if (!formation_type_registry_load()) {
-        set_init_failure_message("Failed to load FormationType definitions.", formation_type_registry_get_failure_reason());
-        errlog("unable to load FormationType xml definitions");
-        return 0;
-    }
-    if (!building_type_registry_load()) {
-        set_init_failure_message("Failed to load BuildingType definitions.", 0);
-        errlog("unable to load BuildingType xml definitions");
-        return 0;
-    }
-    if (!figure_type_registry_resolve_building_references()) {
-        set_init_failure_message("Failed to resolve FigureType building references.", figure_type_registry_get_failure_reason());
-        errlog("unable to resolve FigureType building references");
-        return 0;
+    for (int type = 0; type < BUILDING_TYPE_MAX; ++type) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (!definition || !definition->has_race() || !definition->race().betting.enabled) continue;
+        if (!declarative_window_definition(definition->race().betting.window)) {
+            set_init_failure_message("Race betting window is unresolved.", definition->race().betting.window.c_str());
+            errlog("race betting window is unresolved");
+            return 0;
+        }
     }
     building_runtime_reset();
     load_augustus_messages();

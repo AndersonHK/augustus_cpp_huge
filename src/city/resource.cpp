@@ -6,7 +6,7 @@
 #include "building/caravanserai.h"
 #include "building/count.h"
 #include "building/granary.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -43,15 +43,11 @@ static struct {
     resource_list foods;
 } potential;
 
-static building *first_of_type(const char *text_id)
-{
-    building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
-}
-
 static building *first_working_monument(const char *text_id)
 {
-    for (building *b = first_of_type(text_id); b; b = b->next_of_type) {
+    const building_type type = building_type_registry_impl::type_from_attr(text_id);
+    for (Building &monument : Building::of_type(type)) {
+        building *b = const_cast<building *>(monument.record());
         if (b->monument.phase == MONUMENT_FINISHED && b->state == BUILDING_STATE_IN_USE &&
             !building_monument_has_labour_problems(b)) {
             return b;
@@ -75,15 +71,15 @@ int city_resource_count_warehouses_amount(resource_type resource)
     }
 
     int total = 0;
-    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
         if (!warehouse->is_in_use()) {
-            continue;
+            return;
         }
-        if (!warehouse->has_cached_road_access() && !map_has_road_access_warehouse(warehouse->x(), warehouse->y(), 0)) {
-            continue;
+        if (!warehouse->has_cached_road_access() && !map_has_road_access_building(warehouse->x(), warehouse->y(), 0)) {
+            return;
         }
         total += building_warehouse_get_amount(*warehouse, resource);
-    }
+    });
     return total;
 }
 
@@ -161,12 +157,12 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
 int city_resource_get_available_empty_space_warehouses(resource_type resource)
 {
     int available_storage = 0;
-    for (Building *warehouse = building_warehouse_first(); warehouse; warehouse = warehouse->next_of_type()) {
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
         if (!warehouse->is_in_use()) {
-            continue;
+            return;
         }
         available_storage += building_warehouse_maximum_receptible_amount(*warehouse, resource);
-    }
+    });
 
     return available_storage;
 }
@@ -345,26 +341,26 @@ void city_resource_calculate_warehouse_stocks(void)
         city_data.resource.space_in_warehouses[i] = 0;
         city_data.resource.stored_in_warehouses[i] = 0;
     }
-    for (building *b = first_of_type("warehouse"); b; b = b->next_of_type) {
+    const building_type warehouse_type = building_type_registry_impl::type_from_attr("warehouse");
+    for (Building &warehouse : Building::of_type(warehouse_type)) {
+        building *b = const_cast<building *>(warehouse.record());
         if (b->state == BUILDING_STATE_IN_USE) {
             b->has_road_access = 0;
-            if (map_has_road_access_warehouse(b->x, b->y, 0)) {
+            if (map_has_road_access_building(b->x, b->y, 0)) {
                 b->has_road_access = 1;
             }
         }
     }
     building_type warehouse_space_type = building_type_registry_impl::type_from_attr("warehouse_space");
-    for (Building *space = warehouse_space_type == BUILDING_NONE ? nullptr : Building::first_of_type(warehouse_space_type);
-         space;
-         space = space->next_of_type()) {
-        building *b = const_cast<building *>(space->record());
+    for (Building &space : Building::of_type(warehouse_space_type)) {
+        building *b = const_cast<building *>(space.record());
         if (b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        Building &warehouse = space->main();
-        const building *warehouse_record = warehouse.record();
+        Building *warehouse = space.Composition ? space.Composition->owner() : nullptr;
+        const building *warehouse_record = warehouse ? warehouse->record() : nullptr;
         if (!warehouse_record || warehouse_record->state != BUILDING_STATE_IN_USE ||
-            !warehouse.type || !warehouse.type->is_warehouse()) {
+            !warehouse->type || !warehouse->type->is_warehouse()) {
             continue;
         }
         if (warehouse_record->has_road_access) {
@@ -470,12 +466,14 @@ static void calculate_available_food(void)
     city_data.resource.granaries.understaffed = 0;
     city_data.resource.granaries.not_operating = 0;
     city_data.resource.granaries.not_operating_with_food = 0;
-    for (building *b = first_of_type("granary"); b; b = b->next_of_type) {
+    const building_type granary_type = building_type_registry_impl::type_from_attr("granary");
+    for (Building &granary : Building::of_type(granary_type)) {
+        building *b = const_cast<building *>(granary.record());
         if (b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
         b->has_road_access = 0;
-        if (map_has_road_access_granary(b->x, b->y, 0)) {
+        if (map_has_road_access_building(b->x, b->y, 0)) {
             b->has_road_access = 1;
             int pct_workers = calc_percentage(
                 b->num_workers, model_get_building(b->type)->laborers);
@@ -538,7 +536,9 @@ void city_resource_calculate_food_stocks_and_supply_wheat(void)
     if (scenario_property_rome_supplies_wheat()) {
         static const char *supplied_buildings[] = {"market", "mess_hall", nullptr};
         for (int i = 0; supplied_buildings[i]; i++) {
-            for (building *b = first_of_type(supplied_buildings[i]); b; b = b->next_of_type) {
+            const building_type type = building_type_registry_impl::type_from_attr(supplied_buildings[i]);
+            for (Building &building : Building::of_type(type)) {
+                ::building *b = const_cast<::building *>(building.record());
                 if (b->state == BUILDING_STATE_IN_USE) {
                     b->resources[resource_wheat()] = 200;
                 }
@@ -552,19 +552,21 @@ static int house_consume_food(void)
     int total_consumed = 0;
     int ceres_module = (building_monument_gt_module_is_active(CERES_MODULE_1_REDUCE_FOOD));
 
-    Building::for_each({ .hasHousing = true }, [&](Building *house) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
         building *b = const_cast<building *>(house->record());
-        if (!building_house_is_active(*house)) {
+        if (!house->is_in_use()) {
             return;
         }
+        HousingState &state = house->Housing->state();
+        HousingServiceState &services = state.services;
 
-        const model_house *house_model = building_house_get_model(*house);
-        int num_types = house_model ? house_model->food_types : 0;
+        const auto *profile = house->Housing->definition().profile;
+        int num_types = profile ? profile->requirements.food_types : 0;
         int amount_per_type;
-        if (ceres_module && b->data.house.temple_ceres) {
-            amount_per_type = calc_adjust_with_percentage(b->house_population, 40);
+        if (ceres_module && services.temple_ceres) {
+            amount_per_type = calc_adjust_with_percentage(state.population, 40);
         } else {
-            amount_per_type = calc_adjust_with_percentage(b->house_population, 50);
+            amount_per_type = calc_adjust_with_percentage(state.population, 50);
         }
         int foodtypes_available = 0;
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -576,12 +578,12 @@ static int house_consume_food(void)
             amount_per_type /= foodtypes_available;
         }
 
-        b->data.house.num_foods = 0;
+        services.num_foods = 0;
         if (scenario_property_rome_supplies_wheat()) {
             city_data.resource.food_types_eaten = 1;
             city_data.resource.food_types_available = 1;
             b->resources[resource_wheat()] = static_cast<short>(amount_per_type);
-            b->data.house.num_foods = 1;
+            services.num_foods = 1;
         } else if (num_types > 0) {
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 if (!resource_is_food(r)) {
@@ -589,16 +591,16 @@ static int house_consume_food(void)
                 }
                 if (b->resources[r] >= amount_per_type) {
                     b->resources[r] = static_cast<short>(b->resources[r] - amount_per_type);
-                    b->data.house.num_foods++;
+                    ++services.num_foods;
                     total_consumed += amount_per_type;
                 } else if (b->resources[r]) {
                     // has food but not enough
                     b->resources[r] = 0;
-                    b->data.house.num_foods++;
+                    ++services.num_foods;
                     total_consumed += amount_per_type;
                 }
-                if (b->data.house.num_foods > city_data.resource.food_types_eaten) {
-                    city_data.resource.food_types_eaten = b->data.house.num_foods;
+                if (services.num_foods > city_data.resource.food_types_eaten) {
+                    city_data.resource.food_types_eaten = services.num_foods;
                 }
             }
         }
@@ -611,7 +613,9 @@ static int mess_hall_consume_food(void)
 {
     int total_consumed = 0;
     building *b = nullptr;
-    for (building *candidate = first_of_type("mess_hall"); candidate; candidate = candidate->next_of_type) {
+    const building_type mess_hall_type = building_type_registry_impl::type_from_attr("mess_hall");
+    for (Building &mess_hall : Building::of_type(mess_hall_type)) {
+        building *candidate = const_cast<building *>(mess_hall.record());
         if (candidate->state == BUILDING_STATE_IN_USE || candidate->state == BUILDING_STATE_MOTHBALLED) {
             b = candidate;
             break;

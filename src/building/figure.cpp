@@ -1,9 +1,6 @@
 #include "building/figure.h"
 #include "building/entertainment.h"
-#include "building/image.h"
 #include "building/industry.h"
-#include "map/building_tiles.h"
-#include "map/image.h"
 #include "map/road_access.h"
 
 #include "building/building_record.h"
@@ -14,6 +11,7 @@
 #include "building/mess_hall.h"
 #include "building/temple.h"
 #include "figure/formation_legion.h"
+#include "figuretype/native.h"
 
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
@@ -22,24 +20,14 @@
 
 #include <algorithm>
 
-#include "scenario/scenario.h"
-
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
-#include "city/buildings.h"
-#include "city/data_private.h"
-#include "city/message.h"
-#include "city/population.h"
 #include "core/calc.h"
-#include "core/image.h"
 #include "figure/movement.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "map/desirability.h"
-#include "map/random.h"
-#include "map/terrain.h"
 
 namespace {
 
@@ -48,34 +36,7 @@ building_runtime *runtime_for_record(building *record)
     return building_runtime_impl::get_or_create_instance(record);
 }
 
-Building *building_for_id(unsigned int building_id)
-{
-    if (!building_id) {
-        return nullptr;
-    }
-
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building->id == building_id) {
-            found = building;
-        }
-    });
-    return found;
-}
-
 } // namespace
-
-Building *BuildingFigureGenerator::working_pantheon()
-{
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand)) {
-            return building_for_id(building_monument_working(type));
-        }
-    }
-    return nullptr;
-}
 
 int BuildingFigureGenerator::type_is_basic_temple(building_type type)
 {
@@ -128,7 +89,7 @@ void BuildingFigureGenerator::attach_figure_to_building(Figure *f, building *b)
 {
     if (f) {
         building_runtime *runtime = runtime_for_record(b);
-        f->building = runtime ? &runtime->building : nullptr;
+        f->set_home_building(runtime ? &runtime->building : nullptr);
     }
 }
 
@@ -229,15 +190,17 @@ void BuildingFigureGenerator::spawn_figure_warehouse(building *b)
     }
     Building &building = runtime->building;
     runtime->check_labor_problem();
-    ::building *space = b;
-    for (int i = 0; i < 8; i++) {
-        space = building_next(space);
-        if (space->id) {
+    if (!building.Composition) {
+        return;
+    }
+    building.Composition->for_each_member([b](Building &part) {
+        ::building *space = const_cast<::building *>(part.record());
+        if (space) {
             space->show_on_problem_overlay = b->show_on_problem_overlay;
         }
-    }
+    });
     map_point road;
-    if (map_has_road_access_warehouse(b->x, b->y, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         if (has_figure_of_type(b, FIGURE_WAREHOUSEMAN)) {
             return;
@@ -269,9 +232,9 @@ void BuildingFigureGenerator::spawn_figure_granary(building *b)
     }
     Building &building = runtime->building;
     runtime->check_labor_problem();
-    map_update_granary_internal_roads(b); //internal roads updated basing on surrounding terrain
+    map_update_building_internal_roads(b); // Internal passage roads follow their surrounding terrain.
     map_point road;
-    if (map_has_road_access_granary(b->x, b->y, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         if (has_figure_of_type(b, FIGURE_WAREHOUSEMAN)) {
             return;
@@ -289,28 +252,6 @@ void BuildingFigureGenerator::spawn_figure_granary(building *b)
     }
 }
 
-void BuildingFigureGenerator::spawn_figure_tower(building *b)
-{
-    building_runtime *runtime = runtime_for_record(b);
-    if (!runtime) {
-        return;
-    }
-    runtime->check_labor_problem();
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        runtime->run_labor_phase_if_defined(road);
-        if (b->num_workers <= 0) {
-            return;
-        }
-        if (!b->figure_id4 && b->figure_id) { // has sentry but no ballista -> create
-            Figure *f = Figure::create(FIGURE_BALLISTA, b->x, b->y, DIR_0_TOP);
-            b->figure_id4 = f->id();
-            attach_figure_to_building(f, b);
-            f->action_state = FIGURE_ACTION_180_BALLISTA_CREATED;
-        }
-    }
-}
-
 void BuildingFigureGenerator::spawn_figure_market(building *b)
 {
     building_runtime *runtime = runtime_for_record(b);
@@ -321,7 +262,7 @@ void BuildingFigureGenerator::spawn_figure_market(building *b)
     building.refresh_graphic();
     runtime->check_labor_problem();
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         int spawn_delay = worker_scaled_spawn_delay(building, 2, 5, 10, 20, 30);
         if (!spawn_delay) {
@@ -341,71 +282,6 @@ void BuildingFigureGenerator::spawn_figure_market(building *b)
     }
 }
 
-void BuildingFigureGenerator::spawn_figure_grand_temple_mars(building *b)
-{
-    building_runtime *runtime = runtime_for_record(b);
-    if (!runtime) {
-        return;
-    }
-    Building &building = runtime->building;
-    runtime->check_labor_problem();
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        runtime->run_labor_phase_if_defined(road);
-        int spawn_delay = worker_spawn_delay_days(building, 8, 12, 16, 32, 48);
-        if (spawn_delay < 0) {
-            return;
-        }
-
-        // recruitment penalty for no food
-        if (city_data.mess_hall.food_stress_cumulative > 20) {
-            spawn_delay += city_data.mess_hall.food_stress_cumulative - 20;
-        }
-        spawn_delay = game_time_scale_legacy_day_ticks(spawn_delay);
-
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > spawn_delay) {
-            b->figure_spawn_delay = 0;
-            map_has_road_access(b->x, b->y, b->size, &road);
-            Barracks barracks(building);
-            switch (barracks.priority()) {
-                case PRIORITY_FORT:
-                case PRIORITY_FORT_JAVELIN:
-                case PRIORITY_FORT_MOUNTED:
-                case PRIORITY_FORT_AUXILIA_INFANTRY:
-                case PRIORITY_FORT_AUXILIA_ARCHERY:
-                    if (!barracks.create_soldier(road.x, road.y)) {
-                        barracks.create_tower_sentry(road.x, road.y);
-                    }
-                    break;
-                default:
-                    if (!barracks.create_tower_sentry(road.x, road.y)) {
-                        barracks.create_soldier(road.x, road.y);
-                    }
-            }
-            if (!has_figure_of_type(b, FIGURE_PRIEST)) {
-                create_roaming_figure(b, road.x, road.y, FIGURE_PRIEST);
-            }
-        }
-
-        // Pantheon Module 1 Bonus
-        if (!b->figure_id4 && building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS)) {
-            Building *pantheon = working_pantheon();
-            if (!pantheon) {
-                return;
-            }
-            Figure *f = Figure::create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
-            if (!f) {
-                return;
-            }
-            b->figure_id4 = f->id();
-            f->destination_building = pantheon;
-            attach_figure_to_building(f, b);
-            f->action_state = FIGURE_ACTION_212_DESTINATION_PRIEST_CREATED;
-        }
-    }
-}
-
 void BuildingFigureGenerator::spawn_figure_tavern(building *b)
 {
     building_runtime *runtime = runtime_for_record(b);
@@ -415,7 +291,7 @@ void BuildingFigureGenerator::spawn_figure_tavern(building *b)
     Building &building = runtime->building;
     runtime->check_labor_problem();
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         int spawn_delay = default_spawn_delay(building) * 2;
         if (!spawn_delay) {
@@ -439,53 +315,6 @@ void BuildingFigureGenerator::spawn_figure_tavern(building *b)
     }
 }
 
-void BuildingFigureGenerator::spawn_figure_temple(building *b)
-{
-    building_runtime *runtime = runtime_for_record(b);
-    if (!runtime) {
-        return;
-    }
-    Building &building_object = runtime->building;
-    runtime->check_labor_problem();
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        runtime->run_labor_phase_if_defined(road);
-        int spawn_delay;
-        if (building_object.employment_required_workers() <= 0) {
-            spawn_delay = game_time_scale_legacy_day_ticks(7);
-        } else {
-            spawn_delay = worker_scaled_spawn_delay(building_object, 3, 7, 10, 15, 20);
-            if (!spawn_delay) {
-                return;
-            }
-        }
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > spawn_delay) {
-            if (!has_figure_of_type(b, FIGURE_PRIEST)) {
-                create_roaming_figure(b, road.x, road.y, FIGURE_PRIEST);
-            }
-            runtime->spawn_temple_neptune_chariot(road);
-            b->figure_spawn_delay = 0;
-        }
-
-        runtime->spawn_temple_mars_mess_hall_priest(road);
-
-        // Ceres Module 2 Bonus
-        if (building_object.type && building_object.type->is_temple(GOD_CERES) &&
-            building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD) && !b->figure_id2) {
-            runtime->spawn_temple_distribution_supplier(road);
-        }
-
-        // Venus Module 1 Bonus
-        if (building_object.type && building_object.type->is_temple(GOD_VENUS) &&
-            building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE) && !b->figure_id2) {
-            runtime->spawn_temple_distribution_supplier(road);
-        }
-
-        runtime->spawn_temple_destination_priest(road);
-    }
-}
-
 void BuildingFigureGenerator::spawn_figure_senate_forum(building *b)
 {
     building_runtime *runtime = runtime_for_record(b);
@@ -504,7 +333,7 @@ void BuildingFigureGenerator::spawn_figure_senate_forum(building *b)
         return;
     }
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         int spawn_delay_days = worker_spawn_delay_days(building, 0, 1, 3, 7, 15);
         if (spawn_delay_days < 0) {
@@ -518,23 +347,6 @@ void BuildingFigureGenerator::spawn_figure_senate_forum(building *b)
             f->action_state = FIGURE_ACTION_40_TAX_COLLECTOR_CREATED;
             attach_figure_to_building(f, b);
             b->figure_id = f->id();
-        }
-    }
-}
-
-void BuildingFigureGenerator::spawn_figure_mission_post(building *b)
-{
-    if (has_figure_of_type(b, FIGURE_MISSIONARY)) {
-        return;
-    }
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        if (city_population() > 0) {
-            b->figure_spawn_delay++;
-            if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(1)) {
-                b->figure_spawn_delay = 0;
-                create_roaming_figure(b, road.x, road.y, FIGURE_MISSIONARY);
-            }
         }
     }
 }
@@ -578,7 +390,7 @@ void BuildingFigureGenerator::spawn_figure_dock(building *b)
     Building &building = runtime->building;
     runtime->check_labor_problem();
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         int max_dockers = worker_slot_capacity(building, 3, 2, 1);
         // count existing dockers
@@ -617,125 +429,6 @@ void BuildingFigureGenerator::spawn_figure_dock(building *b)
     }
 }
 
-void BuildingFigureGenerator::spawn_figure_native_hut(building *b)
-{
-    if (b && building_type_registry_impl::type_attr_is(b->type, "native_hut")) {
-        map_image_set(b->grid_offset, image_group(GROUP_BUILDING_NATIVE) + (map_random_get(b->grid_offset) & 1));
-    } else {
-        if (building_runtime *runtime = runtime_for_record(b)) {
-            map_image_set(b->grid_offset, building_image_get(&runtime->building));
-        }
-    }
-
-    if (has_figure_of_type(b, FIGURE_INDIGENOUS_NATIVE)) {
-        return;
-    }
-    int x_out, y_out;
-    if (b->subtype.native_meeting_center_id > 0
-        && map_terrain_get_adjacent_road_or_clear_land(b->x, b->y, b->size, &x_out, &y_out)) {
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(4)) {
-            b->figure_spawn_delay = 0;
-            Figure *f = Figure::create(FIGURE_INDIGENOUS_NATIVE, x_out, y_out, DIR_0_TOP);
-            f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
-            attach_figure_to_building(f, b);
-            b->figure_id = f->id();
-        }
-    }
-}
-
-void BuildingFigureGenerator::spawn_figure_native_meeting(building *b)
-{
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-        map_building_tiles_add(runtime->building, b->x, b->y, 2,
-            building_image_get(&runtime->building), TERRAIN_BUILDING);
-    }
-    int pacified = b->sentiment.native_anger < 100;
-    if (pacified && !has_figure_of_type(b, FIGURE_NATIVE_TRADER)) {
-        int x_out, y_out;
-        if (map_terrain_get_adjacent_road_or_clear_land(b->x, b->y, b->size, &x_out, &y_out)) {
-            b->figure_spawn_delay++;
-            if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(8)) {
-                b->figure_spawn_delay = 0;
-                Figure *f = Figure::create(FIGURE_NATIVE_TRADER, x_out, y_out, DIR_0_TOP);
-                f->action_state = FIGURE_ACTION_162_NATIVE_TRADER_CREATED;
-                attach_figure_to_building(f, b);
-                b->figure_id = f->id();
-            }
-        }
-    }
-}
-
-void BuildingFigureGenerator::spawn_figure_barracks(building *b)
-{
-    building_runtime *runtime = runtime_for_record(b);
-    if (!runtime) {
-        return;
-    }
-    Building &building = runtime->building;
-    runtime->check_labor_problem();
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        runtime->run_labor_phase_if_defined(road);
-        int spawn_delay = worker_spawn_delay_days(building, 8, 12, 16, 32, 48);
-        if (spawn_delay < 0) {
-            return;
-        }
-
-        // recruitment penalty for no food
-        if (city_data.mess_hall.food_stress_cumulative > 20) {
-            spawn_delay += city_data.mess_hall.food_stress_cumulative - 20;
-        }
-        spawn_delay = game_time_scale_legacy_day_ticks(spawn_delay);
-
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > spawn_delay) {
-            b->figure_spawn_delay = 0;
-            map_has_road_access(b->x, b->y, b->size, &road);
-            Barracks barracks(building);
-            switch (barracks.priority()) {
-                case PRIORITY_FORT:
-                case PRIORITY_FORT_JAVELIN:
-                case PRIORITY_FORT_MOUNTED:
-                case PRIORITY_FORT_AUXILIA_INFANTRY:
-                case PRIORITY_FORT_AUXILIA_ARCHERY:
-                    if (!barracks.create_soldier(road.x, road.y)) {
-                        barracks.create_tower_sentry(road.x, road.y);
-                    }
-                    break;
-                default:
-                    if (!barracks.create_tower_sentry(road.x, road.y)) {
-                        barracks.create_soldier(road.x, road.y);
-                    }
-            }
-        }
-    }
-}
-
-void BuildingFigureGenerator::spawn_figure_military_academy(building *b)
-{
-    building_runtime *runtime = runtime_for_record(b);
-    if (!runtime) {
-        return;
-    }
-    runtime->check_labor_problem();
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        runtime->run_labor_phase_if_defined(road);
-    }
-}
-
-void BuildingFigureGenerator::spawn_figure_fort_supplier(building *fort)
-{
-    const int mess_hall_id = city_buildings_get_mess_hall();
-    Building *mess_hall = building_for_id(mess_hall_id);
-    building_runtime *fort_runtime = runtime_for_record(fort);
-    if (!mess_hall || !fort_runtime) {
-        return;
-    }
-    MessHall(*mess_hall).spawn_fort_supplier_to(fort_runtime->building);
-}
-
 void BuildingFigureGenerator::spawn_figure_mess_hall(building *b)
 {
     building_runtime *runtime = runtime_for_record(b);
@@ -745,7 +438,7 @@ void BuildingFigureGenerator::spawn_figure_mess_hall(building *b)
     Building &building = runtime->building;
     runtime->check_labor_problem();
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
         int spawn_delay = worker_scaled_spawn_delay(building, 7, 15, 29, 44, 59);
         if (!spawn_delay) {
@@ -775,7 +468,7 @@ void BuildingFigureGenerator::spawn_figure_depot(building *b)
     runtime->check_labor_problem();
 
     map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
+    if (map_has_road_access_building(b->x, b->y, &road)) {
         runtime->run_labor_phase_if_defined(road);
 
         int max_carts = worker_slot_capacity(building, 3, 2, 1);
@@ -822,28 +515,6 @@ void BuildingFigureGenerator::spawn_figure_depot(building *b)
     }
 }
 
-void BuildingFigureGenerator::advance_native_crop_graphics(building *record)
-{
-    if (!record) {
-        return;
-    }
-    building_runtime *runtime = runtime_for_record(record);
-    if (!runtime) {
-        return;
-    }
-    Building &crops = runtime->building;
-    const int option_count = crops.type ? crops.type->graphics().production_progress_option_count() : 0;
-    if (option_count <= 0) {
-        return;
-    }
-
-    record->data.industry.progress++;
-    if (record->data.industry.progress >= option_count) {
-        record->data.industry.progress = 0;
-    }
-    crops.refresh_graphic_if_native();
-}
-
 int BuildingFigureGenerator::building_uses_runtime_spawn(const building *b)
 {
     if (!b) {
@@ -880,11 +551,16 @@ void BuildingFigureGenerator::generate()
             b->show_on_problem_overlay = 1;
             return;
         }
-        if (!building_object.is_main_part() || building_monument_is_unfinished_monument(b)) {
+        if ((building_object.Composition && building_object.Composition->is_child()) ||
+            building_object.is_dynamic_bridge_segment() ||
+            building_monument_is_unfinished_monument(b)) {
             return;
         }
 
         b->show_on_problem_overlay = 0;
+        if (building_object.type && building_object.type->has_race()) {
+            BuildingEntertainment(building_object).spawn_race_participants();
+        }
         if (building_uses_runtime_spawn(b)) {
             building_object.spawn_figure();
         } else if (building_is_raw_resource_producer(building_object.type) ||
@@ -897,7 +573,7 @@ void BuildingFigureGenerator::generate()
         } else if (building_object.type->is_granary()) {
             spawn_figure_granary(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "tower")) {
-            spawn_figure_tower(b);
+            building_military_spawn_tower(building_object);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
             BuildingEntertainment(building_object).spawn_hippodrome_service();
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum")) {
@@ -905,22 +581,22 @@ void BuildingFigureGenerator::generate()
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "market")) {
             spawn_figure_market(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "mission_post")) {
-            spawn_figure_mission_post(b);
+            NativeBuildingSpawner(building_object).spawn_missionary();
         } else if (building_object.type->attr_is("dock")) {
             spawn_figure_dock(b);
         } else if (b && building_type_registry_impl::type_attr_is_any(b->type, {"native_hut", "native_hut_alt"})) {
-            spawn_figure_native_hut(b);
+            NativeBuildingSpawner(building_object).spawn_hut_resident();
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_meeting")) {
-            spawn_figure_native_meeting(b);
+            NativeBuildingSpawner(building_object).spawn_meeting_trader();
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_crops")) {
-            advance_native_crop_graphics(b);
+            NativeBuildingSpawner(building_object).advance_crop_graphics();
         } else if (building_is_fort(b->type)) {
             formation_legion_update_recruit_status(building_object);
-            spawn_figure_fort_supplier(b);
+            MessHall::spawn_supplier_for_fort(building_object);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "barracks")) {
-            spawn_figure_barracks(b);
+            Barracks(building_object).spawn_recruitment();
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "military_academy")) {
-            spawn_figure_military_academy(b);
+            building_military_run_academy(building_object);
         } else if (building_object.type->is_mess_hall()) {
             spawn_figure_mess_hall(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "tavern")) {

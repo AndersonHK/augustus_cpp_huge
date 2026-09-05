@@ -196,12 +196,12 @@ Missing before implementation:
 
 Information comes from:
 
-- `Mods/*/HousingType/*.xml` for resident/evolution requirements and resident class.
+- `Mods/*/HousingProfile/*.xml` for resident/evolution requirements and resident class.
 - `BuildingType` for capacity, footprint, vacant-lot fill type, and transitions such as merge/split/evolve/devolve.
 
-This is an important distinction: `HousingType` is not the complete building module. It describes the resident class/level and requirements. A building of the same resident type may still differ by footprint, capacity, merge/split shape, and transition target.
+This is an important distinction: `HousingProfile` is not the complete building module. It describes the resident class/level and requirements. A building of the same resident type may still differ by footprint, capacity, merge/split shape, and transition target.
 
-Future XML shape: add a `BuildingHousing/*.xml` folder for capacity, footprint-sensitive policy, and merge/split/evolution binding. That definition can reference `HousingType` as the resident definition. `BuildingType` should eventually reference the building-housing definition rather than embedding capacity and transition ids.
+Future XML shape: add a `BuildingHousing/*.xml` folder for capacity, footprint-sensitive policy, and merge/split/evolution binding. That definition can reference `HousingProfile` as the resident definition. `BuildingType` should eventually reference the building-housing definition rather than embedding capacity and transition ids.
 
 ```cpp
 #pragma once
@@ -210,7 +210,7 @@ Future XML shape: add a `BuildingHousing/*.xml` folder for capacity, footprint-s
 
 namespace building_type_registry_impl {
 class BuildingType;
-class HousingType;
+class HousingProfile;
 }
 
 class BuildingHousing {
@@ -219,7 +219,7 @@ public:
 
     BuildingHousing(Building &owner,
         const building_type_registry_impl::BuildingType *building_definition,
-        const building_type_registry_impl::HousingType *resident_definition,
+        const building_type_registry_impl::HousingProfile *resident_definition,
         State &state);
 
     int has_definition() const;
@@ -236,12 +236,12 @@ public:
     void refresh_definition_bindings();
 
     const building_type_registry_impl::BuildingType *building_definition() const;
-    const building_type_registry_impl::HousingType *resident_definition() const;
+    const building_type_registry_impl::HousingProfile *resident_definition() const;
 
 private:
     Building &owner_;
     const building_type_registry_impl::BuildingType *building_definition_ = nullptr;
-    const building_type_registry_impl::HousingType *resident_definition_ = nullptr;
+    const building_type_registry_impl::HousingProfile *resident_definition_ = nullptr;
     State &state_;
 };
 ```
@@ -419,7 +419,7 @@ This is the intended split between existing XML, future XML, and the runtime mod
 | `BuildingWaterAccess` | `WaterAccessType` plus embedded `BuildingType/<building>.xml` `<water_access>` nodes | `WaterAccess/*.xml` or `BuildingWaterAccess/*.xml`, referenced by `BuildingType` | `WaterAccessType` is only the vocabulary of water kinds. The complete building-specific provider/requirement definition is currently embedded in `BuildingType` and must be peeled out. |
 | `BuildingCulture` | `CultureModule` plus embedded `BuildingType` culture bindings | `BuildingCulture/*.xml`, referencing `CultureModule/*.xml` | `CultureModule` names the culture/entertainment concept. Capacity, count mode, upgrade bonus, and venue binding currently still live in `BuildingType`. |
 | `BuildingReligion` | `Religions/*.xml`, `Gods/*.xml`, referenced by `BuildingType` | Mostly already correct | Religion is closer to complete XML ownership than most modules. `BuildingType` should remain the binder saying which religion definition a temple uses. |
-| `BuildingHousing` | `HousingType/*.xml` plus `BuildingType` capacity/footprint/transitions | `BuildingHousing/*.xml` for footprint/capacity/merge/split policy, still referencing `HousingType` resident definitions | `HousingType` is the resident/evolution model, not the complete building module. A small tent, large tent, and 2x2 grouping can share or transition between resident definitions while differing in capacity, footprint, and merge/split rules. |
+| `BuildingHousing` | `HousingProfile/*.xml` plus `BuildingType` capacity/footprint/transitions | `BuildingHousing/*.xml` for footprint/capacity/merge/split policy, still referencing `HousingProfile` resident definitions | `HousingProfile` is the resident/evolution model, not the complete building module. A small tent, large tent, and 2x2 grouping can share or transition between resident definitions while differing in capacity, footprint, and merge/split rules. |
 | `BuildingProduction` | `ProductionMethod/*.xml`, referenced by `BuildingType` | Mostly already correct, with optional `BuildingProduction/*.xml` only if bindings become richer | Production methods are good immutable definitions. Runtime ownership still needs to move progress, output cart ownership, stockpiling, and blocked-state behavior behind `BuildingProduction`. |
 | `BuildingStorage` | `StorageType/*.xml`, referenced by `BuildingType` | Mostly already correct, possibly `BuildingStorage/*.xml` if per-building slot policies outgrow type refs | `StorageType` defines roles/resources/capacity ingredients. Runtime slot state, reservations, accept/get permissions, and save repair should route through `BuildingStorage`. |
 | `BuildingFormation` | `FormationType/*.xml`, `UnitType/*.xml`, referenced by fort `BuildingType` | Mostly already correct | Formation definitions are new and clean. Runtime fort ownership, mustering state, dynamic spacing, and legacy 16-soldier assumptions belong behind this facade. |
@@ -520,7 +520,7 @@ Good first slice:
 
 ### 4. Housing
 
-XML basis: `Mods/Vespasian/HousingType`.
+XML basis: `Mods/Vespasian/HousingProfile`.
 
 Why early but not first:
 

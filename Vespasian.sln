@@ -9,9 +9,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AugustusGraphicsExtractor",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JuliusGraphicsExtractor", "JuliusGraphicsExtractor.vcxproj", "{C0D74F8D-8E81-4D5E-96E3-36E6DE3F9960}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GraphicsExtractor", "GraphicsExtractor.vcxproj", "{4B1435BB-86C6-47EC-9D40-31C955B1BFD4}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StartupParserTest", "StartupParserTest.vcxproj", "{E7AB650E-2D63-49A0-B9E1-53060F57C919}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RendererSeamTest", "RendererSeamTest.vcxproj", "{14823A5A-714B-4F2E-9390-4D09A67B6EFB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadSaveModule", "LoadSaveModule.vcxproj", "{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadSaveAbiTest", "LoadSaveAbiTest.vcxproj", "{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +37,10 @@ Global
 		{C0D74F8D-8E81-4D5E-96E3-36E6DE3F9960}.Debug|x64.Build.0 = Debug|x64
 		{C0D74F8D-8E81-4D5E-96E3-36E6DE3F9960}.Release|x64.ActiveCfg = Release|x64
 		{C0D74F8D-8E81-4D5E-96E3-36E6DE3F9960}.Release|x64.Build.0 = Release|x64
+		{4B1435BB-86C6-47EC-9D40-31C955B1BFD4}.Debug|x64.ActiveCfg = Debug|x64
+		{4B1435BB-86C6-47EC-9D40-31C955B1BFD4}.Debug|x64.Build.0 = Debug|x64
+		{4B1435BB-86C6-47EC-9D40-31C955B1BFD4}.Release|x64.ActiveCfg = Release|x64
+		{4B1435BB-86C6-47EC-9D40-31C955B1BFD4}.Release|x64.Build.0 = Release|x64
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Debug|x64.ActiveCfg = Debug|x64
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Debug|x64.Build.0 = Debug|x64
 		{E7AB650E-2D63-49A0-B9E1-53060F57C919}.Release|x64.ActiveCfg = Release|x64
@@ -39,6 +49,14 @@ Global
 		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Debug|x64.Build.0 = Debug|x64
 		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Release|x64.ActiveCfg = Release|x64
 		{14823A5A-714B-4F2E-9390-4D09A67B6EFB}.Release|x64.Build.0 = Release|x64
+		{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}.Debug|x64.ActiveCfg = Debug|x64
+		{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}.Debug|x64.Build.0 = Debug|x64
+		{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}.Release|x64.ActiveCfg = Release|x64
+		{A7DF7943-1BFC-46C1-B7C8-0C7F1E35B704}.Release|x64.Build.0 = Release|x64
+		{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}.Debug|x64.ActiveCfg = Debug|x64
+		{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}.Debug|x64.Build.0 = Debug|x64
+		{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}.Release|x64.ActiveCfg = Release|x64
+		{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

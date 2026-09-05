@@ -3,10 +3,12 @@
 #include "map/point.h"
 
 typedef struct building building;
+class Building;
 
 struct road_access_area {
     map_point origin = { 0, 0 };
-    int size = 1;
+    int width = 1;
+    int height = 1;
 };
 
 struct road_access_candidate {
@@ -25,9 +27,8 @@ public:
 class RoadAccessQuery {
 public:
     static RoadAccessQuery fromFootprint(int x, int y, int size);
+    static RoadAccessQuery fromRectangle(int x, int y, int width, int height);
     static RoadAccessQuery fromRotatedFootprint(int rotation, int x, int y, int size);
-    static RoadAccessQuery hippodrome(int x, int y, int rotation);
-    static RoadAccessQuery monumentConstruction(int x, int y, int size);
 
     void visitCandidates(RoadAccessCandidateVisitor &visitor) const;
     int hasRoadAccess(map_point *road) const;
@@ -36,7 +37,7 @@ public:
     int areaCount() const { return area_count_; }
 
 private:
-    void addArea(int x, int y, int size);
+    void addArea(int x, int y, int width, int height);
 
     road_access_area areas_[8] = {};
     int area_count_ = 0;
@@ -47,33 +48,39 @@ void map_road_access_visit_candidates(
     int area_count,
     RoadAccessCandidateVisitor &visitor);
 void map_road_access_visit_candidates(int x, int y, int size, RoadAccessCandidateVisitor &visitor);
-void map_road_access_visit_hippodrome_candidates(
-    int x,
-    int y,
-    int rotation,
-    RoadAccessCandidateVisitor &visitor);
-void map_road_access_visit_monument_construction_candidates(
-    int x,
-    int y,
-    int size,
+void map_road_access_visit_building_candidates(
+    const Building &building,
     RoadAccessCandidateVisitor &visitor);
 
 int map_has_road_access(int x, int y, int size, map_point *road);
 
+int map_has_road_access_rectangle(int x, int y, int width, int height, map_point *road);
+
 int map_has_road_access_rotation(int rotation, int x, int y, int size, map_point *road);
 
-int map_has_road_access_hippodrome(int x, int y, map_point *road);
+// Uses the published foundations of the building and every fixed-composition
+// member. Passage cells define entrances; buildings without authored passage
+// use their complete foundation perimeter.
+int map_has_road_access_building(int x, int y, map_point *road);
 
-int map_has_road_access_hippodrome_rotation(int x, int y, map_point *road, int rotation);
+int map_road_get_internal_passage_tiles_count(building *b);
+int map_building_has_internal_passage(const building *b);
 
-int map_has_road_access_warehouse(int x, int y, map_point *road);
-
-int map_road_get_granary_inner_road_tiles_count(building *b);
-
-void map_update_granary_internal_roads(const building *b);
-
-int map_has_road_access_granary(int x, int y, map_point *road);
-
-int map_has_road_access_monument_construction(int x, int y, int size);
+void map_update_building_internal_roads(const building *b);
 
 int map_closest_road_within_radius(int x, int y, int size, int radius, int *x_road, int *y_road);
+
+int map_closest_road_within_radius_building(
+    const Building &building,
+    int radius,
+    int *x_road,
+    int *y_road);
+
+int map_closest_road_within_radius_rectangle(
+    int x,
+    int y,
+    int width,
+    int height,
+    int radius,
+    int *x_road,
+    int *y_road);

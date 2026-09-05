@@ -2,13 +2,12 @@
 
 #include "building/building_fwd.h"
 #include "building/building_order.h"
+#include "building/workforce_types.h"
 #include "core/time.h"
 #include "game/resource.h"
 
 // Transitional runtime building record. Do not add peeled module state here:
 // save/load bridges must read and write legacy payload fields through the owning runtime modules.
-using workforce_count = short;
-
 typedef struct building {
     unsigned int id;
 
@@ -20,15 +19,11 @@ typedef struct building {
     unsigned char state;
     unsigned char faction_id;
     unsigned char unknown_value;
-    unsigned char size;
-    unsigned char house_is_merged;
-    unsigned char house_size;
     unsigned char x; //these are not grid coordinates but image coordinates
     unsigned char y;
     short grid_offset;
     building_type type;
     union {
-        short house_level;
         short warehouse_resource_id;
         short orientation; // rotation of the building, in number of turns. Used for statues, warehouses, etc.
         short fort_figure_type;
@@ -40,18 +35,13 @@ typedef struct building {
     short houses_covered;
     float labor_access_score;
     short percentage_houses_covered;
-    short house_population;
     workforce_count local_workforce_assigned;
     workforce_count local_workforce_unemployed;
-    short house_population_room;
     short distance_from_entry;
-    short house_highest_population;
-    short house_unreachable_ticks;
     unsigned char road_access_x;
     unsigned char road_access_y;
     unsigned int figure_id;
     unsigned int figure_id2; // labor seeker or market supplier
-    unsigned int immigrant_figure_id;
     unsigned int figure_id4; // tower ballista, burning ruin prefect, doctor healing plague
     unsigned char figure_spawn_delay;
     unsigned char local_workforce_validation_delay;
@@ -60,22 +50,17 @@ typedef struct building {
     unsigned char has_water_access;
     short prev_part_building_id;
     short next_part_building_id;
-    unsigned char house_sentiment_message;
     unsigned char has_well_access;
     short num_workers;
     unsigned char labor_category;
     unsigned char output_resource_id;
     unsigned char has_road_access;
-    unsigned char house_criminal_active;
     short damage_risk;
     short fire_risk;
     short fire_duration;
     unsigned char fire_proof; // cannot catch fire or collapse
-    unsigned char house_figure_generation_delay;
-    unsigned char house_tax_coverage;
-    unsigned char house_pantheon_access;
     short formation_id;
-    signed char monthly_levy;
+    signed char levy_amount;
     struct {
         struct {
             short queued_docker_id;
@@ -117,34 +102,6 @@ typedef struct building {
             unsigned char play;
         } entertainment;
         struct {
-            unsigned char theater;
-            unsigned char amphitheater_actor;
-            unsigned char amphitheater_gladiator;
-            unsigned char colosseum_gladiator;
-            unsigned char colosseum_lion;
-            unsigned char hippodrome;
-            unsigned char school;
-            unsigned char library;
-            unsigned char academy;
-            unsigned char barber;
-            unsigned char clinic;
-            unsigned char bathhouse;
-            unsigned char hospital;
-            unsigned char temple_ceres;
-            unsigned char temple_neptune;
-            unsigned char temple_mercury;
-            unsigned char temple_mars;
-            unsigned char temple_venus;
-            unsigned char no_space_to_expand;
-            unsigned char num_foods;
-            unsigned char entertainment;
-            unsigned char education;
-            unsigned char health;
-            unsigned char num_gods;
-            unsigned char devolve_delay;
-            unsigned char evolve_text_id;
-        } house;
-        struct {
             unsigned short exceptions;
         } roadblock;
         struct {
@@ -160,22 +117,14 @@ typedef struct building {
         short phase;
         short secondary_frame;
     } monument;
-    int tax_income_or_storage;
-    unsigned char house_days_without_food;
+    int collected_tax_income;
     unsigned char has_plague;
     signed char desirability;
     unsigned char is_deleted;
     unsigned char is_close_to_water;
     unsigned char storage_id; //player-visible ID of the storage building, e.g. Granary 7, Warehouse 33
-    union {
-        signed char house_happiness;
-        signed char native_anger;
-    } sentiment;
+    signed char native_anger;
     unsigned char show_on_problem_overlay;
-    unsigned char house_tavern_wine_access;
-    unsigned char house_tavern_food_access;
-    unsigned char house_arena_gladiator;
-    unsigned char house_arena_lion;
     unsigned char is_tourism_venue;
     unsigned char tourism_disabled;
     unsigned char tourism_income;

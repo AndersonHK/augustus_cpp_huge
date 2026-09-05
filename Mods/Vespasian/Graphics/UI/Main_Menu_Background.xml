@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="UI\Main_Menu_Background">
+    <image id="Main Menu Background">
+        <layer src="Main_Menu_Background" />
+    </image>
+</assetlist>

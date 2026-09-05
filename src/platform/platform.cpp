@@ -160,7 +160,12 @@ char *platform_get_logging_path(void)
 #if defined(__ANDROID__)
     return NULL;
 #else
-    return platform_get_pref_path();
+#if SDL_VERSION_ATLEAST(2, 0, 1)
+    if (platform_sdl_version_at_least(2, 0, 1)) {
+        return platform_alloc_path(SDL_GetPrefPath("augustus", "Vespasian"));
+    }
+#endif
+    return 0;
 #endif
 }
 
@@ -181,7 +186,12 @@ std::string logging_path()
 #if defined(__ANDROID__)
     return {};
 #else
-    return pref_path();
+#if SDL_VERSION_ATLEAST(2, 0, 1)
+    if (platform_sdl_version_at_least(2, 0, 1)) {
+        return copy_sdl_path(SDL_GetPrefPath("augustus", "Vespasian"));
+    }
+#endif
+    return {};
 #endif
 }
 

@@ -5,14 +5,21 @@
             <native class="roaming_service" />
             <owner slot="secondary" building="any" state="in_use" />
             <movement roam_ticks="1" max_roam_length="1024" return_mode="return_to_owner_road" />
-            <pathing mode="nearest_unemployed" terrain="roads" />
+            <pathing mode="nearest_unemployed" terrain="roads_highway" />
         </profile>
         <profile id="validation">
             <native class="roaming_service" />
             <owner slot="secondary" building="any" state="in_use" />
             <movement roam_ticks="1" max_roam_length="1024" return_mode="return_to_owner_road" />
-            <pathing mode="nearest_unemployed" terrain="roads" />
+            <pathing mode="nearest_unemployed" terrain="roads_highway" />
         </profile>
     </profiles>
-    <graphics image_group="labor_seeker" max_image_offset="12" />
+    <graphics>
+        <default max_image_offset="12">
+            <path value="Walkers\Labor_Seeker" />
+        </default>
+        <corpse>
+            <path value="Walkers\Labor_Seeker" />
+        </corpse>
+    </graphics>
 </figure>

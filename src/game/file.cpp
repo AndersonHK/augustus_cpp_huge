@@ -2,6 +2,7 @@
 #include "translation/translation.h"
 
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_runtime.h"
 #include "building/construction.h"
@@ -11,6 +12,7 @@
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/storage.h"
+#include "building/water_access_runtime.h"
 #include "city/data.h"
 #include "city/emperor.h"
 #include "city/map.h"
@@ -24,6 +26,7 @@
 #include "core/file.h"
 #include "core/image.h"
 #include "core/io.h"
+#include "core/log.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/empire.h"
@@ -66,7 +69,9 @@
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+#include "map/tile_runtime_api.h"
 #include "map/tiles.h"
+#include "map/water_navigation.h"
 #include "platform/file_manager.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_messages.h"
@@ -146,6 +151,11 @@ static void clear_scenario_data(void)
 
     game_time_init(2098);
 
+    // Runtime tile graphics are scoped to the loaded world, just like the map grids.
+    // Clear them before loading a new scenario so authored surface graphics cannot
+    // survive at grid offsets that are ordinary terrain in the next world.
+    tile_runtime_reset();
+
     // clear grids
     map_image_clear();
     map_building_clear();
@@ -162,7 +172,6 @@ static void clear_scenario_data(void)
 
     map_image_context_init();
     map_random_init();
-    building_runtime_reset();
 }
 
 void game_file_clear_scenario_data_for_save_load(void)
@@ -172,6 +181,8 @@ void game_file_clear_scenario_data_for_save_load(void)
 
 static void initialize_scenario_data(const uint8_t *scenario_name)
 {
+    water_navigation::begin_world_load();
+    water_access_runtime_begin_world_load();
     scenario_set_name(scenario_name);
     scenario_map_init();
 
@@ -236,10 +247,11 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     game_state_unpause();
 
     weather_reset();
-    building_repair_loaded_compositions();
+    if (!building_hydrate_loaded_compositions(SAVE_GAME_CURRENT_VERSION)) log_error("Scenario building composition initialization failed", 0, 0);
     // After new city/scenario init, every live building instance is rebound to its runtime wrapper and rebuilds native
     // graphics/storage/production state.
     building_runtime_initialize_city_graphics_cache();
+    water_navigation::finish_world_load();
     figure_runtime_initialize_city();
 }
 
@@ -275,51 +287,50 @@ static int load_custom_scenario(const uint8_t *scenario_name, const char *scenar
 /**
  * search for hippodrome buildings, all three pieces should have the same subtype.orientation
  */
-static void check_hippodrome_compatibility(Building b)
+static bool validate_loaded_hippodrome_composition(Building b)
 {
-    // if we got the middle part of the hippodrome
-    if (b.next_part_id() && b.previous_part_id()) {
-        Building *next = b.next();
-        Building *prev = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!prev && building && building->id == static_cast<unsigned int>(b.previous_part_id())) {
-                prev = building;
-            }
-        });
+    const building *record = b.record();
+    if (record && record->next_part_building_id != 0 && record->prev_part_building_id != 0) {
+        Building *next = Building::get(static_cast<unsigned int>(record->next_part_building_id));
+        Building *prev = Building::get(static_cast<unsigned int>(record->prev_part_building_id));
         if (!next || !prev) {
-            return;
+            log_error("Loaded save contains an incomplete hippodrome composition", 0, b.id);
+            return false;
         }
-        // if orientation is different, it means that rotation was not available yet in augustus, so it should be set to 0
         if (b.orientation() != next->orientation() || b.orientation() != prev->orientation()) {
-            prev->set_orientation(0);
-            b.set_orientation(0);
-            next->set_orientation(0);
+            log_error("Loaded save contains inconsistent hippodrome orientations", 0, b.id);
+            return false;
         }
     }
+    return true;
 }
 
-static void check_backward_compatibility(void)
+static bool validate_loaded_hippodromes(void)
 {
     const building_type hippodrome = building_type_id_bridge_runtime_from_text("hippodrome");
     if (hippodrome == BUILDING_NONE) {
-        return;
+        return true;
     }
     for (Building *building = Building::first_of_type(hippodrome); building; building = building->next_of_type()) {
-        check_hippodrome_compatibility(*building);
+        if (!validate_loaded_hippodrome_composition(*building)) {
+            return false;
+        }
     }
+    return true;
 }
 
-static void initialize_saved_game(void)
+static bool initialize_saved_game(void)
 {
+    water_navigation::begin_world_load();
+    water_access_runtime_begin_world_load();
     load_empire_data(!game_campaign_is_original(), scenario_empire_id());
     if (resource_id_bridge_mapping_joins_meat_and_fish()) {
-        empire_city_update_our_fish_and_meat_production();
+        empire_city_migrate_legacy_fishing_production();
     }
     empire_city_update_trading_data(scenario_empire_id());
 
     map_image_context_init();
     map_image_clear();
-    building_repair_loaded_compositions();
     map_image_update_all();
 
     scenario_map_init();
@@ -369,14 +380,23 @@ static void initialize_saved_game(void)
     Route::updateAllTerrain();
     map_road_network_update();
     Route::updateLandTerrain();
+    water_navigation::finish_world_load();
     building_maintenance_check_rome_access();
     house_population_update_room();
-    Figure::resolve_loaded_building_references();
+    if (!Figure::resolve_loaded_building_references(SAVE_GAME_CURRENT_VERSION)) {
+        log_error("World initialization failed strict figure/building reference validation", 0, 0);
+        return false;
+    }
+    if (!formation_finish_load_bridge()) {
+        log_error("World initialization failed formation destination migration", 0, 0);
+        return false;
+    }
     figure_runtime_initialize_city();
     map_tiles_update_all_gardens();
     map_tiles_update_all_plazas();
     map_building_rebind_runtime_references();
     city_view_restore_lookup();
+    return true;
 }
 
 static int start_scenario(const uint8_t *scenario_name, const char *scenario_file)
@@ -457,8 +477,9 @@ int game_file_start_scenario_from_buffer(uint8_t *data, int length, int is_save_
     }
 
     if (is_save_game) {
-        check_backward_compatibility();
-        initialize_saved_game();
+        if (!validate_loaded_hippodromes() || !initialize_saved_game()) {
+            return 0;
+        }
         building_storage_reset_building_ids();
         scenario_set_name(game_campaign_get_scenario(mission)->name);
         city_data_init_campaign_mission();
@@ -515,8 +536,10 @@ int game_file_load_saved_game(const char *filename)
     if (!game_campaign_is_active()) {
         game_campaign_clear();
     }
-    check_backward_compatibility();
-    initialize_saved_game();
+    if (!validate_loaded_hippodromes() || !initialize_saved_game()) {
+        game_campaign_restore();
+        return FILE_LOAD_WRONG_FILE_FORMAT;
+    }
     building_storage_reset_building_ids();
     sound_music_update(1);
     return 1;
@@ -544,12 +567,17 @@ int game_file_make_yearly_autosave(void)
         savegame_directory.c_str(), "autosave-year-bak-",
         next_autosave_slot, ".svv");
 
-    platform_file_manager_copy_file(current_save_name, backup_save_name);
+    if (file_exists(current_save_name, NOT_LOCALIZED) && !platform_file_manager_copy_file(current_save_name, backup_save_name)) {
+        log_error("Unable to preserve the previous yearly autosave", backup_save_name, 0);
+        return 0;
+    }
     int result = game_file_write_saved_game(current_save_name);
 
-    next_autosave_slot++;
-    config_set(CONFIG_GENERAL_NEXT_AUTOSAVE_SLOT, next_autosave_slot);
-    config_save();
+    if (result) {
+        next_autosave_slot++;
+        config_set(CONFIG_GENERAL_NEXT_AUTOSAVE_SLOT, next_autosave_slot);
+        config_save();
+    }
 
     return result;
 }

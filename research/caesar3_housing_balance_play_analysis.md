@@ -7,7 +7,7 @@ Snapshot: 2026-05-10
 This document records Caesar III / Julius / Augustus housing balance as a game
 system, not as historical evidence. Use it with
 [Caesar III / Julius Housing Progression Defaults](caesar3_julius_housing_progression_defaults.md)
-when changing `HousingType`, `BuildingType`, market distribution, service
+when changing `HousingProfile`, `BuildingType`, market distribution, service
 coverage, or labor rules.
 
 The goal is to preserve the core city-builder tension: better housing gives
@@ -130,4 +130,4 @@ Before changing housing thresholds, ask which pressure is being adjusted:
   Casa strategy heuristic.
 - [Arqade housing requirements table](https://gaming.stackexchange.com/questions/307997/housing-steps-and-requirements-in-caesar-3) -
   readable consolidation of Caesar III housing requirements and vanilla values.
-- Local XML: `Mods/Julius/HousingType/*.xml` and `Mods/Julius/BuildingType/*.xml`.
+- Local XML: `Mods/Julius/HousingProfile/*.xml` and `Mods/Julius/BuildingType/*.xml`.

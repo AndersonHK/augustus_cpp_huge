@@ -3,7 +3,7 @@
 #include "sentiment.h"
 
 #include "building/building.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "city/constants.h"
 #include "city/data_private.h"
 #include "city/figures.h"
@@ -49,21 +49,20 @@ int city_sentiment_low_mood_cause(void)
 
 void city_sentiment_change_happiness(int amount)
 {
-    Building::for_each({ .hasHousing = true }, [amount](Building *building) {
-        if (building_house_is_active(*building)) {
-            ::building *record = const_cast<::building *>(building->record());
-            record->sentiment.house_happiness =
-                static_cast<signed char>(calc_bound(record->sentiment.house_happiness + amount, 0, 100));
+    Building::for_each(BuildingRuntimeList::Housing, [amount](Building *building) {
+        if (building->is_in_use()) {
+            HousingState &state = building->Housing->state();
+            state.happiness = static_cast<int8_t>(calc_bound(state.happiness + amount, 0, 100));
         }
     });
 }
 
 void city_sentiment_set_happiness(int amount_set)
 {
-    Building::for_each({ .hasHousing = true }, [amount_set](Building *building) {
-        if (building_house_is_active(*building)) {
-            ::building *record = const_cast<::building *>(building->record());
-            record->sentiment.house_happiness = static_cast<signed char>(calc_bound(amount_set, 0, 100));
+    Building::for_each(BuildingRuntimeList::Housing, [amount_set](Building *building) {
+        if (building->is_in_use()) {
+            building->Housing->state().happiness =
+                static_cast<int8_t>(calc_bound(amount_set, 0, 100));
         }
     });
 }
@@ -71,11 +70,11 @@ void city_sentiment_set_happiness(int amount_set)
 void city_sentiment_set_max_happiness(int max)
 {
     max = calc_bound(max, 0, 100);
-    Building::for_each({ .hasHousing = true }, [max](Building *building) {
-        if (building_house_is_active(*building)) {
-            ::building *record = const_cast<::building *>(building->record());
-            if (record->sentiment.house_happiness > max) {
-                record->sentiment.house_happiness = static_cast<signed char>(max);
+    Building::for_each(BuildingRuntimeList::Housing, [max](Building *building) {
+        if (building->is_in_use()) {
+            HousingState &state = building->Housing->state();
+            if (state.happiness > max) {
+                state.happiness = static_cast<int8_t>(max);
             }
         }
     });
@@ -84,11 +83,11 @@ void city_sentiment_set_max_happiness(int max)
 void city_sentiment_set_min_happiness(int min)
 {
     min = calc_bound(min, 0, 100);
-    Building::for_each({ .hasHousing = true }, [min](Building *building) {
-        if (building_house_is_active(*building)) {
-            ::building *record = const_cast<::building *>(building->record());
-            if (record->sentiment.house_happiness < min) {
-                record->sentiment.house_happiness = static_cast<signed char>(min);
+    Building::for_each(BuildingRuntimeList::Housing, [min](Building *building) {
+        if (building->is_in_use()) {
+            HousingState &state = building->Housing->state();
+            if (state.happiness < min) {
+                state.happiness = static_cast<int8_t>(min);
             }
         }
     });
@@ -97,11 +96,11 @@ void city_sentiment_set_min_happiness(int min)
 int city_sentiment_get_population_below_happiness(int happiness)
 {
     int population = 0;
-    Building::for_each({ .hasHousing = true }, [happiness, &population](Building *building) {
-        if (building_house_is_active(*building)) {
-            ::building *record = const_cast<::building *>(building->record());
-            if (record->sentiment.house_happiness < happiness) {
-                population += record->house_population;
+    Building::for_each(BuildingRuntimeList::Housing, [happiness, &population](Building *building) {
+        if (building->is_in_use()) {
+            const HousingState &state = building->Housing->state();
+            if (state.happiness < happiness) {
+                population += state.population;
             }
         }
     });
@@ -200,7 +199,8 @@ static int get_sentiment_modifier_for_tax_rate(int tax)
 
 static int house_legacy_level_or_min(const Building &house)
 {
-    int level = building_house_legacy_level(house);
+    const auto *profile = house.Housing ? house.Housing->definition().profile : nullptr;
+    int level = profile ? profile->compatibility_level : -1;
     return level >= HOUSE_MIN ? level : HOUSE_MIN;
 }
 
@@ -235,15 +235,15 @@ static int get_average_housing_level(void)
     int avg = 0;
     int population = 0;
 
-    Building::for_each({ .hasHousing = true }, [&avg, &population](Building *building) {
-        if (!building_house_is_active(*building)) {
+    Building::for_each(BuildingRuntimeList::Housing, [&avg, &population](Building *building) {
+        if (!building->is_in_use()) {
             return;
         }
-        ::building *record = const_cast<::building *>(building->record());
         int level = house_legacy_level_or_min(*building);
         int multiplier = house_average_level_multiplier(level);
-        avg += level * record->house_population * multiplier;
-        population += record->house_population * multiplier;
+        const int house_population = building->Housing->state().population;
+        avg += level * house_population * multiplier;
+        population += house_population * multiplier;
     });
     if (population) {
         avg = avg / population;
@@ -304,33 +304,35 @@ void city_sentiment_update(void)
     int total_pop = 0;
     int total_houses = 0;
 
-    Building::for_each({ .hasHousing = true }, [&](Building *building) {
-        if (!building_house_is_active(*building)) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *building) {
+        if (!building->is_in_use()) {
             return;
         }
         ::building *record = const_cast<::building *>(building->record());
-        if (!record->house_population) {
-            record->sentiment.house_happiness =
-                static_cast<signed char>(calc_bound(city_data.sentiment.value + 10, 0, 100));
+        HousingState &state = building->Housing->state();
+        const HousingServiceState &services = state.services;
+        if (!state.population) {
+            state.happiness = static_cast<int8_t>(
+                calc_bound(city_data.sentiment.value + 10, 0, 100));
             return;
         }
 
         int level = house_legacy_level_or_min(*building);
         int house_level_multiplier = house_level_sentiment_multiplier(level);
-        const model_house *house_model = building_house_get_model(*building);
-        int required_entertainment = house_model ? house_model->entertainment : 0;
-        int required_food_types = house_model ? house_model->food_types : 0;
+        const auto *profile = building->Housing->definition().profile;
+        int required_entertainment = profile ? profile->requirements.entertainment : 0;
+        int required_food_types = profile ? profile->requirements.food_types : 0;
         int sentiment = default_sentiment;
 
         // Taxes
-        if (record->house_tax_coverage) {
+        if (state.tax_coverage) {
             sentiment += sentiment_contribution_taxes;
         } else {
             sentiment += sentiment_contribution_no_tax;
         }
 
         // Wages and Unemployment
-        if (building_house_has_plebeian_residents(*building)) {
+        if (building->Housing->has_plebeian_residents()) {
             sentiment += sentiment_contribution_wages;
             sentiment -= sentiment_contribution_unemployment;
         }
@@ -349,11 +351,11 @@ void city_sentiment_update(void)
         sentiment += desirability_bonus;
 
         // Entertainment
-        int entertainment_bonus = extra_entertainment_bonus(record->data.house.entertainment, required_entertainment);
+        int entertainment_bonus = extra_entertainment_bonus(services.entertainment, required_entertainment);
         sentiment += entertainment_bonus;
 
         // Food Variety
-        int food_bonus = extra_food_bonus(record->data.house.num_foods, required_food_types);
+        int food_bonus = extra_food_bonus(services.num_foods, required_food_types);
         sentiment += food_bonus;
 
         // Games and Festivals (calculated earlier)
@@ -361,39 +363,39 @@ void city_sentiment_update(void)
         sentiment += blessing_festival_boost;
 
         // Change sentiment gradually to the new value
-        int sentiment_delta = sentiment - record->sentiment.house_happiness;
+        int sentiment_delta = sentiment - state.happiness;
         sentiment_delta = calc_bound(sentiment_delta, -MAX_SENTIMENT_CHANGE, MAX_SENTIMENT_CHANGE);
-        record->sentiment.house_happiness =
-            static_cast<signed char>(calc_bound(record->sentiment.house_happiness + sentiment_delta, 0, 100));
+        state.happiness = static_cast<int8_t>(
+            calc_bound(state.happiness + sentiment_delta, 0, 100));
         houses_calculated++;
 
-        total_pop += record->house_population;
+        total_pop += state.population;
         total_houses++;
-        total_sentiment += record->sentiment.house_happiness * record->house_population;
+        total_sentiment += state.happiness * state.population;
 
         int worst_sentiment = 0;
-        record->house_sentiment_message = LOW_MOOD_CAUSE_NONE;
+        state.sentiment_message = LOW_MOOD_CAUSE_NONE;
 
         // If the house is under 80 happiness, its worst sentiment is used to show the player why
-        if (record->sentiment.house_happiness < 80) {
+        if (state.happiness < 80) {
             // Taxes
-            if (record->house_tax_coverage) {
+            if (state.tax_coverage) {
                 worst_sentiment = sentiment_contribution_taxes;
-                record->house_sentiment_message = LOW_MOOD_CAUSE_HIGH_TAXES;
+                state.sentiment_message = LOW_MOOD_CAUSE_HIGH_TAXES;
             }
             // Unemployment, low Wages and Squalor
-            if (building_house_has_plebeian_residents(*building)) {
+            if (building->Housing->has_plebeian_residents()) {
                 if (-sentiment_contribution_unemployment < worst_sentiment) {
                     worst_sentiment = -sentiment_contribution_unemployment;
-                    record->house_sentiment_message = LOW_MOOD_CAUSE_NO_JOBS;
+                    state.sentiment_message = LOW_MOOD_CAUSE_NO_JOBS;
                 }
                 if (sentiment_contribution_wages < worst_sentiment) {
                     worst_sentiment = sentiment_contribution_wages;
-                    record->house_sentiment_message = LOW_MOOD_CAUSE_LOW_WAGES;
+                    state.sentiment_message = LOW_MOOD_CAUSE_LOW_WAGES;
                 }
                 if (house_level_sentiment < worst_sentiment) {
                     worst_sentiment = house_level_sentiment;
-                    record->house_sentiment_message = LOW_MOOD_CAUSE_SQUALOR;
+                    state.sentiment_message = LOW_MOOD_CAUSE_SQUALOR;
                 }
             }
             // If the worst sentiment isn't that bad, suggest a way to improve it directly instead
@@ -401,17 +403,17 @@ void city_sentiment_update(void)
                 // Suggest more entertainment
                 if (entertainment_bonus < SENTIMENT_PER_EXTRA_FOOD ||
                     (entertainment_bonus < food_bonus && entertainment_bonus < desirability_bonus)) {
-                    record->house_sentiment_message = SUGGEST_MORE_ENT;
+                    state.sentiment_message = SUGGEST_MORE_ENT;
                 // Suggest more desirability
                 } else if (desirability_bonus < max_desirability && desirability_bonus < food_bonus) {
-                    record->house_sentiment_message = SUGGEST_MORE_DESIRABILITY;
+                    state.sentiment_message = SUGGEST_MORE_DESIRABILITY;
                 // Suggest more food types
                 } else if (required_food_types > 0 &&
-                    food_bonus < MAX_SENTIMENT_FROM_EXTRA_FOOD && record->data.house.num_foods < 3) {
-                    record->house_sentiment_message = SUGGEST_MORE_FOOD;
+                    food_bonus < MAX_SENTIMENT_FROM_EXTRA_FOOD && services.num_foods < 3) {
+                    state.sentiment_message = SUGGEST_MORE_FOOD;
                 // Suggest... nothing?
                 } else {
-                    record->house_sentiment_message = LOW_MOOD_CAUSE_NONE;
+                    state.sentiment_message = LOW_MOOD_CAUSE_NONE;
                 }
             }
         }

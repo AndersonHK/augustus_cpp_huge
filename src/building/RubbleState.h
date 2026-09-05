@@ -6,6 +6,7 @@
 struct RubbleState {
     uint16_t original_grid_offset = 0;
     uint8_t original_orientation = 0;
+    uint8_t random_seed = 0;
     const building_type_registry_impl::BuildingType *original_type = nullptr;
 
     bool same_origin(const RubbleState &other) const

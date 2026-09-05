@@ -69,8 +69,8 @@ static int create_slave_workers(int leader_id, int first_figure_id)
     f = Figure::get(first_figure_id);
     slave->leading_figure_id = static_cast<short>(leader_id);
     slave->collecting_item_id = f->collecting_item_id;
-    slave->building = f->building;
-    slave->destination_building = f->destination_building;
+    slave->set_home_building(f->building);
+    slave->set_destination_building(f->destination_building);
     slave->destination_x = f->destination_x;
     slave->destination_y = f->destination_y;
     slave->action_state = FIGURE_ACTION_209_WORK_CAMP_SLAVE_FOLLOWING;
@@ -132,7 +132,6 @@ void figure_workcamp_worker_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
-        figure_runtime_update_graphics(f);
         return;
     }
     Building &source = *f->building;
@@ -172,7 +171,7 @@ void figure_workcamp_worker_action(Figure *f)
                 }
 
                 f->collecting_item_id = static_cast<unsigned char>(resource);
-                f->destination_building = warehouse;
+    f->set_destination_building(warehouse);
                 f->destination_x = static_cast<unsigned char>(dst.x);
                 f->destination_y = static_cast<unsigned char>(dst.y);
                 f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS));
@@ -201,7 +200,7 @@ void figure_workcamp_worker_action(Figure *f)
                 Building *monument = building_monument_get_monument(
                     source.x(), source.y(), f->collecting_item_id, source.road_network_id(), &dst);
                 f->action_state = FIGURE_ACTION_205_WORK_CAMP_WORKER_GOING_TO_MONUMENT;
-                f->destination_building = monument;
+    f->set_destination_building(monument);
                 f->destination_x = static_cast<unsigned char>(dst.x);
                 f->destination_y = static_cast<unsigned char>(dst.y);
                 f->previous_tile_x = f->x;
@@ -260,7 +259,6 @@ void figure_workcamp_worker_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }
 
 void figure_workcamp_slave_action(Figure *f)
@@ -354,7 +352,6 @@ void figure_workcamp_slave_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }
 
 void figure_workcamp_architect_action(Figure *f)
@@ -362,7 +359,6 @@ void figure_workcamp_architect_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
-        figure_runtime_update_graphics(f);
         return;
     }
     Building &source = *f->building;
@@ -387,7 +383,7 @@ void figure_workcamp_architect_action(Figure *f)
                     source.x(), source.y(), RESOURCE_NONE, source.road_network_id(), &dst);
                 building *monument_record = monument ? const_cast<building *>(monument->record()) : nullptr;
                 if (monument && !building_monument_is_construction_halted(monument_record)) {
-                    f->destination_building = monument;
+    f->set_destination_building(monument);
                     f->destination_x = static_cast<unsigned char>(dst.x);
                     f->destination_y = static_cast<unsigned char>(dst.y);
                     // Only send 1 architect
@@ -453,5 +449,4 @@ void figure_workcamp_architect_action(Figure *f)
             break;
     }
 
-    figure_runtime_update_graphics(f);
 }

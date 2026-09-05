@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resource id="denarii" slot="22" name_key="main_strings.23.16">
-  <model xml_attr="denarii" flags="special" />
-  <graphics>
-    <panel_icon path="UI\Resource_Icons" image="Image_0016" />
-    <editor_icon path="UI\Resource_Icons" image="Image_0016" />
-  </graphics>
-</resource>

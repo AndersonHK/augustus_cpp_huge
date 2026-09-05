@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="amphitheater">
     <identity name_key="main_strings.28.30" />
-    <model size="3" cost="100" />
+    <model cost="100" />
     <desirability>
         <value value="4" />
         <step value="1" />
         <step_size value="-1" />
         <range value="4" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="entertainment" order="20" icon="Health_Culture\Amphitheater" text_key="main_strings.28.30" />
     <sound id="amphitheater" mute_on_enemies="true" />
-    <event_data attr="amphitheater" />
     <culture_modules>
         <culture_module path="amphitheater" capacity="1500" upgrade_bonus="500" count="active" />
         <culture_module path="theater" capacity="1500" upgrade_bonus="500" count="active" />
@@ -46,11 +45,9 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="actor,gladiator">
-        <spawn mode="profiled_figure" spawn_figure="gladiator"
-            action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="gladiator" direction="top" figure_slot="primary"
             graphic_timing="before_successful_spawn" condition="days1_positive" block_on_success="true" profile="amphitheater_service" />
-        <spawn mode="profiled_figure" spawn_figure="actor"
-            action_state="entertainer_roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="actor" direction="top" figure_slot="primary"
             graphic_timing="before_successful_spawn" condition="days1_not_positive" block_on_success="true" profile="amphitheater_service" />
     </spawn_group>
 </building>

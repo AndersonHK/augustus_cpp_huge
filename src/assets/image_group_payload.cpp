@@ -6,10 +6,9 @@
 #include <memory>
 #include <utility>
 
-ImageGroupPayload::ImageGroupPayload(std::string key, std::string xml_path, xml_asset_source source)
+ImageGroupPayload::ImageGroupPayload(std::string key, std::string xml_path)
     : key_(std::move(key))
     , xml_path_(std::move(xml_path))
-    , source_(source)
 {
 }
 
@@ -21,11 +20,6 @@ const std::string &ImageGroupPayload::key() const
 const std::string &ImageGroupPayload::xml_path() const
 {
     return xml_path_;
-}
-
-xml_asset_source ImageGroupPayload::source() const
-{
-    return source_;
 }
 
 // Input: one internal selector key, the XML-visible id, and a fully materialized entry.
@@ -144,26 +138,26 @@ int image_group_payload_load(const char *path_key)
         return 0;
     }
 
-    std::unique_ptr<ImageGroupPayload> payload = std::make_unique<ImageGroupPayload>(
-        merged->key,
-        merged->xml_path,
-        merged->source_chain.empty() ? XML_ASSET_SOURCE_AUTO : merged->source_chain.front());
-
+    std::unique_ptr<ImageGroupPayload> payload =
+        std::make_unique<ImageGroupPayload>(merged->key, merged->xml_path);
     for (size_t i = 0; i < merged->ordered_entries.size(); i++) {
-        const xml_asset_source source = merged->ordered_entries[i].first;
-        const std::string &image_id = merged->ordered_entries[i].second;
-        const image_group_payload_internal::ResolvedImageEntry *resolved =
-            image_group_payload_internal::materialize_source_entry(normalized_key, source, image_id);
+        const image_group_payload_internal::MergedImageEntrySelector &selector = merged->ordered_entries[i];
+        const image_group_payload_internal::ResolvedImageEntry *resolved = merged->inherits_group() ?
+            image_group_payload_internal::materialize_scaled_alias_entry(
+                normalized_key,
+                selector,
+                merged->logical_units_per_source_pixel) :
+            image_group_payload_internal::materialize_source_entry(selector.group_key, selector.source, selector.image_id);
         if (!resolved || resolved->footprint.texture_key.empty()) {
-            crash_context_report_error("Building graphics image id could not be resolved", image_id.c_str());
+            crash_context_report_error("Image group image id could not be resolved", selector.image_id.c_str());
             image_group_payload_internal::g_loading_group_payloads.erase(normalized_key);
             image_group_payload_internal::g_failed_group_payloads.insert(normalized_key);
             return 0;
         }
 
         const std::string internal_key =
-            image_group_payload_internal::make_selector_cache_key(normalized_key, source, image_id);
-        payload->add_entry(internal_key, image_id, make_public_entry(image_id, *resolved));
+            image_group_payload_internal::make_selector_cache_key(normalized_key, selector.source, selector.image_id);
+        payload->add_entry(internal_key, selector.image_id, make_public_entry(selector.image_id, *resolved));
         if (i == 0) {
             payload->set_default_entry(internal_key);
         }

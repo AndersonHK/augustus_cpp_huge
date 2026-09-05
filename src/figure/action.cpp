@@ -1,4 +1,3 @@
-#include "city/entertainment.h"
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
@@ -57,7 +56,7 @@ static FigureAction figure_action_callbacks[] = {
     figure_soldier_action,
     figure_soldier_action,
     figure_soldier_action,
-    figure_military_standard_action,
+    figure_retired_native_action,
     figure_entertainer_action,
     figure_entertainer_action,
     figure_entertainer_action,
@@ -102,19 +101,19 @@ static FigureAction figure_action_callbacks[] = {
     figure_nobody_action,
     figure_enemy_caesar_legionary_action,
     figure_native_trader_action,
-    figure_arrow_action,
-    figure_javelin_action, //60
-    figure_bolt_action,
+    figure_projectile_action,
+    figure_projectile_action, //60
+    figure_projectile_action,
     figure_ballista_action,
     figure_nobody_action,
     figure_missionary_action,
     figure_seagulls_action,
     figure_delivery_boy_action,
     figure_shipwreck_action,
-    figure_sheep_action,
-    figure_wolf_action,
-    figure_zebra_action, //70
-    figure_spear_action,
+    figure_nobody_action,
+    figure_nobody_action,
+    figure_nobody_action, //70; data-defined herd roles dispatch before this legacy table
+    figure_projectile_action,
     figure_hippodrome_horse_action,
     figure_workcamp_worker_action,
     figure_workcamp_slave_action,
@@ -127,7 +126,7 @@ static FigureAction figure_action_callbacks[] = {
     figure_tourist_action,
     figure_watchman_action,
     figure_watchtower_archer_action,
-    figure_friendly_arrow_action,
+    figure_projectile_action,
     figure_supplier_action,
     figure_robber_action,
     figure_looter_action,
@@ -139,14 +138,33 @@ static FigureAction figure_action_callbacks[] = {
     figure_retired_native_action,
     figure_soldier_action,
     figure_enemy_catapult_action,
-    figure_catapult_missile_action,
+    figure_projectile_action,
 };
+
+void figure_action_refresh_graphics(Figure *f)
+{
+    if (!f) return;
+    if (f->is_herd()) {
+        reinterpret_cast<figuretype::Animal *>(f)->update_graphics();
+        return;
+    }
+    switch (f->type) {
+        case FIGURE_EXPLOSION: figure_explosion_cloud_update_graphics(f); break;
+        case FIGURE_PROTESTER: figure_protestor_update_graphics(f); break;
+        case FIGURE_RIOTER:
+        case FIGURE_CRIMINAL:
+        case FIGURE_CRIMINAL_ROBBER:
+        case FIGURE_CRIMINAL_LOOTER: figure_criminal_update_graphics(f); break;
+        case FIGURE_FLOTSAM: figure_flotsam_update_graphics(f); break;
+        case FIGURE_FISH_GULLS: figure_seagulls_update_graphics(f); break;
+        case FIGURE_HIPPODROME_HORSES: figure_hippodrome_horse_update_graphics(f); break;
+    }
+}
 
 void figure_action_handle(void)
 {
     PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE);
     city_figures_reset();
-    city_entertainment_set_hippodrome_has_race(0);
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
         if (!f || !f->state) {
@@ -159,7 +177,9 @@ void figure_action_handle(void)
             }
         }
         if (!figure_runtime_execute(f)) {
-            if (f->type == FIGURE_DOCKER) {
+            if (f->is_herd()) {
+                reinterpret_cast<figuretype::Animal *>(f)->action();
+            } else if (f->type == FIGURE_DOCKER) {
                 reinterpret_cast<figuretype::Docker *>(f)->docker_action();
             } else {
                 figure_action_callbacks[f->type](f);

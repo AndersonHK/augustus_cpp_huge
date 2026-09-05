@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="criminal_robber" graphics_only="true">
+    <graphics>
+        <default>
+            <path value="Walkers\criminal" />
+        </default>
+        <corpse>
+            <path value="Walkers\criminal" />
+        </corpse>
+    </graphics>
+</figure>

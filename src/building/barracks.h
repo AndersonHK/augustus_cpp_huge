@@ -28,8 +28,12 @@ public:
     int create_soldier(int x, int y);
     Building *unmanned_tower(map_point *road) const;
     int create_tower_sentry(int x, int y);
+    void spawn_recruitment();
 
 private:
     int closest_legion_needing_soldiers() const;
     int can_recruit_soldier_for(const formation &legion) const;
 };
+
+void building_military_spawn_tower(Building &tower);
+void building_military_run_academy(Building &academy);

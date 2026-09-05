@@ -122,7 +122,11 @@ static int farm_progress_percentage(Building farm)
 {
     int total_percentage = 0;
     int part_count = 0;
-    farm.for_each_part([&](Building part) {
+    if (!farm.Composition) {
+        const building *record = farm.record();
+        return calc_percentage(record->data.industry.progress, farm.native_production_max_progress());
+    }
+    farm.Composition->for_each_member([&](Building &part) {
         if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }
@@ -142,7 +146,10 @@ static int farm_efficiency(Building farm)
 {
     int total_efficiency = 0;
     int part_count = 0;
-    farm.for_each_part([&](Building part) {
+    if (!farm.Composition) {
+        return farm.native_production_efficiency();
+    }
+    farm.Composition->for_each_member([&](Building &part) {
         if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }

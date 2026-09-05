@@ -58,16 +58,6 @@ int difficulty_adjust_soldier_food_consumption(int amount)
     return amount + data[setting_difficulty()].food_per_soldier;
 }
 
-int difficulty_adjust_wolf_attack(int attack)
-{
-    switch (setting_difficulty()) {
-        case DIFFICULTY_VERY_EASY: return 2;
-        case DIFFICULTY_EASY: return 4;
-        case DIFFICULTY_NORMAL: return 6;
-        default: return attack;
-    }
-}
-
 int difficulty_favor_to_pause_emperor_attack(void)
 {
     return data[setting_difficulty()].favor_to_pause_emperor_attack;

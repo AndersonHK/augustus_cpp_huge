@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<distribution>
-    <takes storage="wine_output_wine_workshop" priority="10" baseline_stock="50" />
-    <takes storage="meat_output_pig_farm" max_stock="600" />
-    <takes storage="fish_output_wharf" max_stock="600" />
-</distribution>

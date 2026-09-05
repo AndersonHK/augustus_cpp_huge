@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barracks">
     <identity name_key="main_strings.28.95" />
-    <model size="3" cost="150" />
+    <model cost="150" />
     <desirability>
         <value value="-6" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
     <construction max_count="1" max_count_unless_config="multiple_barracks" />
   <button group="security" order="90" text_key="main_strings.28.95" />
-    <event_data attr="barracks" />
     <flags draw_desirability_range="1" />
     <graphics>
         <default>

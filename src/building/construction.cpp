@@ -10,7 +10,6 @@
 #include "building/construction_routed.h"
 #include "building/construction_warning.h"
 #include "building/count.h"
-#include "building/image.h"
 #include "building/rotation.h"
 #include "building/tool_mode.h"
 #include "building/variant.h"
@@ -24,7 +23,7 @@
 #include "map/image.h"
 #include "map/tiles.h"
 #include "map/water.h"
-#include "map/water_supply.h"
+#include "building/water_access_runtime.h"
 
 #include "building/construction_session.h"
 #include "figure/figure.h"
@@ -121,11 +120,6 @@ static reservoir_endpoint reservoir_endpoint_from_center(int center_x, int cente
     endpoint.origin_y = center_y - 1;
     endpoint.origin_grid_offset = map_grid_offset(endpoint.origin_x, endpoint.origin_y);
     return endpoint;
-}
-
-static building_type reservoir_building_type()
-{
-    return building_type_registry_impl::type_from_attr("reservoir");
 }
 
 static int reservoir_endpoint_has_existing_reservoir(const reservoir_endpoint &endpoint)
@@ -240,16 +234,6 @@ static int is_vacant_lot_type(building_type type)
     return vacant_lot != BUILDING_NONE && type == vacant_lot;
 }
 
-static building_type first_type_with_tool_kind(building_type_registry_impl::ConstructionToolKind kind)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->tool().kind() == kind) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
 static void set_required_terrain(building_type type)
 {
     data.required_terrain.wall = 0;
@@ -261,25 +245,27 @@ static void set_required_terrain(building_type type)
 
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    int required_terrain = definition ? definition->foundation_required_terrain() : 0;
+    const building_type_registry_impl::FoundationDef *foundation =
+        definition ? definition->foundation_def() : nullptr;
+    const unsigned int required_terrain = foundation ? foundation->site_requirements() : 0;
     if (required_terrain) {
-        data.required_terrain.meadow = (required_terrain & BUILDING_TYPE_TERRAIN_MEADOW) != 0;
-        data.required_terrain.rock = (required_terrain & BUILDING_TYPE_TERRAIN_ROCK) != 0;
-        data.required_terrain.tree = (required_terrain & BUILDING_TYPE_TERRAIN_TREE) != 0;
-        data.required_terrain.water = (required_terrain & BUILDING_TYPE_TERRAIN_WATER) != 0;
-        data.required_terrain.wall = (required_terrain & BUILDING_TYPE_TERRAIN_WALL) != 0;
-        data.required_terrain.distant_water = (required_terrain & BUILDING_TYPE_TERRAIN_DISTANT_WATER) != 0;
+        data.required_terrain.meadow = (required_terrain & building_type_registry_impl::FOUNDATION_SITE_MEADOW) != 0;
+        data.required_terrain.rock = (required_terrain & building_type_registry_impl::FOUNDATION_SITE_ROCK) != 0;
+        data.required_terrain.tree = (required_terrain & building_type_registry_impl::FOUNDATION_SITE_TREE) != 0;
+        data.required_terrain.water = (required_terrain & building_type_registry_impl::FOUNDATION_SITE_WATER) != 0;
+        data.required_terrain.wall = (required_terrain & building_type_registry_impl::FOUNDATION_SITE_WALL) != 0;
+        data.required_terrain.distant_water =
+            (required_terrain & building_type_registry_impl::FOUNDATION_SITE_DISTANT_WATER) != 0;
         return;
     }
 
-    data.required_terrain.wall = definition &&
-        definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall;
+    data.required_terrain.wall = foundation && foundation->requires_terrain(TERRAIN_WALL);
 }
 
-static void sync_construction_type(void)
+static void sync_construction_type(int construction_in_progress)
 {
     building_type old_type = data.tool.type;
-    if (!data.tool.sync_type(hotkey_get_modifiers(), data.in_progress)) {
+    if (!data.tool.sync_type(hotkey_get_modifiers(), construction_in_progress)) {
         return;
     }
     if (data.tool.type != old_type) {
@@ -310,9 +296,11 @@ int building_construction_force_place_active(void)
         building_type_registry_impl::definition_for_type(type);
     if (type == BUILDING_NONE || is_vacant_lot_type(type) ||
         ConstructionAreaTilePlacement::is_area_tile_type(type) ||
-        (definition && definition->roadblock().is_bridge()) ||
-        (definition && definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall) ||
-        (definition && definition->roadblock().is_wall_gate()) ||
+        (definition && definition->bridge().is_bridge()) ||
+        (definition && definition->foundation_def() &&
+            definition->foundation_def()->requires_terrain(TERRAIN_WALL)) ||
+        (definition && definition->foundation_def() &&
+            definition->foundation_def()->adds_terrain(TERRAIN_GATEHOUSE)) ||
         construction_tool_for_type(type).has_any()) {
         return 0;
     }
@@ -474,6 +462,17 @@ static void mark_construction(int x, int y, int size, int terrain, int absolute_
     }
 }
 
+static void mark_placement_construction(
+    const building_construction::ConstructionPlacementPlan &placement,
+    int terrain)
+{
+    for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
+        for (const building_construction::ConstructionPlacementTile &tile : part.tiles) {
+            mark_construction(tile.x, tile.y, 1, terrain, 1);
+        }
+    }
+}
+
 static int place_houses(int measure_only, int x_start, int y_start, int x_end, int y_end)
 {
     int x_min, x_max, y_min, y_max;
@@ -501,9 +500,7 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
                 if (!assessment.can_place) {
                     continue;
                 }
-                for (const building_construction::ConstructionPlacementPart &part : assessment.placement.parts()) {
-                    mark_construction(part.x, part.y, part.size, TERRAIN_ALL, 1);
-                }
+                mark_placement_construction(assessment.placement, TERRAIN_ALL);
                 items_placed++;
             } else {
                 if (building_construction_place_building(vacant_lot_type, x, y, 1)) {
@@ -562,12 +559,13 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                 }
                 construction_requirements_reserve(construction, available_resources);
                 items_placed++;
-                map_tiles_set_wall(x, y);
-                if (!measure_only) {
+                if (measure_only) {
+                    map_tiles_set_wall(x, y);
+                } else {
                     Building &wall = city_building_runtime().create(*definition, x, y);
-                    map_building_set(grid_offset, wall);
-                    map_terrain_add(grid_offset, TERRAIN_BUILDING);
-                    map_terrain_add(grid_offset, TERRAIN_WALL);
+                    wall.add_map_tiles();
+                    wall.refresh_graphic();
+                    map_tiles_set_wall(x, y);
                     map_property_clear_multi_tile_xy(grid_offset);
                     construction_requirements_remove(construction);
                 }
@@ -653,8 +651,8 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                     b->subtype.orientation = static_cast<short>(rotation);
                 }
                 game_undo_add_building(b);
-                map_building_tiles_add(building_obj, b->x, b->y, b->size,
-                    building_image_get(&building_obj), TERRAIN_BUILDING);
+                building_obj.add_map_tiles();
+                building_obj.refresh_graphic();
             } else if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR_EXCEPT_ROAD)) {
                 if (gate_definition) {
                     items_placed++;
@@ -668,8 +666,8 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
                         b->subtype.orientation = static_cast<short>(rotation);
                     }
                     game_undo_add_building(b);
-                    map_building_tiles_add(building_obj, b->x, b->y, b->size,
-                        building_image_get(&building_obj), TERRAIN_BUILDING);
+                    building_obj.add_map_tiles();
+                    building_obj.refresh_graphic();
                     map_terrain_add(grid_offset, TERRAIN_ROAD);
                 }
             }
@@ -807,34 +805,9 @@ static int place_reservoir_and_aqueducts(
     return 1;
 }
 
-static unsigned int remove_aqueduct_tiles_for_reservoir(int x, int y)
-{
-    unsigned int removed_aqueduct_tiles = 0;
-    for (int yy = y; yy < y + 3; yy++) {
-        for (int xx = x; xx < x + 3; xx++) {
-            int grid_offset = map_grid_offset(xx, yy);
-            if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-                if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).is_surface_terrain_tile()) {
-                    Building &surface = map_building_at(grid_offset);
-                    if (building *surface_record = const_cast<::building *>(surface.record())) {
-                        game_undo_add_building(surface_record);
-                        surface_record->state = BUILDING_STATE_DELETED_BY_PLAYER;
-                        surface_record->is_deleted = 1;
-                    }
-                    map_building_clear_at(grid_offset);
-                }
-                map_aqueduct_remove(grid_offset);
-                removed_aqueduct_tiles++;
-            }
-        }
-    }
-    return removed_aqueduct_tiles;
-}
-
 static int place_normalized_reservoir(
     building_type reservoir_type,
-    const reservoir_endpoint &endpoint,
-    unsigned int *removed_aqueduct_tiles)
+    const reservoir_endpoint &endpoint)
 {
     if (reservoir_endpoint_has_existing_reservoir(endpoint)) {
         return 1;
@@ -844,10 +817,6 @@ static int place_normalized_reservoir(
     if (!definition ||
         !building_construction_show_placement_warning(*definition, endpoint.origin_x, endpoint.origin_y, 1, 0)) {
         return 0;
-    }
-    const unsigned int removed = remove_aqueduct_tiles_for_reservoir(endpoint.origin_x, endpoint.origin_y);
-    if (removed_aqueduct_tiles) {
-        *removed_aqueduct_tiles += removed;
     }
     return building_construction_place_building(reservoir_type, endpoint.origin_x, endpoint.origin_y, 1);
 }
@@ -902,7 +871,7 @@ void building_construction_clear_type(void)
 
 building_type building_construction_type(void)
 {
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     return data.tool.type;
 }
 
@@ -920,7 +889,7 @@ void building_construction_set_hover_tile(int x, int y, int grid_offset)
         return;
     }
     data.tool.set_raw_start(x, y, grid_offset);
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     data.tool.sync_drag_points(hotkey_get_modifiers());
     data.can_place = 1;
 }
@@ -937,6 +906,9 @@ int building_construction_force_place_clear_cost(void)
 
 int building_construction_can_place(void)
 {
+    if (construction_tool_for_type(data.tool.type).is_road()) {
+        return data.can_place;
+    }
     return building_construction_is_land_work_type(data.tool.type) || data.can_place;
 }
 
@@ -971,7 +943,10 @@ void building_construction_start(int x, int y, int grid_offset)
 {
     clear_reservoir_aqueduct_preview_route();
     data.tool.set_raw_start(x, y, grid_offset);
-    sync_construction_type();
+    // Mouse-down begins the construction session. Preserve an already
+    // resolved single-target mode (roadblock/bridge) while fixing its start
+    // tile, just as subsequent drag updates do.
+    sync_construction_type(1);
     data.tool.sync_drag_points(hotkey_get_modifiers());
 
     if (game_undo_start_build(data.tool.type)) {
@@ -1056,7 +1031,7 @@ void building_construction_update(int x, int y, int grid_offset)
         y = data.tool.raw_end.grid_offset ? data.tool.raw_end.y : data.tool.raw_start.y;
         grid_offset = data.tool.raw_end.grid_offset ? data.tool.raw_end.grid_offset : data.tool.raw_start.grid_offset;
     }
-    sync_construction_type();
+    sync_construction_type(data.in_progress);
     data.tool.sync_drag_points(hotkey_get_modifiers());
     x = data.tool.end.x;
     y = data.tool.end.y;
@@ -1096,12 +1071,15 @@ void building_construction_update(int x, int y, int grid_offset)
             current_cost *= items_placed;
         }
     } else if (tool.is_road()) {
-        int items_placed = building_construction_place_road(1, data.tool.start.x, data.tool.start.y, x, y);
+        int items_placed = building_construction_place_road(
+            1, data.tool.start.x, data.tool.start.y, x, y, data.tool.type);
+        data.can_place = items_placed > 0;
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
     } else if (tool.is_highway()) {
-        int items_placed = building_construction_place_highway(1, data.tool.start.x, data.tool.start.y, x, y);
+        int items_placed = building_construction_place_highway(
+            1, data.tool.start.x, data.tool.start.y, x, y, data.tool.type);
         if (items_placed >= 0) {
             current_cost *= items_placed;
             current_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
@@ -1125,7 +1103,7 @@ void building_construction_update(int x, int y, int grid_offset)
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (definition && definition->roadblock().is_bridge()) {
+    } else if (definition && definition->bridge().is_bridge()) {
         int length = map_bridge_building_length();
         if (length > 1) {
             current_cost *= length;
@@ -1134,9 +1112,11 @@ void building_construction_update(int x, int y, int grid_offset)
         data.can_place = building_construction_place_aqueduct(1, type, data.tool.start.x, data.tool.start.y, x, y, &current_cost);
     } else if (tool.is_draggable_reservoir()) {
         struct reservoir_info info;
-        const building_type reservoir_type = reservoir_building_type();
-        const building_type aqueduct_type =
-            first_type_with_tool_kind(building_type_registry_impl::ConstructionToolKind::Aqueduct);
+        const building_type reservoir_type = type;
+        const building_type aqueduct_type = building_tool_mode_resolve_context(
+            reservoir_type,
+            building_type_registry_impl::SmartToolContext::RoutedSegment,
+            KEY_MOD_NONE);
         if (reservoir_type == BUILDING_NONE) {
             data.can_place = 0;
             current_cost = 0;
@@ -1190,17 +1170,15 @@ void building_construction_update(int x, int y, int grid_offset)
         } else if (!data.required_terrain.meadow && !data.required_terrain.rock && !data.required_terrain.tree &&
             !data.required_terrain.water && !data.required_terrain.wall && !data.required_terrain.distant_water &&
             should_mark_for_construction(type) && data.can_place) {
-            for (const building_construction::ConstructionPlacementPart &part : assessment.placement.parts()) {
-                mark_construction(part.x, part.y, part.size, TERRAIN_ALL, 1);
-            }
+            mark_placement_construction(assessment.placement, TERRAIN_ALL);
         }
     }
     data.cost_preview = current_cost;
 }
 
-figure_type building_construction_nearby_enemy_type(grid_slice *slice)
+figure_type building_construction_nearby_enemy_type(const int *grid_offsets, int count)
 {
-    if (!slice || slice->size == 0) {
+    if (!grid_offsets || count <= 0) {
         return FIGURE_NONE;
     }
 
@@ -1216,9 +1194,8 @@ figure_type building_construction_nearby_enemy_type(grid_slice *slice)
 
         int distance = f->type == FIGURE_WOLF ? 6 : 12;
 
-        // Check if figure is within distance of any tile in the grid slice
-        for (int j = 0; j < slice->size; j++) {
-            int grid_offset = slice->grid_offsets[j];
+        for (int j = 0; j < count; j++) {
+            int grid_offset = grid_offsets[j];
             int tile_x = map_grid_offset_to_x(grid_offset);
             int tile_y = map_grid_offset_to_y(grid_offset);
 
@@ -1265,7 +1242,7 @@ void building_construction_place(void)
     if (!building_construction_can_place() &&
         (!building_construction_is_updatable() || preview_cost <= 0)) {
         if (definition && !tool.has_any() && !is_vacant_lot_type(type) &&
-            !ConstructionAreaTilePlacement::is_area_tile_type(type) && !definition->roadblock().is_bridge()) {
+            !ConstructionAreaTilePlacement::is_area_tile_type(type) && !definition->bridge().is_bridge()) {
             const int placement_rules_passed = building_construction_show_placement_warning(
                 *definition, x_end, y_end, 0, building_construction_force_place_active());
             if (placement_rules_passed && city_finance_out_of_money() &&
@@ -1283,14 +1260,16 @@ void building_construction_place(void)
         return;
     }
 
-    figure_type enemy_figure_type = building_construction_nearby_enemy_type(slice);
+    figure_type enemy_figure_type = building_construction_nearby_enemy_type(
+        slice ? slice->grid_offsets : nullptr,
+        slice ? slice->size : 0);
 
     if (!tool.is_clear_land() && !tool.is_clear_trees() && enemy_figure_type != FIGURE_NONE) {
         if (tool.is_wall() || tool.is_road() || tool.is_aqueduct() || tool.is_highway()) {
             game_undo_restore_map(0);
         } else if ((definition && definition->has_tile()) || building_is_connectable(type)) {
             ConstructionAreaTilePlacement::restore_preview_map(type);
-        } else if (definition && definition->roadblock().is_bridge()) {
+        } else if (definition && definition->bridge().is_bridge()) {
             map_bridge_reset_building_length();
         } else {
             map_property_clear_constructing_and_deleted();
@@ -1327,9 +1306,9 @@ void building_construction_place(void)
     } else if (tool.is_wall()) {
         placement_cost *= place_wall(x_start, y_start, x_end, y_end, 0, 1, type);
     } else if (tool.is_road()) {
-        placement_cost *= building_construction_place_road(0, x_start, y_start, x_end, y_end);
+        placement_cost *= building_construction_place_road(0, x_start, y_start, x_end, y_end, type);
     } else if (tool.is_highway()) {
-        placement_cost *= building_construction_place_highway(0, x_start, y_start, x_end, y_end);
+        placement_cost *= building_construction_place_highway(0, x_start, y_start, x_end, y_end, type);
         placement_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
     } else if (ConstructionAreaTilePlacement::is_area_tile_type(type)) {
         int items_placed = place_area_tile(x_start, y_start, x_end, y_end, type, 0);
@@ -1341,8 +1320,8 @@ void building_construction_place(void)
         if (ConstructionAreaTilePlacement::updates_land_routing(type)) {
             Route::updateLandTerrain();
         }
-    } else if (definition && definition->roadblock().is_bridge()) {
-        int length = map_bridge_add(x_end, y_end, definition->roadblock().is_ship_bridge());
+    } else if (definition && definition->bridge().is_bridge()) {
+        int length = map_bridge_add(x_end, y_end, definition->bridge().is_ship_bridge());
         if (length <= 1) {
             city_warning_show_translated(WARNING_SHORE_NEEDED);
             return;
@@ -1359,19 +1338,19 @@ void building_construction_place(void)
         Route::updateLandTerrain();
     } else if (tool.is_draggable_reservoir()) {
         struct reservoir_info info;
-        const building_type reservoir_type = reservoir_building_type();
+        const building_type reservoir_type = type;
+        const building_type aqueduct_type = building_tool_mode_resolve_context(
+            reservoir_type,
+            building_type_registry_impl::SmartToolContext::RoutedSegment,
+            KEY_MOD_NONE);
         const reservoir_endpoint start_reservoir = reservoir_endpoint_from_center(x_start, y_start);
         const reservoir_endpoint end_reservoir = reservoir_endpoint_from_center(x_end, y_end);
         if (calc_maximum_distance(x_start, y_start, x_end, y_end) == 0) {
-            unsigned int removed_aqueduct_tiles = 0;
             const int existing_reservoir = reservoir_endpoint_has_existing_reservoir(end_reservoir);
-            if (!place_normalized_reservoir(reservoir_type, end_reservoir, &removed_aqueduct_tiles)) {
+            if (!place_normalized_reservoir(reservoir_type, end_reservoir)) {
                 map_property_clear_constructing_and_deleted();
                 city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
                 return;
-            }
-            if (removed_aqueduct_tiles) {
-                game_undo_disable();
             }
             placement_cost = existing_reservoir ? 0 : model_get_building(reservoir_type)->cost;
             map_tiles_update_all_aqueducts(0);
@@ -1384,34 +1363,30 @@ void building_construction_place(void)
                     x_end,
                     y_end,
                     reservoir_type,
-                    first_type_with_tool_kind(building_type_registry_impl::ConstructionToolKind::Aqueduct),
+                    aqueduct_type,
                     &info)) {
                 map_property_clear_constructing_and_deleted();
                 city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
                 return;
             }
-            unsigned int removed_aqueduct_tiles = 0;
             if (info.place_reservoir_at_start == PLACE_RESERVOIR_YES) {
-                if (!place_normalized_reservoir(reservoir_type, start_reservoir, &removed_aqueduct_tiles)) {
+                if (!place_normalized_reservoir(reservoir_type, start_reservoir)) {
                     map_property_clear_constructing_and_deleted();
                     city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
                     return;
                 }
             }
             if (info.place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-                if (!place_normalized_reservoir(reservoir_type, end_reservoir, &removed_aqueduct_tiles)) {
+                if (!place_normalized_reservoir(reservoir_type, end_reservoir)) {
                     map_property_clear_constructing_and_deleted();
                     city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
                     return;
                 }
                 if (!map_terrain_exists_tile_in_area_with_type(start_reservoir.origin_x - 1, start_reservoir.origin_y - 1, 5, TERRAIN_WATER)
                     && info.place_reservoir_at_start == PLACE_RESERVOIR_NO &&
-                    !map_water_supply_has_aqueduct_access(end_reservoir.origin_grid_offset)) {
+            !water_access_runtime_reservoir_has_network_access(end_reservoir.origin_grid_offset)) {
                     building_construction_warning_check_reservoir(reservoir_type);
                 }
-            }
-            if (removed_aqueduct_tiles) {
-                game_undo_disable();
             }
             placement_cost = info.cost;
             map_tiles_update_all_aqueducts(0);

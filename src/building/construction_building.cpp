@@ -3,7 +3,6 @@
 #include "building/construction_warning.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
@@ -11,12 +10,14 @@
 #include "building/variant.h"
 #include "city/warning.h"
 #include "game/undo.h"
+#include "map/aqueduct.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
 #include "map/orientation.h"
 #include "map/tiles.h"
 #include "map/water.h"
-#include "map/water_supply.h"
+#include "map/water_navigation.h"
+#include "building/water_access_runtime.h"
 
 #include "construction_building.h"
 
@@ -33,11 +34,12 @@
 #include "building/properties.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
+#include "city/culture.h"
 #include "city/finance.h"
 #include "city/resource.h"
-#include "city/view.h"
 #include "core/config.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
 #include "map/figure.h"
@@ -48,9 +50,11 @@
 #include "map/terrain.h"
 #include "scenario/property.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 // Repair and ordinary rubble clearing must quote the same per-tile price.
 constexpr int RUBBLE_CLEAR_COST_PER_TILE = 3;
@@ -82,21 +86,6 @@ static std::string legacy_text(const uint8_t *text)
 static std::string localized_text(translation_key key)
 {
     return legacy_text(translation_for(key));
-}
-
-static int build_type_clear_land_cost()
-{
-    static int cost = -1;
-    if (cost >= 0) {
-        return cost;
-    }
-    const building_type clear_land_type = building_type_registry_impl::type_from_attr("clear_land");
-    if (clear_land_type == BUILDING_NONE || !model_get_building(clear_land_type)) {
-        cost = 0;
-        return cost;
-    }
-    cost = model_get_building(clear_land_type)->cost;
-    return cost;
 }
 
 static building_type build_type_mess_hall()
@@ -187,16 +176,6 @@ static PlaceWarningMessage max_legions_reached_warning()
     return warning_text(WARNING_MAX_LEGIONS_REACHED, "TR_CITY_WARNING_MAX_LEGIONS_REACHED");
 }
 
-static PlaceWarningMessage shore_needed_warning()
-{
-    return warning_text(WARNING_SHORE_NEEDED, "TR_CITY_WARNING_SHORE_NEEDED");
-}
-
-static PlaceWarningMessage wall_needed_warning()
-{
-    return warning_text(WARNING_WALL_NEEDED, "TR_CITY_WARNING_WALL_NEEDED");
-}
-
 static PlaceWarningMessage warehouse_tower_road_access_warning()
 {
     return warning_text(WARNING_WAREHOUSE_TOWER, "TR_WARNING_NO_WAREHOUSE_TOWER_ROAD_ACCESS");
@@ -280,21 +259,6 @@ int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode cle
     return total_cost;
 }
 
-static int check_gatehouse_tiles(int grid_offset)
-{
-    grid_slice *slice = map_grid_get_grid_slice_square(grid_offset, 2);
-    for (int i = 0; i < slice->size; i++) {
-        if (map_terrain_is(slice->grid_offsets[i], TERRAIN_BUILDING)) {
-            if (map_terrain_is(slice->grid_offsets[i], TERRAIN_WALL)) {
-                continue;
-            } else {
-                return 0;
-            }
-        }
-    }
-    return 1;
-}
-
 static void add_building(building *b)
 {
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
@@ -308,26 +272,8 @@ static void add_building(building *b)
         !b->monument.phase) {
         b->monument.phase = MONUMENT_FINISHED;
     }
-    if (building_obj.refresh_graphic_if_native()) {
-        return;
-    }
-    int image_id = building_image_get(&building_obj);
-    if (image_id) {
-        map_building_tiles_add(building_obj, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
-    }
-}
-
-static void register_single_tile_building_terrain(building *b, int terrain)
-{
-    int grid_offset = map_grid_offset(b->x, b->y);
-    map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
-    map_terrain_add(grid_offset, terrain);
-    if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(b)) {
-        map_building_set(grid_offset, runtime->building);
-    }
-    map_property_clear_constructing(grid_offset);
-    map_property_set_multi_tile_size(grid_offset, 1);
-    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+    building_obj.add_map_tiles();
+    building_obj.refresh_graphic();
 }
 
 static void refresh_placed_tile_regions(const building_construction::ConstructionPlacementPlan &placement)
@@ -336,89 +282,184 @@ static void refresh_placed_tile_regions(const building_construction::Constructio
         if (!part.definition->has_tile()) {
             continue;
         }
-        map_tiles_update_region_tile(part.x, part.y, part.x + part.size - 1, part.y + part.size - 1,
+        map_tiles_update_region_tile(part.x, part.y, part.x + part.width - 1, part.y + part.height - 1,
             part.definition->tile());
     }
 }
 
-static const building_construction::ConstructionPlacementPart *find_placement_part(
-    const building_construction::ConstructionPlacementPlan &placement,
-    building_type type)
+static const building_construction::ConstructionPlacementPart *placement_owner_part(
+    const building_construction::ConstructionPlacementPlan &placement)
 {
     for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
-        if (part.type == type) {
+        if (part.is_owner) {
             return &part;
         }
     }
     return nullptr;
 }
 
-static void add_composed_building(
+static void initialize_composed_child(
+    building *main_record,
+    Building &child_object,
+    const building_construction::ConstructionPlacementPart &part,
+    unsigned char graphics_variant)
+{
+    building *child = const_cast<building *>(child_object.record());
+    if (!main_record || !child) {
+        return;
+    }
+    child->subtype.orientation = static_cast<short>(part.building_orientation);
+    child->road_network_id = main_record->road_network_id;
+    child->distance_from_entry = main_record->distance_from_entry;
+    child->road_access_x = main_record->road_access_x;
+    child->road_access_y = main_record->road_access_y;
+    child->has_road_access = main_record->has_road_access;
+    child->houses_covered = main_record->houses_covered;
+    child->percentage_houses_covered = main_record->percentage_houses_covered;
+    child->labor_access_score = main_record->labor_access_score;
+    if (building_runtime *child_runtime = child_object.runtime_instance()) {
+        child_runtime->set_graphics_variant(graphics_variant);
+    }
+}
+
+static void abandon_unpublished_composition(
+    building *main_record,
+    const std::vector<Building *> &children)
+{
+    if (main_record) {
+        if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(main_record);
+            runtime && runtime->building.Composition) {
+            runtime->building.Composition->clear();
+        }
+    }
+    if (main_record) {
+        main_record->state = BUILDING_STATE_DELETED_BY_GAME;
+    }
+    for (Building *child_object : children) {
+        building *child = child_object ? const_cast<building *>(child_object->record()) : nullptr;
+        if (!child) {
+            continue;
+        }
+        child->state = BUILDING_STATE_DELETED_BY_GAME;
+    }
+}
+
+static bool add_native_composed_building(
+    building *main_record,
+    const building_type_registry_impl::BuildingType &definition,
+    const building_construction::ConstructionPlacementPart &main_part,
+    const building_construction::ConstructionPlacementPlan &placement)
+{
+    building_runtime *main_runtime = building_runtime_impl::get_or_create_instance(main_record);
+    Building *main_object = main_runtime ? &main_runtime->building : nullptr;
+    BuildingComposition *composition = main_object ? main_object->Composition : nullptr;
+    const std::vector<building_type_registry_impl::CompositionChildDef> &child_definitions =
+        definition.composition().children();
+
+    if (!placement.can_place() || placement.owner_charge_count() != 1 || !main_part.is_owner) {
+        log_error("Native composition construction received an invalid placement transaction",
+            definition.attr(), 0);
+        abandon_unpublished_composition(main_record, {});
+        return false;
+    }
+
+    std::vector<const building_construction::ConstructionPlacementPart *> child_parts;
+    child_parts.reserve(child_definitions.size());
+    for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
+        if (!part.is_owner) {
+            child_parts.push_back(&part);
+        }
+    }
+    if (!composition || !composition->is_owner() || child_parts.size() != child_definitions.size()) {
+        log_error("Native composition construction has an incomplete placement layout", definition.attr(), 0);
+        abandon_unpublished_composition(main_record, {});
+        return false;
+    }
+    for (std::size_t index = 0; index < child_parts.size(); ++index) {
+        if (!child_parts[index] || child_parts[index]->definition != child_definitions[index].type) {
+            log_error("Native composition placement order does not match CompositionDef", definition.attr(), 0);
+            abandon_unpublished_composition(main_record, {});
+            return false;
+        }
+    }
+
+    if (main_record->x != main_part.x || main_record->y != main_part.y) {
+        main_record->x = static_cast<unsigned char>(main_part.x);
+        main_record->y = static_cast<unsigned char>(main_part.y);
+        main_record->grid_offset = static_cast<short>(map_grid_offset(main_record->x, main_record->y));
+    }
+
+    std::vector<Building *> child_objects;
+    std::vector<BuildingComposition *> child_modules;
+    child_objects.reserve(child_parts.size());
+    child_modules.reserve(child_parts.size());
+    for (const building_construction::ConstructionPlacementPart *part : child_parts) {
+        Building &child_object = city_building_runtime().create(*part->definition, part->x, part->y);
+        initialize_composed_child(main_record, child_object, *part, main_runtime->graphics_variant());
+        child_objects.push_back(&child_object);
+        if (!child_object.Composition) {
+            log_error("Native composition child has no BuildingComposition module", definition.attr(), 0);
+            abandon_unpublished_composition(main_record, child_objects);
+            return false;
+        }
+        child_modules.push_back(child_object.Composition);
+    }
+
+    std::string relationship_error;
+    if (!composition->attach_children(child_modules, &relationship_error)) {
+        log_error("Unable to bind native building composition", relationship_error.c_str(), 0);
+        abandon_unpublished_composition(main_record, child_objects);
+        return false;
+    }
+    if (!composition->complete(&relationship_error)) {
+        log_error("Native building composition is incomplete before map publication",
+            relationship_error.c_str(), 0);
+        abandon_unpublished_composition(main_record, child_objects);
+        return false;
+    }
+
+    // Creation and relationship binding are complete before the first map cell
+    // is published. Layout validation guarantees member Foundations do not overlap.
+    add_building(main_record);
+    for (Building *child_object : child_objects) {
+        building *child = const_cast<building *>(child_object->record());
+        game_undo_add_building(child);
+        add_building(child);
+    }
+    return true;
+}
+
+static bool add_composed_building(
     building *main_record,
     const building_construction::ConstructionPlacementPlan &placement)
 {
     if (!main_record) {
-        return;
+        return false;
     }
     const building_construction::ConstructionPlacementPart *main_part =
-        find_placement_part(placement, main_record->type);
+        placement_owner_part(placement);
     const building_type_registry_impl::BuildingType *definition =
         main_part ? main_part->definition : building_type_registry_impl::definition_for_type(main_record->type);
-    if (!main_part || !definition || !definition->has_composition()) {
-        add_building(main_record);
-        return;
+    if (!definition) {
+        abandon_unpublished_composition(main_record, {});
+        return false;
     }
-
-    main_record->prev_part_building_id = 0;
-    main_record->next_part_building_id = 0;
-    if (main_part && (main_record->x != main_part->x || main_record->y != main_part->y)) {
-        main_record->x = static_cast<unsigned char>(main_part->x);
-        main_record->y = static_cast<unsigned char>(main_part->y);
-        main_record->grid_offset = static_cast<short>(map_grid_offset(main_record->x, main_record->y));
-        game_undo_adjust_building(main_record);
+    if (!main_part || main_part->type != main_record->type) {
+        log_error("Composition placement has no owner part", definition->attr(), 0);
+        abandon_unpublished_composition(main_record, {});
+        return false;
     }
-    add_building(main_record);
-
-    building *previous_record = main_record;
-    for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
-        if (&part == main_part || part.type == BUILDING_NONE || !previous_record || previous_record->id <= 0) {
-            continue;
-        }
-
-        if (!part.definition) {
-            continue;
-        }
-        Building &child_object = city_building_runtime().create(*part.definition, part.x, part.y);
-        building *child = const_cast<building *>(child_object.record());
-        game_undo_add_building(child);
-        child->prev_part_building_id = static_cast<short>(previous_record->id);
-        child->next_part_building_id = 0;
-        if (definition->composition().child_inherits_orientation()) {
-            child->subtype.orientation = main_record->subtype.orientation;
-        }
-        child->road_network_id = main_record->road_network_id;
-        child->distance_from_entry = main_record->distance_from_entry;
-        child->road_access_x = main_record->road_access_x;
-        child->road_access_y = main_record->road_access_y;
-        child->has_road_access = main_record->has_road_access;
-        child->houses_covered = main_record->houses_covered;
-        child->percentage_houses_covered = main_record->percentage_houses_covered;
-        child->labor_access_score = main_record->labor_access_score;
-        building_runtime *child_runtime = child_object.runtime_instance();
-        building_runtime *main_runtime = building_runtime_impl::get_or_create_instance(main_record);
-        if (child_runtime && main_runtime) {
-            child_runtime->set_graphics_variant(main_runtime->graphics_variant());
-        }
-        previous_record->next_part_building_id = static_cast<short>(child->id);
-        add_building(child);
-        previous_record = child;
-    }
+    return add_native_composed_building(main_record, *definition, *main_part, placement);
 }
 
 static void set_monument_phase_for_parts(building *main_record, int phase)
 {
     if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(main_record)) {
-        runtime->building.for_each_part([&](Building part) {
+        BuildingComposition *composition = runtime->building.Composition;
+        if (!composition) {
+            return;
+        }
+        composition->for_each_member([phase](Building &part) {
             building_monument_set_phase(const_cast<building *>(part.record()), phase);
         });
     }
@@ -432,12 +473,14 @@ static void assign_fort_formation_to_parts(building *main_record)
     }
     Building &fort_object = runtime->building;
     const int formation_id = formation_legion_create_for_fort(fort_object);
-    for (Building *part = &fort_object; part; part = part->next()) {
-        part->set_formation_id(formation_id);
-        if (!part->next_part_id()) {
-            break;
-        }
+    if (!fort_object.Composition || !fort_object.Composition->is_owner() ||
+        !fort_object.Composition->complete()) {
+        log_error("Fort is missing its native BuildingComposition", fort_object.type->attr(), fort_object.id);
+        return;
     }
+    fort_object.Composition->for_each_member([formation_id](Building &part) {
+        part.set_formation_id(formation_id);
+    });
 }
 
 static void add_depot(building *b)
@@ -452,25 +495,33 @@ static void add_granary(building *b)
         runtime->building.set_storage_id(building_storage_create(b->id));
     }
     add_building(b);
-    map_update_granary_internal_roads(b);
+    map_update_building_internal_roads(b);
     map_tiles_update_area_roads(b->x, b->y, 5);
 }
 
-static void add_to_map(
+static bool add_to_map(
     building_type type,
     building *b,
-    int orientation,
     const building_construction::ConstructionPlacementPlan &placement)
 {
-    int size = placement.placement_size();
-    int waterside_orientation_abs = placement.waterside_orientation_absolute();
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(b);
     if (!runtime) {
-        return;
+        return false;
     }
     Building &building_obj = runtime->building;
     const building_type_registry_impl::BuildingType &definition = *building_obj.type;
-    const building_type_registry_impl::RoadblockKind roadblock_kind = definition.roadblock().kind();
+    const building_construction::ConstructionPlacementPart *owner_part =
+        placement_owner_part(placement);
+    if (!owner_part || owner_part->definition != &definition) {
+        log_error("Building construction placement has no matching owner part", definition.attr(), 0);
+        return false;
+    }
+    if (definition.has_rotated_placement_geometry() && !building_is_fort(type)) {
+        b->subtype.orientation = static_cast<short>(owner_part->building_orientation);
+    }
+    if (definition.attr_is("dock")) {
+        b->data.dock.orientation = static_cast<signed char>(owner_part->foundation_rotation);
+    }
     if (building_variant_has_variants(b->type)) {
         if (runtime) {
             runtime->set_graphics_variant(
@@ -491,14 +542,17 @@ static void add_to_map(
     if (definition.has_composition()) {
         if (definition.is_warehouse()) {
             building_obj.set_storage_id(building_storage_create(b->id));
-            b->subtype.orientation = static_cast<short>(orientation);
         } else if (building_is_fort(type)) {
             b->subtype.fort_figure_type =
                 static_cast<short>(building_count_forts_get_figure_type_from_building(type));
-        } else if (definition.composition().child_inherits_orientation()) {
-            b->subtype.orientation = static_cast<short>(placement.rotation());
         }
-        add_composed_building(b, placement);
+        if (!add_composed_building(b, placement)) {
+            if (b->storage_id) {
+                building_storage_delete(b->storage_id);
+                b->storage_id = 0;
+            }
+            return false;
+        }
         if (definition.has_phased_construction()) {
             int road_update_radius = definition.construction().road_update_radius();
             if (road_update_radius > 0) {
@@ -512,13 +566,14 @@ static void add_to_map(
         }
         if (definition.is_warehouse()) {
             map_tiles_update_area_roads(b->x, b->y, 5);
-            if (!map_has_road_access_warehouse(b->x, b->y, 0)) {
+            if (!map_has_road_access_building(b->x, b->y, 0)) {
                 warehouse_tower_road_access_warning().show();
             }
         } else if (building_is_fort(type)) {
             assign_fort_formation_to_parts(b);
         }
     } else if (definition.has_phased_construction()) {
+        add_building(b);
         int road_update_radius = definition.construction().road_update_radius();
         if (road_update_radius > 0) {
             map_tiles_update_area_roads(b->x, b->y, road_update_radius);
@@ -538,39 +593,19 @@ static void add_to_map(
             distribution->set_acceptance(building_obj, false);
         }
     } else if (definition.attr_is("large_mausoleum") || definition.attr_is("nymphaeum")) {
+        add_building(b);
         map_tiles_update_area_roads(b->x, b->y, 5);
         building_monument_set_phase(b, MONUMENT_START);
-    } else if (size == 1 &&
-        roadblock_kind != building_type_registry_impl::RoadblockKind::None &&
-        roadblock_kind != building_type_registry_impl::RoadblockKind::Bridge) {
+    } else if (definition.attr_is("gatehouse")) {
         add_building(b);
-        register_single_tile_building_terrain(b, TERRAIN_BUILDING);
-        map_terrain_add_roadblock_road(b->x, b->y);
-        map_tiles_update_area_roads(b->x, b->y, 5);
-    } else if (definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
-        b->subtype.orientation = static_cast<short>(waterside_orientation_abs);
-        b->data.dock.orientation = static_cast<signed char>(waterside_orientation_abs);
-        map_water_add_building(building_obj, b->x, b->y, size);
-    } else if (definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall) {
-        map_terrain_remove_with_radius(b->x, b->y, 2, 0, TERRAIN_WALL);
-        map_building_tiles_add(building_obj, b->x, b->y, size, building_image_get(&building_obj),
-            TERRAIN_BUILDING | TERRAIN_GATEHOUSE);
-        map_tiles_update_area_walls(b->x, b->y, 5);
-    } else if (definition.roadblock().is_wall_gate()) {
-        b->subtype.orientation = static_cast<short>(orientation);
-        map_building_tiles_add_remove(building_obj, b->x, b->y, size,
-            building_image_get(&building_obj), TERRAIN_BUILDING | TERRAIN_GATEHOUSE, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
         map_orientation_update_buildings();
-        map_terrain_add_gatehouse_roads(b->x, b->y, orientation);
         map_tiles_update_area_roads(b->x, b->y, 5);
         map_tiles_update_area_highways(b->x, b->y, 3);
         map_tiles_update_all_plazas();
         map_tiles_update_area_walls(b->x, b->y, 5);
-    } else if (definition.roadblock().has_center_road_passage()) {
-        b->subtype.orientation = static_cast<short>(orientation);
+    } else if (definition.attr_is("triumphal_arch")) {
         add_building(b);
         map_orientation_update_buildings();
-        map_terrain_add_triumphal_arch_roads(b->x, b->y, orientation);
         map_tiles_update_area_roads(b->x, b->y, 5);
         map_tiles_update_all_plazas();
         city_buildings_build_triumphal_arch();
@@ -601,26 +636,7 @@ static void add_to_map(
     refresh_placed_tile_regions(placement);
     Route::updateLandTerrain();
     Route::updateWallTerrain();
-}
-
-int building_construction_is_granary_cross_tile(int tile_no)
-{
-    return  tile_no == 1 ||
-        tile_no == 2 ||
-        tile_no == 3 ||
-        tile_no == 6 ||
-        tile_no == 7;
-}
-
-int building_construction_is_warehouse_corner(int tile_no)
-{
-
-    int building_rotation = building_rotation_get_rotation();
-    int view_rotation = city_view_orientation() / 2;
-    int effective_rotation = (building_rotation + view_rotation) % 4;
-    int corner = building_rotation_get_corner(2 * effective_rotation);
-
-    return tile_no == corner;
+    return true;
 }
 
 int building_construction_fill_vacant_lots(grid_slice *area)
@@ -647,16 +663,14 @@ int building_construction_fill_vacant_lots(grid_slice *area)
 }
 
 enum {
-    FORCE_PLACE_MAX_CLEAR_TILES = 128,
     FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD
 };
 
 struct force_place_check {
-    int active;
-    int perform_clear;
-    int clear_cost;
-    int clear_offset_count;
-    int clear_offsets[FORCE_PLACE_MAX_CLEAR_TILES];
+    int active = 0;
+    int perform_clear = 0;
+    int clear_cost = 0;
+    std::vector<int> clear_offsets;
 };
 
 static int instant_building_has_required_resources(
@@ -772,28 +786,6 @@ static void instant_building_remove_required_resources(building_type type)
     }
 }
 
-static int force_place_can_clear_terrain(int terrain)
-{
-    return terrain != 0 && (terrain & ~FORCE_PLACE_CLEARABLE_TERRAIN) == 0;
-}
-
-static void force_place_add_clear_offset(force_place_check *check, int grid_offset)
-{
-    if (!check || !check->active) {
-        return;
-    }
-    for (int i = 0; i < check->clear_offset_count; i++) {
-        if (check->clear_offsets[i] == grid_offset) {
-            return;
-        }
-    }
-    if (check->clear_offset_count >= FORCE_PLACE_MAX_CLEAR_TILES) {
-        return;
-    }
-    check->clear_offsets[check->clear_offset_count++] = grid_offset;
-    check->clear_cost += build_type_clear_land_cost();
-}
-
 static void force_place_copy_plan_offsets(
     force_place_check *check,
     const building_construction::ConstructionPlacementPlan &plan)
@@ -801,52 +793,22 @@ static void force_place_copy_plan_offsets(
     if (!check || !check->active) {
         return;
     }
-    for (int grid_offset : plan.clear_offsets()) {
-        force_place_add_clear_offset(check, grid_offset);
-    }
-}
-
-static int tiles_are_clear_or_force_clearable(int x, int y, int size, int disallowed_terrain,
-    int check_figure, force_place_check *force_check)
-{
-    if (!force_check || !force_check->active) {
-        return map_tiles_are_clear(x, y, size, disallowed_terrain, check_figure);
-    }
-    if (!map_grid_is_inside(x, y, size)) {
-        return 0;
-    }
-    for (int dy = 0; dy < size; dy++) {
-        for (int dx = 0; dx < size; dx++) {
-            int grid_offset = map_grid_offset(x + dx, y + dy);
-            if ((check_figure || force_check->active) && map_has_figure_at(grid_offset)) {
-                return 0;
-            }
-            int blocked_terrain = map_terrain_get(grid_offset) & TERRAIN_NOT_CLEAR & disallowed_terrain;
-            if (!blocked_terrain) {
-                continue;
-            }
-            if (!force_place_can_clear_terrain(blocked_terrain)) {
-                return 0;
-            }
-            force_place_add_clear_offset(force_check, grid_offset);
-        }
-    }
-    return 1;
+    check->clear_offsets = plan.clear_offsets();
+    check->clear_cost = plan.clear_cost();
 }
 
 static void force_place_clear_offsets(force_place_check *check)
 {
-    if (!check || !check->active || !check->perform_clear || !check->clear_offset_count) {
+    if (!check || !check->active || !check->perform_clear || check->clear_offsets.empty()) {
         return;
     }
 
-    int x_min = map_grid_offset_to_x(check->clear_offsets[0]);
+    int x_min = map_grid_offset_to_x(check->clear_offsets.front());
     int x_max = x_min;
-    int y_min = map_grid_offset_to_y(check->clear_offsets[0]);
+    int y_min = map_grid_offset_to_y(check->clear_offsets.front());
     int y_max = y_min;
 
-    for (int i = 0; i < check->clear_offset_count; i++) {
-        int grid_offset = check->clear_offsets[i];
+    for (int grid_offset : check->clear_offsets) {
         int x = map_grid_offset_to_x(grid_offset);
         int y = map_grid_offset_to_y(grid_offset);
         if (x < x_min) { x_min = x; }
@@ -867,99 +829,18 @@ static void force_place_clear_offsets(force_place_check *check)
     map_tiles_update_all_plazas();
 }
 
-static int initial_building_orientation(
-    const building_type_registry_impl::BuildingType &definition,
-    int x,
-    int y)
-{
-    int grid_offset = map_grid_offset(x, y);
-    int building_orientation = 0;
-    if (definition.roadblock().is_wall_gate() || definition.is_warehouse()) {
-        //check if there's a preset orientation from old building
-        Building *old_building = nullptr;
-        const unsigned int old_building_id = map_building_rubble_building_id(grid_offset);
-        Building::for_each([&](Building *building) {
-            if (!old_building && building->id == old_building_id) {
-                old_building = &building->main();
-            }
-        });
-        const building *old_b = old_building ? old_building->record() : nullptr;
-        const building_type_registry_impl::BuildingType *old_definition =
-            old_b ? building_type_registry_impl::definition_for_type(old_b->type) : nullptr;
-        if (old_definition &&
-            (old_definition->roadblock().passage_type() == building_type_registry_impl::RoadblockPassageType::WallGate ||
-                building_type_registry_impl::type_attr_is_any(old_b->type, {"warehouse", "warehouse_space"}))) {
-            building_orientation = old_b->subtype.orientation;
-        } else if (definition.roadblock().is_wall_gate()) {
-            building_orientation = map_orientation_for_gatehouse(x, y);
-        } else if (definition.is_warehouse()) {
-            building_orientation = building_rotation_get_rotation();
-        }
-    } else if (definition.roadblock().has_center_road_passage()) {
-        building_orientation = map_orientation_for_triumphal_arch(x, y);
-    }
-    return building_orientation;
-}
-
 static int building_construction_validate_local_placement_plan(
     const building_construction::ConstructionPlacementPlan &placement,
     force_place_check *force_check,
-    int emit_warnings,
-    int *building_orientation)
+    int emit_warnings)
 {
     const building_type type = placement.type();
-    const building_type_registry_impl::BuildingType &definition = placement.definition();
     const int x = placement.origin_x();
     const int y = placement.origin_y();
-    const int grid_offset = map_grid_offset(placement.cursor_x(), placement.cursor_y());
     const int size = placement.placement_size();
-
-    // extra checks
-    if (definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall) {
-        if (!map_terrain_all_tiles_in_radius_are(x, y, 2, 0, TERRAIN_BUILDING)) {
-            wall_needed_warning().show_when(emit_warnings);
-            return 0;
-        }
-        if (!*building_orientation) {
-            *building_orientation = building_rotation_get_rotation() + 1;
-            if (*building_orientation > 4) {
-                *building_orientation = 1;
-            }
-        }
-    }
-    if (definition.roadblock().is_wall_gate()) {
-        constexpr int gatehouse_disallowed_terrain =
-            ~TERRAIN_WALL & ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY & ~TERRAIN_BUILDING;
-        if (!tiles_are_clear_or_force_clearable(x, y, size, gatehouse_disallowed_terrain, 1, force_check)) {
-            clear_land_needed_warning().show_when(emit_warnings);
-            return 0;
-        }
-        if (!check_gatehouse_tiles(grid_offset)) { //helper to make sure all building tiles are on walls
-            clear_land_needed_warning().show_when(emit_warnings);
-            return 0;
-        }
-        if (!*building_orientation) {
-            if (building_rotation_get_road_orientation() == 1) {
-                *building_orientation = 1;
-            } else {
-                *building_orientation = 2;
-            }
-        }
-    }
-    if (definition.roadblock().has_center_road_passage()) {
-        if (!*building_orientation) {
-            if (building_rotation_get_road_orientation() == 1) {
-                *building_orientation = 1;
-            } else {
-                *building_orientation = 2;
-            }
-        }
-    }
     if (!placement.can_place()) {
         if (placement.has_open_water_failure()) {
             dock_open_water_needed_warning().show_when(emit_warnings);
-        } else if (placement.has_shoreline_failure()) {
-            shore_needed_warning().show_when(emit_warnings);
         } else {
             clear_land_needed_warning().show_when(emit_warnings);
         }
@@ -981,8 +862,7 @@ static int building_construction_validate_local_placement_plan(
 static int building_construction_validate_placement_plan(
     const building_construction::ConstructionPlacementPlan &placement,
     force_place_check *force_check,
-    int emit_warnings,
-    int *building_orientation)
+    int emit_warnings)
 {
     if (!building_construction_global_rules_allow_placement(placement.definition(), emit_warnings)) {
         return 0;
@@ -990,16 +870,150 @@ static int building_construction_validate_placement_plan(
     return building_construction_validate_local_placement_plan(
         placement,
         force_check,
-        emit_warnings,
-        building_orientation);
+        emit_warnings);
 }
+
+class PlacementSupersession {
+public:
+    PlacementSupersession() = default;
+
+    explicit PlacementSupersession(
+        const building_construction::ConstructionPlacementPlan &placement)
+    {
+        stage(placement);
+    }
+
+    void stage(const building_construction::ConstructionPlacementPlan &placement)
+    {
+        for (const building_construction::ConstructionPlacementSupersession &supersession :
+                placement.supersessions()) {
+            const unsigned int removed = static_cast<unsigned int>(map_terrain_get(supersession.grid_offset)) &
+                supersession.generated_terrain;
+            if (removed) {
+                terrain_.push_back(Terrain{
+                    supersession.grid_offset,
+                    removed,
+                    supersession.replacement_terrain
+                });
+                map_terrain_remove(supersession.grid_offset, static_cast<int>(removed));
+            }
+            if (!supersession.building_id) {
+                continue;
+            }
+            const auto existing = std::find_if(records_.begin(), records_.end(),
+                [&supersession](const Record &saved) {
+                    return saved.id == supersession.building_id;
+                });
+            if (existing != records_.end()) {
+                continue;
+            }
+            Building *replaced = Building::get(supersession.building_id);
+            building *record = replaced ? const_cast<::building *>(replaced->record()) : nullptr;
+            if (!record) {
+                continue;
+            }
+            records_.push_back(Record{
+                supersession.building_id,
+                record->state,
+                record->is_deleted,
+                *record
+            });
+            if (replaced->Foundation) {
+                replaced->Foundation->detach_unbound_ownership();
+            }
+            record->state = BUILDING_STATE_DELETED_BY_PLAYER;
+            record->is_deleted = 1;
+            const building_type_registry_impl::FoundationDef *foundation =
+                replaced->type ? replaced->type->foundation_def() : nullptr;
+            if (foundation) {
+                const int rotation = foundation->rotates() ? replaced->orientation() : 0;
+                for (const building_type_registry_impl::RotatedFoundationCell &cell :
+                        foundation->rotated_cells(rotation)) {
+                    const int x = record->x + cell.x;
+                    const int y = record->y + cell.y;
+                    if (!map_grid_is_inside(x, y, 1)) {
+                        continue;
+                    }
+                    const int grid_offset = map_grid_offset(x, y);
+                    if (map_building_exists_at(grid_offset) &&
+                        map_building_at(grid_offset).record() == record) {
+                        bindings_.push_back(Binding{ grid_offset, supersession.building_id });
+                        map_building_clear_at(grid_offset);
+                    }
+                }
+            }
+        }
+        active_ = !terrain_.empty() || !records_.empty();
+    }
+
+    ~PlacementSupersession()
+    {
+        if (!active_) {
+            return;
+        }
+        for (const Record &saved : records_) {
+            Building *surface = Building::get(saved.id);
+            building *record = surface ? const_cast<::building *>(surface->record()) : nullptr;
+            if (record) {
+                record->state = saved.state;
+                record->is_deleted = saved.is_deleted;
+                if (surface->Foundation) {
+                    surface->Foundation->restore_unbound_ownership();
+                }
+            }
+        }
+        for (const Binding &saved : bindings_) {
+            if (Building *surface = Building::get(saved.id)) {
+                map_building_set(saved.grid_offset, *surface);
+            }
+        }
+        for (const Terrain &saved : terrain_) {
+            map_terrain_add(saved.grid_offset, static_cast<int>(saved.removed_terrain));
+        }
+    }
+
+    void commit()
+    {
+        for (Record &saved : records_) {
+            game_undo_add_replaced_building(&saved.undo_snapshot);
+        }
+        for (const Terrain &saved : terrain_) {
+            if ((saved.removed_terrain & TERRAIN_AQUEDUCT) &&
+                !(saved.replacement_terrain & TERRAIN_AQUEDUCT)) {
+                map_aqueduct_remove(saved.grid_offset);
+            }
+        }
+        active_ = false;
+    }
+
+private:
+    struct Record {
+        unsigned int id;
+        unsigned char state;
+        unsigned char is_deleted;
+        building undo_snapshot;
+    };
+    struct Binding {
+        int grid_offset;
+        unsigned int id;
+    };
+    struct Terrain {
+        int grid_offset;
+        unsigned int removed_terrain;
+        unsigned int replacement_terrain;
+    };
+
+    std::vector<Record> records_;
+    std::vector<Binding> bindings_;
+    std::vector<Terrain> terrain_;
+    bool active_ = false;
+};
 
 static int building_construction_place_building_internal(building_type type, int x, int y,
     int exact_coordinates, force_place_check *force_check, int emit_warnings, int place_building)
 {
     const building_type_registry_impl::BuildingType &definition =
         *building_type_registry_impl::definition_for_type(type);
-    int building_orientation = initial_building_orientation(definition, x, y);
     building_construction::ConstructionPlacementPlan placement(
         definition,
         x,
@@ -1007,8 +1021,7 @@ static int building_construction_place_building_internal(building_type type, int
         exact_coordinates,
         force_check && force_check->active);
 
-    if (!building_construction_validate_placement_plan(
-        placement, force_check, emit_warnings, &building_orientation)) {
+    if (!building_construction_validate_placement_plan(placement, force_check, emit_warnings)) {
         return 0;
     }
 
@@ -1017,6 +1030,10 @@ static int building_construction_place_building_internal(building_type type, int
     }
     force_place_clear_offsets(force_check);
 
+    // Validation records every definition-authorized replacement. Remove its
+    // owned terrain just long enough for the new FoundationState to acquire
+    // the same bits, restoring the old record and terrain if publication fails.
+    PlacementSupersession supersession(placement);
 
     // phew, checks done!
     Building &building_obj = city_building_runtime().create(
@@ -1025,10 +1042,25 @@ static int building_construction_place_building_internal(building_type type, int
         placement.origin_y());
     building *b = const_cast<building *>(building_obj.record());
 
+    if (!add_to_map(type, b, placement)) {
+        if (b) {
+            b->state = BUILDING_STATE_DELETED_BY_GAME;
+            b->is_deleted = 1;
+        }
+        return 0;
+    }
+    if (building_obj.Foundation && !building_obj.Foundation->state().is_published()) {
+        b->state = BUILDING_STATE_DELETED_BY_GAME;
+        b->is_deleted = 1;
+        return 0;
+    }
+    supersession.commit();
     game_undo_add_building(b);
-    add_to_map(type, b, building_orientation, placement);
     instant_building_remove_required_resources(type);
-    map_water_supply_refresh_building(&building_obj);
+    water_access_runtime_refresh_building(&building_obj);
+    if (definition.attr_is("dock")) {
+        water_navigation::invalidate_dock_endpoints();
+    }
     return 1;
 }
 
@@ -1037,12 +1069,66 @@ int building_construction_place_building(building_type type, int x, int y, int e
     return building_construction_place_building_internal(type, x, y, exact_coordinates, 0, 1, 1);
 }
 
+int building_construction_publish_placement_batch(
+    const std::vector<building_construction::ConstructionPlacementPlan> &placements)
+{
+    if (placements.empty()) {
+        return 1;
+    }
+    PlacementSupersession supersession;
+    for (const building_construction::ConstructionPlacementPlan &placement : placements) {
+        if (!placement.can_place()) {
+            return 0;
+        }
+        supersession.stage(placement);
+    }
+
+    std::vector<Building *> published;
+    published.reserve(placements.size());
+    for (const building_construction::ConstructionPlacementPlan &placement : placements) {
+        Building &building_object = city_building_runtime().create(
+            placement.definition(), placement.origin_x(), placement.origin_y());
+        building *record = const_cast<::building *>(building_object.record());
+        if (!record || !add_to_map(placement.type(), record, placement) ||
+            (building_object.Foundation && !building_object.Foundation->state().is_published())) {
+            if (record) {
+                record->state = BUILDING_STATE_DELETED_BY_GAME;
+                record->is_deleted = 1;
+            }
+            for (auto it = published.rbegin(); it != published.rend(); ++it) {
+                Building *created = *it;
+                building *created_record = created ? const_cast<::building *>(created->record()) : nullptr;
+                if (created && created->Foundation) {
+                    created->Foundation->remove();
+                }
+                if (created_record) {
+                    created_record->state = BUILDING_STATE_DELETED_BY_GAME;
+                    created_record->is_deleted = 1;
+                }
+            }
+            return 0;
+        }
+        published.push_back(&building_object);
+    }
+
+    supersession.commit();
+    for (Building *created : published) {
+        building *record = created ? const_cast<::building *>(created->record()) : nullptr;
+        if (record) {
+            game_undo_add_created_building(record);
+        }
+        if (created && created->matches("dock")) {
+            water_navigation::invalidate_dock_endpoints();
+        }
+    }
+    return 1;
+}
+
 building_construction_assessment building_construction_assess_repair(
     const building_type_registry_impl::BuildingType &definition,
     const RubbleState &origin)
 {
-    force_place_check check = { 0, 0, 0, 0, { 0 } };
-    int building_orientation = origin.original_orientation;
+    force_place_check check;
     const int origin_x = map_grid_offset_to_x(origin.original_grid_offset);
     const int origin_y = map_grid_offset_to_y(origin.original_grid_offset);
     building_construction::ConstructionPlacementPlan placement(
@@ -1054,8 +1140,7 @@ building_construction_assessment building_construction_assess_repair(
         origin.original_orientation,
         &origin);
     const int global_can_place = building_construction_global_rules_allow_placement(definition, 0);
-    const int local_can_place = building_construction_validate_local_placement_plan(
-        placement, &check, 0, &building_orientation);
+    const int local_can_place = building_construction_validate_local_placement_plan(placement, &check, 0);
     const int can_place = global_can_place && local_can_place;
     const int clear_cost =
         placement.replaceable_rubble_tiles() * RUBBLE_CLEAR_COST_PER_TILE;
@@ -1072,7 +1157,7 @@ const building_type_registry_impl::BuildingType *building_construction_repair_re
         building_type_registry_impl::vacant_lot_fill_type());
 }
 
-static Building *place_repaired_plan(
+static Building *publish_repaired_plan(
     const building_type_registry_impl::BuildingType &definition,
     const building_construction::ConstructionPlacementPlan &placement)
 {
@@ -1081,11 +1166,69 @@ static Building *place_repaired_plan(
         placement.origin_x(),
         placement.origin_y());
     ::building *record = const_cast<::building *>(building_object.record());
-    game_undo_add_building(record);
-    add_to_map(definition.type(), record, placement.rotation(), placement);
-    instant_building_remove_required_resources(definition.type());
-    map_water_supply_refresh_building(&building_object);
+    if (!add_to_map(definition.type(), record, placement)) {
+        if (record) {
+            record->state = BUILDING_STATE_DELETED_BY_GAME;
+        }
+        return nullptr;
+    }
+    bool fully_published = true;
+    if (building_object.Composition && building_object.Composition->is_owner()) {
+        building_object.Composition->for_each_member([&fully_published](Building &member) {
+            if (!member.Foundation || !member.Foundation->state().is_published()) {
+                fully_published = false;
+            }
+        });
+    } else if (!building_object.Foundation || !building_object.Foundation->state().is_published()) {
+        fully_published = false;
+    }
+    if (!fully_published) {
+        std::vector<Building *> members;
+        if (building_object.Composition && building_object.Composition->is_owner()) {
+            building_object.Composition->for_each_member([&members](Building &member) {
+                members.push_back(&member);
+            });
+        } else {
+            members.push_back(&building_object);
+        }
+        for (auto it = members.rbegin(); it != members.rend(); ++it) {
+            Building *member = *it;
+            building *member_record = const_cast<::building *>(member->record());
+            city_culture_remove_building_module_capacity(member_record);
+            member->remove_map_tiles();
+            building_clear_related_data(member_record);
+            member_record->state = BUILDING_STATE_DELETED_BY_GAME;
+        }
+        if (building_object.Composition) {
+            building_object.Composition->clear();
+        }
+        return nullptr;
+    }
     return &building_object;
+}
+
+static void finalize_repaired_plan(
+    Building &building_object,
+    const building_type_registry_impl::BuildingType &definition)
+{
+    game_undo_add_building(const_cast<::building *>(building_object.record()));
+    instant_building_remove_required_resources(definition.type());
+    water_access_runtime_refresh_building(&building_object);
+}
+
+static void rollback_repaired_plans(const std::vector<Building *> &placed)
+{
+    for (auto it = placed.rbegin(); it != placed.rend(); ++it) {
+        Building *building_object = *it;
+        building *record = building_object ? const_cast<::building *>(building_object->record()) : nullptr;
+        if (!record) {
+            continue;
+        }
+        city_culture_remove_building_module_capacity(record);
+        building_object->remove_map_tiles();
+        building_clear_related_data(record);
+        record->state = BUILDING_STATE_DELETED_BY_GAME;
+    }
 }
 
 static Building *place_repaired_housing(
@@ -1108,14 +1251,20 @@ static Building *place_repaired_housing(
         }
     }
 
-    Building *first = nullptr;
+    std::vector<Building *> placed_lots;
+    placed_lots.reserve(lots.size());
     for (const building_construction::ConstructionPlacementPlan &lot : lots) {
-        Building *placed = place_repaired_plan(*vacant_lot, lot);
-        if (!first) {
-            first = placed;
+        Building *placed = publish_repaired_plan(*vacant_lot, lot);
+        if (!placed) {
+            rollback_repaired_plans(placed_lots);
+            return nullptr;
         }
+        placed_lots.push_back(placed);
     }
-    return first;
+    for (Building *placed : placed_lots) {
+        finalize_repaired_plan(*placed, *vacant_lot);
+    }
+    return placed_lots.empty() ? nullptr : placed_lots.front();
 }
 
 Building *building_construction_place_repaired_building(
@@ -1128,9 +1277,14 @@ Building *building_construction_place_repaired_building(
 
     const building_construction::ConstructionPlacementPlan &placement = assessment.placement;
     const building_type_registry_impl::BuildingType &definition = placement.definition();
-    return definition.has_housing() ?
-        place_repaired_housing(placement, origin) :
-        place_repaired_plan(definition, placement);
+    if (definition.has_housing()) {
+        return place_repaired_housing(placement, origin);
+    }
+    Building *repaired = publish_repaired_plan(definition, placement);
+    if (repaired) {
+        finalize_repaired_plan(*repaired, definition);
+    }
+    return repaired;
 }
 
 building_construction_assessment building_construction_assess_placement(
@@ -1140,8 +1294,8 @@ building_construction_assessment building_construction_assess_placement(
     int exact_coordinates,
     int force_place)
 {
-    force_place_check check = { force_place ? 1 : 0, 0, 0, 0, { 0 } };
-    int building_orientation = initial_building_orientation(definition, x, y);
+    force_place_check check;
+    check.active = force_place ? 1 : 0;
     building_construction::ConstructionPlacementPlan placement(
         definition,
         x,
@@ -1149,8 +1303,7 @@ building_construction_assessment building_construction_assess_placement(
         exact_coordinates,
         check.active);
     const int global_can_place = building_construction_global_rules_allow_placement(definition, 0);
-    const int local_can_place = building_construction_validate_local_placement_plan(
-        placement, &check, 0, &building_orientation);
+    const int local_can_place = building_construction_validate_local_placement_plan(placement, &check, 0);
     const int can_place = global_can_place ? local_can_place : 0;
     return {std::move(placement), can_place, !global_can_place, can_place ? check.clear_cost : 0};
 }
@@ -1162,20 +1315,22 @@ int building_construction_show_placement_warning(
     int exact_coordinates,
     int force_place)
 {
-    int building_orientation = 0;
-    force_place_check check = { force_place ? 1 : 0, 0, 0, 0, { 0 } };
+    force_place_check check;
+    check.active = force_place ? 1 : 0;
     building_construction::ConstructionPlacementPlan placement(
         definition,
         x,
         y,
         exact_coordinates,
         check.active);
-    return building_construction_validate_placement_plan(placement, &check, 1, &building_orientation);
+    return building_construction_validate_placement_plan(placement, &check, 1);
 }
 
 int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost)
 {
-    force_place_check check = { 1, 1, 0, 0, { 0 } };
+    force_place_check check;
+    check.active = 1;
+    check.perform_clear = 1;
     int success = building_construction_place_building_internal(type, x, y, exact_coordinates, &check, 1, 1);
     if (clear_cost) {
         *clear_cost = success ? check.clear_cost : 0;

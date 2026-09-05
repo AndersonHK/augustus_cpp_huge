@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="land_3x3" width="3" height="3" rotates="false">
+    <profile symbol="L" requires="land" adds="building" />
+    <rows><row cells="LLL" /><row cells="LLL" /><row cells="LLL" /></rows>
+</foundation>
+

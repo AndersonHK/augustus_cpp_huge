@@ -475,7 +475,7 @@ void window_building_draw_legion_info(building_info_context *c)
     if (m->num_figures) {
         // layout
         static const int OFFSETS_LEGIONARY[2][5] = {
-            {0, 0, 2, 3, 4}, {0, 0, 3, 2, 4},
+            {1, 0, 2, 3, 4}, {1, 0, 3, 2, 4},
         };
         static const int OFFSETS_OTHER[2][5] = {
             {5, 6, 2, 3, 4}, {6, 5, 3, 2, 4},
@@ -524,27 +524,27 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
                 has_focus = 1;
             }
         } else if (m->figure_type == FIGURE_FORT_LEGIONARY || m->figure_type == FIGURE_FORT_INFANTRY) {
-            if (i == 0 && m->layout == FORMATION_TORTOISE) {
+            if (i == 0 && m->uses_layout("tortoise")) {
                 has_focus = 1;
-            } else if (i == 1 && m->layout == FORMATION_COLUMN) {
+            } else if (i == 1 && m->uses_layout("column")) {
                 has_focus = 1;
-            } else if (i == 2 && m->layout == FORMATION_DOUBLE_LINE_1) {
+            } else if (i == 2 && m->uses_layout("double_line_1")) {
                 has_focus = 1;
-            } else if (i == 3 && m->layout == FORMATION_DOUBLE_LINE_2) {
+            } else if (i == 3 && m->uses_layout("double_line_2")) {
                 has_focus = 1;
-            } else if (i == 4 && m->layout == FORMATION_MOP_UP) {
+            } else if (i == 4 && m->uses_layout("mop_up")) {
                 has_focus = 1;
             }
         } else { // mounted/javelin
-            if (i == 0 && m->layout == FORMATION_SINGLE_LINE_1) {
+            if (i == 0 && m->uses_layout("single_line_1")) {
                 has_focus = 1;
-            } else if (i == 1 && m->layout == FORMATION_SINGLE_LINE_2) {
+            } else if (i == 1 && m->uses_layout("single_line_2")) {
                 has_focus = 1;
-            } else if (i == 2 && m->layout == FORMATION_DOUBLE_LINE_1) {
+            } else if (i == 2 && m->uses_layout("double_line_1")) {
                 has_focus = 1;
-            } else if (i == 3 && m->layout == FORMATION_DOUBLE_LINE_2) {
+            } else if (i == 3 && m->uses_layout("double_line_2")) {
                 has_focus = 1;
-            } else if (i == 4 && m->layout == FORMATION_MOP_UP) {
+            } else if (i == 4 && m->uses_layout("mop_up")) {
                 has_focus = 1;
             }
         }
@@ -586,34 +586,25 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
             break;
         default:
             // no button selected: go for formation layout
-            switch (m->layout) {
-                case FORMATION_SINGLE_LINE_1:
-                case FORMATION_SINGLE_LINE_2:
-                    title_id = 16;
-                    text_id = 22;
-                    break;
-                case FORMATION_DOUBLE_LINE_1:
-                case FORMATION_DOUBLE_LINE_2:
-                    title_id = 14;
-                    text_id = 20;
-                    break;
-                case FORMATION_TORTOISE:
-                    title_id = 12;
-                    text_id = 18;
-                    break;
-                case FORMATION_MOP_UP:
-                    title_id = 15;
-                    text_id = 21;
-                    break;
-                case FORMATION_COLUMN:
-                    title_id = 13;
-                    text_id = 19;
-                    break;
-                default:
-                    title_id = 16;
-                    text_id = 22;
-                    log_info("Unknown formation", 0, m->layout);
-                    break;
+            if (m->uses_layout("single_line_1") || m->uses_layout("single_line_2")) {
+                title_id = 16;
+                text_id = 22;
+            } else if (m->uses_layout("double_line_1") || m->uses_layout("double_line_2")) {
+                title_id = 14;
+                text_id = 20;
+            } else if (m->uses_layout("tortoise")) {
+                title_id = 12;
+                text_id = 18;
+            } else if (m->uses_layout("mop_up")) {
+                title_id = 15;
+                text_id = 21;
+            } else if (m->uses_layout("column")) {
+                title_id = 13;
+                text_id = 19;
+            } else {
+                title_id = 16;
+                text_id = 22;
+                log_info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
             }
             break;
     }
@@ -743,22 +734,22 @@ static void button_layout(const generic_button *button)
         return;
     }
     // store layout in case of mop up
-    int new_layout = m->layout;
+    const char *new_layout = m->layout_definition ? m->layout_definition->key() : "column";
     if (m->figure_type == FIGURE_FORT_LEGIONARY || m->figure_type == FIGURE_FORT_INFANTRY) {
         switch (index) {
-            case 0: new_layout = FORMATION_TORTOISE; break;
-            case 1: new_layout = FORMATION_COLUMN; break;
-            case 2: new_layout = FORMATION_DOUBLE_LINE_1; break;
-            case 3: new_layout = FORMATION_DOUBLE_LINE_2; break;
-            case 4: new_layout = FORMATION_MOP_UP; break;
+            case 0: new_layout = "tortoise"; break;
+            case 1: new_layout = "column"; break;
+            case 2: new_layout = "double_line_1"; break;
+            case 3: new_layout = "double_line_2"; break;
+            case 4: new_layout = "mop_up"; break;
         }
     } else {
         switch (index) {
-            case 0: new_layout = FORMATION_SINGLE_LINE_1; break;
-            case 1: new_layout = FORMATION_SINGLE_LINE_2; break;
-            case 2: new_layout = FORMATION_DOUBLE_LINE_1; break;
-            case 3: new_layout = FORMATION_DOUBLE_LINE_2; break;
-            case 4: new_layout = FORMATION_MOP_UP; break;
+            case 0: new_layout = "single_line_1"; break;
+            case 1: new_layout = "single_line_2"; break;
+            case 2: new_layout = "double_line_1"; break;
+            case 3: new_layout = "double_line_2"; break;
+            case 4: new_layout = "mop_up"; break;
         }
     }
     formation_legion_change_layout(m, new_layout);

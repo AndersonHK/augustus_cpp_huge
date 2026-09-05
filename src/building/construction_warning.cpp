@@ -16,6 +16,7 @@
 #include "city/resource.h"
 #include "city/constants.h"
 #include "city/warning.h"
+#include "map/building.h"
 #include "map/grid.h"
 
 #include "core/calc.h"
@@ -159,15 +160,9 @@ static void check_road_access(building_type type, int x, int y, int size)
     }
 
     int has_road = 0;
-    if (map_has_road_access(x, y, size, 0)) {
-        has_road = 1;
-    } else if (building_type_registry_impl::type_attr_is(type, "granary") && map_has_road_access_granary(x, y, 0)) {
-        has_road = 1;
-    } else if (building_type_registry_impl::type_attr_is(type, "warehouse")) {
-        // Warehouse road access is checked after composed placement moves the tower to its XML offset.
-        //TODO: a dedicated function similar as for hippodrome should be used for consistency
-        has_road = 1;
-    } else if (building_type_registry_impl::type_attr_is(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
+    const int building_is_published = map_building_exists_at(map_grid_offset(x, y));
+    if ((building_is_published && map_has_road_access_building(x, y, 0)) ||
+        (!building_is_published && map_has_road_access(x, y, size, 0))) {
         has_road = 1;
     } else if (building_type_registry_impl::type_attr_is(type, "lararium") && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
         has_road = 1;
@@ -180,7 +175,7 @@ static void check_road_access(building_type type, int x, int y, int size)
     }
 }
 
-static void check_water(building_type type, int x, int y, int size)
+static void check_water(building_type type, int x, int y)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     if (has_warning || building_type_registry_impl::type_attr_is(type, "reservoir") || building_type_registry_impl::type_attr_is(type, "aqueduct") ||
@@ -188,7 +183,12 @@ static void check_water(building_type type, int x, int y, int size)
         return;
     }
 
-    if (!water_access_runtime_building_type_has_required_access_at(definition, x, y, size)) {
+    int rotation = 0;
+    const int grid_offset = map_grid_offset(x, y);
+    if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).type == definition) {
+        rotation = map_building_at(grid_offset).orientation();
+    }
+    if (!water_access_runtime_building_type_has_required_access_at(definition, x, y, rotation)) {
         show(WARNING_WATER_PIPE_ACCESS_NEEDED, "TR_CITY_WARNING_WATER_PIPE_ACCESS_NEEDED");
     }
 }
@@ -330,7 +330,7 @@ void building_construction_warning_check_all(building_type type, int x, int y, i
     check_armoury(type);
 
     check_wall(type, x, y, size);
-    check_water(type, x, y, size);
+    check_water(type, x, y);
 
     check_raw_material_access(definition);
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="sheep">
+    <figure type="sheep" />
+    <combat><health value="10" /><attack value="0" /><defense value="0" /><armor value="0" /></combat>
+    <abilities><melee engages_adjacent="false" /></abilities>
+</unit>

@@ -21,7 +21,9 @@
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v10:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v11:";
+constexpr int kLegacyIncreaseButtonImage = 15;
+constexpr int kLegacyDecreaseButtonImage = 17;
 class LegacyFamily {
 public:
     const char *folder_name;
@@ -1531,6 +1533,62 @@ static bool export_group(
     return true;
 }
 
+static bool export_arrow_buttons(
+    const image *images,
+    int image_count,
+    const image_atlas_data *atlas_data,
+    std::vector<std::string> &manifest_entries,
+    ExtractionStats &stats)
+{
+    struct ArrowImage {
+        int absolute_image_id;
+        const char *name;
+    };
+    static constexpr ArrowImage kImages[] = {
+        { kLegacyIncreaseButtonImage, "Increase" },
+        { kLegacyIncreaseButtonImage + 1, "Increase_Pressed" },
+        { kLegacyDecreaseButtonImage, "Decrease" },
+        { kLegacyDecreaseButtonImage + 1, "Decrease_Pressed" },
+    };
+    const std::string directory = make_family_root_directory(kUi) + "/Arrow_Button";
+    const std::string xml_path = make_family_root_directory(kUi) + "/Arrow_Button.xml";
+    std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist name=\"UI\\Arrow_Button\">\n";
+    int exported_images = 0;
+    ensure_directory(directory);
+    for (const ArrowImage &source : kImages) {
+        if (source.absolute_image_id < 0 || source.absolute_image_id >= image_count) {
+            log_error("Julius arrow-button image id is outside the legacy atlas", source.name, source.absolute_image_id);
+            return false;
+        }
+        const image *img = &images[source.absolute_image_id];
+        if (!is_exportable_main_image(img)) {
+            log_error("Julius arrow-button image is not exportable", source.name, source.absolute_image_id);
+            return false;
+        }
+        const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
+        const int width = img->original.width > 0 ? img->original.width : img->width;
+        const int height = img->original.height > 0 ? img->original.height : img->height;
+        const std::string image_path = directory + "/" + source.name + ".png";
+        if (pixels.empty() || !write_png(image_path, pixels.data(), width, height)) {
+            log_error("Failed to write Julius arrow-button PNG", image_path.c_str(), 0);
+            return false;
+        }
+        manifest_entries.push_back("F|" + image_path);
+        stats.pngs_written++;
+        append_image_xml(xml, exported_images, source.name, source.name, {}, img, height, 0);
+    }
+    xml += "</assetlist>\n";
+    if (!write_text_file(xml_path, xml)) {
+        log_error("Failed to write Julius arrow-button assetlist", xml_path.c_str(), 0);
+        return false;
+    }
+    manifest_entries.push_back("D|" + directory);
+    manifest_entries.push_back("F|" + xml_path);
+    stats.groups_exported++;
+    stats.images_exported += exported_images;
+    return true;
+}
+
 } // namespace
 
 namespace vespasian::graphics::extraction {
@@ -1538,6 +1596,10 @@ namespace vespasian::graphics::extraction {
 JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climate)
 {
     if (!climate.valid()) {
+        return JuliusExtractionReport();
+    }
+    if (graphics_extractor::extraction_target_is_in_source_mods(mod_manager::julius_graphics_path())) {
+        log_error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
         return JuliusExtractionReport();
     }
 
@@ -1588,7 +1650,11 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
             return JuliusExtractionReport();
         }
     }
-
+    if (climate_flavor == LegacyClimateFlavor::central &&
+        !export_arrow_buttons(climate.images(), climate.image_count(), climate.atlas_data(), manifest_entries, stats)) {
+        log_error("Julius graphics extraction failed", climate.source_name(), 0);
+        return JuliusExtractionReport();
+    }
     ensure_directory(mod_manager::julius_graphics_path().c_str());
     if (!write_manifest_entries(climate_flavor, manifest_entries)) {
         log_error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);

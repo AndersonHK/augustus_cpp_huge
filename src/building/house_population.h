@@ -1,11 +1,5 @@
 #pragma once
 
-#include "building/building_fwd.h"
-class Building;
-
-
-class Building;
-
 /**
  * Add people to the houses in the city, use for births
  * @param num_people Number of people to add
@@ -48,6 +42,4 @@ int house_population_create_immigrants(int num_people);
  * @return Number of people actually emigrated
  */
 int house_population_create_emigrants(int num_people);
-
-int house_population_get_capacity(Building house);
 

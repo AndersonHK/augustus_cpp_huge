@@ -28,6 +28,7 @@ constexpr const char *kActiveBirthTableId = "default";
 constexpr int kHealthBuckets = 11;
 constexpr int kAgeDecennia = 10;
 constexpr int kDefaultBuildingHitPoints = 10;
+constexpr int kDefaultLegacyFigureLogicalUnitsPerSourcePixel = 120;
 
 struct CalendarDefinition {
     int ticks_per_day = 50;
@@ -63,6 +64,8 @@ struct DefinesDocument {
     std::unordered_map<std::string, BirthDefinition> birth_tables;
     int has_default_building_hit_points = 0;
     int default_building_hit_points = kDefaultBuildingHitPoints;
+    int has_legacy_figure_logical_units_per_source_pixel = 0;
+    int legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 };
 
 struct DefinesParseState {
@@ -86,6 +89,7 @@ CalendarDefinition g_active_calendar;
 MortalityDefinition g_active_mortality;
 BirthDefinition g_active_birth;
 int g_default_building_hit_points = kDefaultBuildingHitPoints;
+int g_legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 std::string g_failure_reason;
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
@@ -213,6 +217,24 @@ static int parse_combat()
 
     g_parse_state.document.has_default_building_hit_points = 1;
     g_parse_state.document.default_building_hit_points = hit_points;
+    return 1;
+}
+
+static int parse_presentation()
+{
+    if (!xml_parser_has_attribute("legacy_figure_logical_units_per_source_pixel")) {
+        report_parse_error("presentation node is missing required attribute 'legacy_figure_logical_units_per_source_pixel'");
+        return 0;
+    }
+
+    const char *units_text = xml_parser_get_attribute_string("legacy_figure_logical_units_per_source_pixel");
+    int units = 0;
+    if (!units_text || !parse_int_strict(units_text, &units) || units <= 0) {
+        report_parse_error("presentation node has invalid legacy figure logical units", units_text);
+        return 0;
+    }
+    g_parse_state.document.has_legacy_figure_logical_units_per_source_pixel = 1;
+    g_parse_state.document.legacy_figure_logical_units_per_source_pixel = units;
     return 1;
 }
 
@@ -456,6 +478,7 @@ static int parse_birth_age_decennia()
 static const xml_parser_element XML_ELEMENTS[] = {
     { "defines", parse_defines_root, nullptr, nullptr, nullptr },
     { "combat", parse_combat, nullptr, "defines", nullptr },
+    { "presentation", parse_presentation, nullptr, "defines", nullptr },
     { "calendar", parse_calendar, finish_calendar, "defines", nullptr },
     { "month_days", parse_month_days, nullptr, "calendar", nullptr },
     { "mortality_table", parse_mortality_table, finish_mortality_table, "defines", nullptr },
@@ -490,10 +513,14 @@ static void merge_document(
     std::unordered_map<std::string, CalendarDefinition> &calendars,
     std::unordered_map<std::string, MortalityDefinition> &mortality_tables,
     std::unordered_map<std::string, BirthDefinition> &birth_tables,
-    int &default_building_hit_points)
+    int &default_building_hit_points,
+    int &legacy_figure_logical_units_per_source_pixel)
 {
     if (source.has_default_building_hit_points) {
         default_building_hit_points = source.default_building_hit_points;
+    }
+    if (source.has_legacy_figure_logical_units_per_source_pixel) {
+        legacy_figure_logical_units_per_source_pixel = source.legacy_figure_logical_units_per_source_pixel;
     }
     for (const auto &entry : source.calendars) {
         calendars[entry.first] = entry.second;
@@ -512,6 +539,7 @@ static int load_and_merge_defines()
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
     int default_building_hit_points = kDefaultBuildingHitPoints;
+    int legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 
     for (const std::string &mod_path : mod_manager::mod_paths()) {
         if (mod_path.empty()) {
@@ -533,7 +561,8 @@ static int load_and_merge_defines()
             return 0;
         }
 
-        merge_document(document, calendars, mortality_tables, birth_tables, default_building_hit_points);
+        merge_document(document, calendars, mortality_tables, birth_tables,
+            default_building_hit_points, legacy_figure_logical_units_per_source_pixel);
     }
 
     const auto calendar_it = calendars.find(kActiveCalendarId);
@@ -558,6 +587,7 @@ static int load_and_merge_defines()
     g_active_mortality = mortality_it->second;
     g_active_birth = birth_it->second;
     g_default_building_hit_points = default_building_hit_points;
+    g_legacy_figure_logical_units_per_source_pixel = legacy_figure_logical_units_per_source_pixel;
     return 1;
 }
 
@@ -625,6 +655,11 @@ int game_defines_is_last_day_of_year(int month, int day)
 int game_defines_default_building_hit_points(void)
 {
     return g_default_building_hit_points;
+}
+
+int game_defines_legacy_figure_logical_units_per_source_pixel(void)
+{
+    return g_legacy_figure_logical_units_per_source_pixel;
 }
 
 int game_defines_mortality_percentage(int health_bucket, int age_decennium)

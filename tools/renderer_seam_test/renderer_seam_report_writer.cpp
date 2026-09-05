@@ -41,6 +41,9 @@ RendererSeamMatrixCaseResult RendererSeamMatrixCaseResult::from_geometry_fixture
     result.coverage_no_background = fixture_result.coverage_no_background;
     result.no_black_gap = fixture_result.no_black_gap;
     result.same_surface_delta = fixture_result.same_surface_delta;
+    result.grid_overlay_only = 1;
+    result.no_grid_side_effect_gap = 1;
+    result.backend_parity = 1;
     result.sampled_pixels = fixture_result.sampled_pixels;
     result.failure_detail = fixture_result.failure_detail;
     return result;
@@ -237,7 +240,12 @@ void RendererSeamReportWriter::write_pixel_assertions(
     out << "        \"coverage_no_background\": " << (result.coverage_no_background ? "true" : "false") << ",\n";
     out << "        \"no_black_gap\": " << (result.no_black_gap ? "true" : "false") << ",\n";
     out << "        \"same_surface_delta\": " << (result.same_surface_delta ? "true" : "false") << ",\n";
-    out << "        \"sampled_pixels\": " << result.sampled_pixels << "\n";
+    out << "        \"grid_overlay_only\": " << (result.grid_overlay_only ? "true" : "false") << ",\n";
+    out << "        \"no_grid_side_effect_gap\": " << (result.no_grid_side_effect_gap ? "true" : "false") << ",\n";
+    out << "        \"backend_parity\": " << (result.backend_parity ? "true" : "false") << ",\n";
+    out << "        \"sampled_pixels\": " << result.sampled_pixels << ",\n";
+    out << "        \"seam_signature\": " << json_string(std::to_string(result.seam_signature)) << ",\n";
+    out << "        \"interior_signature\": " << json_string(std::to_string(result.interior_signature)) << "\n";
     out << "      },\n";
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+enum { MAX_LOAD_SAVE_TESTS = 256 };
+
 typedef struct {
     const char *data_directory;
     const char *mod_name;
@@ -12,6 +14,14 @@ typedef struct {
     int force_fullscreen;
     int display_id;
     int debug;
+    int disable_audio;
+    int startup_test;
+    const char *load_save_tests[MAX_LOAD_SAVE_TESTS];
+    const char *save_roundtrip_tests[MAX_LOAD_SAVE_TESTS];
+    int load_save_test_count;
+    int save_roundtrip_test_count;
+    int save_soak_ticks;
+    int formation_test;
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);

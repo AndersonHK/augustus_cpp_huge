@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mod>
+    <name value="Vespasian" />
+    <description value="Vespasian gameplay, content, and interface definitions." />
+    <version value="4.0.0" />
+    <dependencies>
+        <mod name="Augustus" />
+    </dependencies>
+</mod>

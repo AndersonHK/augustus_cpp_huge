@@ -12,6 +12,7 @@
 namespace figure_type_registry_impl {
 
 class FigureTypeDefinition;
+int action_state_from_xml_name(const char *name);
 
 enum class NativeClassId {
     None,
@@ -106,6 +107,8 @@ public:
     int show_duration() const;
     void add_venue_target(const EntertainmentVenueTarget &target);
     const std::vector<EntertainmentVenueTarget> &venue_targets() const;
+    void set_explicit_spawn_behavior(const ProfileSpawnBehavior &spawn_behavior);
+    bool has_explicit_spawn_behavior() const;
     int resolve_building_references(const char *figure_attr);
     ProfileSpawnBehavior spawn_behavior() const;
 
@@ -115,6 +118,8 @@ private:
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;
     PathingPolicy pathing_policy_;
+    ProfileSpawnBehavior explicit_spawn_behavior_;
+    bool has_explicit_spawn_behavior_ = false;
     int show_duration_ = 32;
     std::vector<EntertainmentVenueTarget> venue_targets_;
 };
@@ -138,16 +143,8 @@ public:
     void set_graphics(const FigureGraphics &graphics);
     const FigureGraphics &graphics() const;
     int cache_graphics_bindings();
-    const GraphicsTargetBinding *graphics_binding(
-        GraphicsTargetRole role,
-        int direction_index,
-        int frame) const;
-    const GraphicsTargetBinding *graphics_binding_for_state(
-        int figure_action_state,
-        int wait_ticks,
-        int image_offset,
-        int corpse_frame_offset,
-        int direction_index) const;
+    const GraphicsTargetBinding *graphics_binding(GraphicsTargetRole role, int direction_index, int frame) const;
+    const GraphicsTargetBinding *graphics_binding_for_state(int figure_action_state, int wait_ticks, int image_offset, int corpse_frame_offset, int direction_index) const;
 
     void set_pathing_policy(const PathingPolicy &pathing_policy);
     const PathingPolicy &pathing_policy() const;
@@ -167,7 +164,7 @@ private:
     NativeClassId native_class_id_ = NativeClassId::None;
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;
-    FigureGraphics graphics_;
+    std::shared_ptr<const FigureGraphics> graphics_;
     PathingPolicy pathing_policy_;
     std::string default_profile_id_;
     std::vector<FigureTypeProfile> profiles_;
@@ -179,6 +176,7 @@ extern std::string g_failure_reason;
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);
+const FigureGraphics *graphics_for(figure_type type);
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id);
 const FigureTypeProfile *default_profile_for(figure_type type);
 

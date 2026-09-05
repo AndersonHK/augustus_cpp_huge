@@ -1,7 +1,7 @@
 #include "building/BuildingGraphics.h"
 #include "translation/translation.h"
 #include "building/building.h"
-#include "building/house.h"
+#include "building/HousingProfileDef.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
@@ -54,16 +54,7 @@ static building *building_record_at(int grid_offset)
 
 static building *building_record_for_id(unsigned int building_id)
 {
-    if (!building_id) {
-        return nullptr;
-    }
-
-    Building *found = nullptr;
-    Building::for_each([&](Building *building) {
-        if (!found && building && building->id == building_id) {
-            found = building;
-        }
-    });
+    Building *found = Building::get(building_id);
     return found ? const_cast<building *>(found->record()) : nullptr;
 }
 
@@ -76,16 +67,11 @@ static Building &building_from_record(const building *b)
     if (tile_building.id == b->id) {
         return tile_building;
     }
-    Building &main_building = tile_building.main();
-    if (main_building.id == b->id) {
-        return main_building;
+    Building *main_building = tile_building.Composition ? tile_building.Composition->owner() : &tile_building;
+    if (main_building && main_building->id == b->id) {
+        return *main_building;
     }
     std::terminate();
-}
-
-static int animation_offset(Building &building, int image_id, int grid_offset)
-{
-    return building.animate().offset_for(Image::from_id(image_id), grid_offset);
 }
 
 static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *message)
@@ -172,7 +158,7 @@ static int show_building_water(const building *b)
 
 static int show_building_sentiment(const building *b)
 {
-    return b->house_size > 0;
+    return building_type_registry_impl::type_has_housing(b->type);
 }
 
 static int show_building_roads(const building *b)
@@ -192,17 +178,8 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!building.type || !building.type->attr_is("triumphal_arch")) {
         return 0;
     }
-    int image_id = map_image_at(grid_offset);
-    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_NONE, scale);
-    const image *img = image_get(image_id);
-    int frame_offset = animation_offset(building, image_id, grid_offset);
-    if (frame_offset > 0) {
-        int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
-        if (frame_offset > img->animation->num_sprites) {
-            frame_offset = img->animation->num_sprites;
-        }
-        Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
-    }
+    building.draw_top({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+    building.draw_animation({ x, y, grid_offset, COLOR_MASK_NONE, scale });
     return 1;
 }
 
@@ -226,7 +203,12 @@ static int show_building_logistics(const building *b)
 
 static int show_building_storages(const building *b)
 {
-    b = building_main(b);
+    const Building source = building_from_record(b);
+    Building *owner = source.Composition ? source.Composition->owner() : const_cast<Building *>(&source);
+    b = owner ? owner->record() : nullptr;
+    if (!b) {
+        return 0;
+    }
     const Building building = building_from_record(b);
     const auto *definition = building.type;
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
@@ -314,7 +296,9 @@ static int show_figure_none(const Figure *f)
 
 static int get_column_height_religion(const building *b)
 {
-    return b->house_size && b->data.house.num_gods ? b->data.house.num_gods * 18 / 10 : NO_COLUMN;
+    Building &building = building_from_record(b);
+    const int gods = building.Housing ? building.Housing->state().services.num_gods : 0;
+    return gods ? gods * 18 / 10 : NO_COLUMN;
 }
 
 static int get_column_height_efficiency(const building *b)
@@ -329,9 +313,10 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const model_house *house_model = building_house_get_model(building_from_record(b));
-    if (b->house_size && house_model && house_model->food_types) {
-        int pop = b->house_population;
+    Building &building = building_from_record(b);
+    const auto *profile = building.Housing ? building.Housing->definition().profile : nullptr;
+    if (profile && profile->requirements.food_types) {
+        int pop = building.Housing->state().population;
         int stocks = 0;
         for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
@@ -361,8 +346,10 @@ static int get_column_height_levy(const building *b)
 
 static int get_column_height_tax_income(const building *b)
 {
-    if (b->house_size) {
-        int pct = calc_adjust_with_percentage(b->tax_income_or_storage / 2, city_finance_tax_percentage());
+    const Building &building = building_from_record(b);
+    if (building.Housing) {
+        int pct = calc_adjust_with_percentage(
+            building.Housing->state().tax_income / 2, city_finance_tax_percentage());
         if (pct > 0) {
             return pct / 25;
         }
@@ -399,39 +386,45 @@ static void add_god(tooltip_context *c, int god_id)
 
 static int get_tooltip_religion(tooltip_context *c, const building *b)
 {
-    if (b->house_pantheon_access) {
+    const Building &building = building_from_record(b);
+    if (!building.Housing) {
+        return 12;
+    }
+    const HousingState &state = building.Housing->state();
+    const HousingServiceState &services = state.services;
+    if (state.pantheon_access) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PANTHEON_ACCESS";
         return 0;
     }
 
-    if (b->data.house.num_gods < 5) {
-        if (b->data.house.temple_ceres) {
+    if (services.num_gods < 5) {
+        if (services.temple_ceres) {
             add_god(c, GOD_CERES);
         }
-        if (b->data.house.temple_neptune) {
+        if (services.temple_neptune) {
             add_god(c, GOD_NEPTUNE);
         }
-        if (b->data.house.temple_mercury) {
+        if (services.temple_mercury) {
             add_god(c, GOD_MERCURY);
         }
-        if (b->data.house.temple_mars) {
+        if (services.temple_mars) {
             add_god(c, GOD_MARS);
         }
-        if (b->data.house.temple_venus) {
+        if (services.temple_venus) {
             add_god(c, GOD_VENUS);
         }
     }
-    if (b->data.house.num_gods <= 0) {
+    if (services.num_gods <= 0) {
         return 12;
-    } else if (b->data.house.num_gods == 1) {
+    } else if (services.num_gods == 1) {
         return 13;
-    } else if (b->data.house.num_gods == 2) {
+    } else if (services.num_gods == 2) {
         return 14;
-    } else if (b->data.house.num_gods == 3) {
+    } else if (services.num_gods == 3) {
         return 15;
-    } else if (b->data.house.num_gods == 4) {
+    } else if (services.num_gods == 4) {
         return 16;
-    } else if (b->data.house.num_gods == 5) {
+    } else if (services.num_gods == 5) {
         return 17;
     } else {
         return 18; // >5 gods, shouldn't happen...
@@ -452,11 +445,16 @@ static int get_tooltip_efficiency(tooltip_context *c, const building *b)
 static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
 {
     (void) c;
-    if (b->house_population <= 0) {
+    const Building &building = building_from_record(b);
+    if (!building.Housing) {
         return 0;
     }
-    const model_house *house_model = building_house_get_model(building_from_record(b));
-    if (!house_model || !house_model->food_types) {
+    const int population = building.Housing->state().population;
+    if (population <= 0) {
+        return 0;
+    }
+    const auto *profile = building.Housing->definition().profile;
+    if (!profile || !profile->requirements.food_types) {
         return 104;
     } else {
         int stocks_present = 0;
@@ -466,7 +464,7 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
                 stocks_present += b->resources[r];
             }
         }
-        int stocks_per_pop = calc_percentage(stocks_present, b->house_population);
+        int stocks_per_pop = calc_percentage(stocks_present, population);
         if (stocks_per_pop <= 0) {
             return 4;
         } else if (stocks_per_pop < 100) {
@@ -481,15 +479,20 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
 
 static int get_tooltip_tax_income(tooltip_context *c, const building *b)
 {
-    if (b->house_population <= 0) {
+    const Building &building = building_from_record(b);
+    if (!building.Housing) {
         return 0;
     }
-    int denarii = calc_adjust_with_percentage(b->tax_income_or_storage / 2, city_finance_tax_percentage());
+    const HousingState &state = building.Housing->state();
+    if (state.population <= 0) {
+        return 0;
+    }
+    int denarii = calc_adjust_with_percentage(state.tax_income / 2, city_finance_tax_percentage());
     if (denarii > 0) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = denarii;
         return 45;
-    } else if (b->house_tax_coverage > 0) {
+    } else if (state.tax_coverage > 0) {
         return 44;
     } else {
         return 43;
@@ -660,10 +663,18 @@ static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
         return 0;
     }
     building *b = building_record_at(grid_offset);
-    if (!b || !b->house_population) {
+    if (!b) {
         return 0;
     }
-    int happiness = b->sentiment.house_happiness;
+    const Building &building = building_from_record(b);
+    if (!building.Housing) {
+        return 0;
+    }
+    const HousingState &state = building.Housing->state();
+    if (!state.population) {
+        return 0;
+    }
+    int happiness = state.happiness;
     c->precomposed_text = prefix_value_to_tooltip_text(
         happiness, translation_for(house_sentiment_key_for_happiness(happiness)));
     return 1;
@@ -758,9 +769,26 @@ static int terrain_on_water_overlay(void)
         TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE | TERRAIN_HIGHWAY;
 }
 
+static int is_native_water_overlay_surface(const Building *building)
+{
+    if (!building || !building->type) {
+        return 0;
+    }
+    const building_type_registry_impl::TileKind kind = building->type->tile().kind();
+    return kind == building_type_registry_impl::TileKind::Garden ||
+        kind == building_type_registry_impl::TileKind::Plaza;
+}
+
 static int draw_footprint_water(int x, int y, float scale, int grid_offset)
 {
     if (!map_property_is_draw_tile(grid_offset)) {
+        return 1;
+    }
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (is_native_water_overlay_surface(building)) {
+        if (!city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale)) {
+            building->draw_footprint({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+        }
         return 1;
     }
     if (map_is_bridge(grid_offset)) {
@@ -827,16 +855,24 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, terrain_on_water_overlay())) {
+    Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
+    if (is_native_water_overlay_surface(building)) {
+        if (!city_draw_runtime_tile_top(grid_offset, x, y, COLOR_MASK_NONE, scale)) {
+            building->draw_top({ x, y, grid_offset, COLOR_MASK_NONE, scale });
+        }
+    } else if (building) {
+        city_with_overlay_draw_building_top(x, y, grid_offset);
+    } else if (map_terrain_is(grid_offset, terrain_on_water_overlay())) {
         if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
             color_t color_mask = 0;
-            if (map_property_is_deleted(grid_offset) && map_property_multi_tile_size(grid_offset) == 1) {
+            const bool is_deleted = map_building_exists_at(grid_offset) ?
+                city_draw_building_as_deleted(map_building_at(grid_offset)) :
+                map_property_is_deleted(grid_offset) && map_property_legacy_multi_tile_size(grid_offset) == 1;
+            if (is_deleted) {
                 color_mask = COLOR_MASK_RED;
             }
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
-    } else if (map_building_exists_at(grid_offset)) {
-        city_with_overlay_draw_building_top(x, y, grid_offset);
     }
     return 1;
 }
@@ -867,24 +903,15 @@ static color_t get_color_for_percentage(int percentage)
     return percentage_colors[calc_bound(percentage / 10, 0, 9)];
 }
 
-static void blend_color_to_footprint(int x, int y, int size, color_t color, float scale)
+static void blend_color_to_footprint(int x, int y, const Building &building, color_t color, float scale)
 {
-    int total_steps = size * 2 - 1;
-    int tiles = 1;
-
-    for (int step = 1; step <= total_steps; step++) {
-        if (tiles % 2) {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, color, scale);
-        }
-        int y_offset = 15 + 15 * (tiles % 2);
-
-        for (int i = 1; i <= tiles / 2; i++) {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y - y_offset, color, scale);
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y + y_offset, color, scale);
-            y_offset += 30;
-        }
-        x += 30;
-        step < size ? tiles++ : tiles--;
+    if (!building.Foundation) {
+        return;
+    }
+    for (const auto &cell : building.Foundation->cells(building.orientation())) {
+        const int cell_x = x + 30 * (cell.x + cell.y);
+        const int cell_y = y + 15 * (cell.y - cell.x);
+        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(cell_x, cell_y, color, scale);
     }
 }
 
@@ -894,12 +921,20 @@ static int draw_sentiment_footprint(int x, int y, float scale, int grid_offset)
         return 0;
     }
     building *b = building_record_at(grid_offset);
-    if (!b || !b->house_population || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
+    if (!b || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
+        return 0;
+    }
+    Building &building = building_from_record(b);
+    if (!building.Housing) {
+        return 0;
+    }
+    const HousingState &state = building.Housing->state();
+    if (!state.population) {
         return 0;
     }
     if (map_property_is_draw_tile(grid_offset)) {
         city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
-        blend_color_to_footprint(x, y, b->house_size, get_color_for_percentage(b->sentiment.house_happiness), scale);
+        blend_color_to_footprint(x, y, building, get_color_for_percentage(state.happiness), scale);
     }
     return 1;
 }
@@ -910,13 +945,20 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
         return 0;
     }
     building *b = building_record_at(grid_offset);
-    if (!b || !b->house_population || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
+    if (!b || b->is_deleted || map_property_is_deleted(b->grid_offset)) {
+        return 0;
+    }
+    Building &building = building_from_record(b);
+    if (!building.Housing) {
+        return 0;
+    }
+    const HousingState &state = building.Housing->state();
+    if (!state.population) {
         return 0;
     }
     if (map_property_is_draw_tile(grid_offset)) {
-        city_with_overlay_draw_building_top(x, y, grid_offset);
-        color_t color = get_color_for_percentage(b->sentiment.house_happiness);
-        Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, color, scale);
+        color_t color = get_color_for_percentage(state.happiness);
+        building.draw_top({ x, y, grid_offset, color, scale });
     }
     return 1;
 }
@@ -970,14 +1012,15 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
         return;
     }
     building *building_record = building_record_at(grid_offset);
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building_record &&
-        building_record->house_population > 0 && !building_record->is_deleted &&
+    Building *runtime_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) && building_record
+        ? &building_from_record(building_record) : nullptr;
+    if (runtime_building && runtime_building->Housing && runtime_building->Housing->state().population > 0 &&
+        !building_record->is_deleted &&
         !map_property_is_deleted(building_record->grid_offset)) {
         if (map_property_is_draw_tile(grid_offset)) {
             color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(building_record->desirability) * 10);
-            blend_color_to_footprint(x, y, building_record->house_size, desirability_color, scale);
-            city_with_overlay_draw_building_top(x, y, grid_offset);
-            Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, desirability_color, scale);
+            blend_color_to_footprint(x, y, *runtime_building, desirability_color, scale);
+            runtime_building->draw_top({ x, y, grid_offset, desirability_color, scale });
         }
     } else {
         int desirability = building_record ? building_record->desirability : map_desirability_get(grid_offset);

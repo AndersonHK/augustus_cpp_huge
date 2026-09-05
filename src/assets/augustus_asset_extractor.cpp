@@ -17,10 +17,12 @@
 #include "spng/spng.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <numeric>
 #include <string>
 #include <unordered_map>
@@ -30,8 +32,7 @@
 
 namespace {
 
-constexpr char kStampPrefix[] = "augustus_extract_v2:";
-constexpr char kAuthoredGraphicsDirectory[] = "Mod_Authored";
+constexpr char kStampPrefix[] = "augustus_extract_v4:";
 
 class ExtractionStats {
 public:
@@ -302,6 +303,7 @@ private:
         const AtlasDocument &document,
         const OutputGroup &target_group,
         const std::string &alias_group_key);
+    bool export_figure_models(const AtlasDocument &document, const LocalReferenceTargets &local_targets, const std::unordered_set<std::string> &exported_group_keys);
 
     ResolvedExtractionPaths paths_;
     bool force_ = false;
@@ -365,6 +367,10 @@ static bool build_extraction_paths(
 
     paths.output_graphics_path = ensure_trailing_separator(std::move(paths.output_graphics_path));
     paths.julius_graphics_path = ensure_trailing_separator(std::move(paths.julius_graphics_path));
+    if (graphics_extractor::extraction_target_is_in_source_mods(paths.output_graphics_path)) {
+        log_error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
+        return false;
+    }
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
 }
 
@@ -412,34 +418,6 @@ static bool augustus_extracted_output_is_present(const ResolvedExtractionPaths &
     return std::filesystem::is_directory(paths.output_graphics_path, error);
 }
 
-static bool clear_augustus_generated_graphics_output(const std::string &graphics_root)
-{
-    std::error_code error;
-    if (!std::filesystem::exists(graphics_root, error)) {
-        return true;
-    }
-    if (error) {
-        log_error("Unable to inspect Augustus graphics output directory", graphics_root.c_str(), 0);
-        return false;
-    }
-
-    for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(graphics_root, error)) {
-        if (error) {
-            log_error("Unable to enumerate Augustus graphics output directory", graphics_root.c_str(), 0);
-            return false;
-        }
-        if (entry.path().filename() == kAuthoredGraphicsDirectory) {
-            continue;
-        }
-        std::filesystem::remove_all(entry.path(), error);
-        if (error) {
-            log_error("Unable to clear generated Augustus graphics output", entry.path().string().c_str(), 0);
-            return false;
-        }
-    }
-    return true;
-}
-
 static bool resolve_extraction_paths(
     const vespasian::graphics::extraction::ExtractorPaths &input_paths,
     ResolvedExtractionPaths &paths)
@@ -451,6 +429,10 @@ static bool resolve_extraction_paths(
     paths.source_graphics_path = make_runtime_source_graphics_path();
     paths.output_graphics_path = ensure_trailing_separator(mod_manager::augustus_graphics_path().c_str());
     paths.julius_graphics_path = ensure_trailing_separator(mod_manager::julius_graphics_path().c_str());
+    if (graphics_extractor::extraction_target_is_in_source_mods(paths.output_graphics_path)) {
+        log_error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
+        return false;
+    }
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
 }
 
@@ -1768,6 +1750,127 @@ bool AugustusExtractionRun::export_alias_group(
     return true;
 }
 
+struct FigureModelAlias {
+    std::string target_group;
+    std::string target_image;
+};
+
+static std::string lowercase_ascii(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    return value;
+}
+
+static bool remove_case_insensitive_suffix(std::string &value, const char *suffix)
+{
+    const std::string suffix_text = suffix;
+    if (value.size() < suffix_text.size() ||
+        lowercase_ascii(value.substr(value.size() - suffix_text.size())) != lowercase_ascii(suffix_text)) {
+        return false;
+    }
+    value.erase(value.size() - suffix_text.size());
+    return true;
+}
+
+static bool parse_figure_model_image_id(const std::string &source_id, std::string &stem, std::string &entry_id)
+{
+    std::string normalized = sanitize_component(source_id.c_str());
+    const size_t frame_separator = normalized.rfind('_');
+    if (frame_separator == std::string::npos || frame_separator + 1 >= normalized.size()) return false;
+
+    int frame = 0;
+    for (size_t index = frame_separator + 1; index < normalized.size(); ++index) {
+        const unsigned char character = static_cast<unsigned char>(normalized[index]);
+        if (!std::isdigit(character)) return false;
+        frame = frame * 10 + normalized[index] - '0';
+    }
+    if (frame <= 0 || frame > 999) return false;
+
+    std::string base = normalized.substr(0, frame_separator);
+    std::string role;
+    std::string direction;
+    if (remove_case_insensitive_suffix(base, "_death")) {
+        role = "corpse";
+    } else {
+        static constexpr const char *kDirections[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+        for (const char *candidate : kDirections) {
+            const std::string suffix = std::string("_") + candidate;
+            if (remove_case_insensitive_suffix(base, suffix.c_str())) {
+                role = "default";
+                direction = candidate;
+                break;
+            }
+        }
+        if (role.empty()) role = "action";
+    }
+    if (base.empty()) return false;
+
+    stem = lowercase_ascii(base);
+    char frame_text[8];
+    snprintf(frame_text, sizeof(frame_text), "%02d", frame);
+    entry_id = role;
+    if (!direction.empty()) entry_id += "_" + direction;
+    entry_id += "_";
+    entry_id += frame_text;
+    return true;
+}
+
+bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, const LocalReferenceTargets &local_targets, const std::unordered_set<std::string> &exported_group_keys)
+{
+    if (lowercase_ascii(document.family_name) != "walkers") return true;
+
+    std::map<std::string, std::map<std::string, FigureModelAlias>> models;
+    for (const AtlasImage &image_data : document.images) {
+        if (image_data.synthetic_id) continue;
+        std::string stem;
+        std::string entry_id;
+        if (!parse_figure_model_image_id(image_data.id, stem, entry_id)) continue;
+        const std::string target_group = local_targets.group_key_for_image_or(image_data.id, {});
+        if (target_group.empty()) {
+            log_error("Unable to resolve Augustus figure-sequence image target", image_data.id.c_str(), 0);
+            return false;
+        }
+        FigureModelAlias alias { target_group, image_data.id };
+        auto inserted = models[stem].emplace(entry_id, alias);
+        if (!inserted.second &&
+            (inserted.first->second.target_group != alias.target_group || inserted.first->second.target_image != alias.target_image)) {
+            log_error("Conflicting Augustus figure-sequence entry", entry_id.c_str(), 0);
+            return false;
+        }
+    }
+
+    const std::string model_directory = append_path_component(paths_.output_graphics_path, document.family_name);
+    ensure_directory(model_directory);
+    for (const auto &[stem, entries] : models) {
+        if (entries.empty()) continue;
+        const std::string group_key = document.family_name + "\\" + stem;
+        if (exported_group_keys.find(group_key) != exported_group_keys.end()) {
+            log_error("Augustus conceptual figure model conflicts with an extracted group", group_key.c_str(), 0);
+            return false;
+        }
+        std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
+        append_attribute(xml, "name", group_key);
+        xml += ">\n";
+        for (const auto &[entry_id, alias] : entries) {
+            append_indent(xml, 1);
+            xml += "<image";
+            append_attribute(xml, "id", entry_id);
+            append_attribute(xml, "group", alias.target_group);
+            append_attribute(xml, "image", alias.target_image);
+            xml += "/>\n";
+        }
+        xml += "</assetlist>\n";
+        if (!write_text_file(append_path_component(model_directory, stem + ".xml"), xml)) {
+            log_error("Failed to write Augustus conceptual figure-model xml", group_key.c_str(), 0);
+            return false;
+        }
+        stats_.count_group_exported();
+    }
+    return true;
+}
+
 bool AugustusExtractionRun::export_document(AtlasDocument &document)
 {
     CrashContextScope crash_scope("augustus_extractor.export_document", document.xml_path.c_str());
@@ -1805,6 +1908,11 @@ bool AugustusExtractionRun::export_document(AtlasDocument &document)
                 return false;
             }
         }
+    }
+
+    if (!export_figure_models(document, local_targets, exported_group_keys)) {
+        png_unload();
+        return false;
     }
 
     png_unload();
@@ -1879,9 +1987,9 @@ bool AugustusExtractionRun::run()
         log_info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
     }
 
-    if (!clear_augustus_generated_graphics_output(graphics_root)) {
-        return false;
-    }
+    // The installed Graphics tree also contains deployed, authored XML modules.
+    // Extraction owns only the files it writes and must never erase that tree.
+    ensure_directory(graphics_root);
 
     log_info("Extracting canonical Augustus graphics from packed source atlases", 0, 0);
     if (!extract_all_documents()) {

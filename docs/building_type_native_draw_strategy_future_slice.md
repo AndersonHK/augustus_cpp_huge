@@ -48,10 +48,12 @@ The current branch is well past the original "future slice" baseline. The data-c
 
 The remaining work is not "add the first native strategy model"; it is to delete or collapse the compatibility draw paths that still bypass the generic data:
 
-- `city_building_ghost.cpp` still has hardcoded preview branches for draggable reservoir, aqueduct, bridge, and road/garden-gate transforms.
-- `city_with_overlay.cpp` no longer bypasses native farm footprint/top drawing, and `native_crops` no longer mutates `map_image` through `GROUP_BUILDING_FARM_CROPS`; remaining farm draw-adjacent UI policy lives in `city_without_overlay.cpp` mothball icon placement/field suppression.
+- Network tools retain procedural route and bridge geometry, but reservoir, aqueduct, and bridge pieces draw through native `BuildingGraphics`; road-surface projection is owned by the road/aqueduct strategy and garden-wall-to-gate projection is centralized behind the connectable strategy.
+- `city_with_overlay.cpp` no longer bypasses native farm footprint/top drawing, `native_crops` no longer mutates `map_image` through `GROUP_BUILDING_FARM_CROPS`, and exceptional mothball/stockpile icon anchors are root-graphics XML data. Farm owners author `overlay_summary mode="composition_owner"`; child rendering resolves that owner policy through the composition relationship, so summary suppression no longer asks whether a building type is a farm.
 - Storage is mostly native for warehouse/granary visible state: XML owns warehouse ornaments, granary resource layers, and Augustus/Vespasian storage permission flags, while Julius stays flagless to match upstream Julius. Remaining storage/tile work is `resource_storage` genericization plus decorative-gate/road-surface drawing.
-- Gatehouse top overlay mapping is now owned by `BuildingGraphics` plus XML `gatehouse_orientation` data; remaining gatehouse work is terrain/road-surface composition, not the cap image/offset branch.
+- Gatehouse base and cap mapping are owned by XML `gatehouse_orientation` data and the `gatehouse_overlay` layer role; the legacy base-image fallback and literal cap dispatch are deleted. Low- and ship-bridge native option targets likewise no longer retain no-op type handlers.
+- Small and medium statues now author the base and rotated art as two native `orientation` options in Julius, Augustus, and Vespasian. The generic orientation selector preserves the old `(building rotation + view rotation) % 2` choice for all sixteen rotation/view combinations, so the statue-specific fallback is deleted without changing foundation geometry.
+- Hippodrome owner, middle, and end parts author all four finished build rotations in every stack. Augustus and Vespasian additionally author all four rotations for each of four construction phases on every part, while Julius intentionally remains instant-build. The phase/orientation/composition fallback in `building/image.cpp` is therefore deleted.
 - `BuildingGraphics.cpp` still logs native draw-stage fallback to legacy rendering when a runtime slice is missing.
 - `building_type_registry_xml.cpp` still accepts metadata-only BuildingType XML temporarily, so parser strictness is not yet at the final data-owned state.
 
@@ -79,7 +81,7 @@ Likely strategy families:
 
 2. **Farms**
 
-   Status: data side exists. Farms are authored as composed buildings with field part types, and field graphics use production-progress options. `native_crops` now uses the same XML option selector instead of a legacy crop image-group write. `city_with_overlay.cpp` routes shown farm footprint/top drawing through the same `Building::draw_footprint` and `Building::draw_top` path as other native buildings. The old hidden-overlay corner-only behavior is centralized behind `BuildingGraphics::draws_overlay_summary_at`, keeping the farm rule with the graphics owner instead of the city draw loop. Remaining work is deletion-focused: decide whether the no-overlay mothball icon farm placement/field suppression belongs in object/UI metadata or can be deleted with the next draw-adjacent cleanup.
+   Status: implemented at the draw-adjacent policy boundary. Farms are authored as composed buildings with field part types, field graphics use production-progress options, `native_crops` uses the same XML option selector, and owners author `overlay_summary mode="composition_owner"`. `BuildingGraphics::draws_overlay_summary_at` resolves that owner policy for both owner and child objects without farm classification. The exceptional mothball/stockpile icon anchor remains owner graphics data and its existing owner-only runtime rule is unchanged.
 
 3. **Storage and tile composites**
 
@@ -91,7 +93,7 @@ Likely strategy families:
 
 5. **Network and water tools**
 
-   Status: model facts are partially native. Tool kind, water-access, shoreline/open-water foundation, and selected graphics facts are in BuildingType XML for several water/network buildings. Remaining work is the preview renderer: bridge length, road adjacency, aqueduct rules, and reservoir dragging can stay procedural, but their selected graphics/model facts should stop living in hardcoded ghost branches.
+   Status: implemented at the preview graphics boundary. Bridge length, road adjacency, aqueduct routing, and reservoir dragging remain procedural network algorithms; selected building graphics and bridge variants flow through native graphics or their owning map strategy rather than hardcoded ghost image dispatch.
 
 ## Non-Goals
 

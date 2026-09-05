@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<storage_type role="input">
-    <accepts resource="timber" />
-    <capacity amount="200" />
-</storage_type>

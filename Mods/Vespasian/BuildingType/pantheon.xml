@@ -2,17 +2,16 @@
 <building type="pantheon">
     <identity name_key="TR_BUILDING_PANTHEON" />
     <temple religion="pantheon" />
-    <model size="7" cost="3500" />
+    <model cost="3500" />
     <desirability>
         <value value="20" />
         <step value="2" />
         <step_size value="-4" />
         <range value="8" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_7x7" />
   <button group="grand_temples" order="10" icon="Monuments\Pantheon_Off" icon_image="Pantheon On" text_key="TR_BUILDING_PANTHEON" />
     <sound id="oracle" />
-    <event_data attr="pantheon" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>
         <culture_module path="temple_active" capacity="1500" count="active" />
@@ -85,8 +84,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn mode="profiled_figure" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary"
-            init_roaming="true" profile="pantheon_service" />
+        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="pantheon_service" />
     </spawn_group>
 </building>

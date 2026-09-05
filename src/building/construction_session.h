@@ -4,6 +4,12 @@
 #include "input/keys.h"
 #include "map/point.h"
 
+inline int construction_session_retains_resolved_type(
+    const building_type_registry_impl::BuildingType &definition)
+{
+    return definition.bridge().is_bridge() || definition.tool().is_roadblock();
+}
+
 class ConstructionToolSession {
 public:
     building_type type = BUILDING_NONE;

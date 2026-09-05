@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="race_bet" base_width="480" base_height="400" escape_action="window.close">
+    <widget type="panel" id="outer_panel" phase="background" style="outer_panel" x="0" y="0" width="480" height="400" />
+    <widget type="image" id="denarii_icon" phase="background" x="20" y="20" assetlist="UI\Resource_Icons" image="Image_0016" />
+    <widget type="label" id="title" phase="background" x="0" y="20" width="480" height="24" text_alignment="center" font="large_black" translation="TR_WINDOW_RACE_BET_TITLE" />
+    <widget type="rich_text" id="description" phase="background" x="25" y="65" width="438" height="52" font="normal_black" translation="TR_WINDOW_RACE_BET_DESCRIPTION" />
+
+    <widget type="image_button" id="team" x="34" y="145" width="81" height="91" draw_offset_x="5" draw_offset_y="5" style="image_small_border" repeat_source="race.teams" repeat_columns="4" repeat_spacing_x="110" repeat_spacing_y="110" binding="race.team.portrait" selected_binding="race.team.selected" enabled_binding="race.can_edit" tooltip_binding="race.team.tooltip" action="race.team.select" />
+    <widget type="rich_text" id="team_description" x="25" y="250" width="438" height="42" font="normal_black" binding="race.selected_description" />
+
+    <widget type="panel" id="amount_panel" style="inner_panel" x="18" y="300" width="448" height="32" />
+    <widget type="label" id="amount_label" x="18" y="310" width="80" height="16" text_alignment="center" font="normal_white" translation="TR_WINDOW_RACE_BET_AMOUNT" />
+    <widget type="image_button" id="amount_down" x="106" y="306" width="24" height="24" assetlist="UI\Arrow_Button" image="Decrease" pressed_image="Decrease_Pressed" activate_on_press="true" repeat_on_hold="true" enabled_binding="race.can_edit" action="race.wager.decrease" />
+    <widget type="image_button" id="amount_up" x="130" y="306" width="24" height="24" assetlist="UI\Arrow_Button" image="Increase" pressed_image="Increase_Pressed" activate_on_press="true" repeat_on_hold="true" enabled_binding="race.can_edit" action="race.wager.increase" />
+    <widget type="label" id="amount" x="165" y="310" width="92" height="16" font="normal_white" binding="race.wager" />
+    <widget type="label" id="savings" x="284" y="310" width="175" height="16" text_alignment="center" font="normal_white" binding="race.savings" />
+
+    <widget type="text_button" id="confirm" x="90" y="354" width="300" height="20" text_offset_y="4" text_alignment="center" font="normal_black" binding="race.confirm_label" enabled_binding="race.can_confirm" action="race.confirm" />
+    <widget type="image_button" id="close" x="424" y="354" width="24" height="24" assetlist="UI\Context_Icons" image="Image_0004" pressed_image="Image_0005" action="window.close" />
+</window>

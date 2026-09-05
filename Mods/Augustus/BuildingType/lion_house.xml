@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lion_house">
     <identity name_key="main_strings.28.35" />
-    <model size="3" cost="75" />
+    <model cost="75" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_3x3" />
   <button group="entertainment" order="90" icon="Health_Culture\Lion_House" text_key="main_strings.28.35" />
     <sound id="lion_pit" />
-    <event_data attr="lion_house" />
     <graphics>
         <default>
             <path value="Health_Culture\Lion_House" />
@@ -26,7 +25,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:5,75:10,50:20,25:35,1:60">
-        <spawn mode="profiled_figure" spawn_figure="lion_tamer"
-            action_state="entertainer_school_created" direction="top" figure_slot="primary" init_roaming="false" profile="venue_seeker" />
+        <spawn spawn_figure="lion_tamer" direction="top" figure_slot="primary" profile="venue_seeker" />
     </spawn_group>
 </building>

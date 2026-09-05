@@ -30,7 +30,6 @@ enum {
 };
 
 int building_warehouse_get_space_info(const Building &warehouse);
-Building *building_warehouse_first();
 int building_warehouse_get_main_grid_offset(const Building &warehouse);
 int building_warehouse_get_tower_grid_offset(const Building &warehouse);
 int building_warehouse_get_amount(const Building &warehouse, resource_type resource);
@@ -51,7 +50,7 @@ int building_warehouses_remove_resource(resource_type resource, int amount);
 int building_warehouse_amount_can_get_from(const Building &destination, resource_type resource);
 Building *building_warehouse_for_getting(const Building &src, resource_type resource, map_point *dst);
 Building *building_warehouse_for_storing(int src_building_id, int x, int y, resource_type resource, int road_network_id,
-    int *understaffed, map_point *dst);
+    int *understaffed, map_point *dst, unsigned int reservation_owner_figure_id);
 Building *building_warehouse_with_resource(int x, int y, resource_type resource, int road_network_id, int *understaffed,
     map_point *dst, building_storage_permission_states p);
 int building_warehouse_determine_worker_task(Building &warehouse, int *resource);

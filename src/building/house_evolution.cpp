@@ -9,7 +9,7 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
-#include "building/housing_type.h"
+#include "building/HousingProfileDef.h"
 #include "city/houses.h"
 
 #include "building/monument.h"
@@ -37,14 +37,12 @@ static int active_devolve_delay;
 
 static void consume_resources(Building &house_object, building *b);
 
-static const model_house *model_for_house(Building house)
+static const building_type_registry_impl::HousingProfileDef *profile_for_house_requirements(
+    Building &house_object, int for_upgrade, int with_bonus, int *out_level)
 {
-    return building_house_get_model(house);
-}
-
-static const model_house *model_for_house_requirements(Building &house_object, building *, int for_upgrade, int with_bonus, int *out_level)
-{
-    int level = building_house_legacy_level(house_object);
+    const auto *current_profile =
+        house_object.Housing ? house_object.Housing->definition().profile : nullptr;
+    int level = current_profile ? current_profile->compatibility_level : -1;
     if (for_upgrade) {
         ++level;
     }
@@ -56,51 +54,55 @@ static const model_house *model_for_house_requirements(Building &house_object, b
         *out_level = level;
     }
 
-    if (house_object.type && house_object.type->has_housing()) {
-        building_type target = BUILDING_NONE;
-        if (for_upgrade) {
-            target = house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo);
-        }
-        const auto *target_type = target == BUILDING_NONE ? nullptr :
-            building_type_registry_impl::definition_for_type(target);
-        const auto *target_housing = target_type ? target_type->housing_type() : nullptr;
-        return target_housing ? &target_housing->model() : model_for_house(house_object);
+    if (house_object.Housing) {
+        const auto *target_type = for_upgrade
+            ? house_object.Housing->transition_target(building_type_registry_impl::HousingTransitionKind::EvolveTo)
+            : nullptr;
+        const auto *target_profile = target_type ? target_type->housing_def().profile : nullptr;
+        return target_profile ? target_profile : current_profile;
     }
-
-    return model_get_house(static_cast<house_level>(level));
+    return nullptr;
 }
 
 static evolve_status check_evolve_desirability(Building &house_object, building *house, int bonus)
 {
-    int level = building_house_legacy_level(house_object);
+    const auto *profile = house_object.Housing ? house_object.Housing->definition().profile : nullptr;
+    int level = profile ? profile->compatibility_level : -1;
     level -= bonus;
     level = calc_bound(level, HOUSE_MIN, HOUSE_MAX);
-    const model_house *model = model_for_house(house_object);
-    int evolve_des = model->evolve_desirability;
+    if (!profile) {
+        return NONE;
+    }
+    int evolve_des = profile->evolution.evolve_desirability;
     if (level >= HOUSE_LUXURY_PALACE) {
         evolve_des = 1000;
     }
     int current_des = house->desirability;
     evolve_status status;
-    if (current_des <= model->devolve_desirability) {
+    if (current_des <= profile->evolution.devolve_desirability) {
         status = DEVOLVE;
     } else if (current_des >= evolve_des) {
         status = EVOLVE;
     } else {
         status = NONE;
     }
-    house->data.house.evolve_text_id = static_cast<unsigned char>(status); // BUG? -1 in an unsigned char?
+    house_object.Housing->state().evolve_text_id = static_cast<uint8_t>(status); // BUG? -1 in an unsigned char?
     return status;
 }
 
 static int has_required_goods_and_services(Building &house_object, building *house, int for_upgrade, int with_bonus, house_demands *demands)
 {
     int level = 0;
-    const model_house *model = model_for_house_requirements(house_object, house, for_upgrade, with_bonus, &level);
+    const auto *profile = profile_for_house_requirements(house_object, for_upgrade, with_bonus, &level);
+    if (!profile) {
+        return 0;
+    }
+    const auto &requirements = profile->requirements;
+    const HousingServiceState &services = house_object.Housing->state().services;
     // water
-    int water = model->water;
+    const auto water = requirements.water;
     if (!house->has_water_access) {
-        if (water >= 2) {
+        if (water == building_type_registry_impl::HousingWaterRequirement::Fountain) {
             if (level > HOUSE_SMALL_CASA) {
                 ++demands->missing.fountain;
                 return  0;
@@ -111,16 +113,16 @@ static int has_required_goods_and_services(Building &house_object, building *hou
                 return 0;
             }
         }
-        if (water == 1 && !house->has_well_access) {
+        if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_well_access) {
             ++demands->missing.well;
             return 0;
         }
     }
 
     // entertainment
-    int entertainment = model->entertainment;
-    if (house->data.house.entertainment < entertainment) {
-        if (house->data.house.entertainment) {
+    int entertainment = requirements.entertainment;
+    if (services.entertainment < entertainment) {
+        if (services.entertainment) {
             ++demands->missing.more_entertainment;
         } else {
             ++demands->missing.entertainment;
@@ -128,9 +130,9 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         return 0;
     }
     // education
-    int education = model->education;
-    if (house->data.house.education < education) {
-        if (house->data.house.education) {
+    int education = requirements.education;
+    if (services.education < education) {
+        if (services.education) {
             ++demands->missing.more_education;
         } else {
             ++demands->missing.education;
@@ -144,11 +146,11 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.school;
     }
     // religion
-    int religion = model->religion;
+    int religion = requirements.religion;
     if (religion > 3) {
         religion = 3;
     }
-    if (house->data.house.num_gods < religion) {
+    if (services.num_gods < religion) {
         if (religion == 1) {
             ++demands->missing.religion;
             return 0;
@@ -163,8 +165,8 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.religion;
     }
     // barber
-    int barber = model->barber;
-    if (house->data.house.barber < barber) {
+    int barber = requirements.barber;
+    if (services.barber < barber) {
         ++demands->missing.barber;
         return 0;
     }
@@ -172,8 +174,8 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.barber;
     }
     // bathhouse
-    int bathhouse = model->bathhouse;
-    if (house->data.house.bathhouse < bathhouse) {
+    int bathhouse = requirements.bathhouse;
+    if (services.bathhouse < bathhouse) {
         ++demands->missing.bathhouse;
         return 0;
     }
@@ -181,8 +183,8 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.bathhouse;
     }
     // health
-    int health = model->health;
-    if (house->data.house.health < health) {
+    int health = requirements.health;
+    if (services.health < health) {
         if (health < 2) {
             ++demands->missing.clinic;
         } else {
@@ -194,7 +196,7 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.clinic;
     }
     // food types
-    int foodtypes_required = model->food_types;
+    int foodtypes_required = requirements.food_types;
     int foodtypes_available = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         if (house->resources[r] && resource_is_food(r)) {
@@ -206,16 +208,16 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         return 0;
     }
     // goods
-    if (house->resources[resource_pottery()] < model->pottery) {
+    if (house->resources[resource_pottery()] < requirements.pottery) {
         return 0;
     }
-    if (house->resources[resource_oil()] < model->oil) {
+    if (house->resources[resource_oil()] < requirements.oil) {
         return 0;
     }
-    if (house->resources[resource_furniture()] < model->furniture) {
+    if (house->resources[resource_furniture()] < requirements.furniture) {
         return 0;
     }
-    int wine = model->wine;
+    int wine = requirements.wine;
     if (wine && house->resources[resource_wine()] <= 0) {
         return 0;
     }
@@ -229,7 +231,8 @@ static int has_required_goods_and_services(Building &house_object, building *hou
 static evolve_status check_requirements(Building &house_object, building *house, house_demands *demands)
 {
     int bonus = 0;
-    if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) && house->house_pantheon_access) {
+    if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) &&
+        house_object.Housing->state().pantheon_access) {
         bonus++;
     }
     evolve_status status = check_evolve_desirability(house_object, house, bonus);
@@ -241,33 +244,35 @@ static evolve_status check_requirements(Building &house_object, building *house,
     return status;
 }
 
-static int has_devolve_delay(building *house, evolve_status status)
+static int has_devolve_delay(HousingState &state, evolve_status status)
 {
-    if (status == DEVOLVE && house->data.house.devolve_delay < active_devolve_delay) {
-        house->data.house.devolve_delay++;
+    if (status == DEVOLVE && state.devolve_delay < active_devolve_delay) {
+        ++state.devolve_delay;
         return 1;
     } else {
-        house->data.house.devolve_delay = 0;
+        state.devolve_delay = 0;
         return 0;
     }
 }
 
 static int evolve_xml_housing(Building &house_object, building *house, house_demands *demands, time_millis last_update)
 {
-    building_type merge_to = house_object.type ?
-        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
-        BUILDING_NONE;
+    HousingState &state = house_object.Housing->state();
+    const auto *merge_definition = house_object.Housing
+        ? house_object.Housing->transition_target(building_type_registry_impl::HousingTransitionKind::MergeTo)
+        : nullptr;
     int is_empty_vacant_lot =
-        house->house_population <= 0 && house->type == building_type_registry_impl::vacant_lot_fill_type();
-    if (merge_to != BUILDING_NONE && house->house_size == 1 &&
-        (house->house_population > 0 ||
+        state.population <= 0 && house->type == building_type_registry_impl::vacant_lot_fill_type();
+    if (merge_definition &&
+        (state.population > 0 ||
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
         unsigned int merged_id = building_house_merge(house_object);
         if (merged_id) {
             Building *merged_house_object = Building::get(merged_id);
             if (merged_house_object) {
                 building *merged_house = const_cast<::building *>(merged_house_object->record());
-                if (game_time_day() == 0 || (game_time_day() == 7 && merged_house->house_size > 1)) {
+                if (merged_house_object->Housing &&
+                    merged_house_object->Housing->consumes_goods_on_day(game_time_day())) {
                     consume_resources(*merged_house_object, merged_house);
                 }
                 merged_house->last_update = last_update;
@@ -276,40 +281,44 @@ static int evolve_xml_housing(Building &house_object, building *house, house_dem
         }
     }
 
-    if (house->house_population <= 0) {
+    if (state.population <= 0) {
         return 0;
     }
 
     evolve_status status = check_requirements(house_object, house, demands);
-    if (has_devolve_delay(house, status)) {
+    if (has_devolve_delay(state, status)) {
         return 0;
     }
 
-    building_type target = BUILDING_NONE;
+    const building_type_registry_impl::BuildingType *target_definition = nullptr;
     if (status == EVOLVE) {
-        target = house_object.type ?
-            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo) :
-            BUILDING_NONE;
+        target_definition = house_object.Housing
+            ? house_object.Housing->transition_target(building_type_registry_impl::HousingTransitionKind::EvolveTo)
+            : nullptr;
     } else if (status == DEVOLVE) {
-        target = house_object.type ?
-            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::DevolveTo) :
-            BUILDING_NONE;
+        target_definition = house_object.Housing
+            ? house_object.Housing->transition_target(building_type_registry_impl::HousingTransitionKind::DevolveTo)
+            : nullptr;
     }
 
-    if (target != BUILDING_NONE) {
-        int current_size = house->house_size;
-        const building_type_registry_impl::BuildingType *target_definition =
-            building_type_registry_impl::definition_for_type(target);
-        int target_size = target_definition ? target_definition->declared_model_size() : 0;
-        if (status == EVOLVE && target_size > current_size) {
-            if (building_house_can_expand(house_object, target_size * target_size)) {
+    if (target_definition) {
+        const building_type target = target_definition->type();
+        const int current_cell_count = house_object.Foundation
+            ? static_cast<int>(house_object.Foundation->cells(house_object.orientation()).size())
+            : 0;
+        const auto *target_foundation = target_definition ? target_definition->foundation_def() : nullptr;
+        const int target_cell_count = target_foundation
+            ? static_cast<int>(target_foundation->rotated_cells(house_object.orientation()).size())
+            : 0;
+        if (status == EVOLVE && target_cell_count > current_cell_count) {
+            if (building_house_can_expand(house_object, target)) {
                 game_undo_disable();
                 building_house_expand_to_type(house_object, target);
                 map_tiles_update_all_gardens();
                 return 1;
             }
         } else if (status == DEVOLVE) {
-            if (current_size > 1) {
+            if (current_cell_count > 1) {
                 game_undo_disable();
             }
             building_house_devolve_to_type(house_object, target);
@@ -334,6 +343,7 @@ static void consume_resource(building *b, int inventory, int amount)
 static void consume_resources(Building &house_object, building *b)
 {
     int consumption_reduction[RESOURCE_SLOT_COUNT] = { 0 };
+    const HousingServiceState &services = house_object.Housing->state().services;
 
     // mercury module 1 - pottery and furniture reduced by 20%
     if (building_monument_gt_module_is_active(MERCURY_MODULE_1_POTTERY_FURN)) {
@@ -341,19 +351,23 @@ static void consume_resources(Building &house_object, building *b)
         consumption_reduction[resource_furniture()] += 20;
     }
     // mercury module 2 - oil and wine reduced by 20%
-    if (b->data.house.temple_mercury && building_monument_gt_module_is_active(MERCURY_MODULE_2_OIL_WINE)) {
+    if (services.temple_mercury && building_monument_gt_module_is_active(MERCURY_MODULE_2_OIL_WINE)) {
         consumption_reduction[resource_wine()] += 20;
         consumption_reduction[resource_oil()] += 20;
     }
     // mars module 2 - all goods reduced by 10%
-    if (b->data.house.temple_mars && building_monument_gt_module_is_active(MARS_MODULE_2_ALL_GOODS)) {
+    if (services.temple_mars && building_monument_gt_module_is_active(MARS_MODULE_2_ALL_GOODS)) {
         consumption_reduction[resource_wine()] += 10;
         consumption_reduction[resource_oil()] += 10;
         consumption_reduction[resource_pottery()] += 10;
         consumption_reduction[resource_furniture()] += 10;
     }
 
-    const model_house *model = model_for_house(house_object);
+    const auto *profile = house_object.Housing ? house_object.Housing->definition().profile : nullptr;
+    if (!profile) {
+        return;
+    }
+    const auto &requirements = profile->requirements;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         if (!resource_is_inventory_good(r)) {
             continue;
@@ -362,13 +376,13 @@ static void consume_resources(Building &house_object, building *b)
             (game_time_total_months() % (100 / consumption_reduction[r]))) {
             int amount = 0;
             if (r == resource_wine()) {
-                amount = model->wine;
+                amount = requirements.wine;
             } else if (r == resource_oil()) {
-                amount = model->oil;
+                amount = requirements.oil;
             } else if (r == resource_furniture()) {
-                amount = model->furniture;
+                amount = requirements.furniture;
             } else if (r == resource_pottery()) {
-                amount = model->pottery;
+                amount = requirements.pottery;
             }
             consume_resource(b, r, amount);
         }
@@ -389,23 +403,20 @@ void building_house_process_evolve_and_consume_goods(void)
 
     time_millis last_update = time_get_millis();
 
-    Building::for_each({ .hasHousing = true }, [&](Building *building_object) {
+    Building::for_each(BuildingRuntimeList::Housing, [&](Building *building_object) {
         building *b = const_cast<building *>(building_object->record());
-        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->last_update == last_update) {
+        if (b->state != BUILDING_STATE_IN_USE || !building_object->Housing || b->last_update == last_update) {
             return;
         }
         Building &house_object = *building_object;
-        building_house_check_for_corruption(house_object);
+        house_object.Housing->state().no_space_to_expand = 0;
         if (!b->has_plague) {
-            if (house_object.type && house_object.type->has_housing()) {
-                has_expanded |= evolve_xml_housing(house_object, b, demands, last_update);
-            }
+            has_expanded |= evolve_xml_housing(house_object, b, demands, last_update);
         }
-        if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+        if (b->state != BUILDING_STATE_IN_USE || !building_object->Housing) {
             return;
         }
-        // 1x1 houses only consume half of the goods
-        if (game_time_day() == 0 || (game_time_day() == 7 && b->house_size > 1)) {
+        if (building_object->Housing->consumes_goods_on_day(game_time_day())) {
             consume_resources(house_object, b);
         }
         b->last_update = last_update;
@@ -421,62 +432,68 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     if (!house) {
         return;
     }
-    int level = building_house_legacy_level(house_object);
-    if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) && house->house_pantheon_access) {
+    HousingState &state = house_object.Housing->state();
+    const HousingServiceState &services = state.services;
+    const auto *profile = house_object.Housing ? house_object.Housing->definition().profile : nullptr;
+    int level = profile ? profile->compatibility_level : -1;
+    if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) && state.pantheon_access) {
         level--;
     }
     level = calc_bound(level, HOUSE_MIN, HOUSE_MAX);
 
     // this house will devolve soon because...
 
-    const model_house *model = model_for_house(house_object);
+    if (!profile) {
+        return;
+    }
+    const auto *requirements = &profile->requirements;
     // desirability
-    if (house->desirability <= model->devolve_desirability) {
-        house->data.house.evolve_text_id = 0;
+    if (house->desirability <= profile->evolution.devolve_desirability) {
+        state.evolve_text_id = 0;
         return;
     }
     // water
-    int water = model->water;
-    if (water == 1 && !house->has_water_access) {
+    auto water = requirements->water;
+    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
         if (!house->has_well_access) {
-            house->data.house.evolve_text_id = 1;
+            state.evolve_text_id = 1;
             return;
         } else if (!house->has_latrines_access) {
-            house->data.house.evolve_text_id = 68;
+            state.evolve_text_id = 68;
             return;
         }
     }
 
-    if (water == 2 && !house->has_water_access) {
+    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
         if (!house->has_latrines_access) {
-            house->data.house.evolve_text_id = 67;
+            state.evolve_text_id = 67;
             return;
         } else if (level >= HOUSE_LARGE_CASA) {
-            house->data.house.evolve_text_id = 2;
+            state.evolve_text_id = 2;
             return;
         }
     }
 
     // entertainment
-    int entertainment = model->entertainment;
-    if (house->data.house.entertainment < entertainment) {
-        if (!house->data.house.entertainment) {
-            house->data.house.evolve_text_id = 3;
+    int entertainment = requirements->entertainment;
+    if (services.entertainment < entertainment) {
+        if (!services.entertainment) {
+            state.evolve_text_id = 3;
         } else if (entertainment < 10) {
-            house->data.house.evolve_text_id = 4;
+            state.evolve_text_id = 4;
         } else if (entertainment < 25) {
-            house->data.house.evolve_text_id = 5;
+            state.evolve_text_id = 5;
         } else if (entertainment < 50) {
-            house->data.house.evolve_text_id = 6;
+            state.evolve_text_id = 6;
         } else if (entertainment < 80) {
-            house->data.house.evolve_text_id = 7;
+            state.evolve_text_id = 7;
         } else {
-            house->data.house.evolve_text_id = 8;
+            state.evolve_text_id = 8;
         }
         return;
     }
     // food types
-    int foodtypes_required = model->food_types;
+    int foodtypes_required = requirements->food_types;
     int foodtypes_available = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         if (house->resources[r] && resource_is_food(r)) {
@@ -485,268 +502,261 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     if (foodtypes_available < foodtypes_required) {
         if (foodtypes_required == 1) {
-            house->data.house.evolve_text_id = 9;
+            state.evolve_text_id = 9;
             return;
         } else if (foodtypes_required == 2) {
-            house->data.house.evolve_text_id = 10;
+            state.evolve_text_id = 10;
             return;
         } else if (foodtypes_required == 3) {
-            house->data.house.evolve_text_id = 11;
+            state.evolve_text_id = 11;
             return;
         }
     }
     // education
-    int education = model->education;
-    if (house->data.house.education < education) {
+    int education = requirements->education;
+    if (services.education < education) {
         if (education == 1) {
-            house->data.house.evolve_text_id = 14;
+            state.evolve_text_id = 14;
             return;
         } else if (education == 2) {
-            if (house->data.house.school) {
-                house->data.house.evolve_text_id = 15;
+            if (services.school) {
+                state.evolve_text_id = 15;
                 return;
-            } else if (house->data.house.library) {
-                house->data.house.evolve_text_id = 16;
+            } else if (services.library) {
+                state.evolve_text_id = 16;
                 return;
             }
         } else if (education == 3) {
-            house->data.house.evolve_text_id = 17;
+            state.evolve_text_id = 17;
             return;
         }
     }
     // bathhouse
-    if (house->data.house.bathhouse < model->bathhouse) {
-        house->data.house.evolve_text_id = 18;
+    if (services.bathhouse < requirements->bathhouse) {
+        state.evolve_text_id = 18;
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < model->pottery) {
-        house->data.house.evolve_text_id = 19;
+    if (house->resources[resource_pottery()] < requirements->pottery) {
+        state.evolve_text_id = 19;
         return;
     }
     // religion
-    int religion = model->religion;
+    int religion = requirements->religion;
     if (religion > 3) {
         religion = 3;
     }
-    if (house->data.house.num_gods < religion) {
+    if (services.num_gods < religion) {
         if (religion == 1) {
-            house->data.house.evolve_text_id = 20;
+            state.evolve_text_id = 20;
             return;
         } else if (religion == 2) {
-            house->data.house.evolve_text_id = 21;
+            state.evolve_text_id = 21;
             return;
         } else if (religion == 3) {
-            house->data.house.evolve_text_id = 22;
+            state.evolve_text_id = 22;
             return;
         }
     }
     // barber
-    if (house->data.house.barber < model->barber) {
-        house->data.house.evolve_text_id = 23;
+    if (services.barber < requirements->barber) {
+        state.evolve_text_id = 23;
         return;
     }
     // health
-    int health = model->health;
-    if (house->data.house.health < health) {
+    int health = requirements->health;
+    if (services.health < health) {
         if (health == 1) {
-            house->data.house.evolve_text_id = 24;
-        } else if (house->data.house.clinic) {
-            house->data.house.evolve_text_id = 25;
+            state.evolve_text_id = 24;
+        } else if (services.clinic) {
+            state.evolve_text_id = 25;
         } else {
-            house->data.house.evolve_text_id = 26;
+            state.evolve_text_id = 26;
         }
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < model->oil) {
-        house->data.house.evolve_text_id = 27;
+    if (house->resources[resource_oil()] < requirements->oil) {
+        state.evolve_text_id = 27;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < model->furniture) {
-        house->data.house.evolve_text_id = 28;
+    if (house->resources[resource_furniture()] < requirements->furniture) {
+        state.evolve_text_id = 28;
         return;
     }
     // wine
-    int wine = model->wine;
+    int wine = requirements->wine;
     if (house->resources[resource_wine()] < wine) {
-        house->data.house.evolve_text_id = 29;
+        state.evolve_text_id = 29;
         return;
     }
     if (wine > 1 && !city_resource_multiple_wine_available()) {
-        house->data.house.evolve_text_id = 65;
+        state.evolve_text_id = 65;
         return;
     }
     if (level >= HOUSE_LUXURY_PALACE) { // max level!
-        house->data.house.evolve_text_id = 60;
+        state.evolve_text_id = 60;
         return;
     }
 
     // this house will evolve if ...
 
     // desirability
-    if (house->desirability < model->evolve_desirability) {
+    if (house->desirability < profile->evolution.evolve_desirability) {
         if (worst_desirability_building) {
-            house->data.house.evolve_text_id = 62;
+            state.evolve_text_id = 62;
         } else {
-            house->data.house.evolve_text_id = 30;
+            state.evolve_text_id = 30;
         }
         return;
     }
-    if (house_object.type && house_object.type->has_housing()) {
-        building_type target =
-            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo);
-        const auto *target_type = target == BUILDING_NONE ? nullptr :
-            building_type_registry_impl::definition_for_type(target);
-        const auto *target_housing = target_type ? target_type->housing_type() : nullptr;
-        model = target_housing ? &target_housing->model() : nullptr;
-        if (!model) {
-            model = model_for_house(house_object);
-        }
-    } else {
-        model = model_get_house(static_cast<house_level>(++level));
+    const auto *target_type = house_object.Housing->transition_target(
+        building_type_registry_impl::HousingTransitionKind::EvolveTo);
+    if (const auto *target_profile = target_type ? target_type->housing_def().profile : nullptr) {
+        profile = target_profile;
+        requirements = &profile->requirements;
     }
     // water
-    water = model->water;
-    if (water == 1 && !house->has_water_access) {
+    water = requirements->water;
+    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
         if (!house->has_well_access) {
-            house->data.house.evolve_text_id = 31;
+            state.evolve_text_id = 31;
             return;
         } else if (!house->has_latrines_access) {
-            house->data.house.evolve_text_id = 68;
+            state.evolve_text_id = 68;
             return;
         }
     }
 
-    if (water == 2 && !house->has_water_access) {
+    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
         if (level >= HOUSE_LARGE_CASA && house->has_well_access && house->has_latrines_access) {
-            house->data.house.evolve_text_id = 32;
+            state.evolve_text_id = 32;
             return;
         }
     }
 
 
     // entertainment
-    entertainment = model->entertainment;
-    if (house->data.house.entertainment < entertainment) {
-        if (!house->data.house.entertainment) {
-            house->data.house.evolve_text_id = 33;
+    entertainment = requirements->entertainment;
+    if (services.entertainment < entertainment) {
+        if (!services.entertainment) {
+            state.evolve_text_id = 33;
         } else if (entertainment < 10) {
-            house->data.house.evolve_text_id = 34;
+            state.evolve_text_id = 34;
         } else if (entertainment < 25) {
-            house->data.house.evolve_text_id = 35;
+            state.evolve_text_id = 35;
         } else if (entertainment < 50) {
-            house->data.house.evolve_text_id = 36;
+            state.evolve_text_id = 36;
         } else if (entertainment < 80) {
-            house->data.house.evolve_text_id = 37;
+            state.evolve_text_id = 37;
         } else {
-            house->data.house.evolve_text_id = 38;
+            state.evolve_text_id = 38;
         }
         return;
     }
     // food types
-    foodtypes_required = model->food_types;
+    foodtypes_required = requirements->food_types;
     if (foodtypes_available < foodtypes_required) {
         if (foodtypes_required == 1) {
-            house->data.house.evolve_text_id = 39;
+            state.evolve_text_id = 39;
             return;
         } else if (foodtypes_required == 2) {
-            house->data.house.evolve_text_id = 40;
+            state.evolve_text_id = 40;
             return;
         } else if (foodtypes_required == 3) {
-            house->data.house.evolve_text_id = 41;
+            state.evolve_text_id = 41;
             return;
         }
     }
     // education
-    education = model->education;
-    if (house->data.house.education < education) {
+    education = requirements->education;
+    if (services.education < education) {
         if (education == 1) {
-            house->data.house.evolve_text_id = 44;
+            state.evolve_text_id = 44;
             return;
         } else if (education == 2) {
-            if (house->data.house.school) {
-                house->data.house.evolve_text_id = 45;
+            if (services.school) {
+                state.evolve_text_id = 45;
                 return;
-            } else if (house->data.house.library) {
-                house->data.house.evolve_text_id = 46;
+            } else if (services.library) {
+                state.evolve_text_id = 46;
                 return;
             }
         } else if (education == 3) {
-            house->data.house.evolve_text_id = 47;
+            state.evolve_text_id = 47;
             return;
         }
     }
     // bathhouse
-    if (house->data.house.bathhouse < model->bathhouse) {
-        house->data.house.evolve_text_id = 48;
+    if (services.bathhouse < requirements->bathhouse) {
+        state.evolve_text_id = 48;
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < model->pottery) {
-        house->data.house.evolve_text_id = 49;
+    if (house->resources[resource_pottery()] < requirements->pottery) {
+        state.evolve_text_id = 49;
         return;
     }
     // religion
-    religion = model->religion;
+    religion = requirements->religion;
     if (religion > 3) {
         religion = 3;
     }
-    if (house->data.house.num_gods < religion) {
+    if (services.num_gods < religion) {
         if (religion == 1) {
-            house->data.house.evolve_text_id = 50;
+            state.evolve_text_id = 50;
             return;
         } else if (religion == 2) {
-            house->data.house.evolve_text_id = 51;
+            state.evolve_text_id = 51;
             return;
         } else if (religion == 3) {
-            house->data.house.evolve_text_id = 52;
+            state.evolve_text_id = 52;
             return;
         }
     }
     // barber
-    if (house->data.house.barber < model->barber) {
-        house->data.house.evolve_text_id = 53;
+    if (services.barber < requirements->barber) {
+        state.evolve_text_id = 53;
         return;
     }
     // health
-    health = model->health;
-    if (house->data.house.health < health) {
+    health = requirements->health;
+    if (services.health < health) {
         if (health == 1) {
-            house->data.house.evolve_text_id = 54;
-        } else if (house->data.house.clinic) {
-            house->data.house.evolve_text_id = 55;
+            state.evolve_text_id = 54;
+        } else if (services.clinic) {
+            state.evolve_text_id = 55;
         } else {
-            house->data.house.evolve_text_id = 56;
+            state.evolve_text_id = 56;
         }
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < model->oil) {
-        house->data.house.evolve_text_id = 57;
+    if (house->resources[resource_oil()] < requirements->oil) {
+        state.evolve_text_id = 57;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < model->furniture) {
-        house->data.house.evolve_text_id = 58;
+    if (house->resources[resource_furniture()] < requirements->furniture) {
+        state.evolve_text_id = 58;
         return;
     }
     // wine
-    wine = model->wine;
+    wine = requirements->wine;
     if (house->resources[resource_wine()] < wine) {
-        house->data.house.evolve_text_id = 59;
+        state.evolve_text_id = 59;
         return;
     }
     if (wine > 1 && !city_resource_multiple_wine_available()) {
-        house->data.house.evolve_text_id = 66;
+        state.evolve_text_id = 66;
         return;
     }
     // house is evolving
-    house->data.house.evolve_text_id = 61;
-    if (house->data.house.no_space_to_expand == 1) {
+    state.evolve_text_id = 61;
+    if (state.no_space_to_expand == 1) {
         // house would like to evolve but can't
-        house->data.house.evolve_text_id = 64;
+        state.evolve_text_id = 64;
     }
 }
 
@@ -761,7 +771,7 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
         if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
             return building_type_registry_impl::type_from_attr("highway");
         } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-            return building_type_registry_impl::type_from_attr("draggable_reservoir");
+            return building_type_registry_impl::type_from_attr("reservoir");
         } else {
             return BUILDING_NONE;
         }
@@ -771,9 +781,12 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
     if (!b || b->state != BUILDING_STATE_IN_USE || other.id == house->id) {
         return BUILDING_NONE;
     }
-    if (b->house_size) {
-        int house_level = building_house_legacy_level(house_object);
-        int other_house_level = building_house_legacy_level(other);
+    if (other.Housing) {
+        const auto *house_profile =
+            house_object.Housing ? house_object.Housing->definition().profile : nullptr;
+        const auto *other_profile = other.Housing->definition().profile;
+        int house_level = house_profile ? house_profile->compatibility_level : -1;
+        int other_house_level = other_profile ? other_profile->compatibility_level : -1;
         if (house_level >= 0 && other_house_level >= house_level) {
             return BUILDING_NONE;
         }

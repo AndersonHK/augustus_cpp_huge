@@ -14,7 +14,7 @@ int formation_legion_recruits_needed(void);
 
 void formation_legion_update_recruit_status(const Building &fort);
 
-void formation_legion_change_layout(formation *m, int new_layout);
+void formation_legion_change_layout(formation *m, const char *layout_key);
 
 void formation_legion_restore_layout(formation *m);
 

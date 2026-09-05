@@ -1,25 +1,21 @@
 #include "building/connectable.h"
-#include "building/house.h"
-#include "building/image.h"
 #include "building/variant.h"
 #include "figuretype/animal.h"
 #include "figuretype/wall.h"
 #include "game/undo.h"
 #include "map/bridge.h"
-#include "map/building_tiles.h"
+#include "map/building.h"
 #include "map/natives.h"
 #include "map/tiles.h"
-#include "map/water.h"
 
 #include "orientation.h"
 
 #include "building/building.h"
+#include "building/BuildingFoundation.h"
 #include "figure/figure.h"
 #include "building/building_record.h"
-#include "building/building_type_registry_internal.h"
 
 #include "assets/assets.h"
-#include "building/properties.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -32,21 +28,26 @@
 #include <math.h>
 #include <stdlib.h>
 
-static int is_vacant_lot_starting_house(const building *b)
-{
-    building_type fill_type = building_type_registry_impl::vacant_lot_fill_type();
-    return b && b->house_population == 0 &&
-        (building_type_registry_impl::type_attr_is(b->type, "house_vacant_lot") ||
-            (fill_type != BUILDING_NONE && b->type == fill_type));
-}
-
 static void determine_leftmost_tile(void)
 {
     int orientation = city_view_orientation();
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            int size = map_property_multi_tile_size(grid_offset);
+            if (map_building_exists_at(grid_offset)) {
+                Building &building = map_building_at(grid_offset);
+                if (building.Foundation && building.Foundation->state().is_published()) {
+                    map_property_clear_draw_tile(grid_offset);
+                    if (building.Foundation->draw_grid_offset(orientation) == grid_offset) {
+                        map_property_mark_draw_tile(grid_offset);
+                    }
+                    continue;
+                }
+            }
+
+            // Ownerless editor/scenario terrain still uses the serialized
+            // square compatibility fields.
+            int size = map_property_legacy_multi_tile_size(grid_offset);
             if (size == 1) {
                 map_property_mark_draw_tile(grid_offset);
                 continue;
@@ -275,53 +276,9 @@ void map_orientation_update_buildings(void)
             b->state == BUILDING_STATE_RUBBLE) {
             return;
         }
-        if (current->refresh_graphic_if_native()) {
-            return;
+        if (current->Foundation) {
+            current->Foundation->refresh();
         }
-        building_type type = b->type;
-        const auto *definition = current->type;
-        if (definition && definition->roadblock().is_wall_gate()) {
-            map_building_tiles_add_remove(*current, b->x, b->y, b->size, building_image_get(current),
-                TERRAIN_GATEHOUSE | TERRAIN_BUILDING, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
-            map_terrain_add_gatehouse_roads(b->x, b->y, 0);
-        } else if (definition && definition->roadblock().has_center_road_passage()) {
-            map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
-            map_terrain_add_triumphal_arch_roads(b->x, b->y, b->subtype.orientation);
-        } else if (building_type_registry_impl::type_attr_is(type, "hippodrome")) {
-            map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
-        } else {
-            static const char *const water_buildings[] = {
-                "shipyard",
-                "wharf",
-            };
-            static const char *const decorative_buildings[] = {
-                "small_statue",
-                "goddess_statue",
-                "senator_statue",
-                "gladiator_statue",
-                "medium_statue",
-                "legion_statue",
-    "pavilion",
-                "horse_statue",
-                "small_mausoleum",
-                "large_mausoleum",
-                "decorative_column",
-            };
-            if ((definition && definition->attr_is("dock")) ||
-                building_type_registry_impl::type_attr_is_any(type,
-                    water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
-                map_water_add_building(*current, b->x, b->y, b->size);
-            } else if (building_type_registry_impl::type_attr_is_any(type, decorative_buildings,
-                    sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||
-                (current->type && current->type->is_watchtower())) {
-                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
-            } else if (definition && definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
-                    definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
-                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
-                map_terrain_add_roadblock_road(b->x, b->y);
-            } else if (is_vacant_lot_starting_house(b)) {
-                map_building_tiles_add(*current, b->x, b->y, b->size, building_image_get(current), TERRAIN_BUILDING);
-            }
-        }
+        current->refresh_graphic();
     });
 }

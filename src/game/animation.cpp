@@ -7,7 +7,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/distribution.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -217,11 +216,13 @@ BuildingAnimation::BuildingAnimation(Building &building)
     , state_record_(building.record_)
     , state_definition_(building.type)
 {
-    Building &owner = building.composition_owner();
-    if (owner.id) {
-        state_building_ = &owner;
-        state_record_ = owner.record_;
-        state_definition_ = owner.type ? owner.type : definition_;
+    Building *owner = building.type && building.type->bridge().is_bridge() ?
+        &building.dynamic_bridge_owner() :
+        (building.Composition ? building.Composition->owner() : &building);
+    if (owner && owner->id) {
+        state_building_ = owner;
+        state_record_ = owner->record_;
+        state_definition_ = owner->type ? owner->type : definition_;
     }
 }
 
@@ -444,12 +445,6 @@ int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
     if (legacy_gate_offset(animation_cursor, &offset)) {
         return offset;
     }
-    if (definition_ && definition_->attr_is("colosseum")) {
-        // The colosseum uses the terrain image as part of the animated facade, so
-        // the legacy cursor is also the map grid offset that must be rewritten.
-        map_image_set(animation_cursor, building_image_get(building_));
-    }
-
     if (!img.animation) {
         return 0;
     }

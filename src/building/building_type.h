@@ -78,12 +78,17 @@ enum {
 #include "graphics/image.h"
 
 #include "city/constants.h"
+#include "building/FoundationDef.h"
+#include "building/HousingDef.h"
+#include "building/CompositionDef.h"
 #include "core/direction.h"
 #include "figure/type.h"
 #include "game/resource.h"
 #include "map/point.h"
 
+#include <memory>
 #include <string>
+#include <array>
 #include <cstdint>
 #include <cstddef>
 #include <optional>
@@ -94,9 +99,9 @@ class FormationType;
 
 namespace building_type_registry_impl {
 
+class BuildingType;
 class ProductionMethod;
 class CultureModule;
-class HousingType;
 class StorageType;
 class Distribution;
 class Religion;
@@ -128,9 +133,8 @@ enum class WaterAccessRequirementTermKind {
     WaterSourceFreshOnly
 };
 
-enum class SpawnMode {
+enum class SpecialSpawnMode {
     None,
-    FigureSpawn,
     TempleSupplier,
     TempleDestinationPriest,
     TempleMarsMessHallPriest,
@@ -150,23 +154,10 @@ enum class RoadAccessMode {
     Normal
 };
 
-enum class RoadblockKind {
-    None,
-    Standard,
-    Storage,
-    Bridge
-};
-
-enum class RoadblockBridgeType {
+enum class BridgeType {
     None,
     Low,
     Ship
-};
-
-enum class RoadblockPassageType {
-    None,
-    WallGate,
-    CenterRoad
 };
 
 enum class TileKind {
@@ -227,13 +218,6 @@ enum class LaborSeekerMethod {
     Workforce
 };
 
-enum class HousingTransitionKind {
-    EvolveTo,
-    DevolveTo,
-    MergeTo,
-    SplitTo
-};
-
 enum class GraphicTiming {
     None,
     OnSpawnEntry,
@@ -284,47 +268,6 @@ enum class ConstructionMode {
     Phased
 };
 
-enum FoundationTerrainRequirement {
-    FoundationTerrainMeadow = 1 << 0,
-    FoundationTerrainRock = 1 << 1,
-    FoundationTerrainTree = 1 << 2,
-    FoundationTerrainWater = 1 << 3,
-    FoundationTerrainWall = 1 << 4,
-    FoundationTerrainDistantWater = 1 << 5
-};
-
-enum class FoundationPolicy {
-    None,
-    Land,
-    Road,
-    RoadOrLand,
-    RoadWallOrLand,
-    Wall,
-    Water,
-    Shoreline,
-    Aqueduct,
-    Custom
-};
-
-enum class FoundationCellRequirement {
-    Land,
-    LandOrAqueduct,
-    Water,
-    Road,
-    RoadOrLand,
-    RoadWallOrLand,
-    Wall,
-    Aqueduct,
-    Any
-};
-
-struct FoundationCellDefinition {
-    int x = 0;
-    int y = 0;
-    int rotation = -1;
-    FoundationCellRequirement requirement = FoundationCellRequirement::Land;
-};
-
 struct LaborSeekerPolicy {
     LaborSeekerMethod method = LaborSeekerMethod::None;
     int amount = 0;
@@ -344,14 +287,12 @@ struct DelayBand {
 };
 
 struct SpawnPolicy {
-    SpawnMode mode = SpawnMode::None;
+    SpecialSpawnMode special_mode = SpecialSpawnMode::None;
     GraphicTiming graphic_timing = GraphicTiming::None;
     FigureSlot figure_slot = FigureSlot::Primary;
     figure_type spawn_figure = FIGURE_NONE;
-    int action_state = 0;
     int spawn_direction = 0;
     int spawn_count = 1;
-    int init_roaming = 0;
     int require_water_access = 0;
     int mark_problem_if_no_water = 0;
     int block_on_success = 0;
@@ -376,17 +317,65 @@ struct SpawnDelayGroup {
 class IdentityDefinition {
 public:
     void set_name_key(std::string key);
+    bool add_alias(std::string alias);
 
     int has_name_key() const;
     const char *name_key() const;
+    bool has_alias(std::string_view alias) const;
+    const std::vector<std::string> &aliases() const;
 
 private:
     std::string name_key_;
+    std::vector<std::string> aliases_;
+};
+
+enum class SmartToolModifier {
+    Any,
+    Control,
+    Shift
+};
+
+enum class SmartToolTarget {
+    DragArea,
+    SingleTarget
+};
+
+enum class SmartToolContext {
+    Default,
+    HoverWater,
+    RoutedSegment
+};
+
+struct SmartToolModeDefinition {
+    SmartToolModifier modifier = SmartToolModifier::Any;
+    SmartToolTarget target = SmartToolTarget::DragArea;
+    SmartToolContext context = SmartToolContext::Default;
+    std::string type_reference;
+    const BuildingType *type = nullptr;
+    int footprint_size = 1;
+};
+
+class SmartToolDef {
+public:
+    void add_mode(SmartToolModeDefinition mode);
+    void resolve_mode_type(std::size_t index, const BuildingType *type);
+
+    const std::vector<SmartToolModeDefinition> &modes() const;
+    const SmartToolModeDefinition *resolve_mode(
+        int control,
+        int shift,
+        SmartToolContext context = SmartToolContext::Default) const;
+    const SmartToolModeDefinition *mode_for_type(
+        const BuildingType *type,
+        SmartToolContext context = SmartToolContext::Default) const;
+    int has_any() const;
+
+private:
+    std::vector<SmartToolModeDefinition> modes_;
 };
 
 class BuildModelDefinition {
 public:
-    void set_size(int value);
     void set_cost(int value);
     void set_hit_points(int value);
     void set_desirability_value(int value);
@@ -394,8 +383,6 @@ public:
     void set_desirability_step_size(int value);
     void set_desirability_range(int value);
 
-    int has_size() const;
-    int size() const;
     int has_cost() const;
     int cost() const;
     int has_hit_points() const;
@@ -411,8 +398,6 @@ public:
     int has_any() const;
 
 private:
-    int has_size_ = 0;
-    int size_ = 0;
     int has_cost_ = 0;
     int cost_ = 0;
     int has_hit_points_ = 0;
@@ -425,32 +410,6 @@ private:
     int desirability_step_size_ = 0;
     int has_desirability_range_ = 0;
     int desirability_range_ = 0;
-};
-
-class FoundationDefinition {
-public:
-    void set_policy(std::string policy, FoundationPolicy type, FoundationCellRequirement requirement);
-    void set_requires_open_water(int value);
-    void add_required_terrain(int flags);
-    void add_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
-
-    int has_policy() const;
-    const char *policy() const;
-    FoundationPolicy policy_type() const;
-    FoundationCellRequirement policy_requirement() const;
-    int requires_open_water() const;
-    int required_terrain() const;
-    int has_cells() const;
-    int has_water_requirement() const;
-    const std::vector<FoundationCellDefinition> &cells() const;
-
-private:
-    std::string policy_;
-    FoundationPolicy policy_type_ = FoundationPolicy::None;
-    FoundationCellRequirement policy_requirement_ = FoundationCellRequirement::Land;
-    int requires_open_water_ = 0;
-    int required_terrain_ = 0;
-    std::vector<FoundationCellDefinition> cells_;
 };
 
 class BuildButtonDefinition {
@@ -483,25 +442,16 @@ private:
     std::string text_key_;
 };
 
-class RoadblockDefinition {
+class BridgeDefinition {
 public:
-    void set_kind(RoadblockKind kind);
-    void set_bridge_type(RoadblockBridgeType type);
-    void set_passage_type(RoadblockPassageType type);
+    void set_type(BridgeType type);
 
-    RoadblockKind kind() const;
-    RoadblockBridgeType bridge_type() const;
-    RoadblockPassageType passage_type() const;
+    BridgeType type() const;
     int is_bridge() const;
     int is_ship_bridge() const;
-    int is_wall_gate() const;
-    int has_center_road_passage() const;
-    int has_any() const;
 
 private:
-    RoadblockKind kind_ = RoadblockKind::None;
-    RoadblockBridgeType bridge_type_ = RoadblockBridgeType::None;
-    RoadblockPassageType passage_type_ = RoadblockPassageType::None;
+    BridgeType type_ = BridgeType::None;
 };
 
 class TileDefinition {
@@ -534,6 +484,8 @@ public:
     void set_kind(ConstructionToolKind kind);
     void set_drag_terrain(ConstructionDragTerrain terrain);
     void set_drag_rotation(ConstructionDragRotation rotation);
+    void add_smart_mode(SmartToolModeDefinition mode);
+    void resolve_smart_mode_type(std::size_t index, const BuildingType *type);
 
     ConstructionToolKind kind() const;
     ConstructionDragTerrain drag_terrain() const;
@@ -551,11 +503,13 @@ public:
     int is_draggable_reservoir() const;
     int is_draggable_building() const;
     int draggable_allows_roads() const;
+    const SmartToolDef &smart_tool() const;
 
 private:
     ConstructionToolKind kind_ = ConstructionToolKind::None;
     ConstructionDragTerrain drag_terrain_ = ConstructionDragTerrain::Land;
     ConstructionDragRotation drag_rotation_ = ConstructionDragRotation::None;
+    SmartToolDef smart_tool_;
 };
 
 class ConstructionCycleDefinition {
@@ -593,18 +547,6 @@ private:
     int city_sound_ = 0;
     int mute_on_enemies_ = 0;
     int always_play_ = 0;
-};
-
-class EventDataDefinition {
-public:
-    void set_attr(std::string attr);
-
-    int has_attr() const;
-    const char *attr() const;
-    int has_any() const;
-
-private:
-    std::string attr_;
 };
 
 class MarketDefinition {
@@ -684,6 +626,7 @@ struct WaterAccessRequirementRule {
 
 class WaterAccessDefinition {
 public:
+    void set_requires_open_water(int required);
     void add_provide_rule(WaterAccessProvideRule rule);
     void add_requirement_rule(WaterAccessRequirementRule rule);
     void add_node(WaterAccessNode node);
@@ -692,6 +635,7 @@ public:
 
     int has_provider() const;
     int has_requirements() const;
+    int requires_open_water() const;
     const std::vector<WaterAccessProvideRule> &provide_rules() const;
     const std::vector<WaterAccessRequirementRule> &requirement_rules() const;
     const std::vector<WaterAccessNode> &nodes() const;
@@ -699,6 +643,7 @@ public:
     const std::vector<WaterAccessNode> &requirement_nodes() const;
 
 private:
+    int requires_open_water_ = 0;
     std::vector<WaterAccessProvideRule> provide_rules_;
     std::vector<WaterAccessRequirementRule> requirement_rules_;
     std::vector<WaterAccessNode> nodes_;
@@ -731,46 +676,57 @@ struct ConstructionRequirement {
 
 struct ConstructionPhase {
     int index = 0;
-    GraphicsTarget graphics;
     std::vector<ConstructionRequirement> requirements;
 };
 
-struct ComposedPartOffset {
+struct RaceRoutePoint {
     int x = 0;
     int y = 0;
-    int has_value = 0;
 };
 
-struct ComposedPartDefinition {
-    std::string type_attr;
-    std::string role;
-    building_type type = BUILDING_NONE;
-    ComposedPartOffset offsets[4];
-
-    ComposedPartOffset offset_for_rotation(int rotation) const;
+struct RaceTeamDefinition {
+    std::string id;
+    int lane = 0;
+    std::string name_key;
+    std::string description_key;
+    std::string tooltip_key;
+    std::string graphics_path;
+    std::string body_entry;
+    std::string vehicle_entry;
+    std::array<RaceRoutePoint, 8> vehicle_offsets = {};
+    std::array<int, 8> vehicle_behind = {};
+    std::string portrait_path;
+    std::string portrait_image;
 };
 
-class ComposedBuildingDefinition {
-public:
-    void set_footprint(int width, int height);
-    void set_child_inherits_orientation(int value);
-    void set_main_offset(int rotation, int x, int y);
-    ComposedPartDefinition &add_part(std::string type_attr, std::string role);
+struct RaceBettingDefinition {
+    int enabled = 0;
+    int wager_step = 10;
+    int normal_multiplier = 2;
+    int festival_multiplier = 4;
+    std::string window;
+};
 
-    int footprint_width() const;
-    int footprint_height() const;
-    int child_inherits_orientation() const;
-    ComposedPartOffset main_offset_for_rotation(int rotation) const;
-    const std::vector<ComposedPartDefinition> &parts() const;
-    std::vector<ComposedPartDefinition> &parts();
-    int has_any() const;
+struct RaceDefinition {
+    std::string participant_figure_reference;
+    figure_type participant_figure = FIGURE_NONE;
+    int laps = 6;
+    int ready_ticks = 30;
+    int minimum_speed = 3;
+    int maximum_speed = 4;
+    int speed_roll = 4;
+    int track_margin = 4;
+    int lane_spacing = 4;
+    std::vector<DelayBand> start_delay_bands;
+    int spawn_x = 2;
+    int spawn_y = 1;
+    int finish_x = 1;
+    int finish_y = 1;
+    std::vector<RaceRoutePoint> route;
+    std::vector<RaceTeamDefinition> teams;
+    RaceBettingDefinition betting;
 
-private:
-    int footprint_width_ = 0;
-    int footprint_height_ = 0;
-    int child_inherits_orientation_ = 0;
-    ComposedPartOffset main_offsets_[4];
-    std::vector<ComposedPartDefinition> parts_;
+    int lane_render_distance(int lane) const { return track_margin + lane * lane_spacing; }
 };
 
 class ConstructionDefinition {
@@ -816,31 +772,29 @@ private:
 class BuildingType {
 public:
     BuildingType(building_type type, std::string attr);
+    // Startup registries parse identity before assigning the deterministic
+    // effective-stack runtime id.
+    void assign_runtime_type(building_type type);
 
     void set_identity_name_key(std::string key);
-    void set_model_size(int value);
+    bool add_identity_alias(std::string alias);
     void set_model_cost(int value);
     void set_model_hit_points(int value);
     void set_model_desirability_value(int value);
     void set_model_desirability_step(int value);
     void set_model_desirability_step_size(int value);
     void set_model_desirability_range(int value);
-    void set_foundation_policy(
-        std::string policy,
-        FoundationPolicy type,
-        FoundationCellRequirement requirement);
-    void set_foundation_requires_open_water(int value);
-    void add_foundation_required_terrain(int flags);
-    void add_foundation_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
+    void set_foundation_reference(std::string path);
+    void set_foundation_definition(const FoundationDef *foundation);
+    int add_foundation_replacement_reference(std::string type);
+    void add_foundation_replacement_type(const BuildingType *type);
     void set_button_group(std::string group);
     void set_button_order(int order);
     void set_button_icon(std::string icon);
     void set_button_icon_image(std::string image);
     void set_button_text_key(std::string key);
     void add_button(BuildButtonDefinition button);
-    void set_roadblock_kind(RoadblockKind kind);
-    void set_roadblock_bridge_type(RoadblockBridgeType type);
-    void set_roadblock_passage_type(RoadblockPassageType type);
+    void set_bridge_type(BridgeType type);
     void set_rubble(RubbleType type);
     void set_rubble_burn_days(int days);
     void set_rubble_decay_reference(std::string attr);
@@ -853,6 +807,8 @@ public:
     void set_tool_kind(ConstructionToolKind kind);
     void set_tool_drag_terrain(ConstructionDragTerrain terrain);
     void set_tool_drag_rotation(ConstructionDragRotation rotation);
+    void add_tool_smart_mode(SmartToolModeDefinition mode);
+    void resolve_tool_smart_mode_type(std::size_t index, const BuildingType *type);
     void set_cycle_group(std::string group);
     void set_cycle_order(int order);
     void set_cycle_steps(int steps);
@@ -860,7 +816,6 @@ public:
     void set_sound_id(int sound);
     void set_sound_mute_on_enemies(int value);
     void set_sound_always_play(int value);
-    void set_event_attr(std::string attr);
     void set_market_max_distance(int value);
     void set_market_max_food_stock(int value);
     void set_fire_proof(int value);
@@ -870,15 +825,11 @@ public:
     void set_military_formation_type(const FormationType *formation);
     void add_water_access_provide_rule(WaterAccessProvideRule rule);
     void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
+    void set_water_access_requires_open_water(int required);
     void add_water_access_node(WaterAccessNode node);
     void add_water_access_provider_node(WaterAccessNode node);
     void add_water_access_requirement_node(WaterAccessNode node);
-    void mark_graphics_default_node();
-    void clear_graphics();
-    GraphicsTarget &default_graphics_target();
-    GraphicsVariant &add_graphics_variant();
-    GraphicsVariant *last_graphics_variant();
-    void add_graphics_variant_condition(GraphicsCondition condition);
+    void set_graphics(BuildingGraphicsDef graphics);
     void set_construction_mode(ConstructionMode mode);
     void set_construction_road_update_radius(int radius);
     void set_construction_free_when_broke_limit(int limit);
@@ -891,12 +842,6 @@ public:
     ConstructionPhase *last_construction_phase();
     void add_instant_construction_requirement(resource_type resource, int amount);
     void add_construction_requirement(resource_type resource, int amount);
-    void set_composed_footprint(int width, int height);
-    void set_composed_child_inherits_orientation(int value);
-    void set_composed_main_offset(int rotation, int x, int y);
-    ComposedPartDefinition &add_composed_part(std::string type_attr, std::string role);
-    void set_composed_part_type(size_t index, building_type type);
-
     void add_spawn_policy(SpawnPolicy policy);
     void set_labor_employee_count(int count);
     void set_labor_seeker_policy(LaborSeekerPolicy policy);
@@ -906,29 +851,28 @@ public:
     void add_storage_reference(std::string path);
     void add_production_method_reference(std::string path);
     void set_distribution_reference(std::string path);
-    void set_housing_reference(std::string path);
-    void set_housing_capacity(int capacity);
-    void set_housing_transition(HousingTransitionKind kind, std::string text_id);
-    void set_vacant_lot_fill_reference(std::string text_id);
     void resolve_culture_module(const std::string &path, const CultureModule *culture_module);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
     void inherit_labor_category(LaborCategory category);
     void set_distribution(const Distribution *distribution);
-    void set_housing_type(const HousingType *housing_type);
     void set_temple_religion(const Religion *religion);
-    void set_housing_transition_type(HousingTransitionKind kind, building_type type);
-    void set_vacant_lot_fill_type(building_type type);
+    void set_race(RaceDefinition race);
 
     building_type type() const;
     const char *attr() const;
     bool attr_is(std::string_view attr) const;
+    bool matches_identity(std::string_view identity) const;
     const IdentityDefinition &identity() const;
     const BuildModelDefinition &model() const;
-    const FoundationDefinition &foundation() const;
+    const FoundationDef *foundation_def() const;
+    const std::string &foundation_reference_path() const;
+    const std::vector<std::string> &foundation_replacement_reference_paths() const;
+    const std::vector<const BuildingType *> &foundation_replacement_types() const;
+    int foundation_may_replace(const BuildingType *type) const;
     const BuildButtonDefinition &button() const;
     const std::vector<BuildButtonDefinition> &buttons() const;
-    const RoadblockDefinition &roadblock() const;
+    const BridgeDefinition &bridge() const;
     const RubbleDef &rubble() const;
     LaborCategory labor_category() const;
     const TileDefinition &tile() const;
@@ -936,22 +880,20 @@ public:
     const ConstructionCycleDefinition &cycle() const;
     const Religion *religion() const;
     const SoundDefinition &sound() const;
-    const EventDataDefinition &event_data() const;
     const MarketDefinition &market() const;
     const BuildingFlagsDefinition &flags() const;
     const MilitaryDefinition &military() const;
     const WaterAccessDefinition &water_access() const;
     const BuildingGraphicsDef &graphics() const;
     const ConstructionDefinition &construction() const;
-    const ComposedBuildingDefinition &composition() const;
+    CompositionDef &composition();
+    const CompositionDef &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
-    int declared_model_size() const;
     int placement_width(int orientation) const;
     int placement_height(int orientation) const;
     figure_type preview_figure_type() const;
     int required_workers() const;
-    int has_data_only_graphics() const;
     int is_temple(
         std::optional<god_type> god = std::nullopt,
         ReligionTier tier = ReligionTier::None) const;
@@ -970,24 +912,20 @@ public:
     int is_armoury() const;
     int is_farm() const;
     int is_storage() const;
+    int is_plague_treatment_target() const;
     resource_type output_resource() const;
     const ProductionMethod *farm_production_method() const;
     const ProductionMethod *farm_panel_production_method() const;
     int has_farm_panel() const;
     int production_is_enabled() const;
-    static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
     int has_identity() const;
     int has_model() const;
-    int has_foundation() const;
-    int foundation_required_terrain() const;
     int has_button() const;
-    int has_roadblock() const;
     int has_rubble() const;
     int has_tile() const;
     int has_cycle() const;
     int has_temple() const;
     int has_sound() const;
-    int has_event_data() const;
     int has_market() const;
     int has_flags() const;
     int has_military() const;
@@ -995,6 +933,7 @@ public:
     int has_graphic() const;
     int has_construction() const;
     int has_composition() const;
+    int has_rotated_placement_geometry() const;
     int has_phased_construction() const;
     int has_labor() const;
     const LaborDefinition &labor() const;
@@ -1003,23 +942,20 @@ public:
     const std::vector<std::string> &storage_reference_paths() const;
     const std::vector<std::string> &production_method_reference_paths() const;
     const std::string &distribution_reference_path() const;
-    const std::string &housing_reference_path() const;
-    const std::string &vacant_lot_fill_reference() const;
     const std::string &temple_religion_reference_path() const;
-    int housing_capacity() const;
-    const std::string &housing_transition_reference(HousingTransitionKind kind) const;
     const std::vector<const StorageType *> &storage_types() const;
     const std::vector<ProductionMethod *> &production_methods() const;
     const Distribution *distribution() const;
-    const HousingType *housing_type() const;
-    building_type housing_transition_type(HousingTransitionKind kind) const;
+    const RaceDefinition &race() const;
+    HousingDef &housing_def();
+    const HousingDef &housing_def() const;
     building_type vacant_lot_fill_type() const;
     int has_native_storage() const;
     int has_native_production() const;
     int has_culture_modules() const;
     int has_distribution() const;
+    int has_race() const;
     int has_housing() const;
-    int housing_level() const;
     int is_vacant_lot() const;
     unsigned char upgrade_level_for(const Building &building) const;
 
@@ -1028,9 +964,12 @@ private:
     std::string attr_;
     IdentityDefinition identity_;
     BuildModelDefinition model_;
-    FoundationDefinition foundation_;
+    std::string foundation_reference_path_;
+    const FoundationDef *foundation_def_ = nullptr;
+    std::vector<std::string> foundation_replacement_reference_paths_;
+    std::vector<const BuildingType *> foundation_replacement_types_;
     std::vector<BuildButtonDefinition> buttons_;
-    RoadblockDefinition roadblock_;
+    BridgeDefinition bridge_;
     RubbleDef rubble_;
     LaborCategory labor_category_ = LaborCategory::None;
     TileDefinition tile_;
@@ -1039,37 +978,26 @@ private:
     std::string religion_reference_path_;
     const Religion *religion_ = nullptr;
     SoundDefinition sound_;
-    EventDataDefinition event_data_;
     MarketDefinition market_;
     BuildingFlagsDefinition flags_;
     MilitaryDefinition military_;
     WaterAccessDefinition water_access_;
-    BuildingGraphicsDef graphics_;
+    std::shared_ptr<const BuildingGraphicsDef> graphics_;
     ConstructionDefinition construction_;
     bool has_construction_ = false;
-    ComposedBuildingDefinition composition_;
+    CompositionDef composition_;
     LaborDefinition labor_;
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<BuildingCultureModule> culture_modules_;
     std::vector<std::string> storage_reference_paths_;
     std::vector<std::string> production_method_reference_paths_;
     std::string distribution_reference_path_;
-    std::string housing_reference_path_;
-    int housing_capacity_ = 0;
-    std::string housing_evolve_to_;
-    std::string housing_devolve_to_;
-    std::string housing_merge_to_;
-    std::string housing_split_to_;
-    std::string vacant_lot_fill_to_;
+    HousingDef housing_def_;
     std::vector<const StorageType *> storage_types_;
     std::vector<ProductionMethod *> production_methods_;
     const Distribution *distribution_ = nullptr;
-    const HousingType *housing_type_ = nullptr;
-    building_type housing_evolve_to_type_ = BUILDING_NONE;
-    building_type housing_devolve_to_type_ = BUILDING_NONE;
-    building_type housing_merge_to_type_ = BUILDING_NONE;
-    building_type housing_split_to_type_ = BUILDING_NONE;
-    building_type vacant_lot_fill_type_ = BUILDING_NONE;
+    RaceDefinition race_;
+    int has_race_ = 0;
 };
 
 } // namespace building_type_registry_impl

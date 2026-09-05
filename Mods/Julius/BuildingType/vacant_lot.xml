@@ -1,15 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="vacant_lot">
-    <identity name_key="TR_BUILDING_VACANT_LOT" />
-    <model size="1" cost="10" />
+    <identity name_key="TR_BUILDING_VACANT_LOT" aliases="house_vacant_lot" />
+    <model cost="10" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
-    <event_data attr="vacant_lot|house_vacant_lot" />
-    <housing path="house_small_tent" capacity="5" />
+    <foundation path="land_1x1" />
+    <housing path="house_small_tent" capacity="5" goods_consumption_events_per_month="1" mars_offering_amount="1" />
     <vacant_lot fill_to="house_small_tent" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\House_Vacant_Lot" />
+            <image value="Image_0000" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Vacant_Lot_Northern" />
+            <image value="Image_0000" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Vacant_Lot_Desert" />
+            <image value="Image_0000" />
+        </variant>
+    </graphics>
 </building>

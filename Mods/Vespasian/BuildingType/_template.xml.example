@@ -2,14 +2,15 @@
 <building type="replace_with_building_attr">
     <!-- Optional build-authority metadata -->
     <identity name_key="translation.key.for.localized.building.name" />
-    <model size="2" cost="80" />
+    <model cost="80" />
     <desirability>
         <value value="-3" />
         <step value="1" />
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <!-- Resolves Mods/<Mod>/Foundations/land_2x2.xml. -->
+    <foundation path="land_2x2" />
     <button group="industry" order="100" icon="Industry\Example_Icon"
         text_key="translation.key.for.localized.building.name" />
 
@@ -34,6 +35,8 @@
 
     <!-- Optional graphics definition -->
     <graphics>
+        <!-- Optional BuildingType-owned mothball/stockpile icon base anchor. -->
+        <!-- <status_icon x="0" y="0" /> -->
         <default>
             <path value="Health_Culture\Example_Base" />
             <!-- Options inherit the target path unless an option provides its own path. -->
@@ -81,7 +84,8 @@
     </production_methods>
 
     <!-- Optional native housing reference -->
-    <housing path="example_housing_type" evolve_to="next_house_type" devolve_to="previous_house_type"
+    <housing path="example_housing_profile" capacity="5" goods_consumption_events_per_month="1"
+        mars_offering_amount="1" evolve_to="next_house_type" devolve_to="previous_house_type"
         merge_to="merged_house_type" split_to="split_house_type" />
 
     <!-- Optional shared-delay spawn group -->

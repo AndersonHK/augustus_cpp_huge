@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="aqueduct_1x1" width="1" height="1" rotates="false">
+    <profile symbol="A" requires="road_or_land" adds="building aqueduct" />
+    <rows><row cells="A" /></rows>
+</foundation>

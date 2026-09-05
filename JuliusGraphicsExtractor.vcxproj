@@ -14,13 +14,12 @@
     <ClCompile Include="tools\julius_graphics_extractor\main.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\extractor_shims.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c" />
-    <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
+    <ClCompile Include="src\assets\graphics_extraction_client.cpp" />
     <ClCompile Include="src\assets\image_copy.cpp" />
     <ClCompile Include="src\core\buffer.cpp" />
     <ClCompile Include="src\core\image.cpp" />
     <ClCompile Include="src\core\image_packer.cpp" />
     <ClCompile Include="src\core\io.cpp" />
-    <ClCompile Include="src\core\legacy_image_extractor.cpp" />
     <ClCompile Include="src\core\png_read.cpp" />
     <ClCompile Include="src\core\xml_parser.cpp" />
     <ClCompile Include="src\graphics\image.cpp" />
@@ -29,8 +28,9 @@
     <ClCompile Include="ext\spng\spng.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\assets\graphics_extractor_common.h" />
-    <ClInclude Include="src\core\legacy_image_extractor.h" />
+    <ClInclude Include="src\assets\graphics_extraction_client.h" />
+    <ClInclude Include="src\assets\graphics_extraction_abi.h" />
+    <ClInclude Include="src\assets\graphics_extractor_shims.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -100,6 +100,13 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="GraphicsExtractor.vcxproj">
+      <Project>{4b1435bb-86c6-47ec-9d40-31c955b1bfd4}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

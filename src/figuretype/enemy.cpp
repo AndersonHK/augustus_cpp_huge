@@ -6,14 +6,16 @@
 #include "city/sound.h"
 #include "core/calc.h"
 #include "core/image.h"
+#include "core/log.h"
 #include "figure/combat.h"
+#include "figure/FigureGraphics.h"
 #include "figure/formation.h"
 #include "figure/formation_enemy.h"
 #include "figure/formation_layout.h"
 #include "figure/image.h"
 #include "figure/movement.h"
-#include "figure/properties.h"
 #include "figure/route.h"
+#include "figure/unit_type.h"
 #include "figuretype/missile.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -89,9 +91,9 @@ static void enemy_initial(Figure *f, formation *m)
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         if (f->is_ghost && f->index_in_formation == 0 && static_cast<unsigned int>(m->roster_figure_id(0)) == f->id()) {
-            if (m->layout == FORMATION_ENEMY_MOB) {
+    if (m->uses_layout("enemy_mob")) {
                 sound_speech_play_file("wavs/drums.wav");
-            } else if (m->layout == FORMATION_ENEMY12) {
+    } else if (m->uses_layout("enemy_12")) {
                 sound_speech_play_file("wavs/horn2.wav");
             } else {
                 sound_speech_play_file("wavs/horn1.wav");
@@ -108,15 +110,16 @@ static void enemy_initial(Figure *f, formation *m)
             }
         }
     }
-    if (f->type == FIGURE_ENEMY43_SPEAR || f->type == FIGURE_ENEMY46_CAMEL ||
-        f->type == FIGURE_ENEMY51_SPEAR || f->type == FIGURE_ENEMY52_MOUNTED_ARCHER ||
-        f->type == FIGURE_ENEMY_CATAPULT) {
-        // missile throwers
+    const UnitType *unit =
+        unit_type_registry_impl::find_unit_type(static_cast<figure_type>(f->type));
+    const UnitRangedAbility *ranged = unit ? unit->ranged_ability() : nullptr;
+    if (ranged) {
         f->wait_ticks_missile++;
         map_point tile = { 0, 0 };
-        if (f->wait_ticks_missile > figure_properties_for_type(static_cast<figure_type>(f->type))->missile_delay) {
+        if (f->wait_ticks_missile > ranged->cooldown) {
             f->wait_ticks_missile = 0;
-            if (figure_combat_get_missile_target_for_enemy(f, 10, city_figures_soldiers() < 4, &tile)) {
+            if (figure_combat_get_missile_target_for_enemy(
+                    f, ranged->range, city_figures_soldiers() < 4, &tile)) {
                 f->attack_image_offset = 1;
                 f->direction =
                     static_cast<signed char>(calc_missile_shooter_direction(f->x, f->y, tile.x, tile.y));
@@ -125,27 +128,13 @@ static void enemy_initial(Figure *f, formation *m)
             }
         }
         if (f->attack_image_offset) {
-            figure_type missile_type;
-            switch (m->enemy_type) {
-                case ENEMY_4_GOTH:
-                case ENEMY_5_PERGAMUM:
-                case ENEMY_9_EGYPTIAN:
-                case ENEMY_10_CARTHAGINIAN:
-                    missile_type = FIGURE_ARROW;
-                    break;
-                case FIGURE_ENEMY_CATAPULT:
-                    missile_type = FIGURE_CATAPULT_MISSILE;
-                    break;
-                default:
-                    missile_type = FIGURE_SPEAR;
-                    break;
-            }
-            if (f->attack_image_offset == 1) {
+            const figure_type missile_type = ranged->projectile_for_enemy(m->enemy_type).type;
+            if (f->attack_image_offset == ranged->launch_frame) {
                 if (tile.x == -1 || tile.y == -1) {
                     map_point_get_last_result(&tile);
                 }
                 figure_create_missile(f->id(), f->x, f->y, tile.x, tile.y, missile_type);
-                formation_record_missile_fired(m);
+                m->record_missile_fired();
                 if (missile_type == FIGURE_ARROW && city_sound_update_shoot_arrow()) {
                     sound_effect_play(SOUND_EFFECT_ARROW);
                 }
@@ -169,13 +158,8 @@ static void enemy_marching(Figure *f, const formation *m)
             f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
             return;
         }
-        Building *destination = nullptr;
-        Building::for_each([&](Building *building) {
-            if (!destination && building && building->id == static_cast<unsigned int>(m->destination_building_id)) {
-                destination = building;
-            }
-        });
-        f->destination_building = destination;
+        Building *destination = Building::get(static_cast<unsigned int>(m->destination_building_id));
+        f->set_destination_building(destination);
         Route::remove(f);
     }
     figure_movement_move_ticks(f, f->speed_multiplier);
@@ -240,8 +224,7 @@ static void enemy_action(Figure *f, formation *m)
 {
     city_figures_add_enemy();
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
-    const FormationLayoutPosition position =
-        formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
+    const FormationLayoutPosition position = m->layout_position(f->index_in_formation);
     f->formation_position_x.enemy = static_cast<signed char>(position.x);
     f->formation_position_y.enemy = static_cast<signed char>(position.y);
 
@@ -328,7 +311,8 @@ void figure_enemy43_spear_action(Figure *f)
         const int frame_offset = f->attack_image_offset >= 12 ? (f->attack_image_offset - 12) / 2 : 0;
         f->select_legacy_directional_frame_image(745, dir, frame_offset);
     } else if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL) {
-        f->select_legacy_directional_frame_image(697, dir, figure_image_missile_launcher_offset(f));
+        f->select_legacy_directional_frame_image(
+            697, dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(793);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
@@ -419,7 +403,8 @@ void figure_enemy_camel_action(Figure *f)
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK && f->direction != DIR_FIGURE_ATTACK) {
         f->select_legacy_directional_frame_image(601, dir, 0);
     } else if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL && f->direction != DIR_FIGURE_ATTACK) {
-        f->select_legacy_directional_frame_image(697, dir, figure_image_missile_launcher_offset(f));
+        f->select_legacy_directional_frame_image(
+            697, dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else {
         f->select_legacy_directional_frame_image(601, dir, f->image_offset);
     }
@@ -554,7 +539,8 @@ void figure_enemy51_spear_action(Figure *f)
         const int frame_offset = f->attack_image_offset >= 12 ? (f->attack_image_offset - 12) / 2 : 0;
         f->select_legacy_directional_frame_image(593, dir, frame_offset);
     } else if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL) {
-        f->select_legacy_directional_frame_image(545, dir, figure_image_missile_launcher_offset(f));
+        f->select_legacy_directional_frame_image(
+            545, dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         f->select_legacy_corpse_image(641);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
@@ -580,7 +566,8 @@ void figure_enemy52_mounted_archer_action(Figure *f)
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK && f->direction != DIR_FIGURE_ATTACK) {
         f->select_legacy_directional_frame_image(601, dir, 0);
     } else if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL && f->direction != DIR_FIGURE_ATTACK) {
-        f->select_legacy_directional_frame_image(697, dir, figure_image_missile_launcher_offset(f));
+        f->select_legacy_directional_frame_image(
+            697, dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
     } else {
         f->select_legacy_directional_frame_image(601, dir, f->image_offset);
     }
@@ -647,7 +634,14 @@ void figure_enemy_gladiator_action(Figure *f)
                     f->destination_x = static_cast<unsigned char>(x_tile);
                     f->destination_y = static_cast<unsigned char>(y_tile);
                     const int grid_offset = map_grid_offset(x_tile, y_tile);
-                    f->destination_building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset).main() : nullptr;
+                    Building *destination = nullptr;
+                    if (map_building_exists_at(grid_offset)) {
+                        Building &selected = map_building_at(grid_offset);
+                        destination = selected.type && selected.type->bridge().is_bridge() ?
+                            &selected.dynamic_bridge_owner() :
+                            (selected.Composition ? selected.Composition->owner() : &selected);
+                    }
+                    f->set_destination_building(destination);
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -712,7 +706,7 @@ void figure_enemy_caesar_legionary_action(Figure *f)
             f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CAESAR_LEGIONARY) + 152);
             break;
         case FIGURE_ACTION_84_SOLDIER_AT_STANDARD:
-            if (m->is_halted && m->layout == FORMATION_COLUMN && m->missile_attack_timeout) {
+    if (m->is_halted && m->uses_layout("column") && m->missile_attack_timeout) {
                 f->select_legacy_directional_frame_image(
                     image_group(GROUP_BUILDING_FORT_LEGIONARY) + 144,
                     dir,

@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="bathhouse">
     <identity name_key="main_strings.28.48" />
-    <model size="2" cost="50" />
+    <model cost="50" />
     <desirability>
         <value value="4" />
         <step value="1" />
         <step_size value="-1" />
         <range value="4" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="land_2x2" />
     <button group="health" order="20" icon="Health_Culture\Bathhouse_No_Water" text_key="main_strings.28.48" />
     <sound id="bathhouse" mute_on_enemies="true" />
-    <event_data attr="bathhouse" />
     <water_access>
         <requires mode="all">
             <access type="reservoir" />
@@ -45,8 +44,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="bathhouse_worker">
-        <spawn mode="profiled_figure" spawn_figure="bathhouse_worker"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true"
+        <spawn spawn_figure="bathhouse_worker" direction="top" figure_slot="primary"
             graphic_timing="before_delay_check" require_water_access="true" mark_problem_if_no_water="true" profile="service" />
     </spawn_group>
 </building>

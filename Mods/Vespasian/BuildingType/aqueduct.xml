@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="aqueduct">
     <identity name_key="main_strings.28.8" />
-    <model size="1" cost="8" />
+    <model cost="8" />
     <desirability>
         <value value="-2" />
         <step value="1" />
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation path="aqueduct_1x1" replaces="aqueduct" />
     <tool kind="aqueduct" />
     <button group="water" order="20" text_key="main_strings.28.8" />
-    <event_data attr="aqueduct" />
     <flags fire_proof="1" />
     <graphics>
         <default>
