@@ -317,7 +317,7 @@ static int destination_dock_ready_for_ship(Figure &ship)
 Building *building_dock_get_destination(Figure &ship, const Building *exclude_dock, map_point *tile)
 {
     int total_docks = 0;
-    for (Building dock : Building::of_type(dock_type())) {
+    for (const Building &dock : Building::of_type(dock_type())) {
         if (dock.is_in_use() && dock.is_working()) {
             total_docks++;
         }

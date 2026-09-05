@@ -9,6 +9,7 @@
 #include "assets/image_group_entry.h"
 #include "building/building.h"
 #include "building/building_type.h"
+#include "building/production.h"
 #include "figure/figure.h"
 #include "game/resource.h"
 
@@ -108,6 +109,7 @@ public:
     void release_legacy_storage_reservation(const Figure &figure);
     void release_all_legacy_storage_reservations();
     void rebind_definition(const building_type_registry_impl::BuildingType *definition);
+    Production *production_for_method(size_t method_index);
 
     void check_labor_problem();
     void run_labor_phase_if_defined(const map_point &road);
@@ -267,6 +269,7 @@ private:
     std::unique_ptr<building_type_registry_impl::BuildingFoundation> foundation_module_;
     std::unique_ptr<HousingModule> housing_module_;
     BuildingComposition composition_module_;
+    std::vector<std::unique_ptr<Production>> productions_;
     std::vector<unsigned char> spawn_delay_counters_;
     std::vector<LegacyStorageReservation> legacy_storage_reservations_;
     CachedGraphicsBindings graphics_cache_;

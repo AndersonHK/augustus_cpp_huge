@@ -25,29 +25,33 @@ const figure_type_registry_impl::FigureGraphics &destination_graphics()
     return *graphics;
 }
 
-FigureGraphicDrawRequest destination_draw_request(const formation &owner, int animation_frame)
+} // namespace
+
+FigureGraphicDrawRequest FormationDestination::graphic_draw_request() const
 {
+    const formation &owner = *owner_;
     const figure_type_registry_impl::FigureGraphics &graphics = destination_graphics();
     const int pole_frame = std::clamp(20 - owner.morale / 5, 0, 20);
     const figure_type_registry_impl::FigureGraphicsLayerSet layers = graphics.standard_layers(
-        owner.figure_type_id(), owner.is_halted, owner.legion_flag_id, pole_frame, animation_frame);
+        owner.figure_type_id(), owner.is_halted, owner.legion_flag_id, pole_frame, animation_frame_);
 
     FigureGraphicDrawRequest request;
     request.sprite_offset_x = layers.sprite_offset.x;
     request.sprite_offset_y = layers.sprite_offset.y;
-    request.required_layer_count = 3;
-    for (int index = 0; index < layers.count; index++) {
+    // The pole defines the composite's coordinate scale. Treating it as an
+    // overlay left the request using the unrelated default soldier scale.
+    if (layers.count > 0) request.set_base_slice(layers.layers[0].slice);
+    request.required_layer_count = 2;
+    for (int index = 1; index < layers.count; index++) {
         if (!request.add_layer(layers.layers[index])) break;
     }
-    if (!request.is_semantically_complete()) {
+    if (!request.has_base_slice() || !request.is_semantically_complete()) {
         const char *definition = owner.formation_type_definition ? owner.formation_type_definition->key() : "missing_definition";
         log_error("Formation destination graphics request is incomplete", definition, static_cast<int>(owner.id));
         std::terminate();
     }
     return request;
 }
-
-} // namespace
 
 FormationDestination &FormationDestination::operator=(const FormationDestination &)
 {
@@ -128,7 +132,7 @@ void FormationDestination::draw_at(int grid_offset, int screen_x, int screen_y, 
 
 void FormationDestination::draw(int screen_x, int screen_y, float scale, color_t color_mask) const
 {
-    const FigureGraphicDrawRequest request = destination_draw_request(*owner_, animation_frame_);
+    const FigureGraphicDrawRequest request = graphic_draw_request();
     // The asset's sprite offset identifies the bottom of the pole. It is the
     // standard's baseline and belongs exactly at the center of the anchor tile.
     request.draw_with_baseline_at_tile_center(screen_x, screen_y, color_mask, scale);

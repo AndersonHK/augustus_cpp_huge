@@ -87,6 +87,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->load_save_test_count = 0;
     output_args->save_roundtrip_test_count = 0;
     output_args->save_soak_ticks = 0;
+    output_args->formation_test = 0;
 
     for (int i = 1; i < argc; i++) {
         // we ignore "-psn" arguments, this is needed to launch the app
@@ -155,6 +156,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
             output_args->disable_audio = 1;
         } else if (SDL_strcmp(argv[i], "--startup-test") == 0) {
             output_args->startup_test = 1;
+        } else if (SDL_strcmp(argv[i], "--formation-test") == 0) {
+            output_args->formation_test = 1;
         } else if (SDL_strcmp(argv[i], "--load-save-test") == 0) {
             if (i + 1 < argc) {
                 if (output_args->load_save_test_count < MAX_LOAD_SAVE_TESTS) {
@@ -208,6 +211,10 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     }
     if (output_args->save_soak_ticks && !output_args->load_save_test_count) {
         print_log("Option --save-soak-ticks requires --load-save-test");
+        ok = 0;
+    }
+    if (output_args->formation_test && !output_args->load_save_test_count) {
+        print_log("Option --formation-test requires --load-save-test");
         ok = 0;
     }
     if (output_args->save_roundtrip_test_count && !output_args->load_save_test_count) {

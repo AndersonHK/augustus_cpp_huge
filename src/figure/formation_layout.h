@@ -32,26 +32,30 @@ struct FormationLayoutPosition {
     int y;
 };
 
+enum class FormationLayoutShape { Square, Ranks, Staggered, Scatter };
+
+// Shape policy applies to every capacity. Save ids never select geometry.
+struct FormationLayoutGeometry {
+    FormationLayoutShape shape = FormationLayoutShape::Square;
+    bool centered = false;
+    bool transpose = false;
+    int spacing_percent = 100;
+};
+
 class FormationLayoutDef {
 public:
     using ArmyOffsets = std::array<std::vector<FormationLayoutPosition>, 4>;
 
-    FormationLayoutDef(
-        std::string key,
-        int legacy_id,
-        std::vector<FormationLayoutPosition> positions,
-        ArmyOffsets army_offsets,
-        std::string army_offsets_reference,
-        int stationary_facing = DIR_8_NONE);
+    FormationLayoutDef(std::string key, int legacy_id, FormationLayoutGeometry geometry, ArmyOffsets army_offsets, std::string army_offsets_reference, int stationary_facing = DIR_8_NONE, bool restore_when_idle = true);
 
     int stationary_facing;
+    const bool restore_when_idle;
 
     const char *key() const;
     bool matches_key(const char *key) const;
     int legacy_id() const;
-    int authored_position_count() const;
+    const FormationLayoutGeometry &geometry() const { return geometry_; }
     bool try_position(int index, int declared_capacity, int grid_width, int grid_height, FormationLayoutPosition *position) const;
-    bool positions(int live_slot_count, int declared_capacity, int grid_width, int grid_height, std::vector<FormationLayoutPosition> *positions) const;
     bool has_authored_army_offsets() const;
     const char *army_offsets_reference() const;
     void bind_army_offsets_reference(const FormationLayoutDef *layout);
@@ -60,7 +64,7 @@ public:
 private:
     std::string key_;
     int legacy_id_ = 0;
-    std::vector<FormationLayoutPosition> positions_;
+    FormationLayoutGeometry geometry_;
     ArmyOffsets army_offsets_;
     std::string army_offsets_reference_;
     const FormationLayoutDef *army_offsets_definition_ = nullptr;
@@ -97,7 +101,7 @@ typedef struct {
     int suppressed_count;
     int queried_disabled;
     int queried_legacy_id;
-    int queried_position_count;
+    FormationLayoutShape queried_shape;
     int queried_source_layer;
 } formation_layout_layer_test_result;
 

@@ -1036,30 +1036,60 @@ static int record_dock(Figure *ship, const Building &dock)
     return 1;
 }
 
-void figure_trade_ship_destination_removed(Figure *f)
+static void send_trade_ship_to_dock(Figure *ship, Building &dock, const map_point &destination, int action)
 {
-    if (!f || !f->state || f->action_state == FIGURE_ACTION_115_TRADE_SHIP_LEAVING) {
-        return;
+    ship->set_destination_building(&dock);
+    ship->action_state = static_cast<unsigned char>(action);
+    ship->destination_x = static_cast<unsigned char>(destination.x);
+    ship->destination_y = static_cast<unsigned char>(destination.y);
+    ship->wait_ticks = 0;
+    Route::remove(ship);
+    ship->direction = DIR_FIGURE_REROUTE;
+    if (action == FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK) {
+        record_for(&dock)->data.dock.trade_ship_id = static_cast<short>(ship->id());
+    }
+}
+
+static void reroute_trade_ship(Figure *f, const Building *exclude_dock)
+{
+    Building *previous_dock = f->destination_building;
+    building *record = record_for(previous_dock);
+    if (record && (unsigned int) record->data.dock.trade_ship_id == f->id()) {
+        record->data.dock.trade_ship_id = 0;
+        record->data.dock.queued_docker_id = 0;
+        record->data.dock.num_ships = 0;
     }
     Route::remove(f);
     f->wait_ticks = 0;
+    f->trade_ship_failed_dock_attempts = 0;
     map_point destination;
-    if (Building *dock = building_dock_get_destination(*f, nullptr, &destination)) {
-        f->set_destination_building(dock);
-        f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-        f->destination_x = static_cast<unsigned char>(destination.x);
-        f->destination_y = static_cast<unsigned char>(destination.y);
-        f->direction = DIR_FIGURE_REROUTE;
+    if (Building *dock = building_dock_get_destination(*f, exclude_dock, &destination)) {
+        send_trade_ship_to_dock(f, *dock, destination, FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE);
         return;
     }
 
-    destination = scenario_map_has_river_exit() ? scenario_map_river_exit() : scenario_map_river_entry();
+    f->set_destination_building(nullptr);
+    destination = scenario_map_river_entry();
+    if (scenario_map_has_river_exit()) {
+        const map_point exit = scenario_map_river_exit();
+        if (map_grid_chess_distance(f->grid_offset, map_grid_offset(exit.x, exit.y)) <
+            map_grid_chess_distance(f->grid_offset, map_grid_offset(destination.x, destination.y))) {
+            destination = exit;
+        }
+    }
     f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
     f->destination_x = static_cast<unsigned char>(destination.x);
     f->destination_y = static_cast<unsigned char>(destination.y);
     f->direction = DIR_FIGURE_REROUTE;
     f->image_offset = 0;
     city_message_reset_category_count(MESSAGE_CAT_BLOCKED_DOCK);
+}
+
+void figure_trade_ship_destination_removed(Figure &ship, const Building &removed_dock)
+{
+    // The event carries the removed endpoint after the relationship is cleared.
+    // Exclude it explicitly: deletion has not necessarily retired its record yet.
+    if (ship.action_state != FIGURE_ACTION_115_TRADE_SHIP_LEAVING) reroute_trade_ship(&ship, &removed_dock);
 }
 
 void figure_trade_ship_action(Figure *f)
@@ -1086,10 +1116,7 @@ void figure_trade_ship_action(Figure *f)
                 map_point queue_tile;
                 Building *destination_dock = building_dock_get_destination(*f, nullptr, &queue_tile);
                 if (destination_dock) {
-                    f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-                    f->destination_x = static_cast<unsigned char>(queue_tile.x);
-                    f->destination_y = static_cast<unsigned char>(queue_tile.y);
-    f->set_destination_building(destination_dock);
+                    send_trade_ship_to_dock(f, *destination_dock, queue_tile, FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE);
                     f->wait_ticks = FIGURE_REROUTE_DESTINATION_TICKS;
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -1114,32 +1141,11 @@ void figure_trade_ship_action(Figure *f)
             } else if (f->wait_ticks++ >= FIGURE_REROUTE_DESTINATION_TICKS) {
                 f->wait_ticks = 0;
                 map_point tile;
-                Building *destination_dock = building_dock_get_destination(*f, nullptr, &tile);
-                if (!f->destination_building && destination_dock) {
-                    f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                    f->destination_x = static_cast<unsigned char>(tile.x);
-                    f->destination_y = static_cast<unsigned char>(tile.y);
-                    Route::remove(f);
-                }
-                destination_dock = building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile);
-                if (destination_dock) {
-                    f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                    f->destination_x = static_cast<unsigned char>(tile.x);
-                    f->destination_y = static_cast<unsigned char>(tile.y);
-                    Route::remove(f);
-                } else if (!f->destination_building ||
-                    !building_dock_is_working(*f->destination_building) ||
+                if (Building *dock = building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile)) {
+                    send_trade_ship_to_dock(f, *dock, tile, FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE);
+                } else if (!f->destination_building || !building_dock_is_working(*f->destination_building) ||
                     !building_dock_accepts_ship(*f, *f->destination_building)) {
-                    destination_dock = building_dock_get_destination(*f, nullptr, &tile);
-                    if (destination_dock) {
-                        f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                        f->destination_x = static_cast<unsigned char>(tile.x);
-                        f->destination_y = static_cast<unsigned char>(tile.y);
-                        Route::remove(f);
-                    }
+                    reroute_trade_ship(f, f->destination_building);
                 }
             }
             break;
@@ -1153,54 +1159,18 @@ void figure_trade_ship_action(Figure *f)
                 if (!f->destination_building ||
                     !building_dock_is_working(*f->destination_building) ||
                     !building_dock_accepts_ship(*f, *f->destination_building)) {
-                    Building *destination_dock = building_dock_get_destination(*f, f->destination_building, &tile);
-                    if (destination_dock) {
-                        f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                        f->destination_x = static_cast<unsigned char>(tile.x);
-                        f->destination_y = static_cast<unsigned char>(tile.y);
-                    } else {
-                        f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
-                        f->wait_ticks = 0;
-                        map_point river_exit = scenario_map_river_exit();
-                        f->destination_x = static_cast<unsigned char>(river_exit.x);
-                        f->destination_y = static_cast<unsigned char>(river_exit.y);
-                        switch (f->destination_building ? f->destination_building->dock_orientation() : 0) {
-                            case 0: f->direction = DIR_2_RIGHT; break;
-                            case 1: f->direction = DIR_4_BOTTOM; break;
-                            case 2: f->direction = DIR_6_LEFT; break;
-                            default:f->direction = DIR_0_TOP; break;
-                        }
-                        f->image_offset = 0;
-                        city_message_reset_category_count(MESSAGE_CAT_BLOCKED_DOCK);
-                    }
+                    reroute_trade_ship(f, f->destination_building);
                 } else if (building_dock_request_docking(*f, *f->destination_building, &tile)) {
-                    f->action_state = FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK;
-                    f->destination_x = static_cast<unsigned char>(tile.x);
-                    f->destination_y = static_cast<unsigned char>(tile.y);
-                    building *record = record_for(f->destination_building);
-                    if (record) {
-                        record->data.dock.trade_ship_id = static_cast<short>(f->id());
-                    }
+                    send_trade_ship_to_dock(f, *f->destination_building, tile, FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK);
                 } else {
                     Building *destination_dock =
                         building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_1_DOCKING, &tile);
                     if (destination_dock && building_dock_request_docking(*f, *destination_dock, &tile)) {
-                        f->action_state = FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK;
-    f->set_destination_building(destination_dock);
-                        f->destination_x = static_cast<unsigned char>(tile.x);
-                        f->destination_y = static_cast<unsigned char>(tile.y);
-                        building *record = record_for(f->destination_building);
-                        if (record) {
-                            record->data.dock.trade_ship_id = static_cast<short>(f->id());
-                        }
+                        send_trade_ship_to_dock(f, *destination_dock, tile, FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK);
                     } else {
                         destination_dock = building_dock_reposition_anchored_ship(*f, &tile);
                         if (destination_dock) {
-                            f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                            f->destination_x = static_cast<unsigned char>(tile.x);
-                            f->destination_y = static_cast<unsigned char>(tile.y);
+                            send_trade_ship_to_dock(f, *destination_dock, tile, FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE);
                         }
                     }
                 }
@@ -1234,42 +1204,7 @@ void figure_trade_ship_action(Figure *f)
                 !building_dock_is_working(*f->destination_building) ||
                 !building_dock_accepts_ship(*f, *f->destination_building) ||
                 trade_dock_ignoring_ship(f)) {
-                building *record = record_for(f->destination_building);
-                if (record && (unsigned int) record->data.dock.trade_ship_id == f->id()) {
-                    record->data.dock.trade_ship_id = 0;
-                }
-                map_point tile;
-                Building *destination_dock = building_dock_get_destination(*f, f->destination_building, &tile);
-                if (destination_dock) {
-                    f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
-    f->set_destination_building(destination_dock);
-                    f->destination_x = static_cast<unsigned char>(tile.x);
-                    f->destination_y = static_cast<unsigned char>(tile.y);
-                } else {
-                    building *dst = record_for(f->destination_building);
-    f->set_destination_building(nullptr);
-                    f->trade_ship_failed_dock_attempts = 0;
-                    f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
-                    f->wait_ticks = 0;
-                    map_point river_entry = scenario_map_river_entry();
-                    map_point river_spot;
-                    if (scenario_map_has_river_exit()) {
-                        map_point river_exit = scenario_map_river_exit();
-                        int exit_grid_offset = map_grid_offset(river_exit.x, river_exit.y);
-                        int exit_distance = map_grid_chess_distance(f->grid_offset, exit_grid_offset);
-                        int entrance_grid_offset = map_grid_offset(river_entry.x, river_entry.y);
-                        int entrance_distance = map_grid_chess_distance(f->grid_offset, entrance_grid_offset);
-                        river_spot = exit_distance < entrance_distance ? river_exit : river_entry;
-                    } else {
-                        river_spot = river_entry;
-                    }
-                    f->destination_x = static_cast<unsigned char>(river_spot.x);
-                    f->destination_y = static_cast<unsigned char>(river_spot.y);
-                    if (dst) {
-                        dst->data.dock.queued_docker_id = 0;
-                        dst->data.dock.num_ships = 0;
-                    }
-                }
+                reroute_trade_ship(f, f->destination_building);
             } else {
                 switch (f->destination_building->dock_orientation()) {
                     case 0: f->direction = DIR_2_RIGHT; break;
@@ -1284,7 +1219,6 @@ void figure_trade_ship_action(Figure *f)
         }
         case FIGURE_ACTION_115_TRADE_SHIP_LEAVING:
             figure_movement_move_ticks_with_percentage(f, 1, move_speed);
-    f->set_destination_building(nullptr);
             f->height_adjusted_ticks = 0;
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_110_TRADE_SHIP_CREATED;

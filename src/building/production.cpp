@@ -57,14 +57,11 @@ void add_treasury_output(resource_type resource, int amount)
 } // namespace
 
 Production::Production(
-    const Building &building,
+    Building &building,
     const building_type_registry_impl::ProductionMethod *method,
     size_t method_index)
     : building_(building)
-    , context_building_(building.Composition && building.Composition->owner() ?
-        *building.Composition->owner() : building)
     , record_(const_cast<::building *>(building_.record()))
-    , context_record_(const_cast<::building *>(context_building_.record()))
     , method_(method)
     , method_index_(method_index)
 {
@@ -75,9 +72,19 @@ const Building &Production::building() const
     return building_;
 }
 
+Building &Production::context_building() const
+{
+    return *building_.Composition->owner();
+}
+
+::building *Production::context_record() const
+{
+    return const_cast<::building *>(context_building().record());
+}
+
 int Production::decrement_strike_if_needed(int new_day, int *out_is_striking)
 {
-    ::building *legacy = context_record_;
+    ::building *legacy = context_record();
     if (!legacy) {
         if (out_is_striking) {
             *out_is_striking = 0;
@@ -125,12 +132,12 @@ void Production::refresh_images()
 
 int Production::has_raw_materials() const
 {
-    return record_ && method_ ? method_->has_required_inputs(context_building_) : 0;
+    return record_ && method_ ? method_->has_required_inputs(context_building()) : 0;
 }
 
 int Production::max_progress() const
 {
-    return record_ && method_ ? method_->max_progress_for(context_building_) : 0;
+    return record_ && method_ ? method_->max_progress_for(context_building()) : 0;
 }
 
 int Production::efficiency() const
@@ -139,7 +146,7 @@ int Production::efficiency() const
     if (!legacy || !method_) {
         return -1;
     }
-    if (context_building_.is_mothballed()) {
+    if (context_building().is_mothballed()) {
         return -1;
     }
     if (legacy->data.industry.age_months == 0 || method_->output_resource() == RESOURCE_NONE) {
@@ -158,7 +165,7 @@ int Production::efficiency() const
 int Production::update_daily(int new_day, int *out_is_striking)
 {
     ::building *legacy = record_;
-    ::building *context = context_record_;
+    ::building *context = context_record();
     if (!legacy || !method_) {
         return 0;
     }
@@ -176,7 +183,7 @@ int Production::update_daily(int new_day, int *out_is_striking)
         }
         return 1;
     }
-    if (!method_->can_start_cycle(context_building_)) {
+    if (!method_->can_start_cycle(context_building())) {
         return 1;
     }
 
@@ -191,9 +198,9 @@ int Production::update_daily(int new_day, int *out_is_striking)
         state_record->data.industry.blessing_days_left--;
     }
 
-    int progress = context_building_.employment_worker_count();
+    int progress = context_building().employment_worker_count();
     if (state_record->data.industry.blessing_days_left && method_->uses_blessing_multiplier()) {
-        progress += context_building_.employment_worker_count();
+        progress += context_building().employment_worker_count();
     }
 
     if (legacy->data.industry.progress == 0 && method_->treasury_cost_per_cycle() > 0) {
@@ -253,7 +260,7 @@ void Production::start_new_production()
 
     const int max_value = max_progress();
     const int raw_materials_available = has_raw_materials();
-    ::building *context = context_record_;
+    ::building *context = context_record();
     if (max_value > 0 && legacy->data.industry.progress >= max_value) {
         if (!raw_materials_available) {
             legacy->data.industry.has_raw_materials = 0;
@@ -263,15 +270,15 @@ void Production::start_new_production()
             return;
         }
         if (method_->spawns_fishing_boat()) {
-            if (!map_water_spawn_fishing_boat_from_shipyard(context_building_)) {
+            if (!map_water_spawn_fishing_boat_from_shipyard(context_building())) {
                 return;
             }
         } else if (method_->outputs_to_building_storage()) {
-            if (!context_building_.add_storage_resource(method_->output_resource(), output_amount(*method_),
+            if (!context_building().add_storage_resource(method_->output_resource(), output_amount(*method_),
                 building_type_registry_impl::StorageRole::Output)) {
                 return;
             }
-            ::building *output_record = context_record_;
+            ::building *output_record = context_record();
             if (!output_record) {
                 output_record = legacy;
             }
@@ -279,14 +286,14 @@ void Production::start_new_production()
                 output_record->data.industry.production_current_month + output_amount(*method_));
         } else if (method_->outputs_to_treasury()) {
             add_treasury_output(method_->output_resource(), output_amount(*method_));
-            ::building *output_record = context_record_;
+            ::building *output_record = context_record();
             if (!output_record) {
                 output_record = legacy;
             }
             output_record->data.industry.production_current_month = static_cast<short>(
                 output_record->data.industry.production_current_month + output_amount(*method_));
         } else {
-            ::building *output_record = context_record_;
+            ::building *output_record = context_record();
             if (!output_record) {
                 output_record = legacy;
             }
@@ -300,7 +307,7 @@ void Production::start_new_production()
         for (const building_type_registry_impl::ProductionResourceAmount &input : method_->inputs()) {
             const int resource_slot_index = get_resource_slot_index(input.resource);
             if (resource_slot_index >= 0) {
-                context_building_.add_storage_resource(input.resource, -method_->scaled_input_amount(input),
+                context_building().add_storage_resource(input.resource, -method_->scaled_input_amount(input),
                     building_type_registry_impl::StorageRole::Input);
             }
         }
@@ -343,7 +350,7 @@ void Production::bless_farm()
         return;
     }
 
-    ::building *state_record = context_record_;
+    ::building *state_record = context_record();
     if (!state_record) {
         state_record = legacy;
     }
@@ -360,7 +367,7 @@ void Production::curse_farm(int big_curse)
         return;
     }
 
-    ::building *state_record = context_record_;
+    ::building *state_record = context_record();
     if (!state_record) {
         state_record = legacy;
     }

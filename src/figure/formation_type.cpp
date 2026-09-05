@@ -59,15 +59,6 @@ bool FormationType::try_layout_position(
     return layout.try_position(index, declared_capacity, width_, height_, position);
 }
 
-bool FormationType::layout_positions(
-    const FormationLayoutDef &layout,
-    int live_slot_count,
-    int declared_capacity,
-    std::vector<FormationLayoutPosition> *positions) const
-{
-    return layout.positions(live_slot_count, declared_capacity, width_, height_, positions);
-}
-
 bool FormationType::resolve_station_offset(
     const FormationLayoutDef &layout,
     int index,
@@ -83,8 +74,8 @@ bool FormationType::resolve_station_offset(
     FormationLayoutPosition position = {};
     if (!try_layout_position(layout, index, declared_capacity, &position)) return false;
     if (station_alignment_ == FormationStationAlignment::TileAnchor) {
-        offset->x = position.x * FIGURE_CROSS_COUNTRY_TILE_UNITS;
-        offset->y = position.y * FIGURE_CROSS_COUNTRY_TILE_UNITS;
+        offset->x = position.x * FIGURE_CROSS_COUNTRY_TILE_UNITS * layout.geometry().spacing_percent / 100;
+        offset->y = position.y * FIGURE_CROSS_COUNTRY_TILE_UNITS * layout.geometry().spacing_percent / 100;
         return true;
     }
     const auto scale_tile_anchor = [](int coordinate, int grid_extent, int area_extent) {
@@ -94,8 +85,9 @@ bool FormationType::resolve_station_offset(
         return numerator >= 0 ? (numerator + denominator / 2) / denominator :
             -((-numerator + denominator / 2) / denominator);
     };
-    offset->x = scale_tile_anchor(position.x, width_, area_width);
-    offset->y = scale_tile_anchor(position.y, height_, area_height);
+    const int spacing = layout.geometry().spacing_percent;
+    offset->x = scale_tile_anchor(position.x, width_, area_width) * spacing / 100;
+    offset->y = scale_tile_anchor(position.y, height_, area_height) * spacing / 100;
     return true;
 }
 

@@ -5,49 +5,33 @@
 
 #include "building/building_record.h"
 
-namespace production_runtime_impl {
-
-std::vector<std::vector<std::unique_ptr<Production>>> g_city_productions;
-
-void reset()
+Production *building_runtime::production_for_method(size_t method_index)
 {
-    g_city_productions.clear();
-}
-
-Production *get_or_create(Building building, size_t method_index)
-{
-    if (!building.id) {
+    if (is_ephemeral() || !definition()) {
         return nullptr;
     }
-
-    building_runtime *runtime = building.runtime_instance();
-    if (!runtime || runtime->is_ephemeral() || !runtime->definition()) {
-        return nullptr;
-    }
-
-    const std::vector<building_type_registry_impl::ProductionMethod *> &methods =
-        runtime->definition()->production_methods();
+    const auto &methods = definition()->production_methods();
     if (method_index >= methods.size()) {
         return nullptr;
     }
 
-    if (g_city_productions.size() <= building.id) {
-        g_city_productions.resize(building.id + 1);
-    }
-
-    std::vector<std::unique_ptr<Production>> &productions = g_city_productions[building.id];
-    if (productions.size() < methods.size()) {
-        productions.resize(methods.size());
-    }
-
-    std::unique_ptr<Production> &slot = productions[method_index];
-    if (!slot || slot->building().id != building.id || slot->method() != methods[method_index]) {
+    if (productions_.size() < methods.size()) productions_.resize(methods.size());
+    std::unique_ptr<Production> &slot = productions_[method_index];
+    if (!slot) {
         slot = std::make_unique<Production>(building, methods[method_index], method_index);
     }
     return slot.get();
 }
 
-Production *get_or_create_primary(Building building)
+namespace production_runtime_impl {
+
+Production *get_or_create(const Building &building, size_t method_index)
+{
+    building_runtime *runtime = building.runtime_instance();
+    return runtime ? runtime->production_for_method(method_index) : nullptr;
+}
+
+Production *get_or_create_primary(const Building &building)
 {
     building_runtime *runtime = building.runtime_instance();
     if (!runtime || runtime->is_ephemeral() || !runtime->definition()) {
@@ -67,7 +51,7 @@ Production *get_or_create_primary(Building building)
     return get_or_create(building, 0);
 }
 
-size_t get_method_count(Building building)
+size_t get_method_count(const Building &building)
 {
     if (!building.id) {
         return 0;
@@ -78,19 +62,6 @@ size_t get_method_count(Building building)
         return 0;
     }
     return runtime->definition()->production_methods().size();
-}
-
-void initialize_city()
-{
-    reset();
-
-    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
-    {
-        const size_t method_count = get_method_count(*building);
-        for (size_t i = 0; i < method_count; i++) {
-            get_or_create(*building, i);
-        }
-    });
 }
 
 } // namespace production_runtime_impl

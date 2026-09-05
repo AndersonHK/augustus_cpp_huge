@@ -22,7 +22,6 @@ mod_definition::DefinitionOverlayTracker g_overlays;
 
 namespace {
 
-constexpr int AUTHORED_POSITION_COUNT = 16;
 constexpr int ARMY_ORIENTATION_COUNT = 4;
 constexpr int AUTHORED_ARMY_POSITION_COUNT = 7;
 
@@ -51,11 +50,13 @@ static_assert(sizeof(REQUIRED_LAYOUTS) / sizeof(REQUIRED_LAYOUTS[0]) == formatio
 struct ParseState {
     std::string key;
     int legacy_id = -1;
-    std::vector<FormationLayoutPosition> positions;
     FormationLayoutDef::ArmyOffsets army_offsets;
     std::array<bool, ARMY_ORIENTATION_COUNT> saw_army_orientation = {};
     std::string army_offsets_reference;
     int stationary_facing = DIR_8_NONE;
+    FormationLayoutGeometry geometry;
+    bool saw_geometry = false;
+    int restore_when_idle = 1;
     int current_army_orientation = -1;
     bool disabled = false;
     bool saw_root = false;
@@ -65,11 +66,12 @@ struct ParseState {
 struct StagedLayout {
     std::string key;
     int legacy_id = -1;
-    std::vector<FormationLayoutPosition> positions;
     FormationLayoutDef::ArmyOffsets army_offsets;
     std::string army_offsets_reference;
     int stationary_facing = DIR_8_NONE;
+    FormationLayoutGeometry geometry;
     std::unique_ptr<FormationLayoutDef> definition;
+    bool restore_when_idle = true;
     mod_definition::DefinitionSource source;
     bool disabled = false;
 };
@@ -140,6 +142,12 @@ int parse_root()
         return 0;
     }
 
+    if (xml_parser_has_attribute("restore_when_idle") &&
+        !xml_value::parse_bool(xml_parser_get_attribute_string("restore_when_idle"), &g_parse_state.restore_when_idle)) {
+        log_error("FormationLayout has invalid Boolean attribute 'restore_when_idle'", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
     g_parse_state.saw_root = true;
     return 1;
 }
@@ -162,7 +170,9 @@ int parse_position()
         g_parse_state.army_offsets[static_cast<size_t>(g_parse_state.current_army_orientation)]
             .push_back(position);
     } else {
-        g_parse_state.positions.push_back(position);
+        log_error("FormationLayout positions belong only to army spacing; member positions require geometry", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
     }
     return 1;
 }
@@ -192,10 +202,45 @@ void finish_army()
     g_parse_state.current_army_orientation = -1;
 }
 
+int parse_geometry()
+{
+    if (g_parse_state.disabled || g_parse_state.saw_geometry) {
+        log_error("FormationLayout geometry must occur once in an active definition", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    FormationLayoutGeometry &geometry = g_parse_state.geometry;
+    const char *shape = xml_parser_get_attribute_string("shape");
+    if (xml_value::equals(shape, "square")) geometry.shape = FormationLayoutShape::Square;
+    else if (xml_value::equals(shape, "ranks")) geometry.shape = FormationLayoutShape::Ranks;
+    else if (xml_value::equals(shape, "staggered")) geometry.shape = FormationLayoutShape::Staggered;
+    else if (xml_value::equals(shape, "scatter")) geometry.shape = FormationLayoutShape::Scatter;
+    else {
+        log_error("FormationLayout geometry requires square, ranks, staggered, or scatter shape", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    int centered = 0;
+    int transpose = 0;
+    if ((xml_parser_has_attribute("centered") && !xml_value::parse_bool(xml_parser_get_attribute_string("centered"), &centered)) ||
+        (xml_parser_has_attribute("transpose") && !xml_value::parse_bool(xml_parser_get_attribute_string("transpose"), &transpose)) ||
+        (xml_parser_has_attribute("spacing_percent") && (!parse_signed_attribute("spacing_percent", &geometry.spacing_percent) ||
+            geometry.spacing_percent < 50 || geometry.spacing_percent > 200))) {
+        log_error("FormationLayout geometry has invalid alignment or spacing (50..200 percent)", g_parse_state.key.c_str(), 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    geometry.centered = centered != 0;
+    geometry.transpose = transpose != 0;
+    g_parse_state.saw_geometry = true;
+    return 1;
+}
+
 const xml_parser_element XML_ELEMENTS[] = {
     { "layout", parse_root, nullptr, nullptr, nullptr },
     { "army", parse_army, finish_army, "layout", nullptr },
-    { "position", parse_position, nullptr, "layout|army", nullptr }
+    { "geometry", parse_geometry, nullptr, "layout", nullptr },
+    { "position", parse_position, nullptr, "army", nullptr }
 };
 
 int parse_definition_buffer(
@@ -216,10 +261,8 @@ int parse_definition_buffer(
         log_error("Unable to parse FormationLayout xml", filename, 0);
         return 0;
     }
-    if (!g_parse_state.disabled &&
-        static_cast<int>(g_parse_state.positions.size()) != AUTHORED_POSITION_COUNT) {
-        log_error("FormationLayout requires exactly 16 authored positions", filename,
-            static_cast<int>(g_parse_state.positions.size()));
+    if (!g_parse_state.disabled && !g_parse_state.saw_geometry) {
+        log_error("FormationLayout requires mathematical geometry", filename, 0);
         return 0;
     }
     if (!g_parse_state.disabled) {
@@ -246,10 +289,11 @@ int parse_definition_buffer(
     if (out_definition) {
         out_definition->key = std::move(g_parse_state.key);
         out_definition->legacy_id = g_parse_state.legacy_id;
-        out_definition->positions = std::move(g_parse_state.positions);
         out_definition->army_offsets = std::move(g_parse_state.army_offsets);
         out_definition->army_offsets_reference = std::move(g_parse_state.army_offsets_reference);
         out_definition->stationary_facing = g_parse_state.stationary_facing;
+        out_definition->geometry = g_parse_state.geometry;
+        out_definition->restore_when_idle = g_parse_state.restore_when_idle != 0;
         out_definition->disabled = g_parse_state.disabled;
     }
     return 1;
@@ -292,10 +336,11 @@ int resolve_and_validate_winners(StagedLayouts &staged, bool require_full_covera
         winner.definition = std::make_unique<FormationLayoutDef>(
             winner.key,
             winner.legacy_id,
-            std::move(winner.positions),
+            winner.geometry,
             std::move(winner.army_offsets),
             std::move(winner.army_offsets_reference),
-            winner.stationary_facing);
+            winner.stationary_facing,
+            winner.restore_when_idle);
     }
     if (require_full_coverage && legacy_owners.size() != formation_layout_legacy::COUNT) {
         staged.failure_reason = "FormationLayout definitions must cover every supported legacy layout id.";
@@ -504,7 +549,7 @@ int formation_layout_layered_definition_buffers_are_valid_for_test(
             result->queried_source_layer = static_cast<int>(overlay->source.layer_index);
             if (!winner->second.disabled && winner->second.definition) {
                 result->queried_legacy_id = winner->second.definition->legacy_id();
-                result->queried_position_count = winner->second.definition->authored_position_count();
+                result->queried_shape = winner->second.definition->geometry().shape;
             }
         }
     }

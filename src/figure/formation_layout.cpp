@@ -4,27 +4,11 @@
 #include "core/xml_value.h"
 
 #include <exception>
+#include <algorithm>
 #include <utility>
 
-namespace {
-
-int clamped_slot_count(int live_slot_count, int declared_capacity)
-{
-    if (live_slot_count <= 0) {
-        return 0;
-    }
-    if (declared_capacity > 0 && live_slot_count > declared_capacity) {
-        return declared_capacity;
-    }
-    return live_slot_count;
-}
-
-} // namespace
-
-FormationLayoutDef::FormationLayoutDef(std::string key, int legacy_id,
-    std::vector<FormationLayoutPosition> positions, ArmyOffsets army_offsets, std::string army_offsets_reference,
-    int stationary_facing)
-    : stationary_facing(stationary_facing), key_(std::move(key)), legacy_id_(legacy_id), positions_(std::move(positions)),
+FormationLayoutDef::FormationLayoutDef(std::string key, int legacy_id, FormationLayoutGeometry geometry, ArmyOffsets army_offsets, std::string army_offsets_reference, int stationary_facing, bool restore_when_idle)
+    : stationary_facing(stationary_facing), restore_when_idle(restore_when_idle), key_(std::move(key)), legacy_id_(legacy_id), geometry_(geometry),
       army_offsets_(std::move(army_offsets)), army_offsets_reference_(std::move(army_offsets_reference))
 {}
 
@@ -43,29 +27,63 @@ int FormationLayoutDef::legacy_id() const
     return legacy_id_;
 }
 
-int FormationLayoutDef::authored_position_count() const
-{
-    return static_cast<int>(positions_.size());
-}
-
-bool FormationLayoutDef::try_position(
-    int index,
-    int declared_capacity,
-    int grid_width,
-    int grid_height,
-    FormationLayoutPosition *position) const
+bool FormationLayoutDef::try_position(int index, int declared_capacity, int grid_width, int grid_height, FormationLayoutPosition *position) const
 {
     if (!position || index < 0 || (declared_capacity > 0 && index >= declared_capacity)) {
         return false;
     }
-    if ((declared_capacity <= 0 || declared_capacity <= authored_position_count()) && index < authored_position_count()) {
-        *position = positions_[static_cast<size_t>(index)];
-        return true;
-    }
     if (grid_width <= 0 || grid_height <= 0 || index >= grid_width * grid_height) {
         return false;
     }
-    *position = {index % grid_width, index / grid_width};
+
+    // Every population is a prefix of a fixed growth order. Recruitment never
+    // moves incumbents, and square prefixes grow along both axes from the anchor.
+    const auto centered_coordinate = [](int rank) { return rank % 2 ? (rank + 1) / 2 : -rank / 2; };
+    int x = 0;
+    int y = 0;
+    const bool staggered = geometry_.shape == FormationLayoutShape::Staggered;
+    const bool line = staggered || geometry_.shape == FormationLayoutShape::Ranks;
+    // Grow rectangles with the layout's aspect ratio, independently of roster
+    // capacity. A partially recruited line must not become a small square.
+    const int line_scale = staggered ? 4 : 2;
+    const int width_growth = line ? line_scale * line_scale : 1;
+    const int width_limit = line ? grid_width * grid_height : grid_width;
+    const int height_limit = line ? grid_width * grid_height : grid_height;
+    {
+        int remaining = index;
+        for (int shell = 0; shell < std::max(width_limit, height_limit); shell++) {
+            const int previous_width = std::min(shell * width_growth, width_limit);
+            const int previous_height = std::min(shell, height_limit);
+            const int width = std::min((shell + 1) * width_growth, width_limit);
+            const int height = std::min(shell + 1, height_limit);
+            const int shell_size = width * height - previous_width * previous_height;
+            if (remaining >= shell_size) {
+                remaining -= shell_size;
+                continue;
+            }
+            const int column_size = (width - previous_width) * previous_height;
+            if (remaining < column_size) {
+                x = previous_width + remaining / previous_height;
+                y = remaining % previous_height;
+            } else {
+                x = remaining - column_size;
+                y = height - 1;
+            }
+            break;
+        }
+        if (line || geometry_.centered || geometry_.shape == FormationLayoutShape::Scatter) {
+            x = centered_coordinate(x);
+            if (!line) y = centered_coordinate(y);
+        }
+        if (staggered) y = 2 * y + (std::abs(x) % 2);
+    }
+    if (geometry_.shape == FormationLayoutShape::Scatter && index > 0) {
+        // Separate lattice cells keep deterministic jitter unique and reproducible.
+        const unsigned int jitter = static_cast<unsigned int>(index) * 2654435761u;
+        x = 2 * x + static_cast<int>((jitter >> 16) & 1);
+        y = 2 * y + static_cast<int>((jitter >> 24) & 1);
+    }
+    *position = geometry_.transpose ? FormationLayoutPosition{y, x} : FormationLayoutPosition{x, y};
     return true;
 }
 
@@ -100,28 +118,4 @@ FormationLayoutPosition FormationLayoutDef::army_offset(int orientation, int for
         std::terminate();
     }
     return offsets[static_cast<size_t>(formation_index)];
-}
-
-bool FormationLayoutDef::positions(
-    int live_slot_count,
-    int declared_capacity,
-    int grid_width,
-    int grid_height,
-    std::vector<FormationLayoutPosition> *positions) const
-{
-    if (!positions) {
-        return false;
-    }
-    const int slot_count = clamped_slot_count(live_slot_count, declared_capacity);
-    positions->clear();
-    positions->reserve(slot_count);
-    for (int index = 0; index < slot_count; index++) {
-        FormationLayoutPosition position = {};
-        if (!try_position(index, declared_capacity, grid_width, grid_height, &position)) {
-            positions->clear();
-            return false;
-        }
-        positions->push_back(position);
-    }
-    return true;
 }

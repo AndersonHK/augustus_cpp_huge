@@ -515,7 +515,13 @@ FigureMovementResult Figure::move_ticks_to(
     }
 
     figure_movement_move_ticks_with_percentage(this, num_ticks, tick_percentage);
-    if (direction == DIR_FIGURE_REROUTE || direction == DIR_FIGURE_LOST) {
+    if (direction == DIR_FIGURE_REROUTE) {
+        // A stale route is a request to rebuild on the next movement step,
+        // including the transition from exact local movement to tile routing.
+        Route::remove(this);
+        return FigureMovementResult::Moving;
+    }
+    if (direction == DIR_FIGURE_LOST) {
         Route::remove(this);
         return FigureMovementResult::Blocked;
     }

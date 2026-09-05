@@ -149,6 +149,7 @@ struct formation : public RelationshipEndpoint {
     const FormationType *formation_type_definition; /**< Runtime declaration; restored from the owning fort. */
     std::vector<int> figures; /**< Figure IDs, indexed by resolved formation slot. */
     FormationMemberMovementPlan member_movement_plan;
+    bool roster_compaction_pending = true; /**< Derived from roster changes; never serialized. */
     int total_damage; /**< Total damage of all figures added */
     int max_total_damage; /**< Maximum total damage of all figures added */
 
@@ -233,6 +234,14 @@ struct formation : public RelationshipEndpoint {
     FormationMemberMovementResult settle_member(Figure &figure, FormationMemberDestination destination,
         const FormationLayoutDef &layout, FormationMemberMovementResult result) const;
     void invalidate_member_movement_plan() { member_movement_plan.invalidate(); }
+    void compact_idle_roster();
+    bool has_incoming_recruit() const;
+    bool is_commanded_home() const { return !in_distant_battle && standard_x == x && standard_y == y; }
+    bool can_receive_recruit() const;
+    int available_layout_count() const
+    {
+        return (figure_type == FIGURE_FORT_LEGIONARY || figure_type == FIGURE_FORT_INFANTRY) && !has_military_training ? 3 : 5;
+    }
 
     bool set_layout(const char *key)
     {
@@ -240,8 +249,11 @@ struct formation : public RelationshipEndpoint {
         if (!definition) {
             return false;
         }
-        layout_definition = definition;
-        invalidate_member_movement_plan();
+        if (layout_definition != definition) {
+            layout_definition = definition;
+            roster_compaction_pending = true;
+            invalidate_member_movement_plan();
+        }
         return true;
     }
 
@@ -249,6 +261,7 @@ struct formation : public RelationshipEndpoint {
     {
         const FormationLayoutDef *definition = formation_layout_from_legacy_id(legacy_id);
         layout_definition = definition;
+        roster_compaction_pending = true;
         invalidate_member_movement_plan();
         return definition != nullptr;
     }
@@ -465,4 +478,3 @@ int formation_finish_load_bridge(void);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);
-

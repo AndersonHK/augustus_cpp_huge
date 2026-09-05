@@ -20,7 +20,6 @@
 #include "building/building_runtime_graphics.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
-#include "building/production_runtime.h"
 #include "building/storage_runtime.h"
 #include "building/temple.h"
 #include "city/culture.h"
@@ -106,6 +105,7 @@ building_runtime::building_runtime(
 
 void building_runtime::bind_native_modules()
 {
+    productions_.clear();
     foundation_module_.reset();
     housing_module_.reset();
     building_.Foundation = nullptr;
@@ -494,7 +494,6 @@ void reset_live_runtime_modules()
     g_runtime_building_index.clear();
     g_runtime_instances.clear();
     g_graphics_state_backup.clear();
-    production_runtime_impl::reset();
     storage_runtime_impl::reset();
 }
 
@@ -1233,7 +1232,6 @@ void building_runtime_initialize_city_graphics_cache(void)
     });
 
     storage_runtime_impl::initialize_city();
-    production_runtime_impl::initialize_city();
 
     // Culture modules (including religion) depend on the runtime composition
     // graph, so loading cannot rebuild their capacity cache any earlier.

@@ -3,6 +3,7 @@
 #include "graphics/color.h"
 
 struct formation;
+struct FigureGraphicDrawRequest;
 
 class FormationDestination {
 public:
@@ -13,6 +14,7 @@ public:
 
     void place(int tile_x, int tile_y);
     void clear();
+    FigureGraphicDrawRequest graphic_draw_request() const;
 
     static int formation_at(int grid_offset);
     static void draw_at(int grid_offset, int screen_x, int screen_y, float scale, int highlighted_formation);

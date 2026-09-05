@@ -1,6 +1,3 @@
 <layout key="tortoise" legacy_id="5" army_from="column">
-    <position x="0" y="0"/><position x="0" y="-1"/><position x="1" y="0"/><position x="0" y="1"/>
-    <position x="-1" y="0"/><position x="1" y="-1"/><position x="1" y="1"/><position x="-1" y="1"/>
-    <position x="-1" y="-1"/><position x="1" y="-1"/><position x="1" y="1"/><position x="-1" y="1"/>
-    <position x="-1" y="-1"/><position x="1" y="0"/><position x="-1" y="0"/><position x="0" y="0"/>
+    <geometry shape="square" centered="true" spacing_percent="75"/>
 </layout>

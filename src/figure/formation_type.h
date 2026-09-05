@@ -96,7 +96,6 @@ public:
     void set_combat_modifiers(const FormationCombatModifiers &modifiers);
     int capacity() const;
     int recruit_capacity() const;
-    bool layout_positions(const FormationLayoutDef &layout, int live_slot_count, int declared_capacity, std::vector<FormationLayoutPosition> *positions) const;
     bool resolve_station_offset(const FormationLayoutDef &layout, int index, int declared_capacity,
         int area_width, int area_height, FormationSlotOffset *offset) const;
 

@@ -541,6 +541,24 @@ int formation::barracks_recruit_overflow_count() const
     return overflow > 0 ? overflow : 0;
 }
 
+bool formation::has_incoming_recruit() const
+{
+    return any_figure_id([](int figure_id, int) {
+        const Figure *member = Figure::get(figure_id);
+        return !member->is_dead() && (member->action_state == FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT ||
+            member->action_state == FIGURE_ACTION_85_SOLDIER_GOING_TO_MILITARY_ACADEMY ||
+            member->action_state == FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE);
+    });
+}
+
+bool formation::can_receive_recruit() const
+{
+    // One recruit in transit reserves this formation. Other barracks can refill
+    // other formations, while academy and fort travel remain part of the delay.
+    return in_use && is_legion && is_commanded_home() && !cursed_by_mars &&
+        num_figures < barracks_recruit_capacity() && !has_incoming_recruit();
+}
+
 void formation::ensure_roster_capacity(int capacity)
 {
     if (capacity <= 0) {
@@ -570,18 +588,47 @@ void formation::prepare_roster_refresh()
     for (int slot = 0; slot < static_cast<int>(figures.size()); slot++) {
         const int figure_id = figures[slot];
         if (!figure_id || static_cast<unsigned int>(figure_id) >= Figure::count()) {
+            if (figure_id) roster_compaction_pending = true;
             member_movement_plan.release_slot(slot);
             figures[slot] = 0;
             continue;
         }
         Figure *figure = Figure::get(figure_id);
         if (!figure || figure->state != FIGURE_STATE_ALIVE || !is_roster_member(*figure)) {
+            roster_compaction_pending = true;
             member_movement_plan.release_slot(slot);
             figures[slot] = 0;
             continue;
         }
         figure->index_in_formation = static_cast<unsigned char>(slot);
     }
+}
+
+void formation::compact_idle_roster()
+{
+    if (!roster_compaction_pending || !is_legion || in_distant_battle || recent_fight || missile_fired || missile_attack_timeout) return;
+    if (any_figure_id([](int figure_id, int) {
+        const Figure *member = Figure::get(figure_id);
+        return member->action_state != FIGURE_ACTION_80_SOLDIER_AT_REST &&
+            member->action_state != FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
+    })) return;
+
+    // Preserve survivor order and pack the lowest slot indices once. Movement
+    // then converges physically on the new stations through the existing router.
+    int destination_slot = 0;
+    bool changed = false;
+    for (int source_slot = 0; source_slot < static_cast<int>(figures.size()); source_slot++) {
+        if (!figures[source_slot]) continue;
+        if (source_slot != destination_slot) {
+            figures[destination_slot] = figures[source_slot];
+            figures[source_slot] = 0;
+            Figure::get(figures[destination_slot])->index_in_formation = static_cast<unsigned char>(destination_slot);
+            changed = true;
+        }
+        destination_slot++;
+    }
+    roster_compaction_pending = false;
+    if (changed) invalidate_member_movement_plan();
 }
 
 int formation::publish_figure(Figure &figure)
@@ -611,8 +658,15 @@ int formation::publish_figure(Figure &figure)
             }
         }
     }
-    if (slot < 0 || slot >= declared_capacity()) {
-        log_error("Formation has no free declared roster slot", "formation", static_cast<int>(id));
+    // A mod may reduce the declared footprint of an otherwise usable save.
+    // Preserve those soldiers in the existing extended roster until they can
+    // return to the barracks; never alias their slots onto the new footprint.
+    if (slot < 0 && static_cast<int>(figures.size()) < EXTENDED_FORMATION_ROSTER_SAVE_SLOTS) {
+        slot = static_cast<int>(figures.size());
+        figures.push_back(static_cast<int>(figure.id()));
+    }
+    if (slot < 0 || slot >= EXTENDED_FORMATION_ROSTER_SAVE_SLOTS) {
+        log_error("Formation exceeds the representable saved roster", "formation", static_cast<int>(id));
         std::terminate();
     }
 
@@ -637,6 +691,7 @@ void formation::unpublish_figure(Figure &figure)
         if (figures[slot] == static_cast<int>(figure.id())) {
             member_movement_plan.release_member(slot, figure);
             figures[slot] = 0;
+            roster_compaction_pending = true;
             break;
         }
     }
@@ -653,6 +708,7 @@ void formation::write_legacy_figure_slots(buffer *buf) const
 
 void formation::read_legacy_figure_slots(buffer *buf)
 {
+    roster_compaction_pending = true;
     ensure_roster_capacity(LEGACY_FORMATION_SAVE_SLOT_COUNT);
     std::fill(figures.begin(), figures.end(), 0);
     for (int slot = 0; slot < LEGACY_FORMATION_SAVE_SLOT_COUNT; slot++) {
@@ -675,6 +731,7 @@ void formation::write_extended_figure_slots(buffer *buf) const
 
 void formation::read_extended_figure_slots(buffer *buf, int formation_buf_size)
 {
+    roster_compaction_pending = true;
     if (formation_buf_size <= LEGACY_BUFFER_SIZE_PER_FORMATION) {
         return;
     }
@@ -722,18 +779,12 @@ std::vector<int> formation::layout_grid_offsets() const
         log_error("Live formation has no FormationLayout", formation_type_definition->key(), static_cast<int>(id));
         std::terminate();
     }
-    std::vector<FormationLayoutPosition> positions;
-    const bool positioned = formation_type_definition->layout_positions(
-        *layout_definition, num_figures, declared_capacity(), &positions);
-    if (!positioned || positions.empty()) {
-        log_error("Formation cannot position its roster without a declared FormationType grid", "formation", id);
-        std::terminate();
-    }
-
-    const int base_offset = map_grid_offset(positions[0].x, positions[0].y);
-    std::vector<int> offsets(positions.size(), 0);
-    for (size_t index = 1; index < positions.size(); index++) {
-        offsets[index] = map_grid_offset(positions[index].x, positions[index].y) - base_offset;
+    const FormationLayoutPosition origin = layout_position(0);
+    const int base_offset = map_grid_offset(origin.x, origin.y);
+    std::vector<int> offsets(std::min(num_figures, declared_capacity()), 0);
+    for (int index = 1; index < static_cast<int>(offsets.size()); index++) {
+        const FormationLayoutPosition position = layout_position(index);
+        offsets[index] = map_grid_offset(position.x, position.y) - base_offset;
     }
     return offsets;
 }
@@ -751,7 +802,10 @@ FormationLayoutPosition formation::layout_position(int index, const FormationLay
         log_error("Formation cannot resolve a declared layout position", formation_type_definition->key(), index);
         std::terminate();
     }
-    return position;
+    // Tile-based enemy/herd consumers use the same authored spacing policy;
+    // legion stationing keeps the residual through resolve_station_offset().
+    const int spacing = layout->geometry().spacing_percent;
+    return {position.x * spacing / 100, position.y * spacing / 100};
 }
 
 void formation::rebuild_member_movement_plan(
@@ -890,6 +944,9 @@ FormationMemberMovementResult formation::move_member_to_slot(
     }
     const int origin_x = at_fort ? foundation.origin_x() : standard_x;
     const int origin_y = at_fort ? foundation.origin_y() : standard_y;
+    if (figure.index_in_formation >= declared_capacity()) {
+        return settle_member(figure, destination, *layout, FormationMemberMovementResult::SettledUnplaced);
+    }
     const bool plan_matches = member_movement_plan.matches(
         destination, *layout, origin_x, origin_y, width, height, declared_capacity());
     if (!plan_matches) rebuild_member_movement_plan(destination, *layout, origin_x, origin_y, width, height);
@@ -961,9 +1018,10 @@ void formation::require_definition(const char *operation) const
     }
 }
 
-static bool figure_is_combat_locked(const Figure &f)
+static bool figure_ignores_formation_commands(const Figure &f)
 {
-    return f.action_state == FIGURE_ACTION_149_CORPSE ||
+    return f.action_state == FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS ||
+        f.action_state == FIGURE_ACTION_149_CORPSE ||
         f.action_state == FIGURE_ACTION_150_ATTACK;
 }
 
@@ -1087,7 +1145,7 @@ void formation::set_non_combat_figures_action(int action_state, bool remove_rout
 {
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
-        if (figure_is_combat_locked(*f)) {
+        if (figure_ignores_formation_commands(*f)) {
             return;
         }
         if (f->action_state == action_state) {
@@ -1104,7 +1162,7 @@ void formation::reset_non_combat_figures_action(int action_state) const
 {
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
-        if (figure_is_combat_locked(*f)) {
+        if (figure_ignores_formation_commands(*f)) {
             return;
         }
         f->action_state = static_cast<unsigned char>(action_state);
@@ -1116,7 +1174,7 @@ void formation::move_herd_animals(int attacking_animals) const
 {
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
-        if (figure_is_combat_locked(*f)) {
+        if (figure_ignores_formation_commands(*f)) {
             return;
         }
         f->wait_ticks = HERD_ANIMAL_MOVE_WAIT_TICKS;
@@ -1147,7 +1205,12 @@ void formation::mark_barracks_recruit_overflow_returning() const
         if (too_many <= 0) {
             return;
         }
-        Figure::get(figure_id)->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
+        Figure *member = Figure::get(figure_id);
+        if (member->action_state != FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS) {
+            member->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
+            member->formation_at_rest = 0;
+            Route::remove(member);
+        }
         too_many--;
     });
 }
@@ -1168,7 +1231,7 @@ void formation::send_non_combat_figures_to_standard()
     invalidate_member_movement_plan();
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
-        if (figure_is_combat_locked(*f)) {
+        if (figure_ignores_formation_commands(*f)) {
             return;
         }
         if (prepare_legion_to_move()) {
@@ -1183,7 +1246,7 @@ void formation::send_non_combat_figures_to_fort()
     invalidate_member_movement_plan();
     for_each_figure_id([&](int figure_id, int) {
         Figure *f = Figure::get(figure_id);
-        if (figure_is_combat_locked(*f)) {
+        if (figure_ignores_formation_commands(*f)) {
             return;
         }
         if (prepare_legion_to_move()) {
@@ -1722,6 +1785,7 @@ void formation_calculate_figures(void)
         formation *m = formation_get(i);
         if (m->in_use && !m->is_herd) {
             if (m->is_legion) {
+                m->compact_idle_roster();
                 if (m->has_figures()) {
                     int was_halted = m->is_halted;
                     int was_charging = m->is_charging;
@@ -1871,6 +1935,18 @@ int formation_finish_load_bridge(void)
             return 0;
         }
         if (!entry.reconcile_loaded_legion_command()) return 0;
+        int repaired_overflow = 0;
+        entry.for_each_alive_figure([&](Figure &member, int slot) {
+            if (slot < entry.declared_capacity() || member.action_state == FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS) return;
+            member.action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
+            member.formation_at_rest = 0;
+            Route::remove(&member);
+            repaired_overflow++;
+        });
+        if (repaired_overflow) {
+            entry.is_at_fort = 0;
+            log_warning("Returning loaded soldiers beyond the declared formation capacity to barracks", entry.formation_type_definition->key(), repaired_overflow);
+        }
     }
 
     for (unsigned int figure_id = 1; figure_id < Figure::count(); figure_id++) {
@@ -2102,5 +2178,3 @@ void formations_load_state(buffer *buf, buffer *totals, int version)
         f->target_formation.retarget(*target);
     }
 }
-
-

@@ -2607,7 +2607,6 @@ public:
         switch (f->action_state) {
             case FIGURE_ACTION_150_ATTACK:
                 figure_combat_handle_attack(f);
-                figure_image_increase_offset(f, 32);
                 break;
             case FIGURE_ACTION_149_CORPSE:
                 figure_combat_handle_corpse(f);

@@ -165,3 +165,9 @@ These are likely places to check before claiming the divergence list is complete
 - Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingProfile`.
 - Service and walker lifetime values after each new FigureType migration.
 - Any future upstream Augustus commits that add slow beggar repositioning or other residential walker changes.
+
+## Mathematical Military Formations
+
+All mod stacks now generate tactical shapes mathematically at every capacity. Square recruitment grows outward from the anchor; casualties compact only once idle. Barracks recruit into different available formations in parallel while preserving academy/fort commute delay. Tortoise has distinct compact spacing, and scattered enemy/herd layouts no longer intentionally duplicate stations. See [formation runtime](formation_runtime.md) for geometry, overflow, and validation contracts.
+
+Vespasian alone overrides the scatter/mop-up command with a persistent loose formation outside the fort. Its `FormationLayout/mop_up.xml` declares scatter geometry and disables automatic restoration when idle. Julius and Augustus retain their inherited return to the previous layout when no targets remain.

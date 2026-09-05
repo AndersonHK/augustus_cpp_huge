@@ -475,7 +475,7 @@ void window_building_draw_legion_info(building_info_context *c)
     if (m->num_figures) {
         // layout
         static const int OFFSETS_LEGIONARY[2][5] = {
-            {0, 0, 2, 3, 4}, {0, 0, 3, 2, 4},
+            {1, 0, 2, 3, 4}, {1, 0, 3, 2, 4},
         };
         static const int OFFSETS_OTHER[2][5] = {
             {5, 6, 2, 3, 4}, {6, 5, 3, 2, 4},

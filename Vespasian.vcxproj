@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\assets\graphics_extraction_client.cpp" />
+    <ClCompile Include="tools\formation_runtime_test\formation_runtime_test.cpp" />
     <ClCompile Include="src\assets\assets.cpp" />
     <ClCompile Include="src\assets\group.cpp" />
     <ClCompile Include="src\assets\image.cpp" />

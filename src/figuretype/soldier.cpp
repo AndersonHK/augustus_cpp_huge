@@ -362,6 +362,9 @@ void figure_soldier_action(Figure *f)
                     f->target_figure.clear();
                     f->image_offset = 0;
                 }
+            } else {
+                f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
+                Route::remove(f);
             }
             break;
         case FIGURE_ACTION_87_SOLDIER_GOING_TO_DISTANT_BATTLE:

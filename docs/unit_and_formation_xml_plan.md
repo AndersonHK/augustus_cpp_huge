@@ -171,7 +171,7 @@ This also creates the right place for composed state: the fort owns the formatio
 - [x] Formation save data now keeps the legacy 16-slot prefix for old-version compatibility and appends an extended roster section for larger XML-declared formations.
 - [x] Formation live storage is now a dynamically sized roster owned by `formation`, with direct external `figures[]` access removed from runtime callers.
 - [x] Barracks recruitment and recruit-overflow ejection use `FormationType.recruit_capacity`; Vespasian explicitly authors 64 for its century-scale infantry formations and 36 for its cavalry turma without deriving runtime balance from legacy save storage.
-- [x] Existing tactical layouts are layered `FormationLayoutDef` XML with 16 authored compatibility positions, stable legacy ids, and per-orientation enemy-army offsets; the tactical-position table, enemy-army spacing table, and runtime layout enum are deleted. Layouts may explicitly reuse another definition's army offsets when the old behavior was identical. Slots beyond the authored tactical positions use the declared formation footprint fallback pending denser authored/adaptive layouts.
+- [x] Tactical layouts use mathematical `FormationLayoutDef` geometry at every capacity, with no small-formation tables or square fallback. Stable ids remain save/scenario bridges; enemy army spacing remains separately authored. See `docs/formation_runtime.md`.
 - [x] Fort runtime objects now hold a validated direct `Formation*`; composition children resolve through their owner, while the saved `formation_id` remains only the compatibility bridge. Formation storage has stable addresses, and creation/load hydration rejects inactive, non-legion, unresolved-type, and conflicting-id links.
 - [x] Add adaptive fixed-point slot spacing for larger formations inside the current fort mustering-ground footprint. A 4x4 grid preserves its exact tile positions; 6x6 and 8x8 grids span the same live foundation, and that pitch remains identical after deployment.
 - [x] Route formation travel through the generic movable-object exact-destination path: physically converge from the current sub-tile position, use ordinary routing for the coarse tile segment, walk the final sub-tile residual, then rotate. This is shared movement support suitable for soldiers, walkers, animals, and projectiles rather than a formation-only stationing system.
@@ -191,13 +191,13 @@ This also creates the right place for composed state: the fort owns the formatio
 The remaining values of 16 are compatibility boundaries, not runtime formation iteration limits:
 
 - `LEGACY_FORMATION_SAVE_SLOT_COUNT = 16` is private to `formation.cpp` and used only by the fixed prefix in old formation save records. Barracks recruitment is independently authored through `FormationType.recruit_capacity`.
-- Each `FormationLayoutDef` currently authors 16 compatibility positions in XML. Runtime rosters may be larger, and slots beyond those authored positions use a footprint-derived fallback until richer adaptive layouts are implemented.
+- Tactical member positions are generated mathematically from XML geometry at every capacity; no fixed-size position tables remain.
 - The 16-entry loops in `write_legacy_figure_slots()` and `read_legacy_figure_slots()` serialize that old prefix and must remain exact for save compatibility. Normal legion behavior iterates the `formation` object's declared roster instead.
 - `EXTENDED_FORMATION_ROSTER_SAVE_SLOTS = 256` is the bounded capacity of the appended keyed-era roster payload, not a gameplay formation size.
 
 Legion healing no longer scans every city figure looking for soldiers; it iterates each live legion's owned roster. Explosion-cloud counts, eight-direction wrap scans, building-render footprints, and empire-map highlight samples are unrelated uses of 16 and are outside this migration.
 
-The stable tactical-layout numbers now live only in the explicitly named `formation_layout_legacy` save/scenario namespace. Runtime layout identity and authored positions belong to layered `FormationLayoutDef` objects.
+The stable tactical-layout numbers now live only in the explicitly named `formation_layout_legacy` save/scenario namespace. Runtime layout identity and mathematical geometry belong to layered `FormationLayoutDef` objects.
 
 ## Runtime Boundaries
 

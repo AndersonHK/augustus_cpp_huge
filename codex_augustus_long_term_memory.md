@@ -16,7 +16,8 @@ Primary design goals remain:
 - Keep Windows/MSBuild at repo root as the practical dev workflow.
 - Prefer incremental C-to-C++ migration through narrow, class-based chokepoints.
 - Keep save compatibility by growing runtime wrappers around legacy serialized structs instead of replacing serialized truth all at once.
-- Do not broaden a rewrite just because a subsystem is old; center the work on the best control point.
+- Refactoring may expand into substantial related rework when it removes duplication, orphaned legacy paths, or unnecessary helpers. Prefer replacing old code over layering new code beside it; keep net production-code growth close to zero where practical without sacrificing clarity or meaningful validation.
+- Keep runtime relationships push-based. Owners publish invalidation and state-change events to their actual dependents through reciprocal references. Dependents restore their invariants in the callback or schedule one explicit transition; do not replace notifications with per-frame scans, existence guards, or timed liveness polling. An endpoint-removal event carries the removed object even after its relationship is cleared: exclude that endpoint from reentrant selection until retirement completes. Validate and repair imported relationships at load so normal runtime code can trust its references.
 - Prefer object-owned metadata for runtime concepts. For example, `PathingMode` instances should carry pathing requirements like `requires_road` rather than leaving those requirements in separate helper functions or scattered switch lists.
 - Prefer concept-owned behavior as well as metadata. For example, `BuildingAnimation` owns frame advancement/gating, and water access type/rule definitions own the facts that older code used to re-encode through helper branches.
 - Prefer owner-bound runtime modules over loose policy calls. The external API should read like `building.production().tick()` or `building.culture().should_animate()`, with the module already bound to its owner, immutable definition pointer, and mutable state. Avoid exposing `definition->tick(building)` to normal callers.
@@ -29,6 +30,9 @@ Primary design goals remain:
 - Always update save versioning and migration gates when changing any data that is stored in save files; do this even when the loader can technically tolerate the new shape.
 
 ## Renderer doctrine
+- The target is Vulkan with graphics resident in VRAM after startup loading, shader-based rendering, and a 3D orthographic camera. Legacy software/CPU rendering and repeated per-frame asset conversion are migration debt, not the desired architecture.
+- Simulation owns data state; rendering consumes that state once per frame. Figure/building logic must not issue drawing, texture uploads, or graphics-cache rebuilds in the middle of simulation work. Separate simulation state changes from the renderer's preparation/submission phase as touched paths are converted.
+- Expensive figure and building routing/pathfinding belongs on a shared thread pool. Submit immutable routing inputs/snapshots, keep workers free of rendering and mutable owner/relationship access, and apply completed results through the owning simulation objects. Tag results with the relevant command/topology generation so superseded work cannot restore stale routes. Preserve deterministic assignment and collision rules when moving work off the simulation thread.
 - Native window pixels, logical UI size, user UI scale, and world zoom are separate concepts and should stay separate.
 - All screen-space drawing should trend toward explicit logical destination geometry rather than "native asset size == layout size".
 - Backend renderer policy should stay concentrated in `Render2DPipeline`.
@@ -122,3 +126,5 @@ Primary design goals remain:
 
 ## Short mnemonic
 Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingProfile, FigureType, WaterAccessType, BuildingAnimation, FigureGraphics, ResourceGraphics, UnitType, and FormationType runtimes are active or mid-migration; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints and owner-bound modules, not broad rewrites.
+
+Formation geometry, idle casualty compaction, parallel barracks commute reservations, overflow policy, and focused regression checks are documented in docs/formation_runtime.md.

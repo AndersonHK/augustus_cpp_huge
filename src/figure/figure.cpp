@@ -983,7 +983,7 @@ void Figure::on_relationship_event(const RelationshipEvent &event)
     if (type == FIGURE_LABOR_SEEKER) {
         building_local_workforce::labor_seeker_failed(this);
     } else if (type == FIGURE_TRADE_SHIP) {
-        figure_trade_ship_destination_removed(this);
+        figure_trade_ship_destination_removed(*this, *static_cast<Building *>(event.other));
     } else if (type == FIGURE_WAREHOUSEMAN) {
         action_state = FIGURE_ACTION_233_WAREHOUSEMAN_RECONSIDER_TARGET;
     } else if (type == FIGURE_CART_PUSHER) {

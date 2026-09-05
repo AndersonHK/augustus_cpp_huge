@@ -5,6 +5,8 @@
 #include "figure/formation_type.h"
 
 #include <array>
+#include <algorithm>
+#include <cstdlib>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -22,15 +24,7 @@ constexpr const char *UPPER_XML =
 constexpr const char *DISABLED_XML =
     "<formation key=\"archers\" disabled=\"true\"></formation>";
 
-constexpr const char *LAYOUT_TEST_POSITIONS =
-    "<position x=\"0\" y=\"0\"/><position x=\"1\" y=\"0\"/>"
-    "<position x=\"2\" y=\"0\"/><position x=\"3\" y=\"0\"/>"
-    "<position x=\"0\" y=\"1\"/><position x=\"1\" y=\"1\"/>"
-    "<position x=\"2\" y=\"1\"/><position x=\"3\" y=\"1\"/>"
-    "<position x=\"0\" y=\"2\"/><position x=\"1\" y=\"2\"/>"
-    "<position x=\"2\" y=\"2\"/><position x=\"3\" y=\"2\"/>"
-    "<position x=\"0\" y=\"3\"/><position x=\"1\" y=\"3\"/>"
-    "<position x=\"2\" y=\"3\"/><position x=\"3\" y=\"3\"/>";
+constexpr const char *LAYOUT_TEST_GEOMETRY = "<geometry shape=\"square\"/>";
 
 std::string army_orientation_xml(const std::string &orientation, int position_count = 7)
 {
@@ -44,14 +38,14 @@ std::string army_orientation_xml(const std::string &orientation, int position_co
 std::string layout_xml(const char *key, int legacy_id, const std::string &army)
 {
     return "<layout key=\"" + std::string(key) + "\" legacy_id=\"" +
-        std::to_string(legacy_id) + "\">" + LAYOUT_TEST_POSITIONS + army + "</layout>";
+        std::to_string(legacy_id) + "\">" + LAYOUT_TEST_GEOMETRY + army + "</layout>";
 }
 
 std::string referenced_layout_xml(const char *key, int legacy_id, const char *army_from)
 {
     return "<layout key=\"" + std::string(key) + "\" legacy_id=\"" +
         std::to_string(legacy_id) + "\" army_from=\"" + army_from + "\">" +
-        LAYOUT_TEST_POSITIONS + "</layout>";
+        LAYOUT_TEST_GEOMETRY + "</layout>";
 }
 
 formation_type_layer_test_input input(const char *xml, int layer, const char *mod, const char *path)
@@ -222,6 +216,34 @@ bool validate_formation_member_assignment_contract(std::ostream &errors)
         return false;
     }
 
+    // Physical capacity may be smaller than roster capacity. Excess members
+    // remain explicitly unplaced; querying them again must not restart searches.
+    FormationMemberMovementPlan crowded;
+    const std::vector<FigureMovementDestination> crowded_ideals = {
+        {0, 0, FigureMovementPlane::Ground}, {1, 0, FigureMovementPlane::Ground}, {2, 0, FigureMovementPlane::Ground}
+    };
+    int crowded_queries = 0;
+    const auto only_one_point = [&crowded_queries](int, const FigureMovementDestination &candidate) {
+        crowded_queries++;
+        return candidate.x == 0 && candidate.y == 0 ? 1 : 0;
+    };
+    if (!crowded.configure(FormationMemberDestination::Standard, layout, 0, 0, 1, 1, {0, 0, 2, 0}, crowded_ideals) ||
+        !crowded.assign_members({{0, &members[0]}, {1, &members[1]}, {2, &members[2]}}, only_one_point)) {
+        errors << "Formation planner rejected a roster exceeding reachable physical capacity.\n";
+        return false;
+    }
+    const int initial_queries = crowded_queries;
+    for (int slot = 0; slot < 3; slot++) {
+        FigureMovementDestination point;
+        FormationStationState state;
+        if (!crowded.resolve_member(slot, members[slot], &point, &state) ||
+            state != (slot == 0 ? FormationStationState::Ideal : FormationStationState::Unplaced) ||
+            !crowded.assign_member(slot, members[slot], only_one_point) || crowded_queries != initial_queries) {
+            errors << "Excess members lost their explicit stable Unplaced assignment.\n";
+            return false;
+        }
+    }
+
     FormationMemberMovementPlan thick_obstacle;
     if (!thick_obstacle.configure(FormationMemberDestination::Standard, layout, 0, 0, 1, 1,
             {0, 0, 1023, 1023}, isolated_ideal) ||
@@ -290,74 +312,40 @@ bool validate_mustering_ground_fit_contract(std::ostream &errors)
         errors << "Exact movement coordinates did not project negative offsets to their containing tile.\n";
         return false;
     }
-    const auto has_offset = [](const FormationType &type, int x, int y, int fixed_x, int fixed_y) {
-        FormationLayoutDef direct("direct", -1, {{x, y}}, {}, "");
-        FormationSlotOffset offset;
-        return type.resolve_station_offset(direct, 0, 1, 4, 4, &offset) &&
-            offset.x == fixed_x && offset.y == fixed_y;
-    };
-
-    FormationType legacy("legacy_formation");
-    legacy.set_grid(4, 4, FormationStationAlignment::TileAnchor);
-    if (!has_offset(legacy, 0, 0, 0, 0) ||
-        !has_offset(legacy, 1, 1, 128, 128) ||
-        !has_offset(legacy, 3, 3, 384, 384) ||
-        !has_offset(legacy, -1, -1, -128, -128)) {
-        errors << "FormationType did not preserve exact 4x4 legacy mustering-ground positions.\n";
-        return false;
-    }
-
-    FormationType century("century");
-    century.set_grid(8, 8, FormationStationAlignment::ScaledTileAnchor);
-    constexpr int century_offsets[] = {0, 55, 110, 165, 219, 274, 329, 384};
-    std::vector<FigureMovementDestination> century_stations;
-    for (int coordinate = 0; coordinate < 8; coordinate++) {
-        FormationLayoutDef direct("direct", -1, {{coordinate, coordinate}}, {}, "");
-        FormationSlotOffset offset;
-        if (!century.resolve_station_offset(direct, 0, 1, 4, 4, &offset) ||
-            offset.x != century_offsets[coordinate] || offset.x != offset.y ||
-            figure_movement_cross_country_to_tile(offset.x) < 0 ||
-            figure_movement_cross_country_to_tile(offset.x) >= 4) {
-            errors << "FormationType did not fit an 8x8 century monotonically inside a 4x4 mustering ground.\n";
+    const FormationLayoutDef square("fit", -1, {}, {}, "");
+    for (int width : {1, 3, 4, 5, 6, 8, 16}) {
+        FormationType type("fit");
+        type.set_grid(width, width, FormationStationAlignment::ScaledTileAnchor);
+        std::vector<FigureMovementDestination> destinations;
+        for (int index = 0; index < width * width; index++) {
+            FormationSlotOffset offset;
+            if (!type.resolve_station_offset(square, index, type.capacity(), 4, 4, &offset) ||
+                offset.x < 0 || offset.x > 384 || offset.y < 0 || offset.y > 384) {
+                errors << "Formation geometry escaped the live mustering ground.\n";
+                return false;
+            }
+            for (const auto &previous : destinations) {
+                if (previous.x == offset.x && previous.y == offset.y) {
+                    errors << "Fixed-point conversion collapsed distinct formation slots.\n";
+                    return false;
+                }
+            }
+            destinations.push_back({offset.x, offset.y, FigureMovementPlane::Ground});
+        }
+        if (width > 1 && (destinations.back().x != 384 || destinations.back().y != 384)) {
+            errors << "Formation pitch failed to span the mustering-ground endpoints.\n";
             return false;
         }
     }
-    for (int y = 0; y < 8; y++) {
-        for (int x = 0; x < 8; x++) {
-            FormationLayoutDef direct("direct", -1, {{x, y}}, {}, "");
-            FormationSlotOffset offset;
-            if (!century.resolve_station_offset(direct, 0, 1, 4, 4, &offset)) {
-                errors << "FormationType could not resolve a declared century station.\n";
-                return false;
-            }
-            century_stations.push_back({offset.x, offset.y, FigureMovementPlane::Ground});
-        }
-    }
-    if (!has_offset(century, 0, 0, 0, 0) ||
-        !has_offset(century, 7, 7, 384, 384) ||
-        !has_offset(century, -1, -1, -55, -55)) {
-        errors << "FormationType did not fit the 8x8 century between the original 4x4 formation endpoints.\n";
+    FormationType century("negative_offsets");
+    century.set_grid(8, 8, FormationStationAlignment::ScaledTileAnchor);
+    FormationLayoutDef centered("centered", -1, {FormationLayoutShape::Square, true}, {}, "");
+    FormationSlotOffset offset;
+    if (!century.resolve_station_offset(centered, 8, 64, 4, 4, &offset) || offset.x != -55 || offset.y != -55) {
+        errors << "Centered geometry lost symmetric negative fixed-point pitch.\n";
         return false;
-    }
-    for (size_t first = 0; first < century_stations.size(); first++) {
-        for (size_t second = first + 1; second < century_stations.size(); second++) {
-            if (same_destination(century_stations[first], century_stations[second])) {
-                errors << "FormationType generated duplicate exact century stations.\n";
-                return false;
-            }
-        }
     }
 
-    FormationType turma("turma");
-    turma.set_grid(6, 6, FormationStationAlignment::ScaledTileAnchor);
-    if (!has_offset(turma, 0, 0, 0, 0) ||
-        !has_offset(turma, 1, 1, 77, 77) ||
-        !has_offset(turma, 4, 4, 307, 307) ||
-        !has_offset(turma, 5, 5, 384, 384) ||
-        !has_offset(turma, -1, -1, -77, -77)) {
-        errors << "FormationType did not fit a 6x6 turma between the original 4x4 formation endpoints.\n";
-        return false;
-    }
     return true;
 }
 
@@ -369,25 +357,9 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     if (!validate_formation_member_assignment_contract(errors)) return false;
 
     constexpr const char *LAYOUT_LOWER_XML =
-        "<layout key=\"column\" legacy_id=\"0\">"
-        "<position x=\"0\" y=\"0\"/><position x=\"1\" y=\"0\"/>"
-        "<position x=\"0\" y=\"1\"/><position x=\"1\" y=\"1\"/>"
-        "<position x=\"-1\" y=\"0\"/><position x=\"-1\" y=\"1\"/>"
-        "<position x=\"0\" y=\"-1\"/><position x=\"1\" y=\"-1\"/>"
-        "<position x=\"-1\" y=\"-1\"/><position x=\"2\" y=\"-1\"/>"
-        "<position x=\"2\" y=\"0\"/><position x=\"2\" y=\"1\"/>"
-        "<position x=\"0\" y=\"2\"/><position x=\"1\" y=\"2\"/>"
-        "<position x=\"-1\" y=\"2\"/><position x=\"2\" y=\"2\"/>"
-        "</layout>";
+        "<layout key=\"column\" legacy_id=\"0\"><geometry shape=\"square\"/></layout>";
     constexpr const char *LAYOUT_UPPER_XML =
-        "<layout key=\"column\" legacy_id=\"0\">"
-        "<position x=\"8\" y=\"8\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/>"
-        "</layout>";
+        "<layout key=\"column\" legacy_id=\"0\"><geometry shape=\"ranks\"/></layout>";
     const formation_layout_layer_test_input layout_replacement[] = {
         {LAYOUT_LOWER_XML, 0, "Julius", "Julius/FormationLayout/column.xml"},
         {LAYOUT_UPPER_XML, 1, "Pharaoh", "Pharaoh/FormationLayout/column.xml"}
@@ -397,8 +369,8 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
             layout_replacement, 2, "column", &layout_result) ||
         layout_result.active_count != 1 || layout_result.suppressed_count != 0 ||
         layout_result.queried_disabled || layout_result.queried_legacy_id != 0 ||
-        layout_result.queried_position_count != 16 || layout_result.queried_source_layer != 1) {
-        errors << "FormationLayout upper-layer replacement lost authored positions or provenance.\n";
+        layout_result.queried_shape != FormationLayoutShape::Ranks || layout_result.queried_source_layer != 1) {
+        errors << "FormationLayout upper-layer replacement lost geometric policy or provenance.\n";
         return false;
     }
 
@@ -426,14 +398,7 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *LAYOUT_DUPLICATE_ID_XML =
-        "<layout key=\"other\" legacy_id=\"0\">"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/><position x=\"0\" y=\"0\"/>"
-        "<position x=\"0\" y=\"0\"/>"
-        "</layout>";
+        "<layout key=\"other\" legacy_id=\"0\"><geometry shape=\"square\"/></layout>";
     const formation_layout_layer_test_input duplicate_legacy_id[] = {
         {LAYOUT_LOWER_XML, 0, "Julius", "Julius/FormationLayout/column.xml"},
         {LAYOUT_DUPLICATE_ID_XML, 0, "Julius", "Julius/FormationLayout/other.xml"}
@@ -451,7 +416,7 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     };
     if (formation_layout_layered_definition_buffers_are_valid_for_test(
             short_layout, 1, "short", nullptr)) {
-        errors << "FormationLayout accepted an incomplete authored position list.\n";
+        errors << "FormationLayout accepted removed member-position syntax.\n";
         return false;
     }
     constexpr const char *LAYOUT_INVALID_ID_XML =
@@ -982,7 +947,7 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
     for (int legacy_id = 0; legacy_id < formation_layout_legacy::COUNT; ++legacy_id) {
         const FormationLayoutDef *layout =
             formation_layout_registry_impl::find_layout_by_legacy_id(legacy_id);
-        if (!layout || layout->legacy_id() != legacy_id || layout->authored_position_count() != 16) {
+        if (!layout || layout->legacy_id() != legacy_id) {
             errors << "FormationLayout registry did not resolve a stable legacy save id.\n";
             return false;
         }
@@ -993,29 +958,64 @@ bool validate_formation_type_registry_layering_contract(std::ostream &errors)
         return false;
     }
     const FormationLayoutDef *column_layout = formation_layout_registry_impl::find_layout("column");
-    FormationLayoutPosition first_column = {};
-    FormationLayoutPosition last_authored_column = {};
-    std::vector<FormationLayoutPosition> century_positions;
-    std::vector<FormationLayoutPosition> mounted_positions;
-    FormationType century_definition("century");
-    century_definition.set_grid(8, 8, FormationStationAlignment::ScaledTileAnchor);
-    FormationType mounted_definition("turma");
-    mounted_definition.set_grid(6, 6, FormationStationAlignment::ScaledTileAnchor);
-    if (!column_layout ||
-        !column_layout->try_position(0, 16, 0, 0, &first_column) ||
-        !column_layout->try_position(15, 16, 0, 0, &last_authored_column) ||
-        !century_definition.layout_positions(*column_layout, 70, 64, &century_positions) ||
-        !mounted_definition.layout_positions(*column_layout, 36, 36, &mounted_positions) ||
-        first_column.x != 0 || first_column.y != 0 ||
-        last_authored_column.x != 2 || last_authored_column.y != 2 ||
-        century_positions.size() != 64 || century_positions[15].x != 7 || century_positions[15].y != 1 ||
-        century_positions[16].x != 0 || century_positions[16].y != 2 ||
-        century_positions[63].x != 7 || century_positions[63].y != 7 ||
-        mounted_positions.size() != 36 || mounted_positions[15].x != 3 || mounted_positions[15].y != 2 ||
-        mounted_positions[35].x != 5 || mounted_positions[35].y != 5 ||
-        !positions_are_unique(century_positions) || !positions_are_unique(mounted_positions)) {
-        errors << "FormationLayout did not preserve legacy authored slots or compute unique square typed footprints.\n";
-        return false;
+    if (!column_layout) return false;
+    // Every size, including either side of the old save-prefix size, follows
+    // exactly the same policy. Perfect-square prefixes must be square already.
+    for (int width : {1, 3, 4, 5, 6, 8, 16}) {
+        for (const auto &layout : formation_layout_registry_impl::layouts()) {
+            std::vector<FormationLayoutPosition> positions(width * width);
+            for (int slot = 0; slot < width * width; slot++) {
+                if (!layout->try_position(slot, width * width, width, width, &positions[slot])) return false;
+            }
+            if (!positions_are_unique(positions)) {
+                errors << "Mathematical formation geometry must provide unique slots at every capacity.\n";
+                return false;
+            }
+        }
+        const FormationLayoutDef *rest = formation_layout_registry_impl::find_layout("at_rest");
+        int max_x = 0;
+        int max_y = 0;
+        for (int population = 1; population <= width * width; population++) {
+            FormationLayoutPosition position;
+            if (!rest->try_position(population - 1, width * width, width, width, &position)) return false;
+            max_x = std::max(max_x, position.x);
+            max_y = std::max(max_y, position.y);
+            if (std::abs(max_x - max_y) > 1 || (population == 1 && (position.x || position.y))) {
+                errors << "A partial square filled a row instead of growing from its anchor.\n";
+                return false;
+            }
+        }
+    }
+    for (const char *key : {"double_line_1", "double_line_2", "single_line_1", "single_line_2"}) {
+        const FormationLayoutDef *line = formation_layout_registry_impl::find_layout(key);
+        if (!line) return false;
+        const bool staggered = line->geometry().shape == FormationLayoutShape::Staggered;
+        const int scale = staggered ? 4 : 2;
+        for (int depth = 1; depth <= 4; depth++) {
+            const int population = scale * scale * depth * depth;
+            int min_x = 0, max_x = 0, min_y = 0, max_y = 0;
+            for (int slot = 0; slot < population; slot++) {
+                FormationLayoutPosition position;
+                if (!line->try_position(slot, 256, 16, 16, &position)) return false;
+                min_x = std::min(min_x, position.x);
+                max_x = std::max(max_x, position.x);
+                min_y = std::min(min_y, position.y);
+                max_y = std::max(max_y, position.y);
+                if (slot < 64) {
+                    FormationLayoutPosition smaller;
+                    if (!line->try_position(slot, 64, 8, 8, &smaller) || smaller.x != position.x || smaller.y != position.y) {
+                        errors << "Line geometry moved incumbents when declared capacity changed.\n";
+                        return false;
+                    }
+                }
+            }
+            const int length = line->geometry().transpose ? max_y - min_y + 1 : max_x - min_x + 1;
+            const int thickness = line->geometry().transpose ? max_x - min_x + 1 : max_y - min_y + 1;
+            if (length != scale * scale * depth || thickness != (staggered ? 2 : 1) * depth) {
+                errors << "A partially filled line lost its declared shape proportions.\n";
+                return false;
+            }
+        }
     }
     const FormationLayoutDef *double_line_1_layout =
         formation_layout_registry_impl::find_layout("double_line_1");

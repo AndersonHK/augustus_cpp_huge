@@ -60,13 +60,14 @@ void formation_legion_update_recruit_status(const Building &fort)
         return;
     }
     m->legion_recruit_type = LEGION_RECRUIT_NONE;
-    if (!m->is_at_fort || m->cursed_by_mars) {
+    if (!m->is_commanded_home() || m->cursed_by_mars) {
         return;
     }
-    if (m->num_figures < m->barracks_recruit_capacity()) {
+    if (m->can_receive_recruit()) {
         m->legion_recruit_type = m->declared_recruit_type();
     } else if (m->barracks_recruit_overflow_count() > 0) {
         m->mark_barracks_recruit_overflow_returning();
+        m->is_at_fort = 0;
         formation_calculate_figures();
     }
 }
@@ -80,8 +81,17 @@ void formation_legion_change_layout(formation *m, const char *layout_key)
     if (definition->matches_key("mop_up") && !m->uses_layout("mop_up")) {
         m->prev.layout_definition = m->layout_definition;
     }
-    m->layout_definition = definition;
-    m->invalidate_member_movement_plan();
+    if (m->layout_definition == definition) return;
+    m->set_layout(definition->key());
+    if (!m->uses_layout("mop_up")) {
+        m->for_each_alive_figure([m](Figure &member, int) {
+            if (member.action_state != FIGURE_ACTION_86_SOLDIER_MOPPING_UP) return;
+            member.target_figure.clear();
+            member.action_state = static_cast<unsigned char>(m->is_commanded_home() ? FIGURE_ACTION_80_SOLDIER_AT_REST : FIGURE_ACTION_84_SOLDIER_AT_STANDARD);
+            Route::remove(&member);
+        });
+    }
+    m->compact_idle_roster();
 }
 
 void formation_legion_restore_layout(formation *m)
@@ -91,8 +101,7 @@ void formation_legion_restore_layout(formation *m)
             log_error("Legion lost its pre-mop-up FormationLayout", "formation", m->id);
             std::terminate();
         }
-        m->layout_definition = m->prev.layout_definition;
-        m->invalidate_member_movement_plan();
+        formation_legion_change_layout(m, m->prev.layout_definition->key());
     }
 }
 
@@ -320,13 +329,16 @@ void formation_legion_update(void)
         }
         if (m->has_low_morale()) {
             // flee back to fort
+            m->set_station_origin(m->x, m->y);
+            m->target_formation.clear();
+            formation_legion_restore_layout(m);
             m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         } else if (m->uses_layout("mop_up")) {
             if (enemy_army_total_enemy_formations() +
                 city_figures_rioters() +
                 city_figures_attacking_natives() > 0) {
                 m->set_non_combat_figures_action(FIGURE_ACTION_86_SOLDIER_MOPPING_UP);
-            } else {
+            } else if (m->layout_definition->restore_when_idle) {
                 formation_legion_restore_layout(m);
             }
         }

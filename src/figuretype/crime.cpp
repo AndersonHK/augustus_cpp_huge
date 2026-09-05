@@ -365,6 +365,7 @@ void figure_rioter_action(Figure *f)
             f->wait_ticks++;
             if (f->wait_ticks >= 160) {
                 f->action_state = FIGURE_ACTION_121_RIOTER_MOVING;
+                f->image_offset = 0;
                 int x_tile, y_tile, resource = 0, target_building_id;
                 target_building_id = formation_rioter_get_target_building(&x_tile, &y_tile);
 
@@ -440,7 +441,8 @@ void figure_robber_action(Figure *f)
                     f->destination_y = static_cast<unsigned char>(y_tile);
     f->set_destination_building(target_building_at(x_tile, y_tile));
                     f->collecting_item_id = static_cast<unsigned char>(resource);
-                    f->action_state = FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB;
+                f->action_state = FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB;
+                f->image_offset = 0;
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -488,7 +490,8 @@ void figure_looter_action(Figure *f)
                 int target_building_id = get_looter_destination(f);
 
                 if (target_building_id) {
-                    f->action_state = FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT;
+                f->action_state = FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT;
+                f->image_offset = 0;
                     Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
