@@ -5,6 +5,7 @@
 #include "graphics/font.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
+#include "graphics/runtime_overlay_images.h"
 
 #include <array>
 #include <cstdint>
@@ -295,6 +296,11 @@ const image *image_get_enemy(int id)
 {
     (void) id;
     return &g_dummy_image;
+}
+
+const Image *runtime_footprint_overlay_image()
+{
+    return nullptr;
 }
 
 #endif // STARTUP_PARSER_TEST

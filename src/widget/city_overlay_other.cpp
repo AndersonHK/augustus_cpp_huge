@@ -11,7 +11,6 @@
 #include "game/state.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
-#include "graphics/runtime_overlay_images.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/image.h"
@@ -844,10 +843,7 @@ static void draw_water_runtime_overlay(int x, int y, float scale, int grid_offse
         return;
     }
 
-    const image *overlay = runtime_overlay_image_get(RUNTIME_OVERLAY_IMAGE_WATER_RANGE);
-    if (overlay) {
-        Image::from_legacy(*(overlay)).draw(x, y, color, scale);
-    }
+    Image::draw_footprint_overlay(x, y, color, scale);
 }
 
 static int draw_top_water(int x, int y, float scale, int grid_offset)
@@ -911,7 +907,7 @@ static void blend_color_to_footprint(int x, int y, const Building &building, col
     for (const auto &cell : building.Foundation->cells(building.orientation())) {
         const int cell_x = x + 30 * (cell.x + cell.y);
         const int cell_y = y + 15 * (cell.y - cell.x);
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(cell_x, cell_y, color, scale);
+        Image::draw_footprint_overlay(cell_x, cell_y, color, scale);
     }
 }
 

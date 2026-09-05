@@ -8,6 +8,7 @@
 #include "core/image.h"
 #include "figure/combat.h"
 #include "figure/FigureGraphics.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/enemy_army.h"
 #include "figure/image.h"
 #include "figure/movement.h"
@@ -19,6 +20,7 @@
 #include "map/road_access.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
+#include <cstdio>
 
 static const UnitRangedAbility *ranged_ability_for(const Figure &figure)
 {
@@ -185,30 +187,26 @@ static void figure_watchtower_archer_spawn(Building &tower)
 
 void figure_tower_sentry_set_image(Figure *f)
 {
+    // Select an entry in the declared sentry payload for each legacy action;
+    // numeric atlas image ids are no longer a renderable fallback.
     int dir = figure_image_direction(f);
+    int entry_index;
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_TOWER_SENTRY) + 136);
+        entry_index = 136 + figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks);
     } else if (f->action_state == FIGURE_ACTION_172_TOWER_SENTRY_FIRING) {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
-            dir,
-            figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
+        entry_index = 96 + dir + 8 * figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f);
     } else if (f->action_state == FIGURE_ACTION_225_WATCHMAN_SHOOTING) {
         dir = figure_image_normalize_direction(f->attack_direction);
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
-            dir,
-            figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f));
+        entry_index = 96 + dir + 8 * figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f);
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        int image_id = image_group(GROUP_FIGURE_TOWER_SENTRY);
         const int frame_offset = f->attack_image_offset < 16 ? 0 : (f->attack_image_offset - 16) / 2;
-        f->select_legacy_directional_frame_image(image_id + 96, dir, frame_offset);
+        entry_index = 96 + dir + 8 * frame_offset;
     } else {
-        f->select_legacy_directional_frame_image(
-            image_group(GROUP_FIGURE_TOWER_SENTRY),
-            dir,
-            f->image_offset);
+        entry_index = dir + 8 * f->image_offset;
     }
+    char entry[32];
+    std::snprintf(entry, sizeof(entry), "Image_%04d", entry_index);
+    figure_runtime_graphics_select_default_entry(f, entry);
 }
 
 void figure_tower_sentry_action(Figure *f)

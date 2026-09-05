@@ -1,14 +1,8 @@
 #pragma once
 
-#include "core/image.h"
-
-
-typedef enum {
-    RUNTIME_OVERLAY_IMAGE_WATER_RANGE,
-    RUNTIME_OVERLAY_IMAGE_MAX
-} runtime_overlay_image;
+class Image;
 
 int runtime_overlay_images_init_or_reload(void);
 void runtime_overlay_images_reset(void);
-const image *runtime_overlay_image_get(runtime_overlay_image type);
+const Image *runtime_footprint_overlay_image();
 

@@ -218,6 +218,10 @@ After identity is resolved, the loader fills legacy struct fields exactly in sav
 
 ### Rubble Origin And Repair Bridge
 
+Original campaign cities can contain burning-ruin records with `TERRAIN_BUILDING` and matching serialized ownership but no `TERRAIN_RUBBLE`. The load bridge restores the missing rubble flag before normalization, logging each repair. Runtime rubble creation already writes both flags. The bridge also removes exact duplicate single-cell records only when they own no map tile anywhere and the serialized grid names a live, same-type record at the same position; composition members are excluded.
+
+Composition hydration matches the owner's trusted chain prefix by exact type and declared position, then restores XML role order. Original warehouses store their bays in row order, so chain order alone must not cause stocked bays to be replaced. Adoption stops at the first unrelated, non-live, or duplicate role. Repairs remain available for current saves that persisted an earlier inconsistency; the serialized schema is unchanged.
+
 Each live rubble tile is an independent size-1 `Building`; rubble tiles from one destroyed building are deliberately not connected through `prev_part_building_id` / `next_part_building_id`. Their shared reconstruction identity is only the logical construction grid offset, original orientation, and a resolved pointer to the original immutable `BuildingType`. Footprint dimensions and composed parts are always derived from that type rather than copied into rubble state.
 
 The pointer is runtime-only. `write_rubble_type_data()` persists it as a save-local BuildingType id, and `read_rubble_type_data()` resolves that id back to the active `BuildingType*` before staging `RubbleState` for runtime hydration. Current saves write the type id, logical grid offset, and orientation. Saves through `0xbd` stored a main-tile grid offset plus a redundant square size, while version `0xbe` stored a logical `x/y` rectangle; the load bridge consumes both shapes and discards their copied dimensions. The minimal rubble-origin format was introduced after `0xbe`; later save versions retain it while adding unrelated bridge data.
@@ -409,6 +413,8 @@ Several other save-backed structures fan out into runtime state after load:
 These systems are not all C++ wrapper bridges, but they follow the same compatibility shape: read versioned legacy payloads into subsystem-owned memory, then run migrations or registry/resource fan-out after the prerequisites are loaded.
 
 ## Save-Side Mirror
+
+The startup gate discovers `.svv`, `.sav`, and `.svx`, retaining the named Engineer/Praetor/Quaestor cohorts and a representative of each available extension. It also reads original scenario 14 from the installed `mission1.pak` as a temporary fixture. Every fixture is migrated, reloaded, simulated and rendered for at least 3,000 frames, then saved and reloaded again. Canonical reloads and soaks require zero warnings/errors and zero renderer fallbacks. Headless soaks disable monthly/yearly autosaves in memory and use separate temporary logs, preserving the player's save slots and gameplay logs.
 
 On save, `savegame_save_to_state()` writes the runtime bridge data before the records that depend on it:
 

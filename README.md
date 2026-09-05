@@ -48,19 +48,43 @@ Augustus, like Julius, requires the original assets (graphics, sounds, etc) from
 
 ## Running the game
 
-First, download the game for your platform from the list above.
-
-Alternatively, you can build Augustus yourself. Check [Building Julius](doc/BUILDING.md)
-for details.
+Currently, you have to build it yourself. I'm mantaining a Visual Studio 2022 project for it for now. But Linux support will be added back eventually. Once it is stable enough, I'll distribute the executable on this repo, right now expect crashes.
 
 Then you can either copy the game to the Caesar 3 folder, or run the game from an independent
 folder, in which case the game will ask you to point to the Caesar 3 folder.
 
 Note that you must have permission to write in the game data directory as the saves will be
-stored there. Also, your game must be patched to 1.0.1.0 to use Augustus. If Augustus tells you that
-you are missing it, you can [download the update here](https://github.com/bvschaik/julius/wiki/Patches).
+stored there.
 
 See [Running Julius](https://github.com/bvschaik/julius/wiki/Running-Julius) for further instructions and startup options.
+
+## Mod Support
+
+This fork aims to add full mod support to the Caesar 3 engine, with the goal of eventually having compatibility with Pharaoh as well. Many hardcoded values were exported to xml, and the full gameplay from Julius and Augustus are being slowly reproduced inside the improved engine made for Vespasian.
+
+![A building-type definition xml inside a mod folder with tutorial files in the background](doc/screenshots/vespasian-mod-support.png)
+
+## Vespasian gameplay
+
+This fork builds on Augustus with a slower simulation rhythm, busier cities, and XML-defined gameplay and graphics. Days are twice as long, the number of days on a month are calendar accurate. Workers actually commute to their jobs, to compensate walkers have longer ranges.
+
+Services are smart, with walkers prioritizing walking over places that haven't been visited recently. Pathfinding was added to job seekers.
+
+The road tool now places highways with shift and blockers with ctrl. Likewise, the clear tool is now smart and comes with a repair on ctrl and tree removal mode on shift.
+
+When placing a building, holding shift will force place it over trees and roads. Holding a road tool over water places bridges, shift for high bridges.
+
+### Building UI and production
+
+Vectorized fonts are now supported and rendered in full resolution. Some UIs have already been reworked, production buildings now display their storage, efficiency, and staffing from the building information panel in a standard way.
+
+![A developed Vespasian city with the pottery workshop production panel open](doc/screenshots/vespasian-city-production.png)
+
+### Military formations
+
+Formations were made larger, unit ordering more natural with soldiers arranged around their legion standard. Attacking an enemy formation now causes units to chase them.
+
+![A Vespasian legion assembled around its standard](doc/screenshots/vespasian-legion-formation.png)
 
 ## Vespasian developer notes
 

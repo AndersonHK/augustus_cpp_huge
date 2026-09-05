@@ -308,13 +308,13 @@ static void draw_roamer_frequency(int x, int y, int grid_offset)
         static color_t frequency_colors[] = {
             0x663377ff, 0x662266ee, 0x661155dd, 0x660044cc, 0x660033c4, 0x660022bb, 0x660011a4, 0x66000088
         };
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, frequency_colors[travel_frequency - 1], scale);
+        Image::draw_footprint_overlay(x, y, frequency_colors[travel_frequency - 1], scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_TILE) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_RED, scale);
+        Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_RED, scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_EXIT_TILE) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_GREEN, scale);
+        Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_GREEN, scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_EXIT_TILE) {
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(x, y, COLOR_MASK_PINK, scale);
+        Image::draw_footprint_overlay(x, y, COLOR_MASK_PINK, scale);
     }
 }
 
@@ -590,7 +590,7 @@ static void deletion_draw_animations_render_tile(const CityDrawTileCommand &comm
 {
     Building *building = command.building;
     if (map_property_is_deleted(command.grid_offset) || (building && city_draw_building_as_deleted(*building))) {
-        Image::blend_footprint_color(command.x, command.y, building_construction_clear_color(), scale);
+        Image::draw_footprint_overlay(command.x, command.y, building_construction_clear_color(), scale);
     }
     if (!city_draw_should_draw_top_before_deletion(command.grid_offset)) {
         draw_top_for_building(building, command.x, command.y, command.grid_offset);

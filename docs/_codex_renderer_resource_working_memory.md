@@ -4,6 +4,8 @@ Snapshot: 2026-06-26 docs refresh over older renderer/resource notes
 Workspace: `<repository checkout>`
 
 ## 2026-06-26 maintenance checkpoint
+
+- All tile highlights and placement/range previews call `Image::draw_footprint_overlay` with an ARGB color, sharing one managed diamond and source-over blending. Red/green construction colors carry 50% opacity; yellow, gray, range and plain cursor highlights specify their own opacity. The former two custom textures, multiplicative blending and color/climate dispatch branches are removed. Building sprite tinting remains separate from footprint overlays. `tools/menu_render_test/water_hover_test.h` checks five overlay colors over all six water frames and actual city clear/road/tree/repair previews.
 - Treat this file as long-term renderer/resource memory. Current implementation contracts should still be verified against source before editing, especially around atlas fallback and managed image handles.
 - The current durable renderer plans are `docs/renderer_scaling_seam_plan.md`, `docs/render_performance_plans.md`, and `docs/figure_owned_native_graphics_plan.md`.
 - `git` is available in the current shell. `rg` and `gh` are not installed; use PowerShell-native `Select-String` / `Get-ChildItem` and normal `git` commands.

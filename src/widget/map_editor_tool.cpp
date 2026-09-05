@@ -36,13 +36,7 @@ static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
 
 static void draw_flat_tile(int x, int y, color_t color_mask)
 {
-    if (color_mask == COLOR_MASK_GREEN && scenario_property_climate() != CLIMATE_DESERT) {
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, ALPHA_MASK_SEMI_TRANSPARENT & color_mask, scale);
-    } else if (color_mask != COLOR_MASK_GREEN && color_mask != COLOR_MASK_RED) {
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, color_mask, scale);
-    } else {
-        Image::blend_footprint_color(x, y, color_mask, scale);
-    }
+    Image::draw_footprint_overlay(x, y, color_mask, scale);
 }
 
 static void draw_partially_blocked(int x, int y, int num_tiles, int *blocked_tiles)
@@ -51,9 +45,9 @@ static void draw_partially_blocked(int x, int y, int num_tiles, int *blocked_til
         int x_offset = x + X_VIEW_OFFSETS[i];
         int y_offset = y + Y_VIEW_OFFSETS[i];
         if (blocked_tiles[i]) {
-            draw_flat_tile(x_offset, y_offset, COLOR_MASK_RED);
+            draw_flat_tile(x_offset, y_offset, COLOR_OVERLAY_RED);
         } else {
-            draw_flat_tile(x_offset, y_offset, COLOR_MASK_GREEN);
+            draw_flat_tile(x_offset, y_offset, COLOR_OVERLAY_GREEN);
         }
     }
 }
@@ -127,7 +121,7 @@ static void draw_road(const map_tile *tile, int x, int y)
         }
     }
     if (blocked) {
-        draw_flat_tile(x, y, COLOR_MASK_RED);
+        draw_flat_tile(x, y, COLOR_OVERLAY_RED);
     } else {
         draw_building_image(image_id, x, y);
     }
@@ -177,10 +171,10 @@ static void draw_terrain_preview(int x, int y, tool_type type, int ring)
             }
             break;
         default:
-            draw_flat_tile(x, y, COLOR_MASK_GREEN);
+            draw_flat_tile(x, y, COLOR_OVERLAY_GREEN);
             return;
     }
-    Image::blend_footprint_color(x, y, COLOR_MASK_GREEN, scale);
+    Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_GREEN, scale);
     Image::from_id(image_id).draw_isometric_footprint(x, y, COLOR_MASK_BUILDING_GHOST, scale);
     Image::from_id(image_id).draw_isometric_top(x, y, COLOR_MASK_BUILDING_GHOST, scale);
 }
@@ -215,7 +209,7 @@ static void draw_foundation_blocked(
         draw_flat_tile(
             x + view_dx,
             y + view_dy,
-            blocked_tiles[i] ? COLOR_MASK_RED : COLOR_MASK_GREEN);
+            blocked_tiles[i] ? COLOR_OVERLAY_RED : COLOR_OVERLAY_GREEN);
     }
 }
 
@@ -233,7 +227,7 @@ static void draw_access_ramp(const map_tile *tile, int x, int y)
 
 static void draw_map_flag(int x, int y, int is_ok)
 {
-    draw_flat_tile(x, y, is_ok ? COLOR_MASK_GREEN : COLOR_MASK_RED);
+    draw_flat_tile(x, y, is_ok ? COLOR_OVERLAY_GREEN : COLOR_OVERLAY_RED);
 }
 
 static void draw_selection_rectangle(const map_tile *current_tile, const map_tile *start_tile, color_t color)

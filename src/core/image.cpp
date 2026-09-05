@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #define HEADER_SIZE 20680
 #define ENTRY_SIZE 64
@@ -808,16 +809,49 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     log_error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
     return 0;
 #else
+    // The extractor DLL receives a self-contained pixel snapshot. External message
+    // illustrations must be decoded here, where their 555 index state is owned.
+    std::vector<image> extraction_images(images, images + image_count);
+    std::vector<color_t *> buffers(atlas_data->buffers, atlas_data->buffers + atlas_data->num_images);
+    std::vector<int> widths(atlas_data->image_widths, atlas_data->image_widths + atlas_data->num_images);
+    std::vector<int> heights(atlas_data->image_heights, atlas_data->image_heights + atlas_data->num_images);
+    std::vector<std::vector<color_t>> external_pixels;
+    const int message_first = group_count > GROUP_MESSAGE_IMAGES ? group_image_ids[GROUP_MESSAGE_IMAGES] : image_count;
+    int message_end = image_count;
+    for (int group = 1; group < group_count; group++) {
+        if (group_image_ids[group] > message_first && group_image_ids[group] < message_end) message_end = group_image_ids[group];
+    }
+    for (int id = message_first; id < message_end; id++) {
+        const image &source = images[id];
+        if (!image_is_external(&source)) continue;
+        int width = 0, height = 0;
+        if (!image_get_external_dimensions(&source, &width, &height) || width <= 0 || height <= 0) {
+            log_error("External message image has invalid dimensions", source_name, id);
+            return 0;
+        }
+        external_pixels.emplace_back(static_cast<size_t>(width) * height, ALPHA_TRANSPARENT);
+        if (!image_load_external_pixels(external_pixels.back().data(), &source, width)) return 0;
+        image &snapshot = extraction_images[id];
+        snapshot.atlas.id = (ATLAS_MAIN << IMAGE_ATLAS_BIT_OFFSET) + static_cast<int>(buffers.size());
+        snapshot.atlas.x_offset = snapshot.atlas.y_offset = 0;
+        snapshot.x_offset = snapshot.y_offset = 0;
+        snapshot.width = snapshot.original.width = width;
+        snapshot.height = snapshot.original.height = height;
+        buffers.push_back(external_pixels.back().data());
+        widths.push_back(width);
+        heights.push_back(height);
+    }
+    const image_atlas_data extraction_atlas = { atlas_data->type, static_cast<int>(buffers.size()), buffers.data(), widths.data(), heights.data() };
     graphics_extraction_climate_request_v1 request = {};
     request.struct_size = sizeof(request);
     request.abi_version = GRAPHICS_EXTRACTION_ABI_VERSION;
     request.flags = GRAPHICS_EXTRACTION_WRITE_STAMP;
-    request.images = images;
+    request.images = extraction_images.data();
     request.image_count = image_count;
     request.group_image_ids = group_image_ids;
     request.group_count = group_count;
     request.source_name = source_name;
-    request.atlas_data = atlas_data;
+    request.atlas_data = &extraction_atlas;
     request.mode = GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP;
     const std::filesystem::path asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
     const std::string game_root = asset_root.parent_path().string();

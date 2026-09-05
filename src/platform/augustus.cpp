@@ -1,5 +1,8 @@
 #include "building/building_type_startup_bridge.h"
 #include "../../tools/formation_runtime_test/formation_runtime_test.h"
+#include "../../tools/menu_render_test/menu_render_test.h"
+#include "../../tools/menu_render_test/water_hover_test.h"
+#include "../../tools/menu_render_test/road_drag_test.h"
 #include "city/victory.h"
 #include "core/log.h"
 #include "translation/translation.h"
@@ -414,6 +417,11 @@ static bool run_save_soak_ticks(int tick_count)
     constexpr int STEADY_STATE_WARMUP_TICKS = 1000;
     constexpr double REQUIRED_STEADY_STATE_TPS = 1000.0;
     const int previous_speed = setting_game_speed();
+    // Headless validation must not rotate or overwrite the player's autosaves.
+    const int previous_yearly_autosave = config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE);
+    const int previous_monthly_autosave = setting_monthly_autosave();
+    config_set(CONFIG_GP_CH_YEARLY_AUTOSAVE, 0);
+    if (previous_monthly_autosave) setting_toggle_monthly_autosave();
     setting_set_game_speed(SOAK_SPEED_PERCENT);
     window_city_show();
     city_victory_suppress_checks(1);
@@ -452,6 +460,8 @@ static bool run_save_soak_ticks(int tick_count)
             interval_simulation_ticks = 0;
         }
     }
+    config_set(CONFIG_GP_CH_YEARLY_AUTOSAVE, previous_yearly_autosave);
+    if (previous_monthly_autosave) setting_toggle_monthly_autosave();
     const uint64_t end = SDL_GetPerformanceCounter();
     const double total_seconds = static_cast<double>(end - start) / static_cast<double>(frequency);
     const double total_simulation_seconds = static_cast<double>(total_simulation_ticks) / static_cast<double>(frequency);
@@ -542,6 +552,7 @@ static int run_single_save_validation(const augustus_args &args, int index)
         fflush(stderr);
         return 7;
     }
+    if (!run_water_hover_render_test(true) || !run_city_road_drag_render_test() || !run_menu_render_test() || data.warning_count || data.error_count) return 8;
     fprintf(stdout, "Vespasian executable save-load test passed: ticks=%d file=%s\n", args.save_soak_ticks, input);
     fflush(stdout);
     return 0;
@@ -1114,6 +1125,10 @@ static int pre_init(const char *custom_data_dir)
 static void setup(const augustus_args *args)
 {
     data.startup_test = args->startup_test || args->load_save_test_count;
+    if (data.startup_test && !platform::use_temporary_logging_directory()) {
+        fprintf(stderr, "Unable to create a temporary directory for validation logs.\n");
+        exit_with_status(1);
+    }
     system_setup_crash_handler();
     setup_logging();
 
@@ -1252,6 +1267,10 @@ int main(int argc, char **argv)
     }
 
     if (args.startup_test) {
+        if (!run_water_hover_render_test() || !run_menu_render_test() || data.warning_count || data.error_count) {
+            teardown();
+            return 8;
+        }
         fprintf(stdout, "Vespasian executable startup test passed.\n");
         fflush(stdout);
         teardown();

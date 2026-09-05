@@ -113,13 +113,13 @@ static void draw_roamer_frequency(int x, int y, int grid_offset)
         static const color_t frequency_colors[] = {
             0x663377ff, 0x662266ee, 0x661155dd, 0x660044cc, 0x660033c4, 0x660022bb, 0x660011a4, 0x66000088
         };
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, frequency_colors[travel_frequency - 1], draw_context.scale);
+        Image::draw_footprint_overlay(x, y, frequency_colors[travel_frequency - 1], draw_context.scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_TILE) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_RED, draw_context.scale);
+        Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_RED, draw_context.scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_EXIT_TILE) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_GREEN, draw_context.scale);
+        Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_GREEN, draw_context.scale);
     } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_EXIT_TILE) {
-        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(x, y, COLOR_MASK_PINK, draw_context.scale);
+        Image::draw_footprint_overlay(x, y, COLOR_MASK_PINK, draw_context.scale);
     }
 }
 
@@ -229,11 +229,8 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
             building_type_registry_impl::type_from_attr("gardens"), 0, SOUND_DIRECTION_CENTER, 0);
     }
 
-    // Apply hover effect to non-building tiles if cursor is on them, config enabled, and not scrolling
-    if (!building_id && is_cursor_tile && !map_property_is_deleted(grid_offset) &&
-        config_get(CONFIG_UI_CV_CURSOR_SHADOW) && !scroll_in_progress()) {
-        color_mask = COLOR_MASK_HOVER;
-    }
+    const bool hover_terrain = !building_id && is_cursor_tile && !map_property_is_deleted(grid_offset) &&
+        config_get(CONFIG_UI_CV_CURSOR_SHADOW) && !scroll_in_progress();
 
     int image_id = map_image_at(grid_offset);
     if (map_property_is_constructing(grid_offset)) {
@@ -263,6 +260,7 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
     } else {
         Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
     }
+    if (hover_terrain) Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_HOVER, draw_context.scale);
     if (!building_id && config_get(CONFIG_UI_SHOW_GRID)) {
         city_draw_grid_overlay(x, y, draw_context.scale);
     }
@@ -547,15 +545,7 @@ static void deletion_draw_figures_animations_render_tile(const CityDrawTileComma
 {
     Building *building = command.building;
     if (map_property_is_deleted(command.grid_offset) || (building && city_draw_building_as_deleted(*building))) {
-        color_t color = building_construction_clear_color();
-        if (color == COLOR_MASK_RED || color == COLOR_MASK_GREEN) {
-            Image::blend_footprint_color(command.x, command.y, color, draw_context.scale);
-            // blending mode only work in standard RED or GREEN, any other colors have to be drawn flat.
-            // passing a different color will just draw the red blending by default
-        } else {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint(command.x, command.y, color, draw_context.scale);
-            // no blending, just draw the flat tile
-        }
+        Image::draw_footprint_overlay(command.x, command.y, building_construction_clear_color(), draw_context.scale);
     }
     if (map_property_is_draw_tile(command.grid_offset) && !city_draw_should_draw_top_before_deletion(command.grid_offset)) {
         draw_top_for_building(building, command.x, command.y, command.grid_offset);

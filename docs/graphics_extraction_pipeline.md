@@ -27,6 +27,8 @@ Mods\Augustus\Graphics
 
 Julius extraction must run before Augustus extraction. `src/core/image.cpp` is compiled as C++ in the runtime and harness projects, and `image_load_climate(..., extract_legacy_graphics = 1)` now constructs `RuntimeGraphicsExtractionService` directly. The service calls `JuliusExtractor` first and then `AugustusExtractor` before asset XML loading. Startup and the standalone harness run the extraction pass for central, northern, and desert main graphics before the normal central asset load, so climate-conditional BuildingType XML can reference all generated Julius climate payloads. `src/platform/augustus.cpp` should not start the Augustus graphics extractor early, because Augustus needs the extracted Julius template data to resolve numeric legacy references and image numbering.
 
+External message illustrations are decoded from the installed game's separate `555` files by the host before invoking the extractor DLL. An extraction-only snapshot adds their full canvases to the supplied atlas; the runtime's original image metadata stays unchanged. This produces `UI\Message_Images`, including the illustration used by the Hold Games banner. Extraction stamp `legacy_extract_v12` includes these canvases in its fingerprint. Generated illustrations remain installed-game or ignored validation artifacts and must never be copied into source `Mods`.
+
 ## Standalone Harness
 
 The standalone project is:

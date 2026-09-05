@@ -364,11 +364,11 @@ color_t building_construction_clear_color(void)
 {
     building_type construction_type = building_construction_type();
     if (building_type_registry_impl::type_attr_is(construction_type, "clear_land")) {
-        return COLOR_MASK_RED;
+        return COLOR_OVERLAY_RED;
     } else if (building_type_registry_impl::type_attr_is(construction_type, "clear_trees")) {
         return COLOR_MASK_YELLOW_RANGE;
     } else if (building_type_registry_impl::type_attr_is(construction_type, "repair_land")) {
-        return COLOR_MASK_GREEN;
+        return COLOR_OVERLAY_GREEN;
     }
     return COLOR_MASK_NONE;
 }

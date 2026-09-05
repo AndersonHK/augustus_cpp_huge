@@ -136,5 +136,9 @@ void window_show(const window_type *window);
 
 window_id window_get_id(void);
 
+// The window being composed, including an underlying window beneath a dialog.
+// Input and navigation continue to use window_get_id().
+window_id window_get_draw_id(void);
+
 void window_go_back(void);
 

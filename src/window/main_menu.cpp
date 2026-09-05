@@ -254,10 +254,10 @@ private:
         int base_visibility = 1;
         switch (widget.visibility) {
         case DeclarativeVisibility::MainMenu:
-            base_visibility = window_is(WINDOW_MAIN_MENU);
+            base_visibility = window_get_draw_id() == WINDOW_MAIN_MENU;
             break;
         case DeclarativeVisibility::NotFileDialog:
-            base_visibility = !window_is(WINDOW_FILE_DIALOG);
+            base_visibility = window_get_draw_id() != WINDOW_FILE_DIALOG;
             break;
         case DeclarativeVisibility::Always:
         default:

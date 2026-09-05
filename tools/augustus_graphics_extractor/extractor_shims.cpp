@@ -342,6 +342,11 @@ void runtime_overlay_images_reset(void)
 {
 }
 
+const Image *runtime_footprint_overlay_image()
+{
+    return nullptr;
+}
+
 building *building_first_of_type(building_type type)
 {
     (void) type;

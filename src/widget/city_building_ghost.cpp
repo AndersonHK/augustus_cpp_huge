@@ -13,7 +13,6 @@
 #include "figuretype/animal.h"
 #include "game/state.h"
 #include "graphics/image.h"
-#include "graphics/runtime_overlay_images.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -168,57 +167,49 @@ static void draw_runtime_ghost_animation(Building &building, int animation_curso
 static void draw_blocked_tile(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
+    Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_RED, data.scale);
 }
 
 static void city_building_ghost_draw_malus_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_NEGATIVE_RANGE, data.scale);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_NEGATIVE_RANGE, data.scale);
 }
 
 static void city_building_ghost_draw_bonus_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_POSITIVE_RANGE, data.scale);
-}
-
-static void draw_water_range_overlay(int x, int y, color_t color)
-{
-    const image *overlay = runtime_overlay_image_get(RUNTIME_OVERLAY_IMAGE_WATER_RANGE);
-    if (overlay) {
-        Image::from_legacy(*(overlay)).draw(x, y, color, data.scale);
-    }
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_POSITIVE_RANGE, data.scale);
 }
 
 void city_building_ghost_draw_well_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    draw_water_range_overlay(x, y, COLOR_MASK_DARK_BLUE);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_DARK_BLUE, data.scale);
 }
 
 void city_building_ghost_draw_fountain_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    draw_water_range_overlay(x, y, COLOR_MASK_BLUE);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_BLUE, data.scale);
 }
 
 void city_building_ghost_draw_reservoir_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE, data.scale);
 }
 
 void city_building_ghost_draw_aqueduct_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    draw_water_range_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_RESERVOIR_RANGE, data.scale);
 }
 
 void city_building_ghost_draw_latrines_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_DARK_GREEN & ALPHA_FONT_SEMI_TRANSPARENT, data.scale);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_DARK_GREEN & ALPHA_FONT_SEMI_TRANSPARENT, data.scale);
 }
 
 static void set_roamer_path(
@@ -341,7 +332,7 @@ static void draw_water_access_context_overlays(
 static void draw_market_range_tile(int x, int y, int grid_offset)
 {
     (void) grid_offset;
-    Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_GRAY, data.scale);
+    Image::draw_footprint_overlay(x, y, COLOR_MASK_GRAY, data.scale);
 }
 
 static void draw_distribution_context_overlays(
@@ -367,7 +358,7 @@ static void draw_grand_temple_neptune_range(int x, int y, int grid_offset)
 {
     (void) grid_offset;
     color_t color_mask = data.reservoir_range.blocked ? COLOR_MASK_GRAY : COLOR_MASK_BLUE;
-    draw_water_range_overlay(x, y, color_mask);
+    Image::draw_footprint_overlay(x, y, color_mask, data.scale);
 }
 
 static void draw_grand_temple_neptune_context_overlay(
@@ -499,10 +490,9 @@ static void draw_plan_tiles(
         const int tile_x = x + X_VIEW_OFFSET(tile.dx, tile.dy);
         const int tile_y = y + Y_VIEW_OFFSET(tile.dx, tile.dy);
         if (show_blocked_tiles && tile.state == building_construction::PlacementTileState::Forbidden) {
-            Image::blend_footprint_color(tile_x, tile_y, COLOR_MASK_RED, data.scale);
+            Image::draw_footprint_overlay(tile_x, tile_y, COLOR_OVERLAY_RED, data.scale);
         } else {
-            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).
-                draw_isometric_footprint(tile_x, tile_y, COLOR_MASK_FOOTPRINT_GHOST, data.scale);
+            Image::draw_footprint_overlay(tile_x, tile_y, COLOR_MASK_FOOTPRINT_GHOST, data.scale);
         }
     }
 }
@@ -897,11 +887,11 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
     }
     color_t color_mask;
     if (blocked) {
-        Image::blend_footprint_color(x, y, length > 0 ? COLOR_MASK_GREEN : COLOR_MASK_RED, data.scale);
+        Image::draw_footprint_overlay(x, y, length > 0 ? COLOR_OVERLAY_GREEN : COLOR_OVERLAY_RED, data.scale);
         if (length > 1) {
             color_t end_tile_colour = map_grid_slice_contains(end_grid_offset, &blocked_tiles) ?
-                COLOR_MASK_RED : COLOR_MASK_GREEN;
-            Image::blend_footprint_color(x + x_delta * (length - 1), y + y_delta * (length - 1), end_tile_colour, data.scale);
+                COLOR_OVERLAY_RED : COLOR_OVERLAY_GREEN;
+            Image::draw_footprint_overlay(x + x_delta * (length - 1), y + y_delta * (length - 1), end_tile_colour, data.scale);
         }
         building_construction_set_cost(0);
         color_mask = COLOR_MASK_BUILDING_GHOST_RED;
@@ -945,10 +935,17 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
 
 static void draw_road(const map_tile *tile, int x, int y)
 {
+    if (building_construction_in_progress()) {
+        // The route preview already draws the endpoint and publishes temporary
+        // road terrain. Use its placement result instead of testing that terrain again.
+        if (!building_construction_can_place() || city_finance_out_of_money()) {
+            Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_RED, data.scale);
+        }
+        return;
+    }
     const road_preview_graphic preview = map_road_preview_graphic_at(tile->grid_offset);
-    if (preview.blocked || city_finance_out_of_money() ||
-        (building_construction_in_progress() && !building_construction_can_place())) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
+    if (preview.blocked || city_finance_out_of_money()) {
+        Image::draw_footprint_overlay(x, y, COLOR_OVERLAY_RED, data.scale);
     } else if (preview.building != BUILDING_NONE) {
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(preview.building);

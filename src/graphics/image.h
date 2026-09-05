@@ -86,7 +86,7 @@ public:
 
     static void copy(const image_copy_info &copy_info);
     static void copy_isometric_footprint(const image_copy_info &copy_info);
-    static void blend_footprint_color(int x, int y, color_t color, float scale);
+    static void draw_footprint_overlay(int x, int y, color_t color, float scale);
 
     const std::string &key() const;
     const char *key_c_str() const;

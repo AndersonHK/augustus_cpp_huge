@@ -8,10 +8,13 @@
 #include <cstring>
 #include <cstdlib>
 #include <string>
+#include <chrono>
 
 static SDL_version version;
 
 namespace {
+std::string logging_directory_override;
+
 char *platform_alloc_path(char *raw_path)
 {
     if (!raw_path) {
@@ -157,6 +160,7 @@ int platform_sdl_version_at_least(int major, int minor, int patch)
 
 char *platform_get_logging_path(void)
 {
+    if (!logging_directory_override.empty()) return SDL_strdup(logging_directory_override.c_str());
 #if defined(__ANDROID__)
     return NULL;
 #else
@@ -181,8 +185,25 @@ char *platform_get_pref_path(void)
 
 namespace platform {
 
+// Headless validation owns its logs, so it cannot rotate an interactive game's
+// error report or truncate its performance log while the player reproduces a bug.
+bool use_temporary_logging_directory()
+{
+    std::error_code error;
+    const auto root = std::filesystem::temp_directory_path(error);
+    if (error) return false;
+    const auto nonce = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    const auto directory = root / ("Vespasian-validation-" + std::to_string(nonce));
+    if (!std::filesystem::create_directory(directory, error) || error) return false;
+    const auto utf8 = directory.generic_u8string();
+    logging_directory_override.assign(reinterpret_cast<const char *>(utf8.data()), utf8.size());
+    logging_directory_override += "/";
+    return true;
+}
+
 std::string logging_path()
 {
+    if (!logging_directory_override.empty()) return logging_directory_override;
 #if defined(__ANDROID__)
     return {};
 #else

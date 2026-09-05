@@ -5,6 +5,7 @@
 #include "core/log.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
+#include "graphics/runtime_overlay_images.h"
 #include "graphics/screen.h"
 
 #include <cstdlib>
@@ -220,10 +221,16 @@ void Image::copy_isometric_footprint(const image_copy_info &copy_info)
     image_copy_isometric_footprint(&copy_info);
 }
 
-void Image::blend_footprint_color(int x, int y, color_t color, float scale)
+void Image::draw_footprint_overlay(int x, int y, color_t color, float scale)
 {
-    graphics_renderer()->draw_custom_image(color == COLOR_MASK_GREEN ?
-        CUSTOM_IMAGE_GREEN_FOOTPRINT : CUSTOM_IMAGE_RED_FOOTPRINT, x, y, scale, 0);
+    // Every tile overlay uses the same managed diamond and source-over blending;
+    // callers supply ARGB color/opacity, independently of the terrain beneath it.
+    const Image *overlay = runtime_footprint_overlay_image();
+    if (!overlay) {
+        log_error("Footprint overlay was not initialized", 0, 0);
+        return;
+    }
+    overlay->draw_isometric_footprint_from_draw_tile(x, y, color, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
 }
 
 const std::string &Image::key() const

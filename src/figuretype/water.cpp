@@ -18,6 +18,7 @@
 #include "map/grid.h"
 #include "scenario/map.h"
 #include "window/building/common.h"
+#include <cstdio>
 
 static const int FLOTSAM_RESOURCE_IDS[] = {
     3, 1, 3, 2, 1, 3, 2, 3, 2, 1, 3, 3, 2, 3, 3, 3, 1, 2, 0, 1
@@ -179,11 +180,9 @@ void figure_shipwreck_action(Figure *f)
     if (f->wait_ticks > 2000) {
         f->state = FIGURE_STATE_DEAD;
     }
-    f->select_legacy_directional_frame_image(
-        image_group(GROUP_FIGURE_SHIPWRECK),
-        0,
-        f->image_offset / 16,
-        1);
+    char entry[32];
+    std::snprintf(entry, sizeof(entry), "Image_%04d", f->image_offset / 16);
+    figure_runtime_graphics_select_default_entry(f, entry);
 }
 
 void figure_sink_all_ships(void)

@@ -209,6 +209,7 @@ inline constexpr FigureTypeXmlName FIGURE_TYPE_XML_NAMES[] = {
     { "fishing_boat", FIGURE_FISHING_BOAT },
     { "fish_gulls", FIGURE_FISH_GULLS },
     { "flotsam", FIGURE_FLOTSAM },
+    { "shipwreck", FIGURE_SHIPWRECK },
     { "arrow", FIGURE_ARROW },
     { "javelin", FIGURE_JAVELIN },
     { "bolt", FIGURE_BOLT },

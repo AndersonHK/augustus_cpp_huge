@@ -362,6 +362,23 @@ inline bool validate_composition_rotation_contracts(std::ostream &error)
         return false;
     }
 
+    const std::vector<LoadedCompositionCandidate> row_order_chain = {
+        LoadedCompositionCandidate{ 3, 1, 2, child_type, 11, 10, true },
+        LoadedCompositionCandidate{ 2, 3, 4, child_type, 10, 11, true },
+        LoadedCompositionCandidate{ 4, 2, 0, child_type, 11, 11, true }
+    };
+    const auto reordered = building_type_registry_impl::plan_composition_hydration(expected_layout, 1, row_order_chain);
+    if (!reordered.valid() || reordered.actions.size() != 3 || !reordered.unrelated_tail_ids.empty() || reordered.warnings.empty()) {
+        error << "Composition hydration failed to retain a legacy row-order chain.\n";
+        return false;
+    }
+    for (size_t index = 0; index < reordered.actions.size(); index++) {
+        if (reordered.actions[index].kind != CompositionHydrationActionKind::AdoptExisting || reordered.actions[index].existing_id != index + 2) {
+            error << "Composition hydration replaced an existing bay while reordering legacy roles.\n";
+            return false;
+        }
+    }
+
     const std::vector<LoadedCompositionCandidate> same_type_unrelated_chain = {
         LoadedCompositionCandidate{ 2, 1, 9, child_type, 10, 11, true },
         LoadedCompositionCandidate{ 9, 2, 0, child_type, 30, 30, true }

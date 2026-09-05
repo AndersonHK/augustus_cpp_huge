@@ -4,6 +4,8 @@ Snapshot: 2026-08-31
 
 ## Current Contract
 
+Tower sentries and watchmen bind their walking, combat and corpse entries from `Warriors\Group_194`; shipwrecks bind their eight sinking frames from `Ships\Group_226`. Their remaining legacy state machines select named entries through the native figure graphics API. Missile-launcher metadata alone does not provide a drawable target, and a fishing boat converted to a shipwreck must resolve graphics for its new type.
+
 Figure graphics now follow the same ownership direction as building graphics. `FigureGraphics` inherits shared graphics-definition semantics, resolves logical asset XML, and produces complete draw requests. City drawing submits those requests; it does not reconstruct figure images from type-specific enums or fall back to the legacy city-draw switch.
 
 FigureType XML uses this strict shape:

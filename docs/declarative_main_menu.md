@@ -30,6 +30,8 @@ The main-menu interpreter supports image, panel, label, text-button, and image-b
 
 Named authored images use path-keyed graphics groups such as `UI\Main_Menu_Background`. Legacy group images remain available only when the mod explicitly names their numeric group in its own document.
 
+Visibility conditions use `window_get_draw_id()`, the window currently being composed. When the exit popup redraws the menu beneath it, `main_menu` therefore remains true and the central card remains visible. `window_get_id()` still identifies the active window for input and navigation. The executable startup/save gate compares menu-header pixels before, during, and after the real quit popup.
+
 ## Action vocabulary
 
 Text and image buttons declare one of these engine capabilities in `action`:

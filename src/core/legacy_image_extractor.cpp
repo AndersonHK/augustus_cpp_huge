@@ -21,7 +21,7 @@
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v11:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v12:";
 constexpr int kLegacyIncreaseButtonImage = 15;
 constexpr int kLegacyDecreaseButtonImage = 17;
 class LegacyFamily {

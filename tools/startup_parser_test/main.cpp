@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <fstream>
 #include <cstdlib>
 #include <cstdio>
 #include <cstdint>
@@ -1589,7 +1590,7 @@ std::vector<std::filesystem::path> discover_save_soak_files(const std::filesyste
         if (iterator->is_regular_file(error)) {
             std::string extension = iterator->path().extension().string();
             std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
-            if (extension == ".svv" || extension == ".sav") candidates.push_back({ std::filesystem::absolute(iterator->path()), iterator->last_write_time(error), extension });
+            if (extension == ".svv" || extension == ".sav" || extension == ".svx") candidates.push_back({ std::filesystem::absolute(iterator->path()), iterator->last_write_time(error), extension });
         }
         iterator.increment(error);
     }
@@ -1607,10 +1608,12 @@ std::vector<std::filesystem::path> discover_save_soak_files(const std::filesyste
         if (std::find(selected.begin(), selected.end(), path) == selected.end()) selected.push_back(path);
     };
     append_if_missing(candidates.front().path);
-    for (const SaveSoakCandidate &candidate : candidates) {
-        if (candidate.extension != candidates.front().extension) {
-            append_if_missing(candidate.path);
-            break;
+    for (const char *extension : { ".svv", ".sav", ".svx" }) {
+        for (const SaveSoakCandidate &candidate : candidates) {
+            if (candidate.extension == extension) {
+                append_if_missing(candidate.path);
+                break;
+            }
         }
     }
     int representative_count = 0;
@@ -1692,6 +1695,50 @@ bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root
         run_executable_save_validation(executable, game_root, { save }, "Augustus", tick_count, cold_start_each_save);
 }
 
+bool run_original_campaign_save_test(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int tick_count)
+{
+    // Scenario 14 contains original burning ruins without TERRAIN_RUBBLE,
+    // row-ordered warehouse bays, and an unowned duplicate fountain. Read the
+    // user's mission pack at test time; never check original game data in.
+    std::ifstream pack(game_root / "mission1.pak", std::ios::binary);
+    uint8_t offsets[8] = {};
+    pack.seekg(14 * 4);
+    pack.read(reinterpret_cast<char *>(offsets), sizeof(offsets));
+    const auto read_offset = [](const uint8_t *bytes) {
+        return uint32_t(bytes[0]) | (uint32_t(bytes[1]) << 8) | (uint32_t(bytes[2]) << 16) | (uint32_t(bytes[3]) << 24);
+    };
+    const uint32_t begin = read_offset(offsets);
+    const uint32_t end = read_offset(offsets + 4);
+    if (!pack || begin < 20 * 4 || end <= begin || end - begin > 64 * 1024 * 1024) {
+        std::cerr << "Campaign regression could not read scenario 14 from mission1.pak.\n";
+        return false;
+    }
+    std::vector<char> bytes(end - begin);
+    pack.seekg(begin);
+    pack.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    if (!pack) {
+        std::cerr << "Campaign regression could not read the complete scenario 14 payload.\n";
+        return false;
+    }
+    const auto scenario = std::filesystem::temp_directory_path() / "Vespasian-StartupParserTest-campaign14.sav";
+    std::ofstream output(scenario, std::ios::binary | std::ios::trunc);
+    output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    output.close();
+    if (!output) {
+        std::cerr << "Campaign regression could not write its temporary scenario fixture.\n";
+        return false;
+    }
+#if defined(_WIN32)
+    const auto executable = tool_directory / "Vespasian.exe";
+#else
+    const auto executable = tool_directory / "Vespasian";
+#endif
+    const bool passed = run_executable_save_validation(executable, game_root, { scenario }, "Vespasian", tick_count, false);
+    std::error_code error;
+    std::filesystem::remove(scenario, error);
+    return passed;
+}
+
 bool run_executable_save_soak_tests(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int save_count, int tick_count, bool cold_start_each_save)
 {
 #if defined(_WIN32)
@@ -1701,7 +1748,7 @@ bool run_executable_save_soak_tests(const std::filesystem::path &game_root, cons
 #endif
     const std::vector<std::filesystem::path> saves = discover_save_soak_files(game_root, save_count);
     if (saves.empty()) {
-        std::cerr << "Save-soak test requires at least one .svv or .sav file under " << (game_root / "savegames") << ".\n";
+        std::cerr << "Save-soak test requires at least one .svv, .sav, or .svx file under " << (game_root / "savegames") << ".\n";
         return false;
     }
     std::cout << "Running " << saves.size() << " required and representative Vespasian save soak(s) for " << tick_count << " ticks each at 1000% speed in " << (cold_start_each_save ? "cold" : "fast sequential") << " mode.\n" << std::flush;
@@ -1966,6 +2013,7 @@ int run_startup_parser_test(int argc, char **argv)
         return 1;
     }
     if (!run_executable_startup_tests(game_root, tool_directory) ||
+        !run_original_campaign_save_test(game_root, tool_directory, options.save_soak_ticks) ||
         !run_dependency_stack_save_soak_tests(game_root, tool_directory, options.save_soak_ticks, options.cold_save_validation) ||
         !run_executable_save_soak_tests(game_root, tool_directory, options.save_soak_count, options.save_soak_ticks, options.cold_save_validation)) {
         return 1;

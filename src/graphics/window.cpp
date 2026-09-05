@@ -87,6 +87,11 @@ window_id window_get_id(void)
     return data.current_window->id;
 }
 
+window_id window_get_draw_id(void)
+{
+    return data.window_queue[data.queue_index].id;
+}
+
 void window_show(const window_type *window)
 {
     reset_input();

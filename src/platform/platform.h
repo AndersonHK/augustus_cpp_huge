@@ -10,6 +10,7 @@ void exit_with_status(int status);
 
 namespace platform {
 
+bool use_temporary_logging_directory();
 std::string logging_path();
 std::string pref_path();
 std::filesystem::path logging_path_filesystem();

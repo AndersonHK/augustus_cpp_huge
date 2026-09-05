@@ -2504,6 +2504,10 @@ static int hydrate_loaded_native_composition(
         log_error("Unable to bind loaded native composition", relationship_error.c_str(), 0);
         return 0;
     }
+
+    for (const std::string &warning : hydration.warnings) {
+        log_warning("Repairing loaded composition chain", warning.c_str(), main_record->id);
+    }
     for (const LoadedChild &child : children) {
         if (child.object && repaired_surface_bindings) {
             *repaired_surface_bindings += stale_owner_bindings_for_loaded_composition_child(
@@ -4387,6 +4391,34 @@ static int clear_unbound_foundation_bindings()
     return cleared;
 }
 
+static void discard_loaded_duplicate_single_tile_records()
+{
+    // Some original campaign cities contain duplicate fountains at one tile.
+    // The serialized grid identifies the surviving owner. Only discard an
+    // exact duplicate with no map ownership anywhere and no composition links.
+    std::vector<bool> owns_tile(data.buildings.size(), false);
+    for (int offset = 0; offset < GRID_SIZE * GRID_SIZE; offset++) {
+        const unsigned int id = map_building_loaded_id_at(offset);
+        if (id < owns_tile.size()) owns_tile[id] = true;
+    }
+    for (building &record : data.buildings) {
+        if (!composed_record_is_live(&record) || owns_tile[record.id] || !map_grid_is_valid_offset(record.grid_offset)) continue;
+        const auto *definition = definition_for_record(&record);
+        const auto *foundation = definition ? definition->foundation_def() : nullptr;
+        if (!foundation || foundation->cells().size() != 1 || !foundation->cells().front().binds_building ||
+            definition->has_composition() || record.prev_part_building_id || record.next_part_building_id) continue;
+        const unsigned int owner_id = map_building_loaded_id_at(record.grid_offset);
+        const building *owner = owner_id < data.buildings.size() ? &data.buildings[owner_id] : nullptr;
+        if (!composed_record_is_live(owner) || owner->type != record.type || owner->x != record.x || owner->y != record.y) continue;
+        char detail[192];
+        snprintf(detail, sizeof(detail), "building_id=%u owner_id=%u type=%s x=%d y=%d", record.id, owner_id, definition->attr(), record.x, record.y);
+        log_warning("Discarding an unowned duplicate serialized building", detail, 0);
+        discard_loaded_record(record);
+    }
+    trim_buildings();
+    rebuild_loaded_record_type_links();
+}
+
 static bool validate_loaded_unbound_foundation_bindings()
 {
     for (const building &record : data.buildings) {
@@ -4410,6 +4442,26 @@ static bool validate_loaded_unbound_foundation_bindings()
         }
     }
     return true;
+}
+
+static void repair_loaded_rubble_terrain()
+{
+    // Original campaign saves can bind live burning ruins with only the
+    // BUILDING flag. Preserve those owners before rubble normalization tests
+    // map presence. Current producers already publish both flags in
+    // map_building_tiles_add_rubble; recover affected saves of any version.
+    for (const building &record : data.buildings) {
+        if (!record.id || record.state == BUILDING_STATE_UNUSED || !map_grid_is_inside(record.x, record.y, 1)) continue;
+        const building_type_registry_impl::BuildingType *definition = definition_for_record(&record);
+        if (!definition || !definition->has_rubble()) continue;
+        const int grid_offset = record.grid_offset;
+        if (!map_grid_is_valid_offset(grid_offset) || map_building_loaded_id_at(grid_offset) != record.id ||
+            !map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_RUBBLE | TERRAIN_WATER)) continue;
+        char detail[160];
+        snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
+        log_warning("Repairing missing rubble terrain on a serialized ruin", detail, 0);
+        map_terrain_add(grid_offset, TERRAIN_RUBBLE);
+    }
 }
 
 static void normalize_loaded_rubble_records()
@@ -4593,6 +4645,7 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
     // Current-format saves can still contain recoverably inconsistent records
     // written by an older runtime producer. Repair those too, but only let old
     // formats reconstruct ownership without serialized Foundation evidence.
+    discard_loaded_duplicate_single_tile_records();
     normalize_loaded_surface_records(save_version < SAVE_GAME_CURRENT_VERSION);
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         building_promote_legacy_tile_buildings_after_load();
@@ -4604,6 +4657,7 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
     }
     const int repaired_bindings = clear_unbound_foundation_bindings();
     if (repaired_bindings) log_warning("Repairing serialized bindings on non-binding surface cells", 0, repaired_bindings);
+    repair_loaded_rubble_terrain();
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         normalize_loaded_rubble_records();
     }

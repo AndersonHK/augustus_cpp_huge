@@ -1660,59 +1660,6 @@ static void draw_saved_texture(int texture_id, int x, int y)
     draw_saved_texture_for_domain(domain, texture_id, x, y);
 }
 
-static void create_blend_texture(custom_image_type type)
-{
-    SDL_Texture *texture = SDL_CreateTexture(data.renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_TARGET, 58, 30);
-    if (!texture) {
-        return;
-    }
-    const image *img = image_get(image_group(GROUP_TERRAIN_FLAT_TILE));
-    if (!img) {
-        SDL_DestroyTexture(texture);
-        return;
-    }
-    SDL_Texture *flat_tile = get_managed_texture(img->resource_handle);
-    if (!flat_tile) {
-        flat_tile = get_texture(img->atlas.id);
-    }
-    if (!flat_tile) {
-        SDL_DestroyTexture(texture);
-        return;
-    }
-    render_state current_state;
-    save_render_state(&current_state);
-
-    SDL_SetRenderTarget(data.renderer, texture);
-    SDL_Rect rect = { 0, 0, 58, 30 };
-    SDL_RenderSetScale(data.renderer, 1.0f, 1.0f);
-    SDL_RenderSetClipRect(data.renderer, &rect);
-    SDL_RenderSetViewport(data.renderer, &rect);
-    SDL_SetRenderDrawColor(data.renderer, 0xff, 0xff, 0xff, 0xff);
-    color_t color = type == CUSTOM_IMAGE_RED_FOOTPRINT ? COLOR_MASK_RED : COLOR_MASK_GREEN;
-    SDL_RenderClear(data.renderer);
-    SDL_SetTextureBlendMode(flat_tile, SDL_BLENDMODE_BLEND);
-
-    SDL_SetTextureColorMod(flat_tile,
-        color_channel_to_u8(color, COLOR_CHANNEL_RED, COLOR_BITSHIFT_RED),
-        color_channel_to_u8(color, COLOR_CHANNEL_GREEN, COLOR_BITSHIFT_GREEN),
-        color_channel_to_u8(color, COLOR_CHANNEL_BLUE, COLOR_BITSHIFT_BLUE));
-    SDL_SetTextureAlphaMod(flat_tile, 0xff);
-    SDL_Rect src_coords = { img && img->resource_handle ? 0 : img->atlas.x_offset,
-        img && img->resource_handle ? 0 : img->atlas.y_offset, img->width, img->height };
-    SDL_RenderCopy(data.renderer, flat_tile, &src_coords, 0);
-
-    restore_render_state(&current_state);
-
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_MOD);
-
-    data.custom_textures[type].texture = texture;
-    memset(&data.custom_textures[type].img, 0, sizeof(data.custom_textures[type].img));
-    data.custom_textures[type].img.is_isometric = 1;
-    data.custom_textures[type].img.width = 58;
-    data.custom_textures[type].img.height = 30;
-    data.custom_textures[type].img.atlas.id = (ATLAS_CUSTOM << IMAGE_ATLAS_BIT_OFFSET) | type;
-}
-
 static SDL_Texture *get_silhouette_texture(const image *img)
 {
     if (data.paused || !img) {
@@ -1832,11 +1779,6 @@ static void draw_custom_texture(custom_image_type type, int x, int y, float scal
     }
     if (data.paused) {
         return;
-    }
-    if (type == CUSTOM_IMAGE_RED_FOOTPRINT || type == CUSTOM_IMAGE_GREEN_FOOTPRINT) {
-        if (!data.custom_textures[type].texture) {
-            create_blend_texture(type);
-        }
     }
     data.auto_force_nearest_filter = disable_filtering;
     draw_texture(&data.custom_textures[type].img, x, y, 0, scale);
@@ -2178,16 +2120,6 @@ int platform_renderer_lost_render_texture(void)
 
 void platform_renderer_invalidate_target_textures(void)
 {
-    if (data.custom_textures[CUSTOM_IMAGE_RED_FOOTPRINT].texture) {
-        SDL_DestroyTexture(data.custom_textures[CUSTOM_IMAGE_RED_FOOTPRINT].texture);
-        data.custom_textures[CUSTOM_IMAGE_RED_FOOTPRINT].texture = 0;
-        create_blend_texture(CUSTOM_IMAGE_RED_FOOTPRINT);
-    }
-    if (data.custom_textures[CUSTOM_IMAGE_GREEN_FOOTPRINT].texture) {
-        SDL_DestroyTexture(data.custom_textures[CUSTOM_IMAGE_GREEN_FOOTPRINT].texture);
-        data.custom_textures[CUSTOM_IMAGE_GREEN_FOOTPRINT].texture = 0;
-        create_blend_texture(CUSTOM_IMAGE_GREEN_FOOTPRINT);
-    }
     if (data.tooltip.texture) {
         SDL_DestroyTexture(data.tooltip.texture);
         data.tooltip.texture = 0;
