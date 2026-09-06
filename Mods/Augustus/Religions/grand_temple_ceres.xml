@@ -4,4 +4,8 @@
     <tier value="grand" />
     <capacity amount="5000" />
     <presentation sound="wavs/temple_farm.wav" name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC" quote_key="TR_BUILDING_CERES_TEMPLE_QUOTE" banner_group="UI\Ceres_L_Banner" banner_image="Ceres L Banner" content_y_offset="0" height_blocks="40" module_key="ceres" />
+    <epithets>
+        <epithet name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_1" description_key="TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_1_DESC" image="Ceres M Icon" />
+        <epithet name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_2" description_key="TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_2_DESC" image="Ceres M2 Icon" />
+    </epithets>
 </religion>

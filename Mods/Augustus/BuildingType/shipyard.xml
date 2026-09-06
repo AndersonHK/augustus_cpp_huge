@@ -1,33 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="shipyard">
-    <identity name_key="main_strings.28.74" />
-    <model cost="100" />
-    <desirability>
-        <value value="-8" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="waterside_2x2" />
     <button group="engineering" order="30" text_key="main_strings.28.74" />
-    <graphics>
-        <default>
-            <options selection="orientation">
-                <option path="Industry\Shipyard" image="Image_0000" />
-                <option path="Industry\Shipyard" image="Image_0003" />
-                <option path="Industry\Shipyard" image="Image_0002" />
-                <option path="Industry\Shipyard" image="Image_0001" />
-            </options>
-        </default>
-    </graphics>
-    <labor>
-        <employees count="10" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="50" />
-        </labor_seeker>
-    </labor>
-    <production_methods>
-        <production_method path="fishing_boat_shipyard_basic" />
-    </production_methods>
 </building>

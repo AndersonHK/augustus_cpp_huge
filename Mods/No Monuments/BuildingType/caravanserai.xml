@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="caravanserai">
+    <construction road_update_radius="4" max_count="1">
+        <requirement type="bricks" amount="12" />
+        <requirement type="stone" amount="24" />
+        <requirement type="timber" amount="8" />
+    </construction>
+</building>

@@ -4,4 +4,8 @@
     <tier value="grand" />
     <capacity amount="5000" />
     <presentation sound="wavs/temple_comm.wav" name_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_BONUS_DESC" quote_key="TR_BUILDING_MERCURY_TEMPLE_QUOTE" banner_group="UI\Merc_L_Banner" banner_image="Merc L Banner" content_y_offset="0" height_blocks="40" module_key="mercury" />
+    <epithets>
+        <epithet name_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_1" description_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_1_DESC" image="Merc M Icon" requires_any_fort="true" />
+        <epithet name_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_2" description_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_2_DESC" image="Merc M2 Icon" />
+    </epithets>
 </religion>

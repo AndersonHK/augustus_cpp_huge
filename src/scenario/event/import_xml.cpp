@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cstdio>
+#include "scenario/definition_overrides.h"
 #include "import_xml.h"
 #include "translation/translation.h"
 #include "scenario/event/event.h"
@@ -8,6 +11,7 @@
 #include "window/editor/select_city_trade_route.h"
 #include <array>
 #include <vector>
+#include <cstring>
 
 #include "building/building_type_id_bridge.h"
 #include "core/file.h"
@@ -327,10 +331,21 @@ static int condition_populate_parameters(scenario_condition_t *condition)
     scenario_condition_data_t *condition_data = scenario_events_parameter_data_get_conditions_xml_attributes(condition->type);
     int success = 1;
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm1, &condition->parameter1);
+    if (condition->type == CONDITION_TYPE_TIME_PASSED && !xml_parser_has_attribute("value") && xml_parser_has_attribute("min")) {
+        int minimum = std::max(0, xml_parser_get_attribute_int("min"));
+        int maximum = std::max(minimum, xml_parser_get_attribute_int("max"));
+        char expression[64];
+        std::snprintf(expression, sizeof(expression), "{%d,%d}", minimum, maximum);
+        condition->parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>(expression), 0, 1000000000);
+        condition->parameter4 = minimum;
+        condition->parameter5 = 1;
+        return success;
+    }
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm2, &condition->parameter2);
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm3, &condition->parameter3);
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm4, &condition->parameter4);
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm5, &condition->parameter5);
+    if (condition->type == CONDITION_TYPE_TIME_PASSED && xml_parser_get_attribute_int("sample_on_init")) condition->parameter5 = 1;
 
     return success;
 }
@@ -509,6 +524,12 @@ static int xml_import_special_parse_attribute_with_resolved_type(xml_data_attrib
         case PARAMETER_TYPE_CLIMATE:
         case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
+        case PARAMETER_TYPE_HOUSE_DATA_TYPE:
+        case PARAMETER_TYPE_WIN_CONDITION:
+        case PARAMETER_TYPE_WEATHER:
+        case PARAMETER_TYPE_VARIABLE_COLOR:
+        case PARAMETER_TYPE_HOUSING_BUILDING:
+        case PARAMETER_TYPE_CONSTRUCTION_BUILDING:
         case PARAMETER_TYPE_MODEL:
         case PARAMETER_TYPE_PERCENTAGE:
         case PARAMETER_TYPE_HOUSING_TYPE:
@@ -524,10 +545,13 @@ static int xml_import_special_parse_attribute_with_resolved_type(xml_data_attrib
             return xml_import_special_parse_number(attr, target);
         case PARAMETER_TYPE_BUILDING_COUNTING:
             return xml_import_special_parse_building_counting(attr, target);
+        case PARAMETER_TYPE_EMPIRE_CITY:
         case PARAMETER_TYPE_FUTURE_CITY:
             return xml_import_special_parse_future_city(attr, target);
         case PARAMETER_TYPE_REQUEST:
         case PARAMETER_TYPE_NUMBER:
+        case PARAMETER_TYPE_GRID_OFFSET:
+        case PARAMETER_TYPE_CONSTRUCTION_PHASE:
         case PARAMETER_TYPE_GRID_SLICE:
             return xml_import_special_parse_limited_number(attr, target);
         case PARAMETER_TYPE_MIN_MAX_NUMBER:
@@ -540,6 +564,15 @@ static int xml_import_special_parse_attribute_with_resolved_type(xml_data_attrib
             return xml_import_special_parse_custom_message(attr, target);
         case PARAMETER_TYPE_CUSTOM_VARIABLE:
             return xml_import_special_parse_custom_variable(attr, target);
+        case PARAMETER_TYPE_SCENARIO_TEXT:
+            if (!attr->name || !xml_parser_has_attribute(attr->name)) return 0;
+            {
+                const char *utf8 = xml_parser_get_attribute_string(attr->name);
+                std::vector<uint8_t> encoded(strlen(utf8) + 1);
+                encoding_from_utf8(utf8, encoded.data(), static_cast<int>(encoded.size()));
+                *target = scenario_text_add(reinterpret_cast<const char *>(encoded.data()));
+            }
+            return 1;
         case PARAMETER_TYPE_FORMULA:
             return xml_import_special_parse_formula(attr, target);
         case PARAMETER_TYPE_UNDEFINED:
@@ -610,11 +643,13 @@ static int xml_import_special_parse_future_city(xml_data_attribute_t *attr, int 
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    const uint8_t *converted_name = string_from_ascii(value);
+    std::vector<uint8_t> encoded_name(strlen(value) + 1);
+    encoding_from_utf8(value, encoded_name.data(), static_cast<int>(encoded_name.size()));
+    const uint8_t *converted_name = encoded_name.data();
     int city_id = empire_city_get_id_by_name(converted_name);
     empire_city *city = empire_city_get(city_id);
     if (city) {
-        if (city->type == EMPIRE_CITY_FUTURE_TRADE) {
+        if (attr->type == PARAMETER_TYPE_EMPIRE_CITY || city->type == EMPIRE_CITY_FUTURE_TRADE) {
             *target = city_id;
             return 1;
         } else {
@@ -666,7 +701,9 @@ static int xml_import_special_parse_route(xml_data_attribute_t *attr, int *targe
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    const uint8_t *converted_name = string_from_ascii(value);
+    std::vector<uint8_t> encoded_name(strlen(value) + 1);
+    encoding_from_utf8(value, encoded_name.data(), static_cast<int>(encoded_name.size()));
+    const uint8_t *converted_name = encoded_name.data();
     int city_id = empire_city_get_id_by_name(converted_name);
     empire_city *city = empire_city_get(city_id);
     if (city) {
@@ -746,7 +783,9 @@ static int xml_import_special_parse_custom_message(xml_data_attribute_t *attr, i
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    const uint8_t *converted_name = string_from_ascii(value);
+    std::vector<uint8_t> encoded_name(strlen(value) + 1);
+    encoding_from_utf8(value, encoded_name.data(), static_cast<int>(encoded_name.size()));
+    const uint8_t *converted_name = encoded_name.data();
     int message_id = custom_messages_get_id_by_uid(converted_name);
 
     if (message_id) {
@@ -767,7 +806,9 @@ static int xml_import_special_parse_custom_variable(xml_data_attribute_t *attr, 
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    const uint8_t *converted_name = string_from_ascii(value);
+    std::vector<uint8_t> encoded_name(strlen(value) + 1);
+    encoding_from_utf8(value, encoded_name.data(), static_cast<int>(encoded_name.size()));
+    const uint8_t *converted_name = encoded_name.data();
     int variable_id = scenario_custom_variable_get_id_by_name(converted_name);
 
     if (variable_id) {

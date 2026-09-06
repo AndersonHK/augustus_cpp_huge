@@ -1,3 +1,5 @@
+#include "../../tools/catch_up_test/runtime.h"
+#include "../../tools/catch_up_test/editor.h"
 #include "building/building_type_startup_bridge.h"
 #include "../../tools/formation_runtime_test/formation_runtime_test.h"
 #include "../../tools/menu_render_test/menu_render_test.h"
@@ -11,6 +13,7 @@
 #include "game/Animation.h"
 #include "game/tick.h"
 #include "game/mod_manager.h"
+#include "game/mod_settings_runtime.h"
 #include "game/performance_tracker.h"
 #include "figure/figure_runtime_native.h"
 #include "platform/cursor.h"
@@ -21,6 +24,7 @@
 #include "core/file.h"
 #include "game/settings.h"
 #include "platform/platform.h"
+#include "platform/hardware_requirements.h"
 #include "platform/file_manager_cache.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
@@ -43,7 +47,6 @@
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
-#include "platform/vita/vita.h"
 #include "sound/system.h"
 
 #include "SDL.h"
@@ -519,6 +522,14 @@ static int run_single_save_validation(const augustus_args &args, int index)
         }
     }
 
+    if (args.catch_up_test && !run_catch_up_runtime_test()) return 10;
+
+    if (args.mod_settings_test) {
+        try { mod_settings_validate_live_changes(); }
+        catch (const std::exception &error) { fprintf(stderr, "Live mod settings test failed: %s\n", error.what()); return 9; }
+        if (data.warning_count || data.error_count) { fprintf(stderr, "Live mod settings test emitted warnings or errors\n"); return 9; }
+        fprintf(stdout, "Live mod settings changed and restored without population or treasury changes\n");
+    }
     bool soak_passed = true;
     if (args.save_soak_ticks) {
         soak_passed = run_save_soak_ticks(args.save_soak_ticks);
@@ -585,7 +596,7 @@ static void setup_logging(void)
     SDL_free(pref_dir);
     backup_log(log_file, log_file_old);
 
-#if defined(__vita__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     file_remove(log_file);
 #endif
     data.log_file = file_open(log_file, "wt");
@@ -976,7 +987,7 @@ static int init_sdl(int enable_joysticks, int disable_audio)
 #endif
 
     const Uint32 audio_flags = disable_audio ? 0 : SDL_INIT_AUDIO;
-    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
+    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         // Try starting SDL without joystick support
         if (SDL_Init(audio_flags | SDL_INIT_VIDEO) != 0) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
@@ -1125,6 +1136,7 @@ static int pre_init(const char *custom_data_dir)
 static void setup(const augustus_args *args)
 {
     data.startup_test = args->startup_test || args->load_save_test_count;
+    platform_screen_set_headless_errors(data.startup_test != 0);
     if (data.startup_test && !platform::use_temporary_logging_directory()) {
         fprintf(stderr, "Unable to create a temporary directory for validation logs.\n");
         exit_with_status(1);
@@ -1142,6 +1154,13 @@ static void setup(const augustus_args *args)
         exit_with_status(-1);
     }
 
+    std::string hardware_failure;
+    if (!platform_meets_hardware_requirements(hardware_failure)) {
+        show_startup_error("Unsupported hardware", hardware_failure.c_str());
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", hardware_failure.c_str());
+        exit_with_status(1);
+    }
+
     // SDL_GetPrefPath can be unavailable before SDL initialization. Retry here so
     // startup and configuration failures are captured in the normal log.
     if (!data.log_file) {
@@ -1150,11 +1169,7 @@ static void setup(const augustus_args *args)
         SDL_Log("Running on: %s", system_OS());
     }
 
-#ifdef __vita__
-    const char *base_dir = VITA_PATH_PREFIX;
-#else
     const char *base_dir = args->data_directory;
-#endif
 
     if (!pre_init(base_dir)) {
         SDL_Log("Exiting: game pre-init failed");
@@ -1215,7 +1230,12 @@ static void setup(const augustus_args *args)
     platform_init_callback();
 #endif
 
-    if (args->use_software_cursor) {
+    bool use_software_cursor = args->use_software_cursor != 0;
+#ifdef __ANDROID__
+    // SDL2 cannot reliably detect Android mice; gamepad navigation needs a visible cursor.
+    use_software_cursor = use_software_cursor || joysticks_are_connected();
+#endif
+    if (use_software_cursor) {
         platform_cursor_force_software_mode();
     }
 
@@ -1243,7 +1263,7 @@ int main(int argc, char **argv)
 {
     augustus_args args;
     if (!platform_parse_arguments(argc, argv, &args)) {
-#if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(__ANDROID__) && !defined(__APPLE__)
         // Only exit on Linux platforms where we know the system will not throw any weird arguments our way
         exit_with_status(1);
 #endif
@@ -1259,6 +1279,13 @@ int main(int argc, char **argv)
 #endif
 
     setup(&args);
+
+    if (args.editor_test) {
+        const bool passed = run_editor_compatibility_test();
+        const int result = passed && !data.warning_count && !data.error_count ? 0 : 11;
+        teardown();
+        return result;
+    }
 
     if (args.load_save_test_count) {
         const int result = run_save_validation(args);

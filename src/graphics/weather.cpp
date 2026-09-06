@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "weather.h"
 
 #include "core/config.h"
@@ -19,8 +20,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define DRIFT_DIRECTION_RIGHT 1
-#define DRIFT_DIRECTION_LEFT -1
+#define HEAVY_RAIN_THRESHOLD 600
 
 
 
@@ -29,7 +29,7 @@ static const int PARTICLE_SIZES_RAIN[] = { 1, 8, 15, 23, 30 }; //sets of arbitra
 static const int PARTICLE_SIZES_SAND[] = { 1, 6, 10, 15, 20 }; //denoted as: minmum, small, regular, large, maximum
 static const int PARTICLE_SIZES_SNOW[] = { 2, 3, 4, 6, 8 };
 static const int PARTICLE_SPEEDS_RAIN[] = { 1, 4, 8, 13, 20 }; //sets of arbitrary values for a noticeable difference
-static const int PARTICLE_SPEEDS_SNOW[] = { 1, 2, 4, 6, 10 };  //denoted as: minimum, slow, regular, fast, maximum
+static const int PARTICLE_SPEEDS_SNOW[] = { 1, 1, 2, 3, 5 };  //denoted as: minimum, slow, regular, fast, maximum
 static const int PARTICLE_SPEEDS_SAND[] = { 1, 3, 5, 8, 12 };
 static const int WEATHER_MAX_DURATION[] = { 1, 3, 6 }; // expressed in months, doesn't apply to thunderstorms
 
@@ -47,11 +47,11 @@ typedef struct {
     // For rain
     int length;
     int speed;
-    int wind_variation;
+    int wind_phase;
 
     // For snow
     int drift_offset;
-    int drift_direction;
+    int prev_drift;
 
     // For sand
     int offset;
@@ -102,6 +102,26 @@ static struct {
     }
 };
 
+static int get_adjusted_intensity(void)
+{
+    int base = data.weather_config.intensity;
+    int slider = 100;
+    switch (data.weather_config.type) {
+        case WEATHER_RAIN:
+            slider = config_get(CONFIG_WT_RAIN_INTENSITY);
+            break;
+        case WEATHER_SNOW:
+            slider = config_get(CONFIG_WT_SNOW_INTENSITY);
+            break;
+        case WEATHER_SAND:
+            slider = config_get(CONFIG_WT_SANDSTORM_INTENSITY);
+            break;
+        default:
+            break;
+    }
+    return base * slider / 100;
+}
+
 void init_weather_element(weather_element *e, int type)
 {
     e->x = random_from_stdlib() % screen_pixel_width();
@@ -111,16 +131,24 @@ void init_weather_element(weather_element *e, int type)
         case WEATHER_RAIN:
             e->length = get_particle_size(PARTICLE_SIZES_RAIN, config_get(CONFIG_WT_RAIN_LENGTH)) + random_from_stdlib() % 10;
             e->speed = get_particle_size(PARTICLE_SPEEDS_RAIN, config_get(CONFIG_WT_RAIN_SPEED)) + random_from_stdlib() % 5;
-            if (data.weather_config.intensity < 600) {
-                e->wind_variation = 0;
+            // Light rain: every drop shares the global wind cycle (uniform sweep).
+            // Heavy rain: each drop sees the cycle at a different phase, so they
+            // don't all change direction in lockstep.
+            if (get_adjusted_intensity() < HEAVY_RAIN_THRESHOLD) {
+                e->wind_phase = 0;
             } else {
-                e->wind_variation = (random_from_stdlib() % 3) - 1; // -1, 0 or 1
+                e->wind_phase = random_from_stdlib() % (HEAVY_RAIN_THRESHOLD / 2);
             }
             break;
         case WEATHER_SNOW:
-            e->drift_offset = random_from_stdlib() % 100;
-            e->speed = get_particle_size(PARTICLE_SPEEDS_SNOW, config_get(CONFIG_WT_SNOW_SPEED)) + random_from_stdlib() % 4;
-            e->drift_direction = (random_from_stdlib() % 2 == 0) ? DRIFT_DIRECTION_RIGHT : DRIFT_DIRECTION_LEFT;
+            // drift_offset is a per-flake phase so each flake samples the
+            // sway cycle slightly out of step. prev_drift seeds the delta
+            // tracker with the sway curve's current value so the flake doesn't
+            // jump on its first rendered frame.
+            e->drift_offset = random_from_stdlib() % 300;
+            e->prev_drift = (int) (sinf(data.wind_angle * 0.021f
+                            + e->drift_offset * 0.02f) * 10.0f);
+            e->speed = get_particle_size(PARTICLE_SPEEDS_SNOW, config_get(CONFIG_WT_SNOW_SPEED)) + random_from_stdlib() % 2;
             break;
         case WEATHER_SAND:
             e->speed = get_particle_size(PARTICLE_SPEEDS_SAND, config_get(CONFIG_WT_SANDSTORM_SPEED)) + (random_from_stdlib() % 2);
@@ -189,7 +217,7 @@ static void update_wind(void)
 
 static void update_current_particle_count(void)
 {
-    int target = data.weather_config.active ? data.weather_config.intensity : 0;
+    int target = data.weather_config.active ? get_adjusted_intensity() : 0;
     int duration = 48;
     int diff = abs(target - data.current_particle_count);
 
@@ -265,15 +293,28 @@ static void draw_snow(void)
         return;
     }
 
+    if (window_city_is_window_cityview() || window_city_simulated_weather(WEATHER_SNOW)) {
+        update_wind();
+    }
+
     int max_particles = data.last_elements_count;
     int count = data.current_particle_count;
     if (count > max_particles) {
         count = max_particles;
     }
+
     for (int i = 0; i < count; ++i) {
         if (window_city_is_window_cityview() || window_city_simulated_weather(WEATHER_SNOW)) {
-            int drift = ((data.elements[i].y + data.elements[i].drift_offset) % 10) - 5;
-            data.elements[i].x += (drift / 10) * data.elements[i].drift_direction;
+            // Slow, bounded horizontal sway around the flake's spawn column.
+            // target_drift oscillates in ±10px over ~5 seconds, with a per-flake
+            // phase offset so flakes don't sway in unison. We apply the delta
+            // (new - prev) so x naturally returns to center instead of running
+            // off-screen via accumulating per-frame perturbations.
+            float target_drift = sinf(data.wind_angle * 0.021f
+                                + data.elements[i].drift_offset * 0.02f) * 10.0f;
+            int new_drift = (int) target_drift;
+            data.elements[i].x += new_drift - data.elements[i].prev_drift;
+            data.elements[i].prev_drift = new_drift;
             data.elements[i].y += data.elements[i].speed;
         }
 
@@ -294,8 +335,7 @@ static void draw_snow(void)
             data.elements[i].y + sf_size,
             COLOR_WEATHER_SNOWFLAKE);
 
-        if (data.elements[i].y >= screen_pixel_height() ||
-            data.elements[i].x <= 0 || data.elements[i].x >= screen_pixel_width()) {
+        if (data.elements[i].y >= screen_pixel_height() || data.elements[i].x <= 0 || data.elements[i].x >= screen_pixel_width()) {
             init_weather_element(&data.elements[i], data.weather_config.type);
             data.elements[i].y = -(int) (random_from_stdlib() % 30);
         }
@@ -341,13 +381,13 @@ static void draw_rain(void)
         return;
     }
 
-    if (data.weather_config.intensity < 600 &&
-        (window_city_is_window_cityview() || window_city_simulated_weather(WEATHER_RAIN))) {
+    if (window_city_is_window_cityview() || window_city_simulated_weather(WEATHER_RAIN)) {
         update_wind();
     }
 
     int wind_strength = abs(data.weather_config.dx);
-    int base_speed = 3 + wind_strength + (data.weather_config.intensity / 300);
+    int adjusted_intensity = get_adjusted_intensity();
+    int base_speed = 3 + wind_strength + (adjusted_intensity / (HEAVY_RAIN_THRESHOLD / 2));
 
     int max_particles = data.last_elements_count;
     int count = data.current_particle_count;
@@ -355,13 +395,19 @@ static void draw_rain(void)
         count = max_particles;
     }
 
+    // Global wind shared by every drop: dominant horizontal direction.
+    float global_w = sinf(data.wind_angle * 0.011f) * 1.5f
+                   + sinf(data.wind_angle * 0.025f) * 0.8f;
+
     for (int i = 0; i < count; ++i) {
-        int dx;
-        if (data.current_particle_count < 600) {
-            dx = data.weather_config.dx;
-        } else {
-            dx = data.weather_config.dx + data.elements[i].wind_variation;
+        // Light rain: drops follow the global wind exactly (uniform sweep).
+        // Heavy rain: small per-particle perturbation (±0.5) staggers the
+        // moment each drop switches direction at rounding boundaries.
+        float pp = 0.0f;
+        if (adjusted_intensity >= HEAVY_RAIN_THRESHOLD) {
+            pp = sinf((data.wind_angle + data.elements[i].wind_phase) * 0.04f) * 0.5f;
         }
+        int dx = (int) (global_w + pp);
 
         graphics_draw_line(
             data.elements[i].x,
@@ -373,12 +419,12 @@ static void draw_rain(void)
         if (window_city_is_window_cityview() || window_city_simulated_weather(WEATHER_RAIN)) {
             data.elements[i].x += dx;
 
-            int dy = base_speed + data.elements[i].speed + (((data.elements[i].x + data.elements[i].y) % 10) / 10);
+            int dy = base_speed + data.elements[i].speed
+                   + (((data.elements[i].x + data.elements[i].y) % 3) - 1);
             data.elements[i].y += dy;
         }
 
-        if (data.elements[i].y >= screen_pixel_height() ||
-            data.elements[i].x <= 0 || data.elements[i].x >= screen_pixel_width()) {
+        if (data.elements[i].y >= screen_pixel_height() || data.elements[i].x <= 0 || data.elements[i].x >= screen_pixel_width()) {
             init_weather_element(&data.elements[i], data.weather_config.type);
             data.elements[i].y = 0;
         }
@@ -391,6 +437,10 @@ static void draw_rain(void)
 
 void update_weather(void)
 {
+    if (!window_city_is_window_cityview() && !window_is(WINDOW_CONFIG)) {
+        if (data.is_sound_playing) { sound_device_stop_type(SOUND_TYPE_EFFECTS); data.is_sound_playing = 0; }
+        return;
+    }
 
     render_weather_overlay();
     update_current_particle_count();
@@ -429,13 +479,14 @@ void update_weather(void)
         return;
     }
 
-    int target_count = data.weather_config.intensity;
+    int target_count = get_adjusted_intensity();
     if (target_count != data.last_elements_count && target_count > 0) {
         if (data.elements) {
             free(data.elements);
             data.elements = 0;
         }
         data.elements = static_cast<weather_element *>(malloc(sizeof(weather_element) * target_count));
+        if (!data.elements) { weather_stop(); return; }
         for (int i = 0; i < target_count; ++i) {
             init_weather_element(&data.elements[i], data.weather_config.type);
         }
@@ -536,7 +587,7 @@ void city_weather_update(int month)
             intensity = 0;
             type = WEATHER_NONE;
         } else {
-            int duration_setting = config_get(CONFIG_UI_WT_WEATHER_DURATION);
+            int duration_setting = std::clamp(config_get(CONFIG_UI_WT_WEATHER_DURATION), 0, 2);
             data.weather_duration_left = random_between_from_stdlib(1, WEATHER_MAX_DURATION[duration_setting]);
             // Play sounds only if weather is enabled
             if (config_get(CONFIG_UI_DRAW_WEATHER)) {

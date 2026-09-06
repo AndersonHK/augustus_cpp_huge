@@ -1170,6 +1170,8 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
 
 int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road)
 {
+    if (policy.require_population && (!building.Housing || building.Housing->state().population <= 0)) return 0;
+    if (!policy.requires_config.empty() && !config_get(config_key_from_name(policy.requires_config.c_str()))) return 0;
     if (!evaluate_condition(policy.condition)) {
         return 0;
     }
@@ -1303,6 +1305,10 @@ void building_runtime::spawn_figure()
             if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
                 run_native_production_phase(road, 1);
             }
+        } else if (type().city_service().enabled()) {
+            check_labor_problem();
+            map_point road;
+            if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) run_labor_phase(type().labor(), road);
         } else if (type().is_architect_guild()) {
             spawn_architect_guild();
         } else if (type().is_caravanserai()) {

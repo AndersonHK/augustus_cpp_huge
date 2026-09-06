@@ -114,7 +114,7 @@ int game_campaign_load_scenario_info(int scenario_id, saved_game_info *info);
  * @param scenario_id The scenario id.
  * @return A pointer to the mission info if successful, 0 otherwise.
  */
-const campaign_mission_info *game_campaign_get_current_mission(int scenario_id);
+const campaign_mission_info *game_campaign_get_current_mission(int scenario_id, int inherited_rank = -1);
 
  /**
  * Gets the next mission from the campaign. This will also advance the latest mission in the campaign player data, if

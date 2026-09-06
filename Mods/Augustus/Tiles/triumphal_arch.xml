@@ -1,29 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="triumphal_arch">
-    <identity name_key="main_strings.28.56" />
-    <model cost="0" />
-    <desirability>
-        <value value="18" />
-        <step value="2" />
-        <step_size value="3" />
-        <range value="5" />
-    </desirability>
-    <foundation path="triumphal_arch_3x3" />
-  <button group="administration" order="1000" text_key="main_strings.28.56" />
-
-    <flags fire_proof="1" />
-    <graphics>
-        <default>
-            <path value="Monuments\Triumphal_Arch" />
-            <options selection="orientation">
-                <option image="Image_0002" />
-                <option image="Image_0000" />
-                <option image="Image_0002" />
-                <option image="Image_0000" />
-            </options>
-        </default>
-    </graphics>
-    <labor>
-        <employees count="0" />
-    </labor>
+    <button group="administration" order="1000" text_key="main_strings.28.56" />
+    <construction mode="phased" road_update_radius="5" access_x="1" access_y="1">
+        <gift event="distant_battle_victory" materials="true" workers="true" loads_per_delivery="4" />
+        <phase index="1">
+            <graphics>
+                <path value="Monuments\Triumphal_Arch_Construction_01" />
+                <options selection="orientation">
+                    <option image="Triumphal_Arch_Construction_01_R" />
+                    <option image="Triumphal_Arch_Construction_01" />
+                    <option image="Triumphal_Arch_Construction_01_R" />
+                    <option image="Triumphal_Arch_Construction_01" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="12" />
+            <requirement type="timber" amount="8" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Triumphal_Arch_Construction_02" />
+                <options selection="orientation">
+                    <option image="Triumphal_Arch_Construction_02_R" />
+                    <option image="Triumphal_Arch_Construction_02" />
+                    <option image="Triumphal_Arch_Construction_02_R" />
+                    <option image="Triumphal_Arch_Construction_02" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="3" />
+            <requirement type="marble" amount="32" />
+            <requirement type="bricks" amount="12" />
+        </phase>
+    </construction>
 </building>

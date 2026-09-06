@@ -93,16 +93,19 @@ void ProductionMethod::set_base_monthly_production(int production)
 {
     base_monthly_production_ = production;
     default_base_monthly_production_ = production;
+    has_production_override_ = false;
 }
 
 void ProductionMethod::override_base_monthly_production(int production)
 {
     base_monthly_production_ = production < 0 ? 0 : production;
+    has_production_override_ = true;
 }
 
 void ProductionMethod::reset_base_monthly_production_override()
 {
     base_monthly_production_ = default_base_monthly_production_;
+    has_production_override_ = false;
 }
 
 int ProductionMethod::base_monthly_production() const

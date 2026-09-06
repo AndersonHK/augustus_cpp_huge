@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="empire_sidebar" base_width="256" base_height="480">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" phase="background" width="256" height="480" stretch_width="true" stretch_height="true" />
+    <widget type="text_button" id="sort" binding="sort" action="sort" x="8" y="8" width="192" height="24" stretch_width="true" text_offset_y="4" />
+    <widget type="text_button" id="reverse" text="AZ" action="reverse" x="210" y="8" width="36" height="24" anchor_x="far" text_offset_y="4" />
+    <widget type="text_button" id="filter" binding="filter" action="filter" x="8" y="36" width="240" height="24" stretch_width="true" text_offset_y="4" />
+    <widget type="text_button" id="filter_resource" binding="filter.resource" action="filter.resource" visible_binding="filter.resource" x="8" y="64" width="240" height="24" stretch_width="true" text_offset_y="4" />
+    <widget type="text_button" id="cities" x="8" y="102" width="240" height="24" stretch_width="true" repeat_source="cities" repeat_spacing_y="106" binding="city.name" action="city.select" text_offset_y="4" selected_binding="city.selected" />
+    <widget type="label" id="status" x="8" y="131" width="240" height="24" stretch_width="true" repeat_source="cities" repeat_spacing_y="106" binding="city.status" />
+    <widget type="label" id="balance" x="8" y="150" width="240" height="24" stretch_width="true" repeat_source="cities" repeat_spacing_y="106" binding="city.balance" />
+    <widget type="text_button" id="ledger" x="8" y="171" width="240" height="24" stretch_width="true" repeat_source="cities" repeat_spacing_y="106" action="city.ledger" text_offset_y="4" translation="TR_TRADE_LEDGER" />
+    <widget type="text_button" id="previous" text="-" action="previous" enabled_binding="previous" x="8" y="448" width="36" height="24" anchor_y="far" text_offset_y="4" />
+    <widget type="text_button" id="next" text="+" action="next" enabled_binding="next" x="210" y="448" width="36" height="24" anchor_x="far" anchor_y="far" text_offset_y="4" />
+</window>

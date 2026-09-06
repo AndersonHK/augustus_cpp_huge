@@ -2,7 +2,9 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, runtime structs, module state, and compatibility records. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+
+Native 0xc8 appends named monument-gift awards; 0xc9 appends trade/resource/finance history to dynamic city data. Older saves initialize missing history as partial/unknown. These are fork gates, not Augustus SVX schema numbers. SVX versions after the shared 0xaf layout require the separate converter audited in `augustus_sync_2026_09_05_ledger.md`; file and preview paths reject them pending that work. Extension-based rejection does not solve renamed/buffer/campaign dialect detection.
 
 Long-term migration direction: hardcoded legacy-id bridges should eventually move into mod-owned XML declarations, described in `docs/mod_owned_compatibility_bridge_plan.md`. That future bridge belongs to startup/save-load boundaries; normal runtime should continue to consume resolved objects and string-owned definitions.
 

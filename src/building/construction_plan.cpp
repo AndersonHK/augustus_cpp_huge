@@ -1,4 +1,5 @@
 #include "building/construction_plan.h"
+#include "building/properties.h"
 
 #include "building/CompositionDef.h"
 #include "building/PlacementRotationSelection.h"
@@ -40,14 +41,8 @@ int normalize_rotation(int rotation)
 
 int clear_land_cost()
 {
-    static int cost = -1;
-    if (cost >= 0) {
-        return cost;
-    }
-    const building_type clear_land_type = building_type_registry_impl::type_from_attr("clear_land");
-    const BuildingType *definition = building_type_registry_impl::definition_for_type(clear_land_type);
-    cost = definition && definition->model().has_cost() ? definition->model().cost() : 0;
-    return cost;
+    const building_type type = building_type_registry_impl::type_from_attr("clear_land");
+    return type != BUILDING_NONE ? model_get_construction_cost(type) : 0;
 }
 
 int force_place_can_clear_terrain(int terrain)

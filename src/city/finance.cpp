@@ -1,6 +1,9 @@
+#include "city/message.h"
+#include "city/trade_ledger.h"
 #include "figure/figure.h"
 #include "building/building_record.h"
 #include "finance.h"
+#include "building/BuildingCityService.h"
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
@@ -403,17 +406,7 @@ static void pay_monthly_building_levies(void)
         }
     }
 
-    int num_highway_tiles = 0;
-    int grid_offset = map_data.start_offset;
-    for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
-        for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
-                num_highway_tiles++;
-            }
-        }
-    }
-    int highway_tax = num_highway_tiles / 4 * HIGHWAY_LEVY_MONTHLY;
-    levies += highway_tax;
+    levies += city_service_monthly_infrastructure_levies();
 
     city_data.finance.treasury -= levies;
     city_data.finance.this_year.expenses.levies += levies;
@@ -458,6 +451,7 @@ void city_finance_handle_month_change(void)
     pay_monthly_interest();
     pay_monthly_salary();
     pay_monthly_building_levies();
+    city_service_consume_monthly();
 }
 
 static void reset_taxes(void)
@@ -593,6 +587,8 @@ void city_finance_handle_year_change(void)
     reset_taxes();
     copy_amounts_to_last_year();
     pay_tribute();
+    city_trade_ledger_year_change();
+    city_message_clear_old_messages();
 }
 
 int city_finance_tourism_income_last_month(void)

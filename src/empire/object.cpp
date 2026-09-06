@@ -9,6 +9,8 @@
 #include "core/random.h"
 #include "core/string.h"
 #include "empire/city.h"
+#include "scenario/demand_change.h"
+#include "scenario/event/controller.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
 #include "game/Animation.h"
@@ -517,6 +519,8 @@ void empire_object_init_cities(int empire_id)
         empire_city_migrate_legacy_fishing_production();
     }
     empire_city_update_trading_data(empire_id);
+    scenario_demand_change_resolve_legacy_directions();
+    scenario_events_resolve_legacy_trade_directions();
 }
 
 int empire_object_init_distant_battle_travel_months(empire_object_type object_type)

@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="empire_details" base_width="640" base_height="120">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" phase="background" width="640" height="120" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="city_name" binding="selected.name" x="12" y="8" width="390" stretch_width="true" font="normal_green" />
+    <widget type="text_button" id="open" binding="selected.open" action="open" visible_binding="selected.closed" x="410" y="5" width="220" height="24" anchor_x="far" text_offset_y="4" />
+    <widget type="text_button" id="resources" binding="resource.name" action="resource.settings" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="125" y="33" width="116" height="22" text_offset_y="3" />
+    <widget type="label" id="imports" visible_binding="selected.trade" translation="TR_LEDGER_IMPORT" x="12" y="59" width="106" />
+    <widget type="label" id="exports" visible_binding="selected.trade" translation="TR_LEDGER_EXPORT" x="12" y="78" width="106" />
+    <widget type="label" id="import_values" binding="resource.import" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="130" y="59" width="110" />
+    <widget type="label" id="export_values" binding="resource.export" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="130" y="78" width="110" />
+    <widget type="text_button" id="resources_previous" visible_binding="selected.trade" text="-" action="resources.previous" enabled_binding="resources.previous" x="610" y="32" width="22" height="22" anchor_x="far" text_offset_y="3" />
+    <widget type="text_button" id="resources_next" visible_binding="selected.trade" text="+" action="resources.next" enabled_binding="resources.next" x="610" y="62" width="22" height="22" anchor_x="far" text_offset_y="3" />
+    <widget type="text_button" id="help" action="help" translation="main_strings.3.0" x="8" y="96" width="76" height="22" text_offset_y="3" />
+    <widget type="text_button" id="prices" action="prices" translation="TR_LEDGER_PRICES" x="92" y="96" width="98" height="22" text_offset_y="3" />
+    <widget type="text_button" id="advisor" action="advisor" translation="main_strings.54.0" x="198" y="96" width="110" height="22" text_offset_y="3" />
+    <widget type="text_button" id="ledger" action="ledger" translation="TR_TRADE_LEDGER" x="316" y="96" width="174" height="22" text_offset_y="3" />
+    <widget type="text_button" id="close" action="close" translation="TR_LEDGER_RETURN" x="498" y="96" width="134" height="22" text_offset_y="3" />
+    <widget type="rich_text" id="selected_info" binding="selected.info" x="16" y="36" width="580" height="52" stretch_width="true" font="normal_green" />
+</window>

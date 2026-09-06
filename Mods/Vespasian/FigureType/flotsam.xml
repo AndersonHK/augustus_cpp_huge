@@ -1,2 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="flotsam" graphics_only="true"><graphics><default allow_empty="true"><path value="Ships\Floating_Debris" /></default></graphics></figure>
+<figure type="flotsam">
+    <graphics>
+        <default allow_empty="true">
+            <path value="Ships\Floating_Debris" />
+        </default>
+    </graphics>
+</figure>

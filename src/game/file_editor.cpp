@@ -4,6 +4,8 @@
 #include "building/building.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_registry_internal.h"
+#include "building/building_type_startup_bridge.h"
+#include "building/properties.h"
 #include "building/construction.h"
 #include "building/menu.h"
 #include "building/storage.h"
@@ -60,24 +62,13 @@
 
 #include <cstdio>
 
-static int legacy_scenario_native_image(
-    const char *central,
-    const char *northern,
-    const char *southern)
-{
-    const char *image = central;
-    if (scenario_property_climate() == CLIMATE_NORTHERN) {
-        image = northern;
-    } else if (scenario_property_climate() == CLIMATE_DESERT) {
-        image = southern;
-    }
-    char path[128];
-    snprintf(path, sizeof(path), "Terrain_Maps\\%s", image);
-    return assets_get_image_id(path, image);
-}
+
 
 void game_file_editor_clear_data(void)
 {
+    model_reset();
+    building_type_startup_bridge_apply_model_overrides();
+    resource_init();
     city_victory_reset();
     building_construction_clear_type();
     city_data_init();
@@ -199,26 +190,6 @@ int game_file_editor_load_scenario(const char *scenario_file)
 
 int game_file_editor_write_scenario(const char *scenario_file)
 {
-    // These numeric values belong only to the legacy scenario file format.
-    // Runtime rendering is owned by each native BuildingType's graphics definition.
-    int image_alt_hut = legacy_scenario_native_image(
-        "Native_Hut_Central_01", "Native_Hut_Northern_01", "Native_Hut_Southern_01");
-    int image_native_decoration = legacy_scenario_native_image(
-        "Native_Decoration_Central_01", "Native_Decoration_Northern_01", "Native_Decoration_Southern_01");
-    int image_native_monument = legacy_scenario_native_image(
-        "Native_L_Monument_Central_01", "Native_L_Monument_Northern_01", "Native_L_Monument_Southern_01");
-    int image_native_watchtower = legacy_scenario_native_image(
-        "Native_Watchtower_Central_01", "Native_Watchtower_Northern_01", "Native_Watchtower_Southern_01");
-
-    scenario_editor_set_native_images(
-        image_alt_hut,
-        image_native_decoration,
-        image_native_monument,
-        image_native_watchtower,
-        image_group(GROUP_EDITOR_BUILDING_NATIVE),
-        image_group(GROUP_EDITOR_BUILDING_NATIVE) + 2,
-        image_group(GROUP_EDITOR_BUILDING_CROPS)
-    );
     scenario_distant_battle_set_roman_travel_months();
     scenario_distant_battle_set_enemy_travel_months();
 

@@ -37,6 +37,7 @@ void map_building_clear_at(int grid_offset);
  * @return New damage amount
  */
 int map_building_damage_increase(int grid_offset);
+int map_building_damage_at(int grid_offset);
 
 void map_building_damage_clear(int grid_offset);
 

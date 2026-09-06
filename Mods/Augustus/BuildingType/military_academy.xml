@@ -1,26 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="military_academy">
-    <identity name_key="main_strings.28.94" />
-    <model cost="1000" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_3x3" />
-  <button group="security" order="120" text_key="main_strings.28.94" />
-    <flags draw_desirability_range="1" />
-    <graphics>
-        <default>
-            <path value="Military\Military_Academy" />
-        </default>
-    </graphics>
-    <labor>
-        <employees count="20" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="100" />
-        </labor_seeker>
-    </labor>
+    <button group="security" order="120" text_key="main_strings.28.94" />
 </building>

@@ -19,12 +19,24 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadSaveModule", "LoadSaveM
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadSaveAbiTest", "LoadSaveAbiTest.vcxproj", "{BB7B468C-69DC-46D3-A74A-EFA823BC87EC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ModContentTest", "ModContentTest.vcxproj", "{C0536F63-4F37-444D-B449-22635053A169}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VespasianLauncher", "VespasianLauncher.vcxproj", "{A8122876-52A6-47F8-89F0-91B3834E4AE3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8122876-52A6-47F8-89F0-91B3834E4AE3}.Debug|x64.ActiveCfg = Debug|x64
+		{A8122876-52A6-47F8-89F0-91B3834E4AE3}.Debug|x64.Build.0 = Debug|x64
+		{A8122876-52A6-47F8-89F0-91B3834E4AE3}.Release|x64.ActiveCfg = Release|x64
+		{A8122876-52A6-47F8-89F0-91B3834E4AE3}.Release|x64.Build.0 = Release|x64
+		{C0536F63-4F37-444D-B449-22635053A169}.Debug|x64.ActiveCfg = Debug|x64
+		{C0536F63-4F37-444D-B449-22635053A169}.Debug|x64.Build.0 = Debug|x64
+		{C0536F63-4F37-444D-B449-22635053A169}.Release|x64.ActiveCfg = Release|x64
+		{C0536F63-4F37-444D-B449-22635053A169}.Release|x64.Build.0 = Release|x64
 		{97D2CB33-8DED-4E9C-9650-7165DEE085C0}.Debug|x64.ActiveCfg = Debug|x64
 		{97D2CB33-8DED-4E9C-9650-7165DEE085C0}.Debug|x64.Build.0 = Debug|x64
 		{97D2CB33-8DED-4E9C-9650-7165DEE085C0}.Release|x64.ActiveCfg = Release|x64

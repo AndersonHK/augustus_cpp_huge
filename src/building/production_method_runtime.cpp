@@ -64,6 +64,11 @@ int ProductionMethod::max_progress_for(const Building &building) const
 
 int ProductionMethod::has_required_inputs(const Building &building) const
 {
+    if (input_source() == ResourceConsumptionSource::GlobalStockpile) {
+        std::vector<ResourceConsumptionAmount> requirements;
+        for (const auto &input : inputs()) requirements.push_back({input.resource, scaled_input_amount(input)});
+        return resource_stockpile_has(requirements);
+    }
     for (const ProductionResourceAmount &input : inputs()) {
         if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_SLOT_COUNT) {
             return 0;

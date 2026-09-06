@@ -608,6 +608,24 @@ void city_message_delete(int message_id)
     city_message_sort_and_compact();
 }
 
+void city_message_clear_old_messages()
+{
+    if (!config_get(CONFIG_UI_AUTO_DELETE_OLD_COMMON_MESSAGES)) return;
+    bool changed = false;
+    for (auto &message : data.messages) {
+        if (!message.is_read || !message.message_type || (game_time_year() - message.year) * 12 + game_time_month() - message.month < 60) continue;
+        // Keep requests, attacks, milestones, scenario messages and other important correspondence.
+        switch (message.message_type) {
+            case MESSAGE_FIRE: case MESSAGE_COLLAPSED_BUILDING: case MESSAGE_WORKERS_NEEDED:
+            case MESSAGE_UNEMPLOYMENT: case MESSAGE_NOT_ENOUGH_FOOD: case MESSAGE_FOOD_NOT_DELIVERED:
+            case MESSAGE_THEFT: case MESSAGE_SMALL_FESTIVAL: case MESSAGE_LARGE_FESTIVAL: case MESSAGE_GRAND_FESTIVAL:
+                message.message_type = 0; changed = true; break;
+            default: break;
+        }
+    }
+    if (changed) city_message_sort_and_compact();
+}
+
 int city_message_count(void)
 {
     return data.total_messages;

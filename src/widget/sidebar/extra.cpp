@@ -12,6 +12,7 @@
 #include "window/empire.h"
 
 #include "extra.h"
+#include "game/defines.h"
 
 #include "window/popup_dialog.h"
 #include "city/god.h"
@@ -135,6 +136,7 @@ static int count_active_requests(void)
 
 static sidebar_extra_display calculate_displayable_info(sidebar_extra_display info_to_display, int available_height)
 {
+    if (!game_defines_ui_feature("sidebar_extended_information")) info_to_display = static_cast<sidebar_extra_display>(info_to_display & (SIDEBAR_EXTRA_DISPLAY_GAME_SPEED | SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT | SIDEBAR_EXTRA_DISPLAY_RATINGS));
     if (data.is_collapsed || !config_get(CONFIG_UI_SIDEBAR_INFO) || info_to_display == SIDEBAR_EXTRA_DISPLAY_NONE) {
         return SIDEBAR_EXTRA_DISPLAY_NONE;
     }
@@ -675,7 +677,7 @@ static void draw_extra_info_buttons(void)
             play_paused_button.image_name = play_pause_button_image_names[game_state_is_paused()];
         }
         arrow_buttons_draw(data.x_offset, data.y_offset, arrow_buttons_speed, 2);
-        image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
+        if (game_defines_ui_feature("sidebar_pause_button")) image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS && data.active_requests) {
         for (int i = 0; i < data.visible_requests; i++) {
@@ -702,7 +704,7 @@ int sidebar_extra_handle_mouse(const mouse *m)
 {
     if ((data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) &&
         (arrow_buttons_handle_mouse(m, data.x_offset, data.y_offset, arrow_buttons_speed, 2, 0) ||
-            image_buttons_handle_mouse(m, data.x_offset, data.y_offset, &play_paused_button, 1, 0))) {
+            (game_defines_ui_feature("sidebar_pause_button") && image_buttons_handle_mouse(m, data.x_offset, data.y_offset, &play_paused_button, 1, 0)))) {
         return 1;
     }
     if ((data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) &&

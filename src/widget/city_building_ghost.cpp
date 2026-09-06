@@ -930,7 +930,7 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
     for (int i = 0; i < blocked_tiles.size; i++) {
         city_view_foreach_tile_in_range(blocked_tiles.grid_offsets[i], 0, 0, draw_blocked_tile);
     }
-    building_construction_set_cost(model_get_building(type)->cost * length);
+    building_construction_set_cost(model_get_construction_cost(type) * length);
 }
 
 static void draw_road(const map_tile *tile, int x, int y)

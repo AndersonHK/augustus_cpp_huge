@@ -14,10 +14,7 @@
     <graphics>
         <default>
             <path value="Aesthetics\Statue" />
-            <options selection="orientation">
-                <option image="Image_0000" />
-                <option path="Aesthetics\V_Small_Statue_R" image="V Small Statue R" />
-            </options>
+            <image value="Image_0000" />
         </default>
     </graphics>
     <labor>

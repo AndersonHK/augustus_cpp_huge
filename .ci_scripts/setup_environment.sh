@@ -2,15 +2,12 @@
 
 case "$BUILD_TARGET" in
 "vita")
-	# Note: Using a tagged version of the container to make sure that it's not updated unexpectedly
-	# You can update the tag by obtaining a recent one from here: https://hub.docker.com/r/gnuton/vitasdk-docker/tags
-	# Make sure that it compiles correctly and runs on a Vita prior to pushing the change
-	docker run -d --name vitasdk --workdir /build/git -v "${PWD}:/build/git" gnuton/vitasdk-docker:20251208 tail -f /dev/null
+	echo "PlayStation Vita is outside Vespasian's hardware requirements." >&2
+	exit 1
 	;;
 "switch")
-	# You can obtain a recent devkitA64 image from https://hub.docker.com/repository/docker/devkitpro/devkita64/general
-	# As for Vita above, make sure that it compiles correctly and runs on a Switch prior to pushing the change
-	docker run -d --name switchdev --workdir /build/git -v "${PWD}:/build/git" devkitpro/devkita64:20260219 tail -f /dev/null
+	echo "The original Switch target is retired. Switch 2 needs its own validated toolchain; retained Switch adapters are reference code." >&2
+	exit 1
 	;;
 "android")
 	# Decrypt the key files

@@ -230,6 +230,8 @@ static void set_formula_value(const uint8_t *formula)
 
     // Get the current parameter's formula index
     int current_index = get_param_value();
+    data.formula[0] = 0;
+    data.formula_index = 0;
 
     // Add or update formula
     if (!current_index || current_index == 0) {
@@ -250,6 +252,8 @@ static void create_evaluation_formula(xml_data_attribute_t *parameter)
 {
     // Get the formula index for THIS specific parameter
     int current_index = get_param_value();
+    data.formula[0] = 0;
+    data.formula_index = 0;
 
     data.formula_min_limit = parameter->min_limit;
     data.formula_max_limit = parameter->max_limit;
@@ -467,6 +471,9 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
             return;
         case PARAMETER_TYPE_ROUTE:
             window_editor_select_city_trade_route_show(set_param_value);
+            return;
+        case PARAMETER_TYPE_EMPIRE_CITY:
+            window_editor_select_city_by_type_show(set_param_value, static_cast<empire_city_type>(0));
             return;
         case PARAMETER_TYPE_FUTURE_CITY:
             window_editor_select_city_by_type_show(set_param_value, EMPIRE_CITY_FUTURE_TRADE);

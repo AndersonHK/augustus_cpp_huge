@@ -524,3 +524,16 @@ int resource_total_food_mapped(void)
     ensure_save_table();
     return g_bridge.total_food_resources;
 }
+
+std::vector<resource_type> resource_id_bridge_production_order()
+{
+    ensure_save_table();
+    std::vector<resource_type> resources;
+    for (size_t id = 0; id < g_bridge.save_to_runtime.size(); ++id) {
+        if (!g_bridge.save_id_has_mapping[id]) continue;
+        const auto resource = g_bridge.save_to_runtime[id];
+        if (resource == RESOURCE_NONE || (resource_get_data(resource)->flags & RESOURCE_FLAG_SPECIAL) == RESOURCE_FLAG_SPECIAL) continue;
+        resources.push_back(resource);
+    }
+    return resources;
+}

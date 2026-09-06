@@ -3,6 +3,7 @@
 #include "building/construction.h"
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
+#include "city/finance.h"
 #include "city/view_render.h"
 #include "core/config.h"
 #include "graphics/renderer.h"
@@ -53,6 +54,9 @@ inline bool run_city_road_drag_render_test()
     city_view_grid_offset_to_xy_view(end.grid_offset, &selected_view.x, &selected_view.y);
     city_view_set_selected_view_tile(&selected_view);
     const int previous_shadow = config_get(CONFIG_UI_CV_CURSOR_SHADOW);
+    const int previous_treasury = city_finance_treasury();
+    // The render fixture needs an affordable preview even in a bankrupt save.
+    if (previous_treasury < 1000) city_finance_treasury_add(1000 - previous_treasury);
     config_set(CONFIG_UI_CV_CURSOR_SHADOW, 0);
     building_construction_set_type(road, 0);
     building_construction_start(end.x - 2, end.y, map_grid_add_delta(end.grid_offset, -2, 0));
@@ -81,6 +85,7 @@ inline bool run_city_road_drag_render_test()
     }
     building_construction_cancel();
     building_construction_clear_type();
+    city_finance_treasury_add(previous_treasury - city_finance_treasury());
     config_set(CONFIG_UI_CV_CURSOR_SHADOW, previous_shadow);
     passed = passed && !map_terrain_is(end.grid_offset, TERRAIN_ROAD);
     std::fprintf(passed ? stdout : stderr, "Road drag endpoint render test %s: tile=%d.\n", passed ? "passed" : "failed", end.grid_offset);

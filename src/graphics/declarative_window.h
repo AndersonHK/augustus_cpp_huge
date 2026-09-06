@@ -192,7 +192,7 @@ public:
 class DeclarativeWindowRuntime {
 public:
     DeclarativeWindowRuntime(const DeclarativeWindowDefinition &definition, DeclarativeWindowController &controller);
-    void draw(DeclarativeDrawPhase phase, int width, int height) const;
+    void draw(DeclarativeDrawPhase phase, int width, int height, int origin_x = 0, int origin_y = 0) const;
     int handle_mouse(const mouse &mouse, int width, int height);
     void tooltip(tooltip_context &context) const;
 

@@ -23,14 +23,14 @@ int trader_create(void);
  * @param trader_id Trader
  * @param resource Resource bought
  */
-void trader_record_bought_resource(int trader_id, resource_type resource);
+void trader_record_bought_resource(int trader_id, resource_type resource, bool is_land_trader);
 
 /**
  * Record that the trader has sold a resource to the city
  * @param trader_id Trader
  * @param resource Resource sold
  */
-void trader_record_sold_resource(int trader_id, resource_type resource);
+void trader_record_sold_resource(int trader_id, resource_type resource, bool is_land_trader);
 
 /**
  * Gets the amount bought of the given resource

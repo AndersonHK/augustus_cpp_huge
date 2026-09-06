@@ -788,23 +788,25 @@ resource_type resource_type_from_xml_attr(const char *name)
 
 void production_rates_save(buffer *buf)
 {
-    int buf_size = sizeof(uint16_t) * resource_production_count();
-    uint8_t *buf_data = static_cast<uint8_t *>(std::malloc(buf_size));
-    buffer_init(buf, buf_data, buf_size);
-    
-    for (int i = 0; i < resource_production_count(); i++) {
-        resource_type resource = resource_get_production(i);
-        const int production = production_method_registry_production_per_month_for_resource(resource);
-        buffer_write_u16(buf, static_cast<uint16_t>(std::clamp(production, 0, 0xffff)));
-    }
+    production_method_registry_save_overrides(buf);
 }
 
-void production_rates_load(buffer *buf)
+int production_rates_load(buffer *buf, bool keyed)
 {
-    for (int i = 0; i < resource_production_count(); i++) {
-        resource_type resource = resource_get_production(i);
+    if (keyed) return production_method_registry_load_overrides(buf);
+    if (!buf || buf->index > buf->size) return 0;
+    const auto saved_resources = resource_id_bridge_production_order();
+    if (buf->size - buf->index != saved_resources.size() * sizeof(uint16_t)) {
+        // Old arrays have no per-entry identity. An unmatched producer layout cannot
+        // safely be zipped against the current mod's (possibly longer) resource list.
+        log_warning("Repairing unidentifiable legacy production rates by retaining mod defaults", nullptr, static_cast<int>(buf->size - buf->index));
+        buffer_set(buf, buf->size);
+        return 1;
+    }
+    for (resource_type resource : saved_resources) {
         production_method_registry_set_production_per_month_for_resource(resource, buffer_read_u16(buf));
     }
+    return !buf->overflow;
 }
 
 #ifdef STARTUP_PARSER_TEST

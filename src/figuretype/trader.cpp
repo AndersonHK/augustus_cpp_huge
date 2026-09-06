@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/storage.h"
 #include "city/health.h"
 #include "city/trade.h"
@@ -771,10 +772,11 @@ void figure_trade_caravan_action(Figure *f)
                 int move_on = 0;
                 Building *destination = f->destination_building;
                 if (figure_trade_caravan_can_buy(f, destination, f->empire_city_id)) {
+                    TradeLedgerContext accounting(f);
                     resource_type resource = trader_get_buy_resource(*destination, f->empire_city_id);
                     if (resource) {
                         trade_route_increase_traded(empire_city_get_route_id(f->empire_city_id), resource, 1);
-                        trader_record_bought_resource(f->trader_id, resource);
+                        trader_record_bought_resource(f->trader_id, resource, true);
                         city_health_update_sickness_level_in_building(f->destination_building);
                         f->trader_amount_bought++;
                     } else {
@@ -784,10 +786,11 @@ void figure_trade_caravan_action(Figure *f)
                     move_on++;
                 }
                 if (figure_trade_caravan_can_sell(f, destination, f->empire_city_id)) {
+                    TradeLedgerContext accounting(f);
                     resource_type resource = trader_get_sell_resource(*destination, f->empire_city_id);
                     if (resource) {
                         trade_route_increase_traded(empire_city_get_route_id(f->empire_city_id), resource, 0);
-                        trader_record_sold_resource(f->trader_id, resource);
+                        trader_record_sold_resource(f->trader_id, resource, true);
                         city_health_update_sickness_level_in_building(f->destination_building);
                         f->loads_sold_or_carrying++;
                     } else {
@@ -939,9 +942,11 @@ void figure_native_trader_action(Figure *f)
                         removed = building_warehouse_try_remove_resource(*building, resource, 1);
                     }
                     if (removed) {
-                        trader_record_bought_resource(f->trader_id, resource);
+                        trader_record_bought_resource(f->trader_id, resource, true);
                         int price = trade_price_sell(resource, 1);
                         city_finance_process_export(price * removed);
+                        TradeLedgerContext accounting(f);
+                        city_trade_ledger_exchange(resource, removed, price, false, building->id);
                         city_health_update_sickness_level_in_building(f->destination_building);
                         f->trader_amount_bought += 3; //native traders 3 times less efficient
                     }

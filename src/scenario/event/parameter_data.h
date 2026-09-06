@@ -49,6 +49,17 @@ typedef enum {
     PARAMETER_TYPE_ROUTE_RESOURCE, //dynamic mapping of resource available on a route
     PARAMETER_TYPE_RANK,
     PARAMETER_TYPE_GRID_SLICE,
+    PARAMETER_TYPE_SCENARIO_TEXT,
+    PARAMETER_TYPE_HOUSE_DATA_TYPE,
+    PARAMETER_TYPE_WIN_CONDITION,
+    PARAMETER_TYPE_WEATHER,
+    PARAMETER_TYPE_VARIABLE_COLOR,
+    PARAMETER_TYPE_HOUSING_BUILDING,
+    PARAMETER_TYPE_CONSTRUCTION_BUILDING,
+    PARAMETER_TYPE_CONSTRUCTION_PHASE,
+    PARAMETER_TYPE_EMPIRE_CITY,
+    PARAMETER_TYPE_GRID_OFFSET,
+
 } parameter_type;
 
 typedef struct {
@@ -159,3 +170,5 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
  */
 parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenario_action_t *action, int param_number);
 
+
+void scenario_events_parameter_data_reset_mappings();

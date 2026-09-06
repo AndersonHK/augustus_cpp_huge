@@ -71,6 +71,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     int add_blank_line = 1;
 
     // Set sensible defaults
+    *output_args = {};
     output_args->data_directory = 0;
     output_args->mod_name = "Vespasian";
     output_args->display_scale_percentage = 0;
@@ -87,6 +88,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->load_save_test_count = 0;
     output_args->save_roundtrip_test_count = 0;
     output_args->save_soak_ticks = 0;
+    output_args->mod_settings_test = 0;
     output_args->formation_test = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -195,6 +197,13 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
                 print_log(SAVE_SOAK_TICKS_ERROR_MESSAGE);
                 ok = 0;
             }
+        } else if (SDL_strcmp(argv[i], "--catch-up-test") == 0) {
+            output_args->catch_up_test = 1;
+        } else if (SDL_strcmp(argv[i], "--editor-test") == 0) {
+            output_args->editor_test = 1;
+            output_args->startup_test = 1;
+        } else if (SDL_strcmp(argv[i], "--mod-settings-test") == 0) {
+            output_args->mod_settings_test = 1;
         } else if (SDL_strcmp(argv[i], "--help") == 0) {
             add_blank_line = 0;
             ok = 0;
@@ -211,6 +220,11 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     }
     if (output_args->save_soak_ticks && !output_args->load_save_test_count) {
         print_log("Option --save-soak-ticks requires --load-save-test");
+        ok = 0;
+    }
+    if (output_args->catch_up_test && !output_args->load_save_test_count) { print_log("Option --catch-up-test requires --load-save-test"); ok = 0; }
+    if (output_args->mod_settings_test && !output_args->load_save_test_count) {
+        print_log("Option --mod-settings-test requires --load-save-test");
         ok = 0;
     }
     if (output_args->formation_test && !output_args->load_save_test_count) {

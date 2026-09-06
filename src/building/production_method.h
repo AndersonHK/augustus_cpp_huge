@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/resource.h"
+#include "building/resource_consumption.h"
 #include "scenario/property.h"
 
 #include <string>
@@ -72,6 +73,7 @@ public:
     void reset_base_monthly_production_override();
     int base_monthly_production() const;
     int default_base_monthly_production() const;
+    bool has_production_override() const { return has_production_override_; }
 
     void set_batch_size(int batch_size);
     int batch_size() const;
@@ -87,6 +89,8 @@ public:
 
     void add_input(ProductionResourceAmount input);
     const std::vector<ProductionResourceAmount> &inputs() const;
+    void set_input_source(ResourceConsumptionSource source) { input_source_ = source; }
+    ResourceConsumptionSource input_source() const { return input_source_; }
 
     int add_climate_bonus(ClimateProductionBonus bonus);
     const std::vector<ClimateProductionBonus> &climate_bonuses() const;
@@ -105,6 +109,7 @@ public:
     int can_start_cycle(const Building &building) const;
 
 private:
+    ResourceConsumptionSource input_source_ = ResourceConsumptionSource::Building;
     std::string path_;
     ProductionMethodKind kind_ = ProductionMethodKind::None;
     resource_type output_resource_ = RESOURCE_NONE;
@@ -113,6 +118,7 @@ private:
     ProductionOutputSource output_source_ = ProductionOutputSource::WorkerProgress;
     int base_monthly_production_ = 0;
     int default_base_monthly_production_ = 0;
+    bool has_production_override_ = false;
     int batch_size_ = 1;
     int cart_load_numerator_ = 0;
     int cart_load_denominator_ = 1;

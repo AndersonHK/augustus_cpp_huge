@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "request.h"
 
 #include "building/granary.h"
@@ -266,7 +267,8 @@ void scenario_request_dispatch(int id)
         city_finance_process_sundry(amount);
     } else if (request->resource == resource_troops()) {
         city_population_remove_for_troop_request(amount);
-        building_warehouses_remove_resource(resource_weapons(), amount);
+        const int remaining = building_warehouses_remove_resource(resource_weapons(), amount);
+        city_trade_ledger_consumed(resource_weapons(), (amount - remaining) * resource_units_per_load());
     } else {
         int amount_left = building_warehouses_send_resources_to_rome(request->resource, amount);
         if (amount_left > 0 && resource_is_food(request->resource)) {

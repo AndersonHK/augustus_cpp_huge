@@ -1,35 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="senate">
-    <identity name_key="main_strings.28.85" />
-    <model cost="400" />
-    <desirability>
-        <value value="8" />
-        <step value="2" />
-        <step_size value="-1" />
-        <range value="8" />
-    </desirability>
-    <foundation path="land_5x5" />
-    <construction max_count="1" />
-  <button group="administration" order="800" icon="Admin_Logistics\Senate" text_key="main_strings.28.85" />
-    <sound id="senate" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Senate" />
-        </default>
-        <variant>
-            <condition type="desirability" operator="gt" threshold="30" />
-            <path value="Admin_Logistics\Senate_Fancy" />
-        </variant>
-    </graphics>
-    <labor>
-        <employees count="30" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="50" />
-        </labor_seeker>
-    </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="tax_collector">
-        <spawn spawn_figure="tax_collector" direction="top" figure_slot="primary" spawn_count="1"
-            graphic_timing="on_spawn_entry" condition="always" block_on_success="true" profile="service" />
-    </spawn_group>
+    <button group="administration" order="800" icon="Admin_Logistics\Senate" text_key="main_strings.28.85" />
 </building>

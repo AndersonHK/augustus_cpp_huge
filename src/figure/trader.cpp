@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "figure/trader.h"
 
 #include "empire/trade_prices.h"
@@ -38,20 +39,16 @@ int trader_create(void)
     return trader_id;
 }
 
-void trader_record_bought_resource(int trader_id, resource_type resource)
+void trader_record_bought_resource(int trader_id, resource_type resource, bool is_land_trader)
 {
-    Figure *f = Figure::get(trader_id);
-    int is_land_trader = f->type == FIGURE_TRADE_CARAVAN || f->type == FIGURE_TRADE_CARAVAN_DONKEY || f->type == FIGURE_NATIVE_TRADER;
 
     data.traders[trader_id].bought_amount++;
     data.traders[trader_id].bought_resources[resource]++;
     data.traders[trader_id].bought_value += trade_price_sell(resource, is_land_trader);
 }
 
-void trader_record_sold_resource(int trader_id, resource_type resource)
+void trader_record_sold_resource(int trader_id, resource_type resource, bool is_land_trader)
 {
-    Figure *f = Figure::get(trader_id);
-    int is_land_trader = f->type == FIGURE_TRADE_CARAVAN || f->type == FIGURE_TRADE_CARAVAN_DONKEY || f->type == FIGURE_NATIVE_TRADER;
 
     data.traders[trader_id].sold_amount++;
     data.traders[trader_id].sold_resources[resource]++;

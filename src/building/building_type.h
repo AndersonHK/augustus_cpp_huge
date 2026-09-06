@@ -1,4 +1,5 @@
 #pragma once
+#include "building/CityServiceDef.h"
 
 #include <stdint.h>
 
@@ -287,6 +288,8 @@ struct DelayBand {
 };
 
 struct SpawnPolicy {
+    int require_population = 0;
+    std::string requires_config;
     SpecialSpawnMode special_mode = SpecialSpawnMode::None;
     GraphicTiming graphic_timing = GraphicTiming::None;
     FigureSlot figure_slot = FigureSlot::Primary;
@@ -729,8 +732,18 @@ struct RaceDefinition {
     int lane_render_distance(int lane) const { return track_margin + lane * lane_spacing; }
 };
 
+struct ConstructionGift {
+    std::string event;
+    bool materials = false;
+    bool workers = false;
+    int loads_per_delivery = 4;
+};
+
 class ConstructionDefinition {
 public:
+    ConstructionGift gift;
+    int access_x = -1;
+    int access_y = -1;
     void set_mode(ConstructionMode mode);
     void set_road_update_radius(int radius);
     void set_free_when_broke_limit(int limit);
@@ -741,6 +754,7 @@ public:
     ConstructionPhase &add_phase(int index);
     ConstructionPhase *last_phase();
     const ConstructionPhase *phase(int index) const;
+    bool set_scenario_requirement(int phase, resource_type resource, int amount);
     void add_instant_requirement(resource_type resource, int amount);
     void add_requirement(resource_type resource, int amount);
 
@@ -771,6 +785,10 @@ private:
 
 class BuildingType {
 public:
+    InfrastructureDefinition &infrastructure() { return infrastructure_; }
+    const InfrastructureDefinition &infrastructure() const { return infrastructure_; }
+    CityServiceDefinition &city_service() { return city_service_; }
+    const CityServiceDefinition &city_service() const { return city_service_; }
     BuildingType(building_type type, std::string attr);
     // Startup registries parse identity before assigning the deterministic
     // effective-stack runtime id.
@@ -855,6 +873,7 @@ public:
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
     void inherit_labor_category(LaborCategory category);
+    void set_labor_category(LaborCategory category) { labor_category_ = category; }
     void set_distribution(const Distribution *distribution);
     void set_temple_religion(const Religion *religion);
     void set_race(RaceDefinition race);
@@ -886,6 +905,7 @@ public:
     const WaterAccessDefinition &water_access() const;
     const BuildingGraphicsDef &graphics() const;
     const ConstructionDefinition &construction() const;
+    ConstructionDefinition &construction() { return construction_; }
     CompositionDef &composition();
     const CompositionDef &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
@@ -961,6 +981,8 @@ public:
 
 private:
     building_type type_;
+    InfrastructureDefinition infrastructure_;
+    CityServiceDefinition city_service_;
     std::string attr_;
     IdentityDefinition identity_;
     BuildModelDefinition model_;

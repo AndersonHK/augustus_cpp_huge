@@ -207,21 +207,15 @@ void city_population_remove_for_troop_request(int num_people)
 
 int city_population_people_of_working_age(void)
 {
-    int total_working_people = city_population_in_age_decennium(2) + city_population_in_age_decennium(3)
-        + city_population_in_age_decennium(4);
-    if (config_get(CONFIG_GP_CH_RETIRE_AT_60)) {
-        total_working_people += city_population_in_age_decennium(5);
-    }
+    int total_working_people = 0;
+    for (int age = 20; age < game_defines_retirement_age(); ++age) total_working_people += city_data.population.at_age[age];
     return total_working_people;
 }
 
 int city_population_retired_people(void)
 {
-    int total_retired_people = city_population_in_age_decennium(6) + city_population_in_age_decennium(7)
-        + city_population_in_age_decennium(8) + city_population_in_age_decennium(9);
-    if (config_get(CONFIG_GP_CH_RETIRE_AT_60)) {
-        total_retired_people += city_population_in_age_decennium(5);
-    }
+    int total_retired_people = 0;
+    for (int age = game_defines_retirement_age(); age < 100; ++age) total_retired_people += city_data.population.at_age[age];
     return total_retired_people;
 }
 

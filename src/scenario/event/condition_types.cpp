@@ -1,3 +1,11 @@
+#include "map/figure.h"
+#include "map/desirability.h"
+#include "city/festival.h"
+#include "city/god.h"
+#include "building/HousingProfileDef.h"
+#include "map/building.h"
+#include <unordered_set>
+#include "city/figures.h"
 #include "condition_types.h"
 
 #include "building/count.h"
@@ -382,22 +390,14 @@ int scenario_condition_type_stats_prosperity_met(const scenario_condition_t *con
 
 void scenario_condition_type_time_init(scenario_condition_t *condition)
 {
-    int min_months = condition->parameter2;
-    int max_months = condition->parameter3;
-
-    if (max_months < min_months) {
-        max_months = min_months;
-        condition->parameter3 = min_months;
-    }
-
-    condition->parameter4 = random_between_from_stdlib(min_months, max_months);
+    if (condition->parameter5 == 1) condition->parameter4 = scenario_formula_evaluate_formula(condition->parameter2);
 }
 
 int scenario_condition_type_time_met(const scenario_condition_t *condition)
 {
     int total_months = game_time_total_months();
     int comparison = condition->parameter1;
-    int target_months = condition->parameter4;
+    int target_months = condition->parameter5 == 1 ? condition->parameter4 : scenario_formula_evaluate_formula(condition->parameter2);
 
     return comparison_helper_compare_values(comparison, total_months, target_months);
 }
@@ -451,4 +451,110 @@ int scenario_condition_type_tax_rate_met(const scenario_condition_t *condition)
     int value = scenario_formula_evaluate_formula(condition->parameter2);
 
     return comparison_helper_compare_values(comparison, tax_rate, value);
+}
+
+int scenario_condition_type_count_enemies_in_city_met(const scenario_condition_t *condition)
+{
+    int enemies_in_city = city_figures_total_invading_enemies();
+    int comparison = condition->parameter1;
+    int value = scenario_formula_evaluate_formula(condition->parameter2);
+
+    return comparison_helper_compare_values(comparison, enemies_in_city, value);
+}
+
+int scenario_condition_type_land_trade_problems_met(const scenario_condition_t *condition)
+{
+    int trade_problem_duration = city_data.trade.land_trade_problem_duration;
+    int comparison = condition->parameter1;
+    int value = scenario_formula_evaluate_formula(condition->parameter2);
+
+    return comparison_helper_compare_values(comparison, trade_problem_duration, value);
+}
+
+int scenario_condition_type_sea_trade_problems_met(const scenario_condition_t *condition)
+{
+    int trade_problem_duration = city_data.trade.sea_trade_problem_duration;
+    int comparison = condition->parameter1;
+    int value = scenario_formula_evaluate_formula(condition->parameter2);
+
+    return comparison_helper_compare_values(comparison, trade_problem_duration, value);
+}
+
+int scenario_condition_type_months_since_last_festival_met(const scenario_condition_t *condition)
+{
+    int comparison = condition->parameter1;
+    int god = condition->parameter2;
+    int value = scenario_formula_evaluate_formula(condition->parameter3);
+
+    int months_since_last_festival = city_festival_months_since_last();
+    if (god != GOD_ALL) {
+        months_since_last_festival = city_god_months_since_festival(god);
+    }
+
+    return comparison_helper_compare_values(comparison, months_since_last_festival, value);
+}
+
+int scenario_condition_type_desirability_in_area_met(const scenario_condition_t *condition)
+{
+    int grid_offset1 = condition->parameter1;
+    int grid_offset2 = condition->parameter2;
+    int comparison = condition->parameter3;
+    int value = scenario_formula_evaluate_formula(condition->parameter4);
+
+    int64_t desirability_sum = 0;
+    int tiles = 0;
+    grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
+
+    for (int i = 0; i < slice->size; i++) {
+        int grid_offset = slice->grid_offsets[i];
+        if (!map_grid_is_valid_offset(grid_offset)) continue;
+        ++tiles;
+        desirability_sum += map_desirability_get(grid_offset);
+    }
+    if (!tiles) return 0;
+    int desirability_mean = static_cast<int>(desirability_sum / tiles);
+
+    return comparison_helper_compare_values(comparison, desirability_mean, value);
+}
+
+int scenario_condition_type_figures_in_area_met(const scenario_condition_t *condition)
+{
+    int grid_offset1 = condition->parameter1;
+    int grid_offset2 = condition->parameter2;
+    auto category = static_cast<figure_category_mask>(condition->parameter3);
+    int comparison = condition->parameter4;
+    int value = scenario_formula_evaluate_formula(condition->parameter5);
+
+    grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
+
+    int total_figures = map_count_figures_category_in_area(slice, category);
+
+    return comparison_helper_compare_values(comparison, total_figures, value);
+}
+
+int scenario_condition_type_population_in_area_met(const scenario_condition_t *condition)
+{
+    const int selection = condition->parameter3;
+    int min_level = selection, max_level = selection;
+    switch (selection) {
+        case HOUSE_GROUP_TENT: min_level = HOUSE_SMALL_TENT; max_level = HOUSE_LARGE_TENT; break;
+        case HOUSE_GROUP_SHACK: min_level = HOUSE_SMALL_SHACK; max_level = HOUSE_LARGE_SHACK; break;
+        case HOUSE_GROUP_HOVEL: min_level = HOUSE_SMALL_HOVEL; max_level = HOUSE_LARGE_HOVEL; break;
+        case HOUSE_GROUP_CASA: min_level = HOUSE_SMALL_CASA; max_level = HOUSE_LARGE_CASA; break;
+        case HOUSE_GROUP_INSULA: min_level = HOUSE_SMALL_INSULA; max_level = HOUSE_GRAND_INSULA; break;
+        case HOUSE_GROUP_VILLA: min_level = HOUSE_SMALL_VILLA; max_level = HOUSE_GRAND_VILLA; break;
+        case HOUSE_GROUP_PALACE: min_level = HOUSE_SMALL_PALACE; max_level = HOUSE_LUXURY_PALACE; break;
+    }
+    int population = 0;
+    std::unordered_set<const Building *> counted;
+    const grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(condition->parameter1, condition->parameter2);
+    for (int i = 0; i < slice->size; ++i) {
+        int tile = slice->grid_offsets[i];
+        if (!map_grid_is_valid_offset(tile) || !map_building_exists_at(tile)) continue;
+        const Building &building = map_building_at(tile);
+        if (!building.Housing || !building.Housing->is_occupied() || !counted.insert(&building).second) continue;
+        const auto *profile = building.Housing->definition().profile;
+        if (profile && profile->compatibility_level >= min_level && profile->compatibility_level <= max_level) population += building.Housing->state().population;
+    }
+    return comparison_helper_compare_values(condition->parameter4, population, scenario_formula_evaluate_formula(condition->parameter5));
 }

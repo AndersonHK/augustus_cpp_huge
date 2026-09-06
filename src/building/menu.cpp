@@ -7,6 +7,7 @@
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
+#include "city/monument_gifts.h"
 #include "core/config.h"
 #include "empire/city.h"
 #include "game/tutorial.h"
@@ -332,8 +333,7 @@ static void enable_normal(int *enabled, building_type type)
         enable_if_allowed(enabled, type, current_type);
     }
 
-    if (building_type_registry_impl::type_attr_is(type, "triumphal_arch") &&
-        !city_buildings_triumphal_arch_available()) {
+    if (!city_monument_gift_available(type)) {
         *enabled = 0;
     }
 }

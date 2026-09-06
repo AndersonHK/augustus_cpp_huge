@@ -234,9 +234,11 @@ constexpr BuildingRuntimeList INDEXED_BUILDING_LISTS[] = {
     BuildingRuntimeList::Warehouses,
     BuildingRuntimeList::Storage,
     BuildingRuntimeList::PlagueTargets,
+    BuildingRuntimeList::CityServices,
 };
 
 struct RuntimeBuildingIndex {
+    std::vector<Building *> city_services;
     std::vector<Building *> housing;
     std::vector<Building *> labor;
     std::vector<Building *> production;
@@ -255,6 +257,7 @@ struct RuntimeBuildingIndex {
             case BuildingRuntimeList::Housing: return definition->has_housing();
             case BuildingRuntimeList::Labor: return definition->has_labor();
             case BuildingRuntimeList::Production: return definition->has_native_production();
+            case BuildingRuntimeList::CityServices: return definition->city_service().enabled();
             case BuildingRuntimeList::Granaries: return definition->is_granary();
             case BuildingRuntimeList::Warehouses: return definition->is_warehouse();
             case BuildingRuntimeList::Storage: return definition->is_storage();
@@ -269,6 +272,7 @@ struct RuntimeBuildingIndex {
             case BuildingRuntimeList::Housing: return housing;
             case BuildingRuntimeList::Labor: return labor;
             case BuildingRuntimeList::Production: return production;
+            case BuildingRuntimeList::CityServices: return city_services;
             case BuildingRuntimeList::Granaries: return granaries;
             case BuildingRuntimeList::Warehouses: return warehouses;
             case BuildingRuntimeList::Storage: return storage;

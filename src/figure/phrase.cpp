@@ -288,7 +288,7 @@ int figure_phrase_play(Figure *f)
     if (f->id() <= 0) {
         return 0;
     }
-    int sound_id = FIGURE_TYPE_TO_SOUND_TYPE[f->type];
+    int sound_id = FIGURE_TYPE_TO_SOUND_TYPE[figure_type_base(static_cast<figure_type>(f->type))];
     if (f->type == FIGURE_ZEBRA) {
         sound_effect_play(SOUND_EFFECT_ZEBRA_DIE);
         return -1; //default behaviour

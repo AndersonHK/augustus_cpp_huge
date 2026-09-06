@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<defines>
+    <labor retirement_age="$RETIREMENT_AGE" />
+    <ui_feature id="sidebar_grid_button" enabled="true" />
+    <ui_feature id="sidebar_pause_button" enabled="true" />
+    <ui_feature id="sidebar_extended_information" enabled="true" />
+    <ui_feature id="housing_advisor" enabled="true" />
+</defines>

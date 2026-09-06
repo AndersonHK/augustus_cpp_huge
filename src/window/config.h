@@ -30,4 +30,5 @@ typedef enum {
 } city_management_category;
 
 void window_config_show(window_config_page page, unsigned int category, int show_background_image);
+void window_config_validate_mod_settings();
 

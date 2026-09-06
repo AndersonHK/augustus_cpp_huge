@@ -2,6 +2,9 @@
 
 #include "scenario/event/data.h"
 
+int scenario_action_type_change_goal_execute(scenario_action_t *action);
+int scenario_action_type_definition_execute(scenario_action_t *action);
+
 
 int scenario_action_type_change_allowed_buildings_execute(scenario_action_t *action);
 
@@ -88,3 +91,11 @@ int scenario_action_type_change_production_rate_execute(scenario_action_t *actio
 
 int scenario_action_type_lock_trade_route_execute(scenario_action_t *action);
 
+
+int scenario_action_type_move_camera_execute(scenario_action_t *action);
+
+int scenario_action_type_change_weather_execute(scenario_action_t *action);
+
+int scenario_action_type_change_custom_variable_color_execute(scenario_action_t *action);
+
+int scenario_action_type_kill_walkers_in_area_execute(scenario_action_t *action);

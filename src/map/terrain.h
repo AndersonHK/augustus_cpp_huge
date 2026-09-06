@@ -1,5 +1,7 @@
 #pragma once
 
+int map_terrain_count(unsigned int terrain_mask);
+
 #include <stdint.h>
 #include "core/buffer.h"
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="vacant_lot">
-    <identity name_key="TR_BUILDING_VACANT_LOT" aliases="house_vacant_lot" />
+    <identity name_key="main_strings.128.0" aliases="house_vacant_lot" />
     <model cost="10" />
     <desirability>
         <value value="-3" />

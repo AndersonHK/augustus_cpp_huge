@@ -364,6 +364,8 @@ void building_trim(void);
 void building_update_state(void);
 
 void building_update_desirability(void);
+int building_elevation_desirability(int grid_offset);
+int building_shoreline_desirability(int grid_offset);
 
 int building_is_fort(building_type type);
 

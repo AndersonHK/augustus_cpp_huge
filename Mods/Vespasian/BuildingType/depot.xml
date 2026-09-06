@@ -1,32 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="cart_depot">
-    <identity name_key="TR_BUILDING_DEPOT" />
-    <model cost="100" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="industry" order="600" icon="Admin_Logistics\Cart_Depot_C_OFF" icon_image="Cart Depot N OFF" text_key="TR_BUILDING_DEPOT" />
-    <sound id="city_depot" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Cart_Depot_C_OFF" />
-            <image value="Cart Depot C ON" />
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Admin_Logistics\Cart_Depot_C_OFF" />
-            <image value="Cart Depot N ON" />
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Admin_Logistics\Cart_Depot_C_OFF" />
-            <image value="Cart Depot S ON" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="15" />
         <labor_seeker>

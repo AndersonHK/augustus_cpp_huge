@@ -460,7 +460,7 @@ int parse_definition_buffer(
 
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition) {
         error_context_report_error("Invalid declarative window XML.", filename);
-        set_failure_reason("Failed to parse declarative window XML.", filename);
+        if (g_failure_reason.empty()) set_failure_reason("Failed to parse declarative window XML.", filename);
         return 0;
     }
 
@@ -975,7 +975,7 @@ static void declarative_widget_bounds(const DeclarativeWindowDefinition &window,
     *widget_height = widget.resolved_height(height, window.base_height());
 }
 
-void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int height) const
+void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int height, int origin_x, int origin_y) const
 {
     if (!definition_ || !controller_) return;
     for (const DeclarativeWidgetDefinition &widget : definition_->widgets()) {
@@ -989,6 +989,8 @@ void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int h
             int widget_width = 0;
             int widget_height = 0;
             declarative_widget_bounds(*definition_, widget, item, width, height, &x, &y, &widget_width, &widget_height);
+            x += origin_x;
+            y += origin_y;
             const int enabled = widget.enabled_binding.empty() || controller_->condition(widget.enabled_binding, item);
             const int selected = !widget.selected_binding.empty() && controller_->condition(widget.selected_binding, item);
             const int focused = focused_widget_ == widget.id && focused_item_ == item;

@@ -12,6 +12,7 @@
 #include "empire/object.h"
 #include "game/resource.h"
 #include "scenario/invasion.h"
+#include "scenario/definition_overrides.h"
 
 #include <stdlib.h>
 
@@ -85,34 +86,46 @@ static void export_border(void)
 static void export_city(const empire_object *obj)
 {
     static const char *city_types[6] = { "roman", "ours", "trade", "future_trade", "distant", "vulnerable" };
-    static const char *city_icons[18] = { "construction", "dis_town", "dis_village", "res_food", "res_goods", "res_sea",
+    static const char *city_icons[19] = { "construction", "dis_town", "dis_village", "res_food", "res_goods", "res_sea",
                                           "tr_town", "ro_town", "tr_village", "ro_village", "ro_capital", "tr_sea",
-                                          "tr_land", "our_city", "tr_city", "ro_city", "dis_city", "tower" };
+                                          "tr_land", "our_city", "tr_city", "ro_city", "dis_city", "tower", "button" };
 
     full_empire_object *city = empire_object_get_full(obj->id);
-    if (city->city_type == EMPIRE_CITY_FUTURE_ROMAN) {
+    if (!city || city->city_type < 0 || city->city_type >= 6) {
         return;
     }
     xml_exporter_new_element("city");
     if (string_length(city->city_custom_name)) {
-        xml_exporter_add_attribute_text("name", (const char *) city->city_custom_name);
+        xml_exporter_add_attribute_encoded_text("name", city->city_custom_name);
     } else {
         xml_exporter_add_attribute_int("name_id", city->city_name_id);
     }
     xml_exporter_add_attribute_int("x", obj->x + obj->width / 2);
     xml_exporter_add_attribute_int("y", obj->y + obj->height / 2);
     xml_exporter_add_attribute_text("type", city_types[city->city_type]);
-    if (obj->empire_city_icon) {
+    if (obj->empire_city_icon > 0 && obj->empire_city_icon <= 19) {
         xml_exporter_add_attribute_text("icon", city_icons[obj->empire_city_icon - 1]);
     }
     if (city->city_type == EMPIRE_CITY_TRADE || city->city_type == EMPIRE_CITY_FUTURE_TRADE) {
-        if (city->city_type == EMPIRE_CITY_FUTURE_TRADE && obj->future_trade_after_icon) {
+        if (city->city_type == EMPIRE_CITY_FUTURE_TRADE && obj->future_trade_after_icon > 0 && obj->future_trade_after_icon <= 19) {
             xml_exporter_add_attribute_text("icon_after", city_icons[obj->future_trade_after_icon - 1]);
         }
         xml_exporter_add_attribute_int("trade_route_cost", city->trade_route_cost);
         const char *route_type = empire_object_is_sea_trade_route(obj->trade_route_id) ? "sea" : "land";
         xml_exporter_add_attribute_text("trade_route_type", route_type);
         
+        xml_exporter_new_element("resource_cost");
+        for (int index = 0; index < resource_production_count(); ++index) {
+            const auto resource = resource_get_production(index);
+            const int amount = scenario_definition_override_value(ScenarioOverrideKind::RouteResource, std::to_string(obj->trade_route_id), 0, resource_text_id(resource), 0);
+            if (!amount) continue;
+            xml_exporter_new_element("resource");
+            xml_exporter_add_attribute_text("type", resource_text_id(resource));
+            xml_exporter_add_attribute_int("amount", amount);
+            xml_exporter_close_element();
+        }
+        xml_exporter_close_element();
+
         xml_exporter_new_element("sells");
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
             if (city->city_sells_resource[r]) {
@@ -136,6 +149,7 @@ static void export_city(const empire_object *obj)
         xml_exporter_close_element();
 
         xml_exporter_new_element("trade_points");
+        xml_exporter_add_attribute_int("hidden", scenario_definition_override_value(ScenarioOverrideKind::HiddenRoute, std::to_string(obj->trade_route_id), 0, {}, 0));
         for (int point_index = 0; point_index < empire_object_count(); ) {
             int point_id = empire_object_get_next_in_order(obj->id + 1, &point_index);
             if (!point_id) {

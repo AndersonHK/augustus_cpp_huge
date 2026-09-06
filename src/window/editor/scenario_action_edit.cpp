@@ -1,3 +1,5 @@
+#include "building/building_type_registry_internal.h"
+#include <algorithm>
 #include "editor/tool.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -22,6 +24,7 @@
 #include "window/editor/map.h"
 #include "window/editor/select_city_trade_route.h"
 #include "window/text_input.h"
+#include "scenario/definition_overrides.h"
 
 #include "core/string.h"
 #include "game/resource.h"
@@ -450,6 +453,8 @@ static void set_formula_value(const uint8_t *formula)
 static void create_evaluation_formula(xml_data_attribute_t *parameter)
 {
     int current_index = get_param_value();
+    data.formula[0] = 0;
+    data.formula_index = 0;
     data.formula_min_limit = parameter->min_limit;
     data.formula_max_limit = parameter->max_limit;
     if (current_index > 0) { // a formula already exists
@@ -519,7 +524,7 @@ static void on_grid_slice_selected(grid_slice *selection)
         }
     }
     data.action->parameter1 = start_offset;
-    data.action->parameter2 = end_offset;
+    if (data.action->type != ACTION_TYPE_MOVE_CAMERA) data.action->parameter2 = end_offset;
     scenario_events_fetch_event_tiles_to_editor();
     editor_tool_clear_selection_callback();
     window_go_back();
@@ -560,6 +565,12 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
         case PARAMETER_TYPE_CLIMATE:
         case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
+        case PARAMETER_TYPE_HOUSE_DATA_TYPE:
+        case PARAMETER_TYPE_WIN_CONDITION:
+        case PARAMETER_TYPE_WEATHER:
+        case PARAMETER_TYPE_VARIABLE_COLOR:
+        case PARAMETER_TYPE_HOUSING_BUILDING:
+        case PARAMETER_TYPE_CONSTRUCTION_BUILDING:
         case PARAMETER_TYPE_MODEL:
         case PARAMETER_TYPE_CITY_PROPERTY:
         case PARAMETER_TYPE_PERCENTAGE:
@@ -580,6 +591,9 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
         case PARAMETER_TYPE_ROUTE:
             window_editor_select_city_trade_route_show(set_param_value);
             return;
+        case PARAMETER_TYPE_EMPIRE_CITY:
+            window_editor_select_city_by_type_show(set_param_value, static_cast<empire_city_type>(0));
+            return;
         case PARAMETER_TYPE_FUTURE_CITY:
             window_editor_select_city_by_type_show(set_param_value, EMPIRE_CITY_FUTURE_TRADE);
             return;
@@ -595,10 +609,21 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
         case PARAMETER_TYPE_FORMULA:
             create_evaluation_formula(parameter);
             return;
+        case PARAMETER_TYPE_SCENARIO_TEXT:
+            window_text_input_show(translation_for(parameter->key), string_from_ascii("..."), scenario_text_get(get_param_value()), 255,
+                [](const uint8_t *text) { set_param_value(scenario_text_add(reinterpret_cast<const char *>(text))); window_invalidate(); });
+            return;
         case PARAMETER_TYPE_ROUTE_RESOURCE:
             // Pass the route_id from parameter3 to the window
             window_editor_select_city_resources_for_route_show(set_param_value, data.action->parameter3);
             return;
+        case PARAMETER_TYPE_CONSTRUCTION_PHASE: {
+            const auto *building = building_type_registry_impl::definition_for_type(static_cast<building_type>(data.action->parameter1));
+            const int count = building ? std::max(1, building->construction().phase_count()) : 1;
+            window_numeric_input_bound_show(BUTTON_WIDTH / 2, 0, button, 9, 1, count, set_param_value);
+            return;
+        }
+        case PARAMETER_TYPE_GRID_OFFSET:
         case PARAMETER_TYPE_GRID_SLICE:
         {
             start_grid_slice_selection();

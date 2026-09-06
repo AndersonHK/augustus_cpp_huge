@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Authored anchor bridge: the upstream 39x39 dog canvas has its ground contact at (19,29). -->
+<assetlist name="Walkers\dog">
+    <image id="default_ne_01" group="Walkers\dog_walk_ne_01" image="dog_walk_ne_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_02" group="Walkers\dog_walk_ne_02" image="dog_walk_ne_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_03" group="Walkers\dog_walk_ne_03" image="dog_walk_ne_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_04" group="Walkers\dog_walk_ne_04" image="dog_walk_ne_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_05" group="Walkers\dog_walk_ne_05" image="dog_walk_ne_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_06" group="Walkers\dog_walk_ne_06" image="dog_walk_ne_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_07" group="Walkers\dog_walk_ne_07" image="dog_walk_ne_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_ne_08" group="Walkers\dog_walk_ne_08" image="dog_walk_ne_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_01" group="Walkers\dog_walk_e_01" image="dog_walk_e_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_02" group="Walkers\dog_walk_e_02" image="dog_walk_e_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_03" group="Walkers\dog_walk_e_03" image="dog_walk_e_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_04" group="Walkers\dog_walk_e_04" image="dog_walk_e_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_05" group="Walkers\dog_walk_e_05" image="dog_walk_e_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_06" group="Walkers\dog_walk_e_06" image="dog_walk_e_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_07" group="Walkers\dog_walk_e_07" image="dog_walk_e_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_e_08" group="Walkers\dog_walk_e_08" image="dog_walk_e_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_01" group="Walkers\dog_walk_se_01" image="dog_walk_se_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_02" group="Walkers\dog_walk_se_02" image="dog_walk_se_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_03" group="Walkers\dog_walk_se_03" image="dog_walk_se_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_04" group="Walkers\dog_walk_se_04" image="dog_walk_se_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_05" group="Walkers\dog_walk_se_05" image="dog_walk_se_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_06" group="Walkers\dog_walk_se_06" image="dog_walk_se_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_07" group="Walkers\dog_walk_se_07" image="dog_walk_se_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_se_08" group="Walkers\dog_walk_se_08" image="dog_walk_se_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_01" group="Walkers\dog_walk_s_01" image="dog_walk_s_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_02" group="Walkers\dog_walk_s_02" image="dog_walk_s_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_03" group="Walkers\dog_walk_s_03" image="dog_walk_s_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_04" group="Walkers\dog_walk_s_04" image="dog_walk_s_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_05" group="Walkers\dog_walk_s_05" image="dog_walk_s_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_06" group="Walkers\dog_walk_s_06" image="dog_walk_s_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_07" group="Walkers\dog_walk_s_07" image="dog_walk_s_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_s_08" group="Walkers\dog_walk_s_08" image="dog_walk_s_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_01" group="Walkers\dog_walk_sw_01" image="dog_walk_sw_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_02" group="Walkers\dog_walk_sw_02" image="dog_walk_sw_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_03" group="Walkers\dog_walk_sw_03" image="dog_walk_sw_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_04" group="Walkers\dog_walk_sw_04" image="dog_walk_sw_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_05" group="Walkers\dog_walk_sw_05" image="dog_walk_sw_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_06" group="Walkers\dog_walk_sw_06" image="dog_walk_sw_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_07" group="Walkers\dog_walk_sw_07" image="dog_walk_sw_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_sw_08" group="Walkers\dog_walk_sw_08" image="dog_walk_sw_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_01" group="Walkers\dog_walk_w_01" image="dog_walk_w_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_02" group="Walkers\dog_walk_w_02" image="dog_walk_w_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_03" group="Walkers\dog_walk_w_03" image="dog_walk_w_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_04" group="Walkers\dog_walk_w_04" image="dog_walk_w_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_05" group="Walkers\dog_walk_w_05" image="dog_walk_w_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_06" group="Walkers\dog_walk_w_06" image="dog_walk_w_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_07" group="Walkers\dog_walk_w_07" image="dog_walk_w_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_w_08" group="Walkers\dog_walk_w_08" image="dog_walk_w_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_01" group="Walkers\dog_walk_nw_01" image="dog_walk_nw_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_02" group="Walkers\dog_walk_nw_02" image="dog_walk_nw_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_03" group="Walkers\dog_walk_nw_03" image="dog_walk_nw_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_04" group="Walkers\dog_walk_nw_04" image="dog_walk_nw_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_05" group="Walkers\dog_walk_nw_05" image="dog_walk_nw_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_06" group="Walkers\dog_walk_nw_06" image="dog_walk_nw_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_07" group="Walkers\dog_walk_nw_07" image="dog_walk_nw_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_nw_08" group="Walkers\dog_walk_nw_08" image="dog_walk_nw_08">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_01" group="Walkers\dog_walk_n_01" image="dog_walk_n_01">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_02" group="Walkers\dog_walk_n_02" image="dog_walk_n_02">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_03" group="Walkers\dog_walk_n_03" image="dog_walk_n_03">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_04" group="Walkers\dog_walk_n_04" image="dog_walk_n_04">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_05" group="Walkers\dog_walk_n_05" image="dog_walk_n_05">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_06" group="Walkers\dog_walk_n_06" image="dog_walk_n_06">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_07" group="Walkers\dog_walk_n_07" image="dog_walk_n_07">
+        <animation x="19" y="29" />
+    </image>
+    <image id="default_n_08" group="Walkers\dog_walk_n_08" image="dog_walk_n_08">
+        <animation x="19" y="29" />
+    </image>
+</assetlist>

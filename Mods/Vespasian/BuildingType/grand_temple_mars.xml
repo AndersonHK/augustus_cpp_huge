@@ -1,92 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_mars">
-    <identity name_key="TR_BUILDING_GRAND_TEMPLE_MARS" />
-    <temple religion="grand_temple_mars" />
-    <model cost="2500" />
-    <desirability>
-        <value value="20" />
-        <step value="2" />
-        <step_size value="-4" />
-        <range value="8" />
-    </desirability>
-    <foundation path="land_7x7" />
-  <button group="grand_temples" order="50" icon="Monuments\Mars_Complex_Off" icon_image="Mars Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_MARS" />
-    <sound id="temple_mars" />
-    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
-    <culture_modules>
-        <culture_module path="temple_active" capacity="5000" count="active" />
-    </culture_modules>
-    <graphics>
-        <default>
-            <path value="Monuments\Mars_Complex_Off" />
-            <image value="Mars Complex On" />
-        </default>
-        <variant>
-            <condition type="monument_upgrade" value="1" />
-            <path value="Monuments\Mars_Complex_Off" />
-            <image value="Mars Complex Module" />
-        </variant>
-        <variant>
-            <condition type="monument_upgrade" value="2" />
-            <path value="Monuments\Mars_Complex_Off" />
-            <image value="Mars Complex Module2" />
-        </variant>
-    </graphics>
-    <construction mode="phased" road_update_radius="9" max_count="1">
-        <phase index="1">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Mars Complex Const 01" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="stone" amount="20" />
-        </phase>
-        <phase index="2">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Mars Complex Const 02" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="8" />
-            <requirement type="concrete" amount="20" />
-        </phase>
-        <phase index="3">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Mars Complex Const 03" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="8" />
-            <requirement type="marble" amount="16" />
-        </phase>
-        <phase index="4">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Mars Complex Const 04" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="16" />
-            <requirement type="bricks" amount="28" />
-            <requirement type="marble" amount="12" />
-        </phase>
-        <phase index="5">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Mars Complex Const 05" />
-            </graphics>
-            <requirement type="architects" amount="4" />
-        </phase>
-    </construction>
     <labor>
         <employees count="50" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:0,1:0">
-        <spawn mode="grand_temple_mars_recruit" />
-    </spawn_group>
-    <spawn_group road_access="normal" delay_bands="100:0,1:0">
-        <spawn mode="temple_destination_priest" />
-    </spawn_group>
 </building>

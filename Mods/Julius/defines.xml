@@ -23,4 +23,9 @@
     <health bucket="9" values="0,0,0,0,0,0,4,5,10,20" />
     <health bucket="10" values="0,0,0,0,0,0,0,2,5,10" />
   </mortality_table>
+    <labor retirement_age="50" />
+    <ui_feature id="sidebar_grid_button" enabled="false" />
+    <ui_feature id="sidebar_pause_button" enabled="false" />
+    <ui_feature id="sidebar_extended_information" enabled="false" />
+    <ui_feature id="housing_advisor" enabled="false" />
 </defines>

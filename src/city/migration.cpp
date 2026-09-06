@@ -1,4 +1,7 @@
 #include "migration.h"
+#include "scenario/definition_overrides.h"
+#include <algorithm>
+#include <cstdint>
 
 #include "building/house_population.h"
 #include "city/data_private.h"
@@ -118,6 +121,12 @@ static void create_migrants(void)
 void city_migration_update(void)
 {
     update_status();
+    auto adjust = [](int amount, bool immigration) {
+        int percentage = scenario_definition_override_value(ScenarioOverrideKind::Migration, {}, immigration, {}, 100);
+        return static_cast<int>(std::min<int64_t>(static_cast<int64_t>(amount) * percentage / 100, 32767));
+    };
+    city_data.migration.immigration_amount_per_batch = adjust(city_data.migration.immigration_amount_per_batch, true);
+    city_data.migration.emigration_amount_per_batch = adjust(city_data.migration.emigration_amount_per_batch, false);
     create_migrants();
 }
 

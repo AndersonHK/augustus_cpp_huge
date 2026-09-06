@@ -2,6 +2,8 @@
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
+#include <map>
+#include <string>
 
 
 typedef enum {
@@ -34,7 +36,8 @@ scenario_event_t *scenario_events_get_using_custom_variable(int custom_variable_
 void scenario_events_migrate_to_resolved_display_names(void);
 void scenario_events_migrate_to_formulas(void);
 void scenario_events_min_max_migrate_to_formulas(void);
-void scenario_events_migrate_to_buys_sells(void);
+void scenario_events_migrate_to_buys_sells(bool defer = false);
+void scenario_events_resolve_legacy_trade_directions();
 
 void scenario_events_assign_parent_event_ids(void);
 
@@ -42,3 +45,16 @@ void scenario_events_fetch_event_tiles_to_editor(void);
 
 void scenario_events_migrate_to_grid_slices(void);
 
+
+void scenario_events_migrate_time_formulas();
+
+struct ScenarioEventClipboard {
+    uint64_t generation = 0;
+    scenario_event_t event{};
+    std::map<int, scenario_formula_t> formulas;
+    std::map<int, std::string> texts;
+};
+ScenarioEventClipboard scenario_event_copy(const scenario_event_t &event);
+void scenario_event_paste(const ScenarioEventClipboard &copy, scenario_event_t &destination);
+
+bool scenario_event_clipboard_is_current(const ScenarioEventClipboard &copy);

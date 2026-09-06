@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/construction.h"
 #include "building/construction_plan.h"
 #include "building/construction_warning.h"
@@ -34,6 +35,7 @@
 #include "building/properties.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
+#include "city/monument_gifts.h"
 #include "city/culture.h"
 #include "city/finance.h"
 #include "city/resource.h"
@@ -608,7 +610,7 @@ static bool add_to_map(
         map_orientation_update_buildings();
         map_tiles_update_area_roads(b->x, b->y, 5);
         map_tiles_update_all_plazas();
-        city_buildings_build_triumphal_arch();
+        if (definition.has_phased_construction()) building_monument_set_phase(b, MONUMENT_START);
         building_menu_update();
         building_construction_clear_type();
     } else if (definition.is_mess_hall()) {
@@ -705,6 +707,7 @@ static int construction_rules_allow_placement(
     const building_type type = definition.type();
     const building_type_registry_impl::ConstructionDefinition &construction =
         definition.construction();
+    if (!city_monument_gift_available(type)) return 0;
     const int max_count = construction.max_count();
     if (max_count > 0 &&
         !construction_config_flag_enabled(construction.max_count_unless_config()) &&
@@ -781,7 +784,8 @@ static void instant_building_remove_required_resources(building_type type)
     for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
         int amount = definition->construction().instant_requirement_amount(resource);
         if (amount > 0) {
-            building_warehouses_remove_resource(resource, amount);
+            const int remaining = building_warehouses_remove_resource(resource, amount);
+            city_trade_ledger_consumed(resource, (amount - remaining) * resource_units_per_load());
         }
     }
 }

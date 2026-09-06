@@ -80,8 +80,8 @@ static void populate_list(int offset)
         offset = 0;
     }
     for (unsigned int i = 0; i < MAX_VISIBLE_ROWS; i++) {
-        int target_id = data.valid_city_ids[i + offset];
         if (i + offset < data.list_size) {
+            int target_id = data.valid_city_ids[i + offset];
             data.list[i].city_id = target_id;
             empire_city *city = empire_city_get(target_id);
             data.list[i].name = empire_city_get_name(city);
@@ -124,7 +124,7 @@ static void init(void (*callback)(int), empire_city_type type)
 
     for (int i = 1; i < city_array_size; i++) {
         empire_city *city = empire_city_get(i);
-        if (city->type == data.filter_type) {
+        if (city->in_use && (!data.filter_type || city->type == data.filter_type)) {
             data.valid_city_ids[data.list_size] = i;
             data.list_size++;
         }

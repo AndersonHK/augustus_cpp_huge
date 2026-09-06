@@ -4,6 +4,7 @@
 #include "game/resource.h"
 
 #include <stdint.h>
+#include <vector>
 
 typedef int resource_version_t;
 
@@ -28,4 +29,5 @@ resource_type resource_remap(int id);
 uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id);
 int resource_total_mapped(void);
 int resource_total_food_mapped(void);
+std::vector<resource_type> resource_id_bridge_production_order();
 

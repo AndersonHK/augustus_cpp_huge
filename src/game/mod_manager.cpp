@@ -1,4 +1,5 @@
 #include "game/mod_manager.h"
+#include "game/mod_content.h"
 #include "core/crash_context.h"
 
 #include "core/file.h"
@@ -264,7 +265,7 @@ static const xml_parser_element MOD_METADATA_XML_ELEMENTS[] = {
     { "mod", parse_metadata_dependency, nullptr, "dependencies", nullptr }
 };
 
-static int finish_metadata_parse(mod_manager::ModMetadata &metadata_out)
+[[maybe_unused]] static int finish_metadata_parse(mod_manager::ModMetadata &metadata_out)
 {
     if (g_metadata_parse_state.error || !g_metadata_parse_state.saw_root ||
         !g_metadata_parse_state.saw_name || !g_metadata_parse_state.saw_description ||
@@ -288,15 +289,11 @@ static int finish_metadata_parse(mod_manager::ModMetadata &metadata_out)
 
 static int parse_mod_metadata_file(const char *filename, mod_manager::ModMetadata &metadata_out)
 {
-    g_metadata_parse_state = {};
-    const ErrorContextScope scope("Mod metadata XML", filename);
-    const int parsed = xml_definition::parse_file(
-        filename,
-        "Mod metadata",
-        MOD_METADATA_XML_ELEMENTS,
-        static_cast<int>(sizeof(MOD_METADATA_XML_ELEMENTS) / sizeof(MOD_METADATA_XML_ELEMENTS[0])));
-    if (!parsed || !finish_metadata_parse(metadata_out)) {
-        error_context_report_error("Invalid mod metadata XML", filename);
+    try {
+        const auto parsed = mod_content::manifest(mod_content::utf8_path(filename));
+        metadata_out = {parsed.name, parsed.description, parsed.version, parsed.dependencies};
+    } catch (const std::exception &e) {
+        error_context_report_error("Invalid mod metadata XML", e.what());
         return 0;
     }
     return 1;
@@ -474,7 +471,8 @@ void set_mod_name(std::string_view mod_name)
     } else {
         g_mod_name = "Vespasian";
     }
-    rebuild_legacy_selected_mod_paths();
+    g_mod_path = build_mod_path(g_mod_name);
+    g_graphics_path = build_graphics_path(g_mod_name);
 }
 
 bool load_mod_list()
@@ -502,6 +500,17 @@ bool load_mod_list()
 
     std::vector<ModMetadata> loaded_metadata;
     if (!load_and_validate_mod_metadata(loaded_mods, loaded_metadata)) {
+        return false;
+    }
+
+    try {
+        std::vector<mod_content::Layer> layers;
+        for (const auto &name : loaded_mods) layers.push_back({name, mod_content::utf8_path(build_mod_path(name))});
+        mod_content::Session compiled;
+        compiled.load(layers, mod_content::utf8_path(dir_append_location("mod-settings.xml", PATH_LOCATION_CONFIG)));
+        mod_content::runtime() = std::move(compiled);
+    } catch (const std::exception &e) {
+        set_failure_reason("Failed to resolve mod settings and fields.", e.what());
         return false;
     }
 

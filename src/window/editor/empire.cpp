@@ -1,3 +1,7 @@
+#include "scenario/definition_overrides.h"
+#include "window/select_list.h"
+#include <vector>
+#include <string>
 #include "empire/editor.h"
 #include "translation/translation.h"
 #include "empire/empire.h"
@@ -1597,13 +1601,40 @@ static void set_opening_cost(int value)
     empire_city_set_trade_route_cost(empire_city_get(data.selected_city)->route_id, value);
 }
 
+static std::vector<resource_type> route_cost_resources;
+static std::vector<std::string> route_cost_labels;
+static std::vector<const uint8_t *> route_cost_label_pointers;
+static resource_type route_cost_resource = RESOURCE_NONE;
+static generic_button route_cost_anchor = {0, 0, 420, 24};
+
+static void set_resource_opening_cost(int value)
+{
+    if (route_cost_resource == RESOURCE_NONE) set_opening_cost(value);
+    else scenario_definition_override_set({ScenarioOverrideKind::RouteResource, std::to_string(empire_city_get(data.selected_city)->route_id), 0, resource_text_id(route_cost_resource), value});
+    window_invalidate();
+}
+
+static void select_route_cost(int index)
+{
+    route_cost_resource = route_cost_resources.at(index);
+    window_numeric_input_bound_show(100, 100, nullptr, 9, 0, 1000000000, set_resource_opening_cost);
+}
+
 static void button_route_cost(const generic_button *button)
 {
-    if (button->parameter1) {
-        return;
+    if (button->parameter1) return;
+    const auto *city = empire_city_get(data.selected_city);
+    if (!city) return;
+    route_cost_resources = {RESOURCE_NONE};
+    route_cost_labels = {std::string(reinterpret_cast<const char *>(lang_get_string("main_strings.6.0"))) + ": " + std::to_string(city->cost_to_open)};
+    for (int index = 0; index < resource_production_count(); ++index) {
+        const auto resource = resource_get_production(index);
+        route_cost_resources.push_back(resource);
+        route_cost_labels.push_back(std::string(reinterpret_cast<const char *>(resource_get_data(resource)->text)) + ": " + std::to_string(empire_city_trade_resource_cost(city->route_id, resource)));
     }
-    window_numeric_input_bound_show((data.x_min + data.x_max) / 2 - 4 * BLOCK_SIZE - screen_dialog_offset_x(),
-        ((data.y_min + data.y_max) - 15 * BLOCK_SIZE) / 2 - screen_dialog_offset_y(), NULL, 6, 1, 999999, set_opening_cost);
+    route_cost_label_pointers.clear();
+    for (const auto &label : route_cost_labels) route_cost_label_pointers.push_back(reinterpret_cast<const uint8_t *>(label.c_str()));
+    window_select_list_show_text(screen_dialog_offset_x() + 100, screen_dialog_offset_y() + 30, &route_cost_anchor, route_cost_label_pointers.data(), static_cast<int>(route_cost_label_pointers.size()), select_route_cost);
 }
 
 static void set_tool(int value)

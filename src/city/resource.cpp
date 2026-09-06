@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/building_record.h"
 #include "resource.h"
 
@@ -590,14 +591,16 @@ static int house_consume_food(void)
                     continue;
                 }
                 if (b->resources[r] >= amount_per_type) {
+                    city_trade_ledger_consumed(r, amount_per_type);
                     b->resources[r] = static_cast<short>(b->resources[r] - amount_per_type);
                     ++services.num_foods;
                     total_consumed += amount_per_type;
                 } else if (b->resources[r]) {
                     // has food but not enough
+                    city_trade_ledger_consumed(r, b->resources[r]);
+                    total_consumed += b->resources[r];
                     b->resources[r] = 0;
                     ++services.num_foods;
-                    total_consumed += amount_per_type;
                 }
                 if (services.num_foods > city_data.resource.food_types_eaten) {
                     city_data.resource.food_types_eaten = services.num_foods;
@@ -657,6 +660,7 @@ static int mess_hall_consume_food(void)
             proportionate_amount = food_required * b->resources[r] / total_food_in_mess_hall;
             if (proportionate_amount > 0) {
                 amount_for_type = calc_bound((int) ceil(proportionate_amount), 0, b->resources[r]);
+                city_trade_ledger_consumed(r, amount_for_type);
                 b->resources[r] = static_cast<short>(b->resources[r] - amount_for_type);
                 ++num_foods;
             }
@@ -720,7 +724,8 @@ static int caravanserai_consume_food(void)
         proportionate_amount = food_required * b->resources[r] / total_food_in_caravanserai;
         if (proportionate_amount > 0) {
             amount_for_type = calc_bound(proportionate_amount, 0, b->resources[r]);
-            b->resources[r] = static_cast<short>(b->resources[r] - amount_for_type);
+            city_trade_ledger_consumed(r, amount_for_type);
+                b->resources[r] = static_cast<short>(b->resources[r] - amount_for_type);
         }
     }
 

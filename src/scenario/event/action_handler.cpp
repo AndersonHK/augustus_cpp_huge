@@ -1,4 +1,5 @@
 #include "action_handler.h"
+#include "building/building_type_id_bridge.h"
 
 #include "game/resource_id_bridge.h"
 #include "game/resource.h"
@@ -8,6 +9,15 @@
 int scenario_action_type_execute(scenario_action_t *action)
 {
     switch (action->type) {
+        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA:
+        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES:
+        case ACTION_TYPE_IMMIGRATION_PERCENTAGE:
+        case ACTION_TYPE_HIDE_TRADE_ROUTE:
+        case ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST:
+        case ACTION_TYPE_RENAME_CITY:
+        case ACTION_TYPE_SEND_CITY_WARNING:
+            return scenario_action_type_definition_execute(action);
+        case ACTION_TYPE_CHANGE_GOAL: return scenario_action_type_change_goal_execute(action);
         case ACTION_TYPE_ADJUST_CITY_HEALTH:
             return scenario_action_type_city_health_execute(action);
         case ACTION_TYPE_ADJUST_FAVOR:
@@ -96,6 +106,10 @@ int scenario_action_type_execute(scenario_action_t *action)
             return scenario_action_type_change_production_rate_execute(action);
         case ACTION_TYPE_LOCK_TRADE_ROUTE:
             return scenario_action_type_lock_trade_route_execute(action);
+        case ACTION_TYPE_MOVE_CAMERA: return scenario_action_type_move_camera_execute(action);
+        case ACTION_TYPE_CHANGE_WEATHER: return scenario_action_type_change_weather_execute(action);
+        case ACTION_TYPE_CHANGE_VARIABLE_COLOR: return scenario_action_type_change_custom_variable_color_execute(action);
+        case ACTION_TYPE_KILL_WALKERS_IN_AREA: return scenario_action_type_kill_walkers_in_area_execute(action);
         default:
             return 0;
     }
@@ -145,6 +159,15 @@ unsigned int scenario_action_type_load_state(buffer *buf, scenario_action_t *act
         action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
     } else if (action->type == ACTION_TYPE_TRADE_SET_SELL_PRICE_ONLY) {
         action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
+    } else if (action->type == ACTION_TYPE_CHANGE_PRODUCTION_RATE) {
+        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
+    } else if (action->type == ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST) {
+        action->parameter2 = static_cast<int>(resource_remap(action->parameter2));
+    } else if (action->type == ACTION_TYPE_CHANGE_MONUMENT_RESOURCES) {
+        action->parameter1 = static_cast<int>(building_type_id_bridge_runtime_from_save_id(static_cast<uint16_t>(action->parameter1)));
+        action->parameter3 = static_cast<int>(resource_remap(action->parameter3));
+    } else if (action->type == ACTION_TYPE_CHANGE_MODEL_DATA || action->type == ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA) {
+        action->parameter1 = static_cast<int>(building_type_id_bridge_runtime_from_save_id(static_cast<uint16_t>(action->parameter1)));
     } else if (action->type == ACTION_TYPE_CHANGE_ALLOWED_BUILDINGS) {
         if (!is_new_version) {
             int original_id = action->parameter1;

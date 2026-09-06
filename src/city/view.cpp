@@ -153,6 +153,21 @@ static void check_camera_boundaries(void)
         city_view_set_scale(max_scale);
         return;
     }
+    if (config_get(CONFIG_UI_EXTENDED_CAMERA_BOUNDS)) {
+        // Permit every map edge to reach the viewport center, in view-tile coordinates.
+        const int x_margin = data.viewport.width_tiles / 2;
+        const int y_margin = (data.viewport.height_tiles / 2) & ~1;
+        const int left = (VIEW_X_MAX - map_grid_width()) / 2 - x_margin;
+        const int top = ((VIEW_Y_MAX - map_grid_height() * 2) / 2 - y_margin) & ~1;
+        const int right = (VIEW_X_MAX + map_grid_width()) / 2 - x_margin;
+        const int bottom = ((VIEW_Y_MAX + map_grid_height() * 2) / 2 - y_margin) & ~1;
+        if (data.camera.tile.x < left) { data.camera.tile.x = left; data.camera.pixel.x = 0; }
+        if (data.camera.tile.x > right) { data.camera.tile.x = right; data.camera.pixel.x = 0; }
+        if (data.camera.tile.y < top) { data.camera.tile.y = top; data.camera.pixel.y = 0; }
+        if (data.camera.tile.y > bottom) { data.camera.tile.y = bottom; data.camera.pixel.y = 0; }
+        data.camera.tile.y &= ~1;
+        return;
+    }
     int grid_height = map_grid_height() * 2;
     int x_min = (VIEW_X_MAX - map_grid_width()) / 2;
     int y_min = (VIEW_Y_MAX - grid_height) / 2;

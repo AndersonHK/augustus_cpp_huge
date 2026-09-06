@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "figure/figure.h"
 
 #include "assets/assets.h"
@@ -81,6 +82,8 @@ static const translation_key NEW_FIGURE_TYPES[] = {
 
 static ImageGroupEntryRef big_people_image_ref(figure_type type)
 {
+    if (const auto *definition = figure_type_registry_impl::definition_for(type); definition && !definition->portrait().group_path().empty()) return definition->portrait();
+    type = figure_type_base(type);
     switch (type) {
         case FIGURE_WORK_CAMP_SLAVE:
             return ImageGroupEntryRef::from_group("Walkers\\Slave_Portrait", "Slave Portrait");
@@ -110,7 +113,8 @@ namespace {
 constexpr int kFigureArraySizeStep = 1000;
 constexpr int kFigureOriginalBufferSize = 128;
 constexpr int kFigureLastNoExactProfileIdentityBufferSize = 184;
-constexpr int kFigureCurrentBufferSize = kFigureLastNoExactProfileIdentityBufferSize + static_cast<int>(FIGURE_RUNTIME_PROFILE_ID_CAPACITY);
+constexpr int kFigureExactProfileBufferSize = kFigureLastNoExactProfileIdentityBufferSize + static_cast<int>(FIGURE_RUNTIME_PROFILE_ID_CAPACITY);
+constexpr int kFigureCurrentBufferSize = kFigureExactProfileBufferSize + FIGURE_TYPE_IDENTITY_CAPACITY;
 
 static int32_t migrate_legacy_cross_country_unit(int value)
 {
@@ -595,6 +599,10 @@ void save_figure(buffer *buf, const Figure &f)
     std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
     memcpy(profile_id.data(), f.runtime_profile_id(), strlen(f.runtime_profile_id()));
     buffer_write_raw(buf, profile_id.data(), profile_id.size());
+    std::array<char, FIGURE_TYPE_IDENTITY_CAPACITY> type_id = {};
+    const char *identity = figure_type_identity(static_cast<figure_type>(f.type));
+    memcpy(type_id.data(), identity, strlen(identity));
+    buffer_write_raw(buf, type_id.data(), type_id.size());
 }
 
 void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
@@ -754,7 +762,7 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     if (version > SAVE_GAME_LAST_GRANARY_WAREHOUSE_NON_ROADBLOCKS) {
         f.last_destination_id = buffer_read_i16(buf);
     }
-    if (version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY && figure_buf_size >= kFigureCurrentBufferSize) {
+    if (version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY && figure_buf_size >= kFigureExactProfileBufferSize) {
         std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
         buffer_read_raw(buf, profile_id.data(), profile_id.size());
         const bool terminated = memchr(profile_id.data(), 0, profile_id.size()) != nullptr;
@@ -762,8 +770,21 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
             f.set_runtime_profile_id("__invalid_profile_identity__");
         }
     }
-    if (figure_buf_size > kFigureCurrentBufferSize) {
-        buffer_skip(buf, figure_buf_size - kFigureCurrentBufferSize);
+    int consumed = version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY ? kFigureExactProfileBufferSize : kFigureLastNoExactProfileIdentityBufferSize;
+    if (version > SAVE_GAME_LAST_NO_FIGURE_TYPE_IDENTITY && figure_buf_size >= kFigureCurrentBufferSize) {
+        std::array<char, FIGURE_TYPE_IDENTITY_CAPACITY> type_id = {};
+        buffer_read_raw(buf, type_id.data(), type_id.size());
+        const bool terminated = memchr(type_id.data(), 0, type_id.size()) != nullptr;
+        const auto type = terminated ? figure_type_from_xml_name(type_id.data()) : FIGURE_NONE;
+        if (type != FIGURE_NONE) f.type = static_cast<unsigned char>(type);
+        else if (f.state && f.type >= FIGURE_BUILTIN_TYPE_MAX) {
+            log_warning("Removing figure with unavailable mod type", terminated ? type_id.data() : "invalid identity", f.id());
+            f.state = 0; f.type = FIGURE_NONE;
+        }
+        consumed = kFigureCurrentBufferSize;
+    }
+    if (figure_buf_size > consumed) {
+        buffer_skip(buf, figure_buf_size - consumed);
     }
 }
 
@@ -1165,6 +1186,7 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
     f->type = static_cast<unsigned char>(figure_type);
     f->use_cross_country = 0;
     f->is_friendly = 1;
+    city_trade_ledger_forget_figure(f->id());
     f->created_sequence = static_cast<unsigned short>(data.created_sequence++);
     f->direction = static_cast<signed char>(dir);
     f->source_x = f->destination_x = f->previous_tile_x = f->x = static_cast<unsigned char>(x);
@@ -1430,6 +1452,7 @@ void Figure::handle_info_action_button()
 
 int Figure::big_people_image_id(figure_type figure_type)
 {
+    figure_type = figure_type_base(figure_type);
     switch (figure_type) {
         case FIGURE_TRADE_CARAVAN_DONKEY:
         case FIGURE_TRADE_CARAVAN:
@@ -1468,7 +1491,9 @@ void Figure::draw_big_people_image(int draw_x, int draw_y) const
 
 translation_key Figure::new_type_translation_key(figure_type figure_type)
 {
-    if (figure_type < FIGURE_NEW_TYPES || figure_type >= FIGURE_TYPE_MAX) {
+    if (const auto *definition = figure_type_registry_impl::definition_for(figure_type); definition && !definition->name_key().empty()) return translation_key(definition->name_key());
+    figure_type = figure_type_base(figure_type);
+    if (figure_type < FIGURE_NEW_TYPES || figure_type >= FIGURE_BUILTIN_TYPE_MAX) {
         return {};
     }
     return NEW_FIGURE_TYPES[figure_type - FIGURE_NEW_TYPES];
@@ -1495,7 +1520,7 @@ void Figure::draw(building_info_context *c)
         text_draw(translation_for(custom_type), c->x_offset + 92, c->y_offset + 139,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     } else {
-        lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        lang_text_draw(current_string_key(64, figure_type_base(static_cast<figure_type>(type))), c->x_offset + 92, c->y_offset + 139,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
 

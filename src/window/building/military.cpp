@@ -1,3 +1,6 @@
+#include "building/destruction.h"
+#include "graphics/declarative_window.h"
+#include <algorithm>
 #include "building/barracks.h"
 #include "building/building.h"
 #include "city/buildings.h"
@@ -140,6 +143,32 @@ static void draw_delivery_buttons(int x, int y, Building &barracks_building)
     button_border_draw(x, y, 52, 52, data.focus_delivery_button_id || !accept_delivery ? 1 : 0);
 }
 
+namespace {
+class DurabilityController final : public DeclarativeWindowController {
+public:
+    explicit DurabilityController(int grid_offset) : grid_offset_(grid_offset) {}
+    std::string text(std::string_view binding, int) const override
+    {
+        if (binding != "durability") return {};
+        const int grid = grid_offset_;
+        const int maximum = std::max(1, building_hit_points_at(grid) + 1);
+        return std::string(reinterpret_cast<const char *>(translation_for_key("TR_DURABILITY"))) + ": " + std::to_string(std::max(0, maximum - building_damage_at(grid))) + " / " + std::to_string(maximum);
+    }
+    void action(std::string_view, int) override {}
+private:
+    int grid_offset_;
+};
+void draw_durability(building_info_context *context)
+{
+    const auto *definition = declarative_window_definition("building_durability");
+    const int grid = context->building ? context->building->record()->grid_offset : context->grid_offset;
+    if (!definition || grid < 0) return;
+    DurabilityController controller(grid);
+    DeclarativeWindowRuntime runtime(*definition, controller);
+    runtime.draw(DeclarativeDrawPhase::Foreground, context->width_blocks * BLOCK_SIZE, context->height_blocks * BLOCK_SIZE, context->x_offset, context->y_offset);
+}
+}
+
 void window_building_draw_wall(building_info_context *c)
 {
     c->help_id = 85;
@@ -147,6 +176,7 @@ void window_building_draw_wall(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.139.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, 139, 1);
+    draw_durability(c);
 }
 
 void window_building_draw_gatehouse(building_info_context *c)
@@ -157,6 +187,7 @@ void window_building_draw_gatehouse(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.90.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, 90, 1);
+    draw_durability(c);
 }
 
 void window_building_draw_tower(building_info_context *c)
@@ -180,6 +211,7 @@ void window_building_draw_tower(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
+    draw_durability(c);
 }
 
 void window_building_draw_barracks(building_info_context *c)

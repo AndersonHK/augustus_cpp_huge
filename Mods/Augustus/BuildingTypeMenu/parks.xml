@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="parks">
-    <identity name_key="TR_BUILDING_MENU_PARKS" aliases="all_parks" />
     <button group="administration" order="300" text_key="TR_BUILDING_MENU_PARKS" />
 </building>

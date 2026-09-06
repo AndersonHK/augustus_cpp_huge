@@ -93,7 +93,7 @@ void scenario_custom_variable_delete_all(void)
 void scenario_custom_variable_set_color_group(unsigned int id, int color_group)
 {
     custom_variable_t *var = get_variable(id);
-    var->color_group = static_cast<unsigned char>(color_group);
+    if (var && color_group >= 0 && color_group <= 10) var->color_group = static_cast<unsigned char>(color_group);
 }
 
 int scenario_custom_variable_get_color_group(unsigned int id)
@@ -106,7 +106,7 @@ int scenario_custom_variable_get_color_group(unsigned int id)
 color_t scenario_custom_variable_get_color(unsigned int id)
 {
     custom_variable_t *var = get_variable(id);
-    unsigned char color_id = var->color_group;
+    unsigned char color_id = var ? var->color_group : 0;
     switch (color_id) {
         case 1: return COLOR_MASK_PASTEL_GREEN;
         case 2: return COLOR_MASK_PASTEL_PURPLE;

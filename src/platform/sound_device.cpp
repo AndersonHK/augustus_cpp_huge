@@ -8,7 +8,6 @@
 #include "game/campaign.h"
 #include "game/settings.h"
 #include "platform/platform.h"
-#include "platform/vita/vita.h"
 
 #include "SDL.h"
 #include "SDL_mixer.h"
@@ -19,9 +18,6 @@
 #include <string>
 #include <vector>
 
-#ifdef __vita__
-#include <psp2/io/fcntl.h>
-#endif
 
 constexpr int k_audio_rate = 22050;
 constexpr SDL_AudioFormat k_audio_format = AUDIO_S16;
@@ -232,13 +228,6 @@ static SoundTypeChannel sound_type_to_channels[SOUND_TYPE_MAX] = {
 static CustomMusicData custom_music{};
 static void (*track_finished_callback)(void) = nullptr;
 
-#ifdef __vita__
-struct VitaMusicData {
-    std::string filename;
-    std::vector<std::uint8_t> buffer;
-};
-static VitaMusicData vita_music_data{};
-#endif
 
 static int percentage_to_volume(int percentage)
 {
@@ -268,7 +257,7 @@ static MixChunkPtr load_chunk(const char *filename)
         return {};
     }
 
-#if defined(__vita__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
         return {};
@@ -280,40 +269,6 @@ static MixChunkPtr load_chunk(const char *filename)
 #endif
 }
 
-#ifdef __vita__
-static bool load_music_for_vita(const char *filename)
-{
-    if (!filename || !*filename) {
-        return false;
-    }
-    if (!vita_music_data.filename.empty() && vita_music_data.filename == filename && !vita_music_data.buffer.empty()) {
-        return true;
-    }
-
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        return false;
-    }
-
-    vita_music_data.filename = filename;
-    vita_music_data.buffer.clear();
-    fseek(fp, 0, SEEK_END);
-    auto size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    if (size <= 0) {
-        file_close(fp);
-        return false;
-    }
-    vita_music_data.buffer.resize(static_cast<size_t>(size));
-    auto bytes_read = fread(vita_music_data.buffer.data(), 1, static_cast<size_t>(size), fp);
-    file_close(fp);
-    if (bytes_read != static_cast<size_t>(size)) {
-        vita_music_data.buffer.clear();
-        return false;
-    }
-    return true;
-}
-#endif
 
 static MixMusicPtr load_music_for_filename(const char *filename, bool allow_platform_loaders)
 {
@@ -333,15 +288,7 @@ static MixMusicPtr load_music_for_filename(const char *filename, bool allow_plat
         return MixMusicPtr(Mix_LoadMUS_RW(sdl_music, SDL_TRUE));
     }
 
-#ifdef __vita__
-    if (allow_platform_loaders && load_music_for_vita(filename)) {
-        if (SDL_RWops *sdl_music = SDL_RWFromMem(vita_music_data.buffer.data(),
-            static_cast<int>(vita_music_data.buffer.size()))) {
-            return MixMusicPtr(Mix_LoadMUS_RW(sdl_music, SDL_TRUE));
-        }
-        return {};
-    }
-#elif defined(__ANDROID__)
+#if defined(__ANDROID__)
     if (allow_platform_loaders) {
         FILE *fp = file_open(filename, "rb");
         if (!fp) {

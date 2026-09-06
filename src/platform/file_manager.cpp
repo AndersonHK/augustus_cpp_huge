@@ -11,7 +11,6 @@
 #include "platform/file_manager_cache.h"
 #include "platform/platform.h"
 #include "platform/prefs.h"
-#include "platform/vita/vita.h"
 
 #ifndef BUILDING_ASSET_PACKER
 #include "SDL.h"
@@ -74,7 +73,7 @@ static const PathDescriptor k_path_descriptors[] = {
     { "community/image", false }                  // PATH_LOCATION_COMMUNITY_IMAGE
 };
 
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
 static const char *const k_asset_directories[MAX_ASSET_DIRS] = {
 #ifdef _WIN32
     "***SDL_BASE_PATH***",
@@ -83,9 +82,7 @@ static const char *const k_asset_directories[MAX_ASSET_DIRS] = {
     "",
 #endif
     ".",
-#ifdef __vita__
-    "app0:",
-#elif defined(__SWITCH__)
+#if defined(__SWITCH__)
     "romfs:",
 #elif defined(__APPLE__)
     "***SDL_BASE_PATH***",
@@ -202,7 +199,7 @@ static void preserve_timestamps(std::string_view src, std::string_view dst)
     fs::last_write_time(make_path(dst), last, dst_ec);
 }
 
-#if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(__APPLE__)
 static bool resolve_exec_directory(std::string &buffer)
 {
     char arg0_dir[FILE_NAME_MAX];
@@ -272,7 +269,7 @@ static void set_assets_directory()
                 continue;
             }
         } else if (candidate == std::string{"***RELATIVE_APPIMG_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
             log_error("***RELATIVE_APPIMG_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else
@@ -287,7 +284,7 @@ static void set_assets_directory()
             asset_path += "/share/augustus-game";
 #endif
         } else if (candidate == std::string{"***EXEC_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
             log_error("***EXEC_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else
@@ -296,7 +293,7 @@ static void set_assets_directory()
             }
 #endif
         } else if (candidate == std::string{"***RELATIVE_EXEC_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
             log_error("***RELATIVE_EXEC_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="statues">
-    <identity name_key="TR_BUILDING_MENU_STATUES" aliases="all_statues" />
     <button group="administration" order="400" text_key="TR_BUILDING_MENU_STATUES" />
 </building>

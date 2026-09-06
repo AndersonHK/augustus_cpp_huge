@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="empire_details" base_width="640" base_height="120">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" phase="background" width="640" height="120" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="city_name" binding="selected.name" x="12" y="8" width="390" stretch_width="true" font="normal_green" />
+    <widget type="text_button" id="open" action="open" visible_binding="selected.closed" x="410" y="5" width="220" height="24" anchor_x="far" text_offset_y="4" translation="main_strings.47.6" />
+    <widget type="text_button" id="resources" binding="resource.name" action="resource.settings" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="125" y="33" width="116" height="22" text_offset_y="3" />
+    <widget type="label" id="imports" visible_binding="selected.trade" translation="main_strings.60.11" x="12" y="59" width="106" />
+    <widget type="label" id="exports" visible_binding="selected.trade" translation="main_strings.60.9" x="12" y="78" width="106" />
+    <widget type="label" id="import_values" binding="resource.import" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="130" y="59" width="110" />
+    <widget type="label" id="export_values" binding="resource.export" repeat_source="resources" repeat_columns="4" repeat_spacing_x="120" x="130" y="78" width="110" />
+    <widget type="text_button" id="resources_previous" visible_binding="selected.trade" text="-" action="resources.previous" enabled_binding="resources.previous" x="610" y="32" width="22" height="22" anchor_x="far" text_offset_y="3" />
+    <widget type="text_button" id="resources_next" visible_binding="selected.trade" text="+" action="resources.next" enabled_binding="resources.next" x="610" y="62" width="22" height="22" anchor_x="far" text_offset_y="3" />
+    <widget type="image_button" id="help" action="help" assetlist="UI\Context_Icons" image="Image_0000" x="8" y="94" width="28" height="24" />
+    <widget type="image_button" id="advisor" action="advisor" assetlist="UI\Message_Advisor_Buttons" image="Image_0012" x="550" y="94" width="28" height="24" />
+    <widget type="image_button" id="close" action="close" assetlist="UI\Context_Icons" image="Image_0004" x="596" y="94" width="28" height="24" />
+    <widget type="rich_text" id="selected_info" binding="selected.info" x="16" y="36" width="580" height="52" stretch_width="true" font="normal_green" />
+    <widget type="label" id="cost" binding="selected.cost" visible_binding="selected.closed" x="80" y="96" width="450" font="small_plain" />
+</window>

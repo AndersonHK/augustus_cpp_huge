@@ -1,3 +1,4 @@
+#include "scenario/definition_overrides.h"
 #include "building/building_record.h"
 #include "building/building_type_registry.h"
 #include "building/building_type_registry_internal.h"
@@ -24,6 +25,7 @@
 #include "building/menu.h"
 #include "building/monument.h"
 #include "core/log.h"
+#include "core/config.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"
 #include "figure/formation_type.h"
@@ -849,9 +851,9 @@ static int parse_button()
     }
 
     if (!any_value) {
-        log_error("BuildingType button is missing supported attributes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
+        // An explicit empty field hides all inherited buttons.
+        g_parse_state.saw_button = 1;
+        return 1;
     }
 
     g_parse_state.definition->add_button(std::move(button));
@@ -1937,6 +1939,73 @@ static void finish_graphics()
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::None;
 }
 
+static int parse_service_integer(const char *attribute, int &target, int minimum, int maximum)
+{
+    if (!xml_parser_has_attribute(attribute)) return 1;
+    int value = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) || value < minimum || value > maximum) {
+        log_error("Invalid city service numeric attribute", attribute, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    target = value;
+    return 1;
+}
+
+static int parse_infrastructure()
+{
+    auto &definition = g_parse_state.definition->infrastructure();
+    if (!xml_parser_has_attribute("terrain")) return 1; // An empty field removes the module.
+    const char *terrain = xml_parser_get_attribute_string("terrain");
+    const std::pair<const char *, uint32_t> masks[] = {{"highway", TERRAIN_HIGHWAY}, {"road", TERRAIN_ROAD}, {"water", TERRAIN_WATER}, {"wall", TERRAIN_WALL}, {"garden", TERRAIN_GARDEN}, {"aqueduct", TERRAIN_AQUEDUCT}};
+    for (const auto &[name, mask] : masks) if (compare_text(terrain, name) == 0) definition.terrain_mask = mask;
+    if (!definition.terrain_mask) { log_error("Unknown infrastructure terrain", terrain, 0); g_parse_state.error = 1; return 0; }
+    return parse_service_integer("tiles_per_unit", definition.tiles_per_unit, 1, 256) && parse_service_integer("monthly_levy", definition.monthly_levy, 0, 1000000);
+}
+
+static int parse_city_service()
+{
+    auto &definition = g_parse_state.definition->city_service();
+    if (!xml_parser_has_attribute("infrastructure")) return 1;
+    definition.infrastructure = xml_parser_get_attribute_string("infrastructure");
+    if (xml_parser_has_attribute("input_source")) {
+        const char *source = xml_parser_get_attribute_string("input_source");
+        if (compare_text(source, "global_stockpile") == 0) definition.input_source = ResourceConsumptionSource::GlobalStockpile;
+        else if (compare_text(source, "building") != 0) { log_error("Unknown city service input source", source, 0); g_parse_state.error = 1; return 0; }
+    }
+    return parse_service_integer("units_per_input", definition.units_per_input, 1, 1000000) &&
+        parse_service_integer("stock_periods", definition.stock_periods, 1, 120) &&
+        parse_service_integer("construction_percent", definition.construction_percent, 0, 100) &&
+        parse_service_integer("levy_percent", definition.levy_percent, 0, 100);
+}
+
+static int parse_city_service_input()
+{
+    auto &definition = g_parse_state.definition->city_service();
+    CityServiceInput input;
+    input.resource = resource_type_from_xml_attr(xml_parser_get_attribute_string("resource"));
+    if (!definition.enabled() || input.resource == RESOURCE_NONE || !parse_service_integer("loads", input.loads, 1, 1000)) { g_parse_state.error = 1; return 0; }
+    for (const auto &existing : definition.inputs) if (existing.resource == input.resource) { g_parse_state.error = 1; log_error("Duplicate city service input", definition.infrastructure.c_str(), 0); return 0; }
+    definition.inputs.push_back(input);
+    return 1;
+}
+
+static int parse_construction_gift()
+{
+    auto &gift = g_parse_state.definition->construction().gift;
+    const char *event = xml_parser_get_attribute_string("event");
+    gift.event = xml_value::trim_copy(event ? event : "");
+    if (gift.event.empty()) { log_error("Construction gift requires an event", 0, 0); g_parse_state.error = 1; return 0; }
+    int materials = 0, workers = 0;
+    if ((xml_parser_has_attribute("materials") && !xml_value::parse_bool(xml_parser_get_attribute_string("materials"), &materials)) ||
+        (xml_parser_has_attribute("workers") && !xml_value::parse_bool(xml_parser_get_attribute_string("workers"), &workers))) {
+        g_parse_state.error = 1; log_error("Invalid construction gift supply policy", gift.event.c_str(), 0); return 0;
+    }
+    gift.materials = materials != 0;
+    gift.workers = workers != 0;
+    return parse_service_integer("loads_per_delivery", gift.loads_per_delivery, 1, 100);
+}
+
 static int parse_construction()
 {
     if (!g_parse_state.definition) {
@@ -1950,6 +2019,9 @@ static int parse_construction()
         return 0;
     }
 
+    auto &construction = g_parse_state.definition->construction();
+    if (!parse_service_integer("access_x", construction.access_x, 0, 255) || !parse_service_integer("access_y", construction.access_y, 0, 255)) return 0;
+    if ((construction.access_x >= 0) != (construction.access_y >= 0)) { g_parse_state.error = 1; log_error("Construction access requires both coordinates", 0, 0); return 0; }
     const char *mode_text = xml_parser_has_attribute("mode") ? xml_parser_get_attribute_string("mode") : "instant";
     if (compare_text(mode_text, "instant") == 0) {
         g_parse_state.definition->set_construction_mode(ConstructionMode::Instant);
@@ -3322,6 +3394,14 @@ static int parse_labor()
         return 0;
     }
 
+    if (xml_parser_has_attribute("category")) {
+        const char *category = xml_parser_get_attribute_string("category");
+        const char *names[] = {"none", "industry_commerce", "food_production", "engineering", "water", "prefectures", "military", "entertainment", "health_education", "governance_religion"};
+        int index = 0;
+        while (index < static_cast<int>(std::size(names)) && compare_text(category, names[index])) ++index;
+        if (index == std::size(names)) { log_error("Unknown labor category", category, 0); g_parse_state.error = 1; return 0; }
+        g_parse_state.definition->set_labor_category(static_cast<LaborCategory>(index));
+    }
     g_parse_state.saw_labor = 1;
     g_parse_state.parsing_labor = 1;
     g_parse_state.saw_labor_employees = 0;
@@ -3887,6 +3967,19 @@ static int parse_spawn()
     }
 
     SpawnPolicy policy;
+    if (xml_parser_has_attribute("require_population") && !xml_value::parse_bool(xml_parser_get_attribute_string("require_population"), &policy.require_population)) {
+        g_parse_state.error = 1;
+        log_error("Invalid spawn require_population", 0, 0);
+        return 0;
+    }
+    if (xml_parser_has_attribute("requires_config")) {
+        policy.requires_config = xml_parser_get_attribute_string("requires_config");
+        if (config_key_from_name(policy.requires_config.c_str()) == CONFIG_MAX_ENTRIES) {
+            g_parse_state.error = 1;
+            log_error("Unknown spawn requires_config", policy.requires_config.c_str(), 0);
+            return 0;
+        }
+    }
     const int has_special_mode = xml_parser_has_attribute("mode");
     const char *mode_text = has_special_mode ? xml_parser_get_attribute_string("mode") : nullptr;
     if (!has_special_mode) {
@@ -4493,7 +4586,11 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "child", parse_composition_child, finish_composition_child, "composition", nullptr },
     { "offset", parse_composition_offset, nullptr, "child", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
+    { "gift", parse_construction_gift, nullptr, "construction", nullptr },
     { "construction", parse_construction, finish_construction, "building", nullptr },
+    { "infrastructure", parse_infrastructure, nullptr, "building", nullptr },
+    { "city_service", parse_city_service, nullptr, "building", nullptr },
+    { "input", parse_city_service_input, nullptr, "city_service", nullptr },
     { "phase", parse_construction_phase, finish_construction_phase, "construction", nullptr },
     { "provides", parse_water_access_provides, nullptr, "water_access", nullptr },
     { "requires", parse_water_access_requires, finish_water_access_requires, "water_access", nullptr },
@@ -5218,6 +5315,13 @@ static int resolve_construction_references()
     ErrorContextScope error_scope("building_type_registry.resolve_construction_references");
 
     for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (definition && definition->city_service().enabled()) {
+            const auto *target = definition_for_type(type_from_attr(definition->city_service().infrastructure));
+            if (!target || !target->infrastructure().terrain_mask || definition->city_service().inputs.empty()) {
+                log_error("City service requires valid infrastructure and resource inputs", definition->attr(), 0);
+                return 0;
+            }
+        }
         if (!definition || !definition->has_construction()) {
             continue;
         }
@@ -5762,6 +5866,7 @@ int building_type_registry_load_layers(
     clear_xml_runtime_property_fields();
     g_building_types = std::move(staged.definitions);
     g_building_type_overlays = std::move(staged.overlays);
+    scenario_definition_overrides_capture_defaults();
     building_type_startup_bridge_apply_model_overrides();
     god_id_bridge_reset_for_runtime();
     building_type_id_bridge_reset_for_runtime();

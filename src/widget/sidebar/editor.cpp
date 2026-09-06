@@ -64,7 +64,19 @@ static void draw_status(void)
 
     int selected_tool = editor_tool_type();
     int brush_size = editor_tool_brush_size() - 1;
-    lang_text_draw(current_string_key(49, selected_tool), text_offset, 178, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    translation_key tool_name;
+    switch (selected_tool) {
+        case TOOL_NATIVE_HUT_ALT: tool_name = "TR_BUILDING_NATIVE_HUT_ALT"; break;
+        case TOOL_NATIVE_DECORATION: tool_name = "TR_BUILDING_NATIVE_DECORATION"; break;
+        case TOOL_NATIVE_MONUMENT: tool_name = "TR_BUILDING_NATIVE_MONUMENT"; break;
+        case TOOL_NATIVE_WATCHTOWER: tool_name = "TR_BUILDING_NATIVE_WATCHTOWER"; break;
+        case TOOL_EARTHQUAKE_CUSTOM: tool_name = "TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM"; break;
+        case TOOL_EARTHQUAKE_CUSTOM_REMOVE: tool_name = "TR_EDITOR_TOOL_EARTHQUAKE_REMOVE"; break;
+        case TOOL_NATIVE_RUINS: tool_name = "TR_EDITOR_TOOL_NATIVE_RUINS"; break;
+        case TOOL_SELECT_LAND: tool_name = "TR_EDITOR_TOOL_SELECT_LAND"; break;
+        default: tool_name = current_string_key(49, selected_tool); break;
+    }
+    lang_text_draw(tool_name, text_offset, 178, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     switch (selected_tool) {
         case TOOL_GRASS:
         case TOOL_TREES:
@@ -118,7 +130,7 @@ static void draw_status(void)
         lang_text_draw("main_strings.44.65", text_offset + width - 8, 254, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         const invasion_t *first_invasion = scenario_invasion_get(0);
-        if (first_invasion->type != INVASION_TYPE_NONE) {
+        if (first_invasion && first_invasion->type != INVASION_TYPE_NONE) {
             lang_text_draw("main_strings.44.63", text_offset, 254, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
     }

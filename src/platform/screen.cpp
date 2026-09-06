@@ -1,3 +1,4 @@
+#include <cstdio>
 #include "platform/screen.h"
 
 #include "city/view.h"
@@ -13,7 +14,6 @@
 #include "platform/icon.h"
 #include "platform/renderer.h"
 #include "platform/switch/switch.h"
-#include "platform/vita/vita.h"
 
 #include "SDL.h"
 
@@ -104,11 +104,7 @@ static void apply_max_scale(int pixel_width, int pixel_height)
 
 static void set_scale_percentage(int new_scale, int pixel_width, int pixel_height)
 {
-#ifdef __vita__
-    scale.requested_percentage = 100;
-#else
     scale.requested_percentage = calc_bound(new_scale, 50, 500);
-#endif
 
     if (!pixel_width || !pixel_height) {
         scale.percentage = scale.requested_percentage;
@@ -362,8 +358,12 @@ void platform_screen_recreate_texture(void)
 }
 #endif
 
+static bool headless_errors = false;
+void platform_screen_set_headless_errors(bool headless) { headless_errors = headless; }
+
 void platform_screen_show_error_message_box(const char *title, const char *message)
 {
+    if (headless_errors) { std::fprintf(stderr, "%s: %s\n", title ? title : "Vespasian Error", message ? message : ""); return; }
     enum {
         BUTTON_OK = 0,
         BUTTON_COPY = 1
@@ -419,7 +419,7 @@ void system_change_window_title(const char *title)
 
 int system_is_fullscreen_only(void)
 {
-#if defined(__ANDROID__) || defined(__SWITCH__) || defined(__vita__)
+#if defined(__ANDROID__) || defined(__SWITCH__)
     return 1;
 #else
     return 0;

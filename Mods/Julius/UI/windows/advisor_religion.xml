@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="advisor_religion" base_width="640" base_height="272">
+    <widget y="0" x="0" type="panel" id="panel" phase="background" style="outer_panel" width="640" height="272" stretch_height="true" />
+    <widget type="label" id="title" translation="main_strings.59.0" x="60" y="12" width="350" font="large_black" />
+    <widget type="panel" id="gods_panel" phase="background" style="inner_panel" x="16" y="62" width="608" height="128" />
+    <widget type="label" id="header_small" translation="main_strings.59.1" x="250" y="45" width="60" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_large" translation="main_strings.59.2" x="314" y="45" width="60" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_festival" translation="main_strings.59.7" x="378" y="45" width="64" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_mood" translation="main_strings.59.3" x="450" y="45" width="145" text_alignment="center" font="small_plain" />
+    <widget type="label" id="god_name" binding="god.name" repeat_source="religion.gods" repeat_spacing_y="20" x="24" y="68" width="95" font="normal_white" />
+    <widget type="label" id="god_domain" binding="god.domain" repeat_source="religion.gods" repeat_spacing_y="20" x="116" y="68" width="68" font="small_plain" />
+    <widget type="label" id="god_small" binding="god.small_total" repeat_source="religion.gods" repeat_spacing_y="20" x="250" y="68" width="60" font="normal_white" />
+    <widget type="label" id="god_large" binding="god.large_total" repeat_source="religion.gods" repeat_spacing_y="20" x="314" y="68" width="60" font="normal_white" />
+    <widget type="label" id="god_festival" binding="god.festival" repeat_source="religion.gods" repeat_spacing_y="20" x="378" y="68" width="64" font="normal_white" />
+    <widget type="label" id="god_mood" binding="god.mood" repeat_source="religion.gods" repeat_spacing_y="20" x="450" y="68" width="125" font="normal_white" />
+    <widget type="label" id="god_bolts" binding="god.wrath" repeat_source="religion.gods" repeat_spacing_y="20" x="607" y="68" width="15" font="normal_green" />
+    <widget type="image" id="god_bolt_icon" binding="god.wrath_icon" repeat_source="religion.gods" repeat_spacing_y="20" x="585" y="68" />
+    <widget type="text_button" id="previous" text="-" action="page.previous" visible_binding="page.previous" x="544" y="191" width="32" height="22" text_offset_y="3" />
+    <widget type="text_button" id="next" text="+" action="page.next" visible_binding="page.next" x="584" y="191" width="32" height="22" text_offset_y="3" />
+    <widget type="rich_text" id="advice" binding="religion.advice" x="40" y="205" width="560" height="50" />
+    <widget type="image" id="advisor_icon" assetlist="UI\Advisor_Icons" image="Image_0009" x="10" y="10" />
+    <widget type="label" id="temples_header" translation="main_strings.59.5" x="250" y="30" width="124" font="small_plain" text_alignment="center" />
+    <widget type="rich_text" id="gods_disabled" translation="main_strings.59.43" visible_binding="gods.disabled" x="60" y="256" width="520" height="56" font="normal_black" />
+</window>

@@ -138,20 +138,12 @@ const BuildingType *definition_from_attr(const char *text_id)
 
 const BuildingType *reservoir_definition()
 {
-    static const BuildingType *definition = nullptr;
-    if (!definition) {
-        definition = definition_from_attr("reservoir");
-    }
-    return definition;
+    return definition_from_attr("reservoir");
 }
 
 const BuildingType *aqueduct_definition()
 {
-    static const BuildingType *definition = nullptr;
-    if (!definition) {
-        definition = definition_from_attr("aqueduct");
-    }
-    return definition;
+    return definition_from_attr("aqueduct");
 }
 
 const char *text_from_mask(uint8_t mask)

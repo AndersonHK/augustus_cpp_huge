@@ -68,6 +68,7 @@
     <ClCompile Include="src\building\production_method.cpp" />
     <ClCompile Include="src\building\production_method_registry.cpp" />
     <ClCompile Include="src\building\properties.cpp" />
+    <ClCompile Include="src\scenario\definition_overrides.cpp" />
     <ClCompile Include="src\building\religion.cpp" />
     <ClCompile Include="src\building\religion_registry.cpp" />
     <ClCompile Include="src\building\storage_type.cpp" />
@@ -88,6 +89,8 @@
     <ClCompile Include="src\game\Animation.cpp" />
     <ClCompile Include="src\game\defines.cpp" />
     <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\game\mod_content.cpp" />
+    <ClCompile Include="src\figure\type.cpp" />
     <ClCompile Include="src\game\mod_definition_loader.cpp" />
     <ClCompile Include="src\game\resource.cpp" />
     <ClCompile Include="src\game\ResourceGraphics.cpp" />

@@ -24,6 +24,8 @@ void building_construction_set_type(const building_type_registry_impl::BuildingT
 void building_construction_clear_type(void);
 
 int building_construction_is_auto_cycling(void);
+int building_construction_is_auto_cycling_for_type(building_type type);
+void building_construction_toggle_auto_cycle_for_type(building_type type);
 
 void building_construction_toggle_auto_cycle(void);
 

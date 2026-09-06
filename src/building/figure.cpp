@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/figure.h"
 #include "building/entertainment.h"
 #include "building/industry.h"
@@ -22,6 +23,7 @@
 
 #include "building/granary.h"
 #include "building/monument.h"
+#include "city/monument_gifts.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
 #include "core/calc.h"
@@ -302,6 +304,7 @@ void BuildingFigureGenerator::spawn_figure_tavern(building *b)
             b->figure_spawn_delay = 0;
             building.refresh_graphic();
             if (!has_figure_of_type(b, FIGURE_BARKEEP) && b->resources[resource_wine()] >= 20) {
+                city_trade_ledger_consumed(resource_wine(), 20);
                 b->resources[resource_wine()] -= 20;
                 int resource_decay = b->resources[resource_meat()] && b->resources[resource_fish()] ? 20 : 40;
                 b->resources[resource_meat()] = static_cast<short>(
@@ -550,6 +553,10 @@ void BuildingFigureGenerator::generate()
         if (b->state != BUILDING_STATE_IN_USE) {
             b->show_on_problem_overlay = 1;
             return;
+        }
+        if (building_object.type && building_monument_is_unfinished_monument(b)) {
+            const auto &gift = building_object.type->construction().gift;
+            city_monument_gift_supply(building_object, gift.materials, gift.workers, gift.loads_per_delivery);
         }
         if ((building_object.Composition && building_object.Composition->is_child()) ||
             building_object.is_dynamic_bridge_segment() ||

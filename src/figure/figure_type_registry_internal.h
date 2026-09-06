@@ -4,6 +4,7 @@
 #include "figure/FigureGraphics.h"
 #include "figure/PathingMode.h"
 #include "figure/type.h"
+#include "graphics/image.h"
 
 #include <memory>
 #include <string>
@@ -131,6 +132,10 @@ public:
     figure_type type() const;
     const char *attr() const;
 
+    void set_presentation(std::string name_key, ImageGroupEntryRef portrait) { name_key_ = std::move(name_key); portrait_ = std::move(portrait); }
+    const std::string &name_key() const { return name_key_; }
+    const ImageGroupEntryRef &portrait() const { return portrait_; }
+
     void set_native_class(NativeClassId native_class_id);
     NativeClassId native_class() const;
 
@@ -161,6 +166,8 @@ public:
 private:
     figure_type type_ = FIGURE_NONE;
     std::string attr_;
+    std::string name_key_;
+    ImageGroupEntryRef portrait_;
     NativeClassId native_class_id_ = NativeClassId::None;
     OwnerBinding owner_binding_;
     MovementProfile movement_profile_;

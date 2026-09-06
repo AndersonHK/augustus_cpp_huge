@@ -1,4 +1,8 @@
+#include "game/mod_content.h"
+#include <deque>
+#include <algorithm>
 #include "game/game.h"
+#include "game/mod_settings_runtime.h"
 #include "translation/translation.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -42,6 +46,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#include <stdexcept>
 #include <SDL_mouse.h>
 
 #define MAX_LANGUAGE_DIRS 20
@@ -69,7 +74,7 @@
 #define NUMERICAL_SLIDER_PADDING  2
 #define NUMERICAL_DOT_SIZE       20
 // bottom buttons
-#define NUM_BOTTOM_BUTTONS 5
+#define NUM_BOTTOM_BUTTONS 6
 
 enum {
     TYPE_NONE,
@@ -78,7 +83,8 @@ enum {
     TYPE_CHECKBOX,
     TYPE_SELECT, // dropdown or text input
     TYPE_NUMERICAL_DESC, //  label line for a slider
-    TYPE_NUMERICAL_RANGE
+    TYPE_NUMERICAL_RANGE,
+    TYPE_MOD_SETTING
 };
 
 enum {
@@ -141,7 +147,7 @@ enum {
 //  Widget main struct - use this for all widgets to ensure unified treatment, while allowing multiline checkboxes,
 //  variable height and width
 
-typedef struct {
+struct config_widget {
     int type;
     int subtype;
     translation_key description;          //  label / header text key
@@ -150,7 +156,8 @@ typedef struct {
     int enabled; //  runtime on/off
     int height;
     int margin_top;  //  extra spacing before (can be used instead of TYPE_SPACE)
-} config_widget;
+    const uint8_t *literal = nullptr;
+};
 
 static const translation_key speed_labels[] = {
     "TR_CONFIG_WT_SIZE_MINIMUM", "TR_CONFIG_WT_SPEED_SLOW", "TR_CONFIG_WT_SIZE_REGULAR",
@@ -356,11 +363,9 @@ static config_widget page_difficulty[] = {
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_GODS_EFFECTS, "TR_CONFIG_GODS_EFFECTS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_JEALOUS_GODS, "TR_CONFIG_JEALOUS_GODS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_GLOBAL_LABOUR, "TR_CONFIG_GLOBAL_LABOUR", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_CHECKBOX, CONFIG_GP_CH_RETIRE_AT_60, "TR_CONFIG_RETIRE_AT_60", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_FIXED_WORKERS, "TR_CONFIG_FIXED_WORKERS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_WOLVES_BLOCK, "TR_CONFIG_WOLVES_BLOCK", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_AUTO_KILL_ANIMALS, "TR_CONFIG_AUTO_KILL_ANIMALS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_CHECKBOX, CONFIG_GP_CH_MULTIPLE_BARRACKS, "TR_CONFIG_MULTIPLE_BARRACKS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY, "TR_CONFIG_RANDOM_COLLAPSES_TAKE_MONEY", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING, "TR_CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_NUMERICAL_DESC, RANGE_MAX_GRAND_TEMPLES, "TR_CONFIG_MAX_GRAND_TEMPLES", NULL, 0, 1, ITEM_BASE_H, 10},
@@ -519,13 +524,15 @@ static numerical_range_widget ranges[] = {
 //  Bottom buttons & page tabs
 
 static void button_hotkeys(const generic_button *button);
+static void button_mod_options(const generic_button *button);
 static void button_reset_defaults(const generic_button *button);
 static void button_close(const generic_button *button);
 static void button_page(const generic_button *button);
 
 static generic_button bottom_buttons[NUM_BOTTOM_BUTTONS] = {
-    {  20, 436,  120, 30, button_hotkeys },
-    { 170, 436, 150, 30, button_reset_defaults },
+    {  10, 436,  100, 30, button_hotkeys },
+    { 115, 436,  100, 30, button_mod_options },
+    { 220, 436,  100, 30, button_reset_defaults },
     { 330, 436,  90, 30, button_close, 0, 0 },
     { 430, 436,  90, 30, button_close, 0, 1 },
     { 530, 436,  90, 30, button_close, 0, 2 }
@@ -533,6 +540,7 @@ static generic_button bottom_buttons[NUM_BOTTOM_BUTTONS] = {
 
 static const translation_key bottom_button_labels[NUM_BOTTOM_BUTTONS] = {
     "TR_BUTTON_CONFIGURE_HOTKEYS",
+    "Mod options",
     "TR_BUTTON_RESET_DEFAULTS",
     "TR_BUTTON_CANCEL",
     "TR_BUTTON_OK",
@@ -1162,6 +1170,8 @@ static void set_player_name_width(void)
 
 static void fetch_original_config_values(void)
 {
+    data.config_values[CONFIG_ORIGINAL_FULLSCREEN].original_value = setting_fullscreen();
+    data.config_values[CONFIG_ORIGINAL_FULLSCREEN].new_value = setting_fullscreen();
     data.config_values[CONFIG_ORIGINAL_GAME_SPEED].original_value = game_speed_get_index(setting_game_speed());
     data.config_values[CONFIG_ORIGINAL_GAME_SPEED].new_value = game_speed_get_index(setting_game_speed());
     data.config_values[CONFIG_ORIGINAL_ENABLE_MUSIC].original_value = setting_sound(SOUND_TYPE_MUSIC)->enabled;
@@ -1443,6 +1453,8 @@ static void handle_list_box_select(unsigned int index, int is_double_click)
     }
 }
 
+#include "config_mod_settings.h"
+
 static void op_measure_space(const config_widget *w, int avail_text_w, int *out_h)
 {
     (void) avail_text_w;
@@ -1459,6 +1471,7 @@ static int checkbox_text_height(const uint8_t *txt, int w)
 
 static const uint8_t *checkbox_text(const config_widget *w)
 {
+    if (w->literal) return w->literal;
     if (w->get_display_text) {
         return w->get_display_text();
     }
@@ -1697,11 +1710,11 @@ static void op_measure_header(const config_widget *w, int avail_text_w, int *out
 static void op_draw_bg_header(const config_widget *w, int x, int y, int avail_text_w)
 {
     int header_text_margins_sum = 30 + font_definition_for(FONT_NORMAL_BLACK)->space_width; // 30 is the sum of both sides' margins, minus one space to account for the fact that the text is drawn flush with the left margin
-    const uint8_t *header_text = translation_for(w->description);
+    const uint8_t *header_text = checkbox_text(w);
     int header_text_width = text_get_width(header_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + header_text_margins_sum;
     int new_x = x + avail_text_w / 2 - (header_text_width - header_text_margins_sum) / 2;
     text_draw(header_text, new_x, y + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    int line_width = (avail_text_w - header_text_width) / 2;
+    int line_width = std::max(0, (avail_text_w - header_text_width) / 2);
     // y is constant - if y+5 works, keep it this way, it should be right in the middle of the text's y axis
     // Draw lines on either side of the header text, with a small gap
     graphics_draw_inset_rect(x, y + 5, line_width, 2, COLOR_INSET_BLACK, COLOR_INSET_DARK);
@@ -1738,36 +1751,14 @@ static const widget_ops ops_by_type[] = {
     {op_measure_select, op_draw_bg_select, op_draw_fg_select, op_input_select},
     {op_measure_desc, op_draw_bg_desc, op_draw_fg_desc, op_input_desc},
     {op_measure_range, op_draw_bg_range, op_draw_fg_range, op_input_range},
+    {op_measure_mod_setting, op_draw_mod_setting, nullptr, op_input_mod_setting},
 };
 
 //   widget lookups
 
-static const config_widget *get_widget_row_for(unsigned int page, int index)
+static const config_widget *get_widget_row_for(unsigned int, int index)
 {
-    const config_widget *src = 0;
-    if (page == CONFIG_PAGE_UI_CHANGES) {
-        src = ui_widgets_by_category[selected_categories.ui_category];
-    } else if (page == CONFIG_PAGE_CITY_MANAGEMENT_CHANGES) {
-        src = city_mgmt_widgets_by_category[selected_categories.city_mgmt_category];
-    } else if (page == CONFIG_PAGE_GENERAL) {
-        src = page_general;
-    } else if (page == CONFIG_PAGE_GAMEPLAY_CHANGES) {
-        src = page_difficulty;
-    } else {
-        return 0; //unknown page
-    }
-    for (int i = 0, n = 0; i < MAX_WIDGETS; i++) {
-        if (src[i].type == TYPE_NONE) {
-            break;
-        }
-        if (!src[i].enabled) {
-            continue;
-        }
-        if (n++ == index) {
-            return &src[i];
-        }
-    }
-    return 0;
+    return index >= 0 && index < static_cast<int>(effective_config_rows.size()) ? &effective_config_rows[index] : nullptr;
 }
 static int get_widget_count_for(unsigned int page)
 {
@@ -1788,16 +1779,8 @@ static int get_widget_count_for(unsigned int page)
         default:
             src = page_general;
     }
-    int n = 0;
-    for (int i = 0; i < MAX_WIDGETS; i++) {
-        if (src[i].type == TYPE_NONE) {
-            break;
-        }
-        if (src[i].enabled) {
-            n++;
-        }
-    }
-    return n;
+    build_config_rows(page, src);
+    return static_cast<int>(effective_config_rows.size());
 }
 
 //  convenience: compute base x and available text width for checkboxes per page/scrollbar
@@ -1828,7 +1811,7 @@ static void build_layout_for_current_page(void)
     int content_height_no_sb = 0;
     content_span span_no_sb = content_span_for_page(data.page, 0);
 
-    for (int i = 0; i < widget_count && i < MAX_WIDGETS; ++i) {
+    for (int i = 0; i < widget_count; ++i) {
         const config_widget *w = get_widget_row_for(data.page, i);
         if (!w) {
             break;
@@ -1848,7 +1831,7 @@ static void build_layout_for_current_page(void)
         content_span span_sb = content_span_for_page(data.page, 1);
         int current_y = ITEM_Y_OFFSET;
         int count_fit_from_top = 0;
-        for (int i = 0; i < widget_count && i < MAX_WIDGETS; ++i) {
+        for (int i = 0; i < widget_count; ++i) {
             const config_widget *w = get_widget_row_for(data.page, i);
             if (!w) {
                 break;
@@ -1965,7 +1948,7 @@ static void draw_background(void)
     //  bottom buttons text
     for (unsigned int i = 0; i < static_cast<unsigned int>(NUM_BOTTOM_BUTTONS); i++) {
         int disabled = i == static_cast<unsigned int>(NUM_BOTTOM_BUTTONS - 1) && !data.has_changes;
-        text_draw_centered(translation_for(bottom_button_labels[i]),
+        text_draw_centered(i == 1 ? reinterpret_cast<const uint8_t *>("Mod options") : translation_for(bottom_button_labels[i]),
             bottom_buttons[i].x, bottom_buttons[i].y + 9, bottom_buttons[i].width,
             disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK)->line_height),
             disabled ? COLOR_FONT_LIGHT_GRAY : 0);
@@ -2089,6 +2072,36 @@ static void button_hotkeys(const generic_button *button)
     window_hotkey_config_show(0);
 }
 
+static void button_mod_options(const generic_button *)
+{
+    mod_settings_show([](const char *name, int new_value) {
+        const config_key key = config_key_from_name(name);
+        auto &value = data.config_values[key];
+        // Use this screen's live callbacks without applying unrelated pending edits.
+        if (value.change_action == preview_weather_radio_buttons && new_value) {
+            for (config_key other : {CONFIG_UI_WT_PREVIEW_RAIN, CONFIG_UI_WT_PREVIEW_SNOW, CONFIG_UI_WT_PREVIEW_HEAVY_RAIN, CONFIG_UI_WT_PREVIEW_SANDSTORM}) {
+                if (other == key) continue;
+                data.config_values[other].new_value = 0;
+                config_change_basic(other);
+            }
+        }
+        const auto previous = value;
+        value.new_value = new_value;
+        if (!value.change_action(key)) {
+            value = previous;
+            throw std::runtime_error("The configuration change could not be applied");
+        }
+        restart_cursors();
+        config_save();
+    });
+    for (int i = 0; i < CONFIG_MAX_ENTRIES; ++i) {
+        auto &value = data.config_values[i];
+        if (value.new_value == value.original_value) value.new_value = config_get(static_cast<config_key>(i));
+        value.original_value = config_get(static_cast<config_key>(i));
+    }
+    window_invalidate();
+}
+
 static void button_reset_defaults(const generic_button *button)
 {
     (void)button;
@@ -2174,11 +2187,13 @@ static void handle_input(const mouse *m, const hotkeys *h)
     for (int v = 0; v < data.layout.visible_to - data.layout.visible_from; v++) {
         const config_widget *w = data.layout.rows[v];
         unsigned f = 0;
+        const bool mod_setting_row = w->type == TYPE_MOD_SETTING;
         if (ops_by_type[w->type].handle_input) {
             handled |= ops_by_type[w->type].handle_input(w, span.x, data.layout.y[v] + w->y_offset, span.text_w, md, &f);
             if (f) {
                 data.focus_button = v + 1;
             }
+            if (handled && mod_setting_row) return;
         }
     }
 
@@ -2212,6 +2227,20 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void get_tooltip(tooltip_context *c)
 {
+    if (data.focus_button && data.focus_button <= static_cast<unsigned>(data.layout.visible_to - data.layout.visible_from)) {
+        const auto *row = data.layout.rows[data.focus_button - 1];
+        if (row && row->type == TYPE_MOD_SETTING && row->subtype < static_cast<int>(screen_mod_settings.size())) {
+            const auto &setting = screen_mod_settings[row->subtype];
+            static std::vector<uint8_t> text;
+            const auto &description = setting.effective ? setting.description : setting.disabled_reason;
+            text.resize(description.size() * 4 + 1);
+            encoding_from_utf8(description.c_str(), text.data(), static_cast<int>(text.size()));
+            c->type = TOOLTIP_BUTTON;
+            c->precomposed_text = text.data();
+            return;
+        }
+    }
+
     if (page_is_category(data.page)) {
         category_page_properties desc = current_category_properties();
         list_box_handle_tooltip(desc.lb, c);
@@ -2403,3 +2432,32 @@ void window_config_show(window_config_page page, unsigned int category, int show
     window_show(&window);
 }
 
+void window_config_validate_mod_settings()
+{
+    std::map<std::string, int> occurrences;
+    for (int page = 0; page < CONFIG_PAGES; ++page) {
+        const int categories = page == CONFIG_PAGE_UI_CHANGES ? CATEGORY_UI_COUNT : page == CONFIG_PAGE_CITY_MANAGEMENT_CHANGES ? CATEGORY_CITY_COUNT : 1;
+        for (int category = 0; category < categories; ++category) {
+            window_config_show(static_cast<window_config_page>(page), category, 0);
+            build_layout_for_current_page();
+            for (const auto &row : effective_config_rows) if (row.type == TYPE_MOD_SETTING) ++occurrences[screen_mod_settings.at(row.subtype).key()];
+            window_draw(1);
+        }
+    }
+    for (const auto &setting : mod_content::runtime().settings()) if (occurrences[setting.key()] != 1) throw std::runtime_error("In-game settings omitted or duplicated " + setting.key());
+    const auto settings = mod_content::runtime().settings();
+    for (const auto &setting : settings) {
+        if (!setting.effective) continue;
+        window_config_show(CONFIG_PAGE_GENERAL, 0, 0);
+        const int original = data.config_values[CONFIG_UI_DISPLAY_FPS].new_value;
+        data.config_values[CONFIG_UI_DISPLAY_FPS].new_value = !original;
+        const int alternate = setting.boolean ? !setting.value : setting.value == setting.maximum ? setting.minimum : setting.maximum;
+        apply_screen_mod_setting(setting.key(), alternate);
+        if (!window_is(WINDOW_CONFIG) || data.config_values[CONFIG_UI_DISPLAY_FPS].new_value != !original) throw std::runtime_error("Live mod setting lost the in-game menu or unrelated pending edits");
+        const auto &current = mod_content::runtime().settings();
+        const auto found = std::find_if(current.begin(), current.end(), [&](const auto &entry) { return entry.key() == setting.key(); });
+        if (found == current.end() || found->value != alternate) throw std::runtime_error("In-game mod setting did not apply");
+        apply_screen_mod_setting(setting.key(), setting.value);
+    }
+    std::fprintf(stdout, "In-game mod settings contracts passed: every setting appears once, live changes retain the menu and pending hardcoded edits.\n");
+}

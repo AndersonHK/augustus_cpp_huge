@@ -7,6 +7,7 @@
 #include "city/race_bet.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
+#include "figure/figure_type_registry.h"
 #include "figure/type.h"
 #include "graphics/GraphicsDefinition.h"
 #include "game/defines.h"
@@ -865,7 +866,10 @@ bool validate_figure_owner_contracts()
     if (!beggar || !beggar->requires_owner() ||
         beggar->owner_binding().slot != figure_type_registry_impl::FigureSlot::Quaternary ||
         beggar->owner_binding().required_owner_state != figure_type_registry_impl::OwnerStateRequirement::InUse) {
-        std::cerr << "Figure owner contract failed: beggars must remain owned by their spawning house through its quaternary slot.\n";
+        std::cerr << "Figure owner contract failed: beggars must remain owned by their spawning house through its quaternary slot. source="
+            << figure_type_definition_source_path("beggar") << " profile=" << (beggar ? beggar->id() : "missing")
+            << " slot=" << (beggar ? static_cast<int>(beggar->owner_binding().slot) : -1)
+            << " state=" << (beggar ? static_cast<int>(beggar->owner_binding().required_owner_state) : -1) << "\n";
         return false;
     }
     if (!caravanserai_supplier || !caravanserai_supplier->requires_owner() ||
@@ -1398,6 +1402,10 @@ bool validate_synthetic_figure_lifecycle_graphics_contract()
             figure_type_registry_impl::definition_for(type);
         if (!definition) continue;
         figure_type_count++;
+        if (!definition->portrait().group_path().empty() && (!definition->portrait().is_bound() || !definition->portrait().runtime_slice().is_valid())) {
+            std::cerr << "FigureType portrait is unresolved: " << definition->attr() << ".\n";
+            return false;
+        }
         const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
         if (graphics.has_native_payload()) {
             if (!validate_role(*definition, graphics, GraphicsTargetRole::Default, live_binding_count)) return false;

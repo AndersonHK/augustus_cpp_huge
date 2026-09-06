@@ -71,7 +71,7 @@ static void export_model_data(buffer *buf)
         }
 
         model_building *model = model_get_building(type);
-        model_building *prop_model = (model_building *) &props->building_model_data;
+        const model_building *prop_model = model_get_mod_defaults(type);
         if (!model) {
             continue;
         }
@@ -195,6 +195,7 @@ static int start_building_model(void)
     }
 
     model_building *model_ptr = model_get_building(type);
+    for (int field = MODEL_COST; field <= MODEL_LABORERS; ++field) model_mark_scenario_override(type, field);
 
     model_ptr->cost = xml_parser_get_attribute_int("cost");
     model_ptr->desirability_value = xml_parser_get_attribute_int("desirability_value");

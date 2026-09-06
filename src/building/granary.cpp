@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/building_record.h"
 #include "granary.h"
 
@@ -108,6 +109,7 @@ int building_granary_add_import(Building &granary, resource_type resource, int a
 
     int price = trade_price_buy(resource, trader_type);
     city_finance_process_import(price * amount_added);
+    city_trade_ledger_exchange(resource, amount_added, price, true, granary.id);
     return amount_added;
 }
 
@@ -139,6 +141,7 @@ int building_granary_remove_export(Building &granary, resource_type resource, in
     }
     int price = trade_price_sell(resource, trader_type) * removed;
     city_finance_process_export(price);
+    city_trade_ledger_exchange(resource, removed, trade_price_sell(resource, trader_type), false, granary.id);
     return removed;
 }
 

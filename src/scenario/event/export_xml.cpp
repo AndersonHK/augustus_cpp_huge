@@ -1,5 +1,6 @@
 #include "window/editor/select_city_trade_route.h"
 #include "export_xml.h"
+#include "scenario/definition_overrides.h"
 
 #include "core/buffer.h"
 #include "core/io.h"
@@ -142,6 +143,12 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
         case PARAMETER_TYPE_CLIMATE:
         case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
+        case PARAMETER_TYPE_HOUSE_DATA_TYPE:
+        case PARAMETER_TYPE_WIN_CONDITION:
+        case PARAMETER_TYPE_WEATHER:
+        case PARAMETER_TYPE_VARIABLE_COLOR:
+        case PARAMETER_TYPE_HOUSING_BUILDING:
+        case PARAMETER_TYPE_CONSTRUCTION_BUILDING:
         case PARAMETER_TYPE_MODEL:
         case PARAMETER_TYPE_PERCENTAGE:
         case PARAMETER_TYPE_HOUSING_TYPE:
@@ -162,10 +169,13 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
         }
         case PARAMETER_TYPE_REQUEST:
             return export_attribute_number(attr, target);
+        case PARAMETER_TYPE_EMPIRE_CITY:
         case PARAMETER_TYPE_FUTURE_CITY:
             return export_attribute_future_city(attr, target);
         case PARAMETER_TYPE_MIN_MAX_NUMBER:
         case PARAMETER_TYPE_NUMBER:
+        case PARAMETER_TYPE_GRID_OFFSET:
+        case PARAMETER_TYPE_CONSTRUCTION_PHASE:
         case PARAMETER_TYPE_GRID_SLICE:
             return export_attribute_number(attr, target);
         case PARAMETER_TYPE_RESOURCE:
@@ -191,6 +201,9 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
             }
             return 1;
         }
+        case PARAMETER_TYPE_SCENARIO_TEXT:
+            xml_exporter_add_attribute_encoded_text(attr->name, scenario_text_get(target));
+            return 1;
         case PARAMETER_TYPE_UNDEFINED:
             return 1;
         case PARAMETER_TYPE_FLEXIBLE:
@@ -231,6 +244,7 @@ static void export_event_condition(scenario_condition_t *condition)
     export_parse_attribute(&condition_data->xml_parm3, condition->parameter3);
     export_parse_attribute(&condition_data->xml_parm4, condition->parameter4);
     export_parse_attribute(&condition_data->xml_parm5, condition->parameter5);
+    if (condition->type == CONDITION_TYPE_TIME_PASSED && condition->parameter5 == 1) xml_exporter_add_attribute_int("sample_on_init", 1);
 
     xml_exporter_close_element();
 }

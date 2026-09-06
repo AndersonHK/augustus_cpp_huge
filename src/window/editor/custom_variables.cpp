@@ -9,6 +9,7 @@
 #include "window/plain_message_dialog.h"
 
 #include "custom_variables.h"
+#include <stdexcept>
 
 #include "editor/editor.h"
 #include "graphics/complex_button.h"
@@ -160,8 +161,9 @@ static void init_color_dropdown(void)
             color_dropdown_options[dd_anchors][j].parameters[0] = dd_anchors;
             // draw_variable_item will reestablish the correct variable id with scroll offset
             color_dropdown_options[dd_anchors][j].color_mask = complex_button_basic_colors(j - 1);
-            if (j > 8) {
-                color_dropdown_options[dd_anchors][j].font = FONT_SMALL_PLAIN; //white font for dark colors
+            color_dropdown_options[dd_anchors][j].font = FONT_NORMAL_BLACK;
+            if (j > 9) {
+                color_dropdown_options[dd_anchors][j].font = FONT_NORMAL_WHITE; //white font for dark colors
             }
         }
         dropdown_button_init(&color_dropdowns[dd_anchors], color_dropdown_options[dd_anchors], COLOR_BUTTONS_COUNT, COLOR_DROPDOWN_WIDTH, 2, 4);
@@ -245,11 +247,11 @@ static void update_item_buttons_positions(void)
     if (grid_box_has_scrollbar(&variable_buttons)) {
         item_buttons[4].x = static_cast<short>(item_buttons[4].x - 2 * BLOCK_SIZE);
         for (int i = 0; i < MAX_VISIBLE_GRID_ITEMS; i++) {
-            color_dropdown_options[i][0].x = static_cast<short>(568 - 2 * BLOCK_SIZE);
+            for (int j = 0; j < COLOR_BUTTONS_COUNT; ++j) color_dropdowns[i].buttons[j].x = static_cast<short>(568 - 2 * BLOCK_SIZE);
         }
     } else {
         for (int i = 0; i < MAX_VISIBLE_GRID_ITEMS; i++) {
-            color_dropdown_options[i][0].x = static_cast<short>(568);
+            for (int j = 0; j < COLOR_BUTTONS_COUNT; ++j) color_dropdowns[i].buttons[j].x = static_cast<short>(568);
         }
     }
 
@@ -322,12 +324,12 @@ static void update_dd_anchor(int variable_id, int grid_box_position)
     int id = variable_id;
     int pos = grid_box_position;
     int color_group = scenario_custom_variable_get_color_group(id);
-    color_dropdowns[pos].selected_index = scenario_custom_variable_get_color_group(id); // selcted index color
-    color_dropdown_options[pos][0].parameters[0] = id; //set the variable id as parameter for the color dropdown
-    color_dropdown_options[pos][0].color_mask = scenario_custom_variable_get_color(id); //set the selected colour option
-    color_dropdown_options[pos][0].is_hidden = 0; //unhide the associated color dropdown
-    color_dropdown_options[pos][0].sequence = &color_fragments[color_group]; //select text
-    color_dropdown_options[pos][0].font = (color_group > 8) ? FONT_SMALL_PLAIN : FONT_NORMAL_BLACK; //match font
+    color_dropdowns[pos].selected_index = color_group + 1; // Button zero is the anchor, followed by the "none" option.
+    color_dropdowns[pos].buttons[0].parameters[0] = id; //set the variable id as parameter for the color dropdown
+    color_dropdowns[pos].buttons[0].color_mask = scenario_custom_variable_get_color(id); //set the selected colour option
+    color_dropdowns[pos].buttons[0].is_hidden = 0; //unhide the associated color dropdown
+    color_dropdowns[pos].buttons[0].sequence = &color_fragments[color_group + 1];
+    color_dropdowns[pos].buttons[0].font = (color_group > 8) ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK; //match font
 }
 
 static void draw_variable_item(const grid_box_item *item)
@@ -568,10 +570,25 @@ static void button_edit_variable_value(const generic_button *button)
 
 static void button_edit_color(dropdown_button *dd)
 {
-    unsigned int color_id = dd->selected_index; //1-based index for custom variables
+    int color_id = dd->selected_index - 1;
     int variable_id = dd->buttons[0].parameters[0]; //get variable id from the selected button
     scenario_custom_variable_set_color_group(variable_id, color_id);
     window_request_refresh();
+}
+
+void window_editor_validate_variable_colors()
+{
+    const unsigned int id = scenario_custom_variable_create(reinterpret_cast<const uint8_t *>("Color test"), 0);
+    init(nullptr);
+    for (int color = 0; color <= 10; ++color) {
+        auto &dropdown = color_dropdowns[0];
+        dropdown.buttons[0].parameters[0] = id;
+        dropdown.selected_index = color + 1;
+        button_edit_color(&dropdown);
+        update_dd_anchor(id, 0);
+        if (scenario_custom_variable_get_color_group(id) != color || dropdown.selected_index != color + 1 || dropdown.buttons[0].sequence != &color_fragments[color + 1]) throw std::runtime_error("Custom variable color dropdown selected the wrong value");
+    }
+    scenario_custom_variable_delete(id);
 }
 
 static void set_display_text(const uint8_t *text)

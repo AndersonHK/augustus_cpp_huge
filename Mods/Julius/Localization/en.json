@@ -1,22 +1,30 @@
 {
-  "metadata": {
-    "code": "en",
-    "display_name": "English",
-    "english_name": "English",
-    "source": "Julius"
-  },
-  "main_strings": {},
-  "editor_strings": {},
-  "messages": {},
-  "project_keys": {
-    "TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE": "This building needs <resource>",
-    "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER": "Build a <building-type>",
-    "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_RESOURCE": "<building-type> needs <resource>",
-    "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS": "<building-type> needs more materials",
-    "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING": "<building-type> needs a working <required-building>",
-    "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE": "Only one <building-type> can be built",
-    "TR_CITY_WARNING_TEMPLATE_MAX_BUILDING_COUNT_REACHED": "The <building-type> limit of <max-count> has been reached",
-    "TR_BUILDING_CLEAR_TREES": "Clear trees",
-    "TR_BUILDING_VACANT_LOT": "Vacant lot"
-  }
+    "metadata": {
+        "code": "en",
+        "display_name": "English",
+        "english_name": "English",
+        "source": "Julius"
+    },
+    "main_strings": {},
+    "editor_strings": {},
+    "messages": {},
+    "project_keys": {
+        "TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE": "This building needs <resource>",
+        "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER": "Build a <building-type>",
+        "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_RESOURCE": "<building-type> needs <resource>",
+        "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS": "<building-type> needs more materials",
+        "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING": "<building-type> needs a working <required-building>",
+        "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE": "Only one <building-type> can be built",
+        "TR_CITY_WARNING_TEMPLATE_MAX_BUILDING_COUNT_REACHED": "The <building-type> limit of <max-count> has been reached",
+        "TR_EDITOR_TOOL_NATIVE_RUINS": "Native ruins",
+        "TR_EDITOR_TOOL_SELECT_LAND": "Select land",
+        "TR_MOD_SETTINGS_TITLE": "Mod settings",
+        "TR_MOD_SETTINGS_CHANGE_FAILED": "The setting could not be changed.",
+        "TR_EDITOR_HOUSE_MODELS": "House models",
+        "TR_EDITOR_CONSTRUCTION_COSTS": "Construction materials",
+        "TR_EDITOR_COPY": "Copy",
+        "TR_EDITOR_PASTE": "Paste",
+        "TR_EDITOR_DUPLICATE": "Duplicate",
+        "TR_PARAMETER_TYPE_BUILDING": "Building"
+    }
 }

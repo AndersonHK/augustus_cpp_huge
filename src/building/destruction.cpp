@@ -413,7 +413,7 @@ void building_destroy_last_placed(void)
     }
 }
 
-static int hit_points_at(int grid_offset)
+int building_hit_points_at(int grid_offset)
 {
     if (!map_building_exists_at(grid_offset)) {
         return game_defines_default_building_hit_points();
@@ -424,9 +424,19 @@ static int hit_points_at(int grid_offset)
         game_defines_default_building_hit_points();
 }
 
+int building_damage_at(int grid_offset)
+{
+    int damage = map_building_damage_at(grid_offset);
+    if (map_building_exists_at(grid_offset)) {
+        const auto geometry = building_type_registry_impl::BuildingGeometry::query(map_building_at(grid_offset));
+        for (const auto &cell : geometry.cells()) damage = std::max(damage, map_building_damage_at(map_grid_offset(cell.x, cell.y)));
+    }
+    return damage;
+}
+
 void building_apply_enemy_damage(int grid_offset)
 {
-    if (map_building_damage_increase(grid_offset) > hit_points_at(grid_offset)) {
+    if (map_building_damage_increase(grid_offset) > building_hit_points_at(grid_offset)) {
         building_destroy_by_enemy(grid_offset);
     }
 }

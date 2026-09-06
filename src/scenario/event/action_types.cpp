@@ -1,3 +1,12 @@
+#include "scenario/criteria.h"
+#include "scenario/definition_overrides.h"
+#include "city/warning.h"
+#include "sound/effect.h"
+#include <algorithm>
+#include <cstdint>
+#include "map/figure.h"
+#include "graphics/weather.h"
+#include "city/view.h"
 #include <array>
 
 #include "action_types.h"
@@ -7,6 +16,7 @@
 #include "building/dock.h"
 #include "building/granary.h"
 #include "building/menu.h"
+#include "building/dock.h"
 #include "building/production_method_registry.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
@@ -656,15 +666,14 @@ int scenario_action_type_trade_route_amount_execute(scenario_action_t *action)
     if (!trade_route_is_valid(route_id)) {
         return 0;
     }
-    if (resource < (RESOURCE_NONE + 1) || resource > RESOURCE_SLOT_COUNT) {
+    if (!resource_is_declared(resource)) {
         return 0;
     }
 
+    const int city_id = empire_city_get_for_trade_route(route_id);
+    if (city_id < 0) return 0;
+    amount = std::max(0, amount);
     if (show_message && empire_city_is_trade_route_open(route_id)) {
-        int city_id = empire_city_get_for_trade_route(route_id);
-        if (city_id < 0) {
-            city_id = 0;
-        }
         int last_amount = trade_route_limit(route_id, resource, buys);
 
         int change = amount - last_amount;
@@ -676,8 +685,10 @@ int scenario_action_type_trade_route_amount_execute(scenario_action_t *action)
             city_message_post(1, MESSAGE_TRADE_STOPPED, city_id, resource);
         }
     }
-    trade_route_set_limit(route_id, resource, amount, buys);
-    building_menu_update();
+    auto *city = empire_city_get(city_id);
+    if (buys) empire_city_change_buying_of_resource(city, resource, amount);
+    else { empire_city_change_selling_of_resource(city, resource, amount); building_menu_update(); }
+    building_dock_enable_resource_in_all_docks(resource);
 
     return 1;
 }
@@ -801,6 +812,8 @@ int scenario_action_type_change_model_data_execute(scenario_action_t *action)
     int amount = scenario_formula_evaluate_formula(action->parameter3);
     int set_to_value = action->parameter4;
 
+    if (model <= BUILDING_NONE || model >= BUILDING_TYPE_MAX || data_type < MODEL_COST || data_type > MODEL_LABORERS) return 0;
+    model_mark_scenario_override(static_cast<building_type>(model), data_type);
     model_building *model_ptr = model_get_building(static_cast<building_type>(model));
 
     switch (data_type) {
@@ -882,6 +895,7 @@ int scenario_action_type_change_rank_execute(scenario_action_t *action)
 int scenario_action_type_change_production_rate_execute(scenario_action_t *action)
 {
     resource_type resource = static_cast<resource_type>(action->parameter1);
+    if (!resource_is_declared(resource)) return 0;
     int rate = scenario_formula_evaluate_formula(action->parameter2);
     int set_to_value = action->parameter3;
 
@@ -922,4 +936,99 @@ int scenario_action_type_lock_trade_route_execute(scenario_action_t *action)
     building_menu_update();
     
     return 1;
+}
+
+int scenario_action_type_move_camera_execute(scenario_action_t *action)
+{
+    int grid_offset = action->parameter1;
+
+    if (!map_grid_is_valid_offset(grid_offset)) return 0;
+    city_view_go_to_grid_offset(grid_offset);
+
+    return 1;
+}
+
+int scenario_action_type_change_weather_execute(scenario_action_t *action)
+{
+    int weather_type = action->parameter1;
+    int intensity = scenario_formula_evaluate_formula(action->parameter2);
+
+    if (weather_type < WEATHER_NONE || weather_type > WEATHER_SAND) return 0;
+    set_weather(1, intensity, static_cast<::weather_type>(weather_type));
+
+    return 1;
+}
+
+int scenario_action_type_change_custom_variable_color_execute(scenario_action_t *action)
+{
+    int variable_id = action->parameter1;
+    int color_id = action->parameter2;
+
+    if (!scenario_custom_variable_exists(variable_id) || color_id < 0 || color_id > 10) return 0;
+    scenario_custom_variable_set_color_group(variable_id, color_id);
+
+    return 1;
+}
+
+int scenario_action_type_kill_walkers_in_area_execute(scenario_action_t *action)
+{
+    int grid_offset1 = action->parameter1;
+    int grid_offset2 = action->parameter2;
+    auto category = static_cast<figure_category_mask>(action->parameter3);
+    grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
+
+    map_kill_figures_category_in_area(slice, category);
+
+    return 1;
+}
+
+int scenario_action_type_change_goal_execute(scenario_action_t *action)
+{
+    auto &criteria = scenario.win_criteria;
+    int *goal = nullptr;
+    int enabled = 0, maximum = 100;
+    switch (action->parameter1) {
+        case 0: goal = &criteria.culture.goal; enabled = criteria.culture.enabled; break;
+        case 1: goal = &criteria.prosperity.goal; enabled = criteria.prosperity.enabled; break;
+        case 2: goal = &criteria.peace.goal; enabled = criteria.peace.enabled; break;
+        case 3: goal = &criteria.favor.goal; enabled = criteria.favor.enabled; break;
+        case 4: goal = &criteria.time_limit.years; enabled = criteria.time_limit.enabled; maximum = 1000; break;
+        case 5: goal = &criteria.survival_time.years; enabled = criteria.survival_time.enabled; maximum = 1000; break;
+        case 6: goal = &criteria.population.goal; enabled = criteria.population.enabled; maximum = 1000000; break;
+        default: return 0;
+    }
+    if (enabled) {
+        const int64_t value = scenario_formula_evaluate_formula(action->parameter2);
+        *goal = static_cast<int>(std::clamp<int64_t>(value + (action->parameter3 ? 0 : *goal), 0, maximum));
+        scenario_criteria_init_max_year();
+    }
+    return 1;
+}
+
+int scenario_action_type_definition_execute(scenario_action_t *action)
+{
+    switch (action->type) {
+        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA:
+            return scenario_house_model_change(static_cast<building_type>(action->parameter1), action->parameter2, scenario_formula_evaluate_formula(action->parameter3), action->parameter4 != 0);
+        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES:
+            return scenario_construction_requirement_change(static_cast<building_type>(action->parameter1), action->parameter2 - 1, static_cast<resource_type>(action->parameter3), scenario_formula_evaluate_formula(action->parameter4));
+        case ACTION_TYPE_IMMIGRATION_PERCENTAGE:
+            return scenario_definition_override_set({ScenarioOverrideKind::Migration, {}, action->parameter2 != 0, {}, std::clamp(scenario_formula_evaluate_formula(action->parameter1), 0, 1000000)});
+        case ACTION_TYPE_HIDE_TRADE_ROUTE:
+            if (!trade_route_is_valid(action->parameter1)) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::HiddenRoute, std::to_string(action->parameter1), 0, {}, action->parameter2 != 0});
+        case ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST: {
+            auto resource = static_cast<resource_type>(action->parameter2);
+            if (!trade_route_is_valid(action->parameter1) || !resource_is_declared(resource)) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::RouteResource, std::to_string(action->parameter1), 0, resource_text_id(resource), std::max(0, scenario_formula_evaluate_formula(action->parameter3))});
+        }
+        case ACTION_TYPE_RENAME_CITY:
+            if (!empire_city_get(action->parameter1) || !empire_city_get(action->parameter1)->in_use) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::CityName, std::to_string(empire_city_get(action->parameter1)->empire_object_id), 0, {}, 0, reinterpret_cast<const char *>(scenario_text_get(action->parameter2))});
+        case ACTION_TYPE_SEND_CITY_WARNING:
+            city_warning_show({nullptr}, scenario_text_get(action->parameter1));
+            if (action->parameter2) sound_effect_play(SOUND_EFFECT_FANFARE_URGENT);
+            return 1;
+        default: return 0;
+    }
 }

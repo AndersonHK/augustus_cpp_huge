@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="epithets" base_width="640" base_height="432">
+    <widget y="0" x="0" type="panel" id="panel" phase="background" style="outer_panel" width="640" height="432" />
+    <widget type="label" id="title" translation="TR_WINDOW_ADVISOR_EPITHETS" x="24" y="16" width="592" font="large_black" text_alignment="center" />
+    <widget type="text_button" id="religions" binding="religion.name" action="religion.select" selected_binding="religion.selected" repeat_source="epithets.religions" repeat_columns="6" repeat_spacing_x="100" x="20" y="56" width="96" height="36" text_offset_y="10" />
+    <widget type="panel" id="body_panel" phase="background" style="inner_panel" x="16" y="108" width="576" height="272" />
+    <widget type="rich_text" id="body" x="32" y="120" width="544" height="248" font="normal_white" line_spacing="4" paragraph_spacing="1" />
+    <widget type="scrollbar" id="scrollbar" x="596" y="108" width="16" height="272" />
+    <widget type="text_button" id="previous" action="page.previous" visible_binding="page.previous" text="-" x="20" y="394" width="32" height="24" text_offset_y="4" />
+    <widget type="text_button" id="next" action="page.next" visible_binding="page.next" text="+" x="60" y="394" width="32" height="24" text_offset_y="4" />
+    <widget type="text_button" id="close" action="window.close" translation="main_strings.13.1" x="148" y="394" width="344" height="24" text_offset_y="4" />
+</window>

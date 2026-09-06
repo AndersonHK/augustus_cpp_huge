@@ -48,6 +48,7 @@ struct building_info_context {
     int help_id;
     int can_play_sound;
     Building *building = nullptr;
+    int grid_offset = -1;
     int has_road_access;
     int worker_percentage;
     int has_reservoir_pipes;

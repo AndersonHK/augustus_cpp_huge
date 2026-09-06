@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="house_medium_palace">
+    <spawn_group id="ambient_dogs" road_access="normal" delay_bands="100:16">
+        <spawn spawn_figure="dog" profile="ambient" direction="bottom" figure_slot="none" chance_per_million="$DOGS{100000}$!DOGS{0}" require_population="true" />
+    </spawn_group>
+</building>

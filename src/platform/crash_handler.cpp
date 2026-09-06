@@ -11,7 +11,7 @@
 #include <exception>
 
 #if (defined(__GNUC__) && !defined(__MINGW32__) && !defined(__OpenBSD__) && \
-   !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && \
+   !defined(__SWITCH__) && !defined(__ANDROID__) && \
    !defined(__HAIKU__) && !defined(__EMSCRIPTEN__)) || \
     (defined(_WIN32) && (defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM64)))
 #define HAS_STACK_TRACE
@@ -310,7 +310,7 @@ void system_setup_crash_handler(void)
     SetUnhandledExceptionFilter(exception_handler);
 }
 
-#else // fallback
+#else
 
 void system_setup_crash_handler(void)
 {

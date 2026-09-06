@@ -22,6 +22,9 @@ typedef struct {
     int save_roundtrip_test_count;
     int save_soak_ticks;
     int formation_test;
+    int mod_settings_test;
+    int catch_up_test;
+    int editor_test;
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);

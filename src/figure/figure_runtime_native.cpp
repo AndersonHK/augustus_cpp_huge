@@ -2491,6 +2491,8 @@ protected:
 
     void update_image(Figure *f) const
     {
+        // Only gladiators animate combat; the other entertainers use their standing pose.
+        if (f->action_state == FIGURE_ACTION_150_ATTACK && f->type != FIGURE_GLADIATOR) f->image_offset = 0;
         definition()->graphics().apply_legacy_entertainment_image_state(
             *f,
             f->direction < 8 ? f->direction : f->previous_tile_direction);

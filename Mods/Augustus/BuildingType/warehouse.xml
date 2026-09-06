@@ -1,24 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="warehouse">
-    <identity name_key="main_strings.28.72" />
-    <model cost="70" />
-    <desirability>
-        <value value="-5" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="warehouse_1x1" />
-  <button group="industry" order="500" text_key="main_strings.28.72" />
-
-    <flags fire_proof="1" />
-    <labor>
-        <employees count="6" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="100" />
-        </labor_seeker>
-    </labor>
     <graphics>
         <status_icon x="21" y="-60" />
         <default>
@@ -38,54 +19,4 @@
             </layer>
         </default>
     </graphics>
-    <composition>
-        <child type="warehouse_space" role="space_1" x="0" y="1">
-            <offset rotation="0" x="0" y="1" />
-            <offset rotation="1" x="0" y="-2" />
-            <offset rotation="2" x="-2" y="-2" />
-            <offset rotation="3" x="-2" y="0" />
-        </child>
-        <child type="warehouse_space" role="space_2" x="1" y="0">
-            <offset rotation="0" x="1" y="0" />
-            <offset rotation="1" x="0" y="-1" />
-            <offset rotation="2" x="-2" y="-1" />
-            <offset rotation="3" x="-2" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_3" x="1" y="1">
-            <offset rotation="0" x="1" y="1" />
-            <offset rotation="1" x="1" y="-2" />
-            <offset rotation="2" x="-1" y="-2" />
-            <offset rotation="3" x="-1" y="0" />
-        </child>
-        <child type="warehouse_space" role="space_4" x="0" y="2">
-            <offset rotation="0" x="0" y="2" />
-            <offset rotation="1" x="1" y="-1" />
-            <offset rotation="2" x="-1" y="-1" />
-            <offset rotation="3" x="-1" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_5" x="2" y="0">
-            <offset rotation="0" x="2" y="0" />
-            <offset rotation="1" x="2" y="-2" />
-            <offset rotation="2" x="-2" y="0" />
-            <offset rotation="3" x="-2" y="2" />
-        </child>
-        <child type="warehouse_space" role="space_6" x="1" y="2">
-            <offset rotation="0" x="1" y="2" />
-            <offset rotation="1" x="1" y="0" />
-            <offset rotation="2" x="0" y="-2" />
-            <offset rotation="3" x="-1" y="2" />
-        </child>
-        <child type="warehouse_space" role="space_7" x="2" y="1">
-            <offset rotation="0" x="2" y="1" />
-            <offset rotation="1" x="2" y="-1" />
-            <offset rotation="2" x="-1" y="0" />
-            <offset rotation="3" x="0" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_8" x="2" y="2">
-            <offset rotation="0" x="2" y="2" />
-            <offset rotation="1" x="2" y="0" />
-            <offset rotation="2" x="0" y="-1" />
-            <offset rotation="3" x="0" y="2" />
-        </child>
-    </composition>
 </building>

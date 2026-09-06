@@ -120,6 +120,13 @@ typedef enum {
     CONFIG_SCALE_FILTER,
     CONFIG_DEBUG,
     CONFIG_DEBUG_PERFORMANCE_TRACKER,
+    CONFIG_UI_AUTO_DELETE_OLD_COMMON_MESSAGES,
+    CONFIG_UI_EXTENDED_CAMERA_BOUNDS,
+    CONFIG_UI_EMPIRE_SIDEBAR_SORT_METHOD,
+    CONFIG_UI_EMPIRE_SIDEBAR_SORT_REVERSED,
+    CONFIG_UI_CLIMATE_GRID_COLORS,
+    CONFIG_UI_SHOW_SHORELINE_DESIRABILITY,
+    CONFIG_UI_SHOW_ELEVATION_DESIRABILITY,
     CONFIG_MAX_ENTRIES
 } config_key;
 
@@ -133,6 +140,7 @@ typedef enum {
 typedef enum {
     CONFIG_STRING_UI_LANGUAGE_DIR,
     CONFIG_STRING_UI_LOCALE,
+    CONFIG_STRING_UI_AUTO_CYCLE_GROUPS,
     CONFIG_STRING_MAX_ENTRIES
 } config_string_key;
 
@@ -142,6 +150,7 @@ typedef enum {
  * @return Config value
  */
 int config_get(config_key key);
+config_key config_key_from_name(const char *name);
 
 /**
  * Set an integer config value

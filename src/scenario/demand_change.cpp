@@ -1,6 +1,8 @@
 #include "demand_change.h"
 
 #include "city/message.h"
+#include "building/dock.h"
+#include "building/menu.h"
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
@@ -11,6 +13,7 @@
 #include "scenario/property.h"
 
 #include <vector>
+#include <algorithm>
 
 #define DEMAND_CHANGES_STRUCT_SIZE_CURRENT (1 * sizeof(int32_t) + 1 * sizeof(int16_t) + 4 * sizeof(uint8_t))
 
@@ -100,9 +103,7 @@ static void process_demand_change(demand_change_t *demand_change)
     int route = demand_change->route_id;
     int resource = demand_change->resource;
     int city_id = empire_city_get_for_trade_route(route);
-    if (city_id < 0) {
-        city_id = 0;
-    }
+    if (city_id < 0 || !resource_is_declared(resource)) return;
 
     int last_amount = trade_route_limit(route, resource, buys);
     int amount = demand_change->amount;
@@ -111,7 +112,11 @@ static void process_demand_change(demand_change_t *demand_change)
     } else if (amount == DEMAND_CHANGE_LEGACY_IS_FALL) {
         amount = trade_route_legacy_decrease_limit(route, resource, buys);
     } else {
-        trade_route_set_limit(route, resource, amount, buys);
+        amount = std::max(0, amount);
+        auto *city = empire_city_get(city_id);
+        if (buys) empire_city_change_buying_of_resource(city, resource, amount);
+        else { empire_city_change_selling_of_resource(city, resource, amount); building_menu_update(); }
+        building_dock_enable_resource_in_all_docks(resource);
     }
     if (empire_city_is_trade_route_open(route)) {
         int change = amount - last_amount;
@@ -208,13 +213,7 @@ void scenario_demand_change_load_state(buffer *buf, scenario_version_t version)
         if (version > SCENARIO_LAST_NO_EMPIRE_EDITOR) {
             demand_change->buys = buffer_read_u8(buf);
         } else {
-            // Migration not guaranteed to be right (wasn't before as well though)
-            int city_id = empire_city_get_for_trade_route(demand_change->route_id);
-            if (city_id < 0) {
-                demand_change->buys = 1;
-                continue;
-            }
-            demand_change->buys = empire_city_get(city_id)->buys_resource[demand_change->resource];
+            demand_change->buys = -1; // Resolve after the new empire has been bound.
         }
     }
 
@@ -247,15 +246,16 @@ void scenario_demand_change_load_state_old_version(buffer *buf, int is_legacy_ch
             demand_change.amount = buffer_read_i32(buf);
         }
     }
-    // Migration
-    for (demand_change_t &demand_change : demand_changes) {
-        int city_id = empire_city_get_for_trade_route(demand_change.route_id);
-        if (city_id < 0) {
-            demand_change.buys = 1;
-            continue;
-        }
-        demand_change.buys = empire_city_get(city_id)->buys_resource[demand_change.resource];
-    }
-    
+    for (auto &change : demand_changes) change.buys = -1;
     trim_demand_changes();
+}
+
+void scenario_demand_change_resolve_legacy_directions()
+{
+    for (auto &change : demand_changes) {
+        if (change.buys >= 0) continue;
+        const int city_id = empire_city_get_for_trade_route(change.route_id);
+        const auto *city = city_id < 0 ? nullptr : empire_city_get(city_id);
+        change.buys = city && resource_is_declared(change.resource) ? city->buys_resource[change.resource] != 0 : 1;
+    }
 }

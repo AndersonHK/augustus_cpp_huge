@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "map/orientation.h"
 #include "monument.h"
 
@@ -212,7 +213,7 @@ static void ensure_monument_text_ids()
         building_type type = static_cast<building_type>(type_id);
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(type);
-        if (!definition || !definition->has_construction()) {
+        if (!definition || !definition->has_phased_construction()) {
             continue;
         }
         add_monument_text_id(building_type_id_bridge_text_from_runtime(type));
@@ -321,8 +322,10 @@ int building_monument_deliver_resource(building *b, int resource)
         return 0;
     }
 
+    if (!monument->type->construction().gift.materials) city_trade_ledger_consumed(resource, resource_units_per_load());
     if (!monument->Composition) {
-        return 0;
+        --b->resources[resource];
+        return 1;
     }
     monument->Composition->for_each_member([resource](Building &part) {
         if (building *record = const_cast<building *>(part.record())) {
@@ -337,6 +340,12 @@ int building_monument_access_point(building *b, map_point *dst)
     Building *monument = runtime_building_for_record(b);
     if (!monument || !dst) {
         return 0;
+    }
+    const auto &construction = monument->type->construction();
+    if (construction.access_x >= 0 && construction.access_y >= 0 && building_type_registry_impl::BuildingGeometry::query(*monument).contains(b->x + construction.access_x, b->y + construction.access_y)) {
+        dst->x = b->x + construction.access_x;
+        dst->y = b->y + construction.access_y;
+        return 1;
     }
     const building_type_registry_impl::BuildingGeometry geometry =
         building_type_registry_impl::BuildingGeometry::query(*monument);
@@ -403,6 +412,8 @@ Building *building_monument_get_monument(int x, int y, int resource, int road_ne
         if (!building->type || !type_is_monument(building->type->type())) {
             return;
         }
+        const auto &gift = building->type->construction().gift;
+        if ((resource == RESOURCE_NONE && gift.workers) || (resource != RESOURCE_NONE && gift.materials)) return;
         ::building *record = const_cast<::building *>(building->record());
         if (record->monument.phase == MONUMENT_FINISHED ||
             record->monument.phase < MONUMENT_START ||
@@ -618,15 +629,17 @@ int building_monument_progress(building *b)
         return 0;
     }
 
-    Building *main = monument->Composition ? monument->Composition->owner() : nullptr;
+    Building *main = monument->Composition ? monument->Composition->owner() : monument;
     if (!main) {
         return 0;
     }
-    monument->Composition->for_each_member([](Building &part) {
-        if (building *record = const_cast<building *>(part.record())) {
-            building_monument_set_phase(record, record->monument.phase + 1);
-        }
-    });
+    if (monument->Composition) {
+        monument->Composition->for_each_member([](Building &part) {
+            if (building *record = const_cast<building *>(part.record())) building_monument_set_phase(record, record->monument.phase + 1);
+        });
+    } else {
+        building_monument_set_phase(b, b->monument.phase + 1);
+    }
 
     building *main_record = const_cast<building *>(main->record());
     if (main_record && main_record->monument.phase == MONUMENT_FINISHED) {
@@ -655,6 +668,12 @@ void building_monument_initialize_deliveries(void)
 void building_monument_add_delivery(unsigned int monument_id, int figure_id, int resource_id, int num_loads)
 {
     monument_deliveries.push_back({figure_id, monument_id, resource_id, num_loads});
+}
+
+int building_monument_has_delivery_for_building(unsigned int building_id)
+{
+    for (const auto &delivery : monument_deliveries) if (delivery.destination_id == building_id) return 1;
+    return 0;
 }
 
 int building_monument_has_delivery_for_worker(int figure_id)
@@ -697,7 +716,10 @@ static int resource_in_delivery_multipart(building *b, int resource_id)
     }
 
     if (!monument->Composition) {
-        return 0;
+        for (const monument_delivery &delivery : monument_deliveries) {
+            if (delivery.destination_id == b->id && delivery.resource == resource_id) resources += delivery.cartloads;
+        }
+        return resources;
     }
     monument->Composition->for_each_member([resource_id, &resources](Building &part) {
         const building *record = part.record();

@@ -39,9 +39,9 @@ static grid_box_type price_change_buttons = {
     40,
     38 * BLOCK_SIZE,
     19 * BLOCK_SIZE,
-    30,
+    28,
     2,
-    { 10, 5 },
+    { 10, 4 },
     0,
     1,
     0,
@@ -96,7 +96,9 @@ static void update_price_changes_list(void)
         data.total_price_changes = current_price_changes;
     }
     limit_and_sort_list();
-    grid_box_update_total_items(&price_change_buttons, data.price_changes_in_use);
+    if (grid_box_get_total_items(&price_change_buttons) != data.price_changes_in_use) {
+        grid_box_update_total_items(&price_change_buttons, data.price_changes_in_use);
+    }
 }
 
 static void draw_background(void)

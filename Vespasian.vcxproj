@@ -32,6 +32,7 @@
     <ClCompile Include="src\building\BuildingFoundation.cpp" />
     <ClCompile Include="src\building\BuildingGeometry.cpp" />
     <ClCompile Include="src\building\building.cpp" />
+    <ClCompile Include="src\building\BuildingCityService.cpp" />
     <ClCompile Include="src\building\building_runtime.cpp" />
     <ClCompile Include="src\building\building_runtime_graphics.cpp" />
     <ClCompile Include="src\building\building_runtime_spawn.cpp" />
@@ -113,6 +114,7 @@
     <ClCompile Include="src\building\religion.cpp" />
     <ClCompile Include="src\building\religion_registry.cpp" />
     <ClCompile Include="src\building\properties.cpp" />
+    <ClCompile Include="src\scenario\definition_overrides.cpp" />
     <ClCompile Include="src\building\tool_mode.cpp" />
     <ClCompile Include="src\building\roadblock.cpp" />
     <ClCompile Include="src\building\rotation.cpp" />
@@ -126,6 +128,8 @@
     <ClCompile Include="src\building\variant.cpp" />
     <ClCompile Include="src\building\warehouse.cpp" />
     <ClCompile Include="src\city\buildings.cpp" />
+    <ClCompile Include="src\city\monument_gifts.cpp" />
+    <ClCompile Include="src\city\trade_ledger.cpp" />
     <ClCompile Include="src\city\culture.cpp" />
     <ClCompile Include="src\city\data.cpp" />
     <ClCompile Include="src\city\data_private.cpp" />
@@ -268,6 +272,10 @@
     <ClCompile Include="src\game\mission.cpp" />
     <ClCompile Include="src\game\defines.cpp" />
     <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\platform\mod_options_win32.cpp" />
+    <ClCompile Include="src\game\mod_settings_runtime.cpp" />
+    <ClCompile Include="src\game\mod_content.cpp" />
+    <ClCompile Include="src\figure\type.cpp" />
     <ClCompile Include="src\game\mod_definition_loader.cpp" />
     <ClCompile Include="src\startup\startup_definition_loader.cpp" />
     <ClCompile Include="src\startup\startup_parser.cpp" />
@@ -386,6 +394,7 @@
     <ClCompile Include="src\platform\log.cpp" />
     <ClCompile Include="src\platform\mouse.cpp" />
     <ClCompile Include="src\platform\platform.cpp" />
+    <ClCompile Include="src\platform\hardware_requirements.cpp" />
     <ClCompile Include="src\platform\prefs.cpp" />
     <ClCompile Include="src\platform\render_2d_pipeline.cpp" />
     <ClCompile Include="src\platform\renderer.cpp" />
@@ -563,6 +572,8 @@
     <ClCompile Include="src\window\plain_message_dialog.cpp" />
     <ClCompile Include="src\window\popup_dialog.cpp" />
     <ClCompile Include="src\window\race_bet.cpp" />
+    <ClCompile Include="src\window\epithets.cpp" />
+    <ClCompile Include="src\window\trade_ledger.cpp" />
     <ClCompile Include="src\window\resource_settings.cpp" />
     <ClCompile Include="src\window\select_campaign.cpp" />
     <ClCompile Include="src\window\select_list.cpp" />
@@ -726,6 +737,9 @@
     <ClInclude Include="src\core\buffer.h" />
     <ClInclude Include="src\core\calc.h" />
     <ClInclude Include="src\core\config.h" />
+    <ClInclude Include="src\core\config_options.h" />
+    <ClInclude Include="src\building\resource_consumption.h" />
+    <ClCompile Include="src\building\resource_consumption.cpp" />
     <ClInclude Include="src\core\dir.h" />
     <ClInclude Include="src\core\direction.h" />
     <ClInclude Include="src\core\encoding.h" />
@@ -955,7 +969,6 @@
     <ClInclude Include="src\map\water_supply.h" />
     <ClInclude Include="src\platform\arguments.h" />
     <ClInclude Include="src\platform\cursor.h" />
-    <ClInclude Include="src\platform\emscripten\emscripten.h" />
     <ClInclude Include="src\platform\file_manager.h" />
     <ClInclude Include="src\platform\file_manager_cache.h" />
     <ClInclude Include="src\platform\icon.h" />
@@ -1200,14 +1213,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)vendor\SDL2_mixer-2.8.1\include;$(ProjectDir)vendor\SDL2_ttf-2.24.0\include;$(ProjectDir)ext\easyav1_dummy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)vendor\SDL2_mixer-2.8.1\include;$(ProjectDir)vendor\SDL2_ttf-2.24.0\include;$(ProjectDir)ext\easyav1_dummy;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2-2.32.10\lib\x64;$(ProjectDir)vendor\SDL2_mixer-2.8.1\lib\x64;$(ProjectDir)vendor\SDL2_ttf-2.24.0\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_mixer.lib;SDL2_ttf.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comctl32.lib;SDL2.lib;SDL2main.lib;SDL2_mixer.lib;SDL2_ttf.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -1222,7 +1235,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)vendor\SDL2_mixer-2.8.1\include;$(ProjectDir)vendor\SDL2_ttf-2.24.0\include;$(ProjectDir)ext\easyav1_dummy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)vendor\SDL2_mixer-2.8.1\include;$(ProjectDir)vendor\SDL2_ttf-2.24.0\include;$(ProjectDir)ext\easyav1_dummy;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -1234,7 +1247,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2-2.32.10\lib\x64;$(ProjectDir)vendor\SDL2_mixer-2.8.1\lib\x64;$(ProjectDir)vendor\SDL2_ttf-2.24.0\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_mixer.lib;SDL2_ttf.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comctl32.lib;SDL2.lib;SDL2main.lib;SDL2_mixer.lib;SDL2_ttf.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>

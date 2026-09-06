@@ -8,6 +8,7 @@
 
 #include "building/building_record.h"
 #include "building/monument.h"
+#include "building/BuildingCityService.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
 #include "city/resource.h"
@@ -62,13 +63,58 @@ void figuretype::WorkCampWorker::draw(building_info_context *c)
     }
 }
 
+static Building *service_delivery_destination(Building &source, resource_type resource, map_point *destination)
+{
+    Building *best = nullptr;
+    int best_distance = 10000;
+    Building::for_each(BuildingRuntimeList::CityServices, [&](Building *target) {
+        if (!target->is_in_use() || target->road_network_id() != source.road_network_id() ||
+            target->distance_from_entry() <= 0 || !target->has_road_access(nullptr) ||
+            BuildingCityService(*target).delivery_loads_needed(resource) <= 0) return;
+        const int distance = calc_maximum_distance(source.x(), source.y(), target->x(), target->y());
+        if (distance < best_distance) { best = target; best_distance = distance; }
+    });
+    if (best && destination) best->has_road_access(destination);
+    return best;
+}
+
+static bool is_service_delivery(Building *target)
+{
+    return target && BuildingCityService(*target).definition();
+}
+
+static int delivery_loads_needed(Building &target, resource_type resource)
+{
+    return is_service_delivery(&target) ? BuildingCityService(target).delivery_loads_needed(resource) :
+        target.resource_amount(resource) - building_monument_resource_in_delivery(const_cast<building *>(target.record()), resource);
+}
+
+static bool deliver_service_load(Figure *figure)
+{
+    if (!is_service_delivery(figure->destination_building)) return false;
+    if (figure->loads_sold_or_carrying) BuildingCityService(*figure->destination_building).receive_load(static_cast<resource_type>(figure->collecting_item_id));
+    figure->loads_sold_or_carrying = 0;
+    building_monument_remove_delivery(figure->id());
+    figure->state = FIGURE_STATE_DEAD;
+    return true;
+}
+
+static bool is_external_construction_worker(const Figure *figure)
+{
+    if (!figure->building || !figure->building->type) return false;
+    const auto &gift = figure->building->type->construction().gift;
+    return gift.materials || gift.workers;
+}
+
 static int create_slave_workers(int leader_id, int first_figure_id)
 {
     Figure *f = Figure::get(first_figure_id);
     Figure *slave = Figure::create(FIGURE_WORK_CAMP_SLAVE, f->x, f->y, DIR_0_TOP);
+    if (!slave || !slave->id()) return 0;
     f = Figure::get(first_figure_id);
     slave->leading_figure_id = static_cast<short>(leader_id);
     slave->collecting_item_id = f->collecting_item_id;
+    slave->loads_sold_or_carrying = 1;
     slave->set_home_building(f->building);
     slave->set_destination_building(f->destination_building);
     slave->destination_x = f->destination_x;
@@ -88,9 +134,7 @@ static int take_resource_from_warehouse(Figure *f, Building &warehouse)
         return 0;
     }
     Building &monument = *f->destination_building;
-    building *monument_record = const_cast<building *>(monument.record());
-    int resources_needed = monument.resource_amount(resource) -
-        building_monument_resource_in_delivery(monument_record, resource);
+    int resources_needed = delivery_loads_needed(monument, resource);
     int num_loads;
     int stored = building_warehouse_get_amount(warehouse, resource);
     if (stored <= CARTLOADS_PER_MONUMENT_DELIVERY) {
@@ -106,12 +150,20 @@ static int take_resource_from_warehouse(Figure *f, Building &warehouse)
         return 0;
     }
 
-    building_warehouse_try_remove_resource(warehouse, resource, num_loads);
+    num_loads = building_warehouse_try_remove_resource(warehouse, resource, num_loads);
+    if (!num_loads) return 0;
 
     // create slave workers
     int slave = f->id();
-    for (int i = 0; i < num_loads; i++) {
-        slave = create_slave_workers(slave, f->id());
+    const int carried_by_leader = is_service_delivery(&monument) ? 1 : 0;
+    f->loads_sold_or_carrying = static_cast<unsigned char>(carried_by_leader);
+    for (int i = carried_by_leader; i < num_loads; i++) {
+        const int next_slave = create_slave_workers(slave, f->id());
+        if (!next_slave) {
+            building_warehouse_try_add_resource(warehouse, resource, num_loads - i, 0);
+            return i > 0;
+        }
+        slave = next_slave;
     }
     return 1;
 }
@@ -129,14 +181,14 @@ static int has_valid_monument_destination(Figure *f)
 
 void figure_workcamp_worker_action(Figure *f)
 {
-    f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
+    f->terrain_usage = static_cast<unsigned char>(is_external_construction_worker(f) ? TERRAIN_USAGE_PREFER_ROADS_HIGHWAY : TERRAIN_USAGE_ROADS_HIGHWAY);
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
         return;
     }
     Building &source = *f->building;
     building *b = const_cast<building *>(source.record());
-    map_point dst;
+    map_point dst{};
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -150,17 +202,15 @@ void figure_workcamp_worker_action(Figure *f)
             figure_combat_handle_corpse(f);
             break;
         case FIGURE_ACTION_203_WORK_CAMP_WORKER_CREATED:
-            if (!building_monument_has_unfinished_monuments()) {
-                f->state = FIGURE_STATE_DEAD;
-                break;
-            }
+            // Construction has first priority across all resources; maintenance is the second pass.
+            for (int priority = 0; priority < 2 && !f->destination_building; ++priority) {
             for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
                 const resource_type resource = static_cast<resource_type>(resource_id);
                 if (city_resource_is_stockpiled(resource) || !resource_is_storable(resource)) {
                     continue;
                 }
-                Building *monument = building_monument_get_monument(
-                    source.x(), source.y(), resource, source.road_network_id(), 0);
+                Building *monument = priority == 0 ? building_monument_get_monument(source.x(), source.y(), resource, source.road_network_id(), nullptr) :
+                    service_delivery_destination(source, resource, nullptr);
                 if (!monument) {
                     continue;
                 }
@@ -171,17 +221,16 @@ void figure_workcamp_worker_action(Figure *f)
                 }
 
                 f->collecting_item_id = static_cast<unsigned char>(resource);
-    f->set_destination_building(warehouse);
+                f->set_destination_building(warehouse);
                 f->destination_x = static_cast<unsigned char>(dst.x);
                 f->destination_y = static_cast<unsigned char>(dst.y);
                 f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS));
                 f->action_state = FIGURE_ACTION_204_WORK_CAMP_WORKER_GETTING_RESOURCES;
-                building *monument_record = const_cast<building *>(monument->record());
-                int resources_needed = monument_record->resources[resource] -
-                    building_monument_resource_in_delivery(monument_record, resource);
+                int resources_needed = delivery_loads_needed(*monument, resource);
                 resources_needed = calc_bound(resources_needed, 0, CARTLOADS_PER_MONUMENT_DELIVERY);
                 building_monument_add_delivery(monument->id, f->id(), resource, resources_needed);
                 break;
+            }
             }
             if (!f->destination_building) {
                 f->state = FIGURE_STATE_DEAD;
@@ -199,8 +248,9 @@ void figure_workcamp_worker_action(Figure *f)
                 Building *warehouse = f->destination_building;
                 Building *monument = building_monument_get_monument(
                     source.x(), source.y(), f->collecting_item_id, source.road_network_id(), &dst);
+                if (!monument) monument = service_delivery_destination(source, static_cast<resource_type>(f->collecting_item_id), &dst);
                 f->action_state = FIGURE_ACTION_205_WORK_CAMP_WORKER_GOING_TO_MONUMENT;
-    f->set_destination_building(monument);
+                f->set_destination_building(monument);
                 f->destination_x = static_cast<unsigned char>(dst.x);
                 f->destination_y = static_cast<unsigned char>(dst.y);
                 f->previous_tile_x = f->x;
@@ -212,7 +262,7 @@ void figure_workcamp_worker_action(Figure *f)
                     f->state = FIGURE_STATE_DEAD;
                 } else {
                     // Placeholder delivery
-                    building_monument_add_delivery(monument->id, f->id(), f->collecting_item_id, 0);
+                    building_monument_add_delivery(monument->id, f->id(), f->collecting_item_id, f->loads_sold_or_carrying);
                 }
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
@@ -226,6 +276,11 @@ void figure_workcamp_worker_action(Figure *f)
             }
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
+                if (is_service_delivery(f->destination_building)) {
+                    if (f->direction == DIR_FIGURE_AT_DESTINATION) deliver_service_load(f);
+                    else f->state = FIGURE_STATE_DEAD;
+                    break;
+                }
                 f->wait_ticks = static_cast<short>(game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS));
                 f->action_state = FIGURE_ACTION_216_WORK_CAMP_WORKER_ENTERING_MONUMENT;
                 building *monument = f->destination_building ?
@@ -264,7 +319,7 @@ void figure_workcamp_worker_action(Figure *f)
 void figure_workcamp_slave_action(Figure *f)
 {
     f->is_ghost = 0;
-    f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
+    f->terrain_usage = static_cast<unsigned char>(is_external_construction_worker(f) ? TERRAIN_USAGE_PREFER_ROADS_HIGHWAY : TERRAIN_USAGE_ROADS_HIGHWAY);
     figure_image_increase_offset(f, 12);
     f->clear_legacy_cart_overlay_image();
     Figure *leader = Figure::get(f->leading_figure_id);
@@ -313,6 +368,11 @@ void figure_workcamp_slave_action(Figure *f)
             }
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
+                if (is_service_delivery(f->destination_building)) {
+                    if (f->direction == DIR_FIGURE_AT_DESTINATION) deliver_service_load(f);
+                    else f->state = FIGURE_STATE_DEAD;
+                    break;
+                }
                 f->action_state = FIGURE_ACTION_211_WORK_CAMP_SLAVE_DELIVERING_RESOURCES;
                 building *monument = f->destination_building ?
                     const_cast<building *>(f->destination_building->record()) :
@@ -356,7 +416,7 @@ void figure_workcamp_slave_action(Figure *f)
 
 void figure_workcamp_architect_action(Figure *f)
 {
-    f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
+    f->terrain_usage = static_cast<unsigned char>(is_external_construction_worker(f) ? TERRAIN_USAGE_PREFER_ROADS_HIGHWAY : TERRAIN_USAGE_ROADS_HIGHWAY);
     if (!f->building) {
         f->state = FIGURE_STATE_DEAD;
         return;

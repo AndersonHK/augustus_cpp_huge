@@ -22,7 +22,7 @@
 
 struct scenario_t scenario;
 
-static struct {
+struct ScenarioBufferOffsets {
     size_t size;
     size_t start_info;
     size_t original_requests_part1;
@@ -57,7 +57,8 @@ static struct {
 
     // Cache info
     int version;
-} buffer_offsets;
+};
+static ScenarioBufferOffsets buffer_offsets;
 
 namespace {
 
@@ -118,12 +119,12 @@ static int scenario_version_for_savegame(int savegame_version)
 
 } // namespace
 
-static void calculate_buffer_offsets(int scenario_version)
+static void calculate_buffer_offsets(int scenario_version, ScenarioBufferOffsets &offsets = buffer_offsets)
 {
-    if (buffer_offsets.version && buffer_offsets.version == scenario_version) {
+    if (offsets.version && offsets.version == scenario_version) {
         return;
     }
-    buffer_offsets = {};
+    offsets = {};
     size_t next_start_offset = 0;
     auto next = [&next_start_offset](size_t bytes) {
         const size_t start = next_start_offset;
@@ -132,98 +133,98 @@ static void calculate_buffer_offsets(int scenario_version)
     };
 
     if (scenario_version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.size = next(sizeof(int32_t));
+        offsets.size = next(sizeof(int32_t));
     }
 
-    buffer_offsets.start_info = next(14);
+    offsets.start_info = next(14);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part1 = next(MAX_ORIGINAL_REQUESTS * 8);
+        offsets.original_requests_part1 = next(MAX_ORIGINAL_REQUESTS * 8);
     }
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_invasions_part1 = next(MAX_ORIGINAL_INVASIONS * 10);
+        offsets.original_invasions_part1 = next(MAX_ORIGINAL_INVASIONS * 10);
     }
 
-    buffer_offsets.start_funds_and_enemy_id = next(14);
+    offsets.start_funds_and_enemy_id = next(14);
 
-    buffer_offsets.map_size = next(16);
+    offsets.map_size = next(16);
 
-    buffer_offsets.briefing = next(MAX_BRIEF_DESCRIPTION + MAX_BRIEFING);
+    offsets.briefing = next(MAX_BRIEF_DESCRIPTION + MAX_BRIEFING);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part2 = next(MAX_ORIGINAL_REQUESTS);
+        offsets.original_requests_part2 = next(MAX_ORIGINAL_REQUESTS);
     }
 
-    buffer_offsets.image = next(6);
+    offsets.image = next(6);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         next(2); // favour reset monthly pattern is +2 bytes
     }
-    buffer_offsets.herds = next(MAX_HERD_POINTS * 4);
+    offsets.herds = next(MAX_HERD_POINTS * 4);
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_demand_changes = next(MAX_ORIGINAL_DEMAND_CHANGES * 9);
+        offsets.original_demand_changes = next(MAX_ORIGINAL_DEMAND_CHANGES * 9);
 
-        buffer_offsets.original_price_changes = next(MAX_ORIGINAL_PRICE_CHANGES * 6);
+        offsets.original_price_changes = next(MAX_ORIGINAL_PRICE_CHANGES * 6);
     }
 
-    buffer_offsets.gladiator_revolt = next(8);
+    offsets.gladiator_revolt = next(8);
 
-    buffer_offsets.emperor_change = next(8);
+    offsets.emperor_change = next(8);
 
-    buffer_offsets.random_events = next(36);
+    offsets.random_events = next(36);
 
-    buffer_offsets.fishing = next(MAX_FISH_POINTS * 4);
+    offsets.fishing = next(MAX_FISH_POINTS * 4);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part3 = next(MAX_ORIGINAL_REQUESTS);
+        offsets.original_requests_part3 = next(MAX_ORIGINAL_REQUESTS);
     }
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_invasions_part2 = next(MAX_ORIGINAL_INVASIONS * 1);
+        offsets.original_invasions_part2 = next(MAX_ORIGINAL_INVASIONS * 1);
     }
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part4 = next(MAX_ORIGINAL_REQUESTS * 4);
+        offsets.original_requests_part4 = next(MAX_ORIGINAL_REQUESTS * 4);
     }
 
-    buffer_offsets.rome_wheat = next(4);
+    offsets.rome_wheat = next(4);
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.allowed_buildings = next(MAX_ORIGINAL_ALLOWED_BUILDINGS * 2);
+        offsets.allowed_buildings = next(MAX_ORIGINAL_ALLOWED_BUILDINGS * 2);
     }
 
-    buffer_offsets.win_criteria = next(52);
+    offsets.win_criteria = next(52);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         next(1); // earthkek pattern is +1 byte
     }
-    buffer_offsets.map_points = next(12);
+    offsets.map_points = next(12);
 
-    buffer_offsets.invasion_points = next(MAX_INVASION_POINTS * 4);
+    offsets.invasion_points = next(MAX_INVASION_POINTS * 4);
 
-    buffer_offsets.misc = next(51);
+    offsets.misc = next(51);
 
     if (scenario_version > SCENARIO_LAST_NO_ALT_NATIVE_HUTS) {
-        buffer_offsets.alt_huts = next(4);
+        offsets.alt_huts = next(4);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_EXTRA_NATIVE_BUILDINGS) {
-        buffer_offsets.native_buildings = next(12);
+        offsets.native_buildings = next(12);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_CUSTOM_MESSAGES) {
-        buffer_offsets.introduction = next(4);
+        offsets.introduction = next(4);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_CUSTOM_VARIABLES && scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.custom_variables = next(MAX_ORIGINAL_CUSTOM_VARIABLES * 9);
+        offsets.custom_variables = next(MAX_ORIGINAL_CUSTOM_VARIABLES * 9);
     }
 
-    buffer_offsets.custom_name = next(0);
-    buffer_offsets.end = buffer_offsets.custom_name +
+    offsets.custom_name = next(0);
+    offsets.end = offsets.custom_name +
         (scenario_version > SCENARIO_LAST_WRONG_END_OFFSET ? sizeof(scenario.empire.custom_name) : 50) + 1;
 
-    buffer_offsets.version = scenario_version;
+    offsets.version = scenario_version;
 }
 
 int scenario_get_state_buffer_size_by_savegame_version(int savegame_version)
@@ -231,8 +232,9 @@ int scenario_get_state_buffer_size_by_savegame_version(int savegame_version)
     if (savegame_version <= SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
         return 1720;
     }
-    calculate_buffer_offsets(scenario_version_for_savegame(savegame_version));
-    return (int) buffer_offsets.end;
+    ScenarioBufferOffsets offsets{};
+    calculate_buffer_offsets(scenario_version_for_savegame(savegame_version), offsets);
+    return (int) offsets.end;
 }
 
 int scenario_get_state_buffer_size_by_scenario_version(int scenario_version)

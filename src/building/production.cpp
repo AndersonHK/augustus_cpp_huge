@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/industry.h"
 
 #include "building/building_record.h"
@@ -300,15 +301,24 @@ void Production::start_new_production()
             output_record->data.industry.production_current_month = static_cast<short>(
                 output_record->data.industry.production_current_month + output_amount(*method_));
         }
+        if (!method_->spawns_fishing_boat()) city_trade_ledger_produced(method_->output_resource(), output_amount(*method_));
         legacy->data.industry.progress = 0;
     }
 
     if (raw_materials_available) {
-        for (const building_type_registry_impl::ProductionResourceAmount &input : method_->inputs()) {
-            const int resource_slot_index = get_resource_slot_index(input.resource);
-            if (resource_slot_index >= 0) {
-                context_building().add_storage_resource(input.resource, -method_->scaled_input_amount(input),
-                    building_type_registry_impl::StorageRole::Input);
+        if (method_->input_source() == ResourceConsumptionSource::GlobalStockpile) {
+            std::vector<ResourceConsumptionAmount> requirements;
+            for (const auto &input : method_->inputs()) requirements.push_back({input.resource, method_->scaled_input_amount(input)});
+            if (!resource_stockpile_consume(requirements)) { legacy->data.industry.has_raw_materials = 0; return; }
+        } else {
+            for (const building_type_registry_impl::ProductionResourceAmount &input : method_->inputs()) {
+                const int resource_slot_index = get_resource_slot_index(input.resource);
+                if (resource_slot_index >= 0) {
+                    const int before = context_building().storage_resource_amount(input.resource, building_type_registry_impl::StorageRole::Input);
+                    context_building().add_storage_resource(input.resource, -method_->scaled_input_amount(input), building_type_registry_impl::StorageRole::Input);
+                    const int after = context_building().storage_resource_amount(input.resource, building_type_registry_impl::StorageRole::Input);
+                    city_trade_ledger_consumed(input.resource, before - after);
+                }
             }
         }
     }

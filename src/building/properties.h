@@ -32,9 +32,12 @@ enum {
  * Resets model data from properties
  */
 void model_reset(void);
+void model_capture_mod_defaults(void);
+const model_building *model_get_mod_defaults(building_type type);
+void model_mark_scenario_override(building_type type, int field);
 
 void model_save_model_data(buffer *buf);
-void model_load_model_data(buffer *buf);
+int model_load_model_data(buffer *buf, bool keyed = false);
 
 /**
  * Gets the model for a building
@@ -42,6 +45,7 @@ void model_load_model_data(buffer *buf);
  * @return Read-only model
  */
 model_building *model_get_building(building_type type);
+int model_get_construction_cost(building_type type);
 
 // PROPERTIES
 

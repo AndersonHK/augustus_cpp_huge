@@ -245,9 +245,6 @@ void performance_tracker_init(int enabled)
 
     const std::string log_file = platform::logging_path() + "vespasian-performance.log";
 
-#if defined(__vita__) || defined(__ANDROID__)
-    file_remove(log_file);
-#endif
     data.log_file = file_open(log_file, "wt");
     if (!data.log_file) {
         log_error("Unable to open Vespasian performance log", log_file.c_str(), 0);

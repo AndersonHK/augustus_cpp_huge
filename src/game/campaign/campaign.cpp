@@ -1,3 +1,4 @@
+#include "city/emperor.h"
 #include "translation/translation.h"
 #include "game/campaign.h"
 
@@ -147,7 +148,7 @@ uint8_t *game_campaign_load_file(const char *filename, size_t *length)
     return static_cast<uint8_t *>(campaign_file_load(filename, length));
 }
 
-static int fill_mission_info(const campaign_mission *mission)
+static int fill_mission_info(const campaign_mission *mission, int inherited_rank = -1)
 {
     if (!mission) {
         data.mission_info.title = 0;
@@ -165,16 +166,16 @@ static int fill_mission_info(const campaign_mission *mission)
         data.mission_info.background_image.id = mission->background_image.id;
         data.mission_info.background_image.path = mission->background_image.path;
         data.mission_info.max_personal_savings = mission->max_personal_savings;
-        data.mission_info.next_rank = mission->next_rank;
+        data.mission_info.next_rank = mission->next_rank == -1 ? (inherited_rank >= 0 ? inherited_rank : city_emperor_rank()) : mission->next_rank;
         data.mission_info.first_scenario = mission->first_scenario;
         data.mission_info.total_scenarios = mission->last_scenario - mission->first_scenario + 1;
         return 1;
     }
 }
 
-const campaign_mission_info *game_campaign_get_current_mission(int scenario_id)
+const campaign_mission_info *game_campaign_get_current_mission(int scenario_id, int inherited_rank)
 {
-    if (!data.active || !fill_mission_info(campaign_mission_current(scenario_id))) {
+    if (!data.active || !fill_mission_info(campaign_mission_current(scenario_id), inherited_rank)) {
         return 0;
     }
     return &data.mission_info;

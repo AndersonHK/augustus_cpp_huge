@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="emigrant" graphics_only="true">
+<figure type="emigrant">
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Migrant" />

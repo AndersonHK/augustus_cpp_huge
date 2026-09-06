@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="advisor_financial" base_width="640" base_height="432">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" phase="background" width="640" height="432" />
+    <widget type="label" id="title" translation="main_strings.60.0" x="24" y="12" width="360" font="large_black" />
+    <widget type="text_button" id="ledger" action="ledger.show" translation="TR_TRADE_LEDGER" x="448" y="10" width="168" height="26" text_offset_y="5" />
+    <widget type="panel" id="tax_panel" style="inner_panel" phase="background" x="24" y="46" width="592" height="70" />
+    <widget type="label" id="treasury_label" translation="main_strings.60.2" x="40" y="54" width="220" font="normal_white" />
+    <widget type="label" id="treasury" binding="finance.treasury" x="290" y="54" width="100" font="normal_white" />
+    <widget type="label" id="tax_label" translation="main_strings.60.1" x="40" y="79" width="130" font="normal_white" />
+    <widget type="text_button" id="less" text="-" action="tax.less" repeat_on_hold="true" x="175" y="73" width="24" height="22" text_offset_y="3" />
+    <widget type="label" id="tax" binding="finance.tax" x="210" y="79" width="50" font="normal_white" />
+    <widget type="text_button" id="more" text="+" action="tax.more" repeat_on_hold="true" x="260" y="73" width="24" height="22" text_offset_y="3" />
+    <widget type="label" id="estimate_label" translation="main_strings.60.4" x="306" y="79" width="190" font="normal_white" />
+    <widget type="label" id="estimate" binding="finance.estimate" x="510" y="79" width="90" font="normal_white" />
+    <widget type="label" id="taxpayers" binding="finance.taxpayers" x="40" y="100" width="60" font="small_plain" />
+    <widget type="label" id="taxpayers_label" translation="main_strings.60.5" x="103" y="100" width="490" font="small_plain" />
+    <widget type="label" id="previous" translation="main_strings.60.6" x="335" y="126" width="110" />
+    <widget type="label" id="current" translation="main_strings.60.7" x="485" y="126" width="110" />
+    <widget type="label" id="taxes_label" translation="main_strings.60.8" x="40" y="148" width="290" />
+    <widget type="label" id="previous_taxes" binding="previous.taxes" x="335" y="148" width="110" text_alignment="right" />
+    <widget type="label" id="current_taxes" binding="current.taxes" x="485" y="148" width="110" text_alignment="right" />
+    <widget type="label" id="exports_label" translation="main_strings.60.9" x="40" y="166" width="290" />
+    <widget type="label" id="previous_exports" binding="previous.exports" x="335" y="166" width="110" text_alignment="right" />
+    <widget type="label" id="current_exports" binding="current.exports" x="485" y="166" width="110" text_alignment="right" />
+    <widget type="label" id="tourism_label" translation="TR_WINDOW_ADVISOR_TOURISM" x="40" y="184" width="290" />
+    <widget type="label" id="previous_tourism" binding="previous.tourism" x="335" y="184" width="110" text_alignment="right" />
+    <widget type="label" id="current_tourism" binding="current.tourism" x="485" y="184" width="110" text_alignment="right" />
+    <widget type="label" id="donated_label" translation="main_strings.60.20" x="40" y="202" width="290" />
+    <widget type="label" id="previous_donated" binding="previous.donated" x="335" y="202" width="110" text_alignment="right" />
+    <widget type="label" id="current_donated" binding="current.donated" x="485" y="202" width="110" text_alignment="right" />
+    <widget type="label" id="income_label" translation="main_strings.60.10" x="40" y="220" width="290" />
+    <widget type="label" id="previous_income" binding="previous.income" x="335" y="220" width="110" text_alignment="right" />
+    <widget type="label" id="current_income" binding="current.income" x="485" y="220" width="110" text_alignment="right" />
+    <widget type="label" id="imports_label" translation="main_strings.60.11" x="40" y="238" width="290" />
+    <widget type="label" id="previous_imports" binding="previous.imports" x="335" y="238" width="110" text_alignment="right" />
+    <widget type="label" id="current_imports" binding="current.imports" x="485" y="238" width="110" text_alignment="right" />
+    <widget type="label" id="wages_label" translation="main_strings.60.12" x="40" y="256" width="290" />
+    <widget type="label" id="previous_wages" binding="previous.wages" x="335" y="256" width="110" text_alignment="right" />
+    <widget type="label" id="current_wages" binding="current.wages" x="485" y="256" width="110" text_alignment="right" />
+    <widget type="label" id="construction_label" translation="main_strings.60.13" x="40" y="274" width="290" />
+    <widget type="label" id="previous_construction" binding="previous.construction" x="335" y="274" width="110" text_alignment="right" />
+    <widget type="label" id="current_construction" binding="current.construction" x="485" y="274" width="110" text_alignment="right" />
+    <widget type="label" id="levies_label" translation="TR_ADVISOR_FINANCE_LEVIES" x="40" y="292" width="290" />
+    <widget type="label" id="previous_levies" binding="previous.levies" x="335" y="292" width="110" text_alignment="right" />
+    <widget type="label" id="current_levies" binding="current.levies" x="485" y="292" width="110" text_alignment="right" />
+    <widget type="label" id="salary_label" translation="main_strings.60.15" x="40" y="310" width="290" />
+    <widget type="label" id="previous_salary" binding="previous.salary" x="335" y="310" width="110" text_alignment="right" />
+    <widget type="label" id="current_salary" binding="current.salary" x="485" y="310" width="110" text_alignment="right" />
+    <widget type="label" id="sundries_label" translation="main_strings.60.16" x="40" y="328" width="290" />
+    <widget type="label" id="previous_sundries" binding="previous.sundries" x="335" y="328" width="110" text_alignment="right" />
+    <widget type="label" id="current_sundries" binding="current.sundries" x="485" y="328" width="110" text_alignment="right" />
+    <widget type="label" id="interest_tribute_label" translation="TR_WINDOW_ADVISOR_FINANCE_INTEREST_TRIBUTE" x="40" y="346" width="290" />
+    <widget type="label" id="previous_interest_tribute" binding="previous.interest_tribute" x="335" y="346" width="110" text_alignment="right" />
+    <widget type="label" id="current_interest_tribute" binding="current.interest_tribute" x="485" y="346" width="110" text_alignment="right" />
+    <widget type="label" id="expenses_label" translation="main_strings.60.17" x="40" y="364" width="290" />
+    <widget type="label" id="previous_expenses" binding="previous.expenses" x="335" y="364" width="110" text_alignment="right" />
+    <widget type="label" id="current_expenses" binding="current.expenses" x="485" y="364" width="110" text_alignment="right" />
+    <widget type="label" id="net_label" translation="main_strings.60.18" x="40" y="382" width="290" />
+    <widget type="label" id="previous_net" binding="previous.net" x="335" y="382" width="110" text_alignment="right" />
+    <widget type="label" id="current_net" binding="current.net" x="485" y="382" width="110" text_alignment="right" />
+    <widget type="label" id="balance_label" translation="main_strings.60.19" x="40" y="400" width="290" />
+    <widget type="label" id="previous_balance" binding="previous.balance" x="335" y="400" width="110" text_alignment="right" />
+    <widget type="label" id="current_balance" binding="current.balance" x="485" y="400" width="110" text_alignment="right" />
+</window>

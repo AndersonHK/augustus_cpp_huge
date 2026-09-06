@@ -1,3 +1,5 @@
+#include "core/config.h"
+#include "scenario/property.h"
 #include "widget/city_draw.h"
 
 #include "assets/assets.h"
@@ -65,7 +67,15 @@ void city_draw_grid_overlay(int x, int y, float scale)
         grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
     }
     performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_GRID_OVERLAYS, 1);
-    Image::from_id(grid_id).draw(x, y, COLOR_GRID, scale);
+    color_t color = COLOR_GRID;
+    if (config_get(CONFIG_UI_CLIMATE_GRID_COLORS)) {
+        switch (scenario_property_climate()) {
+            case CLIMATE_DESERT: color = 0xff464646; break;
+            case CLIMATE_NORTHERN: color = 0xff131b1f; break;
+            default: color = 0xff162d39; break;
+        }
+    }
+    Image::from_id(grid_id).draw(x, y, color, scale);
 }
 
 void city_draw_prepare_render_tile_rows(CityViewRenderCommandBuffer &commands)

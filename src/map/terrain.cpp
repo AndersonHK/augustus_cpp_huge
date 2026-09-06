@@ -13,6 +13,8 @@
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"
+#include "map/data.h"
+#include <map>
 #include "map/property.h"
 #include "map/ring.h"
 #include "map/sprite.h"
@@ -20,6 +22,23 @@
 
 static grid_u32 terrain_grid;
 static grid_u32 terrain_grid_backup;
+static std::map<uint32_t, int> terrain_counts;
+
+static void terrain_count_changed(int offset, uint32_t before, uint32_t after)
+{
+    if (terrain_counts.empty() || !map_grid_is_inside(map_grid_offset_to_x(offset), map_grid_offset_to_y(offset), 1)) return;
+    for (auto &[mask, count] : terrain_counts) count += static_cast<int>((after & mask) != 0) - static_cast<int>((before & mask) != 0);
+}
+
+int map_terrain_count(unsigned int terrain_mask)
+{
+    const auto existing = terrain_counts.find(terrain_mask);
+    if (existing != terrain_counts.end()) return existing->second;
+    int count = 0;
+    for (int y = 0; y < map_data.height; ++y) for (int x = 0; x < map_data.width; ++x) count += (terrain_grid.items[map_grid_offset(x, y)] & terrain_mask) != 0;
+    terrain_counts[terrain_mask] = count;
+    return count;
+}
 
 static bool water_membership_differs(const uint32_t *other)
 {
@@ -111,6 +130,7 @@ void map_terrain_set(int grid_offset, int terrain)
         (old_terrain & static_cast<uint32_t>(TERRAIN_WATER)) !=
         (static_cast<uint32_t>(terrain) & static_cast<uint32_t>(TERRAIN_WATER));
     terrain_grid.items[grid_offset] = terrain;
+    terrain_count_changed(grid_offset, old_terrain, terrain_grid.items[grid_offset]);
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
@@ -123,6 +143,7 @@ void map_terrain_add(int grid_offset, int terrain)
     const bool water_changed =
         (terrain & TERRAIN_WATER) && !(old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] |= terrain;
+    terrain_count_changed(grid_offset, old_terrain, terrain_grid.items[grid_offset]);
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
@@ -136,6 +157,7 @@ void map_terrain_remove(int grid_offset, int terrain)
     const bool water_changed =
         (terrain & TERRAIN_WATER) && (old_terrain & TERRAIN_WATER);
     terrain_grid.items[grid_offset] &= ~terrain;
+    terrain_count_changed(grid_offset, old_terrain, terrain_grid.items[grid_offset]);
     if (water_changed) {
         water_navigation::invalidate_topology();
     }
@@ -169,6 +191,7 @@ void map_terrain_remove_with_radius(int x, int y, int size, int radius, int terr
 
 void map_terrain_remove_all(int terrain)
 {
+    terrain_counts.clear();
     bool water_changed = false;
     if (terrain & TERRAIN_WATER) {
         for (const std::uint32_t value : terrain_grid.items) {
@@ -495,6 +518,7 @@ void map_terrain_backup(void)
 
 void map_terrain_restore(void)
 {
+    terrain_counts.clear();
     const bool water_changed = water_membership_differs(terrain_grid_backup.items);
     map_grid_copy_u32(terrain_grid_backup.items, terrain_grid.items);
     if (water_changed) {
@@ -504,6 +528,7 @@ void map_terrain_restore(void)
 
 void map_terrain_clear(void)
 {
+    terrain_counts.clear();
     bool water_changed = false;
     for (const uint32_t value : terrain_grid.items) {
         if (value & TERRAIN_WATER) {
@@ -519,6 +544,7 @@ void map_terrain_clear(void)
 
 void map_terrain_init_outside_map(void)
 {
+    terrain_counts.clear();
     int map_width, map_height;
     map_grid_size(&map_width, &map_height);
     int y_start = (GRID_SIZE - map_height) / 2;
@@ -774,6 +800,7 @@ int map_terrain_validate_loaded_walls(void)
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer)
 {
+    terrain_counts.clear();
     if (expanded_terrain_data) {
         map_grid_load_state_u32(terrain_grid.items, buf);
     } else {

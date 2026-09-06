@@ -1,3 +1,6 @@
+#include "scenario/definition_overrides.h"
+#include "building/resource_consumption.h"
+#include "city/warning.h"
 #include "editor/editor.h"
 #include "translation/translation.h"
 #include "city.h"
@@ -464,6 +467,31 @@ static int generate_trader(int city_id, empire_city *city)
     return 0;
 }
 
+int empire_city_trade_resource_cost(int route_id, resource_type resource)
+{
+    return scenario_definition_override_value(ScenarioOverrideKind::RouteResource, std::to_string(route_id), 0, resource_text_id(resource), 0);
+}
+
+static bool trade_resource_costs(int route_id, std::vector<ResourceConsumptionAmount> &inputs)
+{
+    for (int i = 1; i < RESOURCE_SLOT_COUNT; ++i) {
+        auto resource = static_cast<resource_type>(i);
+        if (!resource_is_declared(resource)) continue;
+        int loads = empire_city_trade_resource_cost(route_id, resource);
+        const int64_t amount = static_cast<int64_t>(loads) * resource_units_per_load();
+        if (amount < 0 || amount > INT_MAX) return false;
+        if (amount) inputs.push_back({resource, static_cast<int>(amount)});
+    }
+    return true;
+}
+
+int empire_city_can_pay_trade_resources(int city_id)
+{
+    const auto *city = city_at(city_id);
+    std::vector<ResourceConsumptionAmount> inputs;
+    return city && trade_resource_costs(city->route_id, inputs) && resource_stockpile_has(inputs, true);
+}
+
 void empire_city_open_trade(int city_id, int apply_cost)
 {
     empire_city *city = city_at(city_id);
@@ -471,7 +499,10 @@ void empire_city_open_trade(int city_id, int apply_cost)
         return;
     }
     const int was_open = city->is_open;
+    if (was_open) return;
     if (apply_cost) {
+        std::vector<ResourceConsumptionAmount> inputs;
+        if (!trade_resource_costs(city->route_id, inputs) || !resource_stockpile_consume(inputs, true)) { city_warning_show_translated(WARNING_RESOURCES_NOT_AVAILABLE); return; }
         city_finance_process_sundry(city->cost_to_open);
     }
     city->is_open = 1;
@@ -571,8 +602,10 @@ int empire_city_change_own_resource_availability(resource_type resource, int is_
 
 const uint8_t *empire_city_get_name(const empire_city *city)
 {
+    if (!city) return reinterpret_cast<const uint8_t *>("");
+    if (const char *name = scenario_definition_override_text(ScenarioOverrideKind::CityName, std::to_string(city->empire_object_id))) return reinterpret_cast<const uint8_t *>(name);
     full_empire_object *full = empire_object_get_full(city->empire_object_id);
-    if (string_length(full->city_custom_name)) {
+    if (full && string_length(full->city_custom_name)) {
         return full->city_custom_name;
     }
     return lang_get_string(current_string_key(21, city->name_id));

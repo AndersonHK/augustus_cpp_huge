@@ -401,6 +401,7 @@ void game_undo_perform(void)
 
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"low_bridge", "ship_bridge"})) {
         map_terrain_restore();
+        map_building_restore();
         map_sprite_restore();
         restore_map_images();
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {

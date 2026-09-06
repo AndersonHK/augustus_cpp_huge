@@ -137,8 +137,6 @@ const char *system_OS(void)
     return "NetBSD";
 #elif defined(__OpenBSD__)
     return "OpenBSD";
-#elif defined(__vita__)
-    return "PlayStation Vita";
 #elif defined(__SWITCH__)
     return "Nintendo Switch";
 #elif defined(__ANDROID__)

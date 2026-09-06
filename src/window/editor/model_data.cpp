@@ -23,6 +23,8 @@
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
+#include <algorithm>
+#include "definition_controls.h"
 
 #define NO_SELECTION (unsigned int) -1
 #define NUM_DATA_BUTTONS (sizeof(data_buttons) / sizeof(generic_button))
@@ -324,6 +326,7 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog();
+    draw_definition_controls();
 
     for (unsigned int i = 0; i < NUM_STATIC_BUTTONS; i++) {
         button_border_draw(static_buttons[i].x, static_buttons[i].y,
@@ -353,6 +356,7 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
+    if (GenericButtonList(definition_controls, 2).handle_mouse(*m_dialog, 0, 0, &definition_control_focus)) return;
     if (GenericButtonList(static_buttons, NUM_STATIC_BUTTONS).handle_mouse(
         *m_dialog,
         0,

@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/building.h"
 #include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
@@ -99,7 +100,6 @@ static struct {
     int start_offset_x_view;
     int start_offset_y_view;
     int cycle_step;
-    int auto_cycling;
 } data;
 
 static int last_items_cleared;
@@ -210,7 +210,8 @@ static void construction_requirements_remove(
          resource = static_cast<resource_type>(resource + 1)) {
         int amount = construction.instant_requirement_amount(resource);
         if (amount > 0) {
-            building_warehouses_remove_resource(resource, amount);
+            const int remaining = building_warehouses_remove_resource(resource, amount);
+            city_trade_ledger_consumed(resource, (amount - remaining) * resource_units_per_load());
         }
     }
 }
@@ -445,15 +446,35 @@ int building_construction_cycle_back(void)
     return 0;
 }
 
-int building_construction_is_auto_cycling(void)
+static std::string auto_cycle_group(building_type type)
 {
-    return data.auto_cycling;
+    const auto *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_cycle() ? definition->cycle().group() : "";
 }
 
-void building_construction_toggle_auto_cycle(void)
+int building_construction_is_auto_cycling_for_type(building_type type)
 {
-    data.auto_cycling ^= 1;
+    const std::string group = auto_cycle_group(type);
+    if (group.empty()) return 0;
+    const std::string enabled = config_get_string(CONFIG_STRING_UI_AUTO_CYCLE_GROUPS);
+    return enabled.find(";" + group + ";") != std::string::npos;
 }
+
+int building_construction_is_auto_cycling(void) { return building_construction_is_auto_cycling_for_type(data.tool.type); }
+
+void building_construction_toggle_auto_cycle_for_type(building_type type)
+{
+    const std::string group = auto_cycle_group(type);
+    if (group.empty()) return;
+    std::string enabled = config_get_string(CONFIG_STRING_UI_AUTO_CYCLE_GROUPS);
+    const std::string token = ";" + group + ";";
+    const auto position = enabled.find(token);
+    if (position == std::string::npos) enabled += token;
+    else enabled.erase(position, token.size());
+    config_set_string(CONFIG_STRING_UI_AUTO_CYCLE_GROUPS, enabled.c_str());
+}
+
+void building_construction_toggle_auto_cycle(void) { building_construction_toggle_auto_cycle_for_type(data.tool.type); }
 
 static void mark_construction(int x, int y, int size, int terrain, int absolute_xy)
 {
@@ -743,7 +764,7 @@ static int place_reservoir_and_aqueducts(
     }
     if (!distance) {
         if (info->place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-            info->cost = model_get_building(reservoir_type)->cost;
+            info->cost = model_get_construction_cost(reservoir_type);
         }
         return 1;
     }
@@ -794,13 +815,13 @@ static int place_reservoir_and_aqueducts(
     building_construction_place_aqueduct_for_reservoir(measure_only, aqueduct_type, x_start + x_aq_start, y_start + y_aq_start,
         x_end + x_aq_end, y_end + y_aq_end, &aq_items, aqueduct_route);
     if (info->place_reservoir_at_start == PLACE_RESERVOIR_YES) {
-        info->cost += model_get_building(reservoir_type)->cost;
+        info->cost += model_get_construction_cost(reservoir_type);
     }
     if (info->place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-        info->cost += model_get_building(reservoir_type)->cost;
+        info->cost += model_get_construction_cost(reservoir_type);
     }
     if (aq_items) {
-        info->cost += aq_items * model_get_building(aqueduct_type)->cost;
+        info->cost += aq_items * model_get_construction_cost(aqueduct_type);
     }
     return 1;
 }
@@ -1045,7 +1066,7 @@ void building_construction_update(int x, int y, int grid_offset)
     }
 
     map_property_clear_constructing_and_deleted();
-    int current_cost = model_get_building(type)->cost;
+    int current_cost = model_get_construction_cost(type);
     int repaired_buildings = 0;
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
@@ -1131,7 +1152,7 @@ void building_construction_update(int x, int y, int grid_offset)
                     building_construction_assess_placement(
                         *reservoir_definition, end_reservoir.origin_x, end_reservoir.origin_y, 1, 0);
                 data.can_place = assessment.can_place;
-                current_cost = data.can_place ? model_get_building(reservoir_type)->cost : 0;
+                current_cost = data.can_place ? model_get_construction_cost(reservoir_type) : 0;
             } else {
                 data.can_place = 0;
                 current_cost = 0;
@@ -1165,7 +1186,7 @@ void building_construction_update(int x, int y, int grid_offset)
         if (force_place_active) {
             if (assessment.can_place) {
                 data.force_place_clear_cost = assessment.clear_cost;
-                current_cost = model_get_building(type)->cost;
+                current_cost = model_get_construction_cost(type);
             }
         } else if (!data.required_terrain.meadow && !data.required_terrain.rock && !data.required_terrain.tree &&
             !data.required_terrain.water && !data.required_terrain.wall && !data.required_terrain.distant_water &&
@@ -1282,7 +1303,7 @@ void building_construction_place(void)
         return;
     }
 
-    int placement_cost = model_get_building(type)->cost;
+    int placement_cost = model_get_construction_cost(type);
     int repaired_buildings = 0;
     if (tool.is_clear_land()) {
         // BUG in original (keep this behaviour): if confirmation has to be asked (bridge/fort),
@@ -1352,7 +1373,7 @@ void building_construction_place(void)
                 city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
                 return;
             }
-            placement_cost = existing_reservoir ? 0 : model_get_building(reservoir_type)->cost;
+            placement_cost = existing_reservoir ? 0 : model_get_construction_cost(reservoir_type);
             map_tiles_update_all_aqueducts(0);
             Route::updateLandTerrain();
         } else {
@@ -1414,7 +1435,7 @@ void building_construction_place(void)
         placement_cost += force_place_clear_cost;
     }
 
-    if (data.auto_cycling && building_construction_type_can_cycle(data.tool.type)) {
+    if (building_construction_is_auto_cycling() && building_construction_type_can_cycle(data.tool.type)) {
         for (int i = 0; i < building_construction_type_cycle_steps(data.tool.type); i++) {
             building_rotation_rotate_forward();
         }

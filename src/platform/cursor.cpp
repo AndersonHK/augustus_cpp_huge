@@ -7,7 +7,6 @@
 #include "input/cursor.h"
 #include "platform/renderer.h"
 #include "platform/switch/switch.h"
-#include "platform/vita/vita.h"
 
 #include "SDL.h"
 

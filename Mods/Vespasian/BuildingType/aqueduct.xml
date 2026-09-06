@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="aqueduct">
-    <identity name_key="main_strings.28.8" />
-    <model cost="8" />
-    <desirability>
-        <value value="-2" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="aqueduct_1x1" replaces="aqueduct" />
-    <tool kind="aqueduct" />
-    <button group="water" order="20" text_key="main_strings.28.8" />
-    <flags fire_proof="1" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Aqueduct_No_Water" />
@@ -208,18 +196,4 @@
             </options>
         </variant>
     </graphics>
-    <water_access>
-        <provides type="aqueduct" range="0" origin="nodes" />
-        <requires mode="any" where="nodes">
-            <access type="aqueduct" />
-        </requires>
-        <node role="provide" x="0" y="-1" />
-        <node role="provide" x="1" y="0" />
-        <node role="provide" x="0" y="1" />
-        <node role="provide" x="-1" y="0" />
-        <node role="require" x="0" y="0" />
-    </water_access>
-    <labor>
-        <employees count="0" />
-    </labor>
 </building>

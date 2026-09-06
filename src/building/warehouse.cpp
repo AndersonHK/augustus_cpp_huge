@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/count.h"
 #include "building/industry.h"
 #include "building/storage.h"
@@ -459,6 +460,7 @@ int building_warehouse_add_import(Building &warehouse, resource_type resource, i
     }
     int price = trade_price_buy(static_cast<resource_type>(resource), trader_type);
     city_finance_process_import(price * added_amount);
+    city_trade_ledger_exchange(resource, added_amount, price, true, target->id);
     return 1;
 }
 
@@ -489,6 +491,7 @@ int building_warehouse_remove_export(Building &warehouse, resource_type resource
     int removed_amount = building_warehouse_try_remove_resource(*target, resource, amount);
     int price = trade_price_sell(static_cast<resource_type>(resource), trader_type);
     city_finance_process_export(price * removed_amount);
+    city_trade_ledger_exchange(resource, removed_amount, price, false, target->id);
     return removed_amount;
 }
 

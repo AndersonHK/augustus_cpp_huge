@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "barracks.h"
 
 #include "building/building.h"
@@ -211,6 +212,7 @@ int Barracks::create_soldier(int x, int y)
         if (m->recruit_requires_weapon()) {
             if (resource_amount(resource_weapons()) > 0) {
                 add_resource(resource_weapons(), -1);
+                city_trade_ledger_consumed(resource_weapons(), resource_units_per_load());
             }
         }
         Building *academy = get_closest_military_academy(m->x, m->y);

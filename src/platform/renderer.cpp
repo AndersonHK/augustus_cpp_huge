@@ -12,7 +12,6 @@
 #include "platform/platform.h"
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
-#include "platform/vita/vita.h"
 
 #include "platform/render_2d_pipeline.h"
 
@@ -61,11 +60,6 @@ static Uint8 color_channel_to_u8(color_t color, color_t mask, int shift)
 #define MAX_TEXTURE_SIZE 1024
 #endif
 
-#ifdef __vita__
-// On Vita, due to the small amount of VRAM, having textures that are too large will cause the game to eventually crash
-// when changing climates, due to lack of contiguous memory space. Creating smaller atlases mitigates the issue
-#define MAX_TEXTURE_SIZE 2048
-#endif
 
 typedef struct buffer_texture {
     SDL_Texture *texture;
@@ -1025,9 +1019,7 @@ static void free_all_textures(void)
         if (data.custom_textures[i].texture) {
             SDL_DestroyTexture(data.custom_textures[i].texture);
             data.custom_textures[i].texture = 0;
-#ifndef __vita__
             free(data.custom_textures[i].buffer);
-#endif
             data.custom_textures[i].buffer = 0;
             memset(&data.custom_textures[i].img, 0, sizeof(image));
         }
@@ -1301,12 +1293,10 @@ static void create_custom_texture(custom_image_type type, int width, int height,
         data.custom_textures[type].texture = 0;
     }
     memset(&data.custom_textures[type].img, 0, sizeof(data.custom_textures[type].img));
-#ifndef __vita__
     if (data.custom_textures[type].buffer) {
         free(data.custom_textures[type].buffer);
         data.custom_textures[type].buffer = 0;
     }
-#endif
 
     data.custom_textures[type].texture = SDL_CreateTexture(data.renderer,
         is_yuv ? SDL_PIXELFORMAT_YV12 : SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -1324,14 +1314,6 @@ static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_te
         return 0;
     }
 
-#ifdef __vita__
-    int pitch;
-    SDL_LockTexture(data.custom_textures[type].texture, NULL, (void **) &data.custom_textures[type].buffer, &pitch);
-    if (actual_texture_width) {
-        *actual_texture_width = pitch / sizeof(color_t);
-    }
-    SDL_UnlockTexture(data.custom_textures[type].texture);
-#else
     free(data.custom_textures[type].buffer);
     int width, height;
     Uint32 format;
@@ -1344,21 +1326,17 @@ static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_te
     if (actual_texture_width) {
         *actual_texture_width = width;
     }
-#endif
     return data.custom_textures[type].buffer;
 }
 
 static void release_custom_texture_buffer(custom_image_type type)
 {
-#ifndef __vita__
     free(data.custom_textures[type].buffer);
     data.custom_textures[type].buffer = 0;
-#endif
 }
 
 static void update_custom_texture(custom_image_type type)
 {
-#ifndef __vita__
     if (data.paused || !data.custom_textures[type].texture || !data.custom_textures[type].buffer) {
         return;
     }
@@ -1367,7 +1345,6 @@ static void update_custom_texture(custom_image_type type)
     SDL_UpdateTexture(data.custom_textures[type].texture, NULL,
         data.custom_textures[type].buffer, sizeof(color_t) * width);
     advance_resource_revision();
-#endif
 }
 
 static void update_custom_texture_from(custom_image_type type, const color_t *buffer,
@@ -1382,19 +1359,8 @@ static void update_custom_texture_from(custom_image_type type, const color_t *bu
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Partial texture copy goes out of bounds");
         return;
     }
-#ifdef __vita__
-    int pitch;
-    SDL_LockTexture(data.custom_textures[type].texture, NULL, (void **) &data.custom_textures[type].buffer, &pitch);
-    texture_width = pitch / sizeof(color_t);
-    color_t *offset = &data.custom_textures[type].buffer[y_offset * texture_width + x_offset];
-    for (int y = 0; y < height; y++) {
-        memcpy(&offset[y * texture_width], &buffer[y * width], width * sizeof(color_t));
-    }
-    SDL_UnlockTexture(data.custom_textures[type].texture);
-#else
     SDL_Rect rect = { x_offset, y_offset, width, height };
     SDL_UpdateTexture(data.custom_textures[type].texture, &rect, buffer, sizeof(color_t) * width);
-#endif
     advance_resource_revision();
 }
 
@@ -2003,12 +1969,8 @@ int platform_renderer_init(SDL_Window *window, int vsync)
     const Uint32 flags = SDL_RENDERER_ACCELERATED | (vsync ? SDL_RENDERER_PRESENTVSYNC : 0);
     data.renderer = SDL_CreateRenderer(window, -1, flags);
     if (!data.renderer) {
-        SDL_Log("Unable to create renderer, trying software renderer: %s", SDL_GetError());
-        data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-        if (!data.renderer) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create renderer: %s", SDL_GetError());
-            return 0;
-        }
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create hardware renderer: %s", SDL_GetError());
+        return 0;
     }
 
     SDL_RendererInfo info;

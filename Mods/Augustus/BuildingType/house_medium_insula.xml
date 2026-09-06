@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="house_medium_insula">
+    <spawn_group road_access="normal" delay_bands="100:16" id="ambient_citizens">
+        <spawn spawn_figure="wandering_citizen" profile="ambient" direction="bottom" figure_slot="none" require_population="true" requires_config="gameplay_change_global_labour" chance_source="city_unemployment_percent" chance_per_million_bands="$WANDERING_CITIZENS{30:120000,29:120000,28:120000,27:110000,26:110000,25:110000,24:110000,23:100000,22:100000,21:100000,20:100000,19:90000,18:90000,17:90000,16:90000,15:80000,14:80000,13:80000,12:80000,11:70000,10:70000,9:70000,8:70000,7:60000,6:60000,5:60000,4:60000,3:60000,2:60000,1:60000,0:60000}$!WANDERING_CITIZENS{0:0}" />
+    </spawn_group>
+    <spawn_group id="ambient_dogs" road_access="normal" delay_bands="100:16">
+        <spawn spawn_figure="dog" profile="ambient" direction="bottom" figure_slot="none" chance_per_million="$DOGS{20000}$!DOGS{0}" require_population="true" />
+    </spawn_group>
+</building>

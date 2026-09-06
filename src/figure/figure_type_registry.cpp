@@ -298,6 +298,11 @@ const FigureGraphics &FigureTypeDefinition::graphics() const
 
 int FigureTypeDefinition::cache_graphics_bindings()
 {
+    if (!portrait_.group_path().empty() && (!portrait_.is_bound() || !portrait_.runtime_slice().is_valid())) {
+        set_failure_reason("FigureType portrait is unresolved", attr());
+        log_error("FigureType portrait is unresolved", attr(), 0);
+        return 0;
+    }
     FigureGraphics cached_graphics = graphics();
     if (!cached_graphics.cache_native_payload_bindings(*this)) return 0;
     graphics_ = std::make_shared<const FigureGraphics>(std::move(cached_graphics));
@@ -925,6 +930,7 @@ static int parse_definition_root()
 
     const char *type_attr = xml_parser_get_attribute_string("type");
     figure_type type = figure_type_from_xml_name(type_attr);
+    if (xml_parser_has_attribute("base_type")) type = figure_type_register(type_attr, xml_parser_get_attribute_string("base_type"));
     if (type == FIGURE_NONE) {
         g_parse_state.error = true;
         log_error("FigureType root has an unknown figure type", type_attr, 0);
@@ -976,6 +982,16 @@ static int parse_profiles_node()
         g_parse_state.definition->set_default_profile_id(xml_parser_get_attribute_string("default"));
     }
     g_parse_state.saw_profiles = true;
+    return 1;
+}
+
+static int parse_presentation_node()
+{
+    if (!parse_enabled_content("presentation") || !g_parse_state.definition) return 0;
+    const char *name_key = xml_parser_get_attribute_string("name_key");
+    const char *path = xml_parser_get_attribute_string("portrait_path");
+    const char *entry = xml_parser_get_attribute_string("portrait_image");
+    g_parse_state.definition->set_presentation(name_key ? name_key : "", path && *path ? ImageGroupEntryRef::from_group(path, entry ? entry : "") : ImageGroupEntryRef());
     return 1;
 }
 
@@ -2181,6 +2197,7 @@ static int parse_venue_node()
 
 static const xml_parser_element XML_ELEMENTS[] = {
     { "figure", parse_definition_root, nullptr, nullptr, nullptr },
+    { "presentation", parse_presentation_node, nullptr, "figure", nullptr },
     { "profiles", parse_profiles_node, nullptr, "figure", nullptr },
     { "profile", parse_profile_node, finish_profile_node, "profiles", nullptr },
     { "native", parse_native_node, nullptr, "profile", nullptr },
@@ -2415,6 +2432,7 @@ int figure_type_definition_is_suppressed(const char *type_attr)
 
 void figure_type_registry_reset(void)
 {
+    figure_type_identity_reset();
     figure_type_registry_impl::g_failure_reason.clear();
     figure_type_registry_impl::g_figure_type_overlays.clear();
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :

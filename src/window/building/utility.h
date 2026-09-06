@@ -39,3 +39,5 @@ void window_building_draw_native_watchtower(building_info_context *c);
 
 
 void window_building_draw_highway(building_info_context *c);
+
+void window_building_draw_city_service(building_info_context *c);

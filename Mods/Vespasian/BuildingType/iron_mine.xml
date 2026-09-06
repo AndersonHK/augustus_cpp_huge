@@ -1,32 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="iron_mine">
-    <identity name_key="main_strings.28.107" />
-    <model cost="50" />
-    <desirability>
-        <value value="-6" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="4" />
-    </desirability>
-    <foundation path="rock_2x2" />
-    <button group="raw_materials" order="30" icon="Industry\Iron_Mine" text_key="main_strings.28.107" />
-    <sound id="iron_mine" />
-    <graphics>
-        <default>
-            <path value="Industry\Iron_Mine" />
-            <image value="Image_0000" />
-        </default>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <storages>
-        <storage path="iron_output_iron_mine" />
-    </storages>
-    <production_methods>
-        <production_method path="iron_mine_basic" />
-    </production_methods>
 </building>

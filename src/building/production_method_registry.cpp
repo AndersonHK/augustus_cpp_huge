@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <climits>
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -193,6 +194,11 @@ int parse_root()
         return 0;
     }
     g_parse_state.disabled = disabled != 0;
+    if (xml_parser_has_attribute("input_source")) {
+        const char *source = xml_parser_get_attribute_string("input_source");
+        if (strcmp(source, "global_stockpile") == 0) g_parse_state.definition->set_input_source(ResourceConsumptionSource::GlobalStockpile);
+        else if (strcmp(source, "building") != 0) { log_error("Unknown ProductionMethod input source", source, 0); g_parse_state.error = 1; return 0; }
+    }
     g_parse_state.saw_root = 1;
     return 1;
 }
@@ -790,7 +796,7 @@ int adjust_production_per_month_for_resource(resource_type resource, int delta)
     for (const auto &entry : g_production_methods) {
         ProductionMethod *method = entry.second.get();
         if (method && method->output_resource() == resource) {
-            method->override_base_monthly_production(method->base_monthly_production() + delta);
+            method->override_base_monthly_production(static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(method->base_monthly_production()) + delta, 0, INT_MAX)));
             changed = 1;
         }
     }
@@ -964,6 +970,53 @@ int production_method_registry_adjust_production_per_month_for_resource(resource
 void production_method_registry_reset_production_overrides(void)
 {
     building_type_registry_impl::reset_production_overrides();
+}
+
+void production_method_registry_save_overrides(buffer *buf)
+{
+    using namespace building_type_registry_impl;
+    std::map<std::string, int> overrides;
+    size_t bytes = 8;
+    for (const auto &entry : g_production_methods) {
+        if (!entry.second || !entry.second->has_production_override()) continue;
+        overrides.emplace(entry.first, entry.second->base_monthly_production());
+        bytes += 8 + entry.first.size();
+    }
+    buffer_init_dynamic(buf, bytes);
+    buffer_write_u32(buf, 0x31504d56); // VMP1
+    buffer_write_u32(buf, static_cast<uint32_t>(overrides.size()));
+    for (const auto &entry : overrides) {
+        buffer_write_u32(buf, static_cast<uint32_t>(entry.first.size()));
+        buffer_write_raw(buf, entry.first.data(), entry.first.size());
+        buffer_write_i32(buf, entry.second);
+    }
+}
+
+int production_method_registry_load_overrides(buffer *buf)
+{
+    using namespace building_type_registry_impl;
+    if (!buf || buf->size < 12) return 0;
+    buffer source = *buf;
+    buffer_reset(&source);
+    if (buffer_read_u32(&source) != source.size || buffer_read_u32(&source) != 0x31504d56) return 0;
+    const uint32_t count = buffer_read_u32(&source);
+    if (count > (source.size - source.index) / 9) return 0;
+    std::map<std::string, int> overrides;
+    for (uint32_t index = 0; index < count; ++index) {
+        const uint32_t size = buffer_read_u32(&source);
+        if (!size || size > 4096 || size > source.size - source.index || source.size - source.index - size < 4) return 0;
+        std::string path(size, '\0'); buffer_read_raw(&source, path.data(), size);
+        const int value = buffer_read_i32(&source);
+        if (value < 0 || path.find('\0') != std::string::npos || !overrides.emplace(path, value).second) return 0;
+    }
+    if (source.overflow || source.index != source.size) return 0;
+    reset_production_overrides();
+    for (const auto &entry : overrides) {
+        auto *method = find_production_method_definition(entry.first.c_str());
+        if (method) method->override_base_monthly_production(entry.second);
+        else log_warning("Scenario production override references an unavailable method", entry.first.c_str(), 0);
+    }
+    return 1;
 }
 
 int production_method_registry_supply_chain_for_good(

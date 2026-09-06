@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/buffer.h"
+#include "game/archive_origin.h"
 #include "scenario/data.h"
 
 
@@ -43,13 +44,13 @@ int game_file_io_read_scenario_info_from_buffer(buffer *buf, saved_game_info *in
 
 int game_file_io_write_scenario(const char *filename);
 
-int game_file_io_read_saved_game(const char *filename, int offset);
+int game_file_io_read_saved_game(const char *filename, int offset, ArchiveFamily explicit_origin = ArchiveFamily::Unknown);
 
-int game_file_io_read_save_game_from_buffer(buffer *buf);
+int game_file_io_read_save_game_from_buffer(buffer *buf, ArchiveFamily explicit_origin = ArchiveFamily::Unknown);
 
-int game_file_io_read_saved_game_info(const char *filename, int offset, saved_game_info *info);
+int game_file_io_read_saved_game_info(const char *filename, int offset, saved_game_info *info, ArchiveFamily explicit_origin = ArchiveFamily::Unknown);
 
-int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info);
+int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info, ArchiveFamily explicit_origin = ArchiveFamily::Unknown);
 
 int game_file_io_write_saved_game(const char *filename);
 

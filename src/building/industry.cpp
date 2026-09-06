@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/count.h"
 #include "building/list.h"
 #include "city/warning.h"
@@ -227,6 +228,7 @@ static void update_venus_gt_production(void)
     if (record->monument.progress > MAX_PROGRESS_VENUS_GT) {
         if (venus_gt->resource_amount(resource_wine()) < MAX_STORAGE) {
             venus_gt->add_resource(resource_wine(), 1);
+            city_trade_ledger_produced(resource_wine(), resource_units_per_load());
         }
         record->monument.progress = record->monument.progress - MAX_PROGRESS_VENUS_GT;
     }

@@ -2,7 +2,9 @@
 
 This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`. For water access type identity and mask propagation after the save table resolves, see `docs/water_access_runtime.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+
+The dynamic city payload now appends named monument-gift awards after the existing city fields (0xc8), followed by trade/resource/finance history (0xc9). The history stores stable resource text ids, wide quantities and visit identities, current and seven previous accounting years, and partial-period metadata. The writer rejects overflowing pieces before replacing an existing save. These native gates do not decode post-fork Augustus SVX layouts; see the current sync ledger's save-bridge audit.
 
 ## Top-Level Flow
 

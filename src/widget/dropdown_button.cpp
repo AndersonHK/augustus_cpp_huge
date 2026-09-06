@@ -24,8 +24,9 @@ static int calculate_text_width(const complex_button *btn, font_t font)
 /* --- Helper to set anchor visual parameters to match selected option --- */
 static void update_anchor(dropdown_button *dd)
 {
+    if (!dd) return;
     int index = dd->selected_index;
-    if (!dd || dd->num_buttons == 0 || index < 1 || index >= (int) dd->num_buttons) {
+    if (dd->num_buttons == 0 || index < 1 || index >= (int) dd->num_buttons) {
         return;
     }
 

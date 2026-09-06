@@ -288,12 +288,33 @@ int parse_capacity()
     return 1;
 }
 
+int parse_epithet()
+{
+    if (reject_tombstone_content("epithet") || !g_parse_state.definition) return 0;
+    auto attribute = [](const char *key) { const char *value = xml_parser_get_attribute_string(key); return xml_value::trim_copy(value ? value : ""); };
+    const std::string name = attribute("name_key");
+    const std::string description = attribute("description_key");
+    if (name.empty() || description.empty()) { g_parse_state.error = 1; log_error("Epithet requires a name and description", 0, 0); return 0; }
+    ReligionEpithet epithet;
+    epithet.name_key = translation_key(name);
+    epithet.description_key = translation_key(description);
+    epithet.image = attribute("image");
+    epithet.required_building = attribute("requires_building");
+    int requires_fort = 0;
+    if (xml_parser_has_attribute("requires_any_fort") && !xml_value::parse_bool(xml_parser_get_attribute_string("requires_any_fort"), &requires_fort)) { g_parse_state.error = 1; log_error("Invalid epithet fort prerequisite", name.c_str(), 0); return 0; }
+    epithet.requires_any_fort = requires_fort != 0;
+    g_parse_state.definition->epithets().push_back(std::move(epithet));
+    return 1;
+}
+
 const xml_parser_element XML_ELEMENTS[] = {
     { "religion", parse_root, nullptr, nullptr, nullptr },
     { "god", parse_god, nullptr, "religion", nullptr },
     { "tier", parse_tier, nullptr, "religion", nullptr },
     { "capacity", parse_capacity, nullptr, "religion", nullptr },
-    { "presentation", parse_presentation, nullptr, "religion", nullptr }
+    { "presentation", parse_presentation, nullptr, "religion", nullptr },
+    { "epithets", nullptr, nullptr, "religion", nullptr },
+    { "epithet", parse_epithet, nullptr, "epithets", nullptr }
 };
 
 struct ParsedDefinition {

@@ -39,6 +39,7 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
         case FONT_NORMAL_BLACK:
             font = !button->is_disabled ? FONT_NORMAL_BLACK : FONT_NORMAL_WHITE;
             break;
+        case FONT_NORMAL_WHITE:
         case FONT_SMALL_PLAIN:
             font = base_font;
             break;

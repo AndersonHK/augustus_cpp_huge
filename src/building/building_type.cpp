@@ -2002,6 +2002,18 @@ const ProductionMethod *BuildingType::farm_production_method() const
     return nullptr;
 }
 
+bool ConstructionDefinition::set_scenario_requirement(int phase_index, resource_type resource, int amount)
+{
+    if (amount < 0) return false;
+    std::vector<ConstructionRequirement> *requirements = nullptr;
+    if (mode_ == ConstructionMode::Instant && phase_index == 0) requirements = &instant_requirements_;
+    else for (auto &phase : phases_) if (phase.index == phase_index) requirements = &phase.requirements;
+    if (!requirements) return false;
+    for (auto &entry : *requirements) if (entry.resource == resource) { entry.amount = amount; return true; }
+    requirements->push_back({resource, amount});
+    return true;
+}
+
 const ProductionMethod *BuildingType::farm_panel_production_method() const
 {
     if (const ProductionMethod *method = farm_production_method()) {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="oracle">
+    <construction road_update_radius="2">
+        <requirement type="marble" amount="2" />
+    </construction>
+</building>

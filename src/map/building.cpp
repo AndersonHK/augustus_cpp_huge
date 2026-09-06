@@ -95,6 +95,8 @@ void map_building_damage_clear(int grid_offset)
     damage_grid.items[grid_offset] = 0;
 }
 
+int map_building_damage_at(int grid_offset) { return map_grid_is_valid_offset(grid_offset) ? damage_grid.items[grid_offset] : 0; }
+
 int map_building_damage_increase(int grid_offset)
 {
     return ++damage_grid.items[grid_offset];

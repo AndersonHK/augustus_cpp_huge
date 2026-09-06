@@ -1,4 +1,5 @@
 #include "core/xml_definition.h"
+#include "game/mod_content.h"
 
 #include "core/crash_context.h"
 #include "core/xml_value.h"
@@ -171,6 +172,10 @@ bool for_each_definition_file(
 
 int load_file_to_buffer(const char *filename, std::vector<char> &buffer, const char *label)
 {
+    if (const auto *resolved = mod_content::resolved_file(filename)) {
+        buffer.assign(resolved->begin(), resolved->end());
+        return 1;
+    }
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
         log_error("Unable to open xml definition", label ? label : filename, 0);

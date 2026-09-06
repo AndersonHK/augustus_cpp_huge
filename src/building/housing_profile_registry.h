@@ -9,6 +9,7 @@
 namespace building_type_registry_impl {
 
 const HousingProfileDef *find_housing_profile_definition(const char *path);
+HousingProfileDef *find_mutable_housing_profile_definition(const char *path);
 const HousingProfileDef *find_housing_profile_definition_for_compatibility_level(int level);
 const HousingProfileDef *find_housing_profile_definition_for_legacy_building_path(const char *path);
 int housing_profile_compatibility_level_count();

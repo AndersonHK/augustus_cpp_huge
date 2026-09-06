@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="city_service" base_width="464" base_height="256">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" width="464" height="256" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="title" binding="service.title" x="16" y="12" width="432" text_alignment="center" font="large_black" />
+    <widget type="rich_text" id="status" binding="service.status" x="24" y="46" width="416" height="36" />
+    <widget type="label" id="extent" binding="service.extent" x="24" y="88" width="416" />
+    <widget type="label" id="effects" binding="service.effects" x="24" y="110" width="416" />
+    <widget type="image" id="resource" binding="service.resource" repeat_source="service.inputs" repeat_spacing_y="24" x="24" y="140" width="24" height="24" />
+    <widget type="label" id="stock" binding="service.stock" repeat_source="service.inputs" repeat_spacing_y="24" x="60" y="144" width="360" />
+</window>

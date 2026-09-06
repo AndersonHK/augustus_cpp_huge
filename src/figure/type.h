@@ -109,7 +109,8 @@ typedef enum {
     FIGURE_FORT_ARCHER = 94,
     FIGURE_ENEMY_CATAPULT = 95,
     FIGURE_CATAPULT_MISSILE = 96,
-    FIGURE_TYPE_MAX = 97
+    FIGURE_BUILTIN_TYPE_MAX = 97,
+    FIGURE_TYPE_MAX = 256
 } figure_type;
 
 struct FigureTypeXmlName {
@@ -218,6 +219,13 @@ inline constexpr FigureTypeXmlName FIGURE_TYPE_XML_NAMES[] = {
     { "catapult_missile", FIGURE_CATAPULT_MISSILE }
 };
 
+figure_type figure_type_dynamic_from_name(const char *name);
+figure_type figure_type_register(const char *name, const char *base_name);
+figure_type figure_type_base(figure_type type);
+const char *figure_type_identity(figure_type type);
+void figure_type_identity_reset();
+constexpr int FIGURE_TYPE_IDENTITY_CAPACITY = 64;
+
 inline figure_type figure_type_from_xml_name(const char *name)
 {
     if (!name) {
@@ -228,7 +236,7 @@ inline figure_type figure_type_from_xml_name(const char *name)
             return entry.type;
         }
     }
-    return FIGURE_NONE;
+    return figure_type_dynamic_from_name(name);
 }
 
 typedef enum {

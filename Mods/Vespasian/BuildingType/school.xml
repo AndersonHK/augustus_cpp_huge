@@ -1,36 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="school">
-    <identity name_key="main_strings.28.51" />
-    <model cost="50" />
-    <desirability>
-        <value value="-2" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="education" order="10" icon="Health_Culture\School" text_key="main_strings.28.51" />
-    <sound id="school" mute_on_enemies="true" />
-    <culture_modules>
-        <culture_module path="school" capacity="75" upgrade_bonus="150" count="active" />
-    </culture_modules>
-    <graphics>
-        <default>
-            <path value="Health_Culture\School" />
-        </default>
-        <variant>
-            <condition type="desirability" operator="gt" threshold="40" />
-            <path value="Health_Culture\Upgraded_School" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="school_child">
-        <spawn spawn_figure="school_child" direction="top" figure_slot="primary" spawn_count="4"
-            graphic_timing="before_successful_spawn" condition="always" block_on_success="true" profile="service" />
-    </spawn_group>
 </building>

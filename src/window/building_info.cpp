@@ -371,6 +371,7 @@ static int center_in_city(int element_width_pixels)
 
 static void init(int grid_offset)
 {
+    context.grid_offset = grid_offset;
     original_overlay = game_state_overlay();
     context.can_play_sound = 1;
     context.show_special_orders = 0;
@@ -617,7 +618,9 @@ static void draw_background(void)
             BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
-        if (current_building.Housing) {
+        if (type_definition.city_service().enabled()) {
+            window_building_draw_city_service(&context);
+        } else if (current_building.Housing) {
             window_building_draw_house(&context);
         } else if (type_definition.has_farm_panel()) {
             window_building_draw_farm(&context, farm_panel_output_resource(type_definition));

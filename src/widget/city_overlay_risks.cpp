@@ -1,3 +1,9 @@
+#include "building/destruction.h"
+#include "building/BuildingGeometry.h"
+#include "graphics/graphics.h"
+#include "core/calc.h"
+#include <algorithm>
+#include <cstdio>
 #include "building/industry.h"
 #include "game/state.h"
 #include "graphics/image.h"
@@ -148,6 +154,19 @@ static int draw_footprint_enemy(int x, int y, float scale, int grid_offset)
 
 static int draw_top_enemy(int x, int y, float scale, int grid_offset)
 {
+    if (map_building_exists_at(grid_offset) && map_property_is_draw_tile(grid_offset)) {
+        Building &target = map_building_at(grid_offset);
+        const int damage = building_damage_at(grid_offset);
+        if (damage > 0) {
+            target.draw_top({x, y, grid_offset, COLOR_MASK_NONE, scale});
+            const int maximum = std::max(1, building_hit_points_at(grid_offset) + 1);
+            const int percent = calc_bound(100 - damage * 100 / maximum, 0, 100);
+            graphics_fill_rect(x, y - 12, 42, 6, COLOR_BLACK);
+            graphics_fill_rect(x + 1, y - 11, 40 * percent / 100, 4, percent > 33 ? COLOR_MASK_GREEN : COLOR_RED);
+            return 1;
+        }
+    }
+
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, 0, scale);
         return 1;
@@ -547,6 +566,17 @@ const city_overlay *city_overlay_for_native(void)
     return &overlay;
 }
 
+static int get_tooltip_enemy(tooltip_context *context, const building *record)
+{
+    static char text[96];
+    if (!record) return 0;
+    const int maximum = std::max(1, building_hit_points_at(record->grid_offset) + 1);
+    const int damage = building_damage_at(record->grid_offset);
+    std::snprintf(text, sizeof(text), "%s: %d / %d", reinterpret_cast<const char *>(translation_for_key("TR_DURABILITY")), std::max(0, maximum - damage), maximum);
+    context->precomposed_text = reinterpret_cast<const uint8_t *>(text);
+    return 0;
+}
+
 const city_overlay *city_overlay_for_enemy(void)
 {
     static city_overlay overlay = {
@@ -556,7 +586,7 @@ const city_overlay *city_overlay_for_enemy(void)
         show_figure_enemy,
         get_column_height_none,
         0,
-        0,
+        get_tooltip_enemy,
         draw_footprint_enemy,
         draw_top_enemy
     };

@@ -6,4 +6,10 @@
     <dependencies>
         <mod name="Julius" />
     </dependencies>
+    <settings>
+        <setting id="MULTIPLE_BARRACKS" name="Allow multiple barracks" type="bool" default="false" category="Difficulty" />
+        <setting id="RETIREMENT_AGE" name="Retirement age" type="int(40,90)" default="50" category="Difficulty" />
+        <setting id="WANDERING_CITIZENS" name="Wandering citizens" type="bool" default="false" category="City life" description="Optional ambient citizens while global labour is enabled. Independent of the existing unemployment-driven beggars." />
+        <setting id="DOGS" name="Dogs" type="bool" default="true" category="City life" description="Ambient dogs roam from occupied houses." />
+    </settings>
 </mod>

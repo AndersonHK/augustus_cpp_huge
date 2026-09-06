@@ -1,23 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="granary">
-    <identity name_key="main_strings.28.71" />
-    <model cost="100" />
-    <desirability>
-        <value value="-4" />
-        <step value="1" />
-        <step_size value="2" />
-        <range value="2" />
-    </desirability>
-    <foundation path="granary_3x3" />
-  <button group="industry" order="400" text_key="main_strings.28.71" />
-
-    <labor>
-        <employees count="6" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="100" />
-        </labor_seeker>
-    </labor>
     <graphics>
         <status_icon x="83" y="-120" />
         <default animation="0">

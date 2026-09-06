@@ -546,6 +546,14 @@ static int get_tooltip_water(tooltip_context *c, int grid_offset)
     return 0;
 }
 
+static int terrain_overlay_desirability(int grid_offset)
+{
+    int value = map_desirability_get(grid_offset);
+    if (config_get(CONFIG_UI_SHOW_SHORELINE_DESIRABILITY)) value += building_shoreline_desirability(grid_offset);
+    if (config_get(CONFIG_UI_SHOW_ELEVATION_DESIRABILITY)) value += building_elevation_desirability(grid_offset);
+    return calc_bound(value, -100, 100);
+}
+
 static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
 {
     int desirability;
@@ -556,7 +564,7 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
         }
         desirability = b->desirability;
     } else {
-        desirability = map_desirability_get(grid_offset);
+        desirability = terrain_overlay_desirability(grid_offset);
     }
     const uint8_t *text;
     if (desirability < 0) {
@@ -1019,7 +1027,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             runtime_building->draw_top({ x, y, grid_offset, desirability_color, scale });
         }
     } else {
-        int desirability = building_record ? building_record->desirability : map_desirability_get(grid_offset);
+        int desirability = building_record ? building_record->desirability : terrain_overlay_desirability(grid_offset);
         if (desirability) {
             int offset = get_desirability_image_offset(desirability);
             Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);

@@ -1,40 +1,31 @@
+#include "religion.h"
+#include "building/building.h"
 #include "building/count.h"
 #include "building/building_type_registry_internal.h"
+#include "building/god_registry.h"
+#include "city/god.h"
 #include "city/festival.h"
 #include "city/houses.h"
-#include "graphics/generic_button.h"
-#include "graphics/image.h"
+#include "graphics/declarative_window.h"
 #include "graphics/lang_text.h"
+#include "graphics/window.h"
+#include "window/epithets.h"
 #include "window/hold_festival.h"
-
-#include "religion.h"
-
-#include "city/god.h"
-#include "graphics/advisor_text_button_widget.h"
-#include "graphics/ui_runtime.h"
-
 #include "game/settings.h"
+#include <memory>
+#include <algorithm>
+#include <vector>
 
-#include "graphics/ui_runtime_api.h"
-#include "graphics/text.h"
-
-static void button_hold_festival(const generic_button *button);
-static void draw_hold_festival_widget(void);
-
-static generic_button hold_festival_button[] = {
-    {102, 340, 300, 20, button_hold_festival},
-};
-
-static unsigned int focus_button_id;
-
-using building_type_registry_impl::type_from_attr;
+using namespace building_type_registry_impl;
 
 static int get_religion_advice(void)
 {
     int least_happy = city_god_least_happy();
+    const auto *least_happy_definition = find_god_definition_by_runtime_id(least_happy);
+    const int legacy_advice = least_happy_definition && least_happy_definition->legacy_type() >= 0 && least_happy_definition->legacy_type() < GOD_ALL ? 6 + least_happy_definition->legacy_type() : 5;
     const house_demands *demands = city_houses_demands();
     if (least_happy >= 0 && city_god_wrath_bolts(least_happy) > 4) {
-        return 6 + least_happy;
+        return legacy_advice;
     } else if (demands->religion == 1) {
         return demands->requiring.religion ? 1 : 0;
     } else if (demands->religion == 2) {
@@ -44,51 +35,9 @@ static int get_religion_advice(void)
     } else if (!demands->requiring.religion) {
         return 4;
     } else if (least_happy >= 0) {
-        return 6 + least_happy;
+        return legacy_advice;
     } else {
         return 5;
-    }
-}
-
-static void draw_god_row(god_type god, int y_offset, building_type altar, building_type small_temple,
-    building_type large_temple, building_type grand_temple)
-{
-    lang_text_draw(current_string_key(59, 11 + god), 24, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw(current_string_key(59, 16 + god), 104, y_offset + 3, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    text_draw_number_centered(building_count_total(altar), 190, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_number_centered(building_count_active(small_temple), 250, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    if (building_count_active(grand_temple)) {
-        text_draw_number_centered(building_count_active(large_temple) + building_count_active(grand_temple),
-            310, y_offset + 2, 50, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    } else {
-        text_draw_number_centered(building_count_active(large_temple), 310, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    }
-    text_draw_number_centered(city_god_months_since_festival(god), 375, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    int width = lang_text_draw(current_string_key(59, 32 + city_god_happiness(god) / 10), 450, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    int bolts = city_god_wrath_bolts(god);
-    for (int i = 0; i < bolts / 10; i++) {
-        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(10 * i + width + 450, y_offset - 2);
-    }
-    int happy_bolts = city_god_happy_bolts(god);
-    for (int i = 0; i < happy_bolts; i++) {
-        ImageGroupEntryRef::from_group("UI\\Happy_God_Icon", "Happy God Icon").draw(10 * i + width + 450, y_offset - 2);
-    }
-}
-
-static void draw_oracle_row(void)
-{
-    building_type pantheon = type_from_attr("pantheon");
-    int oracle_count = building_count_active(type_from_attr("oracle")) +
-        building_count_active(type_from_attr("small_mausoleum"));
-    int large_oracle_count = building_count_active(type_from_attr("nymphaeum")) +
-        building_count_active(pantheon) + building_count_active(type_from_attr("large_mausoleum"));
-    lang_text_draw("main_strings.59.8", 24, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_number_centered(building_count_total(type_from_attr("lararium")), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_number_centered(oracle_count, 250, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    if (building_count_active(pantheon)) {
-        text_draw_number_centered(large_oracle_count, 310, 168, 50, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    } else {
-        text_draw_number_centered(large_oracle_count, 310, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 }
 
@@ -112,122 +61,119 @@ static int get_festival_advice(void)
     }
 }
 
-static void draw_festival_info(void)
-{
-    inner_panel_draw(48, 302, 34, 6);
-    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 15).draw(460, 305);
-    lang_text_draw("main_strings.58.17", 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+namespace {
+std::string translated(const char *key) { return reinterpret_cast<const char *>(translation_for_key(key)); }
 
-    int width = lang_text_draw_amount(current_string_amount_key(8, 4, city_festival_months_since_last()), city_festival_months_since_last(), 112, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw("main_strings.58.15", 112 + width, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    if (city_festival_is_planned()) {
-        lang_text_draw_centered("main_strings.58.34", 102, 339, 300, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+int count_temples(const God *god, ReligionTier tier, bool active)
+{
+    int count = 0;
+    for (const auto &type : g_building_types) {
+        const auto *religion = type ? type->religion() : nullptr;
+        if (!religion || religion->tier() != tier) continue;
+        const bool matches = god ? !religion->has_all_gods() && religion->has_god_runtime_id(god->runtime_id()) : religion->has_all_gods();
+        if (matches) count += active ? building_count_active(type->type()) : building_count_total(type->type());
     }
-    lang_text_draw_multiline(current_string_key(58, 18 + get_festival_advice()), 56, 360, 400, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    return count;
 }
 
-static int draw_background(void)
+class ReligionAdvisorController final : public DeclarativeWindowController {
+public:
+    std::vector<const God *> gods;
+    const God *god_at(int index) const { return index >= 0 && index < static_cast<int>(gods.size()) ? gods[index] : nullptr; }
+    int page = 0;
+    int capacity = 6;
+    int repeat_count(std::string_view source) const override { return source == "religion.gods" ? std::max(0, std::min(capacity, god_definition_count() + 1 - page * capacity)) : 0; }
+    std::string text(std::string_view binding, int index) const override
+    {
+        if (binding == "religion.advice") return translated(current_string_key(59, 21 + get_religion_advice()).c_str());
+        if (binding == "festival.advice") return translated(current_string_key(58, 18 + get_festival_advice()).c_str());
+        if (binding == "festival.elapsed") return std::to_string(city_festival_months_since_last()) + " " + translated(current_string_amount_key(8, 4, city_festival_months_since_last()).c_str()) + " " + translated("main_strings.58.15");
+        index += page * capacity;
+        if (index < 0 || index > god_definition_count()) return {};
+        const God *god = god_at(index);
+        const int legacy = god ? god->legacy_type() : -1;
+        const int id = god ? god->runtime_id() : -1;
+        if (binding == "god.name") return god ? (legacy >= 0 && legacy < GOD_ALL ? translated(current_string_key(59, 11 + legacy).c_str()) : god->path()) : translated("main_strings.59.8");
+        if (binding == "god.domain" && god && legacy >= 0 && legacy < GOD_ALL) return translated(current_string_key(59, 16 + legacy).c_str());
+        if (binding == "god.altars") return std::to_string(count_temples(god, ReligionTier::Shrine, false));
+        if (binding == "god.small") return std::to_string(count_temples(god, ReligionTier::Small, true) + (!god ? count_temples(nullptr, ReligionTier::Oracle, true) : 0));
+        if (binding == "god.large") return std::to_string(count_temples(god, ReligionTier::Large, true) + count_temples(god, ReligionTier::Grand, true));
+        if (binding == "god.small_total") return std::to_string(count_temples(god, ReligionTier::Small, false) + (!god ? count_temples(nullptr, ReligionTier::Oracle, false) : 0));
+        if (binding == "god.large_total") return god ? std::to_string(count_temples(god, ReligionTier::Large, false)) : "";
+        if (binding == "god.wrath" && god) { const int bolts = city_god_wrath_bolts(id) / 10; return bolts ? std::to_string(bolts) : ""; }
+        if (binding == "god.festival" && god) return std::to_string(city_god_months_since_festival(id));
+        if (binding == "god.mood" && god) return translated(current_string_key(59, 32 + city_god_happiness(id) / 10).c_str());
+        if (binding == "god.bolts" && god) {
+            const int wrath = city_god_wrath_bolts(id) / 10;
+            const int happiness = city_god_happy_bolts(id);
+            return wrath || happiness ? std::to_string(wrath ? wrath : happiness) : "";
+        }
+        return {};
+    }
+    ImageGroupEntryRef image(std::string_view binding, int index) const override
+    {
+        index += page * capacity;
+        const auto *god = god_at(index);
+        if ((binding != "god.bolt" && binding != "god.wrath_icon") || !god) return {};
+        if (city_god_wrath_bolts(god->runtime_id()) / 10) return ImageGroupEntryRef::from_group("FX\\God_Bolt", "Image_0000");
+        if (binding == "god.bolt" && city_god_happy_bolts(god->runtime_id())) return ImageGroupEntryRef::from_group("UI\\Happy_God_Icon", "Happy God Icon");
+        return {};
+    }
+    int condition(std::string_view binding, int index) const override
+    {
+        if (binding == "gods.disabled") return !setting_gods_enabled();
+        if (binding == "page.previous") return page > 0;
+        if (binding == "page.next") return (page + 1) * capacity < god_definition_count() + 1;
+        index += page * capacity;
+        if (binding == "festival.available") return !city_festival_is_planned();
+        if (binding == "festival.planned") return city_festival_is_planned();
+        if (binding == "epithets.available") return window_epithets_available();
+        if (binding == "god.grand") return index >= 0 && count_temples(god_at(index), ReligionTier::Grand, true) > 0;
+        return 0;
+    }
+    void action(std::string_view action, int) override
+    {
+        if (action == "page.previous" && page) --page;
+        if (action == "page.next" && condition(action, 0)) ++page;
+        if (action == "festival.hold" && !city_festival_is_planned()) window_hold_festival_show();
+        if (action == "epithets.show") window_epithets_show();
+    }
+};
+ReligionAdvisorController controller;
+std::unique_ptr<DeclarativeWindowRuntime> runtime;
+const DeclarativeWindowDefinition *definition = nullptr;
+
+int window_height()
 {
-    int height_blocks;
-    height_blocks = 27;
-    outer_panel_draw(0, 0, 40, height_blocks);
+    if (!definition) return 432;
+    const auto *disabled = definition->widget("gods_disabled");
+    return disabled && !setting_gods_enabled() ? std::max(definition->base_height(), disabled->y + disabled->height + 8) : definition->base_height();
+}
 
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 9).draw(10, 10);
-
-    lang_text_draw("main_strings.59.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Religion
-
-    text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_RELIGION_ALTARS_HEADER"), 165, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0); // Altars
-    lang_text_draw_centered("main_strings.59.5", 256, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Temples
-    lang_text_draw_centered("main_strings.59.1", 226, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Small
-    lang_text_draw_centered("main_strings.59.2", 285, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // large
-    lang_text_draw_centered("main_strings.59.6", 350, 18, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Months
-    lang_text_draw_centered("main_strings.59.9", 350, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // since
-    lang_text_draw_centered("main_strings.59.7", 350, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Festival
-    lang_text_draw_centered("main_strings.59.3", 449, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // The gods are
-
-    inner_panel_draw(16, 60, 38, 8);
-
-    // god rows
-    draw_god_row(GOD_CERES, 66, type_from_attr("shrine_ceres"), type_from_attr("small_temple_ceres"),
-        type_from_attr("large_temple_ceres"), type_from_attr("grand_temple_ceres"));
-    draw_god_row(GOD_NEPTUNE, 86, type_from_attr("shrine_neptune"), type_from_attr("small_temple_neptune"),
-        type_from_attr("large_temple_neptune"), type_from_attr("grand_temple_neptune"));
-    draw_god_row(GOD_MERCURY, 106, type_from_attr("shrine_mercury"), type_from_attr("small_temple_mercury"),
-        type_from_attr("large_temple_mercury"), type_from_attr("grand_temple_mercury"));
-    draw_god_row(GOD_MARS, 126, type_from_attr("shrine_mars"), type_from_attr("small_temple_mars"),
-        type_from_attr("large_temple_mars"), type_from_attr("grand_temple_mars"));
-    draw_god_row(GOD_VENUS, 146, type_from_attr("shrine_venus"), type_from_attr("small_temple_venus"),
-        type_from_attr("large_temple_venus"), type_from_attr("grand_temple_venus"));
-
-    // oracles
-    draw_oracle_row();
-
+int draw_background()
+{
     city_gods_calculate_least_happy();
-
-    lang_text_draw_multiline(current_string_key(59, 21 + get_religion_advice()), 52, 208, 540, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-
-    draw_festival_info();
-
-    return height_blocks;
+    if (runtime) runtime->draw(DeclarativeDrawPhase::Background, definition->base_width(), window_height());
+    return (window_height() + 15) / 16;
 }
-
-static void draw_foreground(void)
-{
-    if (!city_festival_is_planned()) {
-        draw_hold_festival_widget();
-    }
-}
-
-static int handle_mouse(const mouse *m)
-{
-    return GenericButtonList(hold_festival_button, 1).handle_mouse(
-        *m,
-        0,
-        0,
-        &focus_button_id
-    );
-}
-
-static void button_hold_festival(const generic_button *button)
-{
-    (void) button;
-    if (!city_festival_is_planned()) {
-        window_hold_festival_show();
-    }
-}
-
-static void draw_hold_festival_widget(void)
-{
-    UiPrimitives &primitives = shared_ui_runtime().primitives();
-
-    UiTextSpec button_text = {};
-    button_text.content_type = UiTextContentType::Language;
-    button_text.alignment = UiTextAlignment::Center;
-    button_text.text_group = 58;
-    button_text.text_id = 16;
-    button_text.x = 102;
-    button_text.y = 339;
-    button_text.box_width = 300;
-    button_text.font = FONT_NORMAL_WHITE;
-
-    AdvisorTextButtonWidget(primitives, 102, 335, 300, 20, focus_button_id == 1, button_text).draw();
-}
-
-static void get_tooltip_text(advisor_tooltip_result *r)
-{
-    if (focus_button_id) {
-        r->text_id = 112;
-    }
+void draw_foreground() { if (runtime) runtime->draw(DeclarativeDrawPhase::Foreground, definition->base_width(), window_height()); }
+int handle_mouse(const mouse *m) { return runtime ? runtime->handle_mouse(*m, definition->base_width(), window_height()) : 0; }
+void get_tooltip(advisor_tooltip_result *) {}
 }
 
 const advisor_window_type *window_advisor_religion(void)
 {
-    static const advisor_window_type window = {
-        draw_background,
-        draw_foreground,
-        handle_mouse,
-        get_tooltip_text
-    };
-    focus_button_id = 0;
+    definition = declarative_window_definition("advisor_religion");
+    controller.page = 0;
+    controller.gods.clear();
+    for (int i = 0; i < god_definition_count(); ++i) controller.gods.push_back(god_definition_at_runtime_index(i));
+    std::stable_sort(controller.gods.begin(), controller.gods.end(), [](const God *a, const God *b) {
+        const int left = a->legacy_type() >= 0 && a->legacy_type() < GOD_ALL ? a->legacy_type() : GOD_ALL;
+        const int right = b->legacy_type() >= 0 && b->legacy_type() < GOD_ALL ? b->legacy_type() : GOD_ALL;
+        return left < right;
+    });
+    if (definition && definition->widget("god_name") && definition->widget("gods_panel")) controller.capacity = std::max(1, (definition->widget("gods_panel")->height - 8) / std::max(1, definition->widget("god_name")->repeat_spacing_y));
+    runtime = definition ? std::make_unique<DeclarativeWindowRuntime>(*definition, controller) : nullptr;
+    static const advisor_window_type window = {draw_background, draw_foreground, handle_mouse, get_tooltip};
     return &window;
 }

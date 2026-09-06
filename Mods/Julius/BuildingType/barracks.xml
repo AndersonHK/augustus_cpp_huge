@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation path="land_3x3" />
-    <construction max_count="1" max_count_unless_config="multiple_barracks" />
+    <construction max_count="1" />
   <button group="security" order="70" text_key="main_strings.28.95" />
     <flags draw_desirability_range="1" />
     <graphics>

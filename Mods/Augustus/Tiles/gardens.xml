@@ -1,17 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gardens">
-    <identity name_key="main_strings.28.39" />
-    <model cost="12" />
-    <desirability>
-        <value value="3" />
-        <step value="1" />
-        <step_size value="-1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="garden_1x1" />
     <button group="gardens" order="20" text_key="main_strings.28.39" />
-    <cycle group="gardens" order="10" steps="1" />
-    <tile kind="garden" refresh="garden" placement="garden" />
     <graphics>
         <default>
             <options selection="stable_variant">
@@ -47,8 +36,4 @@
             </options>
         </variant>
     </graphics>
-    <flags fire_proof="1" venus_gt_bonus="1" />
-    <labor>
-        <employees count="0" />
-    </labor>
 </building>

@@ -1,4 +1,4 @@
-#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+#ifndef GRAPHICS_EXTRACTION_BUILD_DLL
 #include "assets/graphics_extraction_client.h"
 #endif
 #include "building/building.h"
@@ -799,7 +799,7 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     const char *source_name,
     const image_atlas_data *atlas_data)
 {
-#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+#ifdef GRAPHICS_EXTRACTION_BUILD_DLL
     (void) images;
     (void) image_count;
     (void) group_image_ids;
@@ -809,24 +809,19 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     log_error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
     return 0;
 #else
-    // The extractor DLL receives a self-contained pixel snapshot. External message
-    // illustrations must be decoded here, where their 555 index state is owned.
+    // The extractor DLL receives a self-contained pixel snapshot. External
+    // graphics must be decoded here, where their 555 index state is owned.
     std::vector<image> extraction_images(images, images + image_count);
     std::vector<color_t *> buffers(atlas_data->buffers, atlas_data->buffers + atlas_data->num_images);
     std::vector<int> widths(atlas_data->image_widths, atlas_data->image_widths + atlas_data->num_images);
     std::vector<int> heights(atlas_data->image_heights, atlas_data->image_heights + atlas_data->num_images);
     std::vector<std::vector<color_t>> external_pixels;
-    const int message_first = group_count > GROUP_MESSAGE_IMAGES ? group_image_ids[GROUP_MESSAGE_IMAGES] : image_count;
-    int message_end = image_count;
-    for (int group = 1; group < group_count; group++) {
-        if (group_image_ids[group] > message_first && group_image_ids[group] < message_end) message_end = group_image_ids[group];
-    }
-    for (int id = message_first; id < message_end; id++) {
+    for (int id = 0; id < image_count; id++) {
         const image &source = images[id];
         if (!image_is_external(&source)) continue;
         int width = 0, height = 0;
         if (!image_get_external_dimensions(&source, &width, &height) || width <= 0 || height <= 0) {
-            log_error("External message image has invalid dimensions", source_name, id);
+            log_error("External image has invalid dimensions", source_name, id);
             return 0;
         }
         external_pixels.emplace_back(static_cast<size_t>(width) * height, ALPHA_TRANSPARENT);

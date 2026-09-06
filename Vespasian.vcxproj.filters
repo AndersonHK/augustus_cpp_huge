@@ -865,6 +865,7 @@
     <ClInclude Include="src\core\buffer.h" />
     <ClInclude Include="src\core\calc.h" />
     <ClInclude Include="src\core\config.h" />
+    <ClInclude Include="src\core\config_options.h" />
     <ClInclude Include="src\core\dir.h" />
     <ClInclude Include="src\core\direction.h" />
     <ClInclude Include="src\core\encoding.h" />
@@ -1108,7 +1109,6 @@
     <ClInclude Include="src\platform\screen.h" />
     <ClInclude Include="src\platform\touch.h" />
     <ClInclude Include="src\platform\user_path.h" />
-    <ClInclude Include="src\platform\emscripten\emscripten.h" />
     <ClInclude Include="src\assets\xml_path_resolution.h" />
     <ClInclude Include="src\building\BuildingRuntimeList.h" />
     <ClInclude Include="src\building\RubbleDef.h" />

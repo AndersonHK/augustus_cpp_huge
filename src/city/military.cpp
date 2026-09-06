@@ -2,6 +2,7 @@
 
 #include "building/menu.h"
 #include "city/buildings.h"
+#include "city/monument_gifts.h"
 #include "city/data_private.h"
 #include "city/message.h"
 #include "city/ratings.h"
@@ -306,7 +307,7 @@ static void fight_distant_battle(void)
     } else {
         city_message_post(1, MESSAGE_DISTANT_BATTLE_WON, 0, 0);
         city_ratings_change_favor(25);
-        city_buildings_earn_triumphal_arch();
+        city_monument_gifts_award("distant_battle_victory");
         building_menu_update();
         city_data.distant_battle.won_count++;
         city_data.distant_battle.city_foreign_months_left = 0;

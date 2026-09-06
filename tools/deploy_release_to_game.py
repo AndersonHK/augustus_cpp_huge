@@ -17,7 +17,7 @@ import traceback
 from pathlib import Path
 
 
-EXPECTED_MOD_FOLDERS = {"Augustus", "Julius", "Vespasian"}
+EXPECTED_MOD_FOLDERS = {"Augustus", "Julius", "Vespasian", "No Monuments"}
 GOG_GAME_IDS = {"1207658835"}
 GAME_NAME_TOKENS = ("caesar 3", "caesar iii")
 GAME_ROOT_REQUIRED_FILES = ("c3.exe",)
@@ -28,6 +28,7 @@ GRAPHICS_FOLDER = "Graphics"
 GRAPHICS_BACKUP_FOLDER = ".graphics-overwrites"
 REQUIRED_RUNTIME_ARTIFACTS = (
     "Vespasian.exe",
+    "Vespasian Launcher.exe",
     "GraphicsExtractor.dll",
     "VespasianLoadSave.dll",
 )
@@ -636,7 +637,29 @@ def remove_managed_top_entries(source_mod: Path, target_mod: Path, label: str) -
         return
     for entry in list(target_mod.iterdir()):
         if not top_entry_is_preserved(entry, source_mod):
+            if entry.is_dir() and (source_mod / entry.name).is_dir():
+                # Keep directory handles valid (Explorer may have this folder open).
+                clear_directory_files(entry, label)
+            else:
+                remove_path(entry, label)
+
+
+def clear_directory_files(directory: Path, label: str) -> None:
+    require_tree_without_reparse_points(directory, label)
+    for entry in directory.iterdir():
+        if entry.is_dir():
+            clear_directory_files(entry, label)
+        else:
             remove_path(entry, label)
+
+
+def copy_managed_path(source: Path, destination: Path, label: str) -> None:
+    if source.is_dir() and destination.is_dir():
+        require_tree_without_reparse_points(source, label)
+        require_tree_without_reparse_points(destination, label)
+        shutil.copytree(source, destination, dirs_exist_ok=True)
+    else:
+        copy_path(source, destination, label)
 
 
 def overlay_source_graphics(source_graphics: Path, target_graphics: Path) -> None:
@@ -656,7 +679,7 @@ def apply_mod_overlay(overlay: ModOverlayBackup) -> None:
     remove_managed_top_entries(overlay.source, overlay.target, "old target managed content")
     for entry in overlay.source.iterdir():
         if entry.name != GRAPHICS_FOLDER:
-            copy_path(entry, overlay.target / entry.name, "source managed content")
+            copy_managed_path(entry, overlay.target / entry.name, "source managed content")
     overlay_source_graphics(
         overlay.source / GRAPHICS_FOLDER,
         overlay.target / GRAPHICS_FOLDER,
@@ -681,7 +704,7 @@ def restore_mod_overlay(overlay: ModOverlayBackup) -> None:
     remove_managed_top_entries(overlay.source, overlay.target, "partially deployed managed content")
     for entry in overlay.backup.iterdir():
         if entry.name != GRAPHICS_BACKUP_FOLDER:
-            copy_path(entry, overlay.target / entry.name, "managed-content restore")
+            copy_managed_path(entry, overlay.target / entry.name, "managed-content restore")
 
     overwrite_root = overlay.backup / GRAPHICS_BACKUP_FOLDER
     source_graphics = overlay.source / GRAPHICS_FOLDER

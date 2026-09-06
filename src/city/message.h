@@ -242,6 +242,7 @@ int city_message_set_current(int message_id);
 void city_message_mark_read(int message_id);
 
 void city_message_delete(int message_id);
+void city_message_clear_old_messages();
 
 int city_message_count(void);
 

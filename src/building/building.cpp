@@ -23,6 +23,7 @@
 #include "map/water_supply.h"
 
 #include "building.h"
+#include "building/BuildingCityService.h"
 
 #include "building/BuildingGraphics.h"
 #include "building/BuildingGraphicsState.h"
@@ -1134,6 +1135,9 @@ int Building::is_working() const
     const building_type_registry_impl::BuildingType *type_definition = type;
     if (!type_definition) {
         return worker_count() > 0;
+    }
+    if (type_definition->city_service().enabled()) {
+        return BuildingCityService(const_cast<Building &>(*this)).operational();
     }
     if (type_definition->required_workers() > 0 && !worker_count()) {
         return 0;
@@ -2986,7 +2990,7 @@ static int repair_price(
         const int lot_cost_with_fee = vacant_lot_model->cost + (vacant_lot_model->cost + 19) / 20;
         return assessment.clear_cost + lot_count * lot_cost_with_fee;
     }
-    const int building_cost = model_get_building(type.type())->cost;
+    const int building_cost = model_get_construction_cost(type.type());
     return assessment.clear_cost +
         assessment.placement.owner_charge_count() * (building_cost + building_cost / 20);
 }
@@ -3241,6 +3245,17 @@ void building_update_state(void)
     }
 }
 
+int building_elevation_desirability(int grid_offset)
+{
+    const int elevation = map_elevation_at(grid_offset);
+    return elevation <= 0 ? 0 : std::min(18, 8 + elevation * 2);
+}
+
+int building_shoreline_desirability(int grid_offset)
+{
+    return map_terrain_exists_tile_in_radius_with_type(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), 1, WATER_DESIRABILITY_RANGE, TERRAIN_WATER) ? 10 : 0;
+}
+
 void building_update_desirability(void)
 {
     for (building &record : data.buildings) {
@@ -3271,14 +3286,7 @@ void building_update_desirability(void)
             desirability += 10;
         }
 
-        switch (map_elevation_at(record.grid_offset)) {
-            case 0: break;
-            case 1: desirability += 10; break;
-            case 2: desirability += 12; break;
-            case 3: desirability += 14; break;
-            case 4: desirability += 16; break;
-            default: desirability += 18; break;
-        }
+        desirability += building_elevation_desirability(record.grid_offset);
 
         // Clamp before assigning to 8-bit signed int
         if (desirability > 100) {

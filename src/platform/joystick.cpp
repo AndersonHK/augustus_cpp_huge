@@ -18,37 +18,7 @@ typedef struct {
 
 static int enabled;
 
-#ifdef __vita__
-#include "platform/vita/pad.h"
-
-static mapping_element default_mapping[] = {
-    {MAPPING_ACTION_MOUSE_CURSOR_UP, {{JOYSTICK_ELEMENT_AXIS, VITA_LEFT_ANALOG_Y, JOYSTICK_AXIS_NEGATIVE}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_LEFT, {{JOYSTICK_ELEMENT_AXIS, VITA_LEFT_ANALOG_X, JOYSTICK_AXIS_NEGATIVE}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_DOWN, {{JOYSTICK_ELEMENT_AXIS, VITA_LEFT_ANALOG_Y, JOYSTICK_AXIS_POSITIVE}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_RIGHT, {{JOYSTICK_ELEMENT_AXIS, VITA_LEFT_ANALOG_X, JOYSTICK_AXIS_POSITIVE}}},
-    {MAPPING_ACTION_FASTER_MOUSE_CURSOR_SPEED, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_L}}},
-    {MAPPING_ACTION_SLOWER_MOUSE_CURSOR_SPEED, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_R}}},
-    {MAPPING_ACTION_LEFT_MOUSE_BUTTON, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_CROSS}}},
-    {MAPPING_ACTION_RIGHT_MOUSE_BUTTON, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_CIRCLE}}},
-    {MAPPING_ACTION_SCROLL_WINDOW_UP, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_Y, JOYSTICK_AXIS_NEGATIVE}}},
-    {MAPPING_ACTION_SCROLL_WINDOW_DOWN, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_Y, JOYSTICK_AXIS_POSITIVE}}},
-    {MAPPING_ACTION_SCROLL_MAP_UP, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_Y, JOYSTICK_AXIS_NEGATIVE}}},
-    {MAPPING_ACTION_SCROLL_MAP_LEFT, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_X, JOYSTICK_AXIS_NEGATIVE}}},
-    {MAPPING_ACTION_SCROLL_MAP_DOWN, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_Y, JOYSTICK_AXIS_POSITIVE}}},
-    {MAPPING_ACTION_SCROLL_MAP_RIGHT, {{JOYSTICK_ELEMENT_AXIS, VITA_RIGHT_ANALOG_X, JOYSTICK_AXIS_POSITIVE}}},
-    {MAPPING_ACTION_INCREASE_GAME_SPEED, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_TRIANGLE}}},
-    {MAPPING_ACTION_DECREASE_GAME_SPEED, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_SQUARE}}},
-    {MAPPING_ACTION_SHOW_VIRTUAL_KEYBOARD, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_START}}},
-    {MAPPING_ACTION_CYCLE_TOUCH_TYPE, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_SELECT}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_UP, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_UP}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_LEFT, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_LEFT}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_DOWN, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_DOWN}}},
-    {MAPPING_ACTION_MOUSE_CURSOR_RIGHT, {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_RIGHT}}},
-    {MAPPING_ACTION_RESET_MAPPING,
-        {{JOYSTICK_ELEMENT_BUTTON, VITA_PAD_L}, {JOYSTICK_ELEMENT_BUTTON, VITA_PAD_R}
-    }},
-};
-#elif defined(__SWITCH__)
+#if defined(__SWITCH__)
 #include "platform/switch/pad.h"
 
 static mapping_element default_mapping[] = {
@@ -138,7 +108,7 @@ static controller_mapping controller_mappings[] = {
 
 static int use_joystick(void)
 {
-#if defined(__vita__) || defined(__SWITCH__)
+#if defined(__SWITCH__) || defined(__ANDROID__)
     return 1;
 #else
     return enabled;
@@ -246,10 +216,16 @@ static void add_joystick(int index)
 
     if (SDL_IsGameController(index)) {
         controller = SDL_GameControllerOpen(index);
+        if (!controller) { SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Unable to open controller: %s", SDL_GetError()); return; }
         joystick = SDL_GameControllerGetJoystick(controller);
         SDL_Log("Game controller found. Setting default gamepad mapping.");
     } else {
         joystick = SDL_JoystickOpen(index);    
+    }
+    if (!joystick) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Unable to open joystick: %s", SDL_GetError());
+        if (controller) SDL_GameControllerClose(controller);
+        return;
     }
     int instance_id = SDL_JoystickInstanceID(joystick);
     if (joystick_is_active(instance_id)) {
@@ -280,39 +256,8 @@ static void remove_joystick(int instance_id)
     if (!joystick_is_active(instance_id)) {
         return;
     }
-    SDL_GameController *controller = 0;
-    SDL_Joystick *joystick = 0;
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-    if (platform_sdl_version_at_least(2, 0, 4)) {
-        controller = SDL_GameControllerFromInstanceID(instance_id);
-        if (!controller) {
-            joystick = SDL_JoystickFromInstanceID(instance_id);
-        }
-    } else {
-#endif
-        for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-            if (SDL_IsGameController(i)) {
-                SDL_GameController *current_controller = SDL_GameControllerOpen(i);
-                SDL_Joystick *current_joystick = SDL_GameControllerGetJoystick(current_controller);
-                if (SDL_JoystickInstanceID(current_joystick) == instance_id) {
-                    controller = current_controller;
-                    SDL_GameControllerClose(current_controller);
-                    break;
-                }
-                SDL_GameControllerClose(current_controller);
-            } else {
-                SDL_Joystick *current_joystick = SDL_JoystickOpen(i);
-                if (SDL_JoystickInstanceID(current_joystick) == instance_id) {
-                    joystick = current_joystick;
-                    SDL_JoystickClose(current_joystick);
-                    break;
-                }
-                SDL_JoystickClose(current_joystick);
-            }
-        }
-#if SDL_VERSION_ATLEAST(2, 0, 4)
-    }
-#endif
+    SDL_GameController *controller = SDL_GameControllerFromInstanceID(instance_id);
+    SDL_Joystick *joystick = controller ? nullptr : SDL_JoystickFromInstanceID(instance_id);
     if (controller) {
         SDL_GameControllerClose(controller);
     } else if (joystick) {

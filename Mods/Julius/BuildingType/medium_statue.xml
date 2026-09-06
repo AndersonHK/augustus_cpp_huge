@@ -14,10 +14,7 @@
     <graphics>
         <default>
             <path value="Aesthetics\Statue" />
-            <options selection="orientation">
-                <option image="Image_0001" />
-                <option path="Aesthetics\Med_Statue_R" image="Med_Statue_R" />
-            </options>
+            <image value="Image_0001" />
         </default>
     </graphics>
     <labor>

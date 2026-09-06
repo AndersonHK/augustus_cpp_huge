@@ -20,6 +20,9 @@
 #include "widget/minimap.h"
 
 #include "file_io.h"
+#include "game/archive_origin.h"
+#include "map/natives.h"
+#include "game/augustus_archive_layouts.generated.h"
 
 #include "building/building.h"
 #include "building/barracks.h"
@@ -541,13 +544,13 @@ static void init_scenario_data(scenario_version_t version)
     state->end_marker = create_scenario_piece(4, 0);
 }
 
-static void get_version_data(savegame_version_data *version_data, savegame_version_t version)
+static void get_version_data(savegame_version_data *version_data, savegame_version_t version, int resources, int foods)
 {
     int multiplier = 1;
     int count_multiplier = 1;
 
-    int total_new_resources = resource_total_mapped() - resource_id_bridge_legacy_resource_count();
-    int total_new_food = resource_total_food_mapped() - resource_id_bridge_legacy_food_count();
+    int total_new_resources = resources - resource_id_bridge_legacy_resource_count();
+    int total_new_food = foods - resource_id_bridge_legacy_food_count();
 
     version_data->piece_sizes.burning_totals = 8;
     if (version > SAVE_GAME_LAST_ORIGINAL_LIMITS_VERSION) {
@@ -596,15 +599,15 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     } else {
         version_data->piece_sizes.empire_cities = PIECE_SIZE_DYNAMIC;
     }
-    version_data->piece_sizes.trade_prices = 8 * resource_total_mapped();
+    version_data->piece_sizes.trade_prices = 8 * resources;
     if (version <= SAVE_GAME_LAST_STATIC_SCENARIO_OBJECTS) {
-        version_data->piece_sizes.trade_route_limit = 20 * 4 * resource_total_mapped();
-        version_data->piece_sizes.trade_route_traded = 20 * 4 * resource_total_mapped();
+        version_data->piece_sizes.trade_route_limit = 20 * 4 * resources;
+        version_data->piece_sizes.trade_route_traded = 20 * 4 * resources;
     } else {
         version_data->piece_sizes.trade_route_limit = PIECE_SIZE_DYNAMIC;
         version_data->piece_sizes.trade_route_traded = PIECE_SIZE_DYNAMIC;
     }
-    version_data->piece_sizes.figure_traders = 1604 + 100 * 2 * resource_total_mapped();
+    version_data->piece_sizes.figure_traders = 1604 + 100 * 2 * resources;
 
     if (version > SAVE_GAME_LAST_STATIC_SCENARIO_ORIGINAL_DATA) {
         version_data->piece_sizes.invasion_warnings = PIECE_SIZE_DYNAMIC;
@@ -675,210 +678,221 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.minimap_preview = version > SAVE_GAME_LAST_NO_MINIMAP_PREVIEW_BITMAP;
 }
 
+template <typename Emit> static void visit_native_savegame_layout(savegame_version_t version, int resources, int foods, Emit emit)
+{
+
+
+    savegame_version_data version_data{};
+    get_version_data(&version_data, version, resources, foods);
+
+
+    emit(offsetof(savegame_state, scenario_campaign_mission), "scenario_campaign_mission", 4, 0);
+    emit(offsetof(savegame_state, file_version), "file_version", 4, 0);
+    if (version_data.features.resource_version) {
+        emit(offsetof(savegame_state, resource_version), "resource_version", 4, 0);
+    }
+    if (version_data.features.resource_type_table) {
+        emit(offsetof(savegame_state, resource_type_table), "resource_type_table", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.scenario_version) {
+        emit(offsetof(savegame_state, scenario_version), "scenario_version", 4, 0);
+    }
+    if (version_data.features.image_grid) {
+        emit(offsetof(savegame_state, image_grid), "image_grid", version_data.piece_sizes.image_grid, 1);
+    }
+    emit(offsetof(savegame_state, edge_grid), "edge_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, building_grid), "building_grid", version_data.piece_sizes.building_grid, 1);
+    emit(offsetof(savegame_state, terrain_grid), "terrain_grid", version_data.piece_sizes.terrain_grid, 1);
+    emit(offsetof(savegame_state, aqueduct_grid), "aqueduct_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, figure_grid), "figure_grid", GRID_SIZE_BUF_U16, 1);
+    if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
+        emit(offsetof(savegame_state, bitfields_grid), "bitfields_grid", GRID_SIZE_BUF_U16, 1);
+    } else {
+        emit(offsetof(savegame_state, bitfields_grid), "bitfields_grid", GRID_SIZE_BUF_U8, 1);
+    }
+    emit(offsetof(savegame_state, sprite_grid), "sprite_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, random_grid), "random_grid", GRID_SIZE_BUF_U8, 0);
+    emit(offsetof(savegame_state, desirability_grid), "desirability_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, elevation_grid), "elevation_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, building_damage_grid), "building_damage_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, aqueduct_backup_grid), "aqueduct_backup_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, sprite_backup_grid), "sprite_backup_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, figures), "figures", version_data.piece_sizes.figures, 1);
+    emit(offsetof(savegame_state, route_figures), "route_figures", version_data.piece_sizes.route_figures, 1);
+    emit(offsetof(savegame_state, route_paths), "route_paths", version_data.piece_sizes.route_paths, 1);
+    emit(offsetof(savegame_state, formations), "formations", version_data.piece_sizes.formations, 1);
+    emit(offsetof(savegame_state, formation_totals), "formation_totals", 12, 0);
+    emit(offsetof(savegame_state, city_data), "city_data", version_data.piece_sizes.city_data, 1);
+    if (version_data.features.city_faction_info) {
+        emit(offsetof(savegame_state, city_faction_unknown), "city_faction_unknown", 2, 0);
+    }
+    emit(offsetof(savegame_state, player_name), "player_name", 64, 0);
+    if (version_data.features.city_faction_info) {
+        emit(offsetof(savegame_state, city_faction), "city_faction", 4, 0);
+    }
+    if (version_data.features.building_type_table) {
+        emit(offsetof(savegame_state, building_type_table), "building_type_table", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.water_access_type_table) {
+        emit(offsetof(savegame_state, water_access_type_table), "water_access_type_table", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.god_type_table) {
+        emit(offsetof(savegame_state, god_type_table), "god_type_table", PIECE_SIZE_DYNAMIC, 0);
+    }
+    emit(offsetof(savegame_state, buildings), "buildings", version_data.piece_sizes.buildings, 1);
+    if (version_data.features.keyed_resource_state) {
+        emit(offsetof(savegame_state, building_resource_state), "building_resource_state", PIECE_SIZE_DYNAMIC, 1);
+    }
+    emit(offsetof(savegame_state, city_view_orientation), "city_view_orientation", 4, 0);
+    emit(offsetof(savegame_state, game_time), "game_time", 20, 0);
+    emit(offsetof(savegame_state, building_extra_highest_id_ever), "building_extra_highest_id_ever", 8, 0);
+    emit(offsetof(savegame_state, random_iv), "random_iv", 8, 0);
+    emit(offsetof(savegame_state, city_view_camera), "city_view_camera", 8, 0);
+    if (version_data.features.static_building_counts) {
+        emit(offsetof(savegame_state, building_count_culture1), "building_count_culture1", version_data.building_counts.culture1, 0);
+    }
+    emit(offsetof(savegame_state, city_graph_order), "city_graph_order", version_data.piece_sizes.graph_order, 0);
+    emit(offsetof(savegame_state, emperor_change_time), "emperor_change_time", 8, 0);
+    emit(offsetof(savegame_state, empire), "empire", 12, 0);
+    if (version_data.features.custom_empire_map_image) {
+        emit(offsetof(savegame_state, empire_map), "empire_map", PIECE_SIZE_DYNAMIC, 0);
+    }
+    emit(offsetof(savegame_state, empire_cities), "empire_cities", version_data.piece_sizes.empire_cities, 1);
+    if (version_data.features.static_building_counts) {
+        emit(offsetof(savegame_state, building_count_industry), "building_count_industry", version_data.building_counts.industry, 0);
+    }
+    emit(offsetof(savegame_state, trade_prices), "trade_prices", version_data.piece_sizes.trade_prices, 0);
+    emit(offsetof(savegame_state, figure_names), "figure_names", 84, 0);
+    emit(offsetof(savegame_state, culture_coverage), "culture_coverage", 60, 0);
+    emit(offsetof(savegame_state, scenario), "scenario", version_data.piece_sizes.scenario, 0);
+    if (version_data.features.requests) {
+        emit(offsetof(savegame_state, requests), "requests", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.dynamic_scenario_objects) {
+        emit(offsetof(savegame_state, invasions), "invasions", PIECE_SIZE_DYNAMIC, 1);
+        emit(offsetof(savegame_state, demand_changes), "demand_changes", PIECE_SIZE_DYNAMIC, 1);
+        emit(offsetof(savegame_state, price_changes), "price_changes", PIECE_SIZE_DYNAMIC, 1);
+        emit(offsetof(savegame_state, allowed_buildings), "allowed_buildings", PIECE_SIZE_DYNAMIC, 1);
+        emit(offsetof(savegame_state, custom_variables), "custom_variables", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.scenario_events) {
+        emit(offsetof(savegame_state, scenario_events), "scenario_events", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.scenario_formulas) {
+        emit(offsetof(savegame_state, scenario_formulas), "scenario_formulas", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.scenario_conditions) {
+        emit(offsetof(savegame_state, scenario_conditions), "scenario_conditions", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.scenario_actions) {
+        emit(offsetof(savegame_state, scenario_actions), "scenario_actions", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.custom_messages_and_media) {
+        emit(offsetof(savegame_state, custom_messages), "custom_messages", PIECE_SIZE_DYNAMIC, 0);
+        emit(offsetof(savegame_state, custom_media), "custom_media", PIECE_SIZE_DYNAMIC, 0);
+        emit(offsetof(savegame_state, message_media_text_blob), "message_media_text_blob", PIECE_SIZE_DYNAMIC, 0);
+        emit(offsetof(savegame_state, message_media_metadata), "message_media_metadata", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.custom_model_data) {
+        emit(offsetof(savegame_state, building_model_data), "building_model_data", PIECE_SIZE_DYNAMIC, 0);
+    }
+    emit(offsetof(savegame_state, max_game_year), "max_game_year", 4, 0);
+    emit(offsetof(savegame_state, earthquake), "earthquake", 60, 0);
+    emit(offsetof(savegame_state, emperor_change_state), "emperor_change_state", 4, 0);
+    emit(offsetof(savegame_state, messages), "messages", 16000, 1);
+    emit(offsetof(savegame_state, message_extra), "message_extra", 12, 0);
+    emit(offsetof(savegame_state, population_messages), "population_messages", 10, 0);
+    emit(offsetof(savegame_state, message_counts), "message_counts", 80, 0);
+    emit(offsetof(savegame_state, message_delays), "message_delays", 80, 0);
+    emit(offsetof(savegame_state, building_list_burning_totals), "building_list_burning_totals", version_data.piece_sizes.burning_totals, 0);
+    emit(offsetof(savegame_state, figure_sequence), "figure_sequence", 4, 0);
+    emit(offsetof(savegame_state, scenario_settings), "scenario_settings", 12, 0);
+    emit(offsetof(savegame_state, invasion_warnings), "invasion_warnings", version_data.piece_sizes.invasion_warnings, 1);
+    emit(offsetof(savegame_state, scenario_is_custom), "scenario_is_custom", 4, 0);
+    emit(offsetof(savegame_state, city_sounds), "city_sounds", 8960, 0);
+    emit(offsetof(savegame_state, building_extra_highest_id), "building_extra_highest_id", 4, 0);
+    emit(offsetof(savegame_state, figure_traders), "figure_traders", version_data.piece_sizes.figure_traders, 0);
+    emit(offsetof(savegame_state, building_list_burning), "building_list_burning", version_data.piece_sizes.building_list_burning, 1);
+    emit(offsetof(savegame_state, building_list_small), "building_list_small", version_data.piece_sizes.building_list_small, 1);
+    emit(offsetof(savegame_state, building_list_large), "building_list_large", version_data.piece_sizes.building_list_large, 1);
+    emit(offsetof(savegame_state, tutorial_part1), "tutorial_part1", 32, 0);
+    if (version_data.features.static_building_counts) {
+        emit(offsetof(savegame_state, building_count_military), "building_count_military", version_data.building_counts.military, 0);
+    }
+    emit(offsetof(savegame_state, enemy_army_totals), "enemy_army_totals", 20, 0);
+    emit(offsetof(savegame_state, building_storages), "building_storages", version_data.piece_sizes.building_storages, 0);
+    if (version_data.features.static_building_counts) {
+        emit(offsetof(savegame_state, building_count_culture2), "building_count_culture2", version_data.building_counts.culture2, 0);
+        emit(offsetof(savegame_state, building_count_support), "building_count_support", version_data.building_counts.support, 0);
+    }
+    emit(offsetof(savegame_state, tutorial_part2), "tutorial_part2", 4, 0);
+    emit(offsetof(savegame_state, gladiator_revolt), "gladiator_revolt", 16, 0);
+    if (version > SAVE_GAME_LAST_NO_EMPIRE_EDITOR) {
+        emit(offsetof(savegame_state, trade_routes), "trade_routes", PIECE_SIZE_DYNAMIC, 1);
+    } else {
+        emit(offsetof(savegame_state, trade_route_limit), "trade_route_limit", version_data.piece_sizes.trade_route_limit, 1);
+        emit(offsetof(savegame_state, trade_route_traded), "trade_route_traded", version_data.piece_sizes.trade_route_traded, 1);
+    }
+    if (version_data.features.barracks_tower_sentry_request) {
+        emit(offsetof(savegame_state, building_barracks_tower_sentry), "building_barracks_tower_sentry", 4, 0);
+    }
+    emit(offsetof(savegame_state, building_extra_sequence), "building_extra_sequence", 4, 0);
+    emit(offsetof(savegame_state, routing_counters), "routing_counters", 16, 0);
+    if (version_data.features.static_building_counts) {
+        emit(offsetof(savegame_state, building_count_culture3), "building_count_culture3", version_data.building_counts.culture3, 0);
+    }
+    emit(offsetof(savegame_state, enemy_armies), "enemy_armies", version_data.piece_sizes.enemy_armies, 0);
+    emit(offsetof(savegame_state, city_entry_exit_xy), "city_entry_exit_xy", 16, 0);
+    emit(offsetof(savegame_state, last_invasion_id), "last_invasion_id", 2, 0);
+    emit(offsetof(savegame_state, building_extra_corrupt_houses), "building_extra_corrupt_houses", 8, 0);
+    emit(offsetof(savegame_state, scenario_name), "scenario_name", 65, 0);
+    emit(offsetof(savegame_state, bookmarks), "bookmarks", 32, 0);
+    emit(offsetof(savegame_state, tutorial_part3), "tutorial_part3", 4, 0);
+    emit(offsetof(savegame_state, city_entry_exit_grid_offset), "city_entry_exit_grid_offset", 8, 0);
+    if (version_data.features.custom_campaigns) {
+        emit(offsetof(savegame_state, campaign_name), "campaign_name", PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.mod_metadata) {
+        emit(offsetof(savegame_state, mod_metadata), "mod_metadata", PIECE_SIZE_DYNAMIC, 0);
+    }
+    emit(offsetof(savegame_state, end_marker), "end_marker", 284, 0); // 71x 4-bytes emptiness
+    if (version_data.features.monument_deliveries) {
+        emit(offsetof(savegame_state, deliveries), "deliveries", version_data.piece_sizes.monument_deliveries, 0);
+    }
+    if (version_data.features.custom_empires) {
+        emit(offsetof(savegame_state, custom_empire), "custom_empire", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.visited_buildings) {
+        emit(offsetof(savegame_state, visited_buildings), "visited_buildings", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.rubble_grid) {
+        emit(offsetof(savegame_state, rubble_grid), "rubble_grid", GRID_SIZE_BUF_U32, 1);
+    }
+    if (version_data.features.custom_production_rates) {
+        emit(offsetof(savegame_state, production_rates), "production_rates", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.road_service_history) {
+        emit(offsetof(savegame_state, road_service_history), "road_service_history", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.local_workforce_allocations) {
+        emit(offsetof(savegame_state, local_workforce_allocations), "local_workforce_allocations", PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.minimap_preview) {
+        emit(offsetof(savegame_state, minimap_preview), "minimap_preview", PIECE_SIZE_DYNAMIC, 1);
+    }
+}
+
 static void init_savegame_data(savegame_version_t version)
 {
     clear_savegame_pieces();
-
-    savegame_version_data version_data;
-    get_version_data(&version_data, version);
-
-    savegame_state *state = &savegame_data.state;
-    memset(state, 0, sizeof(*state));
-    state->scenario_campaign_mission = create_savegame_piece(4, 0);
-    state->file_version = create_savegame_piece(4, 0);
-    if (version_data.features.resource_version) {
-        state->resource_version = create_savegame_piece(4, 0);
-    }
-    if (version_data.features.resource_type_table) {
-        state->resource_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.scenario_version) {
-        state->scenario_version = create_savegame_piece(4, 0);
-    }
-    if (version_data.features.image_grid) {
-        state->image_grid = create_savegame_piece(version_data.piece_sizes.image_grid, 1);
-    }
-    state->edge_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->building_grid = create_savegame_piece(version_data.piece_sizes.building_grid, 1);
-    state->terrain_grid = create_savegame_piece(version_data.piece_sizes.terrain_grid, 1);
-    state->aqueduct_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->figure_grid = create_savegame_piece(GRID_SIZE_BUF_U16, 1);
-    if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        state->bitfields_grid = create_savegame_piece(GRID_SIZE_BUF_U16, 1);
-    } else {
-        state->bitfields_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    }
-    state->sprite_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->random_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 0);
-    state->desirability_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->elevation_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->building_damage_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->aqueduct_backup_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->sprite_backup_grid = create_savegame_piece(GRID_SIZE_BUF_U8, 1);
-    state->figures = create_savegame_piece(version_data.piece_sizes.figures, 1);
-    state->route_figures = create_savegame_piece(version_data.piece_sizes.route_figures, 1);
-    state->route_paths = create_savegame_piece(version_data.piece_sizes.route_paths, 1);
-    state->formations = create_savegame_piece(version_data.piece_sizes.formations, 1);
-    state->formation_totals = create_savegame_piece(12, 0);
-    state->city_data = create_savegame_piece(version_data.piece_sizes.city_data, 1);
-    if (version_data.features.city_faction_info) {
-        state->city_faction_unknown = create_savegame_piece(2, 0);
-    }
-    state->player_name = create_savegame_piece(64, 0);
-    if (version_data.features.city_faction_info) {
-        state->city_faction = create_savegame_piece(4, 0);
-    }
-    if (version_data.features.building_type_table) {
-        state->building_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.water_access_type_table) {
-        state->water_access_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.god_type_table) {
-        state->god_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    state->buildings = create_savegame_piece(version_data.piece_sizes.buildings, 1);
-    if (version_data.features.keyed_resource_state) {
-        state->building_resource_state = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    state->city_view_orientation = create_savegame_piece(4, 0);
-    state->game_time = create_savegame_piece(20, 0);
-    state->building_extra_highest_id_ever = create_savegame_piece(8, 0);
-    state->random_iv = create_savegame_piece(8, 0);
-    state->city_view_camera = create_savegame_piece(8, 0);
-    if (version_data.features.static_building_counts) {
-        state->building_count_culture1 = create_savegame_piece(version_data.building_counts.culture1, 0);
-    }
-    state->city_graph_order = create_savegame_piece(version_data.piece_sizes.graph_order, 0);
-    state->emperor_change_time = create_savegame_piece(8, 0);
-    state->empire = create_savegame_piece(12, 0);
-    if (version_data.features.custom_empire_map_image) {
-        state->empire_map = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    state->empire_cities = create_savegame_piece(version_data.piece_sizes.empire_cities, 1);
-    if (version_data.features.static_building_counts) {
-        state->building_count_industry = create_savegame_piece(version_data.building_counts.industry, 0);
-    }
-    state->trade_prices = create_savegame_piece(version_data.piece_sizes.trade_prices, 0);
-    state->figure_names = create_savegame_piece(84, 0);
-    state->culture_coverage = create_savegame_piece(60, 0);
-    state->scenario = create_savegame_piece(version_data.piece_sizes.scenario, 0);
-    if (version_data.features.requests) {
-        state->requests = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.dynamic_scenario_objects) {
-        state->invasions = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-        state->demand_changes = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-        state->price_changes = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-        state->allowed_buildings = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-        state->custom_variables = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.scenario_events) {
-        state->scenario_events = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.scenario_formulas) {
-        state->scenario_formulas = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.scenario_conditions) {
-        state->scenario_conditions = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.scenario_actions) {
-        state->scenario_actions = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.custom_messages_and_media) {
-        state->custom_messages = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-        state->custom_media = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-        state->message_media_text_blob = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-        state->message_media_metadata = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.custom_model_data) {
-        state->building_model_data = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    state->max_game_year = create_savegame_piece(4, 0);
-    state->earthquake = create_savegame_piece(60, 0);
-    state->emperor_change_state = create_savegame_piece(4, 0);
-    state->messages = create_savegame_piece(16000, 1);
-    state->message_extra = create_savegame_piece(12, 0);
-    state->population_messages = create_savegame_piece(10, 0);
-    state->message_counts = create_savegame_piece(80, 0);
-    state->message_delays = create_savegame_piece(80, 0);
-    state->building_list_burning_totals = create_savegame_piece(version_data.piece_sizes.burning_totals, 0);
-    state->figure_sequence = create_savegame_piece(4, 0);
-    state->scenario_settings = create_savegame_piece(12, 0);
-    state->invasion_warnings = create_savegame_piece(version_data.piece_sizes.invasion_warnings, 1);
-    state->scenario_is_custom = create_savegame_piece(4, 0);
-    state->city_sounds = create_savegame_piece(8960, 0);
-    state->building_extra_highest_id = create_savegame_piece(4, 0);
-    state->figure_traders = create_savegame_piece(version_data.piece_sizes.figure_traders, 0);
-    state->building_list_burning = create_savegame_piece(version_data.piece_sizes.building_list_burning, 1);
-    state->building_list_small = create_savegame_piece(version_data.piece_sizes.building_list_small, 1);
-    state->building_list_large = create_savegame_piece(version_data.piece_sizes.building_list_large, 1);
-    state->tutorial_part1 = create_savegame_piece(32, 0);
-    if (version_data.features.static_building_counts) {
-        state->building_count_military = create_savegame_piece(version_data.building_counts.military, 0);
-    }
-    state->enemy_army_totals = create_savegame_piece(20, 0);
-    state->building_storages = create_savegame_piece(version_data.piece_sizes.building_storages, 0);
-    if (version_data.features.static_building_counts) {
-        state->building_count_culture2 = create_savegame_piece(version_data.building_counts.culture2, 0);
-        state->building_count_support = create_savegame_piece(version_data.building_counts.support, 0);
-    }
-    state->tutorial_part2 = create_savegame_piece(4, 0);
-    state->gladiator_revolt = create_savegame_piece(16, 0);
-    if (version > SAVE_GAME_LAST_NO_EMPIRE_EDITOR) {
-        state->trade_routes = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    } else {
-        state->trade_route_limit = create_savegame_piece(version_data.piece_sizes.trade_route_limit, 1);
-        state->trade_route_traded = create_savegame_piece(version_data.piece_sizes.trade_route_traded, 1);
-    }
-    if (version_data.features.barracks_tower_sentry_request) {
-        state->building_barracks_tower_sentry = create_savegame_piece(4, 0);
-    }
-    state->building_extra_sequence = create_savegame_piece(4, 0);
-    state->routing_counters = create_savegame_piece(16, 0);
-    if (version_data.features.static_building_counts) {
-        state->building_count_culture3 = create_savegame_piece(version_data.building_counts.culture3, 0);
-    }
-    state->enemy_armies = create_savegame_piece(version_data.piece_sizes.enemy_armies, 0);
-    state->city_entry_exit_xy = create_savegame_piece(16, 0);
-    state->last_invasion_id = create_savegame_piece(2, 0);
-    state->building_extra_corrupt_houses = create_savegame_piece(8, 0);
-    state->scenario_name = create_savegame_piece(65, 0);
-    state->bookmarks = create_savegame_piece(32, 0);
-    state->tutorial_part3 = create_savegame_piece(4, 0);
-    state->city_entry_exit_grid_offset = create_savegame_piece(8, 0);
-    if (version_data.features.custom_campaigns) {
-        state->campaign_name = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    if (version_data.features.mod_metadata) {
-        state->mod_metadata = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
-    }
-    state->end_marker = create_savegame_piece(284, 0); // 71x 4-bytes emptiness
-    if (version_data.features.monument_deliveries) {
-        state->deliveries = create_savegame_piece(version_data.piece_sizes.monument_deliveries, 0);
-    }
-    if (version_data.features.custom_empires) {
-        state->custom_empire = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.visited_buildings) {
-        state->visited_buildings = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.rubble_grid) {
-        state->rubble_grid = create_savegame_piece(GRID_SIZE_BUF_U32, 1);
-    }
-    if (version_data.features.custom_production_rates) {
-        state->production_rates = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.road_service_history) {
-        state->road_service_history = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.local_workforce_allocations) {
-        state->local_workforce_allocations = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
-    if (version_data.features.minimap_preview) {
-        state->minimap_preview = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
-    }
+    savegame_data.state = {};
+    visit_native_savegame_layout(version, resource_total_mapped(), resource_total_food_mapped(), [](size_t offset, const char *, int size, int compressed) {
+        auto *slot = reinterpret_cast<buffer **>(reinterpret_cast<uint8_t *>(&savegame_data.state) + offset);
+        *slot = create_savegame_piece(size, compressed);
+    });
 }
+
+#include "game/archive_origin_impl.h"
 
 static void scenario_load_from_state(scenario_state *file, scenario_version_t version)
 {
@@ -931,10 +945,9 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     
     if (version > SCENARIO_LAST_UNVERSIONED) {
         empire_object_load(file->empire, version);
-        if (resource_id_bridge_mapping_joins_meat_and_fish()) {
-            empire_city_migrate_legacy_fishing_production();
-        }
-        empire_city_update_trading_data(scenario_empire_id());
+        // The city/route list still belongs to the previous scenario here.
+        // empire_object_init_cities applies compatibility updates after binding
+        // the newly loaded objects, in both game and editor initialization.
     }
     empire_reset_map();
     if (version > SCENARIO_LAST_NO_CUSTOM_EMPIRE_MAP_IMAGE) {
@@ -943,7 +956,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     model_reset();
     building_type_startup_bridge_apply_model_overrides();
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        model_load_model_data(file->model_data);
+        if (!model_load_model_data(file->model_data, version > SCENARIO_LAST_NO_KEYED_MODELS)) log_error("Invalid scenario model overlay", nullptr, version);
     } else {
         scenario_events_migrate_to_formulas();
         scenario_events_migrate_to_resolved_display_names();
@@ -952,11 +965,12 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     }
     resource_init();
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        production_rates_load(file->production_rates);
+        if (!production_rates_load(file->production_rates, version > SCENARIO_LAST_NO_KEYED_MODELS)) log_error("Invalid scenario production overlay", nullptr, version);
     }
+    if (version <= SCENARIO_LAST_NO_TIME_FORMULAS) scenario_events_migrate_time_formulas();
     scenario_events_assign_parent_event_ids();
     if (version <= SCENARIO_LAST_NO_EMPIRE_EDITOR) {
-        scenario_events_migrate_to_buys_sells();
+        scenario_events_migrate_to_buys_sells(true);
     }
 
     buffer_skip(file->end_marker, 4);
@@ -966,7 +980,8 @@ static void scenario_save_to_state(scenario_state *file)
 {
     buffer_write_u32(file->resource_version, resource_id_bridge_current_version());
 
-    map_image_save_state_legacy(file->graphic_ids);
+    map_natives_prepare_scenario_tokens();
+    map_natives_save_scenario_image_grid(file->graphic_ids);
     map_terrain_save_state_legacy(file->terrain);
     map_property_save_state(file->bitfields, file->edge);
     map_random_save_state(file->random);
@@ -1122,14 +1137,20 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     }
 
     model_reset();
-    if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        model_load_model_data(state->building_model_data);
-    }
     building_type_startup_bridge_apply_model_overrides();
+    if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
+        if (!model_load_model_data(state->building_model_data, version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS)) {
+            log_error("Invalid saved scenario model overlay", nullptr, version);
+            return 0;
+        }
+    }
 
     resource_init();
     if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        production_rates_load(state->production_rates);
+        if (!production_rates_load(state->production_rates, version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS)) {
+            log_error("Invalid saved production overlay", nullptr, version);
+            return 0;
+        }
     }
     map_road_service_history_load_state(
         state->road_service_history,
@@ -1149,6 +1170,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         empire_load_custom_map(state->empire_map);
     }
     empire_city_load_state(state->empire_cities, version);
+    scenario_demand_change_resolve_legacy_directions();
     if (resource_id_bridge_mapping_joins_meat_and_fish() || version <= SAVE_GAME_LAST_UNVERIFIED_NATIVE_SURFACE_RECORDS) {
         empire_city_migrate_legacy_fishing_production();
     }
@@ -1214,6 +1236,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         scenario_events_migrate_to_grid_slices();
         scenario_events_min_max_migrate_to_formulas();
     }
+    if (version <= SAVE_GAME_LAST_NO_TIME_FORMULAS) scenario_events_migrate_time_formulas();
     scenario_events_assign_parent_event_ids();
     if (version <= SAVE_GAME_LAST_NO_EMPIRE_EDITOR) {
         scenario_events_migrate_to_buys_sells();
@@ -1408,18 +1431,20 @@ static scenario_version_t get_scenario_version_from_buffer(buffer *buf)
         buffer_reset(buf);
         return SCENARIO_LAST_UNVERSIONED;
     }
-
+    // The writer and upstream use an eight-byte, NUL-terminated magic. Also
+    // accept historical seven-byte headers, without shifting the version.
+    if (buf->index < buf->size && buf->data[buf->index] == 0) buffer_skip(buf, 1);
     return static_cast<scenario_version_t>(buffer_read_i32(buf));
 }
 
 static int load_scenario_from_buffer(buffer *buf)
 {
     scenario_version_t version = get_scenario_version_from_buffer(buf);
-    init_scenario_data(version);
-    if (version > SCENARIO_CURRENT_VERSION) {
+    if (version < SCENARIO_LAST_UNVERSIONED || version > SCENARIO_CURRENT_VERSION || buf->overflow) {
         log_error("Scenario version incompatible with current version, got version", 0, version);
         return 0;
     }
+    init_scenario_data(version);
     memory_block compress_buffer;
     core_memory_block_init(&compress_buffer, COMPRESS_BUFFER_INITIAL_SIZE);
     for (int i = 0; i < scenario_data.num_pieces; i++) {
@@ -1709,8 +1734,10 @@ static int get_savegame_versions_from_buffer(buffer *buf, savegame_version_t *sa
     return *save_version != 0;
 }
 
-int game_file_io_read_save_game_from_buffer(buffer *buf)
+int game_file_io_read_save_game_from_buffer(buffer *buf, ArchiveFamily explicit_origin)
 {
+    ArchiveOrigin origin;
+    if (!archive_can_enter_native_reader(buf, origin, explicit_origin)) return FILE_LOAD_INCOMPATIBLE_VERSION;
     clear_loaded_save_mod_metadata();
     clear_savegame_context();
     int result = 0;
@@ -1740,10 +1767,10 @@ int game_file_io_read_save_game_from_buffer(buffer *buf)
     return FILE_LOAD_SUCCESS;
 }
 
-int game_file_io_read_saved_game(const char *filename, int offset)
+
+
+int game_file_io_read_saved_game(const char *filename, int offset, ArchiveFamily explicit_origin)
 {
-    clear_loaded_save_mod_metadata();
-    clear_savegame_context();
     log_info("Loading saved game", filename, 0);
     if (offset < 0) {
         log_error("Unable to load game archive with a negative offset", filename, offset);
@@ -1759,7 +1786,7 @@ int game_file_io_read_saved_game(const char *filename, int offset)
     }
     buffer source;
     buffer_init(&source, archive.data(), archive.size());
-    return game_file_io_read_save_game_from_buffer(&source);
+    return game_file_io_read_save_game_from_buffer(&source, explicit_origin);
 }
 
 static void get_saved_game_origin(saved_game_info *info, const savegame_state *state)
@@ -1837,7 +1864,7 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
     return SAVEGAME_STATUS_OK;
 }
 
-int game_file_io_read_saved_game_info(const char *filename, int offset, saved_game_info *info)
+int game_file_io_read_saved_game_info(const char *filename, int offset, saved_game_info *info, ArchiveFamily explicit_origin)
 {
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
@@ -1858,11 +1885,13 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     }
     buffer source;
     buffer_init(&source, archive.data(), archive.size());
-    return game_file_io_read_saved_game_info_from_buffer(&source, info);
+    return game_file_io_read_saved_game_info_from_buffer(&source, info, explicit_origin);
 }
 
-int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info)
+int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info, ArchiveFamily explicit_origin)
 {
+    ArchiveOrigin origin;
+    if (!archive_can_enter_native_reader(buf, origin, explicit_origin)) return SAVEGAME_STATUS_INVALID;
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
@@ -1897,6 +1926,13 @@ int game_file_io_write_saved_game(const char *filename)
 
     log_info("Saving game", filename, 0);
     savegame_save_to_state(&savegame_data.state);
+    for (int i = 0; i < savegame_data.num_pieces; ++i) {
+        if (savegame_data.pieces[i].buf.overflow) {
+            log_error("Unable to save game: serialized payload exceeded its buffer", filename, i);
+            clear_savegame_context();
+            return 0;
+        }
+    }
 
     const std::string temporary_filename = std::string(filename) + ".tmp";
     platform_file_manager_remove_file(temporary_filename.c_str());
@@ -1938,9 +1974,12 @@ static int saved_game_file_has_valid_structure(const char *filename)
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (!get_savegame_versions_from_buffer(&source, &save_version, &resource_version) ||
-        save_version != SAVE_GAME_CURRENT_VERSION || resource_version != resource_id_bridge_current_version()) {
+          save_version != SAVE_GAME_CURRENT_VERSION || resource_version != resource_id_bridge_current_version()) {
         return 0;
     }
+    // Fixed legacy pieces use the archive resource layout, even when this mod
+    // stack declares fewer resources. Match the normal load path before sizing.
+    resource_set_mapping(resource_version);
     init_savegame_data(save_version);
     const int result = savegame_read_from_buffer(&source, save_version);
     clear_savegame_context();

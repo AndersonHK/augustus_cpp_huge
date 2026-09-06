@@ -30,6 +30,8 @@ int production_method_registry_default_production_per_month_for_resource(resourc
 int production_method_registry_set_production_per_month_for_resource(resource_type resource, int production);
 int production_method_registry_adjust_production_per_month_for_resource(resource_type resource, int delta);
 void production_method_registry_reset_production_overrides(void);
+void production_method_registry_save_overrides(buffer *buf);
+int production_method_registry_load_overrides(buffer *buf);
 int production_method_registry_supply_chain_for_good(resource_supply_chain *chain, resource_type good, int max_entries);
 int production_method_registry_supply_chain_for_raw_material(
     resource_supply_chain *chain,

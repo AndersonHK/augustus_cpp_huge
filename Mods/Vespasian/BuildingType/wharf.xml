@@ -1,38 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wharf">
-    <identity name_key="main_strings.28.76" />
     <model cost="90" />
-    <desirability>
-        <value value="-8" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="waterside_2x2" />
-    <button group="engineering" order="40" icon="Industry\Wharf" text_key="main_strings.28.76" />
-    <sound id="wharf" />
-    <graphics>
-        <default>
-            <options selection="orientation">
-                <option path="Industry\Wharf" image="Image_0000" />
-                <option path="Industry\Wharf" image="Image_0003" />
-                <option path="Industry\Wharf" image="Image_0002" />
-                <option path="Industry\Wharf" image="Image_0001" />
-            </options>
-        </default>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <production_methods>
-        <production_method path="fish_wharf_basic" />
-    </production_methods>
-    <storages>
-        <storage path="fish_output_wharf" />
-    </storages>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="fishing_boat" spawn_source="self" capacity="1" />
     </spawn_group>

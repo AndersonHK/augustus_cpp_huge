@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="sheep" graphics_only="true"><graphics><default><path value="Environment\Sheep_Flock" /></default><corpse><path value="Environment\Sheep_Flock" /></corpse></graphics></figure>
+<figure type="sheep">
+    <graphics>
+        <default>
+            <path value="Environment\Sheep_Flock" />
+        </default>
+        <corpse>
+            <path value="Environment\Sheep_Flock" />
+        </corpse>
+    </graphics>
+</figure>

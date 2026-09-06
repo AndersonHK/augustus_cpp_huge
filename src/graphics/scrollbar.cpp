@@ -60,6 +60,8 @@ void scrollbar_update_total_elements(scrollbar_type *scrollbar, unsigned int tot
         max_scroll_position = total_elements - scrollbar->elements_in_view;
     }
     scrollbar->max_scroll_position = max_scroll_position;
+    scrollbar->is_dragging_scrollbar_dot = 0;
+    if (!max_scroll_position) scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
     if (scrollbar->scroll_position > max_scroll_position) {
         scrollbar->scroll_position = max_scroll_position;
     }
@@ -99,7 +101,9 @@ static int handle_touch(scrollbar_type *scrollbar, const touch *t, int in_dialog
     }
     if (t->has_moved && scrollbar->touch_drag_state != TOUCH_DRAG_NONE) {
         scrollbar->touch_drag_state = TOUCH_DRAG_IN_PROGRESS;
+        if (!scrollbar->elements_in_view) return 0;
         int element_height = (scrollbar->height - 8 * scrollbar->has_y_margin) / scrollbar->elements_in_view;
+        if (element_height <= 0) return 0;
         int current_y = t->current_point.y - ((t->current_point.y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
         int start_y = t->start_point.y - ((t->start_point.y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
         int touch_scrolled = (current_y - start_y) / element_height;
@@ -121,6 +125,7 @@ static int handle_scrollbar_dot(scrollbar_type *scrollbar, const mouse *m)
         return 0;
     }
     int track_height = scrollbar->height - TOTAL_BUTTON_HEIGHT - 2 * scrollbar->dot_padding;
+    if (track_height <= 0) return 0;
     if (m->x < scrollbar->x || m->x >= scrollbar->x + SCROLL_BUTTON_WIDTH) {
         return 0;
     }
@@ -151,6 +156,7 @@ static int handle_scrollbar_dot(scrollbar_type *scrollbar, const mouse *m)
 
 int scrollbar_handle_mouse(scrollbar_type *scrollbar, const mouse *m, int in_dialog)
 {
+    if (!m->left.is_down) scrollbar->is_dragging_scrollbar_dot = 0;
     if (scrollbar->max_scroll_position <= 0) {
         return 0;
     }

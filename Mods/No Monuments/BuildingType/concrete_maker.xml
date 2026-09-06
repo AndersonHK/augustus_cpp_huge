@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="concrete_maker">
+    <button/>
+    <storages/>
+    <production_methods/>
+    <labor><employees count="0"/></labor>
+</building>

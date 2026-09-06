@@ -8,6 +8,9 @@
 #include "graphics/complex_button.h"
 #include "translation/translation.h"
 #include "utility.h"
+#include "building/BuildingCityService.h"
+#include "graphics/declarative_window.h"
+#include "game/ResourceGraphics.h"
 #include "window/building/figures.h"
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
@@ -602,4 +605,49 @@ int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_
         y_offset + 404,
         &data.orders_focus_button_id
     );
+}
+
+namespace {
+class CityServiceController final : public DeclarativeWindowController {
+public:
+    explicit CityServiceController(Building &building) : building_(building), service_(building) {}
+    int repeat_count(std::string_view source) const override { return source == "service.inputs" ? static_cast<int>(service_.definition()->inputs.size()) : 0; }
+    std::string text(std::string_view binding, int index) const override
+    {
+        auto translated = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
+        if (binding == "service.title") return translated(building_.type->identity().name_key());
+        if (binding == "service.status") return translated(service_.operational() ? "TR_CITY_SERVICE_OPERATING" : "TR_CITY_SERVICE_INACTIVE");
+        if (binding == "service.extent") return translated("TR_CITY_SERVICE_EXTENT") + " " + std::to_string(service_.infrastructure_units());
+        if (binding == "service.effects") return translated("TR_CITY_SERVICE_CONSTRUCTION") + " " + std::to_string(service_.definition()->construction_percent) +
+            "%   " + translated("TR_CITY_SERVICE_LEVIES") + " " + std::to_string(service_.definition()->levy_percent) + "%";
+        if (binding == "service.stock" && index >= 0 && index < service_.definition()->inputs.size()) {
+            const auto resource = service_.definition()->inputs[index].resource;
+            const bool global = service_.definition()->input_source == ResourceConsumptionSource::GlobalStockpile;
+            return std::to_string(service_.available_input(resource) / resource_units_per_load()) +
+                (global ? " (" + translated("TR_CITY_SERVICE_GLOBAL_STOCKPILE") + ")" : " / " + std::to_string(service_.stock_target(resource) / resource_units_per_load())) + "   " + translated("TR_CITY_SERVICE_MONTHLY") + " " +
+                std::to_string(service_.demand(resource) / resource_units_per_load());
+        }
+        return {};
+    }
+    ImageGroupEntryRef image(std::string_view binding, int index) const override
+    {
+        if (binding == "service.resource" && index >= 0 && index < service_.definition()->inputs.size()) return resource_graphics(service_.definition()->inputs[index].resource).panel_icon();
+        return {};
+    }
+    void action(std::string_view, int) override {}
+private:
+    Building &building_;
+    BuildingCityService service_;
+};
+}
+
+void window_building_draw_city_service(building_info_context *c)
+{
+    const auto *definition = declarative_window_definition("city_service");
+    if (!definition || !c->building) return;
+    CityServiceController controller(*c->building);
+    DeclarativeWindowRuntime runtime(*definition, controller);
+    runtime.draw(DeclarativeDrawPhase::Background, c->width_blocks * BLOCK_SIZE, c->height_blocks * BLOCK_SIZE, c->x_offset, c->y_offset);
+    runtime.draw(DeclarativeDrawPhase::Foreground, c->width_blocks * BLOCK_SIZE, c->height_blocks * BLOCK_SIZE, c->x_offset, c->y_offset);
+    window_building_draw_employment(c, 190);
 }

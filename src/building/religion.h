@@ -71,9 +71,19 @@ private:
     int module_index_ = -1;
 };
 
+struct ReligionEpithet {
+    translation_key name_key;
+    translation_key description_key;
+    std::string image;
+    std::string required_building;
+    bool requires_any_fort = false;
+};
+
 class Religion {
 public:
     explicit Religion(std::string path);
+    std::vector<ReligionEpithet> &epithets() { return epithets_; }
+    const std::vector<ReligionEpithet> &epithets() const { return epithets_; }
 
     const char *path() const;
     void add_god(const ::God *god);
@@ -91,6 +101,7 @@ public:
     const ReligionPresentation &presentation() const;
 
 private:
+    std::vector<ReligionEpithet> epithets_;
     std::string path_;
     std::vector<const ::God *> gods_;
     int all_gods_ = 0;

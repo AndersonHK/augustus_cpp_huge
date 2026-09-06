@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="dog" base_type="sheep">
+    <presentation name_key="TR_FIGURE_TYPE_DOG" portrait_path="Walkers\dog_portrait" portrait_image="dog_portrait"/>
+    <profiles default="ambient">
+        <profile id="ambient">
+            <native class="transient_wanderer" />
+            <owner slot="none" building="any" state="in_use" />
+            <movement roam_ticks="1" max_roam_length="400" return_mode="die_at_limit" />
+            <pathing mode="transient_wander" terrain="roads_highway" />
+        </profile>
+    </profiles>
+    <graphics>
+        <default max_image_offset="8">
+            <path value="Walkers\dog" />
+        </default>
+        <corpse><path value="Environment\wolf"/></corpse>
+    </graphics>
+</figure>

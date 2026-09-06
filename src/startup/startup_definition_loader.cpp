@@ -10,6 +10,8 @@
 #include "figure/unit_type.h"
 #include "game/defines.h"
 #include "game/mod_manager.h"
+#include "game/mod_content.h"
+#include "core/dir.h"
 #include "game/resource.h"
 #include "translation/translation.h"
 
@@ -87,6 +89,18 @@ Result load(const Request &request)
     Result result;
     if (request.load_config) {
         config_load();
+        try {
+            std::vector<mod_content::Layer> layers;
+            const auto &names = mod_manager::mod_names();
+            const auto &paths = mod_manager::mod_paths();
+            for (size_t i = 0; i < paths.size(); ++i) layers.push_back({names.at(i), mod_content::utf8_path(paths[i])});
+            mod_content::Session compiled;
+            compiled.load(layers, mod_content::utf8_path(dir_append_location("mod-settings.xml", PATH_LOCATION_CONFIG)));
+            mod_content::runtime() = std::move(compiled);
+        } catch (const std::exception &error) {
+            fail_step(result, "mod settings and fields", error.what());
+            return result;
+        }
     }
     if (request.validate_mod_layout && !building_type_startup_bridge_validate_mod()) {
         fail_step(

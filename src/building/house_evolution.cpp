@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/tiles.h"
@@ -332,6 +333,7 @@ static int evolve_xml_housing(Building &house_object, building *house, house_dem
 static void consume_resource(building *b, int inventory, int amount)
 {
     if (amount > 0) {
+        city_trade_ledger_consumed(inventory, std::min<int>(amount, b->resources[inventory]));
         if (amount > b->resources[inventory]) {
             b->resources[inventory] = 0;
         } else {

@@ -1,3 +1,8 @@
+#include "scenario/definition_overrides.h"
+#include "graphics/declarative_window.h"
+#include "city/trade_ledger.h"
+#include "window/trade_ledger.h"
+#include <memory>
 #include "city/warning.h"
 #include "empire/empire.h"
 #include "graphics/arrow_button.h"
@@ -83,11 +88,6 @@
 //to avoid confusion with when relying on external indexing, which can be 0-based
 
 //typedefs 
-typedef enum {
-    TRADE_ICON_NONE = -1,
-    TRADE_ICON_LAND = 0,
-    TRADE_ICON_SEA = 1
-} trade_icon_type;
 
 typedef enum {
     EMPIRE_WINDOW_OUTSIDE = 0,
@@ -96,10 +96,6 @@ typedef enum {
     EMPIRE_WINDOW_SIDEBAR = 3
 } empire_window_area;
 
-typedef enum {
-    TRADE_STYLE_MAIN_BAR,
-    TRADE_STYLE_SIDEBAR
-} trade_style_variant;
 
 typedef struct {
     int x;
@@ -116,57 +112,9 @@ struct sidebar_city_entry {
     int height;
 };
 
-typedef struct {
-    // Region bounds
-    int row_width;               // Total width of the row (x_max = x_min + width)
-    int row_height;              // Total height of the row (optional: for future clipping)
-    // Layout adjustments
-    int x_offset_text;
-    int y_offset_text;
-    int y_offset_icon;       // Vertical offset to nudge icons up/down
-    int label_indent;        // Horizontal offset where the first icon is placed (based on "Buys"/"Sells" label width)
-    // Segment spacing
-    int seg_space_0;         // Space before resource icon
-    int seg_space_1;         // Space between icon and first number
-    int seg_space_2;         // Space between first number and "of" text
-    int seg_space_3;         // Space between "of" text and second number
-    int seg_space_4;         // Space after second number
-    int segment_width_adjust; // Extra width added/subtracted to total segment width
-} trade_row_style;
 
-typedef struct {
-    // Region bounds
-    int button_x_min;               // Starting x-coordinate of the button
-    int button_y_min;               // Starting y-coordinate of the tbutton
-    int button_width;               // Total width of the row (x_max = x_min + width)
-    int button_height;              // Total height of the row (optional: for future clipping)
-    // Layout adjustments
-    int y_offset_icon;       // Vertical offset to nudge icons up/down
-    int y_offset_text;       // Vertical offset for text baseline alignment
-    // Segment spacing
-    int seg_space_0;         // Space before border start
-    int seg_space_1;         // Space between border start and cost string
-    int seg_space_2;         // Space between cost and currency
-    int seg_space_3;         // Space between currency and text
-    int seg_space_4;         // Space between text and icon
-    int seg_space_5;         // Space after icon
 
-    int segment_width_adjust; // Extra width added/subtracted to total segment width
-} open_trade_button_style;
 
-typedef struct {
-    int x, y, width, height;
-    int route_id;
-    trade_style_variant variant;
-    trade_icon_type icon_type;
-    int do_highlight;
-} trade_open_button;
-
-typedef struct {
-    int x, y, width, height;
-    resource_type res;
-    int do_highlight;
-} resource_button;
 // Edges are DIRECTIONAL (start->end). No normalization.
 // One edge can appear in multiple routes; we draw it once per frame via `drawn`.
 
@@ -178,16 +126,7 @@ typedef struct {
     int drawn;              // set during draw pass to avoid double-drawing same edge
 } trade_edge;
 
-typedef struct {
-    int x;
-    int y;
-    int is_sea;
-} trade_dot;
 
-struct trade_route_anim {
-    int index;
-    trade_dot *trade_dots[MAX_DOTS_ON_MAP];
-} trade_routes_anim;
 
 static trade_edge g_trade_edges[MAX_TRADE_EDGES];
 static int g_trade_edge_count = 0;
@@ -195,35 +134,18 @@ static int g_trade_edge_count = 0;
 // For each route_id: a list of 0-based edge indices, terminated by -1.
 static int trade_city_edges[MAX_SIDEBAR_CITIES][MAX_TRADE_EDGES];
 // measurements and scales helper functions
-static int measure_trade_row_width(const empire_city *city, int is_sell, const trade_row_style *style); // ???
 static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent);
 static void animation_draw_scaled(const image *img, int image_id, int new_animation, int x, int y, color_t color, int draw_scale_percent);
-static int open_trade_button_icon_fits(const empire_city *city, const open_trade_button_style *style, trade_icon_type icon_type);
-static void draw_sidebar_city_item(const grid_box_item *item);
 static int draw_images_at_interval(int image_id, int x_draw_offset, int y_draw_offset,
     int start_x, int start_y, int end_x, int end_y, int interval, int remaining);
 void window_empire_collect_trade_edges(void);
 static void window_empire_draw_trade_route_pulses(const empire_object *route_object, int x_offset, int y_offset);
-static int build_open_trade_button_widget_spec(
-    const empire_city *city,
-    const open_trade_button_style *style,
-    trade_icon_type icon_type,
-    EmpireTradeRouteButtonSpec *spec);
-static void draw_open_trade_button_widget(
-    const empire_city *city,
-    const open_trade_button_style *style,
-    trade_icon_type icon_type,
-    int has_focus);
 // 'styles' get functions
-static trade_row_style get_trade_row_style(const empire_city *city, int is_sell, int max_draw_width, trade_style_variant variant);
-static open_trade_button_style get_open_trade_button_style(int x, int y, trade_style_variant variant);
-
 //buttons
 static void button_help(int param1, int param2);
 static void button_return_to_city(int param1, int param2);
 static void button_advisor(int advisor, int param2);
 static void button_show_prices(int param1, int param2);
-static void button_show_resource_window(int resource_button_index);
 static void button_open_trade_by_route(int route_id);
 
 //sidebar show/hide
@@ -238,45 +160,12 @@ static int is_sidebar(const mouse *m);
 static int is_sidebar_border(const mouse *m);
 static int is_map(const mouse *m);
 static void handle_sidebar_border(const mouse *m);
-static void on_sidebar_city_click(const grid_box_item *item);
-
 //buttons position registrators to enable dynamic positioning
-static void register_resource_button(int x, int y, int width, int height, resource_type r, int highlight);
-static void register_open_trade_button(
-    int x,
-    int y,
-    int width,
-    int height,
-    int route_id,
-    trade_style_variant variant,
-    trade_icon_type icon_type,
-    int highlight);
-
 //arrays and counts for sidebar trade, resource and sorting buttons
-static trade_open_button trade_open_buttons[MAX_TRADE_OPEN_BUTTONS];
-static int trade_open_button_count = 0;
-static resource_button resource_buttons[MAX_RESOURCE_BUTTONS];
-static int resource_button_count = 0;
 
 //sidebar-related arrays and variables
-static scrollbar_type sidebar_scrollbar;
-static sidebar_city_entry sidebar_cities[MAX_SIDEBAR_CITIES];
-static int sidebar_city_count = 0;
-static grid_box_type sidebar_grid_box;
 
 //original button properties
-static image_button image_button_help[] = {
-    {0, 0, 27, 27, IB_NORMAL, GROUP_CONTEXT_ICONS, 0, button_help, button_none, 0, 0, 1}
-};
-static image_button image_button_return_to_city[] = {
-    {0, 0, 24, 24, IB_NORMAL, GROUP_CONTEXT_ICONS, 4, button_return_to_city, button_none, 0, 0, 1}
-};
-static image_button image_button_advisor[] = {
-    {-4, 0, 24, 24, IB_NORMAL, GROUP_MESSAGE_ADVISOR_BUTTONS, 12, button_advisor, button_none, ADVISOR_TRADE, 0, 1}
-};
-static image_button image_button_show_prices[] = {
-    {-4, 0, 24, 24, IB_NORMAL, GROUP_MESSAGE_ADVISOR_BUTTONS, 30, button_show_prices, button_none, 0, 0, 1}
-};
 typedef struct {
     int x, y, width, height;
     int is_down; // 1 for down arrow, 0 for up arrow
@@ -339,14 +228,11 @@ static void init(void)
 {
     data.selected_button = NO_POSITION; // no button selected
     data.trade_route_anim_start = 0;
-    window_empire_sidebar_sort_set_expanded_main(NO_POSITION);
     if (!data.sidebar.initialised) {
-        window_empire_sidebar_sort_set_current_sorting(SORT_BY_NAME); // default sorting method
+        window_empire_sidebar_sort_init();
         window_empire_sidebar_sort_set_current_filtering(FILTER_NONE); // default to no filtering
         window_empire_sidebar_sort_set_selected_filter_resource(RESOURCE_NONE); // no resource selected
     }
-    window_empire_sidebar_sort_set_hovered_sorting_button(NO_POSITION);
-    window_empire_sidebar_sort_set_resource_selection_active(0); // not in resource selection mode
 
     data.sidebar.width_percent = static_cast<uint8_t>(config_get(CONFIG_UI_EMPIRE_SIDEBAR_WIDTH)); // default sidebar width (25%)
     data.sidebar.dragging = 0; // not dragging initially
@@ -391,7 +277,15 @@ static void setup_sidebar(void)
     uint8_t active_width_percent = data.sidebar.dragging ? data.sidebar.dragging_width : data.sidebar.width_percent;
     int raw = (data.usable_map_width * active_width_percent) / 100;
     data.sidebar.width = ((raw + (BLOCK_SIZE / 2)) / BLOCK_SIZE) * BLOCK_SIZE + data.sidebar.margin_left + data.sidebar.margin_right;
-    //ensure that the inner panels draw predictably
+    data.sidebar.border_btn.is_collapsed = active_width_percent <= 5;
+    if (!data.sidebar.border_btn.is_collapsed) data.sidebar.width = std::max(256, data.sidebar.width);
+    if (!declarative_window_definition("empire_sidebar")) {
+        data.sidebar.width = 0;
+        data.sidebar.dragging = 0;
+        data.sidebar.border_btn.is_collapsed = 1;
+        data.sidebar.border_btn.is_hovered = 0;
+    }
+    // Keep the XML controls usable at the narrowest expanded width.
 
     data.sidebar.height = map_draw_y_max - map_draw_y_min;
 
@@ -399,61 +293,6 @@ static void setup_sidebar(void)
     data.sidebar.x_max = map_draw_x_max;
     data.sidebar.y_min = map_draw_y_min;
     data.sidebar.y_max = map_draw_y_max;
-}
-
-static void setup_sidebar_gridbox(void)
-{
-    if (data.sidebar.width_percent < 1) {
-        return;
-    }
-
-    int y = data.sidebar.y_min;
-    sidebar_city_count = 0;
-
-    for (int i = 1; i < empire_city_get_array_size(); i++) { // skip "no city" entry
-        empire_city *city = empire_city_get(i);
-        if (!city->in_use || city->type != EMPIRE_CITY_TRADE) continue;
-        // apply the chosen filter
-        if (!window_empire_sidebar_sort_city_matches_current_filter(city)) continue;
-        if (sidebar_city_count >= MAX_SIDEBAR_CITIES) break;
-
-        sidebar_city_entry *entry = &sidebar_cities[sidebar_city_count];
-        entry->sidebar_item_id = sidebar_city_count;
-        entry->city_id = i;
-        entry->empire_object_id = city->empire_object_id;
-        entry->x = data.sidebar.x_min + data.sidebar.margin_left;
-        entry->y = y;
-        y += SIDEBAR_ENTRY_HEIGHT;
-        sidebar_city_count++;
-    }
-
-    qsort(sidebar_cities, sidebar_city_count, sizeof(sidebar_city_entry), window_empire_sidebar_sort_sidebar_city_sorter);
-    int selection_visible = 0;
-    for (int i = 0; i < sidebar_city_count; i++) {
-        if (sidebar_cities[i].city_id == data.selected_city) { selection_visible = 1; break; }
-    }
-    if (!selection_visible) {
-        data.selected_city = 0; // or keep it but ensure UI handles "not in list"
-    }
-
-    sidebar_grid_box.x = data.sidebar.x_min + data.sidebar.margin_left;
-    sidebar_grid_box.y = data.sidebar.y_min + data.sidebar.margin_top;
-    sidebar_grid_box.width = data.sidebar.width - data.sidebar.margin_right - data.sidebar.margin_left;
-    sidebar_grid_box.height = data.sidebar.y_max - data.sidebar.y_min - data.sidebar.margin_top - data.sidebar.margin_bottom;
-    sidebar_grid_box.item_height = SIDEBAR_ENTRY_HEIGHT;
-    sidebar_grid_box.num_columns = 1;
-    sidebar_grid_box.item_margin.horizontal = 0;
-    sidebar_grid_box.item_margin.vertical = 5;
-    sidebar_grid_box.draw_inner_panel = 0;
-    sidebar_grid_box.extend_to_hidden_scrollbar = 1;
-    sidebar_grid_box.decorate_scrollbar = 1;
-    sidebar_grid_box.total_items = sidebar_city_count;
-    sidebar_grid_box.draw_item = draw_sidebar_city_item;
-    sidebar_grid_box.on_click = on_sidebar_city_click;
-    sidebar_grid_box.handle_tooltip = NULL;
-    sidebar_grid_box.offset_scrollbar_x = grid_box_has_scrollbar(&sidebar_grid_box) ? -14 : 0;
-    sidebar_grid_box.offset_scrollbar_y = grid_box_has_scrollbar(&sidebar_grid_box) ? -20 : 0;
-    grid_box_set_bounds(&sidebar_grid_box, sidebar_grid_box.x, sidebar_grid_box.y, sidebar_grid_box.width, sidebar_grid_box.height);
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -472,144 +311,6 @@ static void sidebar_expand(void)
     data.sidebar.width_percent = 25;
     data.sidebar.border_btn.is_collapsed = 0;
     window_invalidate();
-}
-
-static open_trade_button_style get_open_trade_button_style(int x, int y, trade_style_variant variant)
-{
-    int is_sidebar = (variant == TRADE_STYLE_SIDEBAR);
-
-    open_trade_button_style style = {
-        .button_x_min = (is_sidebar ? x + 15 : (data.panel.x_min + data.panel.x_max - 500) / 2) + 30, //15px offset somewhere got lost, * 2 for 30
-        .button_y_min = y + (is_sidebar ? 0 : -9),
-        .button_width = is_sidebar ? static_cast<int>((get_usable_width(&sidebar_grid_box) * 3) / 4) : 440,  // restored fixed widths // sidebar: main bar
-        .button_height = 26,
-        .y_offset_icon = is_sidebar ? 2 : 2, //separated in case of resolution considerations - wait for feedback before simplifying
-        .y_offset_text = is_sidebar ? 10 : 10, //separated in case of resolution considerations - wait for feedback before simplifying
-        .seg_space_0 = is_sidebar ? 0 : 0,  //later centerd in draw_open_trade_button, so adjust carefully
-        .seg_space_1 = 0,
-        .seg_space_2 = 0,
-        .seg_space_3 = 8,
-        .seg_space_4 = 0,
-        .seg_space_5 = is_sidebar ? 4 : 4,
-        .segment_width_adjust = 0
-    };
-
-    return style;
-}
-
-static trade_row_style get_trade_row_style(const empire_city *city, int is_sell, int max_draw_width, trade_style_variant variant)
-{
-    int is_main_bar = (variant == TRADE_STYLE_MAIN_BAR);
-    trade_row_style style = {};
-    style.row_width = max_draw_width;
-    style.row_height = 0;
-    style.x_offset_text = is_main_bar ? (city->is_open ? (is_sell ? 0 : 0) : 0) : 10;
-    style.y_offset_text = is_main_bar ? (city->is_open ? (is_sell ? 40 : 71) : 42) : 6;
-    style.y_offset_icon = style.y_offset_text - 9;
-    int count_sells = window_empire_sidebar_sort_count_trade_resources(city, 1);
-    int count_buys = window_empire_sidebar_sort_count_trade_resources(city, 0);
-
-    // === Determine compactness ===
-    int compact_sells = is_main_bar ? (count_sells > 5) : (count_sells > 2);
-    int compact_buys = is_main_bar ? (count_buys > 5) : (count_buys > 2);
-    int any_compact = compact_sells || compact_buys;
-
-    int is_compact = is_main_bar
-        ? (is_sell ? compact_sells : compact_buys)
-        : (city->is_open ? (is_sell ? compact_sells : compact_buys) : any_compact);
-
-    // === Label indent ===
-    if (!city->is_open) {
-        int label_id = is_sell ? 5 : 4;
-        style.label_indent = lang_text_get_width(current_string_key(47, label_id), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) + (is_compact ? 5 : 20);
-    } else { // labels
-        int width_sells = lang_text_get_width("main_strings.47.10", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        int width_buys = lang_text_get_width("main_strings.47.9", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        int max_label_width = (width_sells > width_buys) ? width_sells : width_buys;
-        style.label_indent = max_label_width + (any_compact ? 5 : 15) - FONT_SPACE_WIDTH + 5;
-    }
-    // === Segment layout ===
-    if (is_main_bar) {
-        style.seg_space_0 = 0;
-        style.seg_space_1 = city->is_open ? (is_compact ? 2 : 8) : (is_compact ? 0 : 6); // (open compact : open non-compact) : (closed compact closed non-compact)
-        style.seg_space_2 = city->is_open ? (is_compact ? 0 : -1) : (is_compact ? 0 : 3);
-        style.seg_space_3 = city->is_open ? (is_compact ? 0 : -1) : (is_compact ? 0 : 3);
-        style.seg_space_4 = city->is_open ? (is_compact ? 0 : 14) : (is_compact ? 0 : 10);
-        style.segment_width_adjust = city->is_open ? (is_compact ? -3 : 0) : (is_compact ? -4 : -2);
-    } else {//sidebar styles
-        style.seg_space_0 = 0;
-        style.seg_space_1 = city->is_open ? (is_compact ? 2 : 6) : (is_compact ? 0 : 4);
-        style.seg_space_2 = city->is_open ? (is_compact ? (0 - FONT_SPACE_WIDTH / 2) : 0) : (is_compact ? 0 : 5);
-        style.seg_space_3 = city->is_open ? (is_compact ? (0 - FONT_SPACE_WIDTH / 2) : 0) : (is_compact ? 0 : 5);
-        style.seg_space_4 = city->is_open ? (is_compact ? (0 - FONT_SPACE_WIDTH / 2) : 10) : (is_compact ? 0 : 7);
-        style.segment_width_adjust = city->is_open ? (is_compact ? 0 : 0) : (is_compact ? 0 : 0);
-    }
-
-    return style;
-}
-
-static int open_trade_button_icon_fits(const empire_city *city, const open_trade_button_style *style, trade_icon_type icon_type)
-{
-    if (!city || !style || icon_type == TRADE_ICON_NONE)
-        return 0;
-
-    int cost = city->cost_to_open;
-    int available_width = style->button_width - 6; // 6px border
-
-    // --- Measure elements ---
-    int cost_width = lang_text_get_amount_width(current_string_amount_key(8, 0, cost), cost, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    int label_width = lang_text_get_width("main_strings.47.6", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    int icon_width = 28;
-
-    // --- Widths with spacings ---
-    int width_cost_only = style->seg_space_0 + style->seg_space_1 + cost_width;
-    int width_cost_and_label = width_cost_only + style->seg_space_2 + label_width + style->seg_space_3;
-    int width_full = width_cost_and_label + style->seg_space_4 + icon_width + style->seg_space_5;
-
-    return width_full < available_width;
-}
-
-static int measure_trade_row_width(const empire_city *city, int is_sell, const trade_row_style *style)
-{
-    const int ICON_WIDTH = 26;
-    int width = 0;
-
-    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; ++resource) {
-        const resource_type r = static_cast<resource_type>(resource);
-        if (!resource_is_storable(r)) continue;
-        if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
-
-        int w_max = text_get_number_width(trade_route_limit(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        int segment_width;
-
-        if (city->is_open) {
-            // Also need width of current amount and "of" label
-            int w_now = text_get_number_width(trade_route_traded(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            int w_of = lang_text_get_width("main_strings.47.11", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-
-            segment_width =
-                style->seg_space_0 + ICON_WIDTH +
-                style->seg_space_1 + w_now +
-                style->seg_space_2 + w_of +
-                style->seg_space_3 + w_max +
-                style->seg_space_4 +
-                style->segment_width_adjust;
-        } else {
-            segment_width =
-                style->seg_space_0 + ICON_WIDTH +
-                style->seg_space_1 + w_max +
-                style->seg_space_4 +
-                style->segment_width_adjust;
-        }
-
-        width += segment_width;
-    }
-
-    if (window_empire_sidebar_sort_count_trade_resources(city, is_sell)) {
-        width += style->label_indent;
-    }
-
-    return width;
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -676,20 +377,11 @@ static void draw_paneling(void)
     graphics_set_clip_rectangle(data.sidebar.x_min - WIDTH_BORDER, data.sidebar.y_min, //clipping - border, to let border be drawn OUTSIDE
         data.sidebar.width + WIDTH_BORDER, //account for width border substracted earlier to make sure textures stretch all the way
         data.sidebar.y_max - data.sidebar.y_min);
-    static const ImageGroupEntryRef sidebar_background =
-        ImageGroupEntryRef::from_group("UI\\Empire_panel_texture_vertical", "Empire_panel_texture_vertical");
-
-    for (int x = data.sidebar.x_min; x <= data.sidebar.x_max; x += 40) {
-        for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 70) {
-            sidebar_background.draw(x, y);
-        }
-    }
     // Sidebar border 
     for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 86) {
         Image::from_id(image_base).draw(data.sidebar.x_min - WIDTH_BORDER, y);
     }
 
-    data.sidebar.border_btn.is_collapsed = (data.sidebar.width_percent > 0) ? 0 : 1;
     data.sidebar.border_btn.x_min = data.sidebar.x_min - WIDTH_BORDER;
     data.sidebar.border_btn.x_max = data.sidebar.border_btn.is_collapsed ? data.sidebar.x_max : data.sidebar.x_min;
     data.sidebar.border_btn.y_min = data.sidebar.y_min;
@@ -707,7 +399,6 @@ static void draw_paneling(void)
     }
 
     graphics_reset_clip_rectangle();
-    scrollbar_draw(&sidebar_scrollbar);
 
 }
 
@@ -944,13 +635,6 @@ static void window_empire_draw_trade_route_pulses(const empire_object *route_obj
 //                                              FOREGROUND ELEMENTS DRAWING 
 // -------------------------------------------------------------------------------------------------------
 
-static void draw_trade_resource(resource_type r, int trade_max, int x, int y)
-{
-    graphics_draw_inset_rect(x - 1, y - 1, 26, 26, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    resource_graphics(r).empire_icon().draw(x, y);
-    window_empire_draw_resource_shields(trade_max, x, y);
-}
-
 void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offset)
 {
     int num_bronze_shields = (trade_max % 100) / 20 + 1;
@@ -982,459 +666,6 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
     int gold_shield = assets_lookup_image_id(ASSET_GOLD_SHIELD);
     for (int i = 0; i < num_gold_shields; i++) {
         Image::from_id(gold_shield).draw(top_left_x + i * 3, top_left_y);
-    }
-}
-
-static int build_open_trade_button_widget_spec(
-    const empire_city *city,
-    const open_trade_button_style *style,
-    trade_icon_type icon_type,
-    EmpireTradeRouteButtonSpec *spec)
-{
-    if (!city || !style || !spec) {
-        return 0;
-    }
-
-    const int cost = city->cost_to_open;
-    const int x = style->button_x_min;
-    const int y = style->button_y_min;
-    const int available_width = style->button_width - 6;
-    const int cost_width = lang_text_get_amount_width(current_string_amount_key(8, 0, cost), cost, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    const int label_width = lang_text_get_width("main_strings.47.6", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    const int icon_width = (icon_type != TRADE_ICON_NONE) ? 28 : 0;
-
-    const int width_cost_only = style->seg_space_0 + style->seg_space_1 + cost_width;
-    const int width_cost_and_label = width_cost_only + style->seg_space_2 + label_width + style->seg_space_3;
-    const int width_full = width_cost_and_label + style->seg_space_4 + icon_width + style->seg_space_5;
-
-    int draw_label = 0;
-    int draw_icon = 0;
-    int content_width = 0;
-
-    if (width_full < available_width) {
-        draw_label = 1;
-        draw_icon = (icon_type != TRADE_ICON_NONE);
-        content_width = width_full;
-    } else if (width_cost_and_label <= available_width) {
-        draw_label = 1;
-        content_width = width_cost_and_label;
-    } else if (width_cost_only <= available_width) {
-        content_width = width_cost_only;
-    } else {
-        return 0;
-    }
-
-    *spec = {};
-
-    int cursor_x = x + (available_width - content_width) / 2 - 2;
-    const int cursor_y = y + style->y_offset_text;
-
-    cursor_x += style->seg_space_1;
-    spec->cost_text.content_type = UiTextContentType::Amount;
-    spec->cost_text.alignment = UiTextAlignment::Left;
-    spec->cost_text.text_group = 8;
-    spec->cost_text.text_id = 0;
-    spec->cost_text.value = cost;
-    spec->cost_text.x = cursor_x;
-    spec->cost_text.y = cursor_y;
-    spec->cost_text.font = FONT_NORMAL_GREEN;
-    spec->cost_text.color = COLOR_MASK_NONE;
-    cursor_x += cost_width;
-
-    if (draw_label) {
-        cursor_x += style->seg_space_2;
-        spec->draw_label = 1;
-        spec->label_text.content_type = UiTextContentType::Language;
-        spec->label_text.alignment = UiTextAlignment::Left;
-        spec->label_text.text_group = 47;
-        spec->label_text.text_id = 6;
-        spec->label_text.x = cursor_x;
-        spec->label_text.y = cursor_y;
-        spec->label_text.font = FONT_NORMAL_GREEN;
-        spec->label_text.color = COLOR_MASK_NONE;
-        cursor_x += label_width;
-    }
-
-    if (draw_icon) {
-        cursor_x += style->seg_space_3;
-        spec->icon_image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - icon_type;
-        spec->icon_x = cursor_x;
-        spec->icon_y = y + style->y_offset_icon + 2 * icon_type;
-    }
-
-    return 1;
-}
-
-static void draw_open_trade_button_widget(
-    const empire_city *city,
-    const open_trade_button_style *style,
-    trade_icon_type icon_type,
-    int has_focus)
-{
-    EmpireTradeRouteButtonSpec spec = {};
-    if (!build_open_trade_button_widget_spec(city, style, icon_type, &spec)) {
-        return;
-    }
-
-    UiPrimitives &primitives = shared_ui_runtime().primitives();
-    EmpireTradeRouteButtonWidget(
-        primitives,
-        style->button_x_min,
-        style->button_y_min,
-        style->button_width,
-        style->button_height,
-        has_focus,
-        spec)
-        .draw();
-}
-
-void draw_open_trade_button(
-    const empire_city *city,
-    const open_trade_button_style *style,
-    trade_style_variant variant,
-    trade_icon_type icon_type)
-{
-    if (!city || !style) {
-        return;
-    }
-
-    EmpireTradeRouteButtonSpec spec = {};
-    if (!build_open_trade_button_widget_spec(city, style, icon_type, &spec)) {
-        return;
-    }
-
-    draw_open_trade_button_widget(city, style, icon_type, 0);
-    register_open_trade_button(
-        style->button_x_min,
-        style->button_y_min,
-        style->button_width,
-        style->button_height,
-        city->route_id,
-        variant,
-        icon_type,
-        0);
-}
-
-static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, const trade_row_style *style)
-{
-    int label_id;
-    if (city->is_open) {
-        label_id = is_sell ? 10 : 9;
-    } else {
-        label_id = is_sell ? 5 : 4;
-    }
-    // Draw "Sells:" or "Buys:" label
-    int x_cursor = x + style->x_offset_text;
-    int y_cursor = y + style->y_offset_text;
-    int dots_width = text_get_width((const uint8_t *) "(...)", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) + 2;
-    int draw_label = window_empire_sidebar_sort_count_trade_resources(city, is_sell); //check if there are any resources to draw
-    if (!draw_label) {
-        // No resources to draw, return current x position
-        return x_cursor;
-    }
-    if (x_cursor + lang_text_get_width(current_string_key(47, label_id), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) > x + style->row_width) {
-        //not enough space to draw row
-        if (x_cursor + dots_width > x + style->row_width) {
-            //not enough space even for dots
-            return x_cursor;
-        } else {
-            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        }
-
-        return x_cursor;
-    }
-    int label_width = lang_text_draw(current_string_key(47, label_id), x_cursor, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    if (city->is_open) {
-        x_cursor += style->label_indent; //advance by pre-defined label width for open cities where there's two rows
-    } else {
-        x_cursor += label_width;
-    }
-
-
-    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; ++resource) {
-        const resource_type r = static_cast<resource_type>(resource);
-        if (!resource_is_storable(r)) continue;
-        if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
-
-        int trade_max = trade_route_limit(city->route_id, r, !is_sell);
-        int trade_now = trade_route_traded(city->route_id, r, !is_sell);
-        int icon_y = y + style->y_offset_icon;
-
-        int segment_width, text_x;
-
-        if (city->is_open) {
-            // Calculate widths
-            int w_now = text_get_number_width(trade_now, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)); // '\0' - 0 length suffix.
-            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            int w_of = lang_text_get_width("main_strings.47.11", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-
-            segment_width =
-                style->seg_space_0 + RESOURCE_ICON_WIDTH +
-                style->seg_space_1 + w_now +
-                style->seg_space_2 + w_of +
-                style->seg_space_3 + w_max +
-                style->seg_space_4 +
-                style->segment_width_adjust;
-        } else {
-            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            segment_width =
-                style->seg_space_0 + RESOURCE_ICON_WIDTH +
-                style->seg_space_1 + w_max +
-                style->seg_space_4 +
-                style->segment_width_adjust;
-        }
-        // Clip if segment would overflow
-        if (x_cursor + segment_width + dots_width > x + style->row_width) {
-            if (x_cursor + dots_width > x + style->row_width) {
-                //not enough space even for dots
-                break;
-            }
-            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-            break;
-        }
-        draw_trade_resource(r, trade_max, x_cursor + style->seg_space_0, icon_y);
-        // Draw numeric info
-        text_x = x_cursor + style->seg_space_0 + RESOURCE_ICON_WIDTH + style->seg_space_1;
-
-        if (city->is_open) {
-            int w_now = text_draw_number(trade_now, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-            int of_x = text_x + w_now + style->seg_space_2;
-            int w_of = lang_text_draw("main_strings.47.11", of_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            int max_x = of_x + w_of + style->seg_space_3;
-            text_draw_number(trade_max, '\0', "", max_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        } else {
-            text_draw_number(trade_max, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        }
-        // Register button and hitbox
-        register_resource_button(
-            x_cursor,
-            icon_y,
-            segment_width,
-            RESOURCE_ICON_HEIGHT,
-            r,
-            city->is_open
-        );
-
-        // Advance
-        x_cursor += segment_width;
-    }
-    return x_cursor; // Final drawing position
-}
-
-static void draw_trade_city_info(const empire_object *object, const empire_city *city)
-{
-    (void) object;
-    int y_offset = data.y_max - 113;
-    const int safe_margin_left = data.panel.x_min + 50;
-    const int safe_margin_right = data.panel.x_max - 50;
-    int max_draw_width = safe_margin_right - safe_margin_left;
-
-    trade_row_style style_sells = get_trade_row_style(city, 1, max_draw_width, TRADE_STYLE_MAIN_BAR);
-    trade_row_style style_buys = get_trade_row_style(city, 0, max_draw_width, TRADE_STYLE_MAIN_BAR);
-    // === OPEN CITY ===
-    if (city->is_open) {
-        int width_sells = measure_trade_row_width(city, 1, &style_sells);
-        int width_buys = measure_trade_row_width(city, 0, &style_buys);
-        int total_width = (width_sells > width_buys) ? width_sells : width_buys;
-
-        if (total_width > max_draw_width)
-            total_width = max_draw_width;
-
-        int x_offset = safe_margin_left + (max_draw_width - total_width) / 2;
-        draw_trade_row(city, 1, x_offset, y_offset, &style_sells);
-        draw_trade_row(city, 0, x_offset, y_offset, &style_buys);
-
-
-        // === CLOSED CITY ===
-    } else {
-        int width_sells = measure_trade_row_width(city, 1, &style_sells);
-        int width_buys = measure_trade_row_width(city, 0, &style_buys);
-        int total_width = width_sells + width_buys + 15;
-
-        if (total_width > max_draw_width)
-            total_width = max_draw_width;
-
-        int x_base = safe_margin_left + (max_draw_width - total_width) / 2;
-        draw_trade_row(city, 1, x_base, y_offset, &style_sells);
-        draw_trade_row(city, 0, width_sells + x_base, y_offset, &style_buys);
-
-        // Draw cost + type icon
-        open_trade_button_style style = get_open_trade_button_style(x_base, y_offset + 73, TRADE_STYLE_MAIN_BAR);
-        draw_open_trade_button(city, &style, TRADE_STYLE_MAIN_BAR, (trade_icon_type) (city->is_sea_trade));
-
-    }
-
-}
-
-static void draw_sidebar_city_item(const grid_box_item *item)
-{
-    sidebar_city_entry *entry = &sidebar_cities[item->index];
-    empire_city *city = empire_city_get(entry->city_id);
-    const uint8_t *name = empire_city_get_name(city);
-    //const grid_box_type *sidebar_grid_box;
-
-    int item_usable_width = get_usable_width(&sidebar_grid_box) + sidebar_grid_box.offset_scrollbar_x;
-    graphics_set_clip_rectangle(data.sidebar.x_min, data.sidebar.y_min, item_usable_width + 4, data.sidebar.y_max); // 4px extra reserved for the border drawn AROUND the item
-    int x_blocks = item_usable_width / BLOCK_SIZE;
-    int y_blocks = item->height / BLOCK_SIZE;
-
-    // base offset for all content in the box
-    int x_offset = item->x;
-    int y_offset = item->y;
-    trade_row_style style_sells = get_trade_row_style(city, 1, item_usable_width + sidebar_grid_box.offset_scrollbar_x, TRADE_STYLE_SIDEBAR);
-    trade_row_style style_buys = get_trade_row_style(city, 0, item_usable_width + sidebar_grid_box.offset_scrollbar_x, TRADE_STYLE_SIDEBAR);
-    // draw background + name + badge
-    inner_panel_draw(x_offset, y_offset, x_blocks, y_blocks);
-    if (item->is_focused) {
-        data.hovered_object = city->empire_object_id + 1;
-    }
-    if (data.hovered_object == city->empire_object_id + 1) {
-        graphics_shade_rect(
-            item->x,
-            item->y,
-            item_usable_width - data.sidebar.margin_right,
-            item->height - data.sidebar.margin_bottom,
-            2  // 0-7
-        );
-    }
-    if (entry->city_id == data.selected_city) {
-        button_border_draw(item->x, item->y, item_usable_width, item->height - data.sidebar.margin_bottom / 2, 1); // margin/2 to not be exactly the same size as the item
-    }
-
-    const ImageGroupEntryRef badge = ImageGroupEntryRef::from_group("UI\\Empire_sidebar_city_badge", "Empire_sidebar_city_badge");
-    int badge_width = badge.width();
-    int image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - city->is_sea_trade;
-    int available_width = item_usable_width - data.sidebar.margin_right;
-    int badge_and_icon_width = badge_width + 2 + 34;
-    int badge_margin = 5;
-    open_trade_button_style open_trade_style = get_open_trade_button_style(item->x, y_offset, TRADE_STYLE_SIDEBAR);
-    int draw_icon_on_top = !open_trade_button_icon_fits(city, &open_trade_style, (trade_icon_type) (city->is_sea_trade));
-
-    if (badge_and_icon_width <= available_width) {
-        // Everything fits
-        badge.draw(x_offset + badge_margin, y_offset + badge_margin);
-
-        text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-        if (city->is_open || draw_icon_on_top) {
-            //if city is open, draw trade route icon to remind of type, same if it doesnt fit in the button
-            int trade_route_icon_offset = badge_width + BLOCK_SIZE;
-            if ((trade_route_icon_offset + badge_margin + 2 + 34) <= item_usable_width) {
-                Image::from_id(image_id).draw(x_offset + trade_route_icon_offset + badge_margin, y_offset + 9 + 2 * city->is_sea_trade);
-            }
-        }
-
-    } else if (badge_width <= available_width) {
-        // Only badge fits, check if the icon fits inside it
-        badge.draw(x_offset + badge_margin, y_offset + badge_margin);
-        int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-        int icon_fits_in_badge = (city_name_end + badge_margin + 2 + 34) <= (x_offset + badge_margin + badge_width);
-        if (icon_fits_in_badge) {
-            Image::from_id(image_id).draw(x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade);
-        }
-
-    } else { // Not enough room for badge + icon
-        text_draw(name, x_offset + badge_margin, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    }
-    // Move y_offset down for trade info rows
-    y_offset += 44;
-    if (city->is_open) {
-        y_offset += 8; // For Sells
-        draw_trade_row(city, 1, x_offset, y_offset, &style_sells);
-        y_offset += 26; // For Buys
-        draw_trade_row(city, 0, x_offset, y_offset, &style_buys);
-    } else {// --- Closed city ---
-        int x_cursor = draw_trade_row(city, 1, x_offset, y_offset, &style_sells); //draw sell row
-        int sell_row_width = x_cursor - x_offset;
-        style_buys.row_width -= sell_row_width; //limit the available row width by the sell row length
-        draw_trade_row(city, 0, x_cursor, y_offset, &style_buys);
-        y_offset += 35;
-        //recalculate the style basing on the new y_offset
-        open_trade_button_style open_trade_style_closed = get_open_trade_button_style(item->x, y_offset, TRADE_STYLE_SIDEBAR);
-        draw_open_trade_button(city, &open_trade_style_closed, TRADE_STYLE_SIDEBAR, (trade_icon_type) (city->is_sea_trade));
-    }
-    graphics_reset_clip_rectangle();
-}
-
-static void draw_city_info(const empire_object *object)
-{
-    int x_offset = (data.x_min + data.x_max - 240) / 2;
-    int y_offset = data.y_max - 88;
-    const empire_city *city = empire_city_get(data.selected_city);
-    switch (city->type) {
-        case EMPIRE_CITY_DISTANT_ROMAN:
-            lang_text_draw_centered("main_strings.47.12", x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            break;
-        case EMPIRE_CITY_VULNERABLE_ROMAN:
-            if (city_military_distant_battle_city_is_roman()) {
-                lang_text_draw_centered("main_strings.47.12", x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            } else {
-                lang_text_draw_centered("main_strings.47.13", x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            }
-            break;
-        case EMPIRE_CITY_FUTURE_TRADE:
-        case EMPIRE_CITY_DISTANT_FOREIGN:
-        case EMPIRE_CITY_FUTURE_ROMAN:
-            lang_text_draw_centered("main_strings.47.0", x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            break;
-        case EMPIRE_CITY_OURS:
-            lang_text_draw_centered("main_strings.47.1", x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            break;
-        case EMPIRE_CITY_TRADE:
-            draw_trade_city_info(object, city);
-            break;
-    }
-}
-
-static void draw_roman_army_info(const empire_object *object)
-{
-    (void) object;
-    int x_offset = (data.x_min + data.x_max - 240) / 2;
-    int y_offset = data.y_max - 68;
-    int text_id;
-    if (city_military_distant_battle_roman_army_is_traveling_forth()) {
-        text_id = 15;
-    } else {
-        text_id = 16;
-    }
-    lang_text_draw_multiline(current_string_key(47, text_id), x_offset, y_offset, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-}
-
-static void draw_enemy_army_info(const empire_object *object)
-{
-    (void) object;
-    lang_text_draw_multiline("main_strings.47.14", (data.x_min + data.x_max - 240) / 2, data.y_max - 68, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-}
-
-static void draw_object_info(void)
-{
-    process_selection();
-    int selected_object = empire_selected_object();
-    if (selected_object) {
-        const empire_object *object = empire_object_get(selected_object - 1);
-        switch (object->type) {
-            case EMPIRE_OBJECT_CITY:
-                draw_city_info(object);
-                break;
-            case EMPIRE_OBJECT_ROMAN_ARMY:
-                if (city_military_distant_battle_roman_army_is_traveling()) {
-                    if (city_military_distant_battle_roman_months_traveled() == object->distant_battle_travel_months) {
-                        draw_roman_army_info(object);
-                    }
-                }
-                break;
-            case EMPIRE_OBJECT_ENEMY_ARMY:
-                if (city_military_months_until_distant_battle() > 0) {
-                    if (city_military_distant_battle_enemy_months_traveled() == object->distant_battle_travel_months) {
-                        draw_enemy_army_info(object);
-                    }
-                }
-                break;
-            default:
-                lang_text_draw_centered("main_strings.47.8", data.panel.x_min, data.y_max - 48, data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-                break;
-        }
-    } else {
-        lang_text_draw_centered("main_strings.47.8", data.panel.x_min, data.y_max - 48, data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
 }
 
@@ -1570,7 +801,7 @@ static void draw_empire_object(const empire_object *obj)
         return;
     }
     if (obj->type == EMPIRE_OBJECT_LAND_TRADE_ROUTE || obj->type == EMPIRE_OBJECT_SEA_TRADE_ROUTE) {
-        if (!empire_city_is_trade_route_open(obj->trade_route_id)) {
+        if (!empire_city_is_trade_route_open(obj->trade_route_id) || scenario_definition_override_value(ScenarioOverrideKind::HiddenRoute, std::to_string(obj->trade_route_id), 0, {}, 0)) {
             return; // dont draw the icon if route is closed
         }
     }
@@ -1680,6 +911,7 @@ static void draw_empire_object(const empire_object *obj)
 
 static void empire_draw_object_trade_route(const empire_object *obj)
 {
+    if (scenario_definition_override_value(ScenarioOverrideKind::HiddenRoute, std::to_string(obj->trade_route_id), 0, {}, 0)) return;
     if (obj->type == EMPIRE_OBJECT_LAND_TRADE_ROUTE || obj->type == EMPIRE_OBJECT_SEA_TRADE_ROUTE) {
         if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
             if (empire_city_is_trade_route_open(obj->trade_route_id)) {
@@ -1762,127 +994,198 @@ static void draw_map(void)
     graphics_reset_clip_rectangle();
 }
 
-static void draw_city_name(const empire_city *city)
-{
-    int image_base = Image::group(GROUP_EMPIRE_PANELS);
-    int draw_ornaments_outside = data.x_min - data.panel.x_min > 90;
-    int base_x_min = draw_ornaments_outside ? data.panel.x_min : data.x_min;
-    int base_x_max = draw_ornaments_outside ? data.panel.x_max : data.x_max;
-    Image::from_id(image_base + 6).draw(base_x_min + 2, data.y_max - 199);//left bird
-    if (data.sidebar.border_btn.is_collapsed) {
-        Image::from_id(image_base + 7).draw(base_x_max - 84, data.y_max - 199);//right bird
-    }
-    Image::from_id(image_base + 8).draw((data.x_min + data.x_max - 332) / 2, data.y_max - 181); //city badge big
-    if (city) {
-        int x_offset = (data.panel.x_min + data.panel.x_max - 332) / 2 + 64;
-        int y_offset = data.y_max - 118;
-        const uint8_t *city_name = empire_city_get_name(city);
-        text_draw_centered(city_name, x_offset, y_offset, 268, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    }
-}
-
-static void draw_panel_buttons(void)
-{
-    image_buttons_draw(data.panel.x_min + 20, data.y_max - 44, image_button_help, 1);
-    image_buttons_draw(data.panel.x_max - 44, data.y_max - 44, image_button_return_to_city, 1);
-    image_buttons_draw(data.panel.x_max - 44, data.y_max - 100, image_button_advisor, 1);
-    image_buttons_draw(data.panel.x_min + 24, data.y_max - 100, image_button_show_prices, 1);
-    //image_buttons_draw(data.sidebar.x_min-32,data.y_min + 100, button_toggle_sidebar_width, 1);
-    if (data.selected_button != NO_POSITION) {
-        const trade_open_button *btn = &trade_open_buttons[data.selected_button];
-        const int city_id = empire_city_get_for_trade_route(btn->route_id);
-        empire_city *city = city_id >= 0 ? empire_city_get(city_id) : 0;
-        if (city) {
-            const int style_y = btn->variant == TRADE_STYLE_MAIN_BAR ? btn->y + 9 : btn->y;
-            open_trade_button_style style = get_open_trade_button_style(btn->x, style_y, btn->variant);
-            style.button_x_min = btn->x - 1;
-            style.button_y_min = btn->y - 1;
-            style.button_width = btn->width + 2;
-            style.button_height = btn->height + 2;
-            draw_open_trade_button_widget(city, &style, btn->icon_type, 1);
-        }
-    }
-}
-
-static void draw_sidebar_grid_box(void)
-{
-    graphics_set_clip_rectangle(
-        data.sidebar.x_min,
-        data.sidebar.y_min,
-        data.sidebar.width,
-        data.sidebar.height
-    );
-    grid_box_draw(&sidebar_grid_box);
-    graphics_set_clip_rectangle(
-        data.sidebar.x_min,
-        data.sidebar.y_min,
-        data.sidebar.width,
-        data.sidebar.height
-    );
-    if (data.sidebar.width_percent > 5 && (!data.sidebar.dragging || data.sidebar.dragging_width > 5)) {
-        window_empire_sidebar_sort_draw_expanding_buttons(data.sidebar.x_min, data.sidebar.y_min, data.sidebar.width, grid_box_has_scrollbar(&sidebar_grid_box));
-    }
-
-    graphics_reset_clip_rectangle();
-}
-
-static void draw_trade_button_highlights(void)
-{
-    for (int i = 0; i < resource_button_count; ++i) {
-        const resource_button *btn = &resource_buttons[i];
-        if (data.hovered_resource_button == i && btn->do_highlight) {
-            graphics_draw_inset_rect(
-                btn->x - 1,
-                btn->y - 1,
-                btn->width + 2,
-                btn->height + 2,
-                COLOR_INSET_DARK,
-                COLOR_INSET_LIGHT);
-            continue;
-        }
-        if (data.focus_resource == btn->res) {
-            time_millis elapsed = time_get_millis() - data.trade_route_anim_start;
-            float time_seconds = elapsed / 1000.0f; // Convert to seconds
-            float pulse = sinf(time_seconds * 1.0f * 3.14f); // 1 full cycle per second
-            int alpha = 96 + (int) (pulse * 64); // Range: 32ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ160
-            graphics_tint_rect(btn->x, btn->y, RESOURCE_ICON_WIDTH - 1, RESOURCE_ICON_HEIGHT - 1,
-                COLOR_MASK_DARK_PINK, alpha);
-        }
-
-    }
-}
-
 // -------------------------------------------------------------------------------------------------------
 //                                              DRAW FOREGROUND
 // -------------------------------------------------------------------------------------------------------
 
+namespace {
+class EmpireController final : public DeclarativeWindowController {
+public:
+    int page = 0, resource_page = 0, capacity = 4;
+    std::vector<int> cities;
+    std::vector<resource_type> resources;
+    std::map<int, int64_t> trade_balances;
+    void refresh()
+    {
+        std::vector<sidebar_city_entry> entries;
+        for (int i = 1; i < empire_city_get_array_size(); ++i) {
+            const auto *city = empire_city_get(i);
+            if (city->in_use && city->type == EMPIRE_CITY_TRADE && window_empire_sidebar_sort_city_matches_current_filter(city)) entries.push_back({0, city->empire_object_id, i});
+        }
+        std::sort(entries.begin(), entries.end(), [this](const auto &a, const auto &b) {
+            if (window_empire_sidebar_sort_get_current_sorting() == SORT_BY_PROFIT) {
+                const int64_t left = trade_balances[a.city_id], right = trade_balances[b.city_id];
+                if (left != right) return window_empire_sidebar_sort_get_sorting_reversed() ? left > right : left < right;
+            }
+            return window_empire_sidebar_sort_sidebar_city_sorter(&a, &b) < 0;
+        });
+        cities.clear();
+        for (const auto &entry : entries) cities.push_back(entry.city_id);
+        page = std::min(page, std::max(0, (static_cast<int>(cities.size()) - 1) / capacity));
+        resources.clear();
+        const auto *city = selected();
+        if (city) for (int i = 0; i < resource_loaded_count(); ++i) {
+            const auto resource = resource_get_loaded(i);
+            if (city->buys_resource[resource] || city->sells_resource[resource]) resources.push_back(resource);
+        }
+        resource_page = std::min(resource_page, std::max(0, (static_cast<int>(resources.size()) - 1) / 4));
+    }
+    const empire_city *selected() const { return data.selected_city > 0 && data.selected_city < empire_city_get_array_size() ? empire_city_get(data.selected_city) : nullptr; }
+    int city_id(int index) const { const int row = page * capacity + index; return row >= 0 && row < cities.size() ? cities[row] : 0; }
+    int repeat_count(std::string_view source) const override
+    {
+        if (source == "cities") return std::max(0, std::min(capacity, static_cast<int>(cities.size()) - page * capacity));
+        if (source == "resources") return std::max(0, std::min(4, static_cast<int>(resources.size()) - resource_page * 4));
+        return 0;
+    }
+    std::string text(std::string_view binding, int index) const override
+    {
+        auto tr = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
+        if (binding == "sort") {
+            const char *labels[] = {"main_strings.44.9", "TR_LEDGER_EXPORTED", "TR_LEDGER_IMPORTED", "TR_LEDGER_ROUTE_COST", "main_strings.60.19"};
+            return tr(labels[window_empire_sidebar_sort_get_current_sorting()]) + (window_empire_sidebar_sort_get_sorting_reversed() ? " (Z-A)" : " (A-Z)");
+        }
+        if (binding == "selected.name") return selected() ? reinterpret_cast<const char *>(empire_city_get_name(selected())) : tr("main_strings.47.8");
+        if (binding == "filter") {
+            const char *keys[] = {"TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE", "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_SELL", "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_BUY", "TR_EMPIRE_SIDE_BAR_FILTER_BY_OPEN", "TR_EMPIRE_SIDE_BAR_FILTER_BY_CLOSED", "TR_EMPIRE_SIDE_BAR_FILTER_BY_LAND", "TR_EMPIRE_SIDE_BAR_FILTER_BY_SEA", "TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE"};
+            return tr(keys[window_empire_sidebar_sort_get_current_filtering()]);
+        }
+        if (binding == "filter.resource") {
+            const auto resource = window_empire_sidebar_sort_get_selected_filter_resource();
+            return resource == RESOURCE_NONE ? tr("main_strings.52.19") : reinterpret_cast<const char *>(resource_get_data(resource)->text);
+        }
+        if (binding == "selected.info") {
+            const int selection = empire_selected_object();
+            const auto *object = selection ? empire_object_get(selection - 1) : nullptr;
+            if (!object) return {};
+            if (object->type == EMPIRE_OBJECT_ROMAN_ARMY && city_military_distant_battle_roman_army_is_traveling() && city_military_distant_battle_roman_months_traveled() == object->distant_battle_travel_months) return tr(city_military_distant_battle_roman_army_is_traveling_forth() ? "main_strings.47.15" : "main_strings.47.16");
+            if (object->type == EMPIRE_OBJECT_ENEMY_ARMY && city_military_months_until_distant_battle() > 0 && city_military_distant_battle_enemy_months_traveled() == object->distant_battle_travel_months) return tr("main_strings.47.14");
+            if (!selected()) return {};
+            switch (selected()->type) {
+                case EMPIRE_CITY_DISTANT_ROMAN: return tr("main_strings.47.12");
+                case EMPIRE_CITY_VULNERABLE_ROMAN: return tr(city_military_distant_battle_city_is_roman() ? "main_strings.47.12" : "main_strings.47.13");
+                case EMPIRE_CITY_FUTURE_TRADE: case EMPIRE_CITY_DISTANT_FOREIGN: case EMPIRE_CITY_FUTURE_ROMAN: return tr("main_strings.47.0");
+                case EMPIRE_CITY_OURS: return tr("main_strings.47.1");
+                default: return {};
+            }
+        }
+        if (binding == "selected.open") return selected() ? tr("TR_LEDGER_OPEN_ROUTE") + " " + std::to_string(selected()->cost_to_open) : "";
+        if (binding == "selected.cost") {
+            if (!selected()) return {};
+            std::string cost = std::to_string(selected()->cost_to_open) + " " + tr("main_strings.8.1");
+            for (int resource = 1; resource < RESOURCE_SLOT_COUNT; ++resource) {
+                const int loads = empire_city_trade_resource_cost(selected()->route_id, static_cast<resource_type>(resource));
+                if (loads) cost += ", " + std::to_string(loads) + " " + reinterpret_cast<const char *>(resource_get_data(resource)->text);
+            }
+            return cost;
+        }
+        if (binding.substr(0, 9) == "resource.") {
+            const int row = resource_page * 4 + index;
+            if (!selected() || row < 0 || row >= resources.size()) return {};
+            const auto resource = resources[row];
+            if (binding == "resource.name") return reinterpret_cast<const char *>(resource_get_data(resource)->text);
+            const bool imports = binding == "resource.import";
+            if (!(imports ? selected()->sells_resource[resource] : selected()->buys_resource[resource])) return "-";
+            return std::to_string(trade_route_traded(selected()->route_id, resource, !imports)) + " / " + std::to_string(trade_route_limit(selected()->route_id, resource, !imports));
+        }
+        const int id = city_id(index);
+        const auto *city = id ? empire_city_get(id) : nullptr;
+        if (!city) return {};
+        if (binding == "city.name") return reinterpret_cast<const char *>(empire_city_get_name(city));
+        if (binding == "city.status") return city->is_open ? tr("TR_LEDGER_OPEN") : tr("TR_LEDGER_ROUTE_COST") + " " + std::to_string(city->cost_to_open);
+        if (binding == "city.balance") {
+            const auto found = trade_balances.find(id);
+            return tr("main_strings.60.19") + ": " + std::to_string(found != trade_balances.end() ? found->second : 0);
+        }
+        return {};
+    }
+    int condition(std::string_view binding, int index) const override
+    {
+        if (binding == "selected.trade") return selected() && selected()->type == EMPIRE_CITY_TRADE;
+        if (binding == "filter.resource") return window_empire_sidebar_sort_get_current_filtering() <= FILTER_BY_RESOURCE_BUY;
+        if (binding == "city.selected") return city_id(index) == data.selected_city;
+        if (binding == "previous") return page > 0;
+        if (binding == "next") return (page + 1) * capacity < cities.size();
+        if (binding == "resources.previous") return resource_page > 0;
+        if (binding == "resources.next") return (resource_page + 1) * 4 < resources.size();
+        if (binding == "selected.city") return selected() != nullptr;
+        if (binding == "selected.closed") return selected() && !selected()->is_open && selected()->type == EMPIRE_CITY_TRADE;
+        return 0;
+    }
+    void action(std::string_view action, int index) override
+    {
+        if (action == "city.select" && city_id(index)) empire_select_object_by_id(empire_city_get(city_id(index))->empire_object_id);
+        else if (action == "city.ledger") window_trade_ledger_show(city_id(index));
+        else if (action == "ledger") window_trade_ledger_show(selected() ? data.selected_city : -1);
+        else if (action == "prices") button_show_prices(0, 0);
+        else if (action == "advisor") button_advisor(ADVISOR_TRADE, 0);
+        else if (action == "close") button_return_to_city(0, 0);
+        else if (action == "help") button_help(0, 0);
+        else if (action == "open" && condition("selected.closed", 0)) button_open_trade_by_route(selected()->route_id);
+        else if (action == "previous" && page) --page;
+        else if (action == "next" && condition("next", 0)) ++page;
+        else if (action == "resources.previous" && resource_page) --resource_page;
+        else if (action == "resources.next" && condition(action, 0)) ++resource_page;
+        else if (action == "resource.settings" && selected() && selected()->is_open && index >= 0 && resource_page * 4 + index < resources.size()) window_resource_settings_show(resources[resource_page * 4 + index]);
+        else if (action == "filter") { window_empire_sidebar_sort_set_current_filtering((window_empire_sidebar_sort_get_current_filtering() + 1) % MAX_FILTER_KEY); page = 0; }
+        else if (action == "filter.resource") {
+            const auto previous = window_empire_sidebar_sort_get_selected_filter_resource();
+            resource_type next = RESOURCE_NONE;
+            if (previous == RESOURCE_NONE && resource_loaded_count()) next = resource_get_loaded(0);
+            else for (int i = 0; i + 1 < resource_loaded_count(); ++i) if (resource_get_loaded(i) == previous) next = resource_get_loaded(i + 1);
+            window_empire_sidebar_sort_set_selected_filter_resource(next); page = 0;
+        }
+        else if (action == "sort") window_empire_sidebar_sort_set_current_sorting((window_empire_sidebar_sort_get_current_sorting() + 1) % MAX_SORTING_KEY);
+        else if (action == "reverse") window_empire_sidebar_sort_set_sorting_reversed(!window_empire_sidebar_sort_get_sorting_reversed());
+        process_selection(); refresh(); window_invalidate();
+    }
+};
+EmpireController empire_controller;
+std::unique_ptr<DeclarativeWindowRuntime> empire_sidebar_ui, empire_details_ui;
+const DeclarativeWindowDefinition *sidebar_definition, *details_definition;
+void initialize_empire_ui()
+{
+    empire_controller.trade_balances.clear();
+    for (const auto &t : city_trade_ledger_periods().front().transactions) empire_controller.trade_balances[t.city] += (t.imported ? -1 : 1) * t.units * t.price / resource_units_per_load();
+    sidebar_definition = declarative_window_definition("empire_sidebar");
+    details_definition = declarative_window_definition("empire_details");
+    empire_sidebar_ui = sidebar_definition ? std::make_unique<DeclarativeWindowRuntime>(*sidebar_definition, empire_controller) : nullptr;
+    empire_details_ui = details_definition ? std::make_unique<DeclarativeWindowRuntime>(*details_definition, empire_controller) : nullptr;
+}
+void draw_empire_ui()
+{
+    process_selection();
+    if (sidebar_definition && sidebar_definition->widget("cities")) {
+        const auto &row = *sidebar_definition->widget("cities");
+        empire_controller.capacity = std::max(1, (data.sidebar.height - row.y - 36) / std::max(1, row.repeat_spacing_y));
+    }
+    empire_controller.refresh();
+    for (auto phase : {DeclarativeDrawPhase::Background, DeclarativeDrawPhase::Foreground}) {
+        if (empire_sidebar_ui && !data.sidebar.border_btn.is_collapsed) empire_sidebar_ui->draw(phase, data.sidebar.width, data.sidebar.height, data.sidebar.x_min, data.sidebar.y_min);
+        if (empire_details_ui) empire_details_ui->draw(phase, data.panel.x_max - data.panel.x_min, BOTTOM_PANEL_HEIGHT, data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT);
+    }
+}
+int handle_empire_ui(const mouse *m)
+{
+    mouse local = *m;
+    if (m->y >= data.y_max - BOTTOM_PANEL_HEIGHT) {
+        local.x -= data.panel.x_min; local.y -= data.y_max - BOTTOM_PANEL_HEIGHT;
+        return empire_details_ui ? empire_details_ui->handle_mouse(local, data.panel.x_max - data.panel.x_min, BOTTOM_PANEL_HEIGHT) : 0;
+    }
+    if (!data.sidebar.border_btn.is_collapsed && m->x >= data.sidebar.x_min) {
+        local.x -= data.sidebar.x_min; local.y -= data.sidebar.y_min;
+        if (m->scrolled != SCROLL_NONE) { empire_controller.action(m->scrolled == SCROLL_UP ? "previous" : "next", 0); return 1; }
+        return empire_sidebar_ui ? empire_sidebar_ui->handle_mouse(local, data.sidebar.width, data.sidebar.height) : 0;
+    }
+    return 0;
+}
+}
+
 static void draw_foreground(void)
 {
     draw_map();
-    setup_sidebar_gridbox();
-    resource_button_count = 0;
-    trade_open_button_count = 0;
-    const empire_city *city = 0;
-    int selected_object = empire_selected_object();
-
-    if (selected_object) {
-        const empire_object *object = empire_object_get(selected_object - 1); // it should be -1 , thats correct
-        if (object->type == EMPIRE_OBJECT_CITY) {
-            data.selected_city = empire_city_get_for_object(object->id);
-            city = empire_city_get(data.selected_city);
-        }
-    } else {
-        data.selected_city = 0;
-    }
     draw_paneling();
-    if (!data.sidebar.border_btn.is_collapsed) {
-        draw_sidebar_grid_box();  // grid_box uses usable_sidebar dimensions
-        grid_box_request_refresh(&sidebar_grid_box);
-    }
-    draw_city_name(city);
-    draw_object_info();
-    draw_panel_buttons();
-    draw_trade_button_highlights();
+    draw_empire_ui();
 }
 
 static void determine_selected_object(const mouse *m)
@@ -1897,9 +1200,7 @@ static void determine_selected_object(const mouse *m)
             window_invalidate();
         }
     } else if (is_sidebar(m)) {
-        if (sidebar_grid_box.focused_item.index == NO_POSITION) {
-            data.hovered_object = NO_POSITION;
-        }
+        data.hovered_object = NO_POSITION;
     } else {
         data.finished_scroll = 0;
         data.hovered_object = NO_POSITION;
@@ -1936,6 +1237,7 @@ static int is_sidebar(const mouse *m)
 
 static int is_sidebar_border(const mouse *m)
 {
+    if (!declarative_window_definition("empire_sidebar")) return 0;
     if (m->x >= data.sidebar.border_btn.x_min &&
         m->x <= data.sidebar.border_btn.x_max &&
         m->y >= data.sidebar.border_btn.y_min &&
@@ -1984,23 +1286,6 @@ static void handle_sidebar_border(const mouse *m)
             data.sidebar.dragging = 1;
         }
     }
-}
-
-static void on_sidebar_city_click(const grid_box_item *item)
-{
-    if (data.hovered_resource_button != NO_POSITION) {    // Priority: resource buttons take precedence
-        return;
-    }
-    int index = item->index;    // Get actual index
-    if (index < 0 || index >= sidebar_city_count) return;
-    sidebar_city_entry *entry = &sidebar_cities[index];
-    empire_city *city = empire_city_get(entry->city_id);
-
-    if (!city) return;
-    data.selected_city = entry->city_id;
-    empire_select_object_by_id(city->empire_object_id);
-    grid_box_request_refresh(&sidebar_grid_box);
-    window_invalidate();
 }
 
 void handle_sidebar_dragging(const mouse *m)
@@ -2070,14 +1355,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         empire_scroll_map(position.x, position.y);
     }
 
-    // Only let the gridÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âbox process clicks if the sidebar is actually expanded:
-    if (!data.sidebar.border_btn.is_collapsed) {
-        if (window_empire_sidebar_sort_handle_expanding_buttons_input(m)) {
-            return; //block other input handling if the expanding buttons are active
-        }
-        grid_box_handle_input(&sidebar_grid_box, m, 1);
-
-    }
+    if (handle_empire_ui(m)) return;
 
     if (m->is_touch) {
         const touch *t = touch_get_earliest();
@@ -2095,61 +1373,10 @@ static void handle_input(const mouse *m, const hotkeys *h)
     }
     data.focus_button_id = 0;
     data.focus_resource = RESOURCE_NONE;
-    unsigned int button_id;
-    image_buttons_handle_mouse(m, data.panel.x_min + 20, data.y_max - 44, image_button_help, 1, &button_id);
-    if (button_id) {
-        data.focus_button_id = 1;
-    }
-    image_buttons_handle_mouse(m, data.panel.x_max - 44, data.y_max - 44, image_button_return_to_city, 1, &button_id);
-    if (button_id) {
-        data.focus_button_id = 2;
-    }
-    image_buttons_handle_mouse(m, data.panel.x_max - 44, data.y_max - 100, image_button_advisor, 1, &button_id);
-    if (button_id) {
-        data.focus_button_id = 3;
-    }
-    image_buttons_handle_mouse(m, data.panel.x_min + 24, data.y_max - 100, image_button_show_prices, 1, &button_id);
-    if (button_id) {
-        data.focus_button_id = 4;
-    }
-
-
-    button_id = 0;
     determine_selected_object(m);
     handle_sidebar_border(m);
     process_selection();
     int selected_object = empire_selected_object();
-    data.hovered_resource_button = NO_POSITION;
-    for (int i = 0; i < resource_button_count; i++) { //moved out of the 'selected object is empire city' to process all resource buttons
-        const resource_button *btn = &resource_buttons[i];
-        if (m->x >= btn->x && m->x < btn->x + btn->width &&
-            m->y >= btn->y && m->y < btn->y + btn->height) {
-            data.hovered_resource_button = i;
-            data.focus_resource = btn->res;
-            if (m->left.went_up && btn->do_highlight) { //do_highlight distinguishes closed from open routes - dont show resource window if closed route resource is clicked
-                button_show_resource_window(i);
-                return;
-            }
-
-        }
-
-    }
-    data.selected_button = NO_POSITION;
-    for (int i = 0; i < trade_open_button_count; i++) {
-        const trade_open_button *btn = &trade_open_buttons[i];
-
-        if (m->x >= btn->x && m->x < btn->x + btn->width &&
-            m->y >= btn->y && m->y < btn->y + btn->height) {
-            data.selected_button = i;
-            if (m->left.went_up) {
-
-                button_open_trade_by_route(btn->route_id);  // <-- Trigger popup
-                data.selected_button = NO_POSITION; //reset to get rid of the highlight
-            }
-            break;  // Only process one button at a time
-        }
-    }
-
     if (selected_object) {
 
         const empire_object *obj = empire_object_get(selected_object - 1);
@@ -2201,55 +1428,14 @@ static void handle_input(const mouse *m, const hotkeys *h)
     }
 }
 
-static void get_tooltip_trade_route_type(tooltip_context *c)
-{
-    int selected_object = empire_selected_object();
-    if (!selected_object || empire_object_get(selected_object - 1)->type != EMPIRE_OBJECT_CITY) {
-        return;
-    }
-
-    data.selected_city = empire_city_get_for_object(selected_object - 1);
-    const empire_city *city = empire_city_get(data.selected_city);
-    if (city->type != EMPIRE_CITY_TRADE || city->is_open) {
-        return;
-    }
-
-    int x_offset = (data.panel.x_min + data.panel.x_max + 355) / 2;
-    int y_offset = data.y_max - 41;
-    int y_offset_max = y_offset + 22 - 2 * city->is_sea_trade;
-    if (c->mouse_x >= x_offset && c->mouse_x < x_offset + 32 &&
-        c->mouse_y >= y_offset && c->mouse_y < y_offset_max) {
-        c->type = TOOLTIP_BUTTON;
-        c->text_group = 44;
-        c->text_id = 28 + city->is_sea_trade;
-    }
-}
-
 static void get_tooltip(tooltip_context *c)
 {
-    const resource_type resource = data.focus_resource;
-    if (resource != RESOURCE_NONE) {
-        c->type = TOOLTIP_BUTTON;
-        c->precomposed_text = resource_get_data(resource)->text;
-    } else if (data.focus_button_id) {
-        c->type = TOOLTIP_BUTTON;
-        switch (data.focus_button_id) {
-            case 1: c->text_id = 1; break;
-            case 2: c->text_id = 2; break;
-            case 3: c->text_id = 69; break;
-            case 4:
-                c->text_group = 54;
-                c->text_id = 2;
-                break;
-        }
-    } else if (data.sidebar.border_btn.is_hovered) {
+    if (data.sidebar.border_btn.is_hovered) {
         c->type = TOOLTIP_BUTTON;
         c->translation_key = "TR_TOOLTIP_CHANGE_SIDEBAR_WIDTH";
-    } else if (window_empire_sidebar_sort_get_sorting_arrow_focused()) {
-        c->type = TOOLTIP_BUTTON;
-        c->translation_key = window_empire_sidebar_sort_get_sorting_arrow_is_down() ? "TR_TOOLTIP_DESCENDING_ORDER" : "TR_TOOLTIP_ASCENDING_ORDER";
     } else {
-        get_tooltip_trade_route_type(c);
+        if (empire_sidebar_ui) empire_sidebar_ui->tooltip(*c);
+        if (empire_details_ui) empire_details_ui->tooltip(*c);
     }
 }
 // -------------------------------------------------------------------------------------------------------
@@ -2283,18 +1469,13 @@ static void button_show_prices(int param1, int param2)
     window_trade_prices_show(0, 0, screen_width(), screen_height());
 }
 
-static void button_show_resource_window(int resource_button_index)
-{
-    resource_button *btn = &resource_buttons[resource_button_index];
-    window_resource_settings_show(btn->res);
-}
-
 static void confirmed_open_trade_by_route(int accepted, int checked)
 {
     (void) checked;
     if (accepted) {
         int city_id = empire_city_get_for_trade_route(data.selected_trade_route);
         empire_city_open_trade(city_id, 1);
+        if (!empire_city_is_trade_route_open(data.selected_trade_route)) return;
         building_menu_update();
         window_trade_opened_show(city_id);
     }
@@ -2303,29 +1484,22 @@ static void confirmed_open_trade_by_route(int accepted, int checked)
 static void button_open_trade_by_route(int route_id)
 {
     data.selected_trade_route = route_id;
+    const int city_id = empire_city_get_for_trade_route(route_id);
+    if (!empire_city_can_pay_trade_resources(city_id)) { city_warning_show_translated(WARNING_RESOURCES_NOT_AVAILABLE); return; }
+    const auto *city = empire_city_get(city_id);
+    static std::string cost;
+    bool has_resource_cost = false;
+    cost = std::to_string(city->cost_to_open) + " " + reinterpret_cast<const char *>(lang_get_string("main_strings.8.1"));
+    for (int resource = 1; resource < RESOURCE_SLOT_COUNT; ++resource) {
+        const int loads = empire_city_trade_resource_cost(route_id, static_cast<resource_type>(resource));
+        if (loads) { has_resource_cost = true; cost += ", " + std::to_string(loads) + " " + reinterpret_cast<const char *>(resource_get_data(resource)->text); }
+    }
+    if (has_resource_cost) {
+        window_popup_dialog_show_confirmation(lang_get_string("main_strings.47.6"), reinterpret_cast<const uint8_t *>(cost.c_str()), nullptr, confirmed_open_trade_by_route);
+        return;
+    }
     window_popup_dialog_show(POPUP_DIALOG_OPEN_TRADE, confirmed_open_trade_by_route, 2);
 }
-
-void register_resource_button(int x, int y, int width, int height, resource_type r, int highlight)
-{
-    if (resource_button_count >= MAX_RESOURCE_BUTTONS) return;
-    resource_buttons[resource_button_count++] = resource_button{ x, y, width, height, r, highlight };
-}
-
-void register_open_trade_button(
-    int x,
-    int y,
-    int width,
-    int height,
-    int route_id,
-    trade_style_variant variant,
-    trade_icon_type icon_type,
-    int highlight)
-{
-    if (trade_open_button_count >= MAX_TRADE_OPEN_BUTTONS) return;
-    trade_open_buttons[trade_open_button_count++] = trade_open_button{ x, y, width, height, route_id, variant, icon_type, highlight };
-}
-
 
 // -------------------------------------------------------------------------------------------------------
 //                                              WINDOW SHOW 
@@ -2336,8 +1510,7 @@ void window_empire_show(void)
 
     init();
     setup_sidebar();
-    setup_sidebar_gridbox();
-    grid_box_init(&sidebar_grid_box, sidebar_city_count);
+    initialize_empire_ui();
     window_type window = {
         WINDOW_EMPIRE,
         draw_background,

@@ -86,6 +86,8 @@ void empire_city_set_foreign(int city_id);
 void empire_city_set_type(int city_id, empire_city_type type);
 
 void empire_city_open_trade(int city_id, int apply_cost);
+int empire_city_trade_resource_cost(int route_id, resource_type resource);
+int empire_city_can_pay_trade_resources(int city_id);
 
 void empire_city_generate_trader(void);
 

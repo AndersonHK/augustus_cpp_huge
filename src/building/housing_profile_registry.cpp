@@ -367,6 +367,12 @@ const HousingProfileDef *find_housing_profile_definition(const char *path)
     return found == g_profiles.end() ? nullptr : found->second.get();
 }
 
+HousingProfileDef *find_mutable_housing_profile_definition(const char *path)
+{
+    const auto found = g_profiles.find(xml_definition::normalize_path(path));
+    return found == g_profiles.end() ? nullptr : found->second.get();
+}
+
 const HousingProfileDef *find_housing_profile_definition_for_compatibility_level(int level)
 {
     const auto found = g_profiles_by_level.find(level);
