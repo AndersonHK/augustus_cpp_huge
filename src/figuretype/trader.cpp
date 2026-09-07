@@ -1,3 +1,5 @@
+#include "figure/figure_type_registry_internal.h"
+#include "figure/figure_runtime_api.h"
 #include "city/trade_ledger.h"
 #include "building/storage.h"
 #include "city/health.h"
@@ -392,15 +394,23 @@ int figure_create_trade_caravan(int x, int y, int city_id)
     Figure *caravan = Figure::create(FIGURE_TRADE_CARAVAN, x, y, DIR_0_TOP);
     caravan->empire_city_id = static_cast<unsigned char>(city_id);
     caravan->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
-    caravan->wait_ticks = static_cast<short>(random_initial_wait_ticks());
-    // donkey 1
-    Figure *donkey1 = Figure::create(FIGURE_TRADE_CARAVAN_DONKEY, x, y, DIR_0_TOP);
-    donkey1->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
-    donkey1->leading_figure_id = static_cast<short>(caravan->id());
-    // donkey 2
-    Figure *donkey2 = Figure::create(FIGURE_TRADE_CARAVAN_DONKEY, x, y, DIR_0_TOP);
-    donkey2->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
-    donkey2->leading_figure_id = static_cast<short>(donkey1->id());
+    const auto *profile = figure_type_registry_impl::default_profile_for(FIGURE_TRADE_CARAVAN);
+    if (!profile || profile->native_class() != figure_type_registry_impl::NativeClassId::LandTrade) {
+        log_error("Trade caravan requires an explicit land_trade profile", nullptr, 0);
+        caravan->remove();
+        return 0;
+    }
+    const int initial_wait = game_time_scale_legacy_day_ticks(profile->trade.initial_wait_ticks);
+    if (profile->trade.random_initial_progress) random_generate_next();
+    const int progress = profile->trade.random_initial_progress && initial_wait > 0 ? random_short() % (initial_wait + 1) : game_time_scale_legacy_day_ticks(profile->trade.initial_progress_ticks);
+    caravan->wait_ticks = static_cast<short>(progress);
+    Figure *leader = caravan;
+    for (int follower = 0; follower < profile->trade.follower_count; ++follower) {
+        Figure *next = Figure::create(profile->trade.follower_type, x, y, DIR_0_TOP);
+        next->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
+        next->leading_figure_id = static_cast<short>(leader->id());
+        leader = next;
+    }
     return caravan->id();
 }
 
@@ -710,28 +720,9 @@ static void go_to_next_storage(Figure *f)
     }
 }
 
-static int trader_image_id(void)
+void figure_land_trade_advance(Figure *f, const figure_type_registry_impl::FigureTypeProfile &profile, int move_speed)
 {
-    if (scenario_property_climate() == CLIMATE_DESERT) {
-        return IMAGE_CAMEL;
-    } else {
-        return image_group(GROUP_FIGURE_TRADE_CARAVAN);
-    }
-}
-
-void figure_trade_caravan_action(Figure *f)
-{
-    int move_speed = trader_bonus_speed();
-
     f->is_ghost = 0;
-
-    if (config_get(CONFIG_GP_CARAVANS_MOVE_OFF_ROAD)) {
-        f->terrain_usage = TERRAIN_USAGE_ANY;
-    } else {
-        f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
-    }
-
-    figure_image_increase_offset(f, 12);
     f->clear_legacy_cart_overlay_image();
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
@@ -743,14 +734,14 @@ void figure_trade_caravan_action(Figure *f)
         case FIGURE_ACTION_100_TRADE_CARAVAN_CREATED:
             f->is_ghost = 1;
             f->wait_ticks++;
-            if (f->wait_ticks > TRADER_INITIAL_WAIT) {
+            if (f->wait_ticks > game_time_scale_legacy_day_ticks(profile.trade.initial_wait_ticks)) {
                 f->wait_ticks = 0;
                 go_to_next_storage(f);
             }
             f->image_offset = 0;
             break;
         case FIGURE_ACTION_101_TRADE_CARAVAN_ARRIVING:
-            figure_movement_move_ticks_with_percentage(f, 1, move_speed);
+            figure_movement_move_ticks_with_percentage(f, profile.movement_profile().roam_ticks, move_speed);
             switch (f->direction) {
                 case DIR_FIGURE_AT_DESTINATION:
                     f->action_state = FIGURE_ACTION_102_TRADE_CARAVAN_TRADING;
@@ -767,7 +758,7 @@ void figure_trade_caravan_action(Figure *f)
         case FIGURE_ACTION_102_TRADE_CARAVAN_TRADING:
         {
             f->wait_ticks++;
-            if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
+            if (f->wait_ticks > game_time_scale_legacy_day_ticks(profile.trade.exchange_delay_ticks)) {
                 f->wait_ticks = 0;
                 int move_on = 0;
                 Building *destination = f->destination_building;
@@ -809,7 +800,7 @@ void figure_trade_caravan_action(Figure *f)
             break;
         }
         case FIGURE_ACTION_103_TRADE_CARAVAN_LEAVING:
-            figure_movement_move_ticks_with_percentage(f, 1, move_speed);
+            figure_movement_move_ticks_with_percentage(f, profile.movement_profile().roam_ticks, move_speed);
             switch (f->direction) {
                 case DIR_FIGURE_AT_DESTINATION:
                     f->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
@@ -824,25 +815,11 @@ void figure_trade_caravan_action(Figure *f)
             }
             break;
     }
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-
-
-    f->select_legacy_directional_frame_image(trader_image_id(), dir, f->image_offset);
 }
 
-void figure_trade_caravan_donkey_action(Figure *f)
+void figure_trade_follower_advance(Figure *f, const figure_type_registry_impl::FigureTypeProfile &profile, int move_speed)
 {
-    int move_speed = trader_bonus_speed();
-
     f->is_ghost = 0;
-
-    if (config_get(CONFIG_GP_CARAVANS_MOVE_OFF_ROAD)) {
-        f->terrain_usage = TERRAIN_USAGE_ANY;
-    } else {
-        f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
-    }
-
-    figure_image_increase_offset(f, 12);
     f->clear_legacy_cart_overlay_image();
 
     Figure *leader = Figure::get(f->leading_figure_id);
@@ -853,19 +830,18 @@ void figure_trade_caravan_donkey_action(Figure *f)
             f->state = FIGURE_STATE_DEAD;
         } else if (leader->state != FIGURE_STATE_ALIVE) {
             f->state = FIGURE_STATE_DEAD;
-        } else if (leader->type != FIGURE_TRADE_CARAVAN && leader->type != FIGURE_TRADE_CARAVAN_DONKEY) {
+        } else if (const auto *leader_profile = figure_type_registry_impl::profile_for(static_cast<figure_type>(leader->type), leader->runtime_profile_id());
+            !leader_profile || (leader_profile->native_class() != figure_type_registry_impl::NativeClassId::LandTrade &&
+                leader_profile->native_class() != figure_type_registry_impl::NativeClassId::TradeFollower)) {
             f->state = FIGURE_STATE_DEAD;
         } else {
-            figure_movement_follow_ticks_with_percentage(f, 1, move_speed);
+            figure_movement_follow_ticks_with_percentage(f, profile.movement_profile().roam_ticks, move_speed);
         }
     }
 
     if (leader->is_ghost && !leader->height_adjusted_ticks) {
         f->is_ghost = 1;
     }
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-
-    f->select_legacy_directional_frame_image(trader_image_id(), dir, f->image_offset);
 }
 
 void figure_native_trader_action(Figure *f)

@@ -373,13 +373,26 @@ void figure_runtime_reset()
     g_runtime_entries.clear();
 }
 
-bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, Building **resolved_owner)
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, bool allow_land_trade_profile_bridge, Building **resolved_owner)
 {
     if (resolved_owner) {
         *resolved_owner = nullptr;
     }
     if (!f) {
         return false;
+    }
+
+    if (!f->state) return true;
+
+    const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    // Original figures can still have legacy controllers/graphics without a
+    // FigureType declaration. Only later mod figures require that declaration.
+    if (f->type >= FIGURE_WORK_CAMP_WORKER && !definition && !figure_type_registry_impl::graphics_for(static_cast<figure_type>(f->type))) {
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
+        log_warning("Discarding imported transient figure absent from the active mod definitions", detail, 0);
+        f->remove();
+        return true;
     }
 
     Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
@@ -395,11 +408,13 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
         saved_owner_id = 0;
     }
 
-    const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
     const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
     const char *profile_id = f->runtime_profile_id();
     if (definition && !definition->profiles().empty()) {
-        if ((!profile_id || !*profile_id) && allow_legacy_profile_translation) {
+        const auto *default_profile = definition->default_profile();
+        const bool bridge_trade = allow_land_trade_profile_bridge && default_profile && (default_profile->native_class() == figure_type_registry_impl::NativeClassId::LandTrade || default_profile->native_class() == figure_type_registry_impl::NativeClassId::TradeFollower);
+        if ((!profile_id || !*profile_id) && (allow_legacy_profile_translation || bridge_trade)) {
+            if (bridge_trade) log_warning("Migrating pre-native land trade figure to its explicit XML profile", definition->attr(), f->id());
             const char *translated_id = translate_legacy_profile_id(f, owner);
             profile = translated_id ? definition->profile(translated_id) : definition->default_profile();
             if (!profile || !f->set_runtime_profile_id(profile->id())) {
@@ -619,7 +634,9 @@ int figure_runtime_apply_profile_movement(Figure *f)
     }
 
     const figure_type_registry_impl::MovementProfile &movement = entry->profile->movement_profile();
-    f->terrain_usage = static_cast<unsigned char>(entry->profile->pathing_policy().terrain.legacy_usage);
+    const int terrain_usage = entry->profile->pathing_policy().activeTerrain().legacy_usage;
+    if (f->terrain_usage != terrain_usage && entry->profile->pathing_policy().terrain_setting != CONFIG_MAX_ENTRIES) Route::remove(f);
+    f->terrain_usage = static_cast<unsigned char>(terrain_usage);
     f->use_cross_country = 0;
     f->max_roam_length = static_cast<short>(movement.max_roam_length);
     return 1;

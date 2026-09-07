@@ -3,9 +3,11 @@
     <graphics>
         <default>
             <path value="Walkers\Criminals" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Criminals" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

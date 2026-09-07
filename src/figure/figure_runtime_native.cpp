@@ -19,6 +19,8 @@
 #include "figure/PathingMode.h"
 #include "figure/route.h"
 #include "figuretype/fishing_boat.h"
+#include "figuretype/trader.h"
+#include "figure/unit_type.h"
 #include "figuretype/supplier.h"
 #include "game/defines.h"
 #include "graphics/image.h"
@@ -812,6 +814,7 @@ static int directional_graphic_draw_request(
     const figure_type_registry_impl::FigureGraphics &graphics,
     FigureGraphicDrawRequest &request)
 {
+    if (figure.action_state == FIGURE_ACTION_149_CORPSE && !graphics.directional().draw_corpse) return XmlFigureGraphics(graphics).draw_request_for(figure, request);
     const figure_type_registry_impl::FigureGraphicsLayer layer = graphics.directional_layer(figure);
     if (!layer.is_valid()) return 0;
     request.set_base_slice(layer.slice);
@@ -2001,6 +2004,23 @@ private:
 
 };
 
+class LandTradeFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        Figure *f = data_figure();
+        figure_runtime_apply_profile_movement(f);
+        figure_image_increase_offset(f, definition()->graphics().max_image_offset);
+        const auto &movement = profile()->movement_profile();
+        const int bonus = movement.speed_bonus_type != BUILDING_NONE && building_monument_working(movement.speed_bonus_type) ? movement.speed_bonus_percent : 0;
+        if (profile()->native_class() == figure_type_registry_impl::NativeClassId::TradeFollower) figure_trade_follower_advance(f, *profile(), bonus);
+        else figure_land_trade_advance(f, *profile(), bonus);
+        return 1;
+    }
+};
+
 class FishingBoatFigure : public NativeFigure {
 public:
     using NativeFigure::NativeFigure;
@@ -2855,6 +2875,13 @@ std::unique_ptr<NativeFigure> make_controller(
             return std::make_unique<TransientWandererFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::DepotCartPusher:
             return std::make_unique<DepotCartPusherFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::LandTrade:
+        case figure_type_registry_impl::NativeClassId::TradeFollower:
+            if (!unit_type_registry_impl::find_unit_type(static_cast<figure_type>(f->type))) {
+                error_context_report_fatal_error_dialog("FigureType error", "Trade figure has no UnitType stats.", definition->attr());
+                std::terminate();
+            }
+            return std::make_unique<LandTradeFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::FishingBoat:
             return std::make_unique<FishingBoatFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:

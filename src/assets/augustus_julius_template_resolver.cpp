@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 
 namespace vespasian::graphics::extraction {
 
@@ -146,6 +147,38 @@ int JuliusTemplateCatalog::translate_numeric_group_image_from_extracted_julius(
     std::string &translated_group_key,
     std::string &translated_image_id)
 {
+    JuliusTemplateGroup base;
+    if (load_group(julius_graphics_root, base_group_key, base) && base.legacy_first_image >= 0) {
+        const int absolute_image = base.legacy_first_image + requested_image_index;
+        const std::string base_id = graphics_extractor::make_generated_image_id(requested_image_index);
+        if (absolute_image <= base.legacy_last_image && (base.has_image(base_id) || base.legacy_images.count(base_id))) {
+            translated_group_key = base_group_key;
+            translated_image_id = base_id;
+            return 1;
+        }
+        // Source ranges, including gaps, come from Julius's output rather than XML order.
+        if (source_range_keys_.empty()) {
+            for (const auto &file : std::filesystem::recursive_directory_iterator(julius_graphics_root)) {
+                if (!file.is_regular_file() || file.path().extension() != ".xml") continue;
+                auto relative = file.path().lexically_relative(julius_graphics_root);
+                if (relative.string().find("Renderer_Seam_Climate") != std::string::npos) continue;
+                relative.replace_extension();
+                source_range_keys_.push_back(graphics_extractor::normalize_key(relative.string().c_str()));
+            }
+            std::sort(source_range_keys_.begin(), source_range_keys_.end());
+        }
+        for (const std::string &key : source_range_keys_) {
+            JuliusTemplateGroup candidate;
+            if (!load_group(julius_graphics_root, key, candidate) || candidate.legacy_first_image < 0 ||
+                absolute_image < candidate.legacy_first_image || absolute_image > candidate.legacy_last_image) continue;
+            const std::string id = graphics_extractor::make_generated_image_id(absolute_image - candidate.legacy_first_image);
+            if (!candidate.has_image(id) && !candidate.legacy_images.count(id)) return 0;
+            translated_group_key = key;
+            translated_image_id = id;
+            return 1;
+        }
+        return 0;
+    }
     int remaining_image_index = requested_image_index;
     for (const std::string &candidate_group_key :
         collect_semantic_continuation_group_keys(julius_graphics_root, base_group_key)) {
@@ -157,7 +190,7 @@ int JuliusTemplateCatalog::translate_numeric_group_image_from_extracted_julius(
         const int next_index = group.next_generated_image_index();
         if (remaining_image_index < next_index) {
             const std::string candidate_image_id = graphics_extractor::make_generated_image_id(remaining_image_index);
-            if (!group.has_image(candidate_image_id)) {
+            if (!group.has_image(candidate_image_id) && !group.legacy_images.count(candidate_image_id)) {
                 return 0;
             }
             translated_group_key = candidate_group_key;
@@ -175,8 +208,20 @@ int JuliusTemplateCatalog::translate_group_image(
     const std::string &reference_group,
     const std::string &reference_image,
     std::string &translated_group_key,
-    std::string &translated_image_id)
+    std::string &translated_image_id, int *translated_frame)
 {
+    if (translated_frame) *translated_frame = 0;
+    const auto resolve_named_frame = [&]() {
+        JuliusTemplateGroup group;
+        if (load_group(julius_graphics_root, translated_group_key, group)) {
+            const auto found = group.legacy_images.find(translated_image_id);
+            if (found != group.legacy_images.end()) {
+                translated_image_id = found->second.first;
+                if (translated_frame) *translated_frame = found->second.second;
+            }
+        }
+        return translated_group_key.empty() ? -1 : 1;
+    };
     translated_group_key.clear();
     translated_image_id.clear();
     if (reference_group.empty()) {
@@ -194,7 +239,7 @@ int JuliusTemplateCatalog::translate_group_image(
         } else {
             translated_image_id = reference_image.empty() ? std::string("Image_0000") : reference_image;
         }
-        return translated_group_key.empty() ? -1 : 1;
+        return resolve_named_frame();
     }
 
     int requested_image_index = 0;
@@ -208,7 +253,7 @@ int JuliusTemplateCatalog::translate_group_image(
     if (live_key.valid()) {
         translated_group_key = live_key.group_key();
         translated_image_id = live_key.image_id();
-        return 1;
+        return resolve_named_frame();
     }
 
     const std::string base_group_key = JuliusExtractor().resolveLegacyGroup(static_cast<int>(numeric_group));
@@ -222,12 +267,12 @@ int JuliusTemplateCatalog::translate_group_image(
             requested_image_index,
             translated_group_key,
             translated_image_id)) {
-        return 1;
+        return resolve_named_frame();
     }
 
     translated_group_key = base_group_key;
     translated_image_id = graphics_extractor::make_generated_image_id(requested_image_index);
-    return translated_group_key.empty() ? -1 : 1;
+    return resolve_named_frame();
 }
 
 bool JuliusTemplateCatalog::parse_group_xml(
@@ -245,16 +290,27 @@ bool JuliusTemplateCatalog::parse_group_xml(
     for (const XmlToken &token : reader.parse(contents)) {
         const XmlElement &element = token.element();
         if (token.type() == XmlToken::Type::end) {
-            if (element.name() == "image") {
-                current_image_id.clear();
-            }
+            if (element.name() == "image") current_image_id.clear();
             continue;
+        }
+        if (element.name() == "legacy") {
+            const std::string id = graphics_extractor::make_generated_image_id(atoi(element.attribute("index").c_str()));
+            group.legacy_images[id] = { element.attribute("image"), atoi(element.attribute("frame").c_str()) };
+            group.observe_generated_image_id(id);
+            continue;
+        }
+        if (element.name() == "assetlist" && element.has_attribute("legacy_first_image")) {
+            group.legacy_first_image = element.int_attribute("legacy_first_image");
+            group.legacy_last_image = element.int_attribute("legacy_last_image");
         }
 
         if (element.name() == "image") {
             current_image_id = element.attribute("id");
             if (!current_image_id.empty()) {
-                group.ensure_image(current_image_id);
+                auto &image = group.ensure_image(current_image_id);
+                image.has_sprite_offset = element.has_attribute("sprite_offset_x") || element.has_attribute("sprite_offset_y");
+                image.sprite_offset_x = element.int_attribute("sprite_offset_x");
+                image.sprite_offset_y = element.int_attribute("sprite_offset_y");
                 group.observe_generated_image_id(current_image_id);
             }
             if (token.is_self_closing()) {
@@ -266,6 +322,14 @@ bool JuliusTemplateCatalog::parse_group_xml(
             const std::string &part = element.attribute("part");
             if (!part.empty()) {
                 group.ensure_image(current_image_id).add_part(part);
+            }
+        }
+        if (element.name() == "animation" && !current_image_id.empty()) {
+            auto &image = group.ensure_image(current_image_id);
+            if (!image.has_sprite_offset) {
+                image.has_sprite_offset = true;
+                image.sprite_offset_x = element.int_attribute("x");
+                image.sprite_offset_y = element.int_attribute("y");
             }
         }
     }

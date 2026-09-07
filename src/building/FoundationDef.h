@@ -30,8 +30,18 @@ struct FoundationCellDefinition {
     uint32_t permitted_blocking_terrain = 0;
     uint32_t added_terrain = 0;
     uint32_t removed_terrain = 0;
+    std::string support_type;
     int binds_building = 1;
     FoundationPassage passage = FoundationPassage::None;
+};
+
+struct FoundationProximityRequirement {
+    uint32_t terrain = 0;
+    int min_distance = 0;
+    int max_distance = 0;
+    int min_count = 1;
+    bool navigable = false;
+    bool sea = false;
 };
 
 struct RotatedFoundationCell {
@@ -58,6 +68,8 @@ public:
     uint16_t default_permissions() const;
     uint16_t configurable_permissions() const;
     uint32_t site_requirements() const;
+    const std::vector<FoundationProximityRequirement> &proximity_requirements() const { return proximity_requirements_; }
+    void add_proximity_requirement(FoundationProximityRequirement requirement) { proximity_requirements_.push_back(requirement); }
     const std::vector<FoundationCellDefinition> &cells() const;
     std::vector<RotatedFoundationCell> rotated_cells(int rotation) const;
     // Cardinal cells immediately outside the active footprint. When passage
@@ -88,6 +100,7 @@ private:
     uint16_t default_permissions_ = 0;
     uint16_t configurable_permissions_ = 0;
     uint32_t site_requirements_ = 0;
+    std::vector<FoundationProximityRequirement> proximity_requirements_;
     std::vector<FoundationCellDefinition> cells_;
 };
 

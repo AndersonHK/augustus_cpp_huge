@@ -13,6 +13,12 @@
 namespace figure_type_registry_impl {
 
 class FigureTypeDefinition;
+struct FigureBehaviorPolicy {
+    bool recheck_animal_terrain = false;
+    bool attack_fireproof_defenses = false;
+    bool idle_walk_animation = false;
+    std::vector<std::string> fireproof_targets;
+};
 int action_state_from_xml_name(const char *name);
 
 enum class NativeClassId {
@@ -27,7 +33,9 @@ enum class NativeClassId {
     DeliveryFollower,
     TransientWanderer,
     DepotCartPusher,
-    FishingBoat
+    FishingBoat,
+    LandTrade,
+    TradeFollower
 };
 
 enum class FigureSlot {
@@ -66,6 +74,9 @@ struct OwnerBinding {
 };
 
 struct MovementProfile {
+    std::string speed_bonus_building;
+    building_type speed_bonus_type = BUILDING_NONE;
+    int speed_bonus_percent = 0;
     int roam_ticks = 1;
     int max_roam_length = 0;
     ReturnMode return_mode = ReturnMode::ReturnToOwnerRoad;
@@ -88,6 +99,16 @@ struct ProfileSpawnBehavior {
 class FigureTypeProfile {
 public:
     explicit FigureTypeProfile(std::string id);
+
+    struct TradePolicy {
+        bool declared = false;
+        int initial_wait_ticks = 0;
+        int initial_progress_ticks = 0;
+        bool random_initial_progress = false;
+        int exchange_delay_ticks = 0;
+        int follower_count = 0;
+        figure_type follower_type = FIGURE_NONE;
+    } trade;
 
     const char *id() const;
 
@@ -135,6 +156,7 @@ public:
     void set_presentation(std::string name_key, ImageGroupEntryRef portrait) { name_key_ = std::move(name_key); portrait_ = std::move(portrait); }
     const std::string &name_key() const { return name_key_; }
     const ImageGroupEntryRef &portrait() const { return portrait_; }
+    FigureBehaviorPolicy behavior;
 
     void set_native_class(NativeClassId native_class_id);
     NativeClassId native_class() const;
@@ -183,6 +205,7 @@ extern std::string g_failure_reason;
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);
+const FigureTypeDefinition *presentation_for(figure_type type);
 const FigureGraphics *graphics_for(figure_type type);
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id);
 const FigureTypeProfile *default_profile_for(figure_type type);

@@ -11,12 +11,15 @@
     <graphics>
         <default>
             <path value="Walkers\Work_Camp_Architect" />
+            <image value="move_{dir}" />
         </default>
         <action state="work_camp_architect_working" frame_count="12" min_wait_ticks="2">
             <path value="Walkers\Work_Camp_Architect" />
+            <image value="action" />
         </action>
         <corpse frame_count="5">
             <path value="Walkers\Work_Camp_Architect" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

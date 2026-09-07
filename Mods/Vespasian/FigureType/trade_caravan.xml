@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="trade_caravan" graphics_only="true">
+<figure type="trade_caravan">
     <graphics>
-        <default>
-            <path value="Walkers\Trade_Caravan" />
-        </default>
+        <directional path="Walkers\Trade_Caravan" desert_path="Walkers\Trade_Camel" default_base_offset="0" view_adjustments="1" frame_divisor="1" frame_stride="8" frame_count="12" draw_corpse="true" />
     </graphics>
 </figure>

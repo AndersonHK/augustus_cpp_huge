@@ -8,7 +8,7 @@
         <step_size value="1" />
         <range value="4" />
     </desirability>
-    <foundation path="distant_water_2x2" />
+    <foundation path="near_water_2x2" />
     <button group="raw_materials" order="70" icon="Industry\Sand_Pit_C_OFF" text_key="TR_BUILDING_SAND_PIT" />
     <graphics>
         <default>

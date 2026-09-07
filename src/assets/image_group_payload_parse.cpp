@@ -157,9 +157,17 @@ int xml_start_assetlist(void)
 RawLayerDef parse_raw_layer(layer_isometric_part default_part, layer_mask default_mask)
 {
     RawLayerDef layer;
+    if (xml_parser_has_attribute("frame") && !parse_positive_logical_unit(xml_parser_get_attribute_string("frame"), layer.reference.frame)) {
+        crash_context_report_error("ImageGroup frame reference must be positive", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+    }
     const char *path = xml_parser_get_attribute_string("src");
     const char *group = xml_parser_get_attribute_string("group");
     const char *image_id = xml_parser_get_attribute_string("image");
+    if (layer.reference.frame > 0 && ((!group || !*group) || (path && *path))) {
+        crash_context_report_error("ImageGroup frame selector requires a group/image reference", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+    }
 
     if (path && *path) {
         layer.reference.type = RawReferenceType::PNG_PATH;
@@ -255,12 +263,17 @@ int xml_start_image(void)
     }
     entry.draw_offset_x = xml_parser_get_attribute_int("x");
     entry.draw_offset_y = xml_parser_get_attribute_int("y");
+    entry.has_sprite_offset = xml_parser_has_attribute("sprite_offset_x") || xml_parser_has_attribute("sprite_offset_y");
+    entry.sprite_offset_x = xml_parser_get_attribute_int("sprite_offset_x");
+    entry.sprite_offset_y = xml_parser_get_attribute_int("sprite_offset_y");
     entry.is_isometric = xml_parser_get_attribute_bool("isometric");
 
     const char *path = xml_parser_get_attribute_string("src");
     const char *group = xml_parser_get_attribute_string("group");
     const char *image_id = xml_parser_get_attribute_string("image");
-    if (group && *group) {
+    if (xml_parser_has_attribute("frame")) {
+        entry.layers.push_back(parse_raw_layer(PART_BOTH, LAYER_MASK_NONE));
+    } else if (group && *group) {
         entry.has_full_image_ref = 1;
         entry.full_image_ref.type = RawReferenceType::GROUP_IMAGE;
         entry.full_image_ref.group_key = normalize_group_reference_key(group, g_parse_state.requested_key);
@@ -300,12 +313,15 @@ int xml_start_animation(void)
     }
     RawAnimationDef &animation = g_parse_state.current_entry->animation;
     animation.present = 1;
-    animation.metadata.num_sprites = xml_parser_get_attribute_int("frames");
+    if (xml_parser_has_attribute("frames") && !parse_positive_logical_unit(xml_parser_get_attribute_string("frames"), animation.declared_frame_count)) {
+        crash_context_report_error("ImageGroup animation frame count must be positive", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
     animation.metadata.speed_id = xml_parser_get_attribute_int("speed");
     animation.metadata.can_reverse = xml_parser_get_attribute_bool("reversible");
     animation.metadata.sprite_offset_x = xml_parser_get_attribute_int("x");
     animation.metadata.sprite_offset_y = xml_parser_get_attribute_int("y");
-    animation.implicit_frame_count = animation.metadata.num_sprites;
     return 1;
 }
 
@@ -323,6 +339,7 @@ int xml_start_frame(void)
 
 static const xml_parser_element kXmlElements[] = {
     { "assetlist", xml_start_assetlist, nullptr },
+    { "legacy", nullptr, nullptr, "assetlist" },
     { "image", xml_start_image, nullptr, "assetlist" },
     { "layer", xml_start_layer, nullptr, "image" },
     { "animation", xml_start_animation, nullptr, "image" },
@@ -354,6 +371,15 @@ std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::
 
     if (!parsed || g_parse_state.error || !g_parse_state.doc) {
         return nullptr;
+    }
+    for (const auto &[id, entry] : g_parse_state.doc->entries) {
+        const auto &animation = entry.animation;
+        if ((!animation.explicit_frames.empty() && animation.declared_frame_count > 0 &&
+                animation.declared_frame_count != static_cast<int>(animation.explicit_frames.size())) ||
+            (animation.declared_frame_count > 0 && animation.explicit_frames.empty())) {
+            crash_context_report_error("ImageGroup animation requires its complete declared frame list", id.c_str());
+            return nullptr;
+        }
     }
     return std::move(g_parse_state.doc);
 }

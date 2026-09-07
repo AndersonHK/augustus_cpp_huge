@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="Walkers\Thief_Actions">
+    <image id="move_ne" group="Walkers\thief" image="move_ne" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_e" group="Walkers\thief" image="move_e" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_se" group="Walkers\thief" image="move_se" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_s" group="Walkers\thief" image="move_s" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_sw" group="Walkers\thief" image="move_sw" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_w" group="Walkers\thief" image="move_w" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_nw" group="Walkers\thief" image="move_nw" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="move_n" group="Walkers\thief" image="move_n" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="corpse" group="Walkers\thief" image="corpse" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="idle" group="Walkers\thief" image="move_ne" sprite_offset_x="0" sprite_offset_y="0" />
+    <image id="gesture" group="Walkers\Group_115" image="gesture" />
+</assetlist>

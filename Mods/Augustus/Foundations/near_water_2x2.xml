@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="near_water_2x2" width="2" height="2" rotates="false">
+    <profile symbol="L" requires="land" adds="building" />
+    <proximity terrain="water" max_distance="9" min_count="1" />
+    <rows><row cells="LL" /><row cells="LL" /></rows>
+</foundation>

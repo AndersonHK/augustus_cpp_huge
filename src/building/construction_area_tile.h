@@ -15,6 +15,7 @@ public:
         bool preview);
 
     int place();
+    int support_cost() const { return support_cost_; }
 
     static bool is_area_tile_type(building_type type);
     static bool updates_land_routing(building_type type);
@@ -44,6 +45,7 @@ private:
     int y_max_ = 0;
     building_type type_ = BUILDING_NONE;
     bool preview_ = false;
+    int support_cost_ = 0;
 
     Region region() const;
 
@@ -57,5 +59,5 @@ private:
         const Region &region,
         const building_type_registry_impl::TileDefinition &tile,
         bool preview);
-    static int place_plaza_area(const Region &region);
+    int place_plaza_area(const Region &region);
 };

@@ -3,9 +3,11 @@
     <graphics>
         <default>
             <path value="Environment\Wolf_Pack" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Environment\Wolf_Pack" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

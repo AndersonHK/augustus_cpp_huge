@@ -36,6 +36,8 @@
 #include <stdexcept>
 #include <vector>
 #include "assets/image_group_payload.h"
+#include "placement_supports.h"
+#include "cart_criminal_graphics.h"
 
 inline bool run_catch_up_runtime_test()
 {
@@ -51,6 +53,8 @@ inline bool run_catch_up_runtime_test()
     try {
         validate_scenario_model_overrides();
         validate_archive_origins();
+        validate_placement_supports();
+        validate_cart_criminal_graphics();
         require(!accounting.overflow && !gifts.overflow, "Could not preserve fixture accounting");
         const auto dog_type = figure_type_from_xml_name("dog");
         if (dog_type != FIGURE_NONE) {

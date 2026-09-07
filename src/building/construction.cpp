@@ -260,7 +260,7 @@ static void set_required_terrain(building_type type)
         return;
     }
 
-    data.required_terrain.wall = foundation && foundation->requires_terrain(TERRAIN_WALL);
+    // Cell requirements, including supplied supports, are validated by the placement plan.
 }
 
 static void sync_construction_type(int construction_in_progress)
@@ -546,7 +546,10 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
 
 static int place_area_tile(int x_start, int y_start, int x_end, int y_end, building_type type, int preview)
 {
-    return ConstructionAreaTilePlacement(x_start, y_start, x_end, y_end, type, preview != 0).place();
+    ConstructionAreaTilePlacement placement(x_start, y_start, x_end, y_end, type, preview != 0);
+    const int placed = placement.place();
+    data.force_place_clear_cost = placement.support_cost();
+    return placed;
 }
 
 static int place_wall(int x_start, int y_start, int x_end, int y_end, int measure_only, int construction_mode, building_type wall_type)
@@ -1183,10 +1186,11 @@ void building_construction_update(int x, int y, int grid_offset)
         building_construction_assessment assessment = building_construction_assess_placement(
             *building_type_registry_impl::definition_for_type(type), x, y, 0, force_place_active);
         data.can_place = assessment.can_place;
+        current_cost += assessment.placement.support_cost();
         if (force_place_active) {
             if (assessment.can_place) {
                 data.force_place_clear_cost = assessment.clear_cost;
-                current_cost = model_get_construction_cost(type);
+                current_cost = model_get_construction_cost(type) + assessment.placement.support_cost();
             }
         } else if (!data.required_terrain.meadow && !data.required_terrain.rock && !data.required_terrain.tree &&
             !data.required_terrain.water && !data.required_terrain.wall && !data.required_terrain.distant_water &&
@@ -1338,6 +1342,7 @@ void building_construction_place(void)
             return;
         }
         placement_cost *= items_placed;
+        placement_cost += data.force_place_clear_cost;
         if (ConstructionAreaTilePlacement::updates_land_routing(type)) {
             Route::updateLandTerrain();
         }
@@ -1425,6 +1430,7 @@ void building_construction_place(void)
         placement_cost *= place_houses(0, x_start, y_start, x_end, y_end);
     } else {
         int force_place_clear_cost = 0;
+        const building_construction::ConstructionPlacementPlan support_quote(type, x_end, y_end, 0, building_construction_force_place_active());
         int placed = building_construction_force_place_active() ?
             building_construction_force_place_building(type, x_end, y_end, 0, &force_place_clear_cost) :
             building_construction_place_building(type, x_end, y_end, 0);
@@ -1432,7 +1438,7 @@ void building_construction_place(void)
             map_property_clear_constructing_and_deleted();
             return;
         }
-        placement_cost += force_place_clear_cost;
+        placement_cost += force_place_clear_cost + support_quote.support_cost();
     }
 
     if (building_construction_is_auto_cycling() && building_construction_type_can_cycle(data.tool.type)) {

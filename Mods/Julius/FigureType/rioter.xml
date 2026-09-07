@@ -2,10 +2,12 @@
 <figure type="rioter" graphics_only="true">
     <graphics>
         <default>
-            <path value="Walkers\criminal" />
+            <path value="Walkers\Group_115" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
-            <path value="Walkers\criminal" />
+            <path value="Walkers\Group_115" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

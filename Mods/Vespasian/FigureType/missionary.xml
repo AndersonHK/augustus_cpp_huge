@@ -3,9 +3,11 @@
     <graphics>
         <default>
             <path value="Walkers\Missionary" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Missionary" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

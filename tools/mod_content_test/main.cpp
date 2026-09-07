@@ -57,6 +57,32 @@ int main(int argc, char **argv)
             Session real; auto repo = std::filesystem::u8path(argv[1]);
             real.load({{"Julius", repo / "Mods/Julius"}, {"Augustus", repo / "Mods/Augustus"}, {"Vespasian", repo / "Mods/Vespasian"}}, {});
             std::cout << "Compiled " << real.files().size() << " repository definitions\n";
+            for (const auto &pair : {std::pair<const char *, const char *>{"WILDLIFE_BLOCKED_BY_DEFENSES", "wolf"}, {"RIOTERS_ATTACK_DEFENSES", "rioter"}}) {
+                const auto path = repo / "Mods/Augustus/FigureType" / (std::string(pair.second) + ".xml");
+                const char *attribute = std::string(pair.second) == "wolf" ? "recheck_animal_terrain" : "attack_fireproof_defenses";
+                real.set(std::string("Augustus:") + pair.first, 0);
+                check(parse(*real.file(path)).child("behavior")->attribute(attribute) == "false", "D09 setting must restore original behavior");
+                real.set(std::string("Augustus:") + pair.first, 1);
+                check(parse(*real.file(path)).child("behavior")->attribute(attribute) == "true", "D09 setting must enable adopted behavior");
+            }
+            for (const char *figure : {"trade_caravan", "trade_caravan_donkey"}) {
+                auto resolved = parse(*real.file(repo / "Mods/Vespasian/FigureType" / (std::string(figure) + ".xml")));
+                check(resolved.attribute("graphics_only") != "true" && resolved.child("profiles") && resolved.child("graphics"), "Vespasian caravans must inherit complete native profiles");
+                const auto *profile = resolved.child("profiles")->child("profile");
+                check(profile && profile->child("movement") && profile->child("pathing") && profile->child("native"), "Caravan profile lost required behavior data");
+                check(profile->child("movement")->attribute("speed_bonus_percent") == "25", "Caravan must inherit the Augustus bonus data");
+                check(std::filesystem::exists(repo / "Mods/Julius/UnitType" / (std::string(figure) + ".xml")), "Caravan must declare combat stats");
+            }
+            for (const char *foundation : {"roadblock_1x1", "highway_2x2", "distant_water_2x2", "distant_water_3x3", "land_7x7", "road_or_land_1x1"}) {
+                check(!std::filesystem::exists(repo / "Mods/Julius/Foundations" / (std::string(foundation) + ".xml")) && std::filesystem::exists(repo / "Mods/Augustus/Foundations" / (std::string(foundation) + ".xml")), "Augustus foundation must not ship under Julius");
+            }
+            for (const char *resource : {"Brick", "Concrete", "Gold", "Sand", "Stone"}) {
+                auto source = read(repo / "Mods/Vespasian/Graphics/Industry" / (std::string(resource) + "_Carts.xml"));
+                const auto doctype = source.find("<!DOCTYPE assetlist>");
+                if (doctype != std::string::npos) source.erase(doctype, std::string("<!DOCTYPE assetlist>").size());
+                auto group = parse(source);
+                check(group.children.size() == 16, "Cart group must contain all eight directions and both load variants");
+            }
             real.set("Augustus:WANDERING_CITIZENS", 1);
             auto house = parse(*real.file(repo / "Mods/Vespasian/BuildingType/house_small_tent.xml"));
             bool citizen = false, beggar = false;

@@ -50,7 +50,7 @@ static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUIL
     { "granary" },
     { "warehouse" },
     { "triumphal_arch" },
-    { "dock" },
+    { "dock", "lighthouse" },
     { "wharf", "shipyard" },
     { "governors_house", "governors_villa", "governors_palace" },
     { "engineers_post" },

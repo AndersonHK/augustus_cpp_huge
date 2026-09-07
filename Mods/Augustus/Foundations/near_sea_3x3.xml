@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="near_sea_3x3" width="3" height="3" rotates="false">
+    <proximity terrain="sea" max_distance="9" min_count="1" />
+    <profile symbol="B" requires="land" adds="building" />
+    <rows><row cells="BBB" /><row cells="BBB" /><row cells="BBB" /></rows>
+</foundation>

@@ -847,7 +847,11 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     request.group_count = group_count;
     request.source_name = source_name;
     request.atlas_data = &extraction_atlas;
+#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+    request.mode = GRAPHICS_EXTRACTION_CLIMATE_JULIUS_ONLY;
+#else
     request.mode = GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP;
+#endif
     const std::filesystem::path asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
     const std::string game_root = asset_root.parent_path().string();
     request.game_root = game_root.c_str();

@@ -21,6 +21,10 @@
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/finance.h"
+#include "city/trade_ledger.h"
+#include "game/time.h"
+#include "city/warning.h"
+#include "translation/translation.h"
 #include "city/population.h"
 #include "core/image.h"
 #include "figure/figure.h"
@@ -51,6 +55,8 @@ static struct {
     building buildings[MAX_UNDO_BUILDINGS];
     std::vector<unsigned int> created_building_ids;
     std::vector<building> replaced_buildings;
+    int resource_cost[RESOURCE_SLOT_COUNT] = {};
+    int resource_cost_year = 0;
     struct {
         int num;
         struct {
@@ -130,6 +136,11 @@ static void clear_buildings(void)
     data.type_changes.num = 0;
     data.created_building_ids.clear();
     data.replaced_buildings.clear();
+}
+
+void game_undo_add_resource_cost(resource_type resource, int loads)
+{
+    if (data.available && resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && loads > 0) data.resource_cost[resource] += loads;
 }
 
 void game_undo_add_created_building(building *b)
@@ -227,6 +238,8 @@ void game_undo_restore_building_types(void)
 
 int game_undo_start_build(building_type type)
 {
+    std::fill(std::begin(data.resource_cost), std::end(data.resource_cost), 0);
+    data.resource_cost_year = game_time_year();
     data.ready = 0;
     data.available = 1;
     data.timeout_ticks = 0;
@@ -350,6 +363,19 @@ void game_undo_perform(void)
     if (!game_can_undo()) {
         return;
     }
+    int refunded[RESOURCE_SLOT_COUNT] = {};
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) {
+        const auto resource = static_cast<resource_type>(slot);
+        const int remaining = building_warehouses_add_resource(resource, data.resource_cost[slot], 0);
+        refunded[slot] = data.resource_cost[slot] - remaining;
+        if (remaining) {
+            for (int undo_slot = RESOURCE_NONE + 1; undo_slot <= slot; ++undo_slot) building_warehouses_remove_resource(static_cast<resource_type>(undo_slot), refunded[undo_slot]);
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for_key("TR_CITY_WARNING_UNDO_STORAGE_SPACE"));
+            return;
+        }
+    }
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) city_trade_ledger_revert_consumed(static_cast<resource_type>(slot), refunded[slot] * resource_units_per_load(), data.resource_cost_year);
+    std::fill(std::begin(data.resource_cost), std::end(data.resource_cost), 0);
     data.available = 0;
     city_finance_process_construction(-data.building_cost);
     restore_replaced_buildings();

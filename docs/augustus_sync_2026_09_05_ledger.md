@@ -1,8 +1,14 @@
 # Augustus Manual Sync Ledger — 2026-09-05
 
+The theater save regression is addressed by native save version 205: only explicit scenario model fields are serialized, recoverable fixed-enum legacy exceptions are imported, and ambiguous runtime-indexed native models are repaired. See the [repair and validation record](theater_model_save_repair_2026_09_06.md). This does not close the newer Augustus semantic save converter.
+
 ## Scope and review state
 
-**D03–D08 and D15–D16 have implemented native review slices, with mixed compatibility work still open.** See [implementation and validation record](augustus_sync_d03_d07_plan.md) for exact owners, tests, limitations and the earlier No Monuments/workcamp decision. D08 native capabilities and UI revisions are implemented for review in [the current slice](augustus_sync_d08_plan.md), with the [editor compatibility gaps](vespasian_scenario_editor_compatibility.md) explicitly open. D09–D14 and semantic foreign-save conversion remain open. No Git commit, merge or ancestry adjustment has been made; the graph is still 204 commits behind. Unannotated rows remain proposals or unaudited work, not completed ports.
+**D03–D08 and D15–D16 have implemented native review slices, with mixed compatibility work still open.** See [implementation and validation record](augustus_sync_d03_d07_plan.md) for exact owners, tests, limitations and the earlier No Monuments/workcamp decision. D08 native capabilities and UI revisions are implemented for review in [the current slice](augustus_sync_d08_plan.md), with the [editor compatibility gaps](vespasian_scenario_editor_compatibility.md) explicitly open. D09–D11 were approved on 2026-09-06 and are implemented for review in [the new slice](augustus_sync_d09_d11_plan.md). D12–D14 and semantic foreign-save conversion remain open. The user committed the earlier partial migration as `b8b645617`; this slice makes no commit, merge or ancestry adjustment. The graph is still 204 commits behind. Unannotated rows remain proposals or unaudited work, not completed ports.
+
+The D09–D11 review corrections also consolidate resource carts into one XML per image group, put later-mod foundations in their owning mods, and replace caravan graphics stubs with complete native FigureType/UnitType definitions. Native save version 204 migrates older caravan profile identities explicitly. See the [slice record](augustus_sync_d09_d11_plan.md) for validation and remaining compatibility limits.
+
+The tower duplication follow-up fixes wall refresh overwriting the consuming building's draw anchors; reproduction and validation are recorded in the same slice notes. The [Julius extracted-animation report](julius_extracted_animation_report_2026_09_06.md#implementation-record) now records the implemented extractor follow-up: complete generated sequences, migrated consumers, explicit Augustus animation export, and removal of redundant authored reconstructions and runtime sequence inference. This is local graphics architecture work for review; it does not close additional upstream rows or change ancestry.
 
 | Snapshot | Value |
 | --- | --- |
@@ -43,7 +49,7 @@ After review, replace each proposed action with the agreed disposition. During i
 
 ## Decision register — for the user's review
 
-Decision status: D03–D07 and D15–D16 were approved by the user on 2026-09-05 with the binding directions below. D01–D02 have an implemented launcher/mod-settings slice documented in `launcher_and_mod_settings_plan.md`. D08 is approved: scenario actions override mod data for the current scenario, reset on a new scenario, and restore their own saved overrides. D09–D14 remain open. Implementation evidence is recorded separately from decisions; no upstream commits are considered merged until the user validates the slice and explicitly authorizes the Git commit and ancestry adjustments.
+Decision status: D03–D07 and D15–D16 were approved by the user on 2026-09-05 with the binding directions below. D01–D02 have an implemented launcher/mod-settings slice documented in `launcher_and_mod_settings_plan.md`. D08 is approved: scenario actions override mod data for the current scenario, reset on a new scenario, and restore their own saved overrides. D09–D11 were approved on 2026-09-06 with the directions recorded below. D12–D14 remain open. Implementation evidence is recorded separately from decisions; no upstream commits are considered merged until the user validates the slice and explicitly authorizes the Git commit and ancestry adjustments.
 
 ### Approved implementation directions (2026-09-05)
 
@@ -55,7 +61,7 @@ Decision status: D03–D07 and D15–D16 were approved by the user on 2026-09-05
 - **D15:** accepted recommendations. Preserve existing visual/default choices where the table did not prescribe a new one; optional message pruning and extended bounds start off, and fixed-rank campaigns remain fixed unless authored otherwise.
 - **D16:** adopt final licensed inherited assets and preserve Vespasian overrides. Download the latest distributed development asset pack linked by upstream GitHub into the installed game and run the current extractor there. The previous pack was `assets-4.0.0.1305-58a0592fb-development.zip`.
 
-Current slice: implement approved capabilities and applicable fixes, then stop at **D09** for wildlife/criminal gatehouse policy. D08 was approved on 2026-09-05. Do not implement later unresolved decisions merely because their commits occur earlier chronologically.
+Current slice: implement D09–D11 and the reported import/cart regressions, then stop at **D12** for bridge demolition and retreat policy. D08 was approved on 2026-09-05; D09–D11 were approved on 2026-09-06. Do not implement later unresolved decisions merely because their commits occur earlier chronologically.
 
 ### D01 — Ambient plebeians and existing beggars
 
@@ -109,19 +115,19 @@ Upstream `5b24bc2e0`, `10b44c769`, and `dd8b684a0` add optional aimless plebeian
 
 `f16c7020e` blocks wolves at gatehouses and makes rioters attack them; it also enables lighthouse access with docks in legacy allowed-building conversion. `e09631256` and `4d7e8ff53` change wolf routing around elevations/rubble/bridges. `f5d2669b0` uses thief graphics for robbers/looters instead of the riot figure.
 
-**Decide:** adopt those combat/pathing rules, and adopt the thief appearance? **Recommendation:** adopt the intended rules via PathingMode/UnitType/figure graphics data, retaining the new formation runtime. Treat wolf traversal fixes separately from intentional gate blocking. Integrate lighthouse legacy availability with D10, not as an unnoticed combat side effect.
+**Approved:** use data for graphics and applicable movement policy; gate code-driven behavioral differences so Julius behavior remains selectable. Augustus enables wildlife obstacle rechecks and rioter attacks on the authored fireproof target list through separate mod settings. Thief animations and portraits reference the installed assets; Vespasian supplies logical scaling. Legacy dock availability includes lighthouses. [Implementation and validation](augustus_sync_d09_d11_plan.md).
 
 ### D10 — Lighthouse placement
 
 `73e8983ec` requires nearby open water rather than any nearby water. Existing saves must not lose their lighthouses.
 
-**Decide:** adopt the stricter rule for new placement, or retain current foundation rules? **Recommendation:** adopt in Augustus; choose Vespasian's rule explicitly through its foundation data. Preserve existing placed structures and check irregular coastlines, low bridges, river exits, rotation, and the legacy dock/lighthouse availability change in D09.
+**Approved:** extend generic foundation requirements with minimum/maximum distance and matching tile count for terrain masks, navigable water and sea. Augustus lighthouse data requires boat-passable water connected to the river entrance within nine tiles; Vespasian inherits it. Existing lighthouses are preserved. [Implementation and validation](augustus_sync_d09_d11_plan.md).
 
 ### D11 — Towers without prebuilt walls
 
 `b20d57491` permits towers on valid bare ground and charges for missing wall tiles; later commits add overlap and rotated-footprint checks.
 
-**Decide:** allow automatic supporting walls or continue requiring prebuilt walls? **Recommendation:** allow through the same atomic foundation/construction plan used for price, preview, placement, undo, and repair. This must not weaken the settled Shift clearing policy or permit overlapping buildings.
+**Approved:** automatically supply missing walls for towers and roads for roadblocks/plazas, at full denarii/material cost, with accurate previews and tooltips. Foundation profiles declare the support type. Publication and undo include the supporting terrain; pre-existing walls are not charged again and unrelated occupancy remains forbidden. Shift clearing is preserved. [Implementation and validation](augustus_sync_d09_d11_plan.md).
 
 ### D12 — Bridge demolition and retreat speed
 
@@ -238,7 +244,7 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | --- | --- | --- | --- | --- |
 | `e76f61bd7` | Shoreline/elevation desirability overlay options and shared bonus calculations. | Approved D15; audit calculations; approved portion implemented, review pending | Show values from our actual runtime rules; avoid incidental balance changes. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
 | `6b6d84e18` | Campaign missions can inherit the preceding rank. | Port proposed; D15; approved portion implemented, review pending | Explicit inherited-rank sentinel must survive campaign transitions and fixed-rank missions. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
-| `a79fd5923` | Thief walk/death sprites, portrait, and XML. | Data; D09/D16; final pack installed/extracted | Bind selected criminal figures through mod graphics. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Assets refreshed; consumer audit open |
+| `a79fd5923` | Thief walk/death sprites, portrait, and XML. | Data; final pack and consumers integrated | Bind installed thief walk/death frames and portrait through an authored animation bridge; keep runtime extraction output outside source. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 | `ce2cc9683` | Warehouse/distribution declaration and UI warning fixes. | Port applicable cleanup | C++ signatures and current storage owners must agree. | Unaddressed / audit pending |
 | `0505be87f` | Highway Station building, supply walkers, discounts, levies, UI, and ids. | Approved D03; implemented approved portion, review pending | Adapt complete mechanic, not just building art; include saved/runtime registration. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
 | `cd5d90a33` | Automatic clearing of vegetation during construction and preview. | **Keep our Shift policy**; audit useful fixes | User explicitly rejects upstream placement policy. Keep transactional clearing/price/undo consistency. | Unaddressed / audit pending |
@@ -277,8 +283,8 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | `6e2d4d515` | UI polish, cart cargo/destination labels, problem/enemy overlays, and weakest-tile health. | Port adapted UI/health | Mixed behavior change: markets accepting nothing, military visibility, info hit selection and health need separate checks. | Unaddressed / audit pending |
 | `df314cd32` | Wind ambience in clear weather. | Approved D15; approved portion implemented, review pending | Optional sound preference; preserve current audio lifecycle. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
 | `1a6474ac6` | Spelling corrections including configuration identifiers and editor text. | Port + Data | Keep existing config key compatibility if identifiers change. | Unaddressed / audit pending |
-| `f5d2669b0` | Robbers/looters use thief walker appearance instead of rioter. | Decide D09; Data-first | Use FigureGraphics and figure-info metadata while preserving actual crime behavior. | Unaddressed / audit pending |
-| `73e8983ec` | Lighthouse requires nearby open water; new warning. | Decide D10 | Foundation-owned new-placement rule, preserve existing saves. | Unaddressed / audit pending |
+| `f5d2669b0` | Robbers/looters use thief walker appearance instead of rioter. | Data + generic presentation policy; approved D09 | Robbers/looters select thief walk, idle and death animations and portrait; the original attack gesture is retained because the thief pack has no attack row. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
+| `73e8983ec` | Lighthouse requires nearby open water; new warning. | Port through generic foundation proximity; approved D10 | Lighthouse data requires nearby entrance-connected boat-passable water; sand-pit proximity uses its actual 2×2 footprint. Existing lighthouses are preserved. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 | `775f1d7fd` | Russian text plus building-health visibility correction. | Data + Fold health into D15; approved portion implemented, review pending | Translation title hides a real UI hunk; terrain info also needs appropriate health visibility. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
 | `abdba560a` | Beach tiles and central-climate hills. | Data; D16; final pack installed/extracted | Validate terrain seams, masks, and climate selection. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Assets refreshed; consumer audit open |
 | `b342bfe77` | Fixed workforce percentage raised to 45. | Decide D13 | Do not overwrite Vespasian local workforce/demographic policy. | Unaddressed / audit pending |
@@ -298,8 +304,8 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | `37fff96c4` | Fort orientation during placement, clone, repair, and save. | Keep ours; audit | Our composed forts/formation grounds use explicit geometry; port missed behavior via those owners. | Unaddressed / audit pending |
 | `c9aa24b8a` | Fort saved-state orientation follow-up. | Fold into rotation/save audit | Use final import semantics without copying upstream record byte sizes. | Unaddressed / audit pending |
 | `06c5f9d75` | MSVC workflow/build-script fixes. | Intentionally omit obsolete platform/dependency delta; D05 | Inspected payload is CI/scripts, not a root runtime compiler fix. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Addressed: intentionally omitted |
-| `f16c7020e` | Gatehouses block wolves/are attacked by rioters; docks unlock lighthouse in old maps. | Decide D09/D10 | Split combat policy from legacy allowed-building compatibility. | Unaddressed / audit pending |
-| `e09631256` | Wolf movement over elevations/rubble. | Fold into D09 routing | Preserve intentional gate blocking while fixing ordinary terrain traversal. | Unaddressed / audit pending |
+| `f16c7020e` | Gatehouses block wolves/are attacked by rioters; docks unlock lighthouse in old maps. | Port through settings/data; approved D09/D10 | Separate wildlife recheck and rioter-defense settings, authored fireproof targets, and legacy dock-to-lighthouse availability mapping. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
+| `e09631256` | Wolf movement over elevations/rubble. | Fold into final D09 movement policy | Recheck uses the final upstream obstacle mask, allowing elevations and rubble while retaining normal routing validation. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 
 ### July, August, and September
 
@@ -322,7 +328,7 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | `0fa5eb2e2` | Trade ships choose reachable river exits around low bridges. | Keep ours; audit and port gaps | Current bridge traversal and weighted routing must agree on navigability; check trapped ships and alternate exits. | Unaddressed / audit pending |
 | `8faf80ad3` | Waterfront vegetation clearing works for docks/wharves/shipyards. | Keep Shift; port applicable foundation fix | Audit blocked shore tiles against our explicit force-clear policy; do not enable upstream automatic clearing. | Unaddressed / audit pending |
 | `ce2bca95c` | Configurable grid colors per climate. | Approved D15; approved portion implemented, review pending | Implement via current renderer/config geometry; avoid legacy color-only draw forks. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
-| `4d7e8ff53` | Wolves can traverse bridges appropriately. | Fold into D09 | Bridge/pathing metadata should express permitted traversal. | Unaddressed / audit pending |
+| `4d7e8ff53` | Wolves can traverse bridges appropriately. | Fold into final D09 movement policy | Permit native bridges and roadblock traversal while rechecking newly placed defenses; no wolf type switch. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 | `69c698276` | Persist empire sort order and split automatic build cycling by category. | Approved D15; Port; approved portion implemented, review pending | Migrate previous setting defaults; keep mod-defined build menu categories authoritative. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
 | `62a791627` | Restores missing Mausoleum/Nymphaeum levies. | Port economic correction | Check current XML/finance rules; avoid charging twice if generic upkeep already covers them. | Unaddressed / audit pending |
 | `ecf4278d1` | Trade ledger, historical finance/resource statistics, empire/sidebar UI and saved data. | Approved D07; Save audit S07; implemented approved portion, review pending | Track transaction producers and new ordered payloads as one feature; no direct legacy struct replay. [Slice evidence](augustus_sync_d03_d07_plan.md); mixed/unapproved and foreign-save portions are not closed. | Partially addressed; remaining hunks open |
@@ -341,15 +347,15 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | `bf7255d5a` | Corrects monument access-point handling further. | Keep ours; audit and port gaps | Delivery destinations and composed monument access must refer to a real reachable node. | Unaddressed / audit pending |
 | `547b18c2f` | Removes dead code/warnings across finance, images, suppliers, UI and overlays. | Selective Port/Fold | Preserve current owners; inspect non-deletion changes and fold trade/UI-specific cleanup into their feature. | Unaddressed / audit pending |
 | `19bb6f58d` | Watchtower walker route preview. | Port | Preview should reuse real spawn/profile/pathing rules rather than an independent route approximation. | Unaddressed / audit pending |
-| `b20d57491` | Place towers without prebuilt walls, adding missing wall cost. | Decide D11 | Atomic supporting-terrain/footprint quote and placement, including undo. | Unaddressed / audit pending |
-| `d9870f5bd` | Prevent tower placement inside other buildings. | Port invariant; Fold D11 | Overlap safety applies regardless of the chosen tower policy. | Unaddressed / audit pending |
+| `b20d57491` | Place towers without prebuilt walls, adding missing wall cost. | Port and extend; approved D11 | Shared placement plans supply missing wall/road terrain, quote denarii/materials, draw supports, and refund costs on undo. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
+| `d9870f5bd` | Prevent tower placement inside other buildings. | Port invariant through D11 planner | Reject unrelated building occupancy; only explicitly declared wall replacements qualify. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 | `905594575` | Correct swapped import/export trade-ship phrases. | Port through phrase metadata | Compare spoken and displayed trade direction using current cargo/state. | Unaddressed / audit pending |
 | `17b05668b` | Broad second event editor, house model overrides, new actions/conditions, formulas/texts, and UI. | Approved D08; native actions/conditions, definition overlays, editor controls and roundtrips implemented | Use native housing/construction/resource/city owners, keyed saves and isolated formula/text copies. Foreign dialect conversion and documented editor differences stay open. [Evidence](augustus_sync_d08_plan.md). | Native feature slice implemented; mixed compatibility work open |
 | `d0b08cbfa` | Caravanserai road-access correction. | Fold into access series | Validate completed and under-construction composed footprints in each rotation. | Unaddressed / audit pending |
 | `15e3f575d` | Formula migration correction. | Folded into native D08 migration | Skip time conditions in general conversion; migrate their own min/max once behind native gates. Foreign producers remain SB04. [Evidence](augustus_sync_d08_plan.md). | Native adaptation implemented; foreign conversion open |
 | `78fea7b2f` | Russian second-event-editor text. | Data; D08 | Catalog follows selected capabilities and parameter names. | Unaddressed / audit pending |
 | `09f3d1543` | German localization update. | Data | JSON key merge and placeholders. | Unaddressed / audit pending |
-| `570f27707` | Rotated-map tower placement checks. | Port invariant; Fold D11 | Check all camera rotations against footprint/world coordinates. | Unaddressed / audit pending |
+| `570f27707` | Rotated-map tower placement checks. | Equivalent through rotated foundation plans | Support quotes and overlap validation use the rotated world-space footprint in every orientation. [Evidence](augustus_sync_d09_d11_plan.md). | Implemented; review pending |
 | `8aa190664` | Rotated-map gatehouse placement checks. | Keep ours; audit and port gaps | Apply to generic foundation orientation, preserving Shift and road rules. | Unaddressed / audit pending |
 | `f9f98ac4e` | Correct desirability-building names in house information. | Port through identity/localization | Current BuildingType text ids replace legacy enum-based name lookup. | Unaddressed / audit pending |
 | `af9ea7d88` | Better gold/bronze shields on goods UI. | Port UI adaptation | Use current ResourceGraphics/scaling and preserve readable badges. | Unaddressed / audit pending |
@@ -408,7 +414,7 @@ Every action below is **proposed**, except the explicitly settled Shift policy. 
 | SB04 — Convert to current semantic identities | Map upstream buildings, figures, resources, terrain, gods, formations, routes, monument workers/deliveries and event ids into current mod ids/objects. Synthesize fork-only tables/history/defaults without reading imaginary upstream pieces. | NOT STARTED |
 | SB05 — Preserve newly added feature state | Preserve ambient figures, station inventories/status, arch phases/deliveries, orientation, trade history, housing overrides, formulas/text ids, religion data and shallow terrain. Choosing to omit a feature must not silently delete its meaningful imported state. | NOT STARTED |
 | SB06 — Hydrate owners and repair once | Create current objects, rebuild reciprocal relationships and route/formation ownership, warn for each recoverable inconsistency, and fix the producing runtime state so the saved `.svv` is clean. Do not strand a usable save because an old warning was recorded. | NOT STARTED |
-| SB07 — Write newest fork format | Use only the current `.svv` writer and fork version namespace, retain historical `.svv` readers, write atomically to a new output, and leave the original `.svx` untouched. Update schema docs and DLL/API contracts if required. | Native 0xc9 gifts/history writer and historical SVV/SAV roundtrips verified in this slice; foreign conversion output remains OPEN. |
+| SB07 — Write newest fork format | Use only the current `.svv` writer and fork version namespace, retain historical `.svv` readers, write atomically to a new output, and leave the original `.svx` untouched. Update schema docs and DLL/API contracts if required. | Native 0xcd writer stores explicit per-field scenario model exceptions, repairs ambiguous native model snapshots, and recovers fixed-enum legacy exceptions; see [model repair record](theater_model_save_repair_2026_09_06.md). Gifts/history and historical SVV/SAV roundtrips remain supported. Dedicated post-fork foreign conversion output remains OPEN. |
 | SB08 — All entry points agree | File, buffer, campaign offset, save chooser/minimap/info, full load, and any module boundary must select the same source schema and validate lengths before use. Unsupported future schemas fail clearly before city mutation. | NOT STARTED |
 | SB09 — Prove migration and round trip | Execute the fixture matrix below; record source-producing revision, header versions, selected schema, output version, repairs, invariant checks, and soak result. | NOT STARTED |
 
@@ -483,9 +489,9 @@ These are **outside the 204-commit range** but must not disappear behind a new a
 | Mod/content | Augustus and Vespasian chosen behavior, Julius preserved defaults, stable definition ids and sparse inheritance, accepted dog/citizen/willow/temple content, licensed asset provenance and fresh extraction. |
 | Ledger/history | Exactly one primary row per upstream commit, every mixed payload accounted for, no open decisions or unaudited equivalences, source/implementation/evidence links, final ancestor and zero-behind checks. |
 
-## Planning-pass verification
+## Original planning-pass verification (historical)
 
-Only documentation inventory checks apply in this turn. No build, game execution, asset extraction, save migration, or gameplay verification has been performed.
+The following records the initial ledger-writing pass, before the implementation slices above. Only documentation inventory checks applied in that pass. No build, game execution, asset extraction, save migration, or gameplay verification was performed during that initial pass.
 
 - The primary tables contain **204 rows and 204 unique commit hashes**, matching the pinned reachable range with no missing or extra commits.
 - Repository-relative Markdown references resolve to existing documents.

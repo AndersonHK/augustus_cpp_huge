@@ -3,9 +3,11 @@
     <graphics>
         <default>
             <path value="Walkers\Group_230" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Group_230" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

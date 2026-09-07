@@ -58,6 +58,7 @@ const PathingMode WaterRoute(
     PathingMode::RoadRequirement::AllowsNonRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode LandRoute("land_route", PathingMode::RoadRequirement::AllowsNonRoadMovement, PathingMode::ServiceEffectRequirement::NoServiceEffect, PathingMode::VenueTargetRequirement::NoVenueTargets);
 const PathingMode CrossCountry(
     "cross_country",
     PathingMode::RoadRequirement::AllowsNonRoadMovement,
@@ -132,7 +133,7 @@ bool PathingPolicy::hasRequiredServiceEffect() const
 
 bool PathingPolicy::hasRequiredTerrainAccess() const
 {
-    return mode && (!mode->requires_road || terrain.usesRoadAccess());
+    return mode && (!mode->requires_road || (terrain.usesRoadAccess() && (terrain_setting == CONFIG_MAX_ENTRIES || enabled_terrain.usesRoadAccess())));
 }
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
@@ -152,7 +153,8 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &TransientWander,
         &DepotOrderRoute,
         &WaterRoute,
-        &CrossCountry
+        &CrossCountry,
+        &LandRoute
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

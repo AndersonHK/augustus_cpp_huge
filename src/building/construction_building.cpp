@@ -843,7 +843,9 @@ static int building_construction_validate_local_placement_plan(
     const int y = placement.origin_y();
     const int size = placement.placement_size();
     if (!placement.can_place()) {
-        if (placement.has_open_water_failure()) {
+        if (placement.failure_reason() == building_construction::PlacementFailureReason::Proximity) {
+            warning_text(WARNING_CLEAR_LAND_NEEDED, "TR_CITY_WARNING_FOUNDATION_PROXIMITY").show_when(emit_warnings);
+        } else if (placement.has_open_water_failure()) {
             dock_open_water_needed_warning().show_when(emit_warnings);
         } else {
             clear_land_needed_warning().show_when(emit_warnings);
@@ -851,6 +853,14 @@ static int building_construction_validate_local_placement_plan(
         return 0;
     }
     force_place_copy_plan_offsets(force_check, placement);
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) {
+        const auto resource = static_cast<resource_type>(slot);
+        const int amount = placement.support_resource_amount(resource) + placement.definition().construction().instant_requirement_amount(resource);
+        if (amount > 0 && city_resource_count_warehouses_amount(resource) < amount) {
+            building_needs_resource_warning(type, resource).show_when(emit_warnings);
+            return 0;
+        }
+    }
 
     PlaceWarningMessage terrain_warning;
     if (!terrain_requirement_allows_placement(x, y, &terrain_warning)) {
@@ -1061,6 +1071,15 @@ static int building_construction_place_building_internal(building_type type, int
     supersession.commit();
     game_undo_add_building(b);
     instant_building_remove_required_resources(type);
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) {
+        const auto resource = static_cast<resource_type>(slot);
+        const int amount = placement.support_resource_amount(resource);
+        if (amount > 0) {
+            const int remaining = building_warehouses_remove_resource(resource, amount);
+            game_undo_add_resource_cost(resource, amount - remaining);
+            city_trade_ledger_consumed(resource, (amount - remaining) * resource_units_per_load());
+        }
+    }
     water_access_runtime_refresh_building(&building_obj);
     if (definition.attr_is("dock")) {
         water_navigation::invalidate_dock_endpoints();

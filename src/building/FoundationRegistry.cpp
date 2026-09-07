@@ -277,6 +277,7 @@ int parse_profile()
     }
 
     FoundationCellDefinition profile;
+    if (xml_parser_has_attribute("support")) profile.support_type = xml_parser_get_attribute_string("support");
     profile.symbol = symbol_text[0];
     if (!parse_requirement(xml_parser_get_attribute_string("requires"), &profile)) {
         fail("Foundation profile has invalid terrain requirement", xml_parser_get_attribute_string("requires"));
@@ -344,6 +345,30 @@ int parse_profile()
     return 1;
 }
 
+int parse_proximity()
+{
+    if (g_parse_state.disabled || !g_parse_state.definition) return 0;
+    FoundationProximityRequirement requirement;
+    const char *terrain = xml_parser_get_attribute_string("terrain");
+    requirement.navigable = xml_value::equals(terrain, "navigable_water") || xml_value::equals(terrain, "sea");
+    requirement.sea = xml_value::equals(terrain, "sea");
+    if (requirement.navigable) requirement.terrain = TERRAIN_WATER;
+    else if (!parse_map_terrain_mask(terrain, &requirement.terrain)) requirement.terrain = 0;
+    if (!xml_parser_has_attribute("max_distance") || !xml_value::parse_int_strict(xml_parser_get_attribute_string("max_distance"), &requirement.max_distance) ||
+        (xml_parser_has_attribute("min_distance") && !xml_value::parse_int_strict(xml_parser_get_attribute_string("min_distance"), &requirement.min_distance)) ||
+        (xml_parser_has_attribute("min_count") && !xml_value::parse_int_strict(xml_parser_get_attribute_string("min_count"), &requirement.min_count))) {
+        fail("Foundation proximity requires integer distances and tile count");
+        return 0;
+    }
+    if (!requirement.terrain || requirement.min_distance < 0 || requirement.max_distance < requirement.min_distance ||
+        requirement.max_distance > 128 || requirement.min_count < 1 || requirement.min_count > 65536) {
+        fail("Foundation proximity has invalid terrain, distance or tile count");
+        return 0;
+    }
+    g_parse_state.definition->add_proximity_requirement(requirement);
+    return 1;
+}
+
 int parse_row()
 {
     if (g_parse_state.disabled) {
@@ -377,6 +402,7 @@ void parse_foundation_text(const char *text)
 const xml_parser_element XML_ELEMENTS[] = {
     {"foundation", parse_root, nullptr, nullptr, parse_foundation_text},
     {"profile", parse_profile, nullptr, "foundation", nullptr},
+    {"proximity", parse_proximity, nullptr, "foundation", nullptr},
     {"rows", parse_rows, nullptr, "foundation", nullptr},
     {"row", parse_row, nullptr, "rows", nullptr}
 };

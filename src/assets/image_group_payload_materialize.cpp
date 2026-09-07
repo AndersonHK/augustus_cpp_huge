@@ -75,52 +75,6 @@ int merged_group_has_entry(const std::string &group_key, const GraphicsLayerSour
     return merged && find_merged_entry_selector(*merged, preferred_source, image_id);
 }
 
-// Input: one extracted construction-layer reference whose shadow entry was not emitted explicitly.
-// Output: a prepared shadow layer derived from the matching extracted base image, or false when the pattern does not apply.
-int prepare_derived_construction_shadow_layer(
-    const std::string &target_group,
-    const GraphicsLayerSource &source,
-    const RawLayerDef &raw_layer,
-    PreparedLayer &out_layer)
-{
-    static const char shadow_suffix[] = "_Shadow";
-    const std::string &image_id = raw_layer.reference.image_id;
-    if (raw_layer.part != PART_TOP ||
-        image_id.size() <= sizeof(shadow_suffix) - 1 ||
-        image_id.compare(image_id.size() - (sizeof(shadow_suffix) - 1), sizeof(shadow_suffix) - 1, shadow_suffix) != 0) {
-        return 0;
-    }
-
-    const std::string base_image_id = image_id.substr(0, image_id.size() - (sizeof(shadow_suffix) - 1));
-    if (!merged_group_has_entry(target_group, source, base_image_id)) {
-        return 0;
-    }
-
-    const ResolvedImageEntry *base_entry = materialize_merged_entry(target_group, source, base_image_id);
-    if (!base_entry) {
-        return 0;
-    }
-
-    RasterSurface base_surface = surface_from_resolved_entry_part(*base_entry, PART_BOTH);
-    if (!raster_has_pixels(base_surface)) {
-        return 0;
-    }
-
-    const int shadow_size = std::min(base_surface.width, base_surface.height);
-    if (shadow_size <= 0) {
-        return 0;
-    }
-    out_layer.surface = crop_surface(base_surface, base_surface.width - shadow_size, 0, shadow_size, shadow_size);
-    if (!raster_has_pixels(out_layer.surface)) {
-        return 0;
-    }
-    if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
-        convert_to_grayscale(out_layer.surface);
-    }
-    copy_prepared_layer_metadata(raw_layer, out_layer);
-    return 1;
-}
-
 // Input: one source-local document and one raw PNG layer reference.
 // Output: a prepared layer containing a cropped raster plus transform metadata.
 int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, PreparedLayer &out_layer)
@@ -164,15 +118,25 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id) :
         nullptr;
     if (!resolved) {
-        if (!has_declared_entry &&
-            prepare_derived_construction_shadow_layer(target_group, doc.source, raw_layer, out_layer)) {
-            return 1;
-        }
         crash_context_report_error("Unable to resolve referenced image entry", raw_layer.reference.image_id.c_str());
         return 0;
     }
 
-    out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
+    if (raw_layer.reference.frame > 0) {
+        const size_t frame = static_cast<size_t>(raw_layer.reference.frame - 1);
+        if (frame >= resolved->animation_frame_keys.size()) {
+            crash_context_report_error("ImageGroup animation frame reference is out of range", raw_layer.reference.image_id.c_str());
+            return 0;
+        }
+        const auto raster = g_png_rasters.find(resolved->animation_frame_keys[frame]);
+        if (raster == g_png_rasters.end()) {
+            crash_context_report_error("ImageGroup animation frame has no raster backing", raw_layer.reference.image_id.c_str());
+            return 0;
+        }
+        out_layer.surface = *raster->second;
+    } else {
+        out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
+    }
     if (!raster_has_pixels(out_layer.surface)) {
         if (raw_layer.part == PART_TOP && !resolved->has_top) {
             RasterSurface full_surface = surface_from_resolved_entry_part(*resolved, PART_BOTH);
@@ -366,6 +330,8 @@ int materialize_animation_frame_surface(
         out_frame_key.clear();
         return 0;
     }
+    // Keep CPU pixels for data references to an animation frame, just as base entries retain theirs.
+    g_png_rasters[out_frame_key] = std::make_unique<RasterSurface>(std::move(frame_surface));
     return 1;
 }
 
@@ -497,34 +463,6 @@ int resolve_animation(
             }
             out_entry.animation.add_frame(frame_slice);
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
-        }
-    } else if (entry.animation.implicit_frame_count > 0) {
-        for (int i = 1; i <= entry.animation.implicit_frame_count; i++) {
-            const size_t next_index = static_cast<size_t>(entry.local_order + i);
-            if (next_index >= doc.ordered_ids.size()) {
-                break;
-            }
-            const std::string &frame_id = doc.ordered_ids[next_index];
-            const ResolvedImageEntry *frame_entry = materialize_source_entry(doc.key, doc.source, frame_id);
-            if (!frame_entry) {
-                return 0;
-            }
-
-            RasterSurface full_frame = surface_from_resolved_entry_part(*frame_entry, PART_BOTH);
-            std::string frame_key;
-            RuntimeDrawSlice frame_slice;
-            if (!materialize_animation_frame_surface(
-                    doc,
-                    entry,
-                    i - 1,
-                    std::move(full_frame),
-                    "implicit_frame",
-                    frame_key,
-                    frame_slice)) {
-                return 0;
-            }
-            out_entry.animation_frame_keys.push_back(std::move(frame_key));
-            out_entry.animation.add_frame(frame_slice);
         }
     }
 
@@ -888,6 +826,7 @@ void compose_prepared_layer(RasterSurface &target, const PreparedLayer &layer, i
 int is_bare_group_reference(const RawLayerDef &layer)
 {
     return layer.reference.type == RawReferenceType::GROUP_IMAGE &&
+        layer.reference.frame == 0 &&
         layer.src_x == 0 &&
         layer.src_y == 0 &&
         layer.x_offset == 0 &&
@@ -1178,6 +1117,12 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
     if (ok) {
         ok = resolve_animation(*doc, entry, referenced_entry, resolved_entry);
         if (!ok) crash_context_report_error("Unable to materialize image group animation", selector_key.c_str());
+    }
+    if (ok && entry.has_sprite_offset) {
+        resolved_entry.has_sprite_offset = 1;
+        resolved_entry.sprite_offset_x = entry.sprite_offset_x;
+        resolved_entry.sprite_offset_y = entry.sprite_offset_y;
+        resolved_entry.animation.set_sprite_offset(entry.sprite_offset_x, entry.sprite_offset_y);
     }
     if (ok && doc->logical_units_per_source_pixel > 0) {
         ok = apply_absolute_logical_scale(resolved_entry.footprint.slice, doc->logical_units_per_source_pixel) &&

@@ -371,6 +371,19 @@ static bool initialize_saved_game(void)
     weather_reset();
     // This is where restored saved buildings rebuild renderer/runtime state again after the world has finished loading.
     building_runtime_initialize_city_graphics_cache();
+    if (!tile_runtime_garden_option_count(0, 1)) {
+        int repaired = 0;
+        for (int y = 0; y < map_grid_height(); ++y) {
+            for (int x = 0; x < map_grid_width(); ++x) {
+                const int offset = map_grid_offset(x, y);
+                if (map_terrain_is(offset, TERRAIN_GARDEN) && !map_terrain_is(offset, TERRAIN_ROAD) && map_property_is_plaza_earthquake_or_overgrown_garden(offset)) {
+                    map_property_clear_plaza_earthquake_or_overgrown_garden(offset);
+                    ++repaired;
+                }
+            }
+        }
+        if (repaired) log_warning("Converting imported overgrown gardens to the active mod's ordinary gardens", 0, repaired);
+    }
     map_tiles_update_all_gardens();
     map_tiles_update_all_roads();
     map_tiles_update_all_highways();

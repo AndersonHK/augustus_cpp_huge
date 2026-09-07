@@ -20,9 +20,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Group_215" />
+            <image value="move_{dir}" />
         </default>
-        <corpse base_image_offset="0" frame_count="1">
+        <corpse frame_count="1">
             <path value="Walkers\Group_215" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

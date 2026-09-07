@@ -8,7 +8,7 @@
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation path="tower_2x2" />
+    <foundation path="tower_2x2" replaces="wall" />
   <button group="security" order="20" text_key="main_strings.28.59" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>

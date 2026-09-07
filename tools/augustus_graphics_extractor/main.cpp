@@ -3,6 +3,7 @@
 #include "core/image.h"
 #include "scenario/property.h"
 #include "../graphics_extraction_output_policy.h"
+#include "../graphics_extraction_cli.h"
 
 #include <filesystem>
 #include <iostream>
@@ -168,6 +169,7 @@ static bool extract_julius_climate(int climate_id, const char *label)
 
 int main(int argc, char **argv)
 {
+    configure_graphics_extraction_cli();
     HarnessCli cli;
     if (!cli.parse(argc, argv)) {
         return 2;

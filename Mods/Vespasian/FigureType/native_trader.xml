@@ -3,9 +3,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Cart_Pusher" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Cart_Pusher" />
+            <image value="corpse" />
         </corpse>
         <overlay role="goods" path="Walkers\Migrant_Cart" direction="figure" frame="static" direction_stride="8" resource_base_offset="8" resource_stride="8" actions="any" offsets_x="13,18,12,0,-13,-18,-13,0" offsets_y="-7,-1,7,11,6,-1,-7,-12" hide_on_corpse="true" />
     </graphics>

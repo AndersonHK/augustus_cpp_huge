@@ -3,9 +3,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\marketbuyer" />
+            <image value="move_{dir}" />
         </default>
         <corpse frame_count="5">
             <path value="Walkers\marketbuyer" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

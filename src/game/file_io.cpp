@@ -956,7 +956,9 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     model_reset();
     building_type_startup_bridge_apply_model_overrides();
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        if (!model_load_model_data(file->model_data, version > SCENARIO_LAST_NO_KEYED_MODELS)) log_error("Invalid scenario model overlay", nullptr, version);
+        const auto format = version > SCENARIO_LAST_NO_EXPLICIT_MODEL_OVERRIDES ? ModelDataFormat::ExplicitOverrides :
+            (version > SCENARIO_LAST_NO_KEYED_MODELS ? ModelDataFormat::LegacyNativeOverlay : ModelDataFormat::LegacyNativeSnapshot);
+        if (!model_load_model_data(file->model_data, format)) log_error("Invalid scenario model overlay", nullptr, version);
     } else {
         scenario_events_migrate_to_formulas();
         scenario_events_migrate_to_resolved_display_names();
@@ -1020,7 +1022,7 @@ static scenario_version_t save_version_to_scenario_version(savegame_version_t sa
     return static_cast<scenario_version_t>(buffer_read_i32(buf));
 }
 
-static int savegame_load_from_state(savegame_state *state, savegame_version_t version)
+static int savegame_load_from_state(savegame_state *state, savegame_version_t version, ArchiveFamily family)
 {
     if (!state) {
         log_error("Unable to load savegame state: state is null", 0, 0);
@@ -1139,7 +1141,10 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     model_reset();
     building_type_startup_bridge_apply_model_overrides();
     if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        if (!model_load_model_data(state->building_model_data, version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS)) {
+        const auto format = version > SAVE_GAME_LAST_NO_EXPLICIT_MODEL_OVERRIDES ? ModelDataFormat::ExplicitOverrides :
+            (version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS ? ModelDataFormat::LegacyNativeOverlay : ModelDataFormat::LegacyNativeSnapshot);
+        const int loaded = family == ArchiveFamily::SharedLegacy ? model_import_legacy_source_data(state->building_model_data, version) : model_load_model_data(state->building_model_data, format, version);
+        if (!loaded) {
             log_error("Invalid saved scenario model overlay", nullptr, version);
             return 0;
         }
@@ -1759,7 +1764,7 @@ int game_file_io_read_save_game_from_buffer(buffer *buf, ArchiveFamily explicit_
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
-    if (!savegame_load_from_state(&savegame_data.state, save_version)) {
+    if (!savegame_load_from_state(&savegame_data.state, save_version, origin.family)) {
         clear_savegame_context();
         return FILE_LOAD_VALIDATION_FAILED;
     }

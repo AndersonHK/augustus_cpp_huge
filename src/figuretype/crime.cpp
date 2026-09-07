@@ -29,12 +29,14 @@
 #include "figure/formation_enemy.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/tutorial.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/grid.h"
+#include "map/terrain.h"
 #include "scenario/property.h"
 
 #define MAX_LOOTING_DISTANCE 120
@@ -339,7 +341,9 @@ void figure_criminal_update_graphics(Figure *f)
     } else if (f->action_state == FIGURE_ACTION_121_RIOTER_MOVING || f->action_state == FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT || f->action_state == FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB) {
         figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     } else {
-        figure_runtime_graphics_select_default_entry_frame(f, "gesture", f->image_offset / 2 + 1);
+        const auto *presentation = figure_type_registry_impl::presentation_for(static_cast<figure_type>(f->type));
+        if (presentation && presentation->behavior.idle_walk_animation) figure_runtime_graphics_select_default_entry_frame(f, "idle", (f->wait_ticks / 4) % 12 + 1);
+        else figure_runtime_graphics_select_default_entry_frame(f, "gesture", f->image_offset / 2 + 1);
     }
 }
 
@@ -570,7 +574,10 @@ int figure_rioter_collapse_building(Figure *f)
             house_level >= HOUSE_MIN && house_level < HOUSE_SMALL_CASA) {
             continue;
         }
-        if (b->fire_proof) {
+        const auto *presentation = figure_type_registry_impl::presentation_for(static_cast<figure_type>(f->type));
+        bool defense = false;
+        if (presentation && building.type) for (const auto &target : presentation->behavior.fireproof_targets) defense |= building.type->attr_is(target.c_str());
+        if (b->fire_proof && !(defense && presentation && presentation->behavior.attack_fireproof_defenses)) {
             continue;
         }
         city_message_apply_sound_interval(MESSAGE_CAT_RIOT_COLLAPSE);

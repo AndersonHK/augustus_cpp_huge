@@ -11,9 +11,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Prefect" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Prefect" />
+            <image value="corpse" />
         </corpse>
         <state role="water_bucket" action="prefect_going_to_fire" path="Walkers\Prefect_With_Bucket" base_offset="0" direction="movement" view_adjustments="2" frame="image_offset" frame_divisor="1" direction_stride="8" />
         <state role="throwing_water" action="prefect_at_fire" path="Walkers\Prefect_With_Bucket" base_offset="96" direction="attack" view_adjustments="2" frame="image_offset" frame_divisor="2" direction_stride="8" />

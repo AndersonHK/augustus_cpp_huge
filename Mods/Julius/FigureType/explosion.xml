@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="explosion" graphics_only="true">
     <graphics>
-        <default>
-            <path value="FX\explosion" />
+        <default payload_frame_count="8">
+            <path value="FX\Group_102" />
         </default>
     </graphics>
 </figure>

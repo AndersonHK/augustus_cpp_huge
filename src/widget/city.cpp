@@ -26,6 +26,9 @@
 #include "game/settings.h"
 
 #include "city/finance.h"
+#include "city/resource.h"
+#include "game/ResourceGraphics.h"
+#include "building/building_type_registry_internal.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/direction.h"
@@ -169,6 +172,21 @@ void widget_city_draw_construction_cost_and_size(void)
             size_x_offset + 1, y + 25 + 1, 0, 0, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
         text_draw_number_pair(size_x, size_y, '@', "x",
             size_x_offset, y + 25, 0, 0, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_FONT_YELLOW);
+    }
+    const auto *definition = building_type_registry_impl::definition_for_type(building_construction_type());
+    if (definition && definition->foundation_def() && data.selected_tile.grid_offset > 0) {
+        const building_construction::ConstructionPlacementPlan plan(*definition, data.selected_tile.x, data.selected_tile.y, 0, building_construction_force_place_active());
+        int row = 0;
+        for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) {
+            const auto resource = static_cast<resource_type>(slot);
+            const int amount = plan.support_resource_amount(resource);
+            if (!amount) continue;
+            const auto &icon = resource_graphics(resource).panel_icon();
+            const int row_y = y + 24 + row++ * 22;
+            icon.draw_scaled_centered(x + 64, row_y, COLOR_MASK_NONE, 70);
+            const color_t color = city_resource_count_warehouses_amount(resource) >= amount ? COLOR_FONT_ORANGE_LIGHT : COLOR_FONT_RED;
+            text_draw_number(amount, '@', " ", x + 82, row_y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), color);
+        }
     }
     graphics_reset_clip_rectangle();
 }

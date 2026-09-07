@@ -10,6 +10,8 @@
 #include "figure/combat.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/PathingMode.h"
+#include "figure/figure_type_registry_internal.h"
+#include "building/building_type_registry_internal.h"
 #include "figure/route.h"
 #include "map/figure.h"
 
@@ -163,6 +165,16 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         return;
     }
     int target_grid_offset = f->grid_offset + map_grid_direction_delta(f->direction);
+    const auto *presentation = figure_type_registry_impl::presentation_for(static_cast<figure_type>(f->type));
+    if (presentation && presentation->behavior.recheck_animal_terrain &&
+        map_terrain_is(target_grid_offset, TERRAIN_IMPASSABLE ^ TERRAIN_ELEVATION)) {
+        const Building *occupant = map_building_exists_at(target_grid_offset) ? &map_building_at(target_grid_offset) : nullptr;
+        if (!occupant || map_terrain_is(target_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
+            (!occupant->type->bridge().is_bridge() && Roadblock(*occupant).kind() == ROADBLOCK_NONE)) {
+            f->direction = DIR_FIGURE_REROUTE;
+            return;
+        }
+    }
     if (f->is_boat) {
         const WaterNavigationProfile profile = f->is_boat == 2 ?
             WaterNavigationProfile::Flotsam : WaterNavigationProfile::Boat;

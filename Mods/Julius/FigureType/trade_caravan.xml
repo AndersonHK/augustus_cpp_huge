@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="trade_caravan">
+    <profiles default="land_trade">
+        <profile id="land_trade">
+            <native class="land_trade" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="32767" return_mode="none" />
+            <pathing mode="land_route" terrain="prefer_roads" />
+            <trade initial_wait_ticks="20" initial_progress_ticks="10" random_initial_progress="false" exchange_delay_ticks="10" follower_type="trade_caravan_donkey" follower_count="2" />
+        </profile>
+    </profiles>
+    <graphics>
+        <directional path="Walkers\Group_130" default_base_offset="0" view_adjustments="1" frame_divisor="1" frame_stride="8" frame_count="12" draw_corpse="true" />
+    </graphics>
+</figure>

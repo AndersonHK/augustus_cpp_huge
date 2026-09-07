@@ -7,6 +7,8 @@
         <mod name="Julius" />
     </dependencies>
     <settings>
+        <setting id="WILDLIFE_BLOCKED_BY_DEFENSES" name="Defenses block wildlife" type="bool" default="true" category="City Management/Roadblocks" description="Recheck animal movement when defenses are built across a route. Disable to reproduce the original traversal behavior." />
+        <setting id="RIOTERS_ATTACK_DEFENSES" name="Rioters attack fireproof defenses" type="bool" default="true" category="Difficulty" description="Allow rioters to destroy gatehouses, palisades and palisade gates even when they are fireproof." />
         <setting id="MULTIPLE_BARRACKS" name="Allow multiple barracks" type="bool" default="false" category="Difficulty" />
         <setting id="RETIREMENT_AGE" name="Retirement age" type="int(40,90)" default="50" category="Difficulty" />
         <setting id="WANDERING_CITIZENS" name="Wandering citizens" type="bool" default="false" category="City life" description="Optional ambient citizens while global labour is enabled. Independent of the existing unemployment-driven beggars." />

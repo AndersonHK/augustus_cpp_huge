@@ -82,7 +82,7 @@ static const translation_key NEW_FIGURE_TYPES[] = {
 
 static ImageGroupEntryRef big_people_image_ref(figure_type type)
 {
-    if (const auto *definition = figure_type_registry_impl::definition_for(type); definition && !definition->portrait().group_path().empty()) return definition->portrait();
+    if (const auto *definition = figure_type_registry_impl::presentation_for(type); definition && !definition->portrait().group_path().empty()) return definition->portrait();
     type = figure_type_base(type);
     switch (type) {
         case FIGURE_WORK_CAMP_SLAVE:
@@ -1763,7 +1763,7 @@ bool Figure::resolve_loaded_building_references(int save_version)
         }
         FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
         Building *owner = nullptr;
-        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, &owner) ||
+        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, save_version <= SAVE_GAME_LAST_NO_LAND_TRADE_PROFILES, &owner) ||
             !f->set_home_building(owner)) {
             log_error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
             return false;

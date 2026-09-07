@@ -92,13 +92,18 @@ roadblock_permission PathingPolicy::roadblockPermissionFor(const Figure &figure)
     return mode ? mode->roadblockPermissionFor(figure) : Roadblock::permission_for(figure);
 }
 
+PathingMode::TerrainAccess PathingPolicy::activeTerrain() const
+{
+    return terrain_setting != CONFIG_MAX_ENTRIES && config_get(terrain_setting) ? enabled_terrain : terrain;
+}
+
 PathingMode::RoutePolicySelection PathingPolicy::routePolicySelection(
     roadblock_permission permission,
     RouteNeighborhood neighborhood) const
 {
     PathingMode::RoutePolicySelection selection;
-    selection.terrain = terrain;
-    selection.policy = PathingMode::routePolicyForTerrain(terrain, permission, neighborhood);
+    selection.terrain = activeTerrain();
+    selection.policy = PathingMode::routePolicyForTerrain(selection.terrain, permission, neighborhood);
     return selection;
 }
 

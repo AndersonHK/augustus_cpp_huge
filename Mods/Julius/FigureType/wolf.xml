@@ -2,10 +2,12 @@
 <figure type="wolf" graphics_only="true">
     <graphics>
         <default>
-            <path value="Environment\wolf" />
+            <path value="Environment\Group_234" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
-            <path value="Environment\wolf" />
+            <path value="Environment\Group_234" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

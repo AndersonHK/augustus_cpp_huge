@@ -416,7 +416,7 @@ void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 
         resource_type runtime_id = runtime_from_text_id(text_id.c_str());
         if (runtime_id == RESOURCE_NONE && text_id != "none") {
-            log_error("Resource referenced by save is not available in active mod", text_id.c_str(), save_id);
+            log_warning("Mapping unavailable imported resource to none; its quantities cannot be retained in this mod stack", text_id.c_str(), save_id);
         }
         append_save_id_mapping(save_id, runtime_id, text_id.c_str());
     }

@@ -238,7 +238,7 @@ void water_access_type_id_bridge_save_table_load_state(buffer *buf, int has_save
         }
         int runtime_id = water_access_type_id_bridge_runtime_from_text(text_id.c_str());
         if (runtime_id < 0 && !text_id.empty()) {
-            log_error("Water access type referenced by save is not available in active mod", text_id.c_str(), save_id);
+            log_warning("Removing imported water-access type absent from the active mod stack", text_id.c_str(), save_id);
         }
         g_bridge.save_to_runtime[save_id] = runtime_id;
         g_bridge.save_to_text[save_id] = text_id;

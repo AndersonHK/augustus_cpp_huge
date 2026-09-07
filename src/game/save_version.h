@@ -44,7 +44,9 @@ If you are unsure about anything regarding the savegame versioning, please ask o
 
 typedef enum {
 
-    SAVE_GAME_CURRENT_VERSION = 0xcb,
+    SAVE_GAME_CURRENT_VERSION = 0xcd,
+    SAVE_GAME_LAST_NO_EXPLICIT_MODEL_OVERRIDES = 0xcc,
+    SAVE_GAME_LAST_NO_LAND_TRADE_PROFILES = 0xcb,
     SAVE_GAME_LAST_NO_TIME_FORMULAS = 0xca,
     SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS = 0xc9,
     SAVE_GAME_LAST_NO_TRADE_LEDGER = 0xc8,
@@ -134,7 +136,8 @@ typedef enum {
 } savegame_version_t;
 
 typedef enum {
-    SCENARIO_CURRENT_VERSION = 25,
+    SCENARIO_CURRENT_VERSION = 26,
+    SCENARIO_LAST_NO_EXPLICIT_MODEL_OVERRIDES = 25,
     SCENARIO_LAST_NO_TIME_FORMULAS = 24,
     SCENARIO_LAST_NO_KEYED_MODELS = 23,
 
@@ -168,4 +171,3 @@ typedef enum {
     SAVEGAME_STATUS_INVALID = 0,
     SAVEGAME_STATUS_OK = 1
 } savegame_load_status;
-

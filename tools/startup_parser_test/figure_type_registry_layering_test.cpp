@@ -226,9 +226,11 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
     figure_type_registry_impl::FigureGraphics pattern_graphics;
     pattern_graphics.asset_target(GraphicsTargetRole::Default).set_path("Walkers\\Group_107");
+    pattern_graphics.asset_target(GraphicsTargetRole::Default).set_image("move_{dir}");
     if (!pattern_graphics.asset_target(GraphicsTargetRole::Default).cache_asset_binding() ||
-        !pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry) {
-        errors << "Figure graphics did not recognize a payload-backed per-frame entry pattern.\n";
+        pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).frame_selects_entry ||
+        pattern_graphics.target_binding(GraphicsTargetRole::Default, 0, 1).image != "move_ne") {
+        errors << "Figure graphics did not select its data-declared directional animation.\n";
         return false;
     }
     pattern_graphics.asset_target(GraphicsTargetRole::Default).set_path("Walkers\\walker_{dir}");
@@ -311,7 +313,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     const std::string invalid_graphics_sources[] = {
         replace_graphics(LOWER_XML, "<graphics path_pattern=\"Walkers\\Group_118\" image_pattern=\"{legacy_entry}\"></graphics>"),
-        replace_graphics(LOWER_XML, "<graphics runtime_selected_path=\"Walkers\\Group_117\" runtime_selected_source=\"Environment\\Group_234\"></graphics>"),
+        replace_graphics(LOWER_XML, "<graphics runtime_selected_path=\"Walkers\\Group_130\" runtime_selected_source=\"Environment\\Group_234\"></graphics>"),
         replace_graphics(LOWER_XML, "<graphics><default><path value=\"Walkers\\Group_118.xml\"/></default></graphics>"),
         replace_graphics(LOWER_XML, "<graphics><default><path value=\"Walkers\\Group_118\"/><image value=\"Image_0000\"/></default></graphics>")
     };
@@ -393,7 +395,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *ANIMAL_OVERLAY =
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" "
+        "<overlay role=\"animal\" path=\"Environment\\Group_163\" direction=\"figure\" frame=\"figure\" "
         "direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" "
         "offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" "
         "hide_on_corpse=\"true\"/>";
@@ -414,7 +416,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *RESOURCE_OVERLAY =
-        "<overlay role=\"goods\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"static\" "
+        "<overlay role=\"goods\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"static\" "
         "direction_stride=\"8\" resource_base_offset=\"8\" resource_stride=\"8\" actions=\"immigrant_arriving\" "
         "offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" "
         "hide_on_corpse=\"true\"/>";
@@ -437,18 +439,18 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     const char *invalid_overlays[] = {
         "<overlay/>",
         "<overlay role=\"animal\" path=\"\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"diagonal\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"loop\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"0\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"-1\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"-1\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"missing\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"2,2\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"128,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"sometimes\"/>",
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
-        "<overlay role=\"animal\" path=\"Walkers\\Group_117\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"diagonal\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"loop\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"0\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"-1\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"-1\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"missing\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"2,2\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"128,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"sometimes\"/>",
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
+        "<overlay role=\"animal\" path=\"Walkers\\Group_130\" direction=\"figure\" frame=\"figure\" direction_stride=\"8\" resource_base_offset=\"0\" resource_stride=\"0\" actions=\"any\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
     };
     for (const char *invalid_overlay : invalid_overlays) {
         if (overlay_definition_is_valid(invalid_overlay)) {
@@ -459,9 +461,9 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     constexpr const char *STANDARD_GRAPHICS =
         "<standard moving_frame_divisor=\"2\">"
-        "<flag unit=\"fort_legionary\" path=\"Walkers\\Group_117\" moving_base=\"0\" halted_frame=\"8\"/>"
-        "<flag unit=\"fort_javelin\" path=\"Walkers\\Group_117\" moving_base=\"9\" halted_frame=\"17\"/>"
-        "<flag unit=\"fort_mounted\" path=\"Walkers\\Group_117\" moving_base=\"18\" halted_frame=\"26\"/>"
+        "<flag unit=\"fort_legionary\" path=\"Walkers\\Group_130\" moving_base=\"0\" halted_frame=\"8\"/>"
+        "<flag unit=\"fort_javelin\" path=\"Walkers\\Group_130\" moving_base=\"9\" halted_frame=\"17\"/>"
+        "<flag unit=\"fort_mounted\" path=\"Walkers\\Group_130\" moving_base=\"18\" halted_frame=\"26\"/>"
         "</standard>";
     if (!standard_definition_is_valid(STANDARD_GRAPHICS, &result) ||
         !result.queried_standard_enabled ||
@@ -475,13 +477,13 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     const char *invalid_standards[] = {
         "<standard></standard>",
-        "<standard moving_frame_divisor=\"0\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_117\" moving_base=\"0\" halted_frame=\"8\"/></standard>",
+        "<standard moving_frame_divisor=\"0\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_130\" moving_base=\"0\" halted_frame=\"8\"/></standard>",
         "<standard moving_frame_divisor=\"2\"></standard>",
-        "<standard moving_frame_divisor=\"2\"><flag unit=\"missing\" path=\"Walkers\\Group_117\" moving_base=\"0\" halted_frame=\"8\"/></standard>",
+        "<standard moving_frame_divisor=\"2\"><flag unit=\"missing\" path=\"Walkers\\Group_130\" moving_base=\"0\" halted_frame=\"8\"/></standard>",
         "<standard moving_frame_divisor=\"2\"><flag unit=\"fort_legionary\" path=\"\" moving_base=\"0\" halted_frame=\"8\"/></standard>",
-        "<standard moving_frame_divisor=\"2\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_117\" moving_base=\"-1\" halted_frame=\"8\"/></standard>",
-        "<standard moving_frame_divisor=\"2\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_117\" moving_base=\"0\" halted_frame=\"8\"/>"
-        "<flag unit=\"fort_legionary\" path=\"Walkers\\Group_117\" moving_base=\"0\" halted_frame=\"8\"/></standard>"
+        "<standard moving_frame_divisor=\"2\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_130\" moving_base=\"-1\" halted_frame=\"8\"/></standard>",
+        "<standard moving_frame_divisor=\"2\"><flag unit=\"fort_legionary\" path=\"Walkers\\Group_130\" moving_base=\"0\" halted_frame=\"8\"/>"
+        "<flag unit=\"fort_legionary\" path=\"Walkers\\Group_130\" moving_base=\"0\" halted_frame=\"8\"/></standard>"
     };
     for (const char *invalid_standard : invalid_standards) {
         if (standard_definition_is_valid(invalid_standard)) {
@@ -558,7 +560,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *RESOURCE_CART_GRAPHICS =
-        "<resource_cart empty_path=\"Walkers\\Group_117\" "
+        "<resource_cart empty_path=\"Walkers\\Group_130\" "
         "resource_source=\"collecting_item_on_action\" resource_action=\"supplier_returning\" "
         "load_mode=\"fixed_one\" state_source=\"action\" suppress_body_when_hidden=\"false\" "
         "lift_food_at_loads=\"0\" lift_food_y_adjust=\"0\" "
@@ -583,7 +585,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *RUNTIME_RESOURCE_CART_GRAPHICS =
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" "
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" "
         "resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" "
         "suppress_body_when_hidden=\"true\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" "
         "offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" "
@@ -618,21 +620,21 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     const char *invalid_resource_carts[] = {
         "<resource_cart/>",
         "<resource_cart empty_path=\"\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"unknown\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"x\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"unknown\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"unknown\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"sometimes\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"collecting_item_on_action\" resource_action=\"146\" load_mode=\"fixed_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"collecting_item_on_action\" resource_action=\"146\" load_mode=\"fixed_one\" state_source=\"action\" suppress_body_when_hidden=\"true\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"-1\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"128,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"sometimes\"/>",
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
-        "<resource_cart empty_path=\"Walkers\\Group_117\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"unknown\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"x\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"unknown\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"unknown\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"sometimes\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"collecting_item_on_action\" resource_action=\"146\" load_mode=\"fixed_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"collecting_item_on_action\" resource_action=\"146\" load_mode=\"fixed_one\" state_source=\"action\" suppress_body_when_hidden=\"true\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"-1\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"0\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"0\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"128,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"sometimes\"/>",
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
+        "<resource_cart empty_path=\"Walkers\\Group_130\" resource_source=\"resource_id\" resource_action=\"0\" load_mode=\"carried_or_one\" state_source=\"runtime_state\" suppress_body_when_hidden=\"false\" lift_food_at_loads=\"8\" lift_food_y_adjust=\"-40\" offsets_x=\"13,18,12,0,-13,-18,-13,0\" offsets_y=\"-7,-1,7,11,6,-1,-7,-12\" hide_on_corpse=\"true\"/>"
     };
     for (const char *invalid_cart : invalid_resource_carts) {
         if (resource_cart_definition_is_valid(invalid_cart)) {
@@ -642,7 +644,7 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *DIRECTIONAL_GRAPHICS =
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" "
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" "
         "frame_divisor=\"1\" frame_stride=\"0\">"
         "<pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"16\"/>"
         "</directional>";
@@ -672,18 +674,18 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     const char *invalid_directional_graphics[] = {
         "<directional/>",
         "<directional path=\"\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"-1\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8x\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"5\" frame_divisor=\"1\" frame_stride=\"0\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"0\" frame_stride=\"0\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"-1\"/>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"missing\" base_offset=\"16\"/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"\" action=\"fishing_boat_fishing\" base_offset=\"16\"/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"-1\"/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"16\"/><pose role=\"fishing\" action=\"prefect_at_fire\" base_offset=\"24\"/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"16\"/><pose role=\"also_fishing\" action=\"fishing_boat_fishing\" base_offset=\"24\"/></directional>",
-        "<directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/><directional path=\"Walkers\\Group_117\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>"
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"-1\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8x\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"5\" frame_divisor=\"1\" frame_stride=\"0\"/>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"0\" frame_stride=\"0\"/>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"-1\"/>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"missing\" base_offset=\"16\"/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"\" action=\"fishing_boat_fishing\" base_offset=\"16\"/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"-1\"/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"16\"/><pose role=\"fishing\" action=\"prefect_at_fire\" base_offset=\"24\"/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"><pose role=\"fishing\" action=\"fishing_boat_fishing\" base_offset=\"16\"/><pose role=\"also_fishing\" action=\"fishing_boat_fishing\" base_offset=\"24\"/></directional>",
+        "<directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/><directional path=\"Walkers\\Group_130\" default_base_offset=\"8\" view_adjustments=\"1\" frame_divisor=\"1\" frame_stride=\"0\"/>"
     };
     for (const char *invalid_directional : invalid_directional_graphics) {
         if (directional_definition_is_valid(invalid_directional)) {
@@ -693,10 +695,10 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     }
 
     constexpr const char *PREFECT_BUCKET_STATES =
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" "
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_121\" "
         "base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" "
         "frame_divisor=\"1\" direction_stride=\"8\"/>"
-        "<state role=\"throwing_water\" action=\"prefect_at_fire\" path=\"Walkers\\Group_117\" "
+        "<state role=\"throwing_water\" action=\"prefect_at_fire\" path=\"Walkers\\Group_121\" "
         "base_offset=\"96\" direction=\"attack\" view_adjustments=\"2\" frame=\"image_offset\" "
         "frame_divisor=\"2\" direction_stride=\"8\"/>";
     if (!state_definition_is_valid(PREFECT_BUCKET_STATES, &result) ||
@@ -712,9 +714,9 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
     constexpr const char *BALLISTA_GRAPHICS =
         "<figure type=\"ballista\" graphics_only=\"true\"><graphics>"
         "<missile_launcher cursor=\"missile_wait_ticks\" frame_divisor=\"4\" frames=\"0,1,2,3,4,5,6\" after_frame=\"0\"/>"
-        "<state role=\"idle\" action=\"ballista_created\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"static\" frame_divisor=\"1\" direction_stride=\"8\"/>"
-        "<state role=\"firing\" action=\"ballista_firing\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"missile_launcher\" frame_divisor=\"1\" direction_stride=\"8\"/>"
-        "<state role=\"dead\" action=\"corpse\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"static\" frame_divisor=\"1\" direction_stride=\"8\"/>"
+        "<state role=\"idle\" action=\"ballista_created\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"static\" frame_divisor=\"1\" direction_stride=\"8\"/>"
+        "<state role=\"firing\" action=\"ballista_firing\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"missile_launcher\" frame_divisor=\"1\" direction_stride=\"8\"/>"
+        "<state role=\"dead\" action=\"corpse\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"1\" frame=\"static\" frame_divisor=\"1\" direction_stride=\"8\"/>"
         "</graphics></figure>";
     const std::string ballista_runtime_xml = runtime_definition("ballista");
     const figure_type_layer_test_input ballista_inputs[] = {
@@ -736,16 +738,16 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     const char *invalid_states[] = {
         "<state role=\"water_bucket\"/>",
-        "<state role=\"water_bucket\" action=\"missing\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"missing\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
         "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"sideways\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"loop\" frame_divisor=\"1\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"5\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"0\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"0\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"missile_launcher\" frame_divisor=\"1\" direction_stride=\"8\"/>",
-        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_117\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>"
-        "<state role=\"water_bucket\" action=\"prefect_at_fire\" path=\"Walkers\\Group_117\" base_offset=\"96\" direction=\"attack\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"2\" direction_stride=\"8\"/>"
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"sideways\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"loop\" frame_divisor=\"1\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"5\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"0\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"0\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"missile_launcher\" frame_divisor=\"1\" direction_stride=\"8\"/>",
+        "<state role=\"water_bucket\" action=\"prefect_going_to_fire\" path=\"Walkers\\Group_130\" base_offset=\"0\" direction=\"movement\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"1\" direction_stride=\"8\"/>"
+        "<state role=\"water_bucket\" action=\"prefect_at_fire\" path=\"Walkers\\Group_130\" base_offset=\"96\" direction=\"attack\" view_adjustments=\"2\" frame=\"image_offset\" frame_divisor=\"2\" direction_stride=\"8\"/>"
     };
     for (const char *invalid_state : invalid_states) {
         if (state_definition_is_valid(invalid_state)) {
@@ -756,14 +758,14 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     constexpr const char *MAP_FLAG_GRAPHICS =
         "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\">"
-        "<marker resource_min=\"1\" resource_max_exclusive=\"2\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/>"
-        "<marker resource_min=\"2\" resource_max_exclusive=\"3\" path=\"Walkers\\Group_117\" image_offset=\"2\" number_base=\"0\"/>"
-        "<marker resource_min=\"3\" resource_max_exclusive=\"4\" path=\"Walkers\\Group_117\" image_offset=\"3\" number_base=\"0\"/>"
-        "<marker resource_min=\"4\" resource_max_exclusive=\"12\" path=\"Walkers\\Group_117\" image_offset=\"1\" number_base=\"1\"/>"
-        "<marker resource_min=\"12\" resource_max_exclusive=\"13\" path=\"Walkers\\Group_117\" image_offset=\"4\" number_base=\"0\"/>"
-        "<marker resource_min=\"13\" resource_max_exclusive=\"14\" path=\"Walkers\\Group_117\" image_offset=\"5\" number_base=\"0\"/>"
-        "<marker resource_min=\"14\" resource_max_exclusive=\"22\" path=\"Walkers\\Group_117\" image_offset=\"3\" number_base=\"1\"/>"
-        "<marker resource_min=\"22\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_117\" image_offset=\"4\" number_base=\"1\"/>"
+        "<marker resource_min=\"1\" resource_max_exclusive=\"2\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/>"
+        "<marker resource_min=\"2\" resource_max_exclusive=\"3\" path=\"Walkers\\Group_130\" image_offset=\"2\" number_base=\"0\"/>"
+        "<marker resource_min=\"3\" resource_max_exclusive=\"4\" path=\"Walkers\\Group_130\" image_offset=\"3\" number_base=\"0\"/>"
+        "<marker resource_min=\"4\" resource_max_exclusive=\"12\" path=\"Walkers\\Group_130\" image_offset=\"1\" number_base=\"1\"/>"
+        "<marker resource_min=\"12\" resource_max_exclusive=\"13\" path=\"Walkers\\Group_130\" image_offset=\"4\" number_base=\"0\"/>"
+        "<marker resource_min=\"13\" resource_max_exclusive=\"14\" path=\"Walkers\\Group_130\" image_offset=\"5\" number_base=\"0\"/>"
+        "<marker resource_min=\"14\" resource_max_exclusive=\"22\" path=\"Walkers\\Group_130\" image_offset=\"3\" number_base=\"1\"/>"
+        "<marker resource_min=\"22\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_130\" image_offset=\"4\" number_base=\"1\"/>"
         "</map_flag>";
     if (!map_flag_definition_is_valid(MAP_FLAG_GRAPHICS, &result) ||
         !result.queried_map_flag_enabled ||
@@ -783,13 +785,13 @@ bool validate_figure_type_registry_layering_contract(std::ostream &errors)
 
     const char *invalid_map_flags[] = {
         "<map_flag></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"8\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"5\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"0\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"8\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"5\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"0\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
         "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"25\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"2\" resource_max_exclusive=\"2\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
-        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"20\" path=\"Walkers\\Group_117\" image_offset=\"0\" number_base=\"0\"/><marker resource_min=\"10\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_117\" image_offset=\"1\" number_base=\"0\"/></map_flag>"
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"25\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"2\" resource_max_exclusive=\"2\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/></map_flag>",
+        "<map_flag resource_min=\"1\" resource_max_exclusive=\"26\" base_direction=\"0\" view_adjustments=\"1\" frame_divisor=\"2\" frame_stride=\"1\" number_x=\"6\" number_y=\"7\"><marker resource_min=\"1\" resource_max_exclusive=\"20\" path=\"Walkers\\Group_130\" image_offset=\"0\" number_base=\"0\"/><marker resource_min=\"10\" resource_max_exclusive=\"26\" path=\"Walkers\\Group_130\" image_offset=\"1\" number_base=\"0\"/></map_flag>"
     };
     for (const char *invalid_map_flag : invalid_map_flags) {
         if (map_flag_definition_is_valid(invalid_map_flag)) {

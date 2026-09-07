@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="sheep" graphics_only="true">
     <graphics>
-        <default>
-            <path value="Environment\sheep" />
+        <default payload_frame_count="6">
+            <path value="Environment\Group_233" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
-            <path value="Environment\sheep" />
+            <path value="Environment\Group_233" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

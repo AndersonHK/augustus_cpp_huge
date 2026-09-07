@@ -159,8 +159,12 @@ struct FigureDirectionalPoseGraphics {
 
 struct FigureDirectionalGraphics {
     int enabled = 0;
+    bool draw_corpse = false;
     std::string path;
     const ImageGroupPayload *payload = nullptr;
+    std::array<std::string, 3> climate_paths;
+    std::array<const ImageGroupPayload *, 3> climate_payloads = {};
+    const ImageGroupPayload *active_payload() const;
     int default_base_image_offset = 0;
     int view_adjustments = 1;
     int frame_divisor = 1;

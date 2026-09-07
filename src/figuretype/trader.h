@@ -3,6 +3,7 @@
 #include "figure/figure.h"
 
 class Building;
+namespace figure_type_registry_impl { class FigureTypeProfile; }
 
 namespace figuretype {
 
@@ -28,9 +29,9 @@ public:
 
     int figure_trade_caravan_can_sell(Figure *trader, const Building *storage, int city_id);
 
-    void figure_trade_caravan_action(Figure *f);
+    void figure_land_trade_advance(Figure *f, const figure_type_registry_impl::FigureTypeProfile &profile, int speed_bonus);
 
-    void figure_trade_caravan_donkey_action(Figure *f);
+    void figure_trade_follower_advance(Figure *f, const figure_type_registry_impl::FigureTypeProfile &profile, int speed_bonus);
 
     void figure_native_trader_action(Figure *f);
 
@@ -50,6 +51,3 @@ public:
     int figure_trader_ship_get_distance_to_dock(const Figure *ship, unsigned int dock_id);
 
     int figure_trader_ship_other_ship_closer_to_dock(unsigned int dock_id, int distance);
-
-
-#define IMAGE_CAMEL 4922

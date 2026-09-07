@@ -2,11 +2,14 @@
 #include "startup/startup_parser_graphics_test.h"
 
 #include "assets/image_group_payload.h"
+#include "assets/image_group_payload_internal.h"
+#include "assets/xml.h"
 #include "building/BuildingGraphicsState.h"
 #include "building/RubbleState.h"
 #include "city/race_bet.h"
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
+#include "figure/action.h"
 #include "figure/figure_type_registry.h"
 #include "figure/type.h"
 #include "graphics/GraphicsDefinition.h"
@@ -40,6 +43,7 @@
 #include "graphics_extraction_boundary_test.h"
 #include "vespasian_graphics_source_contract_test.h"
 #include "figure_type_registry_layering_test.h"
+#include "extracted_animation_contract_test.h"
 
 #include <algorithm>
 #include <cctype>
@@ -1142,6 +1146,25 @@ bool runtime_slices_match(const RuntimeDrawSlice &actual, const RuntimeDrawSlice
         actual.fixed_logical_size.height == expected.fixed_logical_size.height;
 }
 
+// Compare uploaded animation pixels with the original extracted PNG, independently of XML aliases.
+bool extracted_png_matches(const RuntimeDrawSlice &actual, const char *group, const std::string &image)
+{
+    char path[4096] = {};
+    image_group_payload_internal::RasterSurface pixels;
+    if (!xml_resolve_image_path(path, group, image.c_str(), XML_ASSET_SOURCE_JULIUS) ||
+        !image_group_payload_internal::load_png_raster_from_path(path, pixels)) return false;
+    constexpr std::uint64_t prime = 1099511628211ull;
+    std::uint64_t hash = 14695981039346656037ull;
+    const auto *bytes = reinterpret_cast<const unsigned char *>(pixels.pixels.data());
+    for (size_t i = 0; i < pixels.pixels.size() * sizeof(color_t); ++i) hash = (hash ^ bytes[i]) * prime;
+    hash = (hash ^ static_cast<std::uint64_t>(pixels.width)) * prime;
+    hash = (hash ^ static_cast<std::uint64_t>(pixels.height)) * prime;
+    return startup_parser::image_resource_fingerprint(actual.handle) == hash && actual.width == pixels.width &&
+        actual.height == pixels.height && actual.draw_offset_x == 0 && actual.draw_offset_y == 0 && !actual.is_isometric &&
+        actual.fixed_logical_size.width == pixels.width * RENDER_LOGICAL_UNITS_PER_PIXEL &&
+        actual.fixed_logical_size.height == pixels.height * RENDER_LOGICAL_UNITS_PER_PIXEL;
+}
+
 bool validate_semantic_sequence_matches_legacy_offsets(
     const char *semantic_path,
     const std::string &semantic_entry_id,
@@ -1160,10 +1183,8 @@ bool validate_semantic_sequence_matches_legacy_offsets(
     }
     for (std::size_t frame = 0; frame < legacy_offsets.size(); ++frame) {
         const std::string expected_id = extracted_image_name(legacy_offsets[frame]);
-        const ImageGroupEntry *expected_entry = extracted_payload ? extracted_payload->entry_for(expected_id.c_str()) : nullptr;
-        const RuntimeDrawSlice *expected_slice = expected_entry ? expected_entry->footprint() : nullptr;
         const RuntimeDrawSlice actual_slice = semantic_entry->animation().frame_slice_at_offset(static_cast<int>(frame) + 1, 0);
-        if (!expected_slice || !runtime_slices_match(actual_slice, *expected_slice)) {
+        if (!extracted_png_matches(actual_slice, extracted_group, expected_id)) {
             std::cerr << "Legacy image-selection parity failed: " << semantic_path << " entry " << semantic_entry_id
                 << " frame " << (frame + 1) << " does not select " << extracted_group << "\\" << expected_id << ".\n";
             return false;
@@ -1183,10 +1204,8 @@ bool validate_semantic_static_matches_legacy_offset(
     const ImageGroupPayload *extracted_payload = image_group_payload_get(extracted_group);
     const ImageGroupEntry *semantic_entry = semantic_payload ? semantic_payload->entry_for(semantic_entry_id.c_str()) : nullptr;
     const std::string expected_id = extracted_image_name(legacy_offset);
-    const ImageGroupEntry *expected_entry = extracted_payload ? extracted_payload->entry_for(expected_id.c_str()) : nullptr;
     const RuntimeDrawSlice *actual_slice = semantic_entry ? semantic_entry->footprint() : nullptr;
-    const RuntimeDrawSlice *expected_slice = expected_entry ? expected_entry->footprint() : nullptr;
-    if (!actual_slice || !expected_slice || !runtime_slices_match(*actual_slice, *expected_slice)) {
+    if (!actual_slice || !extracted_png_matches(*actual_slice, extracted_group, expected_id)) {
         std::cerr << "Legacy image-selection parity failed: " << semantic_path << " entry " << semantic_entry_id
             << " does not select " << extracted_group << "\\" << expected_id << ".\n";
         return false;
@@ -1218,21 +1237,30 @@ bool validate_legacy_figure_image_selection_parity()
 
     for (int direction = 0; direction < 8; ++direction) {
         const std::string suffix = directions[direction];
-        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "move_" + suffix,
+        if (!validate_semantic_sequence_matches_legacy_offsets("Warriors\\Group_194", "attack_" + suffix,
+                "Warriors\\Group_194", direction_major_offsets(direction, 96, 5))) return false;
+        std::vector<int> gladiator_attack;
+        for (int frame = 0; frame < 16; ++frame) {
+            const int legacy = 104 + direction + 8 * (frame / 2);
+            gladiator_attack.push_back(legacy <= 105 ? legacy - 8 : legacy - 2);
+        }
+        if (!validate_semantic_sequence_matches_legacy_offsets("Warriors\\Group_111", "attack_" + suffix,
+                "Warriors\\Group_111", gladiator_attack)) return false;
+        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_234", "move_" + suffix,
                 "Environment\\Group_234", direction_major_offsets(direction, 0, 12)) ||
-            !validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "attack_" + suffix,
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_234", "attack_" + suffix,
                 "Environment\\Group_234", direction_major_offsets(direction, 104, 6)) ||
-            !validate_semantic_static_matches_legacy_offset("Environment\\wolf", "rest_" + suffix,
+            !validate_semantic_static_matches_legacy_offset("Environment\\Group_234", "rest_" + suffix,
                 "Environment\\Group_234", 152 + direction) ||
-            !validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "move_" + suffix,
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_235", "move_" + suffix,
                 "Environment\\Group_235", direction_major_offsets(direction, 0, 12)) ||
-            !validate_semantic_static_matches_legacy_offset("Environment\\zebra", "alternate_rest_" + suffix,
+            !validate_semantic_static_matches_legacy_offset("Environment\\Group_235", "alternate_rest_" + suffix,
                 "Environment\\Group_235", direction) ||
-            !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "move_" + suffix,
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_233", "move_" + suffix,
                 "Environment\\Group_233", direction_major_offsets(direction, 0, 6)) ||
-            !validate_semantic_static_matches_legacy_offset("Environment\\sheep", "alternate_rest_" + suffix,
+            !validate_semantic_static_matches_legacy_offset("Environment\\Group_233", "alternate_rest_" + suffix,
                 "Environment\\Group_233", 96 + direction) ||
-            !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "move_" + suffix,
+            !validate_semantic_sequence_matches_legacy_offsets("Walkers\\Group_115", "move_" + suffix,
                 "Walkers\\Group_115", direction_major_offsets(direction, 0, 12))) return false;
 
         std::vector<int> zebra_rest;
@@ -1243,9 +1271,9 @@ bool validate_legacy_figure_image_selection_parity()
             const int sheep = tick < 2 ? 0 : tick < 4 ? 1 : tick < 6 ? 2 : tick < 52 ? 3 : tick < 54 ? 4 : tick < 56 ? 5 : -1;
             sheep_rest.push_back(48 + direction + 8 * sheep);
         }
-        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "rest_" + suffix,
+        if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_235", "rest_" + suffix,
                 "Environment\\Group_235", zebra_rest) ||
-            !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "rest_" + suffix,
+            !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_233", "rest_" + suffix,
                 "Environment\\Group_233", sheep_rest)) return false;
 
         for (const char *team : { "blue", "red" }) {
@@ -1263,16 +1291,16 @@ bool validate_legacy_figure_image_selection_parity()
 
     std::vector<int> criminal_gesture_legacy_offsets;
     for (int offset : criminal_gesture_offsets) criminal_gesture_legacy_offsets.push_back(104 + offset);
-    if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\wolf", "corpse", "Environment\\Group_234", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Environment\\zebra", "corpse", "Environment\\Group_235", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Environment\\sheep", "corpse", "Environment\\Group_233", { 104, 105, 106, 107, 108, 109, 110, 111 }) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "corpse", "Walkers\\Group_115", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\criminal", "gesture", "Walkers\\Group_115",
+    if (!validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_234", "corpse", "Environment\\Group_234", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_235", "corpse", "Environment\\Group_235", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_233", "corpse", "Environment\\Group_233", { 104, 105, 106, 107, 108, 109, 110, 111 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\Group_115", "corpse", "Walkers\\Group_115", { 96, 97, 98, 99, 100, 101, 102, 103 }) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Walkers\\Group_115", "gesture", "Walkers\\Group_115",
             criminal_gesture_legacy_offsets) ||
-        !validate_semantic_sequence_matches_legacy_offsets("FX\\explosion", "cloud", "FX\\Group_102", linear_offsets(0, 8)) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Environment\\fish_gulls", "variant_a", "Environment\\Group_206",
+        !validate_semantic_sequence_matches_legacy_offsets("FX\\Group_102", "cloud", "FX\\Group_102", linear_offsets(0, 8)) ||
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_206", "variant_a", "Environment\\Group_206",
             linear_offsets(0, 18)) ||
-        !validate_semantic_sequence_matches_legacy_offsets("Environment\\fish_gulls", "variant_b", "Environment\\Group_206",
+        !validate_semantic_sequence_matches_legacy_offsets("Environment\\Group_206", "variant_b", "Environment\\Group_206",
             linear_offsets(18, 24)) ||
         !validate_semantic_sequence_matches_legacy_offsets("Ships\\flotsam", "wood", "Ships\\Group_153",
             std::vector<int>(std::begin(flotsam_wood_offsets), std::end(flotsam_wood_offsets))) ||
@@ -1314,25 +1342,21 @@ bool validate_semantic_figure_graphics_contract()
     zebra_entries.emplace_back("corpse");
     sheep_entries.emplace_back("corpse");
 
-    if (!validate_named_asset_entries("Environment\\wolf", wolf_entries) ||
-        !validate_named_asset_entries("Environment\\zebra", zebra_entries) ||
-        !validate_named_asset_entries("Environment\\sheep", sheep_entries) ||
-        !validate_named_asset_entries("Environment\\fish_gulls", { "variant_a", "variant_b" }) ||
+    if (!validate_named_asset_entries("Environment\\Group_234", wolf_entries) ||
+        !validate_named_asset_entries("Environment\\Group_235", zebra_entries) ||
+        !validate_named_asset_entries("Environment\\Group_233", sheep_entries) ||
+        !validate_named_asset_entries("Environment\\Group_206", { "variant_a", "variant_b" }) ||
         !validate_named_asset_entries("Ships\\flotsam", { "wood", "neptune_sheep", "cargo_a", "cargo_b", "debris" }) ||
         !validate_named_asset_entries("Walkers\\hippodrome_horses", hippodrome_entries)) {
         return false;
     }
 
-    std::vector<std::string> missionary_entries;
-    for (int frame = 0; frame < 104; frame++) {
-        char image[32];
-        std::snprintf(image, sizeof(image), "Image_%04d", frame);
-        missionary_entries.emplace_back(image);
-    }
+    std::vector<std::string> missionary_entries = { "corpse" };
+    for (const char *direction : directions) missionary_entries.emplace_back(std::string("move_") + direction);
     if (!validate_named_asset_entries("Walkers\\Group_230", missionary_entries)) return false;
 
     GraphicsAssetReference reference;
-    reference.set_path("Environment\\wolf");
+    reference.set_path("Environment\\Group_234");
     reference.set_image("move_ne");
     if (!reference.has_logical_asset_path() || !reference.cache_asset_binding() || !reference.cached_entry()) {
         std::cerr << "Shared asset-reference contract failed: a valid logical FigureType asset reference did not bind.\n";
@@ -1343,7 +1367,7 @@ bool validate_semantic_figure_graphics_contract()
         std::cerr << "Runtime-selected graphics contract failed: entry lookup escaped the referenced XML asset.\n";
         return false;
     }
-    reference.set_path("Environment\\wolf.xml");
+    reference.set_path("Environment\\Group_234.xml");
     if (reference.has_logical_asset_path() || reference.cache_asset_binding()) {
         std::cerr << "Shared asset-reference contract failed: file-extension paths must be rejected.\n";
         return false;
@@ -1415,6 +1439,19 @@ bool validate_synthetic_figure_lifecycle_graphics_contract()
         }
         if (graphics.has_corpse_native_payload()) {
             if (!validate_role(*definition, graphics, GraphicsTargetRole::Corpse, corpse_binding_count)) return false;
+        } else if (graphics.directional().enabled && graphics.directional().draw_corpse) {
+            // Some original groups have no death sprites. Their data explicitly
+            // retains the directional presentation used by Julius while dying.
+            const auto &directional = graphics.directional();
+            std::vector<std::string> entries;
+            for (int direction = 0; direction < GRAPHICS_DIRECTION8_COUNT; ++direction) for (int frame = 0; frame < graphics.max_image_offset; ++frame) {
+                char entry[32];
+                std::snprintf(entry, sizeof(entry), "Image_%04d", directional.image_offset_for(FIGURE_ACTION_149_CORPSE, direction, 0, frame));
+                entries.emplace_back(entry);
+                ++corpse_binding_count;
+            }
+            if (!validate_named_asset_entries(directional.path.c_str(), entries)) return false;
+            for (const auto &path : directional.climate_paths) if (!path.empty() && !validate_named_asset_entries(path.c_str(), entries)) return false;
         } else if (intentionally_non_corporeal(type)) {
             no_corpse_presentation_count++;
             types_without_corpse_presentation.emplace_back(definition->attr());
@@ -1454,16 +1491,16 @@ bool validate_semantic_walker_alias_frame_selection_contract()
         const char *expected_entry;
     };
     constexpr BindingCase cases[] = {
-        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 1, "Image_0000" },
-        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 1, 1, "Image_0001" },
-        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 2, "Image_0008" },
-        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 7, 12, "Image_0095" },
-        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 0, 1, "Image_0096" },
-        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 7, 8, "Image_0103" },
-        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 1, "Image_0000" },
-        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 1, 1, "Image_0001" },
-        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 2, "Image_0008" },
-        { FIGURE_IMMIGRANT, GraphicsTargetRole::Corpse, 0, 1, "Image_0096" }
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 1, "move_ne" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 1, 1, "move_e" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 0, 2, "move_ne" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Default, 7, 12, "move_n" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 0, 1, "corpse" },
+        { FIGURE_ENGINEER, GraphicsTargetRole::Corpse, 7, 8, "corpse" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 1, "move_ne" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 1, 1, "move_e" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Default, 0, 2, "move_ne" },
+        { FIGURE_IMMIGRANT, GraphicsTargetRole::Corpse, 0, 1, "corpse" }
     };
 
     for (const BindingCase &test_case : cases) {
@@ -1472,7 +1509,7 @@ bool validate_semantic_walker_alias_frame_selection_contract()
         const figure_type_registry_impl::GraphicsTargetBinding *binding = graphics ?
             graphics->cached_target_binding(test_case.role, test_case.direction, test_case.frame) :
             nullptr;
-        if (!binding || binding->image != test_case.expected_entry || !binding->frame_selects_entry) {
+        if (!binding || binding->image != test_case.expected_entry || binding->frame_selects_entry || !binding->animation || binding->frame != test_case.frame || !binding->resolved_slice().is_valid()) {
             std::cerr << "Semantic walker alias selected the wrong extracted entry: figure_type="
                 << static_cast<int>(test_case.type)
                 << " direction=" << test_case.direction << " frame=" << test_case.frame
@@ -1915,7 +1952,7 @@ int run_startup_parser_test(int argc, char **argv)
         std::cerr << "Startup parser test failed.\n";
         return 1;
     }
-    if (!validate_mod_metadata_contract(std::cerr)) {
+    if (!validate_extracted_animation_contract(std::cerr) || !validate_mod_metadata_contract(std::cerr)) {
         return 1;
     }
     if (options.dump_building_graphics_metadata) {

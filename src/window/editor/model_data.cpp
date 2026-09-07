@@ -155,6 +155,7 @@ static void button_static_click(const generic_button *button)
 
 static void set_cost_value(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_COST);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->cost = value;
     data.target_index = NO_SELECTION;
@@ -168,6 +169,7 @@ static void button_edit_cost(const generic_button *button)
 
 static void set_desirability_value(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_VALUE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_value = value;
     data.target_index = NO_SELECTION;
@@ -181,6 +183,7 @@ static void button_edit_value(const generic_button *button)
 
 static void set_desirability_step(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_STEP);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_step = value;
     data.target_index = NO_SELECTION;
@@ -194,6 +197,7 @@ static void button_edit_step(const generic_button *button)
 
 static void set_desirability_step_size(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_STEP_SIZE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_step_size = value;
     data.target_index = NO_SELECTION;
@@ -207,6 +211,7 @@ static void button_edit_step_size(const generic_button *button)
 
 static void set_desirability_range(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_RANGE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_range = value;
     data.target_index = NO_SELECTION;
@@ -220,6 +225,7 @@ static void button_edit_range(const generic_button *button)
 
 static void set_laborers(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_LABORERS);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->laborers = value;
     data.target_index = NO_SELECTION;

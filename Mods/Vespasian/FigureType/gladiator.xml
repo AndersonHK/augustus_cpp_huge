@@ -32,11 +32,17 @@
         </profile>
     </profiles>
     <graphics>
-        <default max_image_offset="12" payload_frame_count="20">
+        <default max_image_offset="12">
             <path value="Warriors\Gladiator" />
+            <image value="move_{dir}" />
         </default>
+        <action state="attack" frame_count="16">
+            <path value="Warriors\Gladiator" />
+            <image value="attack_{dir}" />
+        </action>
         <corpse>
             <path value="Warriors\Gladiator" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

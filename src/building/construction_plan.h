@@ -21,6 +21,7 @@ enum class PlacementFailureReason {
     OutOfBounds,
     Figure,
     OpenWater,
+    Proximity,
     Terrain
 };
 
@@ -32,6 +33,7 @@ struct ConstructionPlacementTile {
     int grid_offset = 0;
     PlacementTileState state = PlacementTileState::Allowed;
     int force_cleared = 0;
+    const building_type_registry_impl::BuildingType *support = nullptr;
     const building_type_registry_impl::FoundationCellDefinition *foundation_cell = nullptr;
     unsigned int added_terrain = 0;
     unsigned int removed_terrain = 0;
@@ -85,6 +87,8 @@ public:
         bool fixed_rotation = false);
 
     int can_place() const;
+    int support_cost() const;
+    int support_resource_amount(resource_type resource) const;
     building_type type() const;
     const building_type_registry_impl::BuildingType &definition() const;
     int has_open_water_failure() const;

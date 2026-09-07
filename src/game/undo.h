@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/building_fwd.h"
+#include "game/resource.h"
 
 
 int game_can_undo(void);
@@ -10,6 +11,7 @@ void game_undo_disable(void);
 void game_undo_add_building(building *b);
 void game_undo_add_created_building(building *b);
 void game_undo_add_replaced_building(building *b);
+void game_undo_add_resource_cost(resource_type resource, int loads);
 
 void game_undo_adjust_building(building *b);
 

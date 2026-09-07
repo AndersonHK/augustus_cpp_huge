@@ -49,6 +49,7 @@ void city_trade_ledger_reset(bool imported_save = false);
 void city_trade_ledger_exchange(resource_type resource, int loads, int unit_price, bool imported, int storage);
 void city_trade_ledger_produced(resource_type resource, int units);
 void city_trade_ledger_consumed(resource_type resource, int units);
+void city_trade_ledger_revert_consumed(resource_type resource, int units, int year);
 void city_trade_ledger_year_change();
 const std::vector<AccountingPeriod> &city_trade_ledger_periods();
 void city_trade_ledger_save(buffer *buf);

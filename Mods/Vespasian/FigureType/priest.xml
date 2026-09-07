@@ -41,9 +41,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Priest" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Priest" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

@@ -12,7 +12,9 @@
     <graphics>
         <default max_image_offset="8">
             <path value="Walkers\dog" />
+            <image value="move_{dir}" />
         </default>
-        <corpse><path value="Environment\wolf"/></corpse>
+        <corpse><path value="Environment\Group_234"/>
+            <image value="corpse" /></corpse>
     </graphics>
 </figure>

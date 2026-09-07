@@ -456,7 +456,7 @@ void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_tab
         building_type runtime_id = building_type_id_bridge_runtime_from_text(text_id.c_str());
         bool missing = runtime_id == BUILDING_NONE && !text_id.empty();
         if (missing) {
-            log_error("Building type referenced by save is not available in active mod", text_id.c_str(), save_id);
+            log_warning("Marking unavailable imported building type for removal by the building load bridge", text_id.c_str(), save_id);
         }
         append_save_id_mapping(save_id, runtime_id, missing, text_id.c_str());
     }

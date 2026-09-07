@@ -306,7 +306,8 @@ int building_runtime::slot_has_live_figure(
         *slot_value = 0;
         return 0;
     }
-    if (existing->type != primary_type && existing->type != secondary_type) {
+    if ((existing->type != primary_type && existing->type != secondary_type) ||
+        (existing->home_building_id() && existing->home_building_id() != static_cast<unsigned int>(building.id))) {
         *slot_value = 0;
         return 0;
     }
@@ -1161,6 +1162,9 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.
         if (!spawned_any) {
+            // Optional-owner profiles still need the reciprocal relation when a
+            // spawn policy tracks them, including for deletion and slot reuse.
+            if (policy.figure_slot != building_type_registry_impl::FigureSlot::None) spawned->set_home_building(&current);
             assign_figure_slot(policy.figure_slot, spawned->id());
         }
         spawned_any = 1;

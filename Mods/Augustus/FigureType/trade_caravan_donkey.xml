@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="trade_caravan_donkey">
+    <profiles default="trade_follower">
+        <profile id="trade_follower">
+            <native class="trade_follower" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="32767" return_mode="none" speed_bonus_building="grand_temple_mercury" speed_bonus_percent="25" />
+            <pathing mode="land_route" terrain="prefer_roads_highway" terrain_setting="gameplay_change_caravans_move_off_road" enabled_terrain="any" />
+        </profile>
+    </profiles>
+    <graphics>
+        <directional path="Walkers\Group_130" desert_path="UI\Group_167" default_base_offset="0" view_adjustments="1" frame_divisor="1" frame_stride="8" frame_count="12" draw_corpse="true" />
+    </graphics>
+</figure>

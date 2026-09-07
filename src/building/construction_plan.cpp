@@ -14,6 +14,8 @@
 #include "map/grid.h"
 #include "map/road_aqueduct.h"
 #include "map/terrain.h"
+#include "map/water_navigation.h"
+#include "scenario/map.h"
 
 #include <algorithm>
 #include <limits>
@@ -66,6 +68,33 @@ bool tile_has_bound_aqueduct_occupancy(int grid_offset)
     }
     const Building &occupant = map_building_at(grid_offset);
     return occupant.matches("aqueduct") && map_terrain_is(grid_offset, TERRAIN_AQUEDUCT);
+}
+
+bool meets_proximity_requirements(const ConstructionPlacementPart &part)
+{
+    const FoundationDef *foundation = part.definition->foundation_def();
+    for (const auto &requirement : foundation->proximity_requirements()) {
+        int count = 0;
+        for (int y = part.y - requirement.max_distance; y < part.y + part.height + requirement.max_distance; ++y) {
+            for (int x = part.x - requirement.max_distance; x < part.x + part.width + requirement.max_distance; ++x) {
+                if (!map_grid_is_inside(x, y, 1)) continue;
+                int distance = std::numeric_limits<int>::max();
+                for (const auto &cell : part.tiles) distance = std::min(distance, std::max(std::abs(x - cell.x), std::abs(y - cell.y)));
+                if (distance < requirement.min_distance || distance > requirement.max_distance) continue;
+                const int offset = map_grid_offset(x, y);
+                if ((map_terrain_get(offset) & requirement.terrain) != requirement.terrain) continue;
+                if (requirement.navigable && !water_navigation::is_passable(offset, WaterNavigationProfile::Boat)) continue;
+                if (requirement.sea) {
+                    const map_point entry = scenario_map_river_entry();
+                    if ((x != entry.x || y != entry.y) && water_navigation::path_length({x, y}, entry, WaterNavigationProfile::Boat) <= 0) continue;
+                }
+                if (++count >= requirement.min_count) break;
+            }
+            if (count >= requirement.min_count) break;
+        }
+        if (count < requirement.min_count) return false;
+    }
+    return true;
 }
 
 int placement_extent(const BuildingType &definition, int rotation)
@@ -353,6 +382,10 @@ void ConstructionPlacementPlan::build_rotation(int rotation)
 
     for (ConstructionPlacementPart &part : parts_) {
         validate_part(part);
+        if (!blocked_ && !meets_proximity_requirements(part)) {
+            blocked_ = 1;
+            failure_reason_ = PlacementFailureReason::Proximity;
+        }
     }
     if (!blocked_) {
         for (const ConstructionPlacementPart &part : parts_) {
@@ -496,8 +529,23 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         ? add_supersession(*part.definition, tile.grid_offset, terrain, cell->added_terrain)
         : 0;
     const unsigned int effective_terrain = terrain & ~superseded_terrain;
-    if (cell->required_terrain &&
-        (effective_terrain & cell->required_terrain) != cell->required_terrain) {
+    unsigned int supplied_terrain = terrain;
+    if ((terrain & cell->required_terrain) != cell->required_terrain && !cell->support_type.empty()) {
+        const auto *support = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr(cell->support_type.c_str()));
+        const auto *support_foundation = support ? support->foundation_def() : nullptr;
+        if (support_foundation && support_foundation->cells().size() == 1 && !support->has_phased_construction()) {
+            const auto &support_cell = support_foundation->cells().front();
+            const unsigned int supporting_terrain = support_cell.added_terrain & ~TERRAIN_BUILDING;
+            const int support_obstacles = effective_terrain & TERRAIN_NOT_CLEAR & ~support_cell.permitted_blocking_terrain;
+            if ((supporting_terrain & cell->required_terrain) == cell->required_terrain &&
+                (cell->added_terrain & supporting_terrain) == supporting_terrain &&
+                (!support_obstacles || (force_place_ && force_place_can_clear_terrain(support_obstacles)))) {
+                tile.support = support;
+                supplied_terrain |= supporting_terrain;
+            }
+        }
+    }
+    if (cell->required_terrain && (supplied_terrain & cell->required_terrain) != cell->required_terrain) {
         if (failure_reason_ == PlacementFailureReason::None) {
             failure_reason_ = PlacementFailureReason::Terrain;
         }
@@ -565,6 +613,34 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         failure_reason_ = PlacementFailureReason::Terrain;
     }
     return result;
+}
+
+int ConstructionPlacementPlan::support_cost() const
+{
+    int cost = 0;
+    std::vector<int> counted;
+    for (const auto &part : parts_) {
+        for (const auto &tile : part.tiles) {
+            if (tile.support && std::find(counted.begin(), counted.end(), tile.grid_offset) == counted.end()) {
+                counted.push_back(tile.grid_offset);
+                cost += model_get_construction_cost(tile.support->type());
+            }
+        }
+    }
+    return cost;
+}
+
+int ConstructionPlacementPlan::support_resource_amount(resource_type resource) const
+{
+    int amount = 0;
+    std::vector<int> counted;
+    for (const auto &part : parts_) for (const auto &tile : part.tiles) {
+        if (tile.support && std::find(counted.begin(), counted.end(), tile.grid_offset) == counted.end()) {
+            counted.push_back(tile.grid_offset);
+            amount += tile.support->construction().instant_requirement_amount(resource);
+        }
+    }
+    return amount;
 }
 
 unsigned int ConstructionPlacementPlan::add_supersession(

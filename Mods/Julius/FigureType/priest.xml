@@ -35,9 +35,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\Group_091" />
+            <image value="move_{dir}" />
         </default>
         <corpse>
             <path value="Walkers\Group_091" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

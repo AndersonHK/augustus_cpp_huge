@@ -9,6 +9,7 @@
 #include "core/direction.h"
 #include "core/xml_value.h"
 #include "figure/action.h"
+#include "figure/unit_type.h"
 #include "figure/runtime_profile_identity.h"
 #include "game/mod_definition_loader.h"
 
@@ -26,6 +27,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -201,6 +203,9 @@ ProfileSpawnBehavior FigureTypeProfile::spawn_behavior() const
             return { FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE, true, false };
         case NativeClassId::DepotCartPusher:
             return { FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL, true, false };
+        case NativeClassId::LandTrade:
+        case NativeClassId::TradeFollower:
+            return { FIGURE_ACTION_100_TRADE_CARAVAN_CREATED, true, false };
         case NativeClassId::FishingBoat:
             return { FIGURE_ACTION_190_FISHING_BOAT_CREATED, true, false };
         case NativeClassId::TransientWanderer:
@@ -230,6 +235,9 @@ int FigureTypeProfile::resolve_building_references(const char *figure_attr)
         context.c_str(),
         1)) {
         return 0;
+    }
+    if (!movement_profile_.speed_bonus_building.empty()) {
+        if (!resolve_building_reference(movement_profile_.speed_bonus_building, movement_profile_.speed_bonus_type, context.c_str(), 0)) return 0;
     }
     for (EntertainmentVenueTarget &target : venue_targets_) {
         if (!resolve_building_reference(target.building_reference, target.building, context.c_str(), 0)) {
@@ -411,6 +419,12 @@ const FigureGraphics *graphics_for(figure_type type)
     return definition ? &definition->graphics() : nullptr;
 }
 
+const FigureTypeDefinition *presentation_for(figure_type type)
+{
+    if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) return nullptr;
+    return g_figure_graphics_only[type] ? g_figure_graphics_only[type].get() : definition_for(type);
+}
+
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id)
 {
     const FigureTypeDefinition *definition = definition_for(type);
@@ -464,6 +478,8 @@ static NativeClassId parse_native_class_name(const char *name)
     if (xml_value::equals(name, "depot_cart_pusher")) {
         return NativeClassId::DepotCartPusher;
     }
+    if (xml_value::equals(name, "land_trade")) return NativeClassId::LandTrade;
+    if (xml_value::equals(name, "trade_follower")) return NativeClassId::TradeFollower;
     if (xml_value::equals(name, "fishing_boat")) {
         return NativeClassId::FishingBoat;
     }
@@ -559,6 +575,7 @@ static int parse_terrain_usage_name(const char *name)
 
 int action_state_from_xml_name(const char *name)
 {
+    if (xml_value::equals(name, "attack")) return FIGURE_ACTION_150_ATTACK;
     if (xml_value::equals(name, "corpse")) {
         return FIGURE_ACTION_149_CORPSE;
     }
@@ -985,6 +1002,30 @@ static int parse_profiles_node()
     return 1;
 }
 
+static int parse_behavior_node()
+{
+    if (!parse_enabled_content("behavior") || !g_parse_state.definition) return 0;
+    FigureBehaviorPolicy policy;
+    int recheck = 0, attack = 0, idle_walk = 0;
+    if ((xml_parser_has_attribute("recheck_animal_terrain") && !xml_value::parse_bool(xml_parser_get_attribute_string("recheck_animal_terrain"), &recheck)) ||
+        (xml_parser_has_attribute("attack_fireproof_defenses") && !xml_value::parse_bool(xml_parser_get_attribute_string("attack_fireproof_defenses"), &attack)) ||
+        (xml_parser_has_attribute("idle_walk_animation") && !xml_value::parse_bool(xml_parser_get_attribute_string("idle_walk_animation"), &idle_walk))) {
+        g_parse_state.error = true;
+        log_error("FigureType behavior has an invalid Boolean", 0, 0);
+        return 0;
+    }
+    policy.recheck_animal_terrain = recheck != 0;
+    policy.attack_fireproof_defenses = attack != 0;
+    policy.idle_walk_animation = idle_walk != 0;
+    if (xml_parser_has_attribute("fireproof_targets")) {
+        std::istringstream targets(xml_parser_get_attribute_string("fireproof_targets"));
+        std::string target;
+        while (targets >> target) policy.fireproof_targets.push_back(target);
+    }
+    g_parse_state.definition->behavior = policy;
+    return 1;
+}
+
 static int parse_presentation_node()
 {
     if (!parse_enabled_content("presentation") || !g_parse_state.definition) return 0;
@@ -1061,6 +1102,10 @@ static void finish_profile_node()
         g_parse_state.error = true;
         log_error("FigureType explicit spawn behavior is valid only for legacy_action profiles",
             g_parse_state.current_profile->id(), 0);
+    }
+    if ((g_parse_state.current_profile->native_class() == NativeClassId::LandTrade) != g_parse_state.current_profile->trade.declared) {
+        g_parse_state.error = true;
+        log_error("Land trade profiles require an explicit trade policy; other controllers cannot own one", g_parse_state.current_profile->id(), 0);
     }
     if (g_parse_state.current_profile->native_class() == NativeClassId::DepotCartPusher) {
         const OwnerBinding &owner = g_parse_state.current_profile->owner_binding();
@@ -1199,8 +1244,49 @@ static int parse_movement_node()
         movement_profile.return_mode = parse_return_mode_name(xml_parser_get_attribute_string("return_mode"));
     }
 
+    if (xml_parser_has_attribute("speed_bonus_building") || xml_parser_has_attribute("speed_bonus_percent")) {
+        movement_profile.speed_bonus_building = xml_value::trim_copy(xml_parser_get_attribute_string("speed_bonus_building"));
+        if (movement_profile.speed_bonus_building.empty() ||
+            !parse_int_attribute_strict("speed_bonus_percent", movement_profile.speed_bonus_percent) ||
+            movement_profile.speed_bonus_percent <= 0 || movement_profile.speed_bonus_percent > 100) {
+            g_parse_state.error = true;
+            log_error("FigureType movement requires a building and a speed bonus from 1 to 100 percent", profile->id(), 0);
+            return 0;
+        }
+    }
     profile->set_movement_profile(movement_profile);
     g_parse_state.saw_profile_movement = true;
+    return 1;
+}
+
+static int parse_trade_node()
+{
+    FigureTypeProfile *profile = current_profile_or_error("trade");
+    if (!profile) return 0;
+    auto &trade = profile->trade;
+    const char *follower = xml_parser_get_attribute_string("follower_type");
+    trade.follower_type = figure_type_from_xml_name(follower);
+    if (trade.declared || !parse_int_attribute_strict("initial_wait_ticks", trade.initial_wait_ticks) ||
+        !parse_int_attribute_strict("exchange_delay_ticks", trade.exchange_delay_ticks) ||
+        !parse_int_attribute_strict("follower_count", trade.follower_count) ||
+        trade.initial_wait_ticks < 0 || trade.initial_wait_ticks > 1000 ||
+        trade.exchange_delay_ticks <= 0 || trade.exchange_delay_ticks > 1000 ||
+        trade.follower_count < 0 || trade.follower_count > 16 || (trade.follower_count && trade.follower_type == FIGURE_NONE)) {
+        g_parse_state.error = true;
+        log_error("FigureType trade policy is incomplete, duplicated or out of range", profile->id(), 0);
+        return 0;
+    }
+    int random_progress = 0;
+    if (!parse_int_attribute_strict("initial_progress_ticks", trade.initial_progress_ticks) ||
+        trade.initial_progress_ticks < 0 || trade.initial_progress_ticks > trade.initial_wait_ticks ||
+        !xml_parser_has_attribute("random_initial_progress") ||
+        !xml_value::parse_bool(xml_parser_get_attribute_string("random_initial_progress"), &random_progress)) {
+        g_parse_state.error = true;
+        log_error("FigureType trade requires valid initial progress and randomization data", profile->id(), 0);
+        return 0;
+    }
+    trade.random_initial_progress = random_progress != 0;
+    trade.declared = true;
     return 1;
 }
 
@@ -1473,6 +1559,10 @@ static int parse_graphics_action_node()
     if (!parse_graphics_action_wait_ticks(g_parse_state.graphics_definition, "min_wait_ticks") ||
         !parse_graphics_action_missile_wait_ticks(g_parse_state.graphics_definition, "min_missile_wait_ticks")) {
         return 0;
+    }
+    if (xml_parser_has_attribute("frame_count")) {
+        g_parse_state.graphics_definition.action_frame_count = xml_parser_get_attribute_int("frame_count");
+        if (g_parse_state.graphics_definition.action_frame_count <= 0) return graphics_parse_error("FigureType action frame_count must be positive");
     }
     g_parse_state.saw_graphics_action = true;
     g_parse_state.current_graphics_target = GraphicsTargetKind::Action;
@@ -1753,8 +1843,22 @@ static int parse_graphics_directional_node()
             "FigureType directional graphics is outside graphics or missing required attributes");
     }
 
+    if (xml_parser_has_attribute("frame_count")) {
+        if (!parse_int_attribute_strict("frame_count", g_parse_state.graphics_definition.max_image_offset) || g_parse_state.graphics_definition.max_image_offset <= 0 || g_parse_state.graphics_definition.max_image_offset > 256) return graphics_parse_error("FigureType directional frame_count must be from 1 to 256");
+    }
     FigureDirectionalGraphics directional;
+    if (xml_parser_has_attribute("draw_corpse")) {
+        int draw_corpse = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("draw_corpse"), &draw_corpse)) return graphics_parse_error("FigureType directional draw_corpse must be Boolean");
+        directional.draw_corpse = draw_corpse != 0;
+    }
     directional.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    const char *climate_attributes[] = {"central_path", "northern_path", "desert_path"};
+    for (size_t climate = 0; climate < directional.climate_paths.size(); ++climate) {
+        if (!xml_parser_has_attribute(climate_attributes[climate])) continue;
+        directional.climate_paths[climate] = xml_value::trim_copy(xml_parser_get_attribute_string(climate_attributes[climate]));
+        if (directional.climate_paths[climate].empty()) return graphics_parse_error("FigureType directional climate path cannot be empty");
+    }
     if (directional.path.empty() ||
         !parse_int_attribute_strict("default_base_offset", directional.default_base_image_offset) ||
         !parse_int_attribute_strict("view_adjustments", directional.view_adjustments) ||
@@ -1954,7 +2058,7 @@ static int parse_graphics_image_node()
     if (!parse_enabled_content("image")) {
         return 0;
     }
-    return graphics_parse_error("FigureType graphics targets address asset XML paths only; image selectors are not supported");
+    return parse_graphics_target_value_node(0);
 }
 
 static int validate_graphics_target_policy()
@@ -2111,6 +2215,16 @@ static int parse_pathing_node()
         return 0;
     }
     pathing_policy.terrain = PathingMode::terrainFromLegacyUsage(terrain_usage);
+    if (xml_parser_has_attribute("terrain_setting") || xml_parser_has_attribute("enabled_terrain")) {
+        pathing_policy.terrain_setting = config_key_from_name(xml_parser_get_attribute_string("terrain_setting"));
+        const int enabled_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("enabled_terrain"));
+        if (pathing_policy.terrain_setting == CONFIG_MAX_ENTRIES || !xml_parser_has_attribute("enabled_terrain") || enabled_usage < 0) {
+            g_parse_state.error = true;
+            log_error("FigureType conditional pathing requires a known setting and enabled terrain", profile->id(), 0);
+            return 0;
+        }
+        pathing_policy.enabled_terrain = PathingMode::terrainFromLegacyUsage(enabled_usage);
+    }
     const char *effect_text = xml_parser_get_attribute_string("effect");
     if (!parse_service_effect_name(effect_text, pathing_policy.effect)) {
         g_parse_state.error = true;
@@ -2198,12 +2312,14 @@ static int parse_venue_node()
 static const xml_parser_element XML_ELEMENTS[] = {
     { "figure", parse_definition_root, nullptr, nullptr, nullptr },
     { "presentation", parse_presentation_node, nullptr, "figure", nullptr },
+    { "behavior", parse_behavior_node, nullptr, "figure", nullptr },
     { "profiles", parse_profiles_node, nullptr, "figure", nullptr },
     { "profile", parse_profile_node, finish_profile_node, "profiles", nullptr },
     { "native", parse_native_node, nullptr, "profile", nullptr },
     { "spawn", parse_spawn_node, nullptr, "profile", nullptr },
     { "owner", parse_owner_node, nullptr, "profile", nullptr },
     { "movement", parse_movement_node, nullptr, "profile", nullptr },
+    { "trade", parse_trade_node, nullptr, "profile", nullptr },
     { "graphics", parse_graphics_node, finish_graphics_node, "figure", nullptr },
     { "default", parse_graphics_default_node, finish_graphics_target_node, "graphics", nullptr },
     { "action", parse_graphics_action_node, finish_graphics_target_node, "graphics", nullptr },
@@ -2664,6 +2780,24 @@ int figure_type_registry_resolve_building_references(void)
 {
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
         figure_type_registry_impl::g_figure_types) {
+        if (definition) for (const auto &profile : definition->profiles()) {
+            using figure_type_registry_impl::NativeClassId;
+            if (profile.native_class() != NativeClassId::LandTrade && profile.native_class() != NativeClassId::TradeFollower) continue;
+            const UnitType *unit = unit_type_registry_impl::find_unit_type(definition->type());
+            if (!unit || !unit->has_valid_combat_stats()) {
+                figure_type_registry_impl::set_failure_reason("Trade FigureType requires explicit UnitType combat stats.", definition->attr());
+                log_error("Trade FigureType requires explicit UnitType combat stats", definition->attr(), 0);
+                return 0;
+            }
+            if (profile.trade.follower_count) {
+                const auto *follower = figure_type_registry_impl::default_profile_for(profile.trade.follower_type);
+                if (!follower || follower->native_class() != NativeClassId::TradeFollower) {
+                    figure_type_registry_impl::set_failure_reason("Land trade follower must have a trade_follower profile.", definition->attr());
+                    log_error("Land trade follower must have a trade_follower profile", definition->attr(), 0);
+                    return 0;
+                }
+            }
+        }
         if (definition && !definition->resolve_building_references()) {
             return 0;
         }

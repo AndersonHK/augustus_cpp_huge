@@ -29,6 +29,10 @@ static struct {
     int error_line_number;
 } data;
 
+static const char *const MODEL_FIELD_NAMES[] = {"cost", "desirability_value", "desirability_step", "desirability_step_size", "desirability_range", "laborers"};
+static constexpr int model_building::* MODEL_FIELD_MEMBERS[] = {&model_building::cost, &model_building::desirability_value, &model_building::desirability_step,
+    &model_building::desirability_step_size, &model_building::desirability_range, &model_building::laborers};
+
 // EXPORT
 
 static void export_model_data(buffer *buf)
@@ -71,31 +75,20 @@ static void export_model_data(buffer *buf)
         }
 
         model_building *model = model_get_building(type);
-        const model_building *prop_model = model_get_mod_defaults(type);
+        const uint32_t fields = model_scenario_override_fields(type);
         if (!model) {
             continue;
         }
         const int production_per_month = definition ? building_production_per_month(definition) : 0;
         const int default_production_per_month = definition ? building_default_production_per_month(definition) : 0;
         const int production_changed = production_per_month != default_production_per_month;
-        if (!production_changed) {
-            if (model == prop_model) {
-                continue;
-            }
-
-            if (memcmp(model, prop_model, sizeof(*model)) == 0) {
-                continue;
-            }
-        }
+        if (!production_changed && !fields) continue;
 
         xml_exporter_new_element("building_model");
         xml_exporter_add_attribute_text("building_type", definition->attr());
-        xml_exporter_add_attribute_int("cost", model->cost);
-        xml_exporter_add_attribute_int("desirability_value", model->desirability_value);
-        xml_exporter_add_attribute_int("desirability_step", model->desirability_step);
-        xml_exporter_add_attribute_int("desirability_step_size", model->desirability_step_size);
-        xml_exporter_add_attribute_int("desirability_range", model->desirability_range);
-        xml_exporter_add_attribute_int("laborers", model->laborers);
+        for (int field = MODEL_COST; field <= MODEL_LABORERS; ++field) {
+            if (fields & (1u << field)) xml_exporter_add_attribute_int(MODEL_FIELD_NAMES[field], model->*MODEL_FIELD_MEMBERS[field]);
+        }
         if (definition &&
             (building_is_raw_resource_producer(definition) || building_is_workshop(definition) ||
                 definition->attr_is("wharf"))) {
@@ -110,7 +103,6 @@ static void export_model_data(buffer *buf)
 
     if (!edited_models) {
         xml_exporter_add_element_text("<!--Nothing here but xml parser doesn't like empty things-->");
-        xml_exporter_close_element();
     }
     xml_exporter_close_element();
 
@@ -169,40 +161,14 @@ static int start_building_model(void)
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
 
-    if (!xml_parser_has_attribute("cost")) {
-        xml_import_log_error("Attribute missing. 'cost' not given");
-        return 0;
-    }
-    if (!xml_parser_has_attribute("desirability_value")) {
-        xml_import_log_error("Attribute missing. 'desirability_value' not given");
-        return 0;
-    }
-    if (!xml_parser_has_attribute("desirability_step")) {
-        xml_import_log_error("Attribute missing. 'desirability_step' not given");
-        return 0;
-    }
-    if (!xml_parser_has_attribute("desirability_step_size")) {
-        xml_import_log_error("Attribute missing. 'desirability_step_size' not given");
-        return 0;
-    }
-    if (!xml_parser_has_attribute("desirability_range")) {
-        xml_import_log_error("Attribute missing. 'desirability_range' not given");
-        return 0;
-    }
-    if (!xml_parser_has_attribute("laborers")) {
-        xml_import_log_error("Attribute missing. 'laborers' not given");
-        return 0;
-    }
-
+    // An authored XML attribute is an explicit edit. Missing fields inherit the
+    // active mod definition; exports no longer freeze the other five values.
     model_building *model_ptr = model_get_building(type);
-    for (int field = MODEL_COST; field <= MODEL_LABORERS; ++field) model_mark_scenario_override(type, field);
-
-    model_ptr->cost = xml_parser_get_attribute_int("cost");
-    model_ptr->desirability_value = xml_parser_get_attribute_int("desirability_value");
-    model_ptr->desirability_step = xml_parser_get_attribute_int("desirability_step");
-    model_ptr->desirability_step_size = xml_parser_get_attribute_int("desirability_step_size");
-    model_ptr->desirability_range = xml_parser_get_attribute_int("desirability_range");
-    model_ptr->laborers = xml_parser_get_attribute_int("laborers");
+    for (int field = MODEL_COST; field <= MODEL_LABORERS; ++field) {
+        if (!xml_parser_has_attribute(MODEL_FIELD_NAMES[field])) continue;
+        model_ptr->*MODEL_FIELD_MEMBERS[field] = xml_parser_get_attribute_int(MODEL_FIELD_NAMES[field]);
+        model_mark_scenario_override(type, field);
+    }
     if (xml_parser_has_attribute("production_rate")) {
         if (!definition) {
             xml_import_log_error("Could not resolve production definition for building_type");

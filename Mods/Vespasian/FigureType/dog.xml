@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="dog">
     <graphics>
-        <default max_image_offset="8"><path value="Walkers\Vespasian_Dog" /></default>
-        <corpse><path value="Environment\Wolf_Pack" /></corpse>
+        <default max_image_offset="8"><path value="Walkers\Vespasian_Dog" />
+            <image value="move_{dir}" /></default>
+        <corpse><path value="Environment\Wolf_Pack" />
+            <image value="corpse" /></corpse>
     </graphics>
 </figure>

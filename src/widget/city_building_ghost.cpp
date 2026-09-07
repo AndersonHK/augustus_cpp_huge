@@ -446,13 +446,35 @@ static void initialize_plan_ghost_records(std::vector<building> &records, int ma
 
 }
 
+static std::vector<building_construction::ConstructionPlacementPart> plan_support_parts(const building_construction::ConstructionPlacementPlan &plan)
+{
+    std::vector<building_construction::ConstructionPlacementPart> supports;
+    for (const auto &part : plan.parts()) {
+        for (const auto &tile : part.tiles) {
+            if (!tile.support) continue;
+            building_construction::ConstructionPlacementPart support;
+            support.definition = tile.support;
+            support.type = tile.support->type();
+            support.x = tile.x;
+            support.y = tile.y;
+            support.grid_offset = tile.grid_offset;
+            support.size = support.width = support.height = 1;
+            support.foundation_rotation = support.building_orientation = 0;
+            supports.push_back(support);
+        }
+    }
+    return supports;
+}
+
 static void build_plan_ghost_runtime(
     const building_construction::ConstructionPlacementPlan &plan,
     const building_type_registry_impl::BuildingType &root_definition,
     std::vector<building> &records,
     std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> &bindings)
 {
-    const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    std::vector<building_construction::ConstructionPlacementPart> parts = plan.parts();
+    const auto supports = plan_support_parts(plan);
+    parts.insert(parts.end(), supports.begin(), supports.end());
     records.clear();
     bindings.clear();
     records.reserve(parts.size());
@@ -552,6 +574,9 @@ static void draw_default(
     building_construction_assessment assessment =
         building_construction_assess_placement(definition, tile->x, tile->y, exact_coordinates, force_place_active);
     const building_construction::ConstructionPlacementPlan &plan = assessment.placement;
+    if (update_can_place && !building_construction_in_progress()) {
+        building_construction_set_cost(model_get_construction_cost(type) + plan.support_cost());
+    }
     if (force_place_active && assessment.can_place) {
         building_construction_set_force_place_clear_cost(assessment.clear_cost);
     }
@@ -576,6 +601,12 @@ static void draw_default(
         return;
     }
     const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    const auto supports = plan_support_parts(plan);
+    for (size_t i = 0; i < supports.size(); ++i) {
+        if (auto *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[parts.size() + i])) {
+            draw_plan_part(plan, supports[i], runtime->building, x_view, y_view, color, 0);
+        }
+    }
     for (size_t i = 0; i < parts.size() && i < ghost_records.size(); i++) {
         building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[i]);
         if (!runtime) {

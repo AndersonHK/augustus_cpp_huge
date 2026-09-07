@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="criminal_looter" graphics_only="true">
+    <behavior idle_walk_animation="true" />
+    <presentation portrait_path="Walkers\thief_Portrait" portrait_image="thief_Portrait" />
+    <graphics>
+        <default><path value="Walkers\Thief_Actions" />
+            <image value="move_{dir}" /></default>
+        <corpse><path value="Walkers\Thief_Actions" />
+            <image value="corpse" /></corpse>
+    </graphics>
+</figure>

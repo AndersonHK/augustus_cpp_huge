@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="concrete">
+  <graphics>
+    <cart load="single" path="Industry\Concrete_Carts" image="Concrete_Cart_NE" />
+    <cart load="multiple" path="Industry\Concrete_Carts" image="Concrete_Cart_Getting_NE" />
+    <cart load="eight" path="Industry\Concrete_Carts" image="Concrete_Cart_Getting_NE" />
+    <panel_icon path="UI\Panelling_Concrete_01" image="Panelling_Concrete_01" />
+    <empire_icon path="UI\Panelling_Concrete_02" image="Panelling_Concrete_02" />
+    <editor_icon path="UI\Panelling_Concrete_01" image="Panelling_Concrete_01" />
+    <editor_empire_icon path="UI\Panelling_Concrete_02" image="Panelling_Concrete_02" />
+  </graphics>
+</resource>

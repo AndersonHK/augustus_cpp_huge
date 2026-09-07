@@ -126,6 +126,16 @@ void city_trade_ledger_consumed(resource_type resource, int units)
     if (resource != RESOURCE_NONE && !resource_is_special(resource) && units > 0) current().resources[identity(resource)].consumed += units;
 }
 
+void city_trade_ledger_revert_consumed(resource_type resource, int units, int year)
+{
+    if (resource == RESOURCE_NONE || units <= 0) return;
+    for (auto &period : periods) if (period.year == year) {
+        const auto found = period.resources.find(identity(resource));
+        if (found != period.resources.end()) found->second.consumed = std::max<int64_t>(0, found->second.consumed - units);
+        return;
+    }
+}
+
 void city_trade_ledger_year_change()
 {
     const bool no_activity = periods.empty();

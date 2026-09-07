@@ -1,6 +1,7 @@
 #pragma once
 
 #include "figure/route_policy.h"
+#include "core/config.h"
 #include "figure/type.h"
 #include "map/road_service_history.h"
 
@@ -138,11 +139,16 @@ extern const PathingMode TransientWander;
 extern const PathingMode DepotOrderRoute;
 extern const PathingMode WaterRoute;
 extern const PathingMode CrossCountry;
+extern const PathingMode LandRoute;
 
 struct PathingPolicy {
     const PathingMode *mode = &VanillaRoaming;
     PathingMode::TerrainAccess terrain = PathingMode::terrainFromLegacyUsage(TERRAIN_USAGE_ANY);
     road_service_effect effect = ROAD_SERVICE_EFFECT_NONE;
+    config_key terrain_setting = CONFIG_MAX_ENTRIES;
+    PathingMode::TerrainAccess enabled_terrain;
+
+    PathingMode::TerrainAccess activeTerrain() const;
 
     bool hasRequiredServiceEffect() const;
     bool hasRequiredTerrainAccess() const;

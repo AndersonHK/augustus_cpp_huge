@@ -32,7 +32,7 @@
 
 namespace {
 
-constexpr char kStampPrefix[] = "augustus_extract_v4:";
+constexpr char kStampPrefix[] = "augustus_extract_v6:";
 
 class ExtractionStats {
 public:
@@ -66,6 +66,7 @@ public:
     std::string group;
     std::string image;
     std::string part;
+    int frame = 0;
     std::string mask;
     std::string invert;
     std::string rotate;
@@ -230,14 +231,14 @@ public:
     int translate_group_image(
         const AtlasReference &reference,
         std::string &translated_group_key,
-        std::string &translated_image_id)
+        std::string &translated_image_id, int *translated_frame = nullptr)
     {
         return catalog_.translate_group_image(
             julius_graphics_root_,
             reference.group,
             reference.image,
             translated_group_key,
-            translated_image_id);
+            translated_image_id, translated_frame);
     }
 
     int load_template_parts(
@@ -458,6 +459,10 @@ bool AugustusExtractionRun::build_expected_stamp(std::string &stamp) const
         hash_int64(hash, png_files->files[i].modified_time);
     }
 
+    for (const char *suffix : { ".legacy_extract.stamp", ".legacy_extract_desert.stamp", ".legacy_extract_northern.stamp" }) {
+        std::string dependency;
+        if (read_text_file(paths_.julius_graphics_path + suffix, dependency)) hash_string(hash, dependency.c_str());
+    }
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%s%016llx", kStampPrefix, static_cast<unsigned long long>(hash));
     stamp = buffer;
@@ -1388,7 +1393,7 @@ static bool translate_reference(
 
     std::string translated_group_key;
     std::string translated_image_id;
-    if (run.reference_resolver().translate_group_image(source_reference, translated_group_key, translated_image_id) <= 0) {
+    if (run.reference_resolver().translate_group_image(source_reference, translated_group_key, translated_image_id, &translated_reference.frame) <= 0) {
         log_error("Unable to translate Augustus legacy image reference", source_reference.group.c_str(), 0);
         return false;
     }
@@ -1409,6 +1414,7 @@ static void append_reference_attributes(std::string &xml, const AtlasReference &
     if (!reference.image.empty()) {
         append_attribute(xml, "image", reference.image);
     }
+    if (reference.frame > 0) append_attribute(xml, "frame", reference.frame);
     if (reference.has_x && reference.x != 0) {
         append_attribute(xml, "x", reference.x);
     }
@@ -1496,6 +1502,10 @@ static bool append_image_xml(
     append_indent(xml, 1);
     xml += "<image";
     append_attribute(xml, "id", image_data.id);
+    if (image_data.animation.present && image_data.animation.frames_data.empty()) {
+        append_attribute(xml, "sprite_offset_x", image_data.animation.x);
+        append_attribute(xml, "sprite_offset_y", image_data.animation.y);
+    }
     if (image_data.has_width && image_data.width > 0) {
         append_attribute(xml, "width", image_data.width);
     }
@@ -1529,7 +1539,7 @@ static bool append_image_xml(
         }
     }
 
-    if (image_data.animation.present) {
+    if (image_data.animation.present && !image_data.animation.frames_data.empty()) {
         append_indent(xml, 2);
         xml += "<animation";
         if (image_data.animation.has_frames) {
@@ -1676,6 +1686,7 @@ bool AugustusExtractionRun::export_group(
 
     std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
     append_attribute(xml, "name", output_group.group_key);
+    append_attribute(xml, "explicit_animations", "true");
     xml += ">\n";
 
     for (int image_index : output_group.image_indices) {
@@ -1817,6 +1828,35 @@ static bool parse_figure_model_image_id(const std::string &source_id, std::strin
     return true;
 }
 
+static bool figure_model_sprite_offset(const AtlasDocument &document, const AtlasImage &image, ReferenceResolver &resolver, std::unordered_set<std::string> &visited, int &x, int &y)
+{
+    if (!visited.insert(image.id).second) return false;
+    if (image.animation.present) {
+        x = image.animation.x;
+        y = image.animation.y;
+        return true;
+    }
+    for (const AtlasReference &layer : image.layers) {
+        if (layer.group.empty()) continue;
+        if (layer.is_local()) {
+            for (const AtlasImage &source : document.images) {
+                if (source.id == layer.image && figure_model_sprite_offset(document, source, resolver, visited, x, y)) return true;
+            }
+        } else {
+            vespasian::graphics::extraction::JuliusTemplateGroup group;
+            std::string image_id;
+            if (resolver.load_template_parts(layer, group, image_id) <= 0) continue;
+            const auto *source = group.find_image(image_id);
+            if (source && source->has_sprite_offset) {
+                x = source->sprite_offset_x;
+                y = source->sprite_offset_y;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, const LocalReferenceTargets &local_targets, const std::unordered_set<std::string> &exported_group_keys)
 {
     if (lowercase_ascii(document.family_name) != "walkers") return true;
@@ -1827,6 +1867,7 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         std::string stem;
         std::string entry_id;
         if (!parse_figure_model_image_id(image_data.id, stem, entry_id)) continue;
+        if (stem == "dog_walk") stem = "dog";
         const std::string target_group = local_targets.group_key_for_image_or(image_data.id, {});
         if (target_group.empty()) {
             log_error("Unable to resolve Augustus figure-sequence image target", image_data.id.c_str(), 0);
@@ -1852,14 +1893,52 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         }
         std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
         append_attribute(xml, "name", group_key);
+        append_attribute(xml, "explicit_animations", "true");
         xml += ">\n";
+        std::map<std::string, std::map<int, FigureModelAlias>> sequences;
         for (const auto &[entry_id, alias] : entries) {
-            append_indent(xml, 1);
-            xml += "<image";
-            append_attribute(xml, "id", entry_id);
-            append_attribute(xml, "group", alias.target_group);
-            append_attribute(xml, "image", alias.target_image);
-            xml += "/>\n";
+            const size_t separator = entry_id.rfind('_');
+            std::string name = entry_id.substr(0, separator);
+            if (name.compare(0, 8, "default_") == 0) name.replace(0, 8, "move_");
+            sequences[name].emplace(atoi(entry_id.substr(separator + 1).c_str()), alias);
+        }
+        for (const auto &[name, frames] : sequences) {
+            if (frames.begin()->first != 1 || frames.rbegin()->first != static_cast<int>(frames.size())) {
+                log_error("Augustus figure animation has a missing frame", stem.c_str(), 0);
+                return false;
+            }
+            const FigureModelAlias &base = frames.begin()->second;
+            xml += "    <image";
+            append_attribute(xml, "id", name);
+            append_attribute(xml, "group", base.target_group);
+            append_attribute(xml, "image", base.target_image);
+            xml += ">\n        <animation";
+            append_attribute(xml, "frames", static_cast<int>(frames.size()));
+            if (stem == "dog") {
+                // The upstream 39x39 canvas places the dog's ground contact at (19,29).
+                append_attribute(xml, "x", 19);
+                append_attribute(xml, "y", 29);
+            }
+            // Preserve the source sprite's inherited anchor when wrapping it in an animation.
+            for (const AtlasImage &source : document.images) {
+                if (source.id != base.target_image) continue;
+                std::unordered_set<std::string> visited;
+                int x = 0;
+                int y = 0;
+                if (stem != "dog" && figure_model_sprite_offset(document, source, reference_resolver_, visited, x, y)) {
+                    append_attribute(xml, "x", x);
+                    append_attribute(xml, "y", y);
+                }
+                break;
+            }
+            xml += ">\n";
+            for (const auto &[number, target] : frames) {
+                xml += "            <frame";
+                append_attribute(xml, "group", target.target_group);
+                append_attribute(xml, "image", target.target_image);
+                xml += "/>\n";
+            }
+            xml += "        </animation>\n    </image>\n";
         }
         xml += "</assetlist>\n";
         if (!write_text_file(append_path_component(model_directory, stem + ".xml"), xml)) {
@@ -1878,6 +1957,54 @@ bool AugustusExtractionRun::export_document(AtlasDocument &document)
         log_error("Unable to load Augustus source atlas png", document.png_path.c_str(), 0);
         return false;
     }
+
+    for (AtlasImage &image : document.images) {
+        AtlasAnimation &animation = image.animation;
+        if (!animation.present || !animation.frames_data.empty() || animation.frames <= 0) continue;
+        if (image.source_index + animation.frames >= document.images.size()) {
+            log_error("Augustus animation exceeds its source document", image.id.c_str(), animation.frames);
+            png_unload();
+            return false;
+        }
+        for (int frame = 1; frame <= animation.frames; ++frame) {
+            AtlasAnimationFrame target;
+            target.reference.group = "this";
+            target.reference.image = document.images[image.source_index + frame].id;
+            animation.frames_data.push_back(std::move(target));
+        }
+    }
+
+    // Some distributed atlases name construction shadows without declaring them.
+    // Resolve that source-format shorthand here, so the runtime receives an ordinary image.
+    std::unordered_set<std::string> declared_ids;
+    for (const AtlasImage &image : document.images) declared_ids.insert(image.id);
+    std::vector<AtlasImage> shadows;
+    for (const AtlasImage &image : document.images) image.for_each_reference([&](const AtlasReference &reference) {
+        const std::string suffix = "_Shadow";
+        if (!reference.is_local() || declared_ids.count(reference.image) || reference.image.size() <= suffix.size() ||
+            reference.image.compare(reference.image.size() - suffix.size(), suffix.size(), suffix) != 0) return;
+        const std::string base_id = reference.image.substr(0, reference.image.size() - suffix.size());
+        for (const AtlasImage &base : document.images) {
+            if (base.id != base_id || base.layers.size() != 1 || !base.layers.front().is_direct_crop) continue;
+            std::vector<AtlasReference> layers = base.layers;
+            int height_override = 0;
+            if (!normalize_direct_crop_footprints(base, layers, height_override)) return;
+            AtlasReference crop = layers.front();
+            const int side = std::min(crop.width, crop.height);
+            crop.src_x += crop.width - side;
+            crop.width = crop.height = side;
+            crop.x = crop.y = 0;
+            crop.part.clear();
+            AtlasImage shadow;
+            shadow.id = reference.image;
+            shadow.layers.push_back(std::move(crop));
+            shadow.source_index = document.images.size() + shadows.size();
+            shadows.push_back(std::move(shadow));
+            declared_ids.insert(reference.image);
+            break;
+        }
+    });
+    for (AtlasImage &shadow : shadows) document.images.push_back(std::move(shadow));
 
     std::vector<OutputGroup> groups = build_output_groups(document);
     for (const OutputGroup &output_group : groups) {

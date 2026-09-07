@@ -61,9 +61,9 @@ static FigureAction figure_action_callbacks[] = {
     figure_entertainer_action,
     figure_entertainer_action,
     figure_entertainer_action,
-    figure_trade_caravan_action,
+    figure_retired_native_action, // land_trade requires a native FigureType profile
     figure_trade_ship_action, //20
-    figure_trade_caravan_donkey_action,
+    figure_retired_native_action, // trade_follower requires a native FigureType profile
     figure_protestor_action,
     figure_rioter_action,
     figure_rioter_action,
