@@ -73,6 +73,7 @@ public:
         const BuildingType *type);
     void detach_unbound_ownership();
     void restore_unbound_ownership();
+    bool repair_support_ownership();
 
 private:
     void register_unbound_cells();

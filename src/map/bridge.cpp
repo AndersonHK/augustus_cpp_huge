@@ -1,5 +1,6 @@
 #include "building/building_record.h"
 #include "bridge.h"
+#include "city/figures.h"
 
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
@@ -576,19 +577,32 @@ int map_bridge_has_figures(int grid_offset)
     }
 
     Building &main = map_building_at(grid_offset).dynamic_bridge_owner();
+    int occupancy = 0;
     for (Building *piece = &main; piece; piece = piece->dynamic_bridge_next()) {
         const building *record = piece->record();
         if (!record) {
             break;
         }
+        if (map_has_figure_category_at(record->grid_offset, FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_AGGRESSIVE_ANIMAL)) {
+            return 2;
+        }
         if (map_has_figure_category_at(record->grid_offset, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE)) {
-            return 1;
+            occupancy = 1;
         }
         if (!piece->has_dynamic_bridge_next()) {
             break;
         }
     }
-    return 0;
+    return occupancy;
+}
+
+warning_type map_bridge_demolition_warning(int grid_offset)
+{
+    if (!map_is_bridge(grid_offset)) return WARNING_NONE;
+    if (city_figures_total_invading_enemies() > 0) return WARNING_ENEMIES_PREVENT_BRIDGE_DESTRUCTION;
+    const int occupancy = map_bridge_has_figures(grid_offset);
+    if (occupancy == 2 || (occupancy && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) return WARNING_PEOPLE_ON_BRIDGE;
+    return WARNING_NONE;
 }
 
 void map_bridge_update_after_rotate(int)

@@ -5,6 +5,14 @@
 #include "building/construction_area_tile.h"
 #include "building/properties.h"
 #include "map/building.h"
+#include "map/bridge.h"
+#include "game/defines.h"
+#include "figuretype/enemy.h"
+#include "figure/formation.h"
+#include "figure/movement.h"
+#include "building/construction_clear.h"
+#include "city/data_private.h"
+#include "city/warning.h"
 #include "map/figure.h"
 #include "map/property.h"
 #include "map/image.h"
@@ -21,15 +29,15 @@ inline void validate_placement_supports()
     using namespace building_construction;
     auto require = [](bool value, const char *message) { if (!value) throw std::runtime_error(message); };
     int x = -1, y = -1;
-    for (int yy = 3; yy < map_grid_height() - 5 && x < 0; ++yy) for (int xx = 3; xx < map_grid_width() - 5; ++xx) {
+    for (int yy = 3; yy < map_grid_height() - 8 && x < 0; ++yy) for (int xx = 3; xx < map_grid_width() - 8; ++xx) {
         bool clear = true;
-        for (int dy = 0; dy < 4; ++dy) for (int dx = 0; dx < 4; ++dx) {
+        for (int dy = 0; dy < 7; ++dy) for (int dx = 0; dx < 7; ++dx) {
             const int offset = map_grid_offset(xx + dx, yy + dy);
             if (!map_grid_is_inside(xx + dx, yy + dy, 1) || map_terrain_is(offset, TERRAIN_NOT_CLEAR) || map_figure_at(offset)) clear = false;
         }
-        if (clear) { x = xx; y = yy; break; }
+        if (clear) { x = xx + 2; y = yy + 2; break; }
     }
-    require(x >= 0, "Support fixture requires a clear 4x4 area");
+    require(x >= 0, "Support fixture requires a clear 7x7 area for rotated compositions");
     const auto *tower = definition_for_type(type_from_attr("tower"));
     const auto *wall = definition_for_type(type_from_attr("wall"));
     require(tower && wall, "Support fixture requires tower and wall data");
@@ -173,16 +181,157 @@ inline void validate_placement_supports()
     game_undo_perform();
     require(city_resource_count_warehouses_amount(resource_stone()) == stone_before, "Undo must return support material costs");
     require(!map_building_exists_at(offset) && map_terrain_get(offset) == original, "Undo must restore pre-support terrain and ownership");
+    // Previously placed walls have records that are retired on a later state update.
+    building_construction_set_type(wall, 0);
+    for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
+        require(building_construction_place_building(wall->type(), x + dx, y + dy, 1) != 0, "Could not place existing wall fixture");
+    }
+    const int stone_after_walls = city_resource_count_warehouses_amount(resource_stone());
+    building_construction_set_type(tower, 0);
+    require(ConstructionPlacementPlan(*tower, x, y, 1, 0).support_cost() == 0, "Existing walls must not be charged as missing supports");
+    require(building_construction_place_building(tower->type(), x, y, 1) != 0, "Could not place a tower on four existing walls");
+    require(city_resource_count_warehouses_amount(resource_stone()) == stone_after_walls, "Tower must not consume wall materials twice");
+    require_single_tower();
+    for (int tick = 0; tick < 4; ++tick) {
+        building_update_state();
+        map_tiles_update_all_walls();
+        require_single_tower();
+        for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
+            require(map_terrain_is(map_grid_offset(x + dx, y + dy), TERRAIN_WALL), "Retired walls must not remove the tower's wall terrain");
+        }
+        window_draw(1);
+    }
+    map_building_at(offset).destroy_without_rubble();
+    building_update_state();
+    for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
+        const int tile = map_grid_offset(x + dx, y + dy);
+        require(!map_building_exists_at(tile) && !map_terrain_is(tile, TERRAIN_BUILDING | TERRAIN_WALL), "Tower cleanup must release its complete footprint");
+    }
+    if (roadblock) {
+        for (bool existing_road : {false, true}) {
+            if (existing_road) map_terrain_add(offset, TERRAIN_ROAD);
+            building_construction_set_type(roadblock, 0);
+            require(game_undo_start_build(roadblock->type()) != 0, "Could not start blocker undo fixture");
+            require(building_construction_place_building(roadblock->type(), x, y, 1) != 0, "Could not place blocker fixture");
+            const auto *delta = map_building_at(offset).Foundation->terrain_delta_at(offset);
+            require(delta && !(delta->added_terrain & TERRAIN_ROAD), "Blocker must not own the underlying road");
+            game_undo_finish_build(0);
+            game_undo_perform();
+            require(!map_building_exists_at(offset) && bool(map_terrain_is(offset, TERRAIN_ROAD)) == existing_road, "Undo must restore the terrain before road/blocker placement");
+            require(building_construction_place_building(roadblock->type(), x, y, 1) != 0, "Could not replace blocker after undo");
+            building *record = const_cast<building *>(map_building_at(offset).record());
+            record->state = BUILDING_STATE_DELETED_BY_PLAYER;
+            record->is_deleted = 1;
+            building_update_state();
+            require(!map_building_exists_at(offset) && map_terrain_is(offset, TERRAIN_ROAD), "Deleting a blocker must leave its supporting road, however that road was placed");
+            map_terrain_remove(offset, TERRAIN_ROAD);
+        }
+    }
     const auto plaza = type_from_attr("plaza");
     if (plaza != BUILDING_NONE) {
-        require(game_undo_start_build(plaza) != 0, "Could not start plaza support fixture");
+        require(!ConstructionPlacementPlan(plaza, x, y, 1, 0).can_place(), "Plazas must reject clear ground");
+        require(!ConstructionPlacementPlan(plaza, x, y, 1, 1).can_place(), "Force place must not supply a road for plazas");
+        require(game_undo_start_build(plaza) != 0, "Could not start plaza fixture");
         ConstructionAreaTilePlacement area(x, y, x + 1, y + 1, plaza, true);
-        require(area.place() == 4 && area.support_cost() == 4 * model_get_construction_cost(type_from_attr("road")), "Plaza drag must quote all four missing roads");
-        require(map_terrain_is(offset, TERRAIN_ROAD) && map_property_is_plaza_earthquake_or_overgrown_garden(offset), "Plaza preview must contain road and plaza terrain");
+        require(area.place() == 0 && area.support_cost() == 0, "Plaza drag must skip clear ground without quoting roads");
         ConstructionAreaTilePlacement::restore_preview_map(plaza);
         require(map_terrain_get(offset) == original, "Plaza preview cancellation must restore bare ground");
+        const int second_road = map_grid_offset(x + 1, y + 1);
+        map_terrain_add(offset, TERRAIN_ROAD);
+        map_terrain_add(second_road, TERRAIN_ROAD);
+        require(game_undo_start_build(plaza) != 0, "Could not start mixed plaza fixture");
+        require(area.place() == 2 && area.support_cost() == 0, "Plaza drag must cover only the two existing roads");
+        require(map_property_is_plaza_earthquake_or_overgrown_garden(offset) && map_property_is_plaza_earthquake_or_overgrown_garden(second_road), "Plaza preview must decorate existing roads");
+        require(!map_terrain_is(map_grid_offset(x + 1, y), TERRAIN_ROAD), "Plaza preview must leave intervening clear ground alone");
+        ConstructionAreaTilePlacement::restore_preview_map(plaza);
+        require(map_terrain_is(offset, TERRAIN_ROAD) && !map_property_is_plaza_earthquake_or_overgrown_garden(offset), "Cancelling a plaza preview must preserve its original road");
+        map_terrain_remove(offset, TERRAIN_ROAD);
+        map_terrain_remove(second_road, TERRAIN_ROAD);
         game_undo_disable();
     }
+    for (const char *storage_name : {"granary", "warehouse"}) {
+        const auto *storage = definition_for_type(type_from_attr(storage_name));
+        require(storage, "Storage foundation fixture requires native definitions");
+        for (int rotation = 0; rotation < 4; ++rotation) {
+            ConstructionPlacementPlan clear(*storage, x, y, 1, 0, rotation, nullptr, rotation, false, true);
+            require(clear.can_place(), "Storage must place without pre-built roads in every rotation");
+            const int blocked = clear.parts().front().tiles.front().grid_offset;
+            map_terrain_add(blocked, TERRAIN_ROAD);
+            ConstructionPlacementPlan shifted(*storage, x, y, 1, 1, rotation, nullptr, rotation, false, true);
+            require(shifted.can_place(), "Shift must allow storage to clear roads through the shared placement system");
+            map_terrain_remove(blocked, TERRAIN_ROAD);
+        }
+        building_construction_set_type(storage, 0);
+        require(game_undo_start_build(storage->type()) != 0, "Could not start storage foundation fixture");
+        require(building_construction_place_building(storage->type(), x, y, 1), "Could not construct storage on clear ground");
+        Building &built = map_building_at(offset);
+        const auto &foundation_state = built.Foundation->state();
+        int internal_roads = 0;
+        for (const auto &storage_cell : built.Foundation->cells(foundation_state.rotation())) {
+            if (!(storage_cell.definition->added_terrain & TERRAIN_ROAD)) continue;
+            ++internal_roads;
+            require(map_terrain_is(map_grid_offset(foundation_state.origin_x() + storage_cell.x, foundation_state.origin_y() + storage_cell.y), TERRAIN_ROAD), "Foundation must publish all storage internal roads");
+        }
+        require(internal_roads > 0, "Storage foundation must declare its own internal roads");
+        game_undo_finish_build(0);
+        game_undo_perform();
+    }
+
+    // Exercise the real clear tool as well as the policy: any last invader blocks deletion,
+    // and a peaceful figure on an earlier span must not hide a hostile on a later one.
+    const auto original_figures = city_data.figure;
+    const int original_allow_occupied = config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES);
+    auto restore_policy = std::shared_ptr<void>(nullptr, [&](void *) { city_data.figure = original_figures; config_set(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES, original_allow_occupied); });
+    for (int dx = 0; dx < 3; ++dx) map_terrain_add(map_grid_offset(x + dx, y), TERRAIN_WATER);
+    require(map_bridge_create_native_chain(offset, 3, DIR_2_RIGHT, 0, 0), "Could not create bridge policy fixture");
+    city_data.figure.enemies = city_data.figure.imperial_soldiers = 0;
+    require(!map_bridge_demolition_warning(offset).name, "Empty bridge must be deletable outside invasions");
+    for (bool imperial : {false, true}) {
+        city_data.figure.enemies = imperial ? 0 : 1;
+        city_data.figure.imperial_soldiers = imperial ? 1 : 0;
+        for (int allow : {0, 1}) {
+            config_set(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES, allow);
+            require(map_bridge_demolition_warning(offset).name == WARNING_ENEMIES_PREVENT_BRIDGE_DESTRUCTION.name, "Even one remaining invader must block demolition regardless of occupied-bridge setting");
+            const auto clear_type = type_from_attr("clear_land");
+            game_undo_start_build(clear_type);
+            require(building_construction_clear_land(1, x, y, x + 2, y) == 0, "Blocked bridge preview must quote no demolition");
+            require(building_construction_clear_land(0, x, y, x + 2, y) == 0, "Clear tool must reject invasion bridge demolition before confirmation");
+            require(map_is_bridge(offset), "Rejected demolition must preserve the bridge");
+            game_undo_disable();
+        }
+    }
+    city_data.figure.enemies = city_data.figure.imperial_soldiers = 0;
+    Figure *citizen = Figure::create(FIGURE_ENGINEER, x, y, DIR_2_RIGHT);
+    Figure *hostile = Figure::create(FIGURE_ENEMY43_SPEAR, x + 2, y, DIR_6_LEFT);
+    require(citizen && citizen->id() && hostile && hostile->id(), "Could not create bridge occupants");
+    require(map_bridge_has_figures(offset) == 2 && map_bridge_demolition_warning(offset).name == WARNING_PEOPLE_ON_BRIDGE.name, "Hostile on later bridge span must override earlier peaceful occupancy");
+    hostile->remove();
+    config_set(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES, 0);
+    require(map_bridge_has_figures(offset) == 1 && map_bridge_demolition_warning(offset).name, "Peaceful occupancy must respect the safety setting");
+    config_set(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES, 1);
+    require(!map_bridge_demolition_warning(offset).name, "Peaceful occupied bridge may be demolished only when enabled outside invasions");
+    citizen->remove();
+    map_bridge_remove(offset, 0);
+    building_update_state();
+    for (int dx = 0; dx < 3; ++dx) map_terrain_remove(map_grid_offset(x + dx, y), TERRAIN_WATER);
+    Figure *retreating = Figure::create(FIGURE_ENEMY43_SPEAR, x, y, DIR_2_RIGHT);
+    require(retreating && retreating->id(), "Could not create retreat fixture");
+    const int retreat_formation = formation_create_enemy(FIGURE_ENEMY43_SPEAR, x, y, 0, DIR_2_RIGHT, 0, 0, 0, 0);
+    require(retreat_formation > 0, "Could not create native enemy formation for retreat fixture");
+    retreating->formation_id = retreat_formation;
+    retreating->action_state = FIGURE_ACTION_148_FLEEING;
+    retreating->source_x = static_cast<unsigned char>(x + 3);
+    retreating->source_y = static_cast<unsigned char>(y);
+    retreating->progress_on_tile = 0;
+    int expected_progress = 0;
+    for (int step = 0; step < game_defines_enemy_retreat_speed_multiplier(); ++step) expected_progress = figure_movement_advance_tile_progress(expected_progress);
+    figure_enemy43_spear_action(retreating);
+    require(retreating->progress_on_tile == expected_progress, "Fleeing must consume exactly the mod-defined movement multiplier");
+    retreating->remove();
+    formation_get(retreat_formation)->remove();
+    city_warning_clear_all();
+    std::fprintf(stdout, "Retreat movement multiplier contract passed: multiplier=%d.\n", game_defines_enemy_retreat_speed_multiplier());
+    std::fprintf(stdout, "Storage foundation and D12 bridge demolition contracts passed.\n");
     building_construction_clear_type();
-    std::fprintf(stdout, "Placement support contracts passed: four rotations, partial walls, overlap rejection, road quote, single tower after wall refresh, publication and undo.\n");
+    std::fprintf(stdout, "Placement support contracts passed: four rotations, wall supersession cleanup, blocker road retention and undo, and plazas restricted to existing roads.\n");
 }

@@ -6,11 +6,13 @@
 #include "translation/translation.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
+#include "graphics/renderer.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/weather.h"
 #include "window/main_menu.h"
+#include "window/city.h"
 #include "window/plain_message_dialog.h"
 #include "window/select_list.h"
 #include "window/user_path_setup.h"
@@ -47,7 +49,9 @@
 #include <string.h>
 #include <vector>
 #include <stdexcept>
+#include <filesystem>
 #include <SDL_mouse.h>
+#include <SDL_surface.h>
 
 #define MAX_LANGUAGE_DIRS 20
 #define MAX_WIDGETS       64
@@ -73,6 +77,8 @@
 #define NUMERICAL_RANGE_X        20
 #define NUMERICAL_SLIDER_PADDING  2
 #define NUMERICAL_DOT_SIZE       20
+#define NUMERICAL_VALUE_WIDTH    50
+#define NUMERICAL_TRACK_BLOCKS   30
 // bottom buttons
 #define NUM_BOTTOM_BUTTONS 6
 
@@ -363,7 +369,6 @@ static config_widget page_difficulty[] = {
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_GODS_EFFECTS, "TR_CONFIG_GODS_EFFECTS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_JEALOUS_GODS, "TR_CONFIG_JEALOUS_GODS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_GLOBAL_LABOUR, "TR_CONFIG_GLOBAL_LABOUR", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_CHECKBOX, CONFIG_GP_CH_FIXED_WORKERS, "TR_CONFIG_FIXED_WORKERS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_WOLVES_BLOCK, "TR_CONFIG_WOLVES_BLOCK", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_AUTO_KILL_ANIMALS, "TR_CONFIG_AUTO_KILL_ANIMALS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY, "TR_CONFIG_RANDOM_COLLAPSES_TAKE_MONEY", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
@@ -395,7 +400,6 @@ static config_widget city_mgmt_widgets_by_category[CATEGORY_CITY_COUNT][MAX_WIDG
     },
     // Roads
     {
-        {TYPE_CHECKBOX, CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT, "TR_CONFIG_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_GP_CH_ROAMERS_DONT_SKIP_CORNERS, "TR_CONFIG_ROAMERS_DONT_SKIP_CORNERS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_GP_CH_TOWER_SENTRIES_GO_OFFROAD, "TR_CONFIG_TOWER_SENTRIES_GO_OFFROAD", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_GP_CARAVANS_MOVE_OFF_ROAD, "TR_CONFIG_CARAVANS_MOVE_OFF_ROAD", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
@@ -506,7 +510,7 @@ static numerical_range_widget ranges[] = {
     {130, 25,   0, 100,  1, 0},   //  video %
     { 50, 18,   0, 100, 10, 0},   //  scroll speed %
     {146, 24,   0,   4,  1, 0},   //  difficulty enum index (0..4)
-    { 50, 30,   0,   5,  1, 0},   //  max grand temples
+    { NUMERICAL_VALUE_WIDTH, NUMERICAL_TRACK_BLOCKS, 0, 5, 1, 0}, // max grand temples
     { 50, 30,   1,  20,  1, 0},   //  autosave slots
     { 50, 30,   0,  TOTAL_GAME_SPEEDS - 1,  1, 0},   //  default game speed index
     { 50, 18,   0, 100,  5, 0},   //  rain overlay intensity %
@@ -1453,6 +1457,7 @@ static void handle_list_box_select(unsigned int index, int is_double_click)
     }
 }
 
+static void numerical_range_draw(const numerical_range_widget *r, int x, int y, const uint8_t *value_text, int extra_w, color_t color = COLOR_MASK_NONE);
 #include "config_mod_settings.h"
 
 static void op_measure_space(const config_widget *w, int avail_text_w, int *out_h)
@@ -1612,9 +1617,9 @@ static int  op_input_desc(const config_widget *w, int x, int y, int avail_text_w
 
 //  Numerical - slider
 
-static void numerical_range_draw(const numerical_range_widget *r, int x, int y, const uint8_t *value_text, int extra_w)
+static void numerical_range_draw(const numerical_range_widget *r, int x, int y, const uint8_t *value_text, int extra_w, color_t color)
 {
-    text_draw(value_text, x, y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(value_text, x, y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), color);
     ui_runtime_draw_slider(
         x + r->x,
         y + 4,
@@ -2148,6 +2153,19 @@ static void handle_input(const mouse *m, const hotkeys *h)
     unsigned prev_focus = data.focus_button;
     data.focus_button = 0;
 
+    if (!active_mod_slider.empty()) {
+        build_layout_for_current_page();
+        const auto span = content_span_for_page(data.page, data.layout.has_scrollbar);
+        for (int v = 0; v < data.layout.visible_to - data.layout.visible_from; ++v) {
+            const auto *row = data.layout.rows[v];
+            if (row->type != TYPE_MOD_SETTING || screen_mod_settings.at(row->subtype).key() != active_mod_slider) continue;
+            unsigned focused = 0;
+            op_input_mod_setting(row, span.x, data.layout.y[v] + row->y_offset, span.text_w, md, &focused);
+            return;
+        }
+        active_mod_slider.clear();
+    }
+
     //  categories first (so clicks don't fall through)
 
     if (page_is_category(data.page)) {
@@ -2331,6 +2349,7 @@ static void set_page(unsigned int page)
 
 static void init(unsigned int page, unsigned int category, int show_background_image)
 {
+    active_mod_slider.clear();
     memset(&data, 0, sizeof(data));
     data.page = page;
     if (page == CONFIG_PAGE_UI_CHANGES) {
@@ -2438,16 +2457,20 @@ void window_config_validate_mod_settings()
     for (int page = 0; page < CONFIG_PAGES; ++page) {
         const int categories = page == CONFIG_PAGE_UI_CHANGES ? CATEGORY_UI_COUNT : page == CONFIG_PAGE_CITY_MANAGEMENT_CHANGES ? CATEGORY_CITY_COUNT : 1;
         for (int category = 0; category < categories; ++category) {
+            const auto parent = window_get_id();
             window_config_show(static_cast<window_config_page>(page), category, 0);
             build_layout_for_current_page();
             for (const auto &row : effective_config_rows) if (row.type == TYPE_MOD_SETTING) ++occurrences[screen_mod_settings.at(row.subtype).key()];
             window_draw(1);
+            window_go_back();
+            if (!window_is(parent)) throw std::runtime_error("Configuration category left a duplicate window on the stack");
         }
     }
     for (const auto &setting : mod_content::runtime().settings()) if (occurrences[setting.key()] != 1) throw std::runtime_error("In-game settings omitted or duplicated " + setting.key());
     const auto settings = mod_content::runtime().settings();
     for (const auto &setting : settings) {
         if (!setting.effective) continue;
+        const auto parent = window_get_id();
         window_config_show(CONFIG_PAGE_GENERAL, 0, 0);
         const int original = data.config_values[CONFIG_UI_DISPLAY_FPS].new_value;
         data.config_values[CONFIG_UI_DISPLAY_FPS].new_value = !original;
@@ -2458,6 +2481,82 @@ void window_config_validate_mod_settings()
         const auto found = std::find_if(current.begin(), current.end(), [&](const auto &entry) { return entry.key() == setting.key(); });
         if (found == current.end() || found->value != alternate) throw std::runtime_error("In-game mod setting did not apply");
         apply_screen_mod_setting(setting.key(), setting.value);
+        window_go_back();
+        if (!window_is(parent)) throw std::runtime_error("Live mod setting left a duplicate configuration window on the stack");
     }
-    std::fprintf(stdout, "In-game mod settings contracts passed: every setting appears once, live changes retain the menu and pending hardcoded edits.\n");
+    // Exercise the real mouse route, including capture outside the slider and
+    // footer navigation after several live reloads from a scrolled page.
+    const std::string key = "Augustus:ENEMY_RETREAT_SPEED";
+    auto slider_value = [&]() {
+        const auto &current = mod_content::runtime().settings();
+        const auto found = std::find_if(current.begin(), current.end(), [&](const auto &entry) { return entry.key() == key && entry.effective; });
+        return found == current.end() ? -1 : found->value;
+    };
+    const int original_slider = slider_value();
+    if (original_slider != -1) {
+        auto mouse_frame = [](int x, int y, int down) {
+            mouse_set_logical_position(x + screen_dialog_offset_x(), y + screen_dialog_offset_y());
+            if (down >= 0) mouse_set_left_down(down);
+            window_draw(1);
+        };
+        for (int footer : {3, 4}) {
+            window_city_show();
+            window_config_show(CONFIG_PAGE_GAMEPLAY_CHANGES, 0, 0);
+            build_layout_for_current_page();
+            int index = -1;
+            for (size_t i = 0; i < effective_config_rows.size(); ++i) {
+                const auto &row = effective_config_rows[i];
+                if (row.type == TYPE_MOD_SETTING && screen_mod_settings[row.subtype].key() == key) index = static_cast<int>(i);
+            }
+            if (index < 1) throw std::runtime_error("Retreat slider missing from the scrolled difficulty page");
+            scrollbar.scroll_position = std::min(scrollbar.max_scroll_position, static_cast<unsigned>(index - 1));
+            window_draw(1);
+            const unsigned scroll = scrollbar.scroll_position;
+            if (!scroll) throw std::runtime_error("Slider interaction test did not scroll the page");
+            const int original_fps = data.config_values[CONFIG_UI_DISPLAY_FPS].new_value;
+            if (footer == 3) data.config_values[CONFIG_UI_DISPLAY_FPS].new_value = !original_fps;
+            const int pending_fps = data.config_values[CONFIG_UI_DISPLAY_FPS].new_value;
+            for (int target : {2, 1}) {
+                build_layout_for_current_page();
+                const int visible = index - data.layout.visible_from;
+                if (visible < 0 || visible >= data.layout.visible_to - data.layout.visible_from) throw std::runtime_error("Retreat slider is not visible");
+                const auto span = content_span_for_page(data.page, data.layout.has_scrollbar);
+                const auto *row = data.layout.rows[visible];
+                int height = 0;
+                op_measure_mod_setting(row, span.text_w, &height);
+                const int y = data.layout.y[visible] + row->y_offset + height - 14;
+                const auto geometry = mod_setting_slider_geometry();
+                const int start = span.x + geometry.x + UiSliderPrimitive::Padding + UiSliderPrimitive::ThumbSize / 2;
+                const int end = span.x + geometry.x + geometry.width_blocks * BLOCK_SIZE - UiSliderPrimitive::Padding - UiSliderPrimitive::ThumbSize / 2;
+                const int before = slider_value();
+                mouse_frame(start, y, 1);
+                mouse_frame(target == 2 ? end + 50 : start - 50, y, -1);
+                if (active_mod_slider != key || active_mod_slider_value != target || slider_value() != before) throw std::runtime_error("Slider drag failed to preview or applied before release");
+                mouse_frame(target == 2 ? end + 50 : start - 50, y, 0);
+                window_draw(1);
+                if (!active_mod_slider.empty() || slider_value() != target) throw std::runtime_error("Slider release did not apply its value");
+                if (!window_is(WINDOW_CONFIG) || data.page != CONFIG_PAGE_GAMEPLAY_CHANGES || scrollbar.scroll_position != scroll || data.config_values[CONFIG_UI_DISPLAY_FPS].new_value != pending_fps) throw std::runtime_error("Slider changed scroll position, page, or pending hardcoded edits");
+                if (footer == 3) {
+                    const std::filesystem::path output("out/ui-window-review");
+                    std::filesystem::create_directories(output);
+                    const int width = screen_pixel_width(), height_pixels = screen_pixel_height();
+                    std::vector<color_t> pixels(static_cast<size_t>(width) * height_pixels);
+                    if (!graphics_renderer()->save_screen_buffer(pixels.data(), 0, 0, width, height_pixels, width)) throw std::runtime_error("Slider screenshot failed");
+                    SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(pixels.data(), width, height_pixels, 32, width * 4, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+                    if (!surface) throw std::runtime_error("Slider screenshot allocation failed");
+                    const int result = SDL_SaveBMP(surface, (output / ("mod-slider-" + std::to_string(target) + ".bmp")).string().c_str());
+                    SDL_FreeSurface(surface);
+                    if (result) throw std::runtime_error("Slider screenshot write failed");
+                }
+            }
+            apply_screen_mod_setting(key, original_slider);
+            const auto &button = bottom_buttons[footer];
+            mouse_frame(button.x + button.width / 2, button.y + button.height / 2, 1);
+            mouse_frame(button.x + button.width / 2, button.y + button.height / 2, 0);
+            if (!window_is(WINDOW_CITY)) throw std::runtime_error("OK/Cancel failed to return to the city after slider changes");
+            if (config_get(CONFIG_UI_DISPLAY_FPS) != original_fps) throw std::runtime_error("Cancel applied an unrelated pending hardcoded edit");
+        }
+        std::fprintf(stdout, "Mod slider interaction passed: drag preview, outside release, retained scroll/page, Cancel and OK navigation.\n");
+    }
+    std::fprintf(stdout, "In-game mod settings contracts passed: every setting appears once, live changes retain the menu and pending hardcoded edits without duplicate windows.\n");
 }

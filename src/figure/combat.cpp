@@ -10,6 +10,7 @@
 #include "figure/sound.h"
 #include "figure/unit_type.h"
 #include "game/settings.h"
+#include "game/defines.h"
 #include "map/figure.h"
 #include "sound/effect.h"
 
@@ -177,6 +178,14 @@ static void hit_opponent(Figure *f)
             opponent_formation->uses_layout("double_line_2")) {
             opponent_defense += defender_melee->double_line_defense_bonus;
         }
+    }
+
+    const int low_morale_divisor = game_defines_enemy_low_morale_combat_divisor();
+    if (attacker_has_formation && (category_for(*f) & FIGURE_CATEGORY_HOSTILE) && m->has_low_morale()) {
+        figure_attack /= low_morale_divisor;
+    }
+    if (defender_has_formation && (cat & FIGURE_CATEGORY_HOSTILE) && opponent_formation->has_low_morale()) {
+        opponent_defense /= low_morale_divisor;
     }
 
     int max_damage = figure_damage_limit_for_type(type_of(*opponent));

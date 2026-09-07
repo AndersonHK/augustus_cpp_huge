@@ -54,9 +54,57 @@ int main(int argc, char **argv)
         rejects([&] { s.expand("$[Missing:RA]", "B"); });
         rejects([&] { s.expand("$[A:RA", "B"); });
         if (argc > 1) {
+            write_atomic(root / "Parent/mod.xml", "<mod><name value='Parent'/><description value='Test'/><version value='1'/><dependencies/><settings><setting id='PERCENT' name='Worker percentage' type='int(1,100)' default='45'/><setting id='ENABLED' name='Enabled' type='bool' default='false' legacy_config_key='old_enabled'/></settings></mod>");
+            write_atomic(root / "Parent/defines.xml", "<defines><labor percentage='$PERCENT' enabled='$ENABLED'/></defines>");
+            write_atomic(root / "Child/mod.xml", "<mod><name value='Child'/><description value='Test'/><version value='1'/><dependencies><mod name='Parent'/></dependencies><settings><setting id='PERCENT' name='Worker percentage' type='int(1,100)' default='38'/></settings></mod>");
+            write_atomic(root / "Vespasian.ini", "old_enabled=1\n");
+            Session inherited;
+            inherited.load({{"Parent", root / "Parent"}, {"Child", root / "Child"}}, root / "inherited-values.xml");
+            check(inherited.settings().size() == 2 && inherited.settings()[0].key() == "Parent:PERCENT" && inherited.settings()[0].default_value == 38 && inherited.settings()[1].value == 1, "Setting redeclaration must replace in place and import legacy toggle");
+            check(inherited.expand("$PERCENT", "Parent") == "38" && inherited.expand("$PERCENT", "Child") == "38", "Both mod namespaces must resolve the replacement setting");
+            inherited.save();
+            Session parent_only; parent_only.load({{"Parent", root / "Parent"}}, root / "inherited-values.xml");
+            check(parent_only.settings()[0].value == 45 && parent_only.settings()[1].value == 1, "Saving unrelated preferences must not freeze the child mod's default");
+            inherited.set("Parent:PERCENT", 42); inherited.set("Parent:ENABLED", 0); inherited.save();
+            inherited.load({{"Parent", root / "Parent"}, {"Child", root / "Child"}}, root / "inherited-values.xml");
+            check(inherited.settings()[0].value == 42 && inherited.settings()[1].value == 0, "Explicit mod preferences must override redeclared defaults and legacy INI values");
+            inherited.load({{"Parent", root / "Parent"}}, {});
+            check(inherited.settings()[0].value == 45, "Removing a child mod must restore the parent's default");
             Session real; auto repo = std::filesystem::u8path(argv[1]);
             real.load({{"Julius", repo / "Mods/Julius"}, {"Augustus", repo / "Mods/Augustus"}, {"Vespasian", repo / "Mods/Vespasian"}}, {});
             std::cout << "Compiled " << real.files().size() << " repository definitions\n";
+            for (const auto &stack : {std::vector<Layer>{{"Julius", repo / "Mods/Julius"}}, std::vector<Layer>{{"Julius", repo / "Mods/Julius"}, {"Augustus", repo / "Mods/Augustus"}}, real.layers()}) {
+                Session workforce; workforce.load(stack, {});
+                int percentages = 0, toggles = 0;
+                const int expected = stack.size() == 3 ? 38 : 45;
+                for (const auto &setting : workforce.settings()) {
+                    if (setting.id == "FIXED_WORKER_PERCENTAGE") {
+                        ++percentages;
+                        check(setting.mod == "Augustus" && setting.effective && setting.value == expected && setting.default_value == expected && setting.category == "Difficulty", "Wrong worker percentage ownership/default in mod stack");
+                    }
+                    if (setting.id == "FIXED_WORKERS") { ++toggles; check(setting.mod == "Augustus" && setting.effective && !setting.value, "Fixed workforce toggle must be an optional Augustus setting"); }
+                }
+                check(percentages == (stack.size() > 1 ? 1 : 0) && toggles == percentages, "Fixed workforce controls duplicated or leaked into Julius");
+                if (stack.size() > 1) {
+                    workforce.set("Augustus:FIXED_WORKERS", 1);
+                    const auto document = parse(*workforce.file(repo / "Mods/Augustus/defines.xml"));
+                    check(document.child("labor")->attribute("fixed_workers") == "true" && document.child("labor")->attribute("fixed_worker_percentage") == std::to_string(expected), "Workforce settings must drive actual labor defines");
+                }
+            }
+            bool retreat_setting_found = false;
+            for (const auto &setting : real.settings()) if (setting.key() == "Augustus:ENEMY_RETREAT_SPEED") {
+                check(setting.effective && !setting.boolean && setting.minimum == 1 && setting.maximum == 2 && setting.default_value == 1 && setting.category == "Difficulty", "Retreat speed must be an effective Augustus difficulty setting with normal/double speed choices");
+                retreat_setting_found = true;
+            }
+            check(retreat_setting_found, "Retreat speed must be exposed in the shared mod settings catalog");
+            for (int speed : {2, 1}) {
+                real.set("Augustus:ENEMY_RETREAT_SPEED", speed);
+                const auto *defines = real.file(repo / "Mods/Augustus/defines.xml");
+                check(defines != nullptr, "Augustus defines must resolve through the settings compiler");
+                const auto resolved = parse(*defines);
+                const auto *retreat = resolved.child("enemy_retreat");
+                check(retreat && retreat->attribute("speed_multiplier") == std::to_string(speed), "Mod setting must parameterize the actual retreat define");
+            }
             for (const auto &pair : {std::pair<const char *, const char *>{"WILDLIFE_BLOCKED_BY_DEFENSES", "wolf"}, {"RIOTERS_ATTACK_DEFENSES", "rioter"}}) {
                 const auto path = repo / "Mods/Augustus/FigureType" / (std::string(pair.second) + ".xml");
                 const char *attribute = std::string(pair.second) == "wolf" ? "recheck_animal_terrain" : "attack_fireproof_defenses";

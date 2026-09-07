@@ -61,4 +61,14 @@ void FoundationState::record_delta(FoundationTerrainDelta delta)
     terrain_deltas_.push_back(delta);
 }
 
+bool FoundationState::release_added_terrain(int cell_index, uint32_t terrain)
+{
+    bool changed = false;
+    for (auto &delta : terrain_deltas_) if (delta.cell_index == cell_index) {
+        changed = changed || (delta.added_terrain & terrain) != 0;
+        delta.added_terrain &= ~terrain;
+    }
+    return changed;
+}
+
 } // namespace building_type_registry_impl

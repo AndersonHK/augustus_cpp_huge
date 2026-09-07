@@ -656,6 +656,13 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     if (version <= SAVE_GAME_LAST_LEGACY_FIGURE_MOVEMENT_GRAIN && !figure_progress_is_action_timer(f)) {
         f.progress_on_tile = static_cast<unsigned char>(figure_movement_legacy_progress_to_runtime(f.progress_on_tile));
     }
+    // These effects were created with a walker's completed-tile value, already past their lifetime.
+    if (version <= SAVE_GAME_LAST_MOVEMENT_INITIALIZED_EFFECT_TIMERS && f.state == FIGURE_STATE_ALIVE &&
+        f.progress_on_tile == FIGURE_TILE_PROGRESS_MAX && figure_progress_is_action_timer(f) &&
+        f.type != FIGURE_FISH_GULLS && f.action_state != FIGURE_ACTION_150_ATTACK) {
+        f.progress_on_tile = 0;
+        log_warning("Repaired movement-initialized projectile/explosion lifetime", nullptr, f.id());
+    }
     if (version <= SAVE_GAME_LAST_STATIC_PATHS_AND_ROUTES) {
         f.routing_path_id = buffer_read_i16(buf);
         f.routing_path_current_tile = buffer_read_i16(buf);

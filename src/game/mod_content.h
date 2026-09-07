@@ -34,6 +34,8 @@ Node overlay(Node base, const Node &upper);
 
 struct Setting {
     std::string mod, id, name, category, description;
+    std::string legacy_config_key;
+    std::set<std::string> declaration_mods;
     bool boolean = true;
     int minimum = 0, maximum = 1, default_value = 0, value = 0;
     bool effective = false;

@@ -920,6 +920,7 @@ void Building::initialize_loaded_foundation()
         log_warning("Unable to rebind loaded Building foundation", type ? type->attr() : "unknown", id);
         return;
     }
+    if (Foundation->repair_support_ownership()) log_warning("Repaired building ownership of independent supporting terrain", nullptr, id);
     if (!Foundation->has_owner_controlled_passage() || (type && type->bridge().is_bridge())) {
         return;
     }

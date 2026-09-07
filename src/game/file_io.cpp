@@ -714,7 +714,7 @@ template <typename Emit> static void visit_native_savegame_layout(savegame_versi
     emit(offsetof(savegame_state, random_grid), "random_grid", GRID_SIZE_BUF_U8, 0);
     emit(offsetof(savegame_state, desirability_grid), "desirability_grid", GRID_SIZE_BUF_U8, 1);
     emit(offsetof(savegame_state, elevation_grid), "elevation_grid", GRID_SIZE_BUF_U8, 1);
-    emit(offsetof(savegame_state, building_damage_grid), "building_damage_grid", GRID_SIZE_BUF_U8, 1);
+    emit(offsetof(savegame_state, building_damage_grid), "building_damage_grid", version <= SAVE_GAME_LAST_BYTE_BUILDING_DAMAGE ? GRID_SIZE_BUF_U8 : GRID_SIZE_BUF_U32, 1);
     emit(offsetof(savegame_state, aqueduct_backup_grid), "aqueduct_backup_grid", GRID_SIZE_BUF_U8, 1);
     emit(offsetof(savegame_state, sprite_backup_grid), "sprite_backup_grid", GRID_SIZE_BUF_U8, 1);
     emit(offsetof(savegame_state, figures), "figures", version_data.piece_sizes.figures, 1);

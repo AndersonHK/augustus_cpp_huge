@@ -7,6 +7,9 @@
         <mod name="Julius" />
     </dependencies>
     <settings>
+        <setting id="FIXED_WORKERS" name="Fixed worker pool" type="bool" default="false" category="Difficulty" description="Calculate workers from a fixed percentage of plebeian population instead of their ages." legacy_config_key="gameplay_change_fixed_workers" />
+        <setting id="FIXED_WORKER_PERCENTAGE" name="Fixed worker pool percentage" type="int(1,100)" default="45" category="Difficulty" description="Percentage of plebeian population available for work when Fixed worker pool is enabled, before employment blessings." />
+        <setting id="ENEMY_RETREAT_SPEED" name="Enemy retreat speed multiplier" type="int(1,2)" default="1" category="Difficulty" description="Movement speed while invading enemies retreat: 1 is normal speed, 2 is double speed." />
         <setting id="WILDLIFE_BLOCKED_BY_DEFENSES" name="Defenses block wildlife" type="bool" default="true" category="City Management/Roadblocks" description="Recheck animal movement when defenses are built across a route. Disable to reproduce the original traversal behavior." />
         <setting id="RIOTERS_ATTACK_DEFENSES" name="Rioters attack fireproof defenses" type="bool" default="true" category="Difficulty" description="Allow rioters to destroy gatehouses, palisades and palisade gates even when they are fireproof." />
         <setting id="MULTIPLE_BARRACKS" name="Allow multiple barracks" type="bool" default="false" category="Difficulty" />

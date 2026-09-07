@@ -24,6 +24,8 @@ typedef struct {
     int formation_test;
     int mod_settings_test;
     int catch_up_test;
+    int combat_test;
+    int placement_test;
     int editor_test;
 } augustus_args;
 

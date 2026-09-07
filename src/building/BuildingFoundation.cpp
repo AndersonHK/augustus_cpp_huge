@@ -1,6 +1,7 @@
 #include "building/BuildingFoundation.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "map/aqueduct.h"
@@ -48,6 +49,21 @@ BuildingFoundation::~BuildingFoundation()
 Building &BuildingFoundation::owner() const { return *owner_; }
 const FoundationDef &BuildingFoundation::definition() const { return *definition_; }
 FoundationState &BuildingFoundation::state() const { return *state_; }
+bool BuildingFoundation::repair_support_ownership()
+{
+    if (!state_ || !definition_ || !state_->is_published()) return false;
+    bool repaired = false;
+    int index = 0;
+    for (const auto &cell : definition_->cells()) {
+        const auto *support = cell.support_type.empty() ? nullptr : definition_for_type(type_from_attr(cell.support_type.c_str()));
+        const auto *foundation = support ? support->foundation_def() : nullptr;
+        if (foundation && foundation->cells().size() == 1 && !foundation->cells().front().binds_building) {
+            repaired = state_->release_added_terrain(index, foundation->cells().front().added_terrain) || repaired;
+        }
+        ++index;
+    }
+    return repaired;
+}
 int BuildingFoundation::width(int rotation) const { return definition_->rotated_width(rotation); }
 int BuildingFoundation::height(int rotation) const { return definition_->rotated_height(rotation); }
 std::vector<RotatedFoundationCell> BuildingFoundation::cells(int rotation) const
@@ -211,6 +227,11 @@ int BuildingFoundation::remove()
         if (!map_grid_is_valid_offset(delta.grid_offset)) {
             continue;
         }
+        // A replacement now owns the cell, including its terrain and draw footprint.
+        if (delta.bound_building && map_building_exists_at(delta.grid_offset) &&
+            map_building_at(delta.grid_offset).record() != owner_->record()) {
+            continue;
+        }
         const FoundationCellDefinition *cell =
             delta.cell_index >= 0 && delta.cell_index < static_cast<int>(canonical_cells.size())
             ? &canonical_cells[delta.cell_index]
@@ -239,6 +260,10 @@ int BuildingFoundation::remove()
         for (const RotatedFoundationCell &cell : definition_->rotated_cells(rotation)) {
             const int grid_offset = map_grid_offset(origin_x + cell.x, origin_y + cell.y);
             if (!cell.definition) {
+                continue;
+            }
+            if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
+                map_building_at(grid_offset).record() != owner_->record()) {
                 continue;
             }
             if (cell.definition->added_terrain & TERRAIN_AQUEDUCT) {

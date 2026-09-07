@@ -73,6 +73,7 @@ void figure_create_explosion_cloud(int x, int y, int size, int alt_sound)
         Figure *f = Figure::create(FIGURE_EXPLOSION,
             x + tile_offset, y + tile_offset, DIR_0_TOP);
         if (f->id()) {
+            f->progress_on_tile = 0; // Effect age, not ordinary walker tile progress.
             f->cross_country_x += cc_offset;
             f->cross_country_y += cc_offset;
             f->destination_x = static_cast<unsigned char>(f->destination_x + CLOUD_DIRECTION[i].x);
@@ -92,6 +93,7 @@ void figure_create_missile(int figure_id, int x, int y, int x_dst, int y_dst, fi
     Figure *f = Figure::create(type, x, y, DIR_0_TOP);
     Figure *launcher = Figure::get(figure_id);
     if (f->id()) {
+        f->progress_on_tile = 0; // Projectile age, not ordinary walker tile progress.
         if (launcher->type == FIGURE_BALLISTA || launcher->type == FIGURE_WATCHTOWER_ARCHER) {
             f->missile_height = 60;
         } else {

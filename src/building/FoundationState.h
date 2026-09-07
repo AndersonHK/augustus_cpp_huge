@@ -43,6 +43,7 @@ public:
     void clear();
     void begin_publication(int origin_x, int origin_y, int rotation);
     void record_delta(FoundationTerrainDelta delta);
+    bool release_added_terrain(int cell_index, uint32_t terrain);
 
 private:
     int published_ = 0;

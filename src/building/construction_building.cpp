@@ -497,8 +497,6 @@ static void add_granary(building *b)
         runtime->building.set_storage_id(building_storage_create(b->id));
     }
     add_building(b);
-    map_update_building_internal_roads(b);
-    map_tiles_update_area_roads(b->x, b->y, 5);
 }
 
 static bool add_to_map(
@@ -957,13 +955,25 @@ public:
                 }
             }
         }
-        active_ = !terrain_.empty() || !records_.empty();
+        // Unbound supports remain independent terrain when the building above is removed.
+        // Publish them first so the new foundation does not claim their added bits.
+        for (const auto &part : placement.parts()) for (const auto &tile : part.tiles) {
+            const auto *foundation = tile.support ? tile.support->foundation_def() : nullptr;
+            if (!foundation || foundation->cells().size() != 1 || foundation->cells().front().binds_building) continue;
+            const auto mutation = building_type_registry_impl::foundation_apply_terrain_cell(foundation->cells().front(), 0, tile.grid_offset, map_terrain_get(tile.grid_offset));
+            supports_.push_back(mutation.delta);
+            map_terrain_set(tile.grid_offset, mutation.terrain_after);
+        }
+        active_ = !terrain_.empty() || !records_.empty() || !supports_.empty();
     }
 
     ~PlacementSupersession()
     {
         if (!active_) {
             return;
+        }
+        for (auto it = supports_.rbegin(); it != supports_.rend(); ++it) {
+            map_terrain_set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(map_terrain_get(it->grid_offset), *it));
         }
         for (const Record &saved : records_) {
             Building *surface = Building::get(saved.id);
@@ -988,6 +998,7 @@ public:
 
     void commit()
     {
+        for (const auto &support : supports_) game_undo_add_support_terrain(support);
         for (Record &saved : records_) {
             game_undo_add_replaced_building(&saved.undo_snapshot);
         }
@@ -1020,6 +1031,7 @@ private:
     std::vector<Record> records_;
     std::vector<Binding> bindings_;
     std::vector<Terrain> terrain_;
+    std::vector<building_type_registry_impl::FoundationTerrainDelta> supports_;
     bool active_ = false;
 };
 

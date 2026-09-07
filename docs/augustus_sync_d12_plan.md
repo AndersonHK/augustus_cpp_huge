@@ -1,0 +1,45 @@
+# D12 — invasion bridge safety, retreat defines and storage placement cleanup
+
+## Approved scope
+
+Player demolition cannot remove bridges during an invasion, even when only one invader remains or the player has allowed demolition of occupied bridges. Retreat speed is defined by mod data. The old warehouse/granary placement options are superseded by native foundations and Shift placement. D13 is the next unresolved decision; no commit or ancestry update is authorized by this slice.
+
+## Implementation
+
+`map_bridge_demolition_warning` applies the city invasion count with a strict greater-than-zero check. The clear tool uses it for preview, confirmation eligibility and execution, including execution after a confirmation callback. Blocked spans are not marked or priced as removable. The native destruction API remains available to game destruction; the rule is a player-demolition restriction, not immunity from combat or scripted destruction.
+
+Bridge occupancy scans the complete native chain. Hostile or aggressive-animal occupants always prevent player demolition, even if a peaceful occupant was found on an earlier span. Peaceful occupants retain the existing opt-in occupied-bridge behavior outside invasions. The warning has a new project-owned localization key in Julius because the user requested the invasion restriction for every mod stack.
+
+`defines.xml` accepts `<enemy_retreat speed_multiplier="1" low_morale_combat_divisor="3" />`. Both attributes accept integers 1–3 and merge independently between mods; omitted values inherit, with neutral defaults of 1. Speed 2 doubles movement work during the fleeing action only. The combat divisor applies to attack and defense of hostile units with an owned, low-morale formation; unformed units and friendly soldiers retain their normal stats. Julius explicitly uses 1/1; Augustus uses 1/3; Vespasian inherits Augustus. This ports the behavioral hunks of upstream `46e9537f3` through native formation ownership without adding another hardcoded INI option. Augustus declares `ENEMY_RETREAT_SPEED` in `mod.xml` as an integer setting (1–2, default 1), under Difficulty. Its `defines.xml` binds `speed_multiplier="$ENEMY_RETREAT_SPEED"`, so both launcher and in-game menus expose it under the Augustus header, including when Vespasian inherits it. The upstream const-correctness hunk is already represented by `formation::has_low_morale() const`.
+
+The unused `CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT` enum/catalog entry, in-game checkbox and shipped translations are removed. INI loading is by key, so an older file's unused key is ignored. No extra special case for placing either storage building without prebuilt roads is added: granary and warehouse foundations already declare their road-bearing cells and permit construction on bare land. Non-road cells still enforce the foundation footprint, with Shift clearing obstructing roads. Granary construction no longer makes its redundant internal-road refresh call; the shared placement refresh handles it. Storage access warnings, transport routing and roadblock permissions serve different purposes and remain functional.
+
+[Launcher bug-fix settings report](launcher_legacy_fix_settings_report_2026_09_06.md) covers the two unrelated obsolete switches. Their exposure is reported, not silently changed.
+
+## Validation
+
+Release game, launcher, save module and startup harness builds passed. `out/d12-focused.log` / `.err` records the passing placement and D12 contracts followed by 3,000 rendered Consul ticks, with empty stderr. Tests cover native storage construction without roads, Shift placement in four rotations, internal-road publication, the last ordinary/imperial invader, both occupied-bridge setting values, actual clear-tool rejection, mixed peaceful/hostile bridge occupancy, and retreat movement at the authored multiplier. Earlier fixture failures were corrected: rotated warehouse offsets needed a larger empty area, and the retreat warrior needed a real native formation.
+
+`out/d12-retreat-double.log` / `.err` passes the same contracts with an installed Vespasian define override of `speed_multiplier="2"`. `out/d12-retreat-invalid.err` confirms that zero is rejected with a parser diagnostic and nonzero exit. These temporary overrides were restored byte-for-byte in a `finally` block; the installed Vespasian defines hash matches source.
+
+`out/d12-final-deploy.log` records installation into `D:\Games\GOG Games\Caesar 3`. Source/output hashes match the installed game (`57AE3EA0B025490CD38063E6BE7BD3B248AEB36C35F265F16A5302EFB46CCC00`) and launcher (`F3F9718F8DA635AEF849B3C7B0D10F63F97132BE58C0784E1F21462437B172FB`). All changed locale JSON files parse, and `git diff --check` passed.
+
+The complete corpus gate in `out/d12-final-gate.log` / `.err` completed all 70 city soaks at 3,000 rendered ticks. It exited 1 because two early historical saves missed the 1,000 simulation-ticks/second threshold: `Praetor 2 10.svv` measured 920.8 and `Praetor 2 8.svv` measured 958.5. Their canonical load/soak diagnostics were zero warnings and zero errors. The other 68 city checks passed, including native/legacy imports and renderer fallback checks. The isolated recheck (`out/d12-timing-recheck.log` / `.err`, exit 5) reproduced both timing failures at 924.6 and 932.5 simulation ticks/second respectively. Both completed their canonical reload and 3,000-tick soak with zero warning/error diagnostics, but the timing failure prevented the final post-soak save/reload stage. The timing gate is therefore not a pass.
+
+`out/d12-combat-recheck.log` / `.err` passes the installed-build combat contracts with empty stderr: six projectile types across eight directions plus four shallow/steep trajectories, all 16 explosion lifetimes, and damage beyond 255 on a 600-HP wall through backup/save/reload and destruction. No additional implementation changes were made after these checks.
+
+## Retreat setting binding follow-up — 2026-09-07
+
+Upstream `46e9537f3` exposes fast retreat through configuration but divides low-morale attack and defense by a literal 3. Accordingly only speed is exposed in our mod settings; Augustus retains `low_morale_combat_divisor="3"`.
+
+The initial D12 implementation omitted the `mod.xml` control and left the speed define literal. The setting declaration and macro binding are now added. Shared-catalog contracts check effective ownership, range, category and actual define expansion; the existing live-settings test also checks immediate application and restoration of the runtime retreat multiplier.
+
+Validation passed: `out/d12-setting-content.log` / `.err` compiled 898 repository definitions and checked both speed choices. `out/d12-setting-live.log` / `.err` verified that every mod setting appears once in the in-game menus, live changes preserve the menu and pending hardcoded edits, the runtime retreat multiplier changes/restores immediately, and population/treasury stay unchanged. The installed build then completed 3,000 rendered Consul ticks with empty stderr. Tests did not persist changed user settings. The game hash matches the installed executable: `0AE6DDE61321F53E8E60C8B750B52B4C3C939E4E883490A6A4B0C436AD0841C4`. The new declaration and bound define are installed; the launcher reads the same shared metadata without needing new UI code.
+
+## In-game slider and navigation regression fixes — 2026-09-07
+
+Live mod changes previously reopened the configuration window, pushing a duplicate onto the navigation stack and resetting its scrollbar. They now refresh the existing screen and preserve its scroll position and pending hardcoded edits. Mod integer settings use the standard numerical slider drawing routine, with the Grand Temples value-column spacing, whole-block track and round thumb. Their input previews dragging, captures release outside the track, and applies the setting once on release.
+
+The first visual revision reused the slider primitive with an arbitrary track width and a right-hand number. Review caught a malformed partial-block end cap and the inconsistent number placement. Both were corrected by sharing the standard numerical layout. `out/mod-slider-final.jpg` shows the final slider alongside Grand Temples.
+
+`out/config-slider-live2.log` / `.err` passes real mouse dragging at both endpoints while scrolled down, release outside the track, retained page/scroll/pending edits, actual Cancel and OK clicks returning to the city, all live-setting contracts, and 3,000 rendered Consul ticks with empty stderr. The test runner restores the player's INI byte-for-byte. The existing legacy Clerk SAV needs two known binding repairs on import; `out/config-slider-legacy-roundtrip.log` / `.err` records those warnings, followed by a clean canonical SVV reload, 3,000 rendered ticks and final save/reload. The direct legacy-load check correctly failed its warning threshold before enabling that explicit repair roundtrip. `out/config-slider-deploy.log` records installation; installed and built executable hashes match. No commit or upstream ancestry adjustment was made.

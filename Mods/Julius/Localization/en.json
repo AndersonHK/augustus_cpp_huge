@@ -9,6 +9,7 @@
     "editor_strings": {},
     "messages": {},
     "project_keys": {
+        "TR_CITY_WARNING_ENEMIES_PREVENT_BRIDGE_DESTRUCTION": "Bridges cannot be demolished while an invasion is active.",
         "TR_CITY_WARNING_UNDO_STORAGE_SPACE": "Free warehouse space is needed to return construction materials before undoing this building.",
         "TR_CITY_WARNING_FOUNDATION_PROXIMITY": "The site does not meet this building's terrain distance or navigable water requirements.",
         "TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE": "This building needs <resource>",

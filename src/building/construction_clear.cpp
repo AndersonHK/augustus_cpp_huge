@@ -123,6 +123,13 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
+            if (map_is_bridge(grid_offset)) {
+                const warning_type warning = map_bridge_demolition_warning(grid_offset);
+                if (warning.name) {
+                    if (!measure_only) city_warning_show_translated(warning);
+                    continue;
+                }
+            }
             if (measure_only && visual_feedback_on_delete) {
                 Building *building_obj = get_deletable_building(grid_offset);
                 building *b = building_obj ? const_cast<::building *>(building_obj->record()) : nullptr;
@@ -199,9 +206,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 remove_legacy_aqueduct_tile(grid_offset);
                 items_placed++;
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
-                if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
-                    city_warning_show_translated(WARNING_PEOPLE_ON_BRIDGE);
-                } else if (confirm.bridge_confirmed == 1) {
+                if (confirm.bridge_confirmed == 1) {
                     map_bridge_remove(grid_offset, measure_only);
                     items_placed++;
                 }
@@ -336,7 +341,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
                     }
                 }
             }
-            if (map_is_bridge(grid_offset)) {
+            if (map_is_bridge(grid_offset) && !map_bridge_demolition_warning(grid_offset).name) {
                 ask_confirm_bridge = 1;
             }
 

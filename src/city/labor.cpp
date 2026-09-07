@@ -18,6 +18,7 @@
 #include "core/calc.h"
 #include "core/random.h"
 #include "game/resource.h"
+#include "game/defines.h"
 #include "game/time.h"
 #include "scenario/property.h"
 
@@ -130,9 +131,9 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
     int venus_blessing_modifier = 0;
     city_data.population.percentage_plebs = calc_percentage(num_plebs, num_plebs + num_patricians);
 
-    if (config_get(CONFIG_GP_CH_FIXED_WORKERS)) {
+    if (game_defines_fixed_workers()) {
         venus_blessing_modifier = city_god_venus_bonus_employment();
-        city_data.population.working_age = calc_adjust_with_percentage(num_plebs, 38 + venus_blessing_modifier);
+        city_data.population.working_age = calc_adjust_with_percentage(num_plebs, game_defines_fixed_worker_percentage() + venus_blessing_modifier);
         city_data.labor.workers_available = city_data.population.working_age;
     } else {
         city_data.population.working_age = calc_adjust_with_percentage(city_population_people_of_working_age(), 60);

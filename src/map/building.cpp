@@ -18,11 +18,11 @@
 #include <vector>
 
 static grid_u32 buildings_grid;
-static grid_u8 damage_grid;
+static grid_u32 damage_grid;
 static grid_u32 rubble_info_grid;
 
 static grid_u32 buildings_grid_backup;
-static grid_u8 damage_grid_backup;
+static grid_u32 damage_grid_backup;
 static grid_u32 rubble_info_grid_backup;
 
 static Building *building_objects_grid[GRID_SIZE * GRID_SIZE];
@@ -130,7 +130,7 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
 void map_building_backup(void)
 {
     map_grid_copy_u32(buildings_grid.items, buildings_grid_backup.items);
-    map_grid_copy_u8(damage_grid.items, damage_grid_backup.items);
+    map_grid_copy_u32(damage_grid.items, damage_grid_backup.items);
     map_grid_copy_u32(rubble_info_grid.items, rubble_info_grid_backup.items);
     std::memcpy(building_objects_grid_backup, building_objects_grid, sizeof(building_objects_grid));
 }
@@ -138,7 +138,7 @@ void map_building_backup(void)
 void map_building_restore(void)
 {
     map_grid_copy_u32(buildings_grid_backup.items, buildings_grid.items);
-    map_grid_copy_u8(damage_grid_backup.items, damage_grid.items);
+    map_grid_copy_u32(damage_grid_backup.items, damage_grid.items);
     map_grid_copy_u32(rubble_info_grid_backup.items, rubble_info_grid.items);
     std::memcpy(building_objects_grid, building_objects_grid_backup, sizeof(building_objects_grid));
 }
@@ -146,7 +146,7 @@ void map_building_restore(void)
 void map_building_clear_backup(void)
 {
     map_grid_clear_u32(buildings_grid_backup.items);
-    map_grid_clear_u8(damage_grid_backup.items);
+    map_grid_clear_u32(damage_grid_backup.items);
     map_grid_clear_u32(rubble_info_grid_backup.items);
     std::memset(building_objects_grid_backup, 0, sizeof(building_objects_grid_backup));
 }
@@ -154,7 +154,7 @@ void map_building_clear_backup(void)
 void map_building_clear(void)
 {
     map_grid_clear_u32(buildings_grid.items);
-    map_grid_clear_u8(damage_grid.items);
+    map_grid_clear_u32(damage_grid.items);
     map_grid_clear_u32(rubble_info_grid.items);
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
@@ -162,7 +162,7 @@ void map_building_clear(void)
 void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble)
 {
     map_grid_save_state_u32(buildings_grid.items, buildings);
-    map_grid_save_state_u8(damage_grid.items, damage);
+    map_grid_save_state_u32(damage_grid.items, damage);
     map_grid_save_state_u32(rubble_info_grid.items, rubble);
 }
 
@@ -170,11 +170,14 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
 {
     if (version <= SAVE_GAME_LAST_U16_GRIDS) {
         map_grid_load_state_u16_to_u32(buildings_grid.items, buildings);
-        map_grid_load_state_u8(damage_grid.items, damage);
     } else {
         map_grid_load_state_u32(buildings_grid.items, buildings);
-        map_grid_load_state_u8(damage_grid.items, damage);
         map_grid_load_state_u32(rubble_info_grid.items, rubble);
+    }
+    if (version <= SAVE_GAME_LAST_BYTE_BUILDING_DAMAGE) {
+        for (auto &value : damage_grid.items) value = buffer_read_u8(damage);
+    } else {
+        map_grid_load_state_u32(damage_grid.items, damage);
     }
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }

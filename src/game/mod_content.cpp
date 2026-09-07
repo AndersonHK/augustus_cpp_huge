@@ -117,7 +117,7 @@ std::string expand_source(const std::string &source, const std::string &mod, con
             id = source.substr(start, i - start);
         }
         if (!valid_name(owner) || !identifier(id)) fail("Invalid settings reference in " + mod);
-        auto found = std::find_if(settings.begin(), settings.end(), [&](const Setting &s) { return s.mod == owner && s.id == id; });
+        auto found = std::find_if(settings.begin(), settings.end(), [&](const Setting &s) { return s.declaration_mods.count(owner) && s.id == id; });
         if (found == settings.end()) fail("Unknown setting " + owner + ":" + id);
         const auto begin = out.size();
         if (i < source.size() && source[i] == '{') {
@@ -328,6 +328,8 @@ Manifest manifest(const std::filesystem::path &path)
             for (const auto &s : n.children) {
                 Setting setting;
                 setting.id = s.attribute("id"); setting.name = s.attribute("name"); setting.category = s.attribute("category", "General"); setting.description = s.attribute("description");
+                setting.legacy_config_key = s.attribute("legacy_config_key");
+                if (!setting.legacy_config_key.empty() && !identifier(setting.legacy_config_key)) fail("Invalid legacy configuration key");
                 if (s.name != "setting" || !identifier(setting.id) || setting.name.empty() || !ids.insert(setting.id).second) fail("Invalid or duplicate mod setting");
                 auto type = s.attribute("type");
                 if (type == "bool") {
@@ -349,7 +351,7 @@ Manifest manifest(const std::filesystem::path &path)
     }
     if (!valid_name(out.name) || out.description.empty() || out.version.empty() || !seen.count("dependencies")) fail("Incomplete mod metadata: " + path_text(path));
     for (const auto &dep : out.dependencies) if (lower(dep) == lower(out.name)) fail("A mod cannot depend on itself");
-    for (auto &s : out.settings) s.mod = out.name;
+    for (auto &s : out.settings) { s.mod = out.name; s.declaration_mods.insert(out.name); }
     return out;
 }
 
@@ -379,18 +381,65 @@ void Session::load(const std::vector<Layer> &layers, const std::filesystem::path
             if (!saved_values_.emplace(m.attribute("name") + ":" + s.attribute("id"), integer(s.attribute("value"))).second) fail("Duplicate saved setting");
         }
     }
+    std::map<std::string, std::set<std::string>> ancestors;
+    std::map<std::string, int> legacy_values;
+    if (!values_file.empty()) {
+        auto legacy_path = values_file.parent_path() / "Vespasian.ini";
+        if (!std::filesystem::exists(legacy_path)) legacy_path = values_file.parent_path() / "augustus.ini";
+        std::ifstream ini(legacy_path);
+        std::string line;
+        while (std::getline(ini, line)) {
+            const auto equals = line.find('=');
+            if (equals == std::string::npos) continue;
+            const auto key = line.substr(0, equals);
+            const auto value = line.substr(equals + 1);
+            int parsed = 0;
+            const auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
+            if (result.ec == std::errc{} && (result.ptr == value.data() + value.size() || *result.ptr == '\r')) legacy_values[key] = parsed;
+        }
+    }
     for (const auto &layer : layers_) {
         auto path = layer.root / "mod.xml";
         if (!require_manifests && !std::filesystem::exists(path)) continue;
         auto m = manifest(path);
         if (m.name != layer.name) fail("Manifest name does not match folder: " + layer.name);
+        auto &inherited_mods = ancestors[m.name];
+        for (const auto &dependency : m.dependencies) {
+            inherited_mods.insert(dependency);
+            const auto &indirect = ancestors[dependency];
+            inherited_mods.insert(indirect.begin(), indirect.end());
+        }
         for (auto s : m.settings) {
-            auto saved = saved_values_.find(s.key());
-            if (saved != saved_values_.end()) {
-                if (saved->second < s.minimum || saved->second > s.maximum) fail("Saved setting out of range: " + s.key());
-                s.value = saved->second;
+            auto inherited = settings_.end();
+            for (auto it = settings_.begin(); it != settings_.end(); ++it) {
+                if (it->id != s.id || !inherited_mods.count(it->mod)) continue;
+                if (inherited != settings_.end()) fail("Ambiguous inherited setting: " + s.id);
+                inherited = it;
             }
-            settings_.push_back(std::move(s));
+            if (inherited != settings_.end()) {
+                if (inherited->boolean != s.boolean) fail("Inherited setting cannot change its type: " + s.id);
+                // Retain the original identity and row position. Both the original
+                // and redeclaring mod's macros resolve to this single setting.
+                s.mod = inherited->mod;
+                s.declaration_mods.insert(inherited->declaration_mods.begin(), inherited->declaration_mods.end());
+                if (s.legacy_config_key.empty()) s.legacy_config_key = inherited->legacy_config_key;
+            }
+            if (inherited != settings_.end()) *inherited = std::move(s);
+            else settings_.push_back(std::move(s));
+        }
+    }
+    // Apply preferences after all declarations, against the final bounds/defaults.
+    for (auto &setting : settings_) {
+        const auto saved = saved_values_.find(setting.key());
+        if (saved != saved_values_.end()) {
+            if (saved->second < setting.minimum || saved->second > setting.maximum) fail("Saved setting out of range: " + setting.key());
+            setting.value = saved->second;
+        } else if (!setting.legacy_config_key.empty()) {
+            const auto legacy = legacy_values.find(setting.legacy_config_key);
+            if (legacy != legacy_values.end() && legacy->second >= setting.minimum && legacy->second <= setting.maximum) {
+                setting.value = legacy->second;
+                saved_values_[setting.key()] = setting.value;
+            }
         }
     }
     compile();
@@ -459,12 +508,14 @@ void Session::set(const std::string &key, int value)
     if (value < it->minimum || value > it->maximum) fail("Setting is out of range: " + key);
     const int previous = it->value; it->value = value;
     try { compile(); } catch (...) { it->value = previous; throw; }
+    saved_values_[key] = value;
 }
 
 void Session::save() const
 {
     auto values = saved_values_;
-    for (const auto &s : settings_) values[s.key()] = s.value;
+    // Defaults belong to the active mod stack. Persist only explicit choices and
+    // imported preferences, so saving another control cannot freeze a mod default.
     Node root; root.name = "mod_settings";
     std::map<std::string, Node> mods;
     for (const auto &entry : values) {

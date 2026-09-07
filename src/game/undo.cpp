@@ -37,6 +37,8 @@
 #include "map/terrain.h"
 #include "map/tile_runtime_api.h"
 #include "map/water_navigation.h"
+#include "map/tiles.h"
+#include "building/FoundationState.h"
 
 #include <algorithm>
 #include <string.h>
@@ -55,6 +57,7 @@ static struct {
     building buildings[MAX_UNDO_BUILDINGS];
     std::vector<unsigned int> created_building_ids;
     std::vector<building> replaced_buildings;
+    std::vector<building_type_registry_impl::FoundationTerrainDelta> support_terrain;
     int resource_cost[RESOURCE_SLOT_COUNT] = {};
     int resource_cost_year = 0;
     struct {
@@ -136,6 +139,12 @@ static void clear_buildings(void)
     data.type_changes.num = 0;
     data.created_building_ids.clear();
     data.replaced_buildings.clear();
+    data.support_terrain.clear();
+}
+
+void game_undo_add_support_terrain(const building_type_registry_impl::FoundationTerrainDelta &delta)
+{
+    if (data.available) data.support_terrain.push_back(delta);
 }
 
 void game_undo_add_resource_cost(resource_type resource, int loads)
@@ -450,6 +459,14 @@ void game_undo_perform(void)
         }
         building_update_state();
     }
+    for (auto it = data.support_terrain.rbegin(); it != data.support_terrain.rend(); ++it) {
+        map_terrain_set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(map_terrain_get(it->grid_offset), *it));
+        const int x = map_grid_offset_to_x(it->grid_offset), y = map_grid_offset_to_y(it->grid_offset);
+        map_tiles_update_region_empty_land(x, y, x, y);
+        map_tiles_update_area_roads(x, y, 1);
+        map_tiles_update_area_highways(x, y, 1);
+    }
+    data.support_terrain.clear();
     building_runtime_restore_graphics_state();
     tile_runtime_restore();
     Route::updateLandTerrain();

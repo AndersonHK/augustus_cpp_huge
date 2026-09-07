@@ -44,7 +44,9 @@ If you are unsure about anything regarding the savegame versioning, please ask o
 
 typedef enum {
 
-    SAVE_GAME_CURRENT_VERSION = 0xcd,
+    SAVE_GAME_CURRENT_VERSION = 0xce,
+    SAVE_GAME_LAST_BYTE_BUILDING_DAMAGE = 0xcd,
+    SAVE_GAME_LAST_MOVEMENT_INITIALIZED_EFFECT_TIMERS = 0xcd,
     SAVE_GAME_LAST_NO_EXPLICIT_MODEL_OVERRIDES = 0xcc,
     SAVE_GAME_LAST_NO_LAND_TRADE_PROFILES = 0xcb,
     SAVE_GAME_LAST_NO_TIME_FORMULAS = 0xca,

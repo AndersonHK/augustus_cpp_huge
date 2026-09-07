@@ -10,6 +10,9 @@
 #include "game/defines.h"
 #include "city/population.h"
 #include "city/finance.h"
+#include "city/labor.h"
+#include "city/god.h"
+#include "building/house_population.h"
 #include "platform/mod_options_win32.h"
 #include "window/config.h"
 #include "window/city.h"
@@ -35,6 +38,9 @@ void mod_settings_apply(const std::string &key, int value)
     const bool has_city = scenario_map_size() > 0;
     const bool paused = game_state_is_paused() != 0;
     const int overlay = game_state_overlay();
+    const int previous_retirement = game_defines_retirement_age();
+    const int previous_fixed_workers = game_defines_fixed_workers();
+    const int previous_worker_percentage = game_defines_fixed_worker_percentage();
     auto snapshot = std::filesystem::temp_directory_path() / ("vespasian-settings-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".svv");
     const std::string filename = mod_content::path_text(snapshot);
     if (has_city && !game_file_io_write_saved_game(filename.c_str())) throw std::runtime_error("Cannot snapshot the current city; the setting was not changed.");
@@ -55,6 +61,10 @@ void mod_settings_apply(const std::string &key, int value)
         std::error_code ignored; std::filesystem::remove(snapshot, ignored);
         throw std::runtime_error(reason + " The previous setting and city were restored.");
     }
+    if (has_city && (previous_retirement != game_defines_retirement_age() || previous_fixed_workers != game_defines_fixed_workers() || previous_worker_percentage != game_defines_fixed_worker_percentage())) {
+        house_population_calculate_workers();
+        city_labor_update();
+    }
     if (paused) game_state_pause(); else game_state_unpause(); game_state_set_overlay(overlay);
     std::error_code ignored; std::filesystem::remove(snapshot, ignored); window_invalidate();
 }
@@ -72,11 +82,32 @@ void mod_settings_validate_live_changes()
         mod_settings_apply(setting.key(), alternate);
         if (city_population() != population || city_finance_treasury() != treasury) throw std::runtime_error("Live setting changed city population or treasury");
         if (setting.key() == "Augustus:RETIREMENT_AGE" && game_defines_retirement_age() != alternate) throw std::runtime_error("Retirement age did not apply immediately");
+        if (setting.key() == "Augustus:ENEMY_RETREAT_SPEED" && game_defines_enemy_retreat_speed_multiplier() != alternate) throw std::runtime_error("Enemy retreat speed did not apply immediately");
+        if (setting.key() == "Augustus:FIXED_WORKERS" && game_defines_fixed_workers() != alternate) throw std::runtime_error("Fixed worker pool did not apply immediately");
+        if (setting.key() == "Augustus:FIXED_WORKER_PERCENTAGE" && game_defines_fixed_worker_percentage() != alternate) throw std::runtime_error("Fixed worker percentage did not apply immediately");
         mod_settings_apply(setting.key(), setting.value);
         if (city_population() != population || city_finance_treasury() != treasury) throw std::runtime_error("Live setting restoration changed the city");
+        if (setting.key() == "Augustus:ENEMY_RETREAT_SPEED" && game_defines_enemy_retreat_speed_multiplier() != setting.value) throw std::runtime_error("Enemy retreat speed did not restore immediately");
         ++checked;
     }
       if (!checked && !settings.empty()) throw std::runtime_error("No effective mod settings were tested");
+      const auto fixed = std::find_if(settings.begin(), settings.end(), [](const auto &setting) { return setting.key() == "Augustus:FIXED_WORKERS" && setting.effective; });
+      if (fixed != settings.end()) {
+          const int original_percentage = game_defines_fixed_worker_percentage();
+          mod_settings_apply(fixed->key(), 1);
+          for (int percentage : {38, 45}) {
+              mod_settings_apply("Augustus:FIXED_WORKER_PERCENTAGE", percentage);
+              city_labor_calculate_workers(1000, 0);
+              if (city_labor_workers_available() != 10 * (percentage + city_god_venus_bonus_employment())) throw std::runtime_error("Fixed worker percentage did not change the actual labor calculation");
+              city_labor_calculate_workers(500, 500);
+              if (city_labor_workers_available() != 5 * (percentage + city_god_venus_bonus_employment())) throw std::runtime_error("Fixed worker calculation included patricians");
+              house_population_calculate_workers();
+              city_labor_update();
+          }
+          mod_settings_apply("Augustus:FIXED_WORKER_PERCENTAGE", original_percentage);
+          mod_settings_apply(fixed->key(), fixed->value);
+          std::fprintf(stdout, "Fixed workforce contracts passed: 38/45 percent, plebeians only, live apply and restore.\n");
+      }
       validate_in_game_ui_windows();
 }
 void mod_settings_show(const std::function<void(const char *, int)> &apply_hardcoded)

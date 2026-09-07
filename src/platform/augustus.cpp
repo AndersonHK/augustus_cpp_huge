@@ -1,4 +1,5 @@
 #include "../../tools/catch_up_test/runtime.h"
+#include "../../tools/catch_up_test/combat.h"
 #include "../../tools/catch_up_test/editor.h"
 #include "building/building_type_startup_bridge.h"
 #include "../../tools/formation_runtime_test/formation_runtime_test.h"
@@ -523,6 +524,15 @@ static int run_single_save_validation(const augustus_args &args, int index)
     }
 
     if (args.catch_up_test && !run_catch_up_runtime_test()) return 10;
+    if (args.placement_test) {
+        try { validate_placement_supports(); }
+        catch (const std::exception &error) { fprintf(stderr, "Placement test failed: %s\n", error.what()); return 12; }
+        if (data.warning_count || data.error_count || game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS) return 12;
+    }
+    if (args.combat_test) {
+        if (!run_combat_runtime_test() || data.warning_count || data.error_count) return 11;
+        if (game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS) return 11;
+    }
 
     if (args.mod_settings_test) {
         try { mod_settings_validate_live_changes(); }
@@ -531,10 +541,12 @@ static int run_single_save_validation(const augustus_args &args, int index)
         fprintf(stdout, "Live mod settings changed and restored without population or treasury changes\n");
     }
     bool soak_passed = true;
+    const auto combat_encounter = args.combat_test ? observe_wall_attackers() : std::vector<CombatEncounterObservation>{};
     if (args.save_soak_ticks) {
         soak_passed = run_save_soak_ticks(args.save_soak_ticks);
         log_repeated_messages();
     }
+    if (args.combat_test && args.save_soak_ticks >= 3000 && !validate_combat_encounter(combat_encounter)) return 11;
     if (!soak_passed || data.warning_count || data.error_count) {
         fprintf(stderr, "Vespasian executable migrated-save soak failed: migration_warnings=%d warnings=%d errors=%d ticks=%d file=%s\n",
             migration_warnings, data.warning_count, data.error_count, args.save_soak_ticks, input);

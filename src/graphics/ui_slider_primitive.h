@@ -4,6 +4,9 @@
 
 class UiSliderPrimitive : public UiPrimitive {
 public:
+    static constexpr int Padding = 2;
+    static constexpr int ThumbSize = 25;
+
     UiSliderPrimitive(
         UiPrimitives &primitives,
         int x,

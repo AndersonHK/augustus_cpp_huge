@@ -199,6 +199,10 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
             }
         } else if (SDL_strcmp(argv[i], "--catch-up-test") == 0) {
             output_args->catch_up_test = 1;
+        } else if (SDL_strcmp(argv[i], "--combat-test") == 0) {
+            output_args->combat_test = 1;
+        } else if (SDL_strcmp(argv[i], "--placement-test") == 0) {
+            output_args->placement_test = 1;
         } else if (SDL_strcmp(argv[i], "--editor-test") == 0) {
             output_args->editor_test = 1;
             output_args->startup_test = 1;
@@ -223,6 +227,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         ok = 0;
     }
     if (output_args->catch_up_test && !output_args->load_save_test_count) { print_log("Option --catch-up-test requires --load-save-test"); ok = 0; }
+    if (output_args->combat_test && !output_args->load_save_test_count) { print_log("Option --combat-test requires --load-save-test"); ok = 0; }
+    if (output_args->placement_test && !output_args->load_save_test_count) { print_log("Option --placement-test requires --load-save-test"); ok = 0; }
     if (output_args->mod_settings_test && !output_args->load_save_test_count) {
         print_log("Option --mod-settings-test requires --load-save-test");
         ok = 0;

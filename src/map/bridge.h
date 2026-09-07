@@ -1,5 +1,6 @@
 #pragma once
 #include "map/grid.h"
+#include "city/warning.h"
 
 
 int map_bridge_building_length(void);
@@ -30,7 +31,9 @@ int map_bridge_find_start_and_direction(int grid_offset, int *axis, int *axis_di
 
 void map_bridge_update_after_rotate(int counter_clockwise);
 
+// Occupancy: 0 = empty, 1 = peaceful figures, 2 = hostile/aggressive figures.
 int map_bridge_has_figures(int grid_offset);
+warning_type map_bridge_demolition_warning(int grid_offset);
 
 int map_is_bridge(int grid_offset);
 

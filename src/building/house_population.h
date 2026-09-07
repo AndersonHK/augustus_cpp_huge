@@ -23,6 +23,7 @@ void house_population_update_room(void);
  * Update migration statistics and create immigrants/emigrants
  */
 void house_population_update_migration(void);
+void house_population_calculate_workers(void);
 
 /**
  * Evict people from overcrowded houses

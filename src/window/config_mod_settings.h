@@ -1,9 +1,12 @@
 #pragma once
+#include "graphics/ui_slider_primitive.h"
 
 // Included by config.cpp after its screen state; owns dynamic rows without changing legacy config storage.
 static std::vector<config_widget> effective_config_rows;
 static std::vector<mod_content::Setting> screen_mod_settings;
 static std::deque<std::string> config_row_text;
+static std::string active_mod_slider;
+static int active_mod_slider_value = 0;
 
 static const uint8_t *config_literal(const std::string &text)
 {
@@ -67,12 +70,14 @@ static void build_config_rows(unsigned int page, const config_widget *hardcoded)
 static void apply_screen_mod_setting(const std::string &key, int value)
 {
     const auto previous = data;
+    const auto previous_scrollbar = scrollbar;
     std::string error;
     try { mod_settings_apply(key, value); }
     catch (const std::exception &failure) { error = failure.what(); }
-    const auto category = previous.page == CONFIG_PAGE_UI_CHANGES ? static_cast<unsigned>(selected_categories.ui_category) : static_cast<unsigned>(selected_categories.city_mgmt_category);
-    window_config_show(static_cast<window_config_page>(previous.page), category, previous.show_background_image);
-    data = previous; // Preserve unrelated hardcoded edits, including their live callbacks.
+    // Registry reloads do not leave this window. Reopening it would push another
+    // CONFIG onto the back stack and reset the scrollbar on every setting change.
+    data = previous;
+    scrollbar = previous_scrollbar;
     data.layout.visible_from = data.layout.visible_to = 0;
     window_invalidate();
     if (!error.empty()) {
@@ -91,6 +96,14 @@ static void op_measure_mod_setting(const config_widget *w, int width, int *heigh
     *height = std::max(ITEM_BASE_H, lines * one_line_ml_height(FONT_NORMAL_BLACK) + (setting.boolean ? 10 : 38));
 }
 
+static numerical_range_widget mod_setting_slider_geometry()
+{
+    // Use the same value column and whole-block track as the standard integer
+    // sliders, reducing the width only for pages with a category sidebar.
+    const int sidebar_blocks = page_is_category(data.page) ? (LIST_BOX_SHIFT + BLOCK_SIZE - 1) / BLOCK_SIZE : 0;
+    return {NUMERICAL_VALUE_WIDTH, NUMERICAL_TRACK_BLOCKS - sidebar_blocks, 0, 0, 1, nullptr};
+}
+
 static void op_draw_mod_setting(const config_widget *w, int x, int y, int width)
 {
     const auto &setting = screen_mod_settings.at(w->subtype);
@@ -101,29 +114,46 @@ static void op_draw_mod_setting(const config_widget *w, int x, int y, int width)
         if (setting.value) text_draw(string_from_ascii("x"), x + 6, y + 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), color);
         return;
     }
-    const int bar_y = y + label_height + 14, bar_width = std::max(1, width - 90);
-    const int64_t range = static_cast<int64_t>(setting.maximum) - setting.minimum;
-    const int knob = range ? static_cast<int>((static_cast<int64_t>(setting.value) - setting.minimum) * bar_width / range) : 0;
-    graphics_draw_inset_rect(x, bar_y + 7, bar_width + 16, 3, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    ui_runtime_draw_one_row_button_border(x + knob, bar_y, 16, 18, 0, color);
-    text_draw_number(setting.value, 0, "", x + bar_width + 25, bar_y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), color);
+    int value = active_mod_slider == setting.key() ? active_mod_slider_value : setting.value;
+    auto range = mod_setting_slider_geometry();
+    range.min = setting.minimum;
+    range.max = setting.maximum;
+    range.value = &value;
+    const auto value_text = std::to_string(value);
+    numerical_range_draw(&range, x, y + label_height + 10, reinterpret_cast<const uint8_t *>(value_text.c_str()), data.layout.has_scrollbar ? 0 : 64, color);
 }
 
 static int op_input_mod_setting(const config_widget *w, int x, int y, int width, const mouse *m, unsigned *focused)
 {
+    const auto setting = screen_mod_settings.at(w->subtype);
+    const bool dragging = active_mod_slider == setting.key();
     int height = 0;
     op_measure_mod_setting(w, width, &height);
-    if (m->x < x || m->x >= x + width || m->y < y || m->y >= y + height) return 0;
+    const auto range_geometry = mod_setting_slider_geometry();
+    const int bar_x = x + range_geometry.x;
+    const int bar_width = range_geometry.width_blocks * BLOCK_SIZE + (data.layout.has_scrollbar ? 0 : 64);
+    const int hit_width = setting.boolean ? width : range_geometry.x + bar_width;
+    const bool inside = m->x >= x && m->x < x + hit_width && m->y >= y && m->y < y + height;
+    if (!dragging && !inside) return 0;
     *focused = 1;
-    const auto setting = screen_mod_settings.at(w->subtype);
-    if (!setting.effective || !m->left.went_up) return 0;
-    int value = !setting.value;
-    if (!setting.boolean) {
-        if (m->y < y + height - 28) return 0;
-        const int bar_width = std::max(1, width - 90);
-        const int position = std::clamp(m->x - x - 8, 0, bar_width);
-        value = static_cast<int>(setting.minimum + (static_cast<int64_t>(setting.maximum) - setting.minimum) * position / bar_width);
+    if (!setting.effective) return 0;
+    if (setting.boolean) {
+        if (!m->left.went_up) return 0;
+        apply_screen_mod_setting(setting.key(), !setting.value);
+        return 1;
     }
-    if (value != setting.value) apply_screen_mod_setting(setting.key(), value);
+    if (!dragging && (!m->left.went_down || m->y < y + height - 28 || m->x < bar_x || m->x >= bar_x + bar_width)) return 0;
+    const int travel = std::max(1, bar_width - UiSliderPrimitive::Padding * 2 - UiSliderPrimitive::ThumbSize);
+    const int position = std::clamp(m->x - bar_x - UiSliderPrimitive::Padding - UiSliderPrimitive::ThumbSize / 2, 0, travel);
+    const int64_t range = static_cast<int64_t>(setting.maximum) - setting.minimum;
+    active_mod_slider_value = static_cast<int>(setting.minimum + (range * position + travel / 2) / travel);
+    active_mod_slider = setting.key();
+    if (!m->left.is_down) {
+        const int value = active_mod_slider_value;
+        active_mod_slider.clear();
+        if (value != setting.value) apply_screen_mod_setting(setting.key(), value);
+    }
+    // Preview drags immediately; reload city definitions only once, on release.
+    window_invalidate();
     return 1;
 }
