@@ -89,6 +89,42 @@ bool write_file(const std::filesystem::path &path, const char *contents)
 
 bool validate_production_method_layering_contract(std::ostream &errors)
 {
+    constexpr const char *LINK_XML = "<production_method><kind value=\"workshop\"/><output resource=\"clay\" rate_from=\"farm\"/></production_method>";
+    const production_method_layer_test_input linked[] = {
+        input(LOWER_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),
+        input(LINK_XML, 0, "Julius", "Julius/ProductionMethod/reverse.xml", "reverse"),
+        input(UPPER_XML, 1, "Vespasian", "Vespasian/ProductionMethod/farm.xml", "farm"),
+    };
+    production_method_layer_test_result linked_result;
+    if (!valid(linked, 3, "reverse", &linked_result) || linked_result.queried_production_per_month != 90) {
+        errors << "ProductionMethod rate reference did not bind to the winning source definition.\n";
+        return false;
+    }
+    if (valid(linked + 1, 1, "reverse")) {
+        errors << "ProductionMethod accepted a missing rate source.\n";
+        return false;
+    }
+    const production_method_layer_test_input self_cycle[] = {
+        input(LINK_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),
+    };
+    constexpr const char *CYCLE_XML = "<production_method><kind value=\"workshop\"/><output resource=\"wheat\" rate_from=\"reverse\"/></production_method>";
+    const production_method_layer_test_input cycle[] = {
+        input(CYCLE_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),
+        input(LINK_XML, 0, "Julius", "Julius/ProductionMethod/reverse.xml", "reverse"),
+    };
+    if (valid(self_cycle, 1, "farm") || valid(cycle, 2, "farm")) {
+        errors << "ProductionMethod accepted a cyclic rate dependency.\n";
+        return false;
+    }
+    constexpr const char *AMBIGUOUS_RATE_XML = "<production_method><kind value=\"workshop\"/><output resource=\"clay\" production_per_month=\"20\" rate_from=\"farm\"/></production_method>";
+    const production_method_layer_test_input ambiguous[] = {
+        input(LOWER_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),
+        input(AMBIGUOUS_RATE_XML, 0, "Julius", "Julius/ProductionMethod/reverse.xml", "reverse"),
+    };
+    if (valid(ambiguous, 2, "reverse")) {
+        errors << "ProductionMethod accepted simultaneous literal and referenced rates.\n";
+        return false;
+    }
     const production_method_layer_test_input replacement[] = {
         input(LOWER_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),
         input(UPPER_XML, 1, "Vespasian", "Vespasian/ProductionMethod/farm.xml", "farm"),

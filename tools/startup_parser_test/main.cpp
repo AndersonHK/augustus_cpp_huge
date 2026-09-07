@@ -70,6 +70,7 @@ constexpr int REQUIRED_COLD_SAVE_SOAK_TICKS = 3000;
 struct Options {
     std::filesystem::path game_root;
     bool dump_building_graphics_metadata = false;
+    bool definitions_only = false;
     bool cold_save_validation = false;
     int save_soak_count = 3;
     int save_soak_ticks = 3000;
@@ -200,7 +201,8 @@ void print_usage()
         << "StartupParserTest [--game-root <path>] [--save-soak-count <count>] [--save-soak-ticks <count>] [--cold-save-validation] [--dump-building-graphics-metadata]\n\n"
         << "Runs the headless startup XML/registry parse sequence and representative save soaks from the installed game folder.\n"
         << "The default fast mode initializes once per mod stack and loads its saves sequentially.\n"
-        << "--cold-save-validation starts a fresh process per save and requires at least 3000 soak ticks.\n";
+        << "--cold-save-validation starts a fresh process per save and requires at least 3000 soak ticks.\n"
+        << "--definitions-only runs XML and definition contracts; it does not run or replace the executable save gate.\n";
 }
 
 bool parse_positive_count(const char *text, int &value)
@@ -230,6 +232,10 @@ int parse_options(int argc, char **argv, Options &options)
         }
         if (arg == "--dump-building-graphics-metadata") {
             options.dump_building_graphics_metadata = true;
+            continue;
+        }
+        if (arg == "--definitions-only") {
+            options.definitions_only = true;
             continue;
         }
         if (arg == "--cold-save-validation") {
@@ -2056,6 +2062,10 @@ int run_startup_parser_test(int argc, char **argv)
     }
     if (!validate_access_ramp_road_connection_rules()) {
         return 1;
+    }
+    if (options.definitions_only) {
+        std::cout << "Definition contracts passed. Executable startup and save gate were not run.\n";
+        return 0;
     }
     if (!run_executable_startup_tests(game_root, tool_directory) ||
         !run_original_campaign_save_test(game_root, tool_directory, options.save_soak_ticks) ||

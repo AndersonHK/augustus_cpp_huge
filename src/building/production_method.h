@@ -5,6 +5,7 @@
 #include "scenario/property.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 class Building;
@@ -74,6 +75,10 @@ public:
     int base_monthly_production() const;
     int default_base_monthly_production() const;
     bool has_production_override() const { return has_production_override_; }
+    void set_rate_source_path(std::string path) { rate_source_path_ = std::move(path); }
+    const std::string &rate_source_path() const { return rate_source_path_; }
+    void resolve_rate_source(const ProductionMethod &source) { rate_source_ = &source; }
+    const ProductionMethod *rate_source() const { return rate_source_; }
 
     void set_batch_size(int batch_size);
     int batch_size() const;
@@ -119,6 +124,8 @@ private:
     int base_monthly_production_ = 0;
     int default_base_monthly_production_ = 0;
     bool has_production_override_ = false;
+    std::string rate_source_path_;
+    const ProductionMethod *rate_source_ = nullptr;
     int batch_size_ = 1;
     int cart_load_numerator_ = 0;
     int cart_load_denominator_ = 1;

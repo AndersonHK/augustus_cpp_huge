@@ -9,6 +9,11 @@
     "editor_strings": {},
     "messages": {},
     "project_keys": {
+        "TR_SIDEBAR_EXTRA_HOUSING_AVAILABLE": "Room for: ",
+        "TR_SIDEBAR_EXTRA_POPULATION_GOAL_MET": "Population goal met",
+        "TR_SIDEBAR_EXTRA_POPULATION_GOAL_NOT_MET": "Population goal not met",
+        "TR_SIDEBAR_EXTRA_ROOM_FOR_NEEDED_EMPLOYEES": "Room for all needed employees",
+        "TR_SIDEBAR_EXTRA_NOT_ENOUGH_ROOM_FOR_NEEDED_EMPLOYEES": "Not enough room for needed employees",
         "TR_FIGURE_TYPE_DOG": "Dog",
         "TR_FIGURE_TYPE_WANDERING_CITIZEN": "Wandering citizen",
         "TR_NO_PATCH_TITLE": "Patch 1.0.1.0 not installed",

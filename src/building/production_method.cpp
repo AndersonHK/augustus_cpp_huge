@@ -110,11 +110,13 @@ void ProductionMethod::reset_base_monthly_production_override()
 
 int ProductionMethod::base_monthly_production() const
 {
+    if (rate_source_ && !has_production_override_) return rate_source_->base_monthly_production();
     return base_monthly_production_;
 }
 
 int ProductionMethod::default_base_monthly_production() const
 {
+    if (rate_source_) return rate_source_->default_base_monthly_production();
     return default_base_monthly_production_;
 }
 

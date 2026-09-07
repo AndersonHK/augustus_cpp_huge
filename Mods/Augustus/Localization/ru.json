@@ -8,7 +8,12 @@
   "main_strings": {},
   "editor_strings": {},
   "messages": {},
-  "project_keys": {
+    "project_keys": {
+        "TR_SIDEBAR_EXTRA_HOUSING_AVAILABLE": "Мест для: ",
+        "TR_SIDEBAR_EXTRA_POPULATION_GOAL_MET": "Цель по населению выполнена",
+        "TR_SIDEBAR_EXTRA_POPULATION_GOAL_NOT_MET": "Цель по населению не выполнена",
+        "TR_SIDEBAR_EXTRA_ROOM_FOR_NEEDED_EMPLOYEES": "Мест достаточно для всех необходимых работников",
+        "TR_SIDEBAR_EXTRA_NOT_ENOUGH_ROOM_FOR_NEEDED_EMPLOYEES": "Недостаточно мест для необходимых работников",
     "TR_NO_PATCH_TITLE": "Патч 1.0.1.0 не установлен",
     "TR_NO_PATCH_MESSAGE": "Патч 1.0.1.0 в вашей версии игры Caesar 3 отсутствует. Вы можете скачать патч здесь:\nhttps://github.com/bvschaik/julius/wiki/Patches\nПродолжайте на свой страх и риск.",
     "TR_MISSING_FONTS_TITLE": "Отсутствуют шрифты",

@@ -170,6 +170,27 @@ inline void validate_scenario_model_overrides()
     action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("-200"), INT_MIN, INT_MAX);
     require(scenario_action_type_change_production_rate_execute(&action) == 1 && production_method_registry_production_per_month_for_resource(resource_wheat()) == 0, "Production rate did not clamp at zero");
     production_method_registry_reset_production_overrides();
+    if (auto *mint = find_production_method_definition("city_mint_basic")) {
+        auto *reverse = find_production_method_definition("city_mint_gold_basic");
+        require(reverse && reverse->rate_source() == mint, "Reverse mint does not bind to the denarii production method");
+        const int default_mint = mint->base_monthly_production();
+        const int default_gold = production_method_registry_production_per_month_for_resource(resource_gold());
+        action.parameter1 = resource_denarii(); action.parameter3 = 1;
+        action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("73"), INT_MIN, INT_MAX);
+        require(scenario_action_type_change_production_rate_execute(&action) && mint->base_monthly_production() == 73 && reverse->base_monthly_production() == 73, "Denarii set event did not control both mint directions");
+        action.parameter3 = 0;
+        require(scenario_action_type_change_production_rate_execute(&action) && mint->base_monthly_production() == 146 && reverse->base_monthly_production() == 146, "Denarii add event was lost or applied twice");
+        production_method_registry_set_production_per_month_for_resource(resource_gold(), 51);
+        require(reverse->base_monthly_production() == 146, "Gold mining rate changed reverse mint production");
+        buffer mint_rates{}; production_rates_save(&mint_rates);
+        production_method_registry_reset_production_overrides();
+        require(mint->base_monthly_production() == default_mint && reverse->base_monthly_production() == default_mint && production_method_registry_production_per_month_for_resource(resource_gold()) == default_gold, "Scenario reset retained a linked production override");
+        production_rates_load(&mint_rates, true);
+        std::free(mint_rates.data);
+        require(mint->base_monthly_production() == 146 && reverse->base_monthly_production() == 146 && !reverse->has_production_override(), "Production save froze a derived mint rate as an explicit scenario override");
+        production_method_registry_reset_production_overrides();
+        std::fprintf(stdout, "D13 production contracts passed: shared mint rate, independent gold, set/add, reset and delta roundtrip.\n");
+    }
     const auto house_type = type_from_attr("house_small_tent");
     const auto *house = definition_for_type(house_type);
     require(house && house->housing_def().profile, "Scenario housing fixture is unavailable");

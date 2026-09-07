@@ -15,6 +15,7 @@
 #include <climits>
 #include <algorithm>
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -155,7 +156,8 @@ int validate_definition(const ProductionMethod &definition, const char *filename
     }
 
     const int base_output_production = definition.base_monthly_production();
-    if (base_output_production <= 0) {
+    const bool rate_pending = !definition.rate_source_path().empty() && !definition.rate_source();
+    if (base_output_production <= 0 && !rate_pending) {
         char detail[512];
         snprintf(detail, sizeof(detail), "file=%s path=%s output_resource=%d production_per_month=%d", filename,
             definition_path ? definition_path : "", definition.output_resource(), base_output_production);
@@ -165,6 +167,7 @@ int validate_definition(const ProductionMethod &definition, const char *filename
     }
 
     for (const ClimateProductionBonus &bonus : definition.climate_bonuses()) {
+        if (rate_pending) continue;
         const int adjusted_production = adjust_production_with_percent(base_output_production, bonus.percent_delta);
         if (adjusted_production <= 0) {
             char detail[512];
@@ -261,8 +264,8 @@ int parse_output()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("production_per_month")) {
-        log_error("ProductionMethod output is missing required attribute 'production_per_month'", 0, 0);
+    if (xml_parser_has_attribute("production_per_month") == xml_parser_has_attribute("rate_from")) {
+        log_error("ProductionMethod output requires exactly one of production_per_month or rate_from", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -317,7 +320,13 @@ int parse_output()
         g_parse_state.definition->set_output_effect(effect);
     }
 
-    g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
+    if (xml_parser_has_attribute("rate_from")) {
+        const auto source = xml_definition::normalize_path(xml_parser_get_attribute_string("rate_from"));
+        if (source.empty()) { g_parse_state.error = 1; log_error("ProductionMethod rate_from must not be empty", 0, 0); return 0; }
+        g_parse_state.definition->set_rate_source_path(source);
+    } else {
+        g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
+    }
     g_parse_state.saw_output = 1;
     return 1;
 }
@@ -717,6 +726,36 @@ bool resolve_winners(StagedRegistry &staged, std::string *failure_reason)
         }
         staged.definitions.emplace(entry.first, std::move(parsed.definition));
     }
+    for (const auto &entry : staged.definitions) {
+        auto &method = *entry.second;
+        if (method.rate_source_path().empty()) continue;
+        const auto source = staged.definitions.find(method.rate_source_path());
+        if (source == staged.definitions.end()) {
+            const std::string detail = staged.winners.at(entry.first).source.describe() + " references missing production rate source " + method.rate_source_path();
+            if (failure_reason) *failure_reason = detail;
+            log_error("Invalid production rate source", detail.c_str(), 0);
+            return false;
+        }
+        method.resolve_rate_source(*source->second);
+    }
+    for (const auto &entry : staged.definitions) {
+        std::set<const ProductionMethod *> visited;
+        for (const auto *method = entry.second.get(); method; method = method->rate_source()) {
+            if (!visited.insert(method).second) {
+                const std::string detail = "Cyclic production rate source: " + entry.first;
+                if (failure_reason) *failure_reason = detail;
+                log_error("Invalid production rate source", detail.c_str(), 0);
+                return false;
+            }
+        }
+    }
+    for (const auto &entry : staged.definitions) {
+        const auto &source = staged.winners.at(entry.first).source;
+        if (!validate_definition(*entry.second, source.full_path.c_str(), entry.first.c_str())) {
+            if (failure_reason) *failure_reason = "Invalid linked ProductionMethod: " + source.describe();
+            return false;
+        }
+    }
     return true;
 }
 
@@ -759,7 +798,7 @@ int production_per_month_for_resource(resource_type resource)
 {
     for (const auto &entry : g_production_methods) {
         const ProductionMethod *method = entry.second.get();
-        if (method && method->output_resource() == resource) {
+        if (method && !method->rate_source() && method->output_resource() == resource) {
             return method->base_monthly_production();
         }
     }
@@ -770,7 +809,7 @@ int default_production_per_month_for_resource(resource_type resource)
 {
     for (const auto &entry : g_production_methods) {
         const ProductionMethod *method = entry.second.get();
-        if (method && method->output_resource() == resource) {
+        if (method && !method->rate_source() && method->output_resource() == resource) {
             return method->default_base_monthly_production();
         }
     }
@@ -782,7 +821,7 @@ int set_production_per_month_for_resource(resource_type resource, int production
     int changed = 0;
     for (const auto &entry : g_production_methods) {
         ProductionMethod *method = entry.second.get();
-        if (method && method->output_resource() == resource) {
+        if (method && !method->rate_source() && method->output_resource() == resource) {
             method->override_base_monthly_production(production);
             changed = 1;
         }
@@ -795,7 +834,7 @@ int adjust_production_per_month_for_resource(resource_type resource, int delta)
     int changed = 0;
     for (const auto &entry : g_production_methods) {
         ProductionMethod *method = entry.second.get();
-        if (method && method->output_resource() == resource) {
+        if (method && !method->rate_source() && method->output_resource() == resource) {
             method->override_base_monthly_production(static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(method->base_monthly_production()) + delta, 0, INT_MAX)));
             changed = 1;
         }
