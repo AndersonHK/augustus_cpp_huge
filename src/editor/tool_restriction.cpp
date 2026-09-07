@@ -5,7 +5,7 @@
 #include "map/elevation.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
@@ -32,7 +32,7 @@ static void set_warning(warning_type *warning, warning_type type)
 
 static int is_clear_terrain(const map_tile *tile, warning_type *warning)
 {
-    int result = !map_terrain_is(tile->grid_offset, TERRAIN_NOT_CLEAR ^ TERRAIN_ROAD);
+    int result = !terrain_map().contains(tile->grid_offset, terrain_types().not_clear ^ terrain_types().road);
     if (!result) {
         set_warning(warning, WARNING_EDITOR_CANNOT_PLACE);
     }
@@ -50,7 +50,7 @@ static int is_edge(const map_tile *tile, warning_type *warning)
 
 static int is_water(const map_tile *tile, warning_type *warning)
 {
-    int result = map_terrain_is(tile->grid_offset, TERRAIN_WATER);
+    int result = terrain_map().contains(tile->grid_offset, terrain_types().water);
     if (!result) {
         set_warning(warning, WARNING_EDITOR_NEED_OPEN_WATER);
     }
@@ -59,8 +59,8 @@ static int is_water(const map_tile *tile, warning_type *warning)
 
 static int is_deep_water(const map_tile *tile, warning_type *warning)
 {
-    int result = map_terrain_is(tile->grid_offset, TERRAIN_WATER) &&
-        map_terrain_count_directly_adjacent_with_type(tile->grid_offset, TERRAIN_WATER) == 4;
+    int result = terrain_map().contains(tile->grid_offset, terrain_types().water) &&
+        terrain_map().count_directly_adjacent_with_type(tile->grid_offset, terrain_types().water) == 4;
     if (!result) {
         set_warning(warning, WARNING_EDITOR_NEED_OPEN_WATER);
     }
@@ -104,14 +104,14 @@ int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_ind
             int tile_offset = tile->grid_offset + ACCESS_RAMP_TILE_OFFSETS_BY_ORIENTATION[orientation][index];
             int elevation = map_elevation_at(tile_offset);
             if (index < 2) {
-                if (map_terrain_is(tile_offset, TERRAIN_ELEVATION)) {
+                if (terrain_map().contains(tile_offset, terrain_types().elevation)) {
                     right_tiles++;
                 } else {
                     wrong_tiles++;
                 }
                 top_elevation = elevation;
             } else if (index < 4) {
-                if (map_terrain_is(tile_offset, TERRAIN_ELEVATION)) {
+                if (terrain_map().contains(tile_offset, terrain_types().elevation)) {
                     if (elevation == top_elevation) {
                         wrong_tiles++;
                     } else {
@@ -123,7 +123,7 @@ int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_ind
                     wrong_tiles++;
                 }
             } else {
-                if (map_terrain_is(tile_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+                if (terrain_map().contains(tile_offset, terrain_types().elevation | terrain_types().access_ramp)) {
                     wrong_tiles++;
                 } else if (elevation >= top_elevation) {
                     wrong_tiles++;
@@ -169,7 +169,7 @@ int editor_tool_can_place_building(
             continue;
         }
         int tile_offset = map_grid_offset(x, y);
-        int forbidden_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
+        TerrainSet forbidden_terrain = terrain_map().at(tile_offset) & terrain_types().not_clear;
         if (forbidden_terrain || map_has_figure_at(tile_offset)) {
             blocked = 1;
             if (blocked_tiles) {
@@ -181,6 +181,6 @@ int editor_tool_can_place_building(
 }
 
 int editor_tool_can_place_custom_earthquake(const map_tile *tile) {
-    int result = !map_terrain_is(tile->grid_offset, TERRAIN_IMPASSABLE_EARTHQUAKE);
+    int result = !terrain_map().contains(tile->grid_offset, terrain_types().impassable_earthquake);
     return result;
 }

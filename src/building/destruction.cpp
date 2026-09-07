@@ -25,7 +25,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 #include "sound/effect.h"
 
@@ -71,11 +71,11 @@ static building_type_registry_impl::BuildingGeometry geometry_from_rubble_tiles(
 static const building_type_registry_impl::BuildingType *surface_type_at(int grid_offset)
 {
     const char *type_attr = nullptr;
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         type_attr = "aqueduct";
-    } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         type_attr = "wall";
-    } else if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
         type_attr = "gatehouse";
     }
     return type_attr ? building_type_registry_impl::definition_for_type(
@@ -168,7 +168,7 @@ static void capture_rubble_tiles(Building &building_object, std::vector<RubbleTi
             continue;
         }
         const int grid_offset = map_grid_offset(x, y);
-        if (map_terrain_is(grid_offset, TERRAIN_WATER) || rubble_tile_is_captured(tiles, grid_offset)) {
+        if (terrain_map().contains(grid_offset, terrain_types().water) || rubble_tile_is_captured(tiles, grid_offset)) {
             continue;
         }
         if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).id != building_object.id) {
@@ -445,18 +445,18 @@ static int destroy_surface_by_enemy(int grid_offset)
 {
     const int x = map_grid_offset_to_x(grid_offset);
     const int y = map_grid_offset_to_y(grid_offset);
-    if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
-        map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+    if (terrain_map().contains(grid_offset, terrain_types().garden)) {
+        terrain_map().remove(grid_offset, terrain_types().clearable);
         map_tiles_update_region_empty_land(x, y, x, y);
         map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
         map_tiles_update_all_gardens();
         return 1;
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         figure_kill_tower_sentries_at(x, y);
     }
-    if (!map_terrain_is(grid_offset, TERRAIN_AQUEDUCT | TERRAIN_WALL | TERRAIN_GATEHOUSE)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().aqueduct | terrain_types().wall | terrain_types().gatehouse)) {
         return 0;
     }
     const RubbleState origin = rubble_origin_for_surface(grid_offset);

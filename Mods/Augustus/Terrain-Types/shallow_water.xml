@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="shallow_water" graphics_priority="1">
+    <traversal land="false" sea="false" enemy="false" herd="false" earthquake="false" water="true" />
+    <placement blocking="true" clearable="true" editable="true" paintable="true" />
+    <includes terrain="water" />
+    <water_image shape="open" group="Terrain_Maps\Water_Shore" images="Image_0000 Image_0001 Image_0002 Image_0003" />
+    <water_image shape="north" group="Terrain_Maps\Water_Shore" images="Image_0004" />
+    <water_image shape="east" group="Terrain_Maps\Water_Shore" images="Image_0005" />
+    <water_image shape="south" group="Terrain_Maps\Water_Shore" images="Image_0006" />
+    <water_image shape="west" group="Terrain_Maps\Water_Shore" images="Image_0007" />
+</terrain>

@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "core/buffer.h"
 #include "building/building_type.h"
@@ -120,8 +121,8 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
 /**
  * Special counting functions for buildings which are special
  */
-int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, int terrain, int (*condition)(int));
-int building_count_terrain(int terrain, int (*condition)(int));
+int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, TerrainSet terrain, int (*condition)(int));
+int building_count_terrain(TerrainSet terrain, int (*condition)(int));
 
 int building_count_bridges(int ship);
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship);

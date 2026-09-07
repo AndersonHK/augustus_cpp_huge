@@ -16,7 +16,7 @@
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tile_runtime_graphics.h"
 #include "map/tiles.h"
 
@@ -125,7 +125,7 @@ int city_draw_terrain_foundation_footprint(
 {
     // Bridge tiles deliberately carry both water and road terrain bits. Draw
     // the water below the bridge here, not the traversable road deck above it.
-    if (map_terrain_is(grid_offset, TERRAIN_WATER) && map_is_bridge(grid_offset)) {
+    if (terrain_map().contains(grid_offset, terrain_types().water) && map_is_bridge(grid_offset)) {
         const int image_id = map_image_at(grid_offset);
         if (image_id) {
             Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
@@ -133,7 +133,7 @@ int city_draw_terrain_foundation_footprint(
         }
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+    if (terrain_map().contains(grid_offset, terrain_types().road)) {
         Image::from_id(map_tiles_road_surface_image_id(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
         return 1;
     }

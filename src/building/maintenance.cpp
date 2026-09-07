@@ -27,7 +27,7 @@
 #include "map/random.h"
 #include "map/road_access.h"
 #include "map/road_network.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "scenario/property.h"
 #include "sound/effect.h"

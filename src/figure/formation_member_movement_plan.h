@@ -73,6 +73,7 @@ private:
         return left.x == right.x && left.y == right.y && left.plane == right.plane;
     }
     bool point_is_reserved(int slot, const FigureMovementDestination &candidate) const;
+    bool points_overlap(const FigureMovementDestination &left, const FigureMovementDestination &right) const;
     int calculate_fallback_step(bool horizontal) const;
     void find_nearest_fallback_candidates(int slot, std::vector<Candidate> *candidates, const Reachability &reachable) const;
 
@@ -85,6 +86,7 @@ private:
     FormationMovementBounds bounds_;
     int fallback_step_x_ = 1;
     int fallback_step_y_ = 1;
+    long long minimum_spacing_squared_ = 1;
     bool valid_ = false;
     std::vector<Station> stations_;
 };

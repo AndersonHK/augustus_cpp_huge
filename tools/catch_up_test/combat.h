@@ -8,7 +8,7 @@
 #include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -104,7 +104,7 @@ inline bool run_combat_runtime_test()
         map_building_load_state(&b, &d, &r, SAVE_GAME_CURRENT_VERSION);
         map_building_rebind_runtime_references();
         for (int i = 300; i <= hp; ++i) building_apply_enemy_damage(wall);
-        require(!map_terrain_is(wall, TERRAIN_WALL), "Wall survived damage beyond its authored hit points");
+        require(!terrain_map().contains(wall, terrain_types().wall), "Wall survived damage beyond its authored hit points");
         fprintf(stdout, "Combat: %d-HP wall accumulated damage beyond 255, survived backup/save/reload, and was destroyed\n", hp);
         return true;
     } catch (const std::exception &error) {
@@ -128,7 +128,7 @@ inline std::vector<CombatEncounterObservation> observe_wall_attackers()
         Figure *f = Figure::get(i);
         if (f->state != FIGURE_STATE_ALIVE || !f->is_enemy() || f->direction != DIR_FIGURE_ATTACK || f->attack_direction < 0 || f->attack_direction >= 8) continue;
         const int wall = f->grid_offset + map_grid_direction_delta(f->attack_direction);
-        if (!map_terrain_is(wall, TERRAIN_WALL)) continue;
+        if (!terrain_map().contains(wall, terrain_types().wall)) continue;
         result.push_back({i, f->created_sequence, f->damage, wall, map_building_damage_at(wall)});
         fprintf(stdout, "Combat encounter before: enemy=%u x=%d y=%d damage=%d wall=%d wall_damage=%d hp=%d\n", i, f->x, f->y, f->damage, wall, map_building_damage_at(wall), building_hit_points_at(wall));
     }
@@ -140,7 +140,7 @@ inline bool validate_combat_encounter(const std::vector<CombatEncounterObservati
     for (const auto &observation : before) {
         const Figure *f = Figure::get(observation.figure_id);
         const bool killed = f->state != FIGURE_STATE_ALIVE || f->created_sequence != observation.created_sequence || f->action_state == FIGURE_ACTION_149_CORPSE;
-        const bool wall_destroyed = !map_terrain_is(observation.wall, TERRAIN_WALL);
+        const bool wall_destroyed = !terrain_map().contains(observation.wall, terrain_types().wall);
         const int damage = map_building_damage_at(observation.wall);
         fprintf(stdout, "Combat encounter after: enemy=%u killed=%d damage=%d wall_destroyed=%d wall_damage=%d\n", observation.figure_id, killed, f->damage, wall_destroyed, damage);
         if (!killed && !wall_destroyed && f->damage <= observation.damage && damage <= observation.wall_damage) {

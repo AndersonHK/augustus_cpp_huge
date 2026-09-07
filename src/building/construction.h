@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/building_type.h"
 #include "city/warning.h"
@@ -61,7 +62,6 @@ void building_construction_offset_start_from_orientation(int *x, int *y, int siz
 void building_construction_place(void);
 void building_construction_set_can_place(int can_place);
 
-int building_construction_can_place_on_terrain(int x, int y, warning_type *warning, translation_key *text_key);
 
 void building_construction_record_view_position(int view_x, int view_y, int grid_offset);
 void building_construction_get_view_position(int *view_x, int *view_y);

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<foundation type="water_site_2x2" width="2" height="2" rotates="false" site_requires="water">
+<foundation type="water_site_2x2" width="2" height="2" rotates="false">
+    <proximity terrain="water" max_distance="3" warning_key="TR_CITY_WARNING_WATER_NEEDED" />
     <profile symbol="L" requires="land" adds="building" />
     <rows><row cells="LL" /><row cells="LL" /></rows>
 </foundation>

@@ -30,7 +30,8 @@
 #include "game/resource.h"
 #include "figure/formation_type.h"
 #include "figure/figure_type_registry_internal.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
+#include "map/TerrainRegistry.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
@@ -1957,9 +1958,9 @@ static int parse_infrastructure()
     auto &definition = g_parse_state.definition->infrastructure();
     if (!xml_parser_has_attribute("terrain")) return 1; // An empty field removes the module.
     const char *terrain = xml_parser_get_attribute_string("terrain");
-    const std::pair<const char *, uint32_t> masks[] = {{"highway", TERRAIN_HIGHWAY}, {"road", TERRAIN_ROAD}, {"water", TERRAIN_WATER}, {"wall", TERRAIN_WALL}, {"garden", TERRAIN_GARDEN}, {"aqueduct", TERRAIN_AQUEDUCT}};
-    for (const auto &[name, mask] : masks) if (compare_text(terrain, name) == 0) definition.terrain_mask = mask;
-    if (!definition.terrain_mask) { log_error("Unknown infrastructure terrain", terrain, 0); g_parse_state.error = 1; return 0; }
+    try { definition.terrains = terrain_registry().bind(terrain ? terrain : "", "Building infrastructure"); }
+    catch (const std::exception &error) { log_error("Invalid infrastructure terrain", error.what(), 0); g_parse_state.error = 1; return 0; }
+    if (!definition.terrains) { log_error("Unknown infrastructure terrain", terrain, 0); g_parse_state.error = 1; return 0; }
     return parse_service_integer("tiles_per_unit", definition.tiles_per_unit, 1, 256) && parse_service_integer("monthly_levy", definition.monthly_levy, 0, 1000000);
 }
 
@@ -3015,27 +3016,8 @@ static int parse_graphics_condition()
         }
 
         const char *terrain_text = xml_parser_get_attribute_string("value");
-        if (compare_text(terrain_text, "road") == 0) {
-            condition.terrain_mask = TERRAIN_ROAD;
-        } else if (compare_text(terrain_text, "aqueduct") == 0) {
-            condition.terrain_mask = TERRAIN_AQUEDUCT;
-        } else if (compare_text(terrain_text, "highway") == 0) {
-            condition.terrain_mask = TERRAIN_HIGHWAY;
-        } else if (compare_text(terrain_text, "water") == 0) {
-            condition.terrain_mask = TERRAIN_WATER;
-        } else if (compare_text(terrain_text, "building") == 0) {
-            condition.terrain_mask = TERRAIN_BUILDING;
-        } else if (compare_text(terrain_text, "garden") == 0) {
-            condition.terrain_mask = TERRAIN_GARDEN;
-        } else if (compare_text(terrain_text, "rubble") == 0) {
-            condition.terrain_mask = TERRAIN_RUBBLE;
-        } else if (compare_text(terrain_text, "wall") == 0) {
-            condition.terrain_mask = TERRAIN_WALL;
-        } else {
-            log_error("Unsupported BuildingType graphics terrain condition", terrain_text, 0);
-            g_parse_state.error = 1;
-            return 0;
-        }
+        try { condition.terrains = terrain_registry().bind(terrain_text, "Building graphics condition"); }
+        catch (const std::exception &error) { log_error("Invalid graphics terrain", error.what(), 0); g_parse_state.error = 1; return 0; }
         condition.type = GraphicsConditionType::Terrain;
     } else if (type_text && compare_text(type_text, "climate") == 0) {
         if (!xml_parser_has_attribute("value")) {
@@ -3318,15 +3300,13 @@ static int parse_water_access_requirement_source()
     }
     const char *source_text = xml_parser_get_attribute_string("type");
     WaterAccessRequirementTerm term;
-    if (compare_text(source_text, "water_source_any") == 0) {
-        term.kind = WaterAccessRequirementTermKind::WaterSourceAny;
-    } else if (compare_text(source_text, "water_source_fresh_only") == 0) {
-        term.kind = WaterAccessRequirementTermKind::WaterSourceFreshOnly;
-    } else {
-        log_error("Unsupported BuildingType water_access requirement source type", source_text, 0);
+    if (compare_text(source_text, "foundation_requirement") != 0 || !xml_parser_has_attribute("requirement")) {
+        log_error("Water source requires a named foundation_requirement", source_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
+    term.kind = WaterAccessRequirementTermKind::FoundationRequirement;
+    term.foundation_requirement_name = xml_parser_get_attribute_string("requirement");
     term.where = WaterAccessRequirementWhere::Footprint;
     return add_water_access_requirement_term(term);
 }
@@ -5317,7 +5297,7 @@ static int resolve_construction_references()
     for (std::unique_ptr<BuildingType> &definition : g_building_types) {
         if (definition && definition->city_service().enabled()) {
             const auto *target = definition_for_type(type_from_attr(definition->city_service().infrastructure));
-            if (!target || !target->infrastructure().terrain_mask || definition->city_service().inputs.empty()) {
+            if (!target || !target->infrastructure().terrains || definition->city_service().inputs.empty()) {
                 log_error("City service requires valid infrastructure and resource inputs", definition->attr(), 0);
                 return 0;
             }
@@ -5467,6 +5447,10 @@ static int resolve_foundation_references()
             return 0;
         }
         definition->set_foundation_definition(foundation);
+        if (!definition->bind_water_foundation_requirements(*foundation)) {
+            log_error("Unable to bind water source foundation requirement", definition->attr(), definition->type());
+            return 0;
+        }
     }
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
         if (!definition) {

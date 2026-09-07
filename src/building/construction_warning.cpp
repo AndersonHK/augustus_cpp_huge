@@ -21,7 +21,7 @@
 
 #include "core/calc.h"
 #include "empire/city.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #include <initializer_list>
@@ -242,7 +242,7 @@ static void check_weapons_access(building_type type)
 static void check_wall(building_type type, int x, int y, int size)
 {
     if (!has_warning && building_type_registry_impl::type_attr_is(type, "tower")) {
-        if (!map_terrain_is_adjacent_to_wall(x, y, size)) {
+        if (!terrain_map().is_adjacent_to_wall(x, y, size)) {
             show(WARNING_SENTRIES_NEED_WALL, "TR_CITY_WARNING_SENTRIES_NEED_WALL");
         }
     }

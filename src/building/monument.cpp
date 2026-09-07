@@ -21,7 +21,7 @@
 #include "empire/city.h"
 #include "game/resource_id_bridge.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #include <algorithm>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="garden">
+    <traversal land="true" sea="true" enemy="false" herd="false" earthquake="true" water="false" />
+    <placement blocking="true" clearable="true" editable="true" paintable="false" />
+</terrain>

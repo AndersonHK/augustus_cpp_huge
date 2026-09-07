@@ -1,6 +1,8 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include <array>
+#include <optional>
 #include <stdint.h>
 #include <vector>
 
@@ -13,10 +15,12 @@ struct FoundationTerrainDelta;
 constexpr int FOUNDATION_SAVE_CELL_LIMIT = 64;
 constexpr int FOUNDATION_SAVE_TERRAIN_BYTES = 1 + FOUNDATION_SAVE_CELL_LIMIT * 2 * sizeof(uint32_t);
 
-// Fixed-width save payload. Foundation definitions are limited to 64 active
-// cells, so each canonical cell receives exact added and removed terrain masks.
-// Runtime geometry, dimensions, and authored masks remain definition-owned.
+// The wire payload contains a publication byte and archive set references per
+// cell. Legacy versions decode those slots as masks. Geometry and definition
+// values are never stored here.
 struct FoundationTerrainSaveState {
+    // Loader-only reconstruction bypasses wire IDs; never written to disk.
+    std::optional<std::array<TerrainSet, FOUNDATION_SAVE_CELL_LIMIT>> recovered_added;
     uint8_t published = 0;
     std::array<uint32_t, FOUNDATION_SAVE_CELL_LIMIT> added = {};
     std::array<uint32_t, FOUNDATION_SAVE_CELL_LIMIT> removed = {};

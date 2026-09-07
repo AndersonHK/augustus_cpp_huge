@@ -46,7 +46,7 @@
 #include "map/figure.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/city_overlay.h"
 
 static const city_overlay *overlay = 0;
@@ -330,8 +330,8 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
         return;
     }
     if (map_property_is_draw_tile(grid_offset)) {
-        int terrain = map_terrain_get(grid_offset);
-        if (terrain & TERRAIN_HIGHWAY && !(terrain & TERRAIN_GATEHOUSE)) {
+        TerrainSet terrain = terrain_map().at(grid_offset);
+        if (terrain & terrain_types().highway && !(terrain & terrain_types().gatehouse)) {
             city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
         } else {
             Building *building = command.building;
@@ -343,8 +343,8 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
                 map_building_at(grid_offset).is_surface_terrain_tile() &&
                 city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale);
             if (!runtime_tile_drawn) {
-                if (terrain & (TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
-                    if (terrain & TERRAIN_ROAD) {
+                if (terrain & (terrain_types().aqueduct | terrain_types().wall)) {
+                    if (terrain & terrain_types().road) {
                         city_draw_terrain_foundation_footprint(
                             grid_offset, x, y, COLOR_MASK_NONE, scale);
                     } else {
@@ -356,9 +356,9 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
                     const int runtime_tile_fallback_drawn =
                         city_draw_runtime_tile_footprint(grid_offset, x, y, COLOR_MASK_NONE, scale);
                     if (!runtime_tile_fallback_drawn) {
-                        if ((terrain & TERRAIN_ROAD) && !(terrain & TERRAIN_BUILDING)) {
+                        if ((terrain & terrain_types().road) && !(terrain & terrain_types().building)) {
                             Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-                        } else if (terrain & TERRAIN_BUILDING) {
+                        } else if (terrain & terrain_types().building) {
                             if (map_is_bridge(grid_offset)) {
                                 Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
                             }
@@ -465,10 +465,10 @@ static void draw_top_for_building(Building *building, int x, int y, int grid_off
             return;
         }
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building) {
+    if (terrain_map().contains(grid_offset, terrain_types().building) && building) {
         city_with_overlay_draw_building_top_for_building(building, x, y, grid_offset);
-    } else if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        if (!map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_AQUEDUCT | TERRAIN_ROAD)) {
+    } else if (!terrain_map().contains(grid_offset, terrain_types().building)) {
+        if (!terrain_map().contains(grid_offset, terrain_types().wall | terrain_types().aqueduct | terrain_types().road)) {
             color_t color_mask = 0;
             if (map_property_is_deleted(grid_offset) && !city_draw_is_multi_tile_terrain(grid_offset)) {
                 color_mask = building_construction_clear_color();

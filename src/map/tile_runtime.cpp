@@ -335,12 +335,8 @@ static std::unordered_map<int, tile_runtime> g_runtime_tiles_backup;
 
 const ImageGroupEntry *tile_runtime::cached_graphic_entry() const
 {
-    if (graphics_path_.empty() || !image_id_[0]) {
-        return nullptr;
-    }
-    if (cached_entry_) {
-        return cached_entry_;
-    }
+    if (cached_entry_) return cached_entry_;
+    if (graphics_path_.empty() || image_id_.empty()) return nullptr;
 
     char context[128];
     make_tile_context(context, sizeof(context), grid_offset_);
@@ -637,4 +633,18 @@ int tile_runtime_has_graphic(int grid_offset)
         return instance->resolve_graphic_entry() != nullptr;
     }
     return 0;
+}
+
+void tile_runtime_set_terrain_image(int grid_offset, const ImageGroupEntry *entry)
+{
+    if (!entry) { tile_runtime_clear(grid_offset); return; }
+    auto &slot = tile_runtime_impl::g_runtime_tiles[grid_offset];
+    if (!slot || slot->definition() || slot->graphics_path()[0]) slot = std::make_unique<tile_runtime>(grid_offset, nullptr, "");
+    slot->set_bound_terrain_image(*entry);
+}
+
+void tile_runtime_clear_terrain_image(int grid_offset)
+{
+    const auto *runtime = tile_runtime_impl::get_instance(grid_offset);
+    if (runtime && !runtime->definition() && !runtime->graphics_path()[0]) tile_runtime_clear(grid_offset);
 }

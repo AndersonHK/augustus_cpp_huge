@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="road">
+    <traversal land="true" sea="true" enemy="true" herd="true" earthquake="true" water="false" />
+    <placement blocking="true" clearable="true" editable="true" paintable="false" />
+    <load_alias name="highway_top_left" />
+    <load_alias name="highway_bottom_left" />
+    <load_alias name="highway_top_right" />
+    <load_alias name="highway_bottom_right" />
+</terrain>

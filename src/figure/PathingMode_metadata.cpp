@@ -114,6 +114,8 @@ RoutePolicy PathingMode::routePolicyForTerrain(
 
     if (terrain.wall_grid) {
         policy.kind = RoutePolicyKind::Walls;
+    } else if (terrain.usesAnimalLandRoute()) {
+        policy.kind = RoutePolicyKind::HerdLand;
     } else if (terrain.usesNonCitizenPolicy()) {
         policy.kind = RoutePolicyKind::NonCitizenLand;
     } else if (terrain.usesRoadAccess()) {

@@ -153,7 +153,7 @@ void stamp(Node &node, const std::string &origin, const std::vector<Reference> &
 
 std::string definition_key(const Node &node, const std::filesystem::path &relative)
 {
-    std::string identity = node.attribute("type", node.attribute("id", node.attribute("name")));
+    std::string identity = node.attribute("type", node.attribute("text_id", node.attribute("id", node.attribute("name"))));
     if (identity.empty()) identity = path_text(relative.stem());
     const auto category = path_text(*relative.begin());
     // Buildings can live in both BuildingType and Tiles.

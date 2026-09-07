@@ -24,7 +24,7 @@
 #include "core/config.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 enum crime_level {
     NO_CRIME = 0,
@@ -138,13 +138,13 @@ static int draw_footprint_enemy(int x, int y, float scale, int grid_offset)
     }
     int drawn = 0;
     // 1. If there is a highway, draw it
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) &&
-        !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway) &&
+        !terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
         city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
         drawn = 1;
     }
     // 2. On top: an aqueduct / wall
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct | terrain_types().wall)) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
         drawn = 1;
     }
@@ -167,7 +167,7 @@ static int draw_top_enemy(int x, int y, float scale, int grid_offset)
         }
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct | terrain_types().wall)) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, 0, scale);
         return 1;
     }
@@ -480,11 +480,11 @@ const city_overlay *city_overlay_for_problems(void)
     return &overlay;
 }
 
-static int terrain_on_native_overlay(void)
+static TerrainSet terrain_on_native_overlay(void)
 {
     return
-        TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_SHRUB |
-        TERRAIN_GARDEN | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE;
+        terrain_types().tree | terrain_types().rock | terrain_types().water | terrain_types().shrub |
+        terrain_types().garden | terrain_types().elevation | terrain_types().access_ramp | terrain_types().rubble;
 }
 
 static int draw_footprint_native(int x, int y, float scale, int grid_offset)
@@ -499,22 +499,22 @@ static int draw_footprint_native(int x, int y, float scale, int grid_offset)
         }
         Image::from_id(water_image).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
-    if (map_terrain_is(grid_offset, terrain_on_native_overlay())) {
-        if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_on_native_overlay())) {
+        if (terrain_map().contains(grid_offset, terrain_types().building)) {
             city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
         } else {
             Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT | TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct | terrain_types().wall)) {
         //display flattened building tile 
         int image_id = Image::group(GROUP_TERRAIN_OVERLAY);
         Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-    } else if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().building)) {
         city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
     } else {
         if (map_property_is_native_land(grid_offset)) {
             Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + 1).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-        } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().highway) && !terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
             city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
         } else {
             Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
@@ -532,8 +532,8 @@ static int draw_top_native(int x, int y, float scale, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, terrain_on_native_overlay())) {
-        if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_is_bridge(grid_offset)) {
+    if (terrain_map().contains(grid_offset, terrain_on_native_overlay())) {
+        if (!terrain_map().contains(grid_offset, terrain_types().building) || map_is_bridge(grid_offset)) {
             color_t color_mask = 0;
             const bool is_deleted = map_building_exists_at(grid_offset) ?
                 city_draw_building_as_deleted(map_building_at(grid_offset)) :

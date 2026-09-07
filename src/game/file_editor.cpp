@@ -45,7 +45,7 @@
 #include "map/road_network.h"
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
 #include "scenario/custom_messages.h"
@@ -98,7 +98,7 @@ static void clear_map_data(void)
 {
     map_image_clear();
     map_building_clear();
-    map_terrain_clear();
+    terrain_map().clear();
     map_aqueduct_clear();
     map_figure_clear();
     map_property_clear();
@@ -110,7 +110,7 @@ static void clear_map_data(void)
     map_road_network_clear();
 
     map_image_context_init();
-    map_terrain_init_outside_map();
+    terrain_map().init_outside_map();
     map_random_init();
     map_property_init_alternate_terrain();
 }

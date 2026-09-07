@@ -1,4 +1,5 @@
 #include "condition_handler.h"
+#include "map/TerrainSaveBridge.h"
 
 #include "core/log.h"
 #include "game/resource.h"
@@ -102,7 +103,7 @@ int scenario_condition_type_is_met(scenario_condition_t *condition)
 
 void scenario_condition_type_delete(scenario_condition_t *condition)
 {
-    std::memset(condition, 0, sizeof(scenario_condition_t));
+    *condition = {};
     condition->type = CONDITION_TYPE_UNDEFINED;
 }
 
@@ -112,7 +113,7 @@ static void save_conditions_in_group(buffer *buf, const scenario_condition_group
         buffer_write_i16(buf, static_cast<int16_t>(condition.type));
         buffer_write_i32(buf, condition.parameter1);
         buffer_write_i32(buf, condition.parameter2);
-        buffer_write_i32(buf, condition.parameter3);
+        buffer_write_i32(buf, condition.type == CONDITION_TYPE_TERRAIN_IN_AREA ? static_cast<int32_t>(terrain_save::encode(condition.terrain)) : condition.parameter3);
         buffer_write_i32(buf, condition.parameter4);
         buffer_write_i32(buf, condition.parameter5);
     }
@@ -137,6 +138,7 @@ void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *grou
     condition->parameter3 = buffer_read_i32(buf);
     condition->parameter4 = buffer_read_i32(buf);
     condition->parameter5 = buffer_read_i32(buf);
+    if (condition->type == CONDITION_TYPE_TERRAIN_IN_AREA) { condition->terrain = terrain_save::decode(static_cast<uint32_t>(condition->parameter3)); condition->parameter3 = 0; }
 
     if (condition->type == CONDITION_TYPE_TRADE_SELL_PRICE) {
         condition->parameter1 = static_cast<int>(resource_remap(condition->parameter1));

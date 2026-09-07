@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="water">
+    <traversal land="false" sea="true" enemy="false" herd="false" earthquake="false" water="true" />
+    <placement blocking="true" clearable="true" editable="true" paintable="true" />
+    <load_alias name="shallow_water" />
+</terrain>

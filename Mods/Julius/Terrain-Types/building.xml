@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="building">
+    <traversal land="false" sea="true" enemy="true" herd="false" earthquake="true" water="false" />
+    <placement blocking="true" clearable="true" editable="true" paintable="false" />
+</terrain>

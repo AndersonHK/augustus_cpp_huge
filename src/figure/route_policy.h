@@ -19,7 +19,8 @@ enum class RoutePolicyKind : std::uint8_t {
     ConstructionHighway,
     ConstructionWall,
     ConstructionAqueduct,
-    ConstructionDraggableReservoir
+    ConstructionDraggableReservoir,
+    HerdLand
 };
 
 enum class RouteNeighborhood : std::uint8_t {
@@ -36,6 +37,7 @@ struct RoutePolicy {
     RoutePolicyKind kind = RoutePolicyKind::CitizenLand;
     RouteNeighborhood neighborhood = RouteNeighborhood::FourWay;
     std::optional<roadblock_permission> permission;
+    int building_clearance = 0;
 
     static RoutePolicy fromKind(
         RoutePolicyKind kind,
@@ -162,6 +164,6 @@ struct RoutePolicy {
     {
         return kind == other.kind &&
             neighborhood == other.neighborhood &&
-            permission == other.permission;
+            permission == other.permission && building_clearance == other.building_clearance;
     }
 };

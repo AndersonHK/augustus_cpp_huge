@@ -2,7 +2,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "graphics/menu.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/minimap.h"
 #include "widget/sidebar/common.h"
 
@@ -96,7 +96,7 @@ static Figure *first_figure_for_render_tile(int grid_offset)
 
 static int is_renderable_map_tile(int grid_offset)
 {
-    return grid_offset >= 0 && map_terrain_get(grid_offset) != TERRAIN_MAP_EDGE;
+    return grid_offset >= 0 && terrain_map().at(grid_offset) != terrain_types().map_edge;
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>

@@ -371,7 +371,7 @@ void map_image_set(int grid_offset, int image_id)
     (void) image_id;
 }
 
-void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
+void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, TerrainSet terrain)
 {
     (void) building_id;
     (void) x;

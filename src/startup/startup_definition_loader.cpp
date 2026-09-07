@@ -1,6 +1,13 @@
+#ifndef STARTUP_PARSER_TEST
+#include "window/editor/select_special_attribute_mapping.h"
+#endif
+#include "map/TerrainSaveBridge.h"
 #include "startup/startup_definition_loader.h"
 
 #include "building/building_type_registry.h"
+#include "building/FoundationRegistry.h"
+#include "map/TerrainRegistry.h"
+#include "map/TerrainMap.h"
 #include "building/building_type_startup_bridge.h"
 #include "building/properties.h"
 #include "core/config.h"
@@ -128,6 +135,16 @@ Result load(const Request &request)
     unit_type_registry_reset();
     formation_layout_registry_reset();
     formation_type_registry_reset();
+#ifndef STARTUP_PARSER_TEST
+    window_editor_reset_terrain_selection();
+#endif
+    terrain_save::reset();
+    building_type_registry_reset();
+    foundation_registry_reset();
+#ifndef STARTUP_PARSER_TEST
+    terrain_map().clear();
+#endif
+    if (!run_step(result, "Terrain definitions", terrain_registry_load, terrain_registry_failure_reason)) return result;
 
     if (!run_step(result, "FigureType definitions", figure_type_registry_load, figure_type_registry_get_failure_reason) ||
         !run_step(result, "UnitType definitions", unit_type_registry_load, unit_type_registry_get_failure_reason) ||

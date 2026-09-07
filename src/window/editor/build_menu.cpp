@@ -70,6 +70,7 @@ static const editor_build_menu_item MENU_TYPES[MENU_NUM_ITEMS][MAX_ITEMS_PER_MEN
     "TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER", "main_strings.140.0",-1},
     {23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, -1},
     {"TR_EDITOR_TOOL_EARTHQUAKE_POINT", "TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM", "TR_EDITOR_TOOL_EARTHQUAKE_REMOVE", -1},
+    {"main_strings.49.2", "TR_EDITOR_TOOL_SHALLOW", -1},
 };
 
 static struct {
@@ -211,6 +212,9 @@ static void button_menu_item(const generic_button *button)
             } else {
                 editor_tool_set_with_id(TOOL_HERD_POINT, index - 8);
             }
+            break;
+        case MENU_WATER:
+            editor_tool_set_type(index == 0 ? TOOL_WATER : TOOL_SHALLOW);
             break;
         case MENU_EARTHQUAKE:
             switch (index) {

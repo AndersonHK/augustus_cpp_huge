@@ -1,5 +1,6 @@
 #include "window/editor/select_city_trade_route.h"
 #include "export_xml.h"
+#include "map/Terrain.h"
 #include "scenario/definition_overrides.h"
 
 #include "core/buffer.h"
@@ -36,6 +37,14 @@ static void log_exporting_error(const char *msg)
         "TR_EDITOR_UNABLE_TO_SAVE_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
         string_from_ascii(data.error_message),
         0);
+}
+
+static int export_terrain_attribute(const xml_data_attribute_t *attr, const TerrainSet &terrains)
+{
+    std::string names;
+    for (const auto *terrain : terrains.entries()) { if (!names.empty()) names += '|'; names += terrain->name(); }
+    xml_exporter_add_attribute_text(attr->name, names.empty() ? "none" : names.c_str());
+    return 1;
 }
 
 static int export_attribute_by_type(xml_data_attribute_t *attr, parameter_type type, int target)
@@ -141,7 +150,6 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
         case PARAMETER_TYPE_TARGET_TYPE:
         case PARAMETER_TYPE_GOD:
         case PARAMETER_TYPE_CLIMATE:
-        case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
         case PARAMETER_TYPE_HOUSE_DATA_TYPE:
         case PARAMETER_TYPE_WIN_CONDITION:
@@ -241,7 +249,8 @@ static void export_event_condition(scenario_condition_t *condition)
 
     export_parse_attribute(&condition_data->xml_parm1, condition->parameter1);
     export_parse_attribute(&condition_data->xml_parm2, condition->parameter2);
-    export_parse_attribute(&condition_data->xml_parm3, condition->parameter3);
+    if (condition_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&condition_data->xml_parm3, condition->terrain);
+    else export_parse_attribute(&condition_data->xml_parm3, condition->parameter3);
     export_parse_attribute(&condition_data->xml_parm4, condition->parameter4);
     export_parse_attribute(&condition_data->xml_parm5, condition->parameter5);
     if (condition->type == CONDITION_TYPE_TIME_PASSED && condition->parameter5 == 1) xml_exporter_add_attribute_int("sample_on_init", 1);
@@ -278,10 +287,12 @@ static void export_event_action(scenario_action_t *action)
             xml_data_attribute_t resolved_attr = action_data->xml_parm3;
             resolved_attr.type = type3;
             resolved_attr.name = info.param_names[0];
-            export_parse_attribute_with_resolved_type(&resolved_attr, type3, action->parameter3);
+            if (type3 == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&resolved_attr, action->terrain);
+            else export_parse_attribute_with_resolved_type(&resolved_attr, type3, action->parameter3);
         }
     } else {
-        export_parse_attribute(&action_data->xml_parm3, action->parameter3);
+        if (action_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&action_data->xml_parm3, action->terrain);
+        else export_parse_attribute(&action_data->xml_parm3, action->parameter3);
     }
 
     if (action_data->xml_parm4.type == PARAMETER_TYPE_FLEXIBLE) {

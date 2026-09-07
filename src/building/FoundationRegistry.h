@@ -14,6 +14,7 @@ const mod_definition::DefinitionOverlayEntry *find_foundation_definition_overlay
 
 } // namespace building_type_registry_impl
 
+void foundation_registry_reset();
 int foundation_registry_load(void);
 int foundation_registry_load_layers(
     const std::vector<mod_definition::DefinitionLayer> &layers,

@@ -17,7 +17,7 @@
 #include "map/routing.h"
 #include "figure/route.h"
 #include "map/tiles.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/editor.h"
 #include "scenario/editor_events.h"
 #include "scenario/editor_map.h"
@@ -29,8 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TERRAIN_PAINT_MASK ~(TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_BUILDING |\
-                            TERRAIN_SHRUB | TERRAIN_GARDEN | TERRAIN_ROAD | TERRAIN_MEADOW)
+#define TERRAIN_PAINT_TYPES (terrain_types().tree | terrain_types().rock | terrain_types().water | terrain_types().building |\
+                            terrain_types().shrub | terrain_types().garden | terrain_types().road | terrain_types().meadow | terrain_types().paintable)
 
 static struct {
     int active;
@@ -151,6 +151,7 @@ int editor_tool_is_brush(void)
     switch (data.type) {
         case TOOL_GRASS:
         case TOOL_TREES:
+        case TOOL_SHALLOW:
         case TOOL_WATER:
         case TOOL_SHRUB:
         case TOOL_ROCKS:
@@ -166,32 +167,32 @@ int editor_tool_is_brush(void)
     }
 }
 
-static int raise_land_tile(int, int, int grid_offset, int terrain)
+static TerrainSet raise_land_tile(int, int, int grid_offset, TerrainSet terrain)
 {
     int elevation = map_elevation_at(grid_offset);
     if (elevation < 5 && elevation == data.start_elevation) {
-        if (!(terrain & (TERRAIN_ACCESS_RAMP | TERRAIN_ELEVATION))) {
+        if (!(terrain & (terrain_types().access_ramp | terrain_types().elevation))) {
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_elevation_set(grid_offset, elevation + 1);
-            terrain &= ~(TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_GARDEN | TERRAIN_ROAD);
+            terrain -= (terrain_types().water | terrain_types().building | terrain_types().garden | terrain_types().road);
         }
     }
     return terrain;
 }
 
-static int lower_land_tile(int, int, int grid_offset, int terrain)
+static TerrainSet lower_land_tile(int, int, int grid_offset, TerrainSet terrain)
 {
-    if (terrain & TERRAIN_ACCESS_RAMP) {
-        terrain |= TERRAIN_ELEVATION;
-        terrain &= ~(TERRAIN_ACCESS_RAMP);
+    if (terrain & terrain_types().access_ramp) {
+        terrain |= terrain_types().elevation;
+        terrain -= (terrain_types().access_ramp);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
     }
     int elevation = map_elevation_at(grid_offset);
     if (elevation <= 0) {
-        terrain &= ~(TERRAIN_ELEVATION);
+        terrain -= (terrain_types().elevation);
     } else if (elevation == data.start_elevation) {
-        terrain &= ~(TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP);
+        terrain -= (terrain_types().elevation | terrain_types().access_ramp);
         map_elevation_set(grid_offset, elevation - 1);
     }
     return terrain;
@@ -206,19 +207,19 @@ static void add_terrain(const void *tile_data, int dx, int dy)
         return;
     }
     int grid_offset = tile->grid_offset + map_grid_delta(dx, dy);
-    int terrain = map_terrain_get(grid_offset);
+    TerrainSet terrain = terrain_map().at(grid_offset);
     if (data.type != TOOL_EARTHQUAKE_CUSTOM && data.type != TOOL_EARTHQUAKE_CUSTOM_REMOVE) {
-        if (terrain & TERRAIN_BUILDING) {
+        if (terrain & terrain_types().building) {
             map_legacy_building_tiles_remove(x, y);
-            terrain = map_terrain_get(grid_offset);
+            terrain = terrain_map().at(grid_offset);
         }
-        if (!(terrain & (TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP))) {
+        if (!(terrain & (terrain_types().elevation | terrain_types().access_ramp))) {
             map_property_clear_multi_tile_xy(grid_offset);
         }
     }
-    if (terrain & TERRAIN_RUBBLE) {
-        map_terrain_remove(grid_offset, TERRAIN_RUBBLE);
-        terrain = map_terrain_get(grid_offset);
+    if (terrain & terrain_types().rubble) {
+        terrain_map().remove(grid_offset, terrain_types().rubble);
+        terrain = terrain_map().at(grid_offset);
     }
 
     if (map_property_is_future_earthquake(grid_offset)) {
@@ -227,44 +228,45 @@ static void add_terrain(const void *tile_data, int dx, int dy)
 
     switch (data.type) {
         case TOOL_GRASS:
-            terrain &= TERRAIN_PAINT_MASK;
+            terrain -= TERRAIN_PAINT_TYPES;
             break;
         case TOOL_TREES:
-            if (!(terrain & TERRAIN_TREE)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_TREE;
+            if (!(terrain & terrain_types().tree)) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= terrain_types().tree;
             }
             break;
         case TOOL_ROCKS:
-            if (!(terrain & TERRAIN_ROCK)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_ROCK;
+            if (!(terrain & terrain_types().rock)) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= terrain_types().rock;
                 map_property_clear_future_earthquake(grid_offset);
             }
             break;
+        case TOOL_SHALLOW:
         case TOOL_WATER:
-            if (!(terrain & TERRAIN_WATER) && !(terrain & TERRAIN_ELEVATION_ROCK)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_WATER;
+            if (!terrain.intersects(terrain_types().elevation_rock) && (data.type == TOOL_SHALLOW || !terrain.intersects(terrain_types().water) || terrain.intersects(terrain_types().shallow_water))) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= data.type == TOOL_SHALLOW ? terrain_types().shallow_water : terrain_types().water;
                 map_property_clear_future_earthquake(grid_offset);
             }
             break;
         case TOOL_SHRUB:
-            if (!(terrain & TERRAIN_SHRUB)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_SHRUB;
+            if (!(terrain & terrain_types().shrub)) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= terrain_types().shrub;
             }
             break;
         case TOOL_MEADOW:
-            if (!(terrain & TERRAIN_MEADOW)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_MEADOW;
+            if (!(terrain & terrain_types().meadow)) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= terrain_types().meadow;
             }
             break;
         case TOOL_NATIVE_RUINS:
-            if (!(terrain & TERRAIN_RUBBLE)) {
-                terrain &= TERRAIN_PAINT_MASK;
-                terrain |= TERRAIN_RUBBLE;
+            if (!(terrain & terrain_types().rubble)) {
+                terrain -= TERRAIN_PAINT_TYPES;
+                terrain |= terrain_types().rubble;
             }
             break;
         case TOOL_RAISE_LAND:
@@ -284,7 +286,7 @@ static void add_terrain(const void *tile_data, int dx, int dy)
         default:
             break;
     }
-    map_terrain_set(grid_offset, terrain);
+    terrain_map().set(grid_offset, terrain);
 }
 
 void editor_tool_update_use(const map_tile *tile)
@@ -322,6 +324,7 @@ void editor_tool_update_use(const map_tile *tile)
             map_tiles_update_all_rocks();
             map_tiles_update_region_trees(x_min, y_min, x_max, y_max);
             break;
+        case TOOL_SHALLOW:
         case TOOL_WATER:
         case TOOL_ROCKS:
             map_image_context_reset_water();
@@ -478,16 +481,16 @@ static void place_access_ramp(const map_tile *tile)
 {
     int orientation = 0;
     if (editor_tool_can_place_access_ramp(tile, &orientation)) {
-        int terrain_mask = ~(TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_GARDEN | TERRAIN_AQUEDUCT);
+        const TerrainSet terrains = terrain_types().rock | terrain_types().water | terrain_types().building | terrain_types().garden | terrain_types().aqueduct;
         for (int dy = 0; dy < 2; dy++) {
             for (int dx = 0; dx < 2; dx++) {
                 int grid_offset = tile->grid_offset + map_grid_delta(dx, dy);
-                map_terrain_set(grid_offset, map_terrain_get(grid_offset) & terrain_mask);
+                terrain_map().remove(grid_offset, terrains);
                 map_property_clear_future_earthquake(grid_offset);
             }
         }
         map_terrain_tiles_add(tile->x, tile->y, 2,
-            image_group(GROUP_TERRAIN_ACCESS_RAMP) + orientation, TERRAIN_ACCESS_RAMP);
+            image_group(GROUP_TERRAIN_ACCESS_RAMP) + orientation, terrain_types().access_ramp);
 
         update_terrain_after_elevation_changes();
         scenario_editor_set_as_unsaved();

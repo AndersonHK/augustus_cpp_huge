@@ -2,5 +2,6 @@
 <foundation type="reservoir_3x3" width="3" height="3" rotates="false">
     <profile symbol="A" requires="land_or_aqueduct" adds="building reservoir_range" />
     <rows><row cells="AAA" /><row cells="AAA" /><row cells="AAA" /></rows>
+    <proximity name="water_source" placement="false" terrain="water" min_distance="0" max_distance="1" metric="chebyshev" />
 </foundation>
 

@@ -6,12 +6,13 @@
 #include "figure/PathingMode.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
+#include "figure/formation.h"
 #include "game/save_version.h"
 #include "game/performance_tracker.h"
 #include "map/grid.h"
 #include "map/road_access.h"
 #include "map/routing.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
 
@@ -341,6 +342,10 @@ namespace route_internal {
 
 bool LegacyRoutePlannerBackend::seedReachabilityField(const Route::Request &request) const
 {
+    if (request.policy.kind == RoutePolicyKind::HerdLand) {
+        return map_routing_herd_can_travel(request.source.x, request.source.y, request.destination.x, request.destination.y,
+            request.policy.directionLimit(), request.max_tiles, request.policy.building_clearance);
+    }
     if (request.policy.isConstruction()) {
         return seedConstructionField(request.policy, request.source);
     }
@@ -451,7 +456,8 @@ static BuiltPath build_land_path(
     int dst_x,
     int dst_y,
     int num_directions,
-    bool enforce_access_ramp_edges)
+    bool enforce_access_ramp_edges,
+    const RoutePolicy &policy)
 {
     BuiltPath result;
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
@@ -475,6 +481,7 @@ static BuiltPath build_land_path(
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
+            if (policy.kind == RoutePolicyKind::HerdLand && !Route::herdCanEnter(next_offset, grid_offset, policy.building_clearance)) continue;
             if (enforce_access_ramp_edges &&
                 !map_tiles_access_ramp_allows_road_edge(grid_offset, next_offset)) {
                 continue;
@@ -553,7 +560,7 @@ static BuiltPath build_seeded_land_path(
         request.destination.x,
         request.destination.y,
         path_direction_limit,
-        enforce_access_ramp_edges);
+        enforce_access_ramp_edges, request.policy);
     if (!built_path &&
         fallback_direction_limit > 0 &&
         fallback_direction_limit != path_direction_limit) {
@@ -561,7 +568,7 @@ static BuiltPath build_seeded_land_path(
             request.destination.x,
             request.destination.y,
             fallback_direction_limit,
-            enforce_access_ramp_edges);
+            enforce_access_ramp_edges, request.policy);
     }
     return built_path;
 }
@@ -609,6 +616,10 @@ static RouteIntent route_intent_from_figure(Figure &figure)
             figure_runtime_route_policy_selection(&figure, neighborhood);
         intent.terrain = selection.terrain;
         intent.policy = selection.policy;
+        if (intent.policy.kind == RoutePolicyKind::HerdLand && figure.formation_id) {
+            const formation *owner = formation_get(figure.formation_id);
+            if (owner->is_herd && owner->formation_type_definition) intent.policy.building_clearance = owner->formation_type_definition->spawn.herd.building_clearance;
+        }
     }
 
     return intent;
@@ -649,7 +660,6 @@ static BuiltPath build_figure_route_path(
     }
 
     if (intent.terrain.usesAnimalLandRoute()) {
-        request.only_through_building_id = -1;
         request.max_tiles = 5000;
         return build_route_path(request, direction_limit, direction_limit);
     }

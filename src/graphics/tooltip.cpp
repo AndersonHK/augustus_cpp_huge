@@ -27,7 +27,7 @@
 #include "map/desirability.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
 
@@ -451,28 +451,16 @@ static void draw_senate_tooltip(tooltip_context *c)
 }
 
 
-static int terrain_info_string(int grid_offset, const char **out_flags, int max_flags)
-{
-    const terrain_flags_array *flags_array = map_terrain_to_array(grid_offset);
-    int count = 0;
-
-    // Simply copy the active flag names that are already stored consecutively
-    for (int i = 0; i < flags_array->count && count < max_flags; i++) {
-        out_flags[count++] = flags_array->key[i];
-    }
-    return count; // number of active flags stored in out_flags
-}
-
 static void draw_tile_tooltip(tooltip_context *c)
 {
     const render_domain domain = RENDER_DOMAIN_PIXEL;
     view_tile view;
 
     int debug_tooltip_type = game_cheat_tooltip_enabled();
-    const char *flags[32]; // enough for all TERRAIN_NUM_FLAGS
     if (city_view_pixels_to_view_tile(c->mouse_x, c->mouse_y, &view)) {
         int grid_offset = city_view_tile_to_grid_offset(&view);
-        int num_flags = terrain_info_string(grid_offset, flags, 32);
+        const auto &terrains = terrain_map().at(grid_offset).entries();
+        const int num_flags = static_cast<int>(terrains.size());
         const Building *building_at_grid = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
         int b_id_at = building_at_grid ? building_at_grid->id : 0;
         int rubble_id_at = map_building_rubble_building_id(grid_offset);
@@ -553,7 +541,7 @@ static void draw_tile_tooltip(tooltip_context *c)
                 y_offset += 14;
             }
             for (int i = 0; i < num_flags; i++) {
-                text_draw(string_from_ascii(flags[i]), 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
+                text_draw(string_from_ascii(terrains[i]->name().c_str()), 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }
             int image_id = map_image_at(grid_offset); // to avoid unused function warning

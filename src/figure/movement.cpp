@@ -4,6 +4,7 @@
 #include "map/road_access.h"
 
 #include "figure/movement.h"
+#include "figure/formation.h"
 
 #include "building/building.h"
 #include "building/roadblock.h"
@@ -24,7 +25,7 @@
 #include "map/grid.h"
 #include "map/random.h"
 #include "map/routing.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
 
@@ -127,9 +128,9 @@ static void move_to_next_tile(Figure *f)
     if (f->faction_id != FIGURE_FACTION_ROAMER_PREVIEW) {
         map_figure_add(f);
     }
-    if (map_terrain_is(f->grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(f->grid_offset, terrain_types().road | terrain_types().access_ramp)) {
         f->is_on_road = 1;
-        if (map_terrain_is(f->grid_offset, TERRAIN_WATER)) { // bridge
+        if (terrain_map().contains(f->grid_offset, terrain_types().water)) { // bridge
             set_target_height_bridge(f);
         }
     } else {
@@ -167,9 +168,9 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
     int target_grid_offset = f->grid_offset + map_grid_direction_delta(f->direction);
     const auto *presentation = figure_type_registry_impl::presentation_for(static_cast<figure_type>(f->type));
     if (presentation && presentation->behavior.recheck_animal_terrain &&
-        map_terrain_is(target_grid_offset, TERRAIN_IMPASSABLE ^ TERRAIN_ELEVATION)) {
+        terrain_map().contains(target_grid_offset, terrain_types().impassable ^ terrain_types().elevation)) {
         const Building *occupant = map_building_exists_at(target_grid_offset) ? &map_building_at(target_grid_offset) : nullptr;
-        if (!occupant || map_terrain_is(target_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
+        if (!occupant || terrain_map().contains(target_grid_offset, terrain_types().wall_or_gatehouse) ||
             (!occupant->type->bridge().is_bridge() && Roadblock(*occupant).kind() == ROADBLOCK_NONE)) {
             f->direction = DIR_FIGURE_REROUTE;
             return;
@@ -181,11 +182,18 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         if (!water_navigation::is_passable(target_grid_offset, profile)) {
             f->direction = DIR_FIGURE_REROUTE;
         }
+    } else if (f->terrain_usage == TERRAIN_USAGE_ANIMAL) {
+        int clearance = 0;
+        if (f->formation_id) {
+            const formation *owner = formation_get(f->formation_id);
+            if (owner->is_herd && owner->formation_type_definition) clearance = owner->formation_type_definition->spawn.herd.building_clearance;
+        }
+        if (!Route::herdCanEnter(f->grid_offset, target_grid_offset, clearance)) f->direction = DIR_FIGURE_REROUTE;
     } else if (f->terrain_usage == TERRAIN_USAGE_ENEMY) {
         if (!figure_type_registry_impl::PathingMode::noncitizenIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
         } else if (building_destroyable_at(target_grid_offset) &&
-            !map_terrain_is(target_grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE)) {
+            !terrain_map().contains(target_grid_offset, terrain_types().access_ramp | terrain_types().rubble)) {
             f->attack_direction = f->direction;
             f->direction = DIR_FIGURE_ATTACK;
             if (!(game_time_tick() & 3)) {
@@ -198,8 +206,8 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         }
     } else if (!map_tiles_access_ramp_allows_road_edge(f->grid_offset, target_grid_offset)) {
         f->direction = DIR_FIGURE_REROUTE;
-    } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
-        if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+    } else if (terrain_map().contains(target_grid_offset, terrain_types().road | terrain_types().highway | terrain_types().access_ramp)) {
+        if (terrain_map().contains(target_grid_offset, terrain_types().building)) {
             Building &building_obj = map_building_at(target_grid_offset);
             building *b = const_cast<::building *>(building_obj.record());
             if (roaming_enabled && b && map_building_has_internal_passage(b)) {
@@ -214,7 +222,7 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
                 }
             }
         }
-    } else if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+    } else if (terrain_map().contains(target_grid_offset, terrain_types().building)) {
         if ((figure_type_registry_impl::PathingMode::citizenIsPassableTerrain(target_grid_offset) ||
             (figure_type_registry_impl::PathingMode::citizenIsRoad(target_grid_offset) && !roaming_enabled))) {
             return; // passable terrain - no reroute
@@ -234,15 +242,15 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             }
 
         }
-    } else if (map_terrain_is(target_grid_offset, TERRAIN_IMPASSABLE)) {
+    } else if (terrain_map().contains(target_grid_offset, terrain_types().impassable)) {
         f->direction = DIR_FIGURE_REROUTE;
     }
 }
 
 static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
 {
-    int terrain = map_terrain_get(map_grid_offset(f->x, f->y));
-    if (terrain & TERRAIN_HIGHWAY) {
+    TerrainSet terrain = terrain_map().at(map_grid_offset(f->x, f->y));
+    if (terrain & terrain_types().highway) {
         num_ticks *= 2;
     }
     while (num_ticks > 0) {
@@ -322,11 +330,11 @@ static bool figure_roaming_allows_highways(const Figure *f)
 
 static bool terrain_is_path_for_roaming_figure(const Figure *f, int grid_offset)
 {
-    int terrain_mask = TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
+    TerrainSet terrains = terrain_types().road | terrain_types().access_ramp;
     if (figure_roaming_allows_highways(f)) {
-        terrain_mask |= TERRAIN_HIGHWAY;
+        terrains |= terrain_types().highway;
     }
-    return map_terrain_is(grid_offset, terrain_mask) != 0;
+    return terrain_map().contains(grid_offset, terrains) != 0;
 }
 
 static bool is_valid_road_for_roaming(
@@ -339,10 +347,10 @@ static bool is_valid_road_for_roaming(
         return false;
     }
     const bool is_path = terrain_is_path_for_roaming_figure(f, target_grid_offset);
-    if (!is_path && !map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+    if (!is_path && !terrain_map().contains(target_grid_offset, terrain_types().building)) {
         return false;
     }
-    if (!map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(target_grid_offset, terrain_types().building)) {
         return true;
     }
 
@@ -564,7 +572,7 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
     if (f->x == f->source_x && f->y == f->source_y) {
         f->is_ghost = 1;
     }
-    if (map_terrain_is(map_grid_offset(leader->x, leader->y), TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(map_grid_offset(leader->x, leader->y), terrain_types().highway)) {
         num_ticks *= 2;
     }
     while (num_ticks > 0) {
@@ -610,7 +618,7 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
     if (f->x == f->source_x && f->y == f->source_y) {
         f->is_ghost = 1;
     }
-    if (map_terrain_is(map_grid_offset(leader->x, leader->y), TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(map_grid_offset(leader->x, leader->y), terrain_types().highway)) {
         num_ticks *= 2;
     }
 
@@ -901,7 +909,7 @@ int figure_movement_move_ticks_cross_country(Figure *f, int num_ticks)
     f->x = static_cast<unsigned char>(figure_movement_cross_country_to_tile(f->cross_country_x));
     f->y = static_cast<unsigned char>(figure_movement_cross_country_to_tile(f->cross_country_y));
     f->grid_offset = static_cast<short>(map_grid_offset(f->x, f->y));
-    if (map_terrain_is(f->grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(f->grid_offset, terrain_types().building)) {
         f->in_building_wait_ticks = 8;
     } else if (f->in_building_wait_ticks) {
         f->in_building_wait_ticks--;
@@ -920,7 +928,7 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
     Building *source_building = map_building_exists_at(source_grid_offset) ?
         &map_building_at(source_grid_offset) :
         nullptr;
-    if (map_terrain_is(source_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
+    if (terrain_map().contains(source_grid_offset, terrain_types().wall_or_gatehouse) ||
         (source_building && source_building->type && source_building->type->is_watchtower())) {
         height = 6;
     }
@@ -945,10 +953,10 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
             height--;
         } else {
             int grid_offset = map_grid_offset(f->x, f->y);
-            if (map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_GATEHOUSE | TERRAIN_TREE)) {
+            if (terrain_map().contains(grid_offset, terrain_types().wall | terrain_types().gatehouse | terrain_types().tree)) {
                 break;
             }
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+            if (terrain_map().contains(grid_offset, terrain_types().building)) {
                 if (!map_building_exists_at(grid_offset)) {
                     break;
                 }

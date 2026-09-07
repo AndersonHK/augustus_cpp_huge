@@ -1,3 +1,4 @@
+#include "map/Terrain.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
@@ -146,6 +147,7 @@ static void button_click(const generic_button *button)
     data.condition->parameter3 = scenario_events_parameter_data_get_default_value_for_parameter(&data.list[param1]->xml_parm3);
     data.condition->parameter4 = scenario_events_parameter_data_get_default_value_for_parameter(&data.list[param1]->xml_parm4);
     data.condition->parameter5 = scenario_events_parameter_data_get_default_value_for_parameter(&data.list[param1]->xml_parm5);
+    data.condition->terrain = data.condition->type == CONDITION_TYPE_TERRAIN_IN_AREA ? terrain_types().water : TerrainSet();
     window_go_back();
 }
 

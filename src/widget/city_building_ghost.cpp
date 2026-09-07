@@ -50,7 +50,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -1015,7 +1015,7 @@ int city_building_ghost_mark_deleting(const map_tile *tile)
     }
     map_building_tiles_mark_deleting(tile->grid_offset);
 
-    if (map_terrain_is(tile->grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(tile->grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(tile->grid_offset, terrain_types().highway) && !terrain_map().contains(tile->grid_offset, terrain_types().aqueduct)) {
         map_tiles_clear_highway(tile->grid_offset, 1);
     }
     return 1;
@@ -1032,9 +1032,9 @@ static void draw_grid_tile(int x, int y, int grid_offset)
     const int water_allowed = definition &&
         (definition->bridge().is_bridge() ||
             (definition->foundation_def() && definition->foundation_def()->has_water_requirement()));
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_ROCK) ||
-        map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) || map_terrain_is(grid_offset, TERRAIN_ELEVATION) ||
-        (map_terrain_is(grid_offset, TERRAIN_WATER) && !water_allowed)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building) || terrain_map().contains(grid_offset, terrain_types().rock) ||
+        terrain_map().contains(grid_offset, terrain_types().access_ramp) || terrain_map().contains(grid_offset, terrain_types().elevation) ||
+        (terrain_map().contains(grid_offset, terrain_types().water) && !water_allowed)) {
         return;
     }
     Image::from_id(image_id).draw(x, y, COLOR_GRID, data.scale);

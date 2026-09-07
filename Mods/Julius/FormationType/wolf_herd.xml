@@ -3,7 +3,7 @@
     <grid width="4" height="4" station_alignment="tile_anchor" />
     <spawn role="herd" climate="northern" count="8" />
     <herd roam_distance="16" roam_delay="6" reproduction_delay="32" aggressive="true"
-        allow_negative_desirability="true" movement_sound="wolf_howl" />
+        allow_negative_desirability="true" movement_sound="wolf_howl" building_clearance="0" />
     <herd_member rest_delay="400" move_speed="2" animation_frames="12" alternate_rest_animation="false" combat_animation="attack" />
     <slot fill="all" unit="wolf" />
 </formation>

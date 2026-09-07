@@ -24,6 +24,8 @@ void map_routing_delete_first_wall_or_aqueduct(int x, int y);
 
 int map_routing_distance(int grid_offset);
 
+int map_routing_herd_can_travel(int src_x, int src_y, int dst_x, int dst_y, int num_directions, int max_tiles, int building_clearance);
+
 int building_destroyable_at(int grid_offset);
 
 int map_routing_citizen_can_travel_over_land(

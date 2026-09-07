@@ -37,7 +37,9 @@ A morale retreat publishes the home command and clears the attack target before 
 
 ## Reachability, reservations, and overflow
 
-The plan first attempts each member's ideal exact endpoint. When terrain blocks it, the shared router supplies reachability and route distance for the nearest free fallback. Selection is deterministic: displacement from the ideal, route distance, then coordinates. All canonical endpoints are reserved, including future recruits' stations; fallback endpoints are exclusive. The search is bounded by the live map, rather than an arbitrary small ring.
+The plan first attempts each member's ideal exact endpoint. When terrain blocks it, the shared router supplies reachability and route distance for the nearest free fallback. Selection is deterministic: displacement from the ideal, route distance, then coordinates. All canonical endpoints are reserved, including future recruits' stations. Reservations maintain at least the closest pair spacing of the authored ideal layout, including its fort scaling; fallback positions spread outward rather than packing into smaller gaps. The search is bounded by the live map, rather than an arbitrary small ring.
+
+Cross-country coordinates are drawn from tile centers. Station validation therefore checks the tile containing the drawn point and the local segment from the routing anchor, including diagonal corners. It must not use integer division alone: the drawn point reaches the neighboring tile halfway through the coordinate interval. Existing assigned stations are revalidated against terrain changes before movement.
 
 Physical placement capacity and roster capacity are distinct:
 
@@ -47,7 +49,7 @@ Physical placement capacity and roster capacity are distinct:
 - If a mod reduces declared capacity below the loaded roster, the extended roster retains those members. The load bridge warns once when sending excess soldiers back to barracks. Already-returning overflow is valid serialized state. While outside the new footprint they cannot obtain an aliased station. Normal recruitment cannot create this overflow.
 - The extended save representation can hold 256 roster indices, matching the existing byte-sized figure index. A relationship claiming more than that remains an unsupported malformed roster; this change does not expand the save format.
 
-Endpoint reservation prevents duplicate destinations. Figure body collision and intermediate travel remain the generalized movement/router's responsibility.
+Endpoint reservation prevents duplicate or overly close destinations. It does not implement physical bumping or separation while figures travel; that remains an open generalized movement feature.
 
 The performance direction is a shared routing thread pool, with immutable query inputs and owner-applied results that cannot outlive the command or topology they were computed for. Formation assignment must remain deterministic and relationship-owned during that migration. This change reuses the generalized router; it does not introduce a separate formation router or worker access to mutable figures/buildings.
 

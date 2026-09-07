@@ -1,3 +1,5 @@
+#include "map/TerrainMap.h"
+#include "map/tile_runtime_graphics.h"
 #pragma once
 #include "editor/editor.h"
 #include "editor/tool.h"
@@ -106,6 +108,30 @@ inline bool run_editor_compatibility_test()
             if (!map_building_exists_at(tile.grid_offset) || !map_building_at(tile.grid_offset).matches(types[index])) throw std::runtime_error("Editor native building placement failed");
         }
         editor_tool_deactivate(); capture("native-buildings");
+        const map_tile shallow_tile{30, 50, map_grid_offset(30, 50)};
+        const auto paint = [&](tool_type tool, int size) {
+            editor_tool_set_brush_size(size); editor_tool_set_type(tool);
+            editor_tool_start_use(&shallow_tile); editor_tool_update_use(&shallow_tile); editor_tool_end_use(&shallow_tile);
+        };
+        if (!terrain_types().shallow_water.empty()) {
+            paint(TOOL_WATER, 5); paint(TOOL_SHALLOW, 1);
+            if (!terrain_map().contains_all(shallow_tile.grid_offset, terrain_types().water | terrain_types().shallow_water) || !tile_runtime_has_graphic(shallow_tile.grid_offset)) throw std::runtime_error("Editor shallow-water paint failed");
+            capture("shallow-water");
+            paint(TOOL_GRASS, 1);
+            if (terrain_map().contains(shallow_tile.grid_offset, terrain_types().water | terrain_types().shallow_water) || tile_runtime_has_graphic(shallow_tile.grid_offset)) throw std::runtime_error("Editor grass retained shallow terrain or graphics");
+            paint(TOOL_SHALLOW, 1); paint(TOOL_WATER, 1);
+            if (!terrain_map().contains(shallow_tile.grid_offset, terrain_types().water) || terrain_map().contains(shallow_tile.grid_offset, terrain_types().shallow_water)) throw std::runtime_error("Editor deep water did not replace shallow water");
+            paint(TOOL_SHALLOW, 1);
+        }
+        auto *terrain_action = scenario_event_action_create(event, ACTION_TYPE_CHANGE_TERRAIN);
+        terrain_action->terrain = terrain_types().rock | terrain_types().meadow;
+        terrain_action->parameter1 = terrain_action->parameter2 = shallow_tile.grid_offset;
+        terrain_action->parameter4 = 1;
+        auto *terrain_condition = scenario_condition_group_condition_add(scenario_event_condition_group_get(event, 0));
+        terrain_condition->type = CONDITION_TYPE_TERRAIN_IN_AREA;
+        terrain_condition->terrain = terrain_types().water | terrain_types().shallow_water;
+        editor_tool_deactivate();
+
         const auto scenario_path = (output / "roundtrip.mapx").string();
         if (!game_file_editor_write_scenario(scenario_path.c_str()) || !game_file_editor_load_scenario(scenario_path.c_str())) throw std::runtime_error("Editor scenario roundtrip failed");
         for (int index = 0; index < 7; ++index) {
@@ -113,7 +139,9 @@ inline bool run_editor_compatibility_test()
             if (!map_building_exists_at(offset) || !map_building_at(offset).matches(types[index])) throw std::runtime_error("Scenario roundtrip lost native building identity");
         }
         const auto *restored_event = scenario_event_get(event_id);
-        if (!restored_event || restored_event->actions.size() != ACTION_TYPE_MAX - ACTION_TYPE_LOCK_TRADE_ROUTE) throw std::runtime_error("Scenario roundtrip lost new event actions");
+        if (!restored_event || restored_event->actions.size() != ACTION_TYPE_MAX - ACTION_TYPE_LOCK_TRADE_ROUTE + 1) throw std::runtime_error("Scenario roundtrip lost new event actions");
+        if (restored_event->actions.back().terrain != (terrain_types().rock | terrain_types().meadow) || restored_event->condition_groups.front().conditions.back().terrain != (terrain_types().water | terrain_types().shallow_water)) throw std::runtime_error("Scenario roundtrip lost bound terrain action or condition");
+        if (!terrain_types().shallow_water.empty() && !terrain_map().contains_all(shallow_tile.grid_offset, terrain_types().water | terrain_types().shallow_water)) throw std::runtime_error("Scenario roundtrip lost shallow terrain references");
         capture("roundtrip");
         game_exit_editor();
         std::fprintf(stdout, "Editor compatibility smoke test passed: map, attributes, models, events, scenario roundtrip.\n");

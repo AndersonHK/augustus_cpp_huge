@@ -25,6 +25,8 @@
     <ClCompile Include="src\building\CompositionHydration.cpp" />
     <ClCompile Include="src\building\CompositionPlacementAccounting.cpp" />
     <ClCompile Include="src\building\CompositionTypeReplacement.cpp" />
+    <ClCompile Include="src\map\TerrainRegistry.cpp" />
+    <ClCompile Include="src\map\TerrainArchive.cpp" />
     <ClCompile Include="src\building\FoundationDef.cpp" />
     <ClCompile Include="src\building\FoundationRegistry.cpp" />
     <ClCompile Include="src\building\FoundationState.cpp" />

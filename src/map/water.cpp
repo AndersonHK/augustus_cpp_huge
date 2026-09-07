@@ -8,7 +8,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/point.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "figure/action.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/route.h"
@@ -91,7 +91,7 @@ static int num_surrounding_water_tiles(int grid_offset)
 {
     int amount = 0;
     for (int i = 0; i < DIR_8_NONE; i++) {
-        if (map_terrain_is(grid_offset + map_grid_direction_delta(i), TERRAIN_WATER)) {
+        if (terrain_map().contains(grid_offset + map_grid_direction_delta(i), terrain_types().water)) {
             amount++;
         }
     }
@@ -114,8 +114,8 @@ static int wharf_tile(const Building &wharf, map_point *tile)
             continue;
         }
         const int grid_offset = map_grid_offset(candidate.x, candidate.y);
-        if (!map_terrain_is(grid_offset, TERRAIN_WATER) ||
-            map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        if (!terrain_map().contains(grid_offset, terrain_types().water) ||
+            terrain_map().contains(grid_offset, terrain_types().building)) {
             continue;
         }
         const int water_neighbors = num_surrounding_water_tiles(grid_offset);
@@ -330,7 +330,7 @@ int map_water_find_alternative_fishing_boat_tile(Figure *boat, map_point *tile)
         for (int yy = y_min; yy <= y_max; yy++) {
             for (int xx = x_min; xx <= x_max; xx++) {
                 int grid_offset = map_grid_offset(xx, yy);
-                if (!map_has_figure_at(grid_offset) && map_terrain_is(grid_offset, TERRAIN_WATER)) {
+                if (!map_has_figure_at(grid_offset) && terrain_map().contains(grid_offset, terrain_types().water)) {
                     map_point_store_result(xx, yy, tile);
                     return 1;
                 }
@@ -342,7 +342,7 @@ int map_water_find_alternative_fishing_boat_tile(Figure *boat, map_point *tile)
 
 int map_water_find_shipwreck_tile(Figure *wreck, map_point *tile)
 {
-    if (map_terrain_is(wreck->grid_offset, TERRAIN_WATER) &&
+    if (terrain_map().contains(wreck->grid_offset, terrain_types().water) &&
         map_figure_at(wreck->grid_offset) == static_cast<int>(wreck->id())) {
         return 0;
     }
@@ -354,11 +354,11 @@ int map_water_find_shipwreck_tile(Figure *wreck, map_point *tile)
             for (int xx = x_min; xx <= x_max; xx++) {
                 int grid_offset = map_grid_offset(xx, yy);
                 if (!map_has_figure_at(grid_offset) || map_figure_at(grid_offset) == static_cast<int>(wreck->id())) {
-                    if (map_terrain_is(grid_offset, TERRAIN_WATER) &&
-                        map_terrain_is(map_grid_offset(xx, yy - 2), TERRAIN_WATER) &&
-                        map_terrain_is(map_grid_offset(xx, yy + 2), TERRAIN_WATER) &&
-                        map_terrain_is(map_grid_offset(xx - 2, yy), TERRAIN_WATER) &&
-                        map_terrain_is(map_grid_offset(xx + 2, yy), TERRAIN_WATER)) {
+                    if (terrain_map().contains(grid_offset, terrain_types().water) &&
+                        terrain_map().contains(map_grid_offset(xx, yy - 2), terrain_types().water) &&
+                        terrain_map().contains(map_grid_offset(xx, yy + 2), terrain_types().water) &&
+                        terrain_map().contains(map_grid_offset(xx - 2, yy), terrain_types().water) &&
+                        terrain_map().contains(map_grid_offset(xx + 2, yy), terrain_types().water)) {
                         map_point_store_result(xx, yy, tile);
                         return 1;
                     }
@@ -379,8 +379,8 @@ int map_water_can_spawn_fishing_boat(const Building &building, map_point *tile)
             continue;
         }
         const int grid_offset = map_grid_offset(candidate.x, candidate.y);
-        if (map_terrain_is(grid_offset, TERRAIN_WATER) &&
-            !map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
+        if (terrain_map().contains(grid_offset, terrain_types().water) &&
+            !terrain_map().contains(grid_offset, terrain_types().building) &&
             num_surrounding_water_tiles(grid_offset) >= 8) {
             map_point_store_result(candidate.x, candidate.y, tile);
             return 1;

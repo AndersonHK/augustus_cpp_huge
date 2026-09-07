@@ -11,7 +11,7 @@
 #include "map/building.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <span>
@@ -419,13 +419,13 @@ int building_count_forts(int active_only)
     return total;
 }
 
-int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, int terrain, int (*condition)(int))
+int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, TerrainSet terrain, int (*condition)(int))
 {
     int total = 0;
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
             const int grid_offset = map_grid_offset(x, y);
-            if (map_terrain_is(grid_offset, terrain) && condition(grid_offset)) {
+            if (terrain_map().contains(grid_offset, terrain) && condition(grid_offset)) {
                 total++;
             }
         }
@@ -433,7 +433,7 @@ int building_count_terrain_in_area(int minx, int miny, int maxx, int maxy, int t
     return total;
 }
 
-int building_count_terrain(int terrain, int (*condition)(int))
+int building_count_terrain(TerrainSet terrain, int (*condition)(int))
 {
     const int min_x = map_grid_offset_to_x(map_data.start_offset);
     const int min_y = map_grid_offset_to_y(map_data.start_offset);

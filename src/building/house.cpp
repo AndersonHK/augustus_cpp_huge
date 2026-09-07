@@ -21,7 +21,7 @@
 #include "game/resource.h"
 #include "map/grid.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <utility>
@@ -247,7 +247,7 @@ static int house_can_share_expand_footprint(Building source, Building *other)
 
 static int tile_can_expand_into(Building source, int tile_offset, HouseExpandMode mode, bool merge_validation)
 {
-    if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(tile_offset, terrain_types().building)) {
         Building *occupant = building_at_tile(tile_offset);
         if (merge_validation) {
             return occupant && occupant->is_in_use() && occupant->Housing;
@@ -257,12 +257,12 @@ static int tile_can_expand_into(Building source, int tile_offset, HouseExpandMod
     if (mode == HouseExpandMode::HousesOnly) {
         return 0;
     }
-    if (!map_terrain_is(tile_offset, TERRAIN_NOT_CLEAR)) {
+    if (!terrain_map().contains(tile_offset, terrain_types().not_clear)) {
         return 1;
     }
     return mode == HouseExpandMode::Gardens &&
         !config_get(CONFIG_GP_CH_HOUSES_DONT_EXPAND_INTO_GARDENS) &&
-        map_terrain_is(tile_offset, TERRAIN_GARDEN);
+        terrain_map().contains(tile_offset, terrain_types().garden);
 }
 
 static bool target_contains_source(
@@ -363,7 +363,7 @@ static int collect_house_merge_plan(Building &source, building_type type, int x,
 
     for (const HouseFootprintCell &cell : target_cells) {
         int tile_offset = map_grid_offset(x + cell.x, y + cell.y);
-        if (!map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
+        if (!terrain_map().contains(tile_offset, terrain_types().building)) {
             continue;
         }
         Building *participant = building_at_tile(tile_offset);
@@ -664,7 +664,7 @@ static int split_blocking_houses(
     std::vector<Building *> blockers;
     for (const HouseFootprintCell &cell : target_cells) {
         int tile_offset = map_grid_offset(x + cell.x, y + cell.y);
-        if (map_terrain_is(tile_offset, TERRAIN_BUILDING) && map_building_exists_at(tile_offset)) {
+        if (terrain_map().contains(tile_offset, terrain_types().building) && map_building_exists_at(tile_offset)) {
             Building &other_object = map_building_at(tile_offset);
             building *other_house = const_cast<::building *>(other_object.record());
             if (other_house && other_house->id != source_id && other_object.Housing) {

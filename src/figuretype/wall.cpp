@@ -18,7 +18,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/road_access.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "sound/effect.h"
 #include <cstdio>
 
@@ -320,9 +320,9 @@ void figure_tower_sentry_action(Figure *f)
             }
             break;
     }
-    if (map_terrain_is(f->grid_offset, TERRAIN_WALL)) {
+    if (terrain_map().contains(f->grid_offset, terrain_types().wall)) {
         f->current_height = 18;
-    } else if (map_terrain_is(f->grid_offset, TERRAIN_GATEHOUSE)) {
+    } else if (terrain_map().contains(f->grid_offset, terrain_types().gatehouse)) {
         f->in_building_wait_ticks = 24;
     }
     if (f->in_building_wait_ticks) {

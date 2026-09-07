@@ -21,7 +21,7 @@
 #include "game/performance_tracker.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 #include "scenario/property.h"
 #include "scenario/map.h"
@@ -90,6 +90,8 @@ struct RuntimeState {
     ContributionCounts counts;
     PreviewState preview;
     std::unordered_map<int, ProviderSnapshot> providers;
+    TerrainSet source_terrains;
+    bool sources_use_navigation = false;
     std::unordered_set<int> aqueduct_tiles;
     std::unordered_set<int> wet_aqueduct_tiles;
     std::unordered_set<int> dirty_network_tiles;
@@ -349,22 +351,18 @@ int nodes_have_access(
     return 0;
 }
 
-int has_water_source_access(const BuildingGeometry &geometry)
+int has_foundation_source_access(const WaterAccessRequirementTerm &term, const BuildingGeometry &geometry)
 {
-    if (!geometry.valid()) {
-        return 0;
-    }
-    for (const BuildingGeometryCell &cell : geometry.cells()) {
-        if (map_grid_is_inside(cell.x, cell.y, 1) &&
-            map_terrain_is(map_grid_offset(cell.x, cell.y), TERRAIN_WATER)) {
-            return 1;
-        }
-    }
-    for (const BuildingGeometryPoint &candidate : geometry.points_at_distance(1)) {
-        if (map_grid_is_inside(candidate.x, candidate.y, 1) &&
-            map_terrain_is(map_grid_offset(candidate.x, candidate.y), TERRAIN_WATER)) {
-            return 1;
-        }
+    if (!geometry.valid() || !term.foundation || !term.foundation_requirement) return 0;
+    const auto *owner = geometry.owner();
+    const int rotation = owner && owner->Foundation ? owner->Foundation->state().rotation() : 0;
+    return term.foundation->meets_proximity(*term.foundation_requirement, geometry.bounds().min_x, geometry.bounds().min_y, rotation);
+}
+
+int has_water_source_access(const WaterAccessDefinition &water, const BuildingGeometry &geometry)
+{
+    for (const auto &rule : water.requirement_rules()) for (const auto &term : rule.terms) {
+        if (term.kind == WaterAccessRequirementTermKind::FoundationRequirement && has_foundation_source_access(term, geometry)) return 1;
     }
     return 0;
 }
@@ -382,9 +380,8 @@ int requirement_term_is_satisfied(
             return term.where == WaterAccessRequirementWhere::Nodes ?
                 nodes_have_access(water, masks.access, x, y, term.mask) :
                 geometry_has_access(masks.access, geometry, term.mask);
-        case WaterAccessRequirementTermKind::WaterSourceAny:
-        case WaterAccessRequirementTermKind::WaterSourceFreshOnly:
-            return has_water_source_access(geometry);
+        case WaterAccessRequirementTermKind::FoundationRequirement:
+            return has_foundation_source_access(term, geometry);
         default:
             return 0;
     }
@@ -747,7 +744,7 @@ int mark_planned_providers(
 void set_aqueduct_to_no_water(int grid_offset)
 {
     map_aqueduct_set_water_access(grid_offset, 0);
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         map_image_set(grid_offset, map_tiles_highway_get_aqueduct_image(grid_offset));
         return;
     }
@@ -762,7 +759,7 @@ void set_aqueduct_to_water(int grid_offset)
 {
     map_aqueduct_set_water_access(grid_offset, 1);
     int image_id = map_image_at(grid_offset);
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         map_image_set(grid_offset, map_tiles_highway_get_aqueduct_image(grid_offset));
     } else if (image_id >= image_group(GROUP_BUILDING_AQUEDUCT_NO_WATER)) {
         map_image_set(grid_offset, image_id - kNoWaterImageOffset);
@@ -774,7 +771,7 @@ void project_aqueduct_state(const SimulationResult &result)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
                 set_aqueduct_to_no_water(grid_offset);
             }
         }
@@ -783,7 +780,7 @@ void project_aqueduct_state(const SimulationResult &result)
     grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) && result.wet_aqueduct[grid_offset]) {
+            if (terrain_map().contains(grid_offset, terrain_types().aqueduct) && result.wet_aqueduct[grid_offset]) {
                 set_aqueduct_to_water(grid_offset);
             }
         }
@@ -794,16 +791,16 @@ void project_terrain_ranges(const SimulationResult &result)
 {
     const uint8_t reservoir_mask = access_mask(kAccessReservoir);
     const uint8_t fountain_mask = access_mask(kAccessFountain);
-    map_terrain_remove_all(TERRAIN_FOUNTAIN_RANGE | TERRAIN_RESERVOIR_RANGE);
+    terrain_map().remove_all(terrain_types().fountain_range | terrain_types().reservoir_range);
 
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             if (reservoir_mask ? (result.masks.access[grid_offset] & reservoir_mask) : 0) {
-                map_terrain_add(grid_offset, TERRAIN_RESERVOIR_RANGE);
+                terrain_map().add(grid_offset, terrain_types().reservoir_range);
             }
             if (fountain_mask ? (result.masks.access[grid_offset] & fountain_mask) : 0) {
-                map_terrain_add(grid_offset, TERRAIN_FOUNTAIN_RANGE);
+                terrain_map().add(grid_offset, terrain_types().fountain_range);
             }
         }
     }
@@ -981,7 +978,7 @@ void rebuild_cached_water_network()
         } else {
             g_state.wet_aqueduct_tiles.erase(offset);
             adjust_aqueduct_contributions(offset, -1);
-            if (map_terrain_is(offset, TERRAIN_AQUEDUCT)) {
+            if (terrain_map().contains(offset, terrain_types().aqueduct)) {
                 set_aqueduct_to_no_water(offset);
             } else {
                 map_aqueduct_set_water_access(offset, 0);
@@ -1038,7 +1035,7 @@ void rebuild_cached_water_network()
                 }
                 ProviderSnapshot &provider = found->second;
                 component_reservoirs.push_back(reservoir_id);
-                supplied = supplied || has_water_source_access(provider.geometry);
+                supplied = supplied || has_water_source_access(provider.definition->water_access(), provider.geometry);
                 for (const building_type_registry_impl::WaterAccessNode &node :
                         provider.definition->water_access().provider_nodes()) {
                     const int connector = map_grid_offset(provider.x + node.x, provider.y + node.y);
@@ -1115,6 +1112,16 @@ void settle_non_network_providers()
     }
 }
 
+void register_source_dependencies(const WaterAccessDefinition &water)
+{
+    for (const auto &rule : water.requirement_rules()) for (const auto &term : rule.terms) {
+        if (term.kind != WaterAccessRequirementTermKind::FoundationRequirement || !term.foundation_requirement) continue;
+        const auto &requirement = *term.foundation_requirement;
+        g_state.source_terrains |= requirement.terrain;
+        g_state.sources_use_navigation |= requirement.navigable || requirement.sea;
+    }
+}
+
 void sync_provider(Building &building)
 {
     const BuildingType *definition = building.type;
@@ -1135,6 +1142,7 @@ void sync_provider(Building &building)
     const int state = building.state_id();
     const int has_workers = building_has_required_workers(&building);
     if (found == g_state.providers.end()) {
+        register_source_dependencies(definition->water_access());
         ProviderSnapshot snapshot;
         snapshot.building_id = building.id;
         snapshot.definition = definition;
@@ -1155,6 +1163,7 @@ void sync_provider(Building &building)
         snapshot.y != building.y();
     const bool activity_input_changed = snapshot.state != state || snapshot.has_workers != has_workers;
     if (geometry_changed) {
+        register_source_dependencies(definition->water_access());
         queue_reservoir_network(snapshot);
         if (snapshot.active) {
             adjust_provider_contributions(snapshot, -1);
@@ -1218,14 +1227,14 @@ void project_changed_state()
         g_state.changed_access_tiles.end());
     for (int grid_offset : g_state.changed_access_tiles) {
         if (reservoir_mask && (g_state.masks.access[grid_offset] & reservoir_mask)) {
-            map_terrain_add(grid_offset, TERRAIN_RESERVOIR_RANGE);
+            terrain_map().add(grid_offset, terrain_types().reservoir_range);
         } else {
-            map_terrain_remove(grid_offset, TERRAIN_RESERVOIR_RANGE);
+            terrain_map().remove(grid_offset, terrain_types().reservoir_range);
         }
         if (fountain_mask && (g_state.masks.access[grid_offset] & fountain_mask)) {
-            map_terrain_add(grid_offset, TERRAIN_FOUNTAIN_RANGE);
+            terrain_map().add(grid_offset, terrain_types().fountain_range);
         } else {
-            map_terrain_remove(grid_offset, TERRAIN_FOUNTAIN_RANGE);
+            terrain_map().remove(grid_offset, terrain_types().fountain_range);
         }
     }
 
@@ -1288,6 +1297,8 @@ void water_access_runtime_reset(void)
     g_state.counts.providers.fill({});
     clear_preview_state();
     g_state.providers.clear();
+    g_state.source_terrains = {};
+    g_state.sources_use_navigation = false;
     g_state.aqueduct_tiles.clear();
     g_state.wet_aqueduct_tiles.clear();
     g_state.dirty_network_tiles.clear();
@@ -1328,6 +1339,8 @@ void water_access_runtime_refresh(void)
     g_state.counts.access.fill({});
     g_state.counts.providers.fill({});
     g_state.providers.clear();
+    g_state.source_terrains = {};
+    g_state.sources_use_navigation = false;
     g_state.aqueduct_tiles.clear();
     g_state.wet_aqueduct_tiles.clear();
     g_state.dirty_network_tiles.clear();
@@ -1346,7 +1359,7 @@ void water_access_runtime_refresh(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; ++y, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; ++x, ++grid_offset) {
-            if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
                 g_state.aqueduct_tiles.insert(grid_offset);
                 queue_network_tile(grid_offset);
             }
@@ -1446,14 +1459,14 @@ void water_access_runtime_remove_building(Building *building)
     g_state.updating = 0;
 }
 
-void water_access_runtime_terrain_changed(int grid_offset, int old_terrain, int new_terrain)
+void water_access_runtime_terrain_changed(int grid_offset, const TerrainSet &old_terrain, const TerrainSet &new_terrain)
 {
-    const int changed = old_terrain ^ new_terrain;
-    if (!(changed & (TERRAIN_AQUEDUCT | TERRAIN_WATER)) || !g_state.refreshed || g_state.world_loading) {
-        return;
-    }
-    if (changed & TERRAIN_AQUEDUCT) {
-        if (new_terrain & TERRAIN_AQUEDUCT) {
+    if (!g_state.refreshed || g_state.world_loading) return;
+    const TerrainSet changed = old_terrain ^ new_terrain;
+    const bool navigation_changed = g_state.sources_use_navigation && std::any_of(changed.entries().begin(), changed.entries().end(), [](const Terrain *terrain) { return terrain->is_water() || !terrain->allows_sea(); });
+    if (!changed.intersects(terrain_types().aqueduct) && !changed.intersects(g_state.source_terrains) && !navigation_changed) return;
+    if (changed & terrain_types().aqueduct) {
+        if (new_terrain & terrain_types().aqueduct) {
             g_state.aqueduct_tiles.insert(grid_offset);
         } else {
             g_state.aqueduct_tiles.erase(grid_offset);
@@ -1467,12 +1480,14 @@ void water_access_runtime_terrain_changed(int grid_offset, int old_terrain, int 
     const int changed_x = map_grid_offset_to_x(grid_offset);
     const int changed_y = map_grid_offset_to_y(grid_offset);
     for (const auto &[id, provider] : g_state.providers) {
-        if (!provider_is_reservoir(provider)) {
-            continue;
+        bool affected = false;
+        for (const auto &rule : provider.definition->water_access().requirement_rules()) for (const auto &term : rule.terms) {
+            if (term.kind != WaterAccessRequirementTermKind::FoundationRequirement || !term.foundation_requirement) continue;
+            const auto &requirement = *term.foundation_requirement;
+            affected |= (navigation_changed && (requirement.navigable || requirement.sea)) ||
+                (changed.intersects(requirement.terrain) && provider.geometry.contains_within_range(changed_x, changed_y, requirement.max_distance));
         }
-        bool affected = (changed & TERRAIN_WATER) &&
-            provider.geometry.contains_within_range(changed_x, changed_y, 1);
-        if (changed & TERRAIN_AQUEDUCT) {
+        if (provider_is_reservoir(provider) && changed.intersects(terrain_types().aqueduct)) {
             for (const building_type_registry_impl::WaterAccessNode &node :
                     provider.definition->water_access().provider_nodes()) {
                 if (map_grid_offset(provider.x + node.x, provider.y + node.y) == grid_offset) {
@@ -1483,6 +1498,8 @@ void water_access_runtime_terrain_changed(int grid_offset, int old_terrain, int 
         }
         if (affected) {
             queue_reservoir_network(provider);
+            queue_provider_evaluation(id);
+            queue_dirty_building(id);
         }
     }
 }
@@ -1731,10 +1748,10 @@ int water_access_runtime_should_draw_overlay_at(int grid_offset)
     if (!map_grid_is_valid_offset(grid_offset)) {
         return 0;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().access_ramp | terrain_types().aqueduct)) {
         return 0;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building)) {
         const Building *building = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
         const BuildingType *definition = building ? building->type : nullptr;
         if (definition && definition->water_access().has_provider()) {

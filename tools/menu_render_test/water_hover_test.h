@@ -11,7 +11,7 @@
 #include "core/config.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/city_without_overlay.h"
 #include "window/city.h"
 #include "building/construction.h"
@@ -32,11 +32,11 @@ inline bool run_city_water_hover_render_test()
     commands.build();
     const CityViewRenderPhase phase[] = { { [](const CityDrawTileCommand &command) {
         if (selected.grid_offset >= 0 || command.building || command.first_figure || command.grid_offset < 0 ||
-            !map_property_is_draw_tile(command.grid_offset) || !map_terrain_is(command.grid_offset, TERRAIN_WATER)) return;
+            !map_property_is_draw_tile(command.grid_offset) || !terrain_map().contains(command.grid_offset, terrain_types().water)) return;
         for (int dy = -1; dy <= 1; dy++) {
             for (int dx = -1; dx <= 1; dx++) {
                 const int neighbor = map_grid_add_delta(command.grid_offset, dx, dy);
-                if (neighbor < 0 || !map_terrain_is(neighbor, TERRAIN_WATER)) return;
+                if (neighbor < 0 || !terrain_map().contains(neighbor, terrain_types().water)) return;
             }
         }
         int x, y, width, height;

@@ -164,3 +164,11 @@ building_type vacant_lot_occupancy_type()
 }
 
 }
+
+void building_type_registry_reset()
+{
+    using namespace building_type_registry_impl;
+    g_parse_state = {};
+    for (auto &definition : g_building_types) definition.reset();
+    g_building_type_overlays.clear();
+}

@@ -3,7 +3,7 @@
 #include "building/building.h"
 #include "building/monument.h"
 #include "building/building_type_registry_internal.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include <algorithm>
 #include <limits>
 
@@ -19,8 +19,8 @@ int BuildingCityService::infrastructure_units() const
 {
     const auto *service = definition();
     const auto *target = service ? definition_for_type(type_from_attr(service->infrastructure)) : nullptr;
-    if (!target || !target->infrastructure().terrain_mask) return 0;
-    return map_terrain_count(target->infrastructure().terrain_mask) / target->infrastructure().tiles_per_unit;
+    if (!target || !target->infrastructure().terrains) return 0;
+    return terrain_map().count(target->infrastructure().terrains) / target->infrastructure().tiles_per_unit;
 }
 
 int BuildingCityService::demand(resource_type resource) const
@@ -129,9 +129,9 @@ int city_service_monthly_infrastructure_levies()
 {
     int64_t levies = 0;
     for (const auto &type : g_building_types) {
-        if (!type || !type->infrastructure().terrain_mask || !type->infrastructure().monthly_levy) continue;
+        if (!type || !type->infrastructure().terrains || !type->infrastructure().monthly_levy) continue;
         const auto &infrastructure = type->infrastructure();
-        const int units = map_terrain_count(infrastructure.terrain_mask) / infrastructure.tiles_per_unit;
+        const int units = terrain_map().count(infrastructure.terrains) / infrastructure.tiles_per_unit;
         levies += static_cast<int64_t>(units) * infrastructure.monthly_levy * service_percent(type->type(), false) / 100;
     }
     return static_cast<int>(std::min<int64_t>(levies, std::numeric_limits<int>::max()));

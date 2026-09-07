@@ -1,3 +1,4 @@
+#include "map/Terrain.h"
 #pragma once
 
 
@@ -22,3 +23,5 @@ const terrain_image *map_image_context_get_dirt_road(int grid_offset);
 const terrain_image *map_image_context_get_paved_road(int grid_offset);
 const terrain_image *map_image_context_get_aqueduct(int grid_offset, int include_construction);
 
+
+WaterShoreShape water_shore_shape(const terrain_image &image);

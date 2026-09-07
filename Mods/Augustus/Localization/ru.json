@@ -9,6 +9,7 @@
   "editor_strings": {},
   "messages": {},
     "project_keys": {
+    "TR_EDITOR_TOOL_SHALLOW": "Мелководье",
         "TR_SIDEBAR_EXTRA_HOUSING_AVAILABLE": "Мест для: ",
         "TR_SIDEBAR_EXTRA_POPULATION_GOAL_MET": "Цель по населению выполнена",
         "TR_SIDEBAR_EXTRA_POPULATION_GOAL_NOT_MET": "Цель по населению не выполнена",

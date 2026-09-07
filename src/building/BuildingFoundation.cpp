@@ -9,7 +9,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 #include <algorithm>
@@ -77,7 +77,7 @@ int definition_adds_aqueduct(const FoundationDef &definition)
 {
     return std::any_of(definition.cells().begin(), definition.cells().end(),
         [](const FoundationCellDefinition &cell) {
-            return (cell.added_terrain & TERRAIN_AQUEDUCT) != 0;
+            return cell.added_terrain.intersects(terrain_types().aqueduct);
         });
 }
 
@@ -149,10 +149,10 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation)
             *cell.definition,
             static_cast<int>(cell.definition - canonical_cells.data()),
             grid_offset,
-            static_cast<uint32_t>(map_terrain_get(grid_offset)));
+            terrain_map().at(grid_offset));
 
-        map_terrain_remove(grid_offset, static_cast<int>(cell.definition->removed_terrain));
-        map_terrain_add(grid_offset, static_cast<int>(cell.definition->added_terrain));
+        terrain_map().remove(grid_offset, cell.definition->removed_terrain);
+        terrain_map().add(grid_offset, cell.definition->added_terrain);
         if (cell.definition->binds_building) {
             map_building_set(grid_offset, *owner_);
             map_property_set_legacy_multi_tile_size(grid_offset, compatibility_size);
@@ -236,13 +236,13 @@ int BuildingFoundation::remove()
             delta.cell_index >= 0 && delta.cell_index < static_cast<int>(canonical_cells.size())
             ? &canonical_cells[delta.cell_index]
             : nullptr;
-        const int authored_aqueduct = cell && (cell->added_terrain & TERRAIN_AQUEDUCT);
-        if ((delta.added_terrain & TERRAIN_AQUEDUCT) || authored_aqueduct) {
+        const int authored_aqueduct = cell && (cell->added_terrain & terrain_types().aqueduct);
+        if ((delta.added_terrain & terrain_types().aqueduct) || authored_aqueduct) {
             map_aqueduct_remove(delta.grid_offset);
         }
-        map_terrain_remove(delta.grid_offset, static_cast<int>(delta.added_terrain) |
-            (authored_aqueduct ? TERRAIN_AQUEDUCT : 0));
-        map_terrain_add(delta.grid_offset, static_cast<int>(delta.removed_terrain));
+        terrain_map().remove(delta.grid_offset, delta.added_terrain |
+            (authored_aqueduct ? terrain_types().aqueduct : TerrainSet()));
+        terrain_map().add(delta.grid_offset, delta.removed_terrain);
         if (delta.bound_building && map_building_exists_at(delta.grid_offset) &&
             map_building_at(delta.grid_offset).record() == owner_->record()) {
             map_building_clear_at(delta.grid_offset);
@@ -266,10 +266,10 @@ int BuildingFoundation::remove()
                 map_building_at(grid_offset).record() != owner_->record()) {
                 continue;
             }
-            if (cell.definition->added_terrain & TERRAIN_AQUEDUCT) {
+            if (cell.definition->added_terrain & terrain_types().aqueduct) {
                 map_aqueduct_remove(grid_offset);
             }
-            map_terrain_remove(grid_offset, static_cast<int>(cell.definition->added_terrain));
+            terrain_map().remove(grid_offset, cell.definition->added_terrain);
             if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
                 map_building_at(grid_offset).record() == owner_->record()) {
                 map_building_clear_at(grid_offset);
@@ -316,7 +316,7 @@ int BuildingFoundation::rebind(int origin_x, int origin_y, int rotation)
             FoundationTerrainDelta delta;
             delta.cell_index = static_cast<int>(cell.definition - canonical.data());
             delta.grid_offset = grid_offset;
-            delta.added_terrain = static_cast<uint32_t>(map_terrain_get(grid_offset)) &
+            delta.added_terrain = terrain_map().at(grid_offset) &
                 cell.definition->added_terrain;
             delta.bound_building = cell.definition->binds_building;
             state_->record_delta(delta);
@@ -357,10 +357,10 @@ FoundationPassage BuildingFoundation::passage_at(int grid_offset) const
     for (const RotatedFoundationCell &cell : definition_->rotated_cells(state_->rotation())) {
         if (cell.definition &&
             map_grid_offset(state_->origin_x() + cell.x, state_->origin_y() + cell.y) == grid_offset) {
-            const int terrain = map_terrain_get(grid_offset);
-            if ((cell.definition->added_terrain & TERRAIN_AQUEDUCT) &&
-                (terrain & TERRAIN_AQUEDUCT) &&
-                (terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP))) {
+            const TerrainSet &terrain = terrain_map().at(grid_offset);
+            if ((cell.definition->added_terrain & terrain_types().aqueduct) &&
+                (terrain & terrain_types().aqueduct) &&
+                (terrain & (terrain_types().road | terrain_types().highway | terrain_types().access_ramp))) {
                 return FoundationPassage::Uncontrolled;
             }
             return cell.definition->passage;
@@ -380,14 +380,14 @@ int BuildingFoundation::has_unrestricted_road_crossing() const
         return 0;
     }
     for (const RotatedFoundationCell &cell : definition_->rotated_cells(state_->rotation())) {
-        if (!cell.definition || !(cell.definition->added_terrain & TERRAIN_AQUEDUCT)) {
+        if (!cell.definition || !(cell.definition->added_terrain & terrain_types().aqueduct)) {
             continue;
         }
         const int grid_offset = map_grid_offset(
             state_->origin_x() + cell.x, state_->origin_y() + cell.y);
-        const int terrain = map_terrain_get(grid_offset);
-        if ((terrain & TERRAIN_AQUEDUCT) &&
-            (terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP))) {
+        const TerrainSet &terrain = terrain_map().at(grid_offset);
+        if ((terrain & terrain_types().aqueduct) &&
+            (terrain & (terrain_types().road | terrain_types().highway | terrain_types().access_ramp))) {
             return 1;
         }
     }

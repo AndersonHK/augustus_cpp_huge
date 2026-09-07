@@ -14,7 +14,7 @@
 #include "city/view.h"
 #include "map/grid.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 
 static int highway_barrier_direction_offsets[4] = { 1, -GRID_SIZE, -1, GRID_SIZE };
@@ -23,13 +23,13 @@ static int has_adjacent_road(int adjacent_grid_offset, int direction_index)
 {
     int right_direction = highway_barrier_direction_offsets[(direction_index + 3) % 4];
     int left_direction = highway_barrier_direction_offsets[(direction_index + 1) % 4];
-    int left_has_road = map_terrain_is(adjacent_grid_offset + left_direction, TERRAIN_ROAD);
-    int right_has_road = map_terrain_is(adjacent_grid_offset + right_direction, TERRAIN_ROAD);
+    int left_has_road = terrain_map().contains(adjacent_grid_offset + left_direction, terrain_types().road);
+    int right_has_road = terrain_map().contains(adjacent_grid_offset + right_direction, terrain_types().road);
     if (left_has_road && right_has_road) {
         return 1;
-    } else if (left_has_road && map_terrain_is(adjacent_grid_offset + left_direction * 2, TERRAIN_ROAD)) {
+    } else if (left_has_road && terrain_map().contains(adjacent_grid_offset + left_direction * 2, terrain_types().road)) {
         return 1;
-    } else if (right_has_road && map_terrain_is(adjacent_grid_offset + right_direction * 2, TERRAIN_ROAD)) {
+    } else if (right_has_road && terrain_map().contains(adjacent_grid_offset + right_direction * 2, terrain_types().road)) {
         return 1;
     }
     return 0;
@@ -37,13 +37,13 @@ static int has_adjacent_road(int adjacent_grid_offset, int direction_index)
 
 static int is_highway_access(int grid_offset, int direction_index)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY | TERRAIN_GATEHOUSE | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway | terrain_types().gatehouse | terrain_types().access_ramp)) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD) && !has_adjacent_road(grid_offset, direction_index)) {
+    if (terrain_map().contains(grid_offset, terrain_types().road) && !has_adjacent_road(grid_offset, direction_index)) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building)) {
         Building &building_object = map_building_at(grid_offset);
         if (building_object.Foundation &&
             building_object.Foundation->passage_at(grid_offset) !=
@@ -98,7 +98,7 @@ void city_draw_highway_footprint(int x, int y, float scale, int grid_offset, col
     }
     draw_barrier_image(grid_offset, 1, x, y, scale, color_mask);
     draw_barrier_image(grid_offset, 2, x, y, scale, color_mask);
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         int aqueduct_image_id = map_tiles_highway_get_aqueduct_image(grid_offset);
         Image::from_id(aqueduct_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
     }

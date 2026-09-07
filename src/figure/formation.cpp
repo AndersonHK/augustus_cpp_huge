@@ -894,7 +894,7 @@ int formation::member_station_route_distance(
 {
     const int tile_x = figure_movement_cross_country_to_tile(candidate.x);
     const int tile_y = figure_movement_cross_country_to_tile(candidate.y);
-    if (!map_grid_is_inside(tile_x, tile_y, 1)) return 0;
+    if (!Route::groundPositionIsPassable(candidate.x, candidate.y)) return 0;
     return route.distanceTo(map_grid_offset(tile_x, tile_y));
 }
 
@@ -956,7 +956,8 @@ FormationMemberMovementResult formation::move_member_to_slot(
     FormationStationState station_state = FormationStationState::Unplaced;
     const bool had_station = member_movement_plan.resolve_member(
         slot, figure, &movement_destination, &station_state);
-    if (!had_station) {
+    if (!had_station || (station_state != FormationStationState::Unplaced && !Route::groundPositionIsPassable(movement_destination.x, movement_destination.y))) {
+        member_movement_plan.release_member(slot, figure);
         resolve_member_movement_station(figure);
         Route::remove(&figure);
     }
@@ -1178,6 +1179,7 @@ void formation::move_herd_animals(int attacking_animals) const
             return;
         }
         f->wait_ticks = HERD_ANIMAL_MOVE_WAIT_TICKS;
+        Route::remove(f);
         if (attacking_animals) {
             int target_id = figure_combat_get_target_for_aggressive_herd(f->x, f->y, 6);
             if (target_id) {

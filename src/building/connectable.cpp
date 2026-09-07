@@ -14,7 +14,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 #include <string_view>
@@ -235,7 +235,7 @@ int building_connectable_gate_type(building_type type)
 building_type building_connectable_preview_type(building_type type, int grid_offset)
 {
     const building_type gate_type = static_cast<building_type>(building_connectable_gate_type(type));
-    return gate_type != BUILDING_NONE && map_terrain_is(grid_offset, TERRAIN_ROAD) ? gate_type : type;
+    return gate_type != BUILDING_NONE && terrain_map().contains(grid_offset, terrain_types().road) ? gate_type : type;
 }
 
 static int pattern_matches_neighbors(const connectable_graphics_pattern *pattern,
@@ -308,7 +308,7 @@ int building_connectable_get_hedge_offset(int grid_offset)
     int tiles[MAX_TILES] = { 0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
@@ -328,15 +328,15 @@ int building_connectable_get_hedge_gate_offset(int grid_offset)
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
 
-        if (map_terrain_is(offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(offset, terrain_types().road)) {
             terrain_tiles[i] = 1;
         }
 
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
-        if (is_hedge_wall(type) || (map_property_is_constructing(offset) && !map_terrain_is(offset, TERRAIN_ROAD)
+        if (is_hedge_wall(type) || (map_property_is_constructing(offset) && !terrain_map().contains(offset, terrain_types().road)
             && is_hedge_wall(building_construction_type()))) {
             tiles[i] = 1;
         }
@@ -350,7 +350,7 @@ int building_connectable_get_colonnade_offset(int grid_offset)
     int tiles[MAX_TILES] = { 0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
@@ -405,7 +405,7 @@ int building_connectable_get_garden_wall_offset(int grid_offset)
     int tiles[MAX_TILES] = { 0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
@@ -422,7 +422,7 @@ int building_connectable_get_garden_path_offset(int grid_offset, int context)
     int tiles[MAX_TILES] = { 0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
@@ -441,16 +441,16 @@ int building_connectable_get_garden_gate_offset(int grid_offset)
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
 
-        if (map_terrain_is(offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(offset, terrain_types().road)) {
             terrain_tiles[i] = 1;
         }
 
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
         if (is_garden_wall(type) ||
-            (map_property_is_constructing(offset) && !map_terrain_is(offset, TERRAIN_ROAD) && is_garden_wall(building_construction_type()))) {
+            (map_property_is_constructing(offset) && !terrain_map().contains(offset, terrain_types().road) && is_garden_wall(building_construction_type()))) {
             tiles[i] = 1;
         }
     }
@@ -473,7 +473,7 @@ int building_connectable_get_palisade_offset(int grid_offset)
     int tiles[MAX_TILES] = { 0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
@@ -493,15 +493,15 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
 
-        if (map_terrain_is(offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(offset, terrain_types().road)) {
             terrain_tiles[i] = 1;
         }
 
-        if (!map_terrain_is(offset, TERRAIN_BUILDING) && !map_property_is_constructing(offset)) {
+        if (!terrain_map().contains(offset, terrain_types().building) && !map_property_is_constructing(offset)) {
             continue;
         }
         building_type type = map_runtime_building_type_at(offset);
-        if (is_palisade_wall(type) || (map_property_is_constructing(offset) && !map_terrain_is(offset, TERRAIN_ROAD)
+        if (is_palisade_wall(type) || (map_property_is_constructing(offset) && !terrain_map().contains(offset, terrain_types().road)
             && is_palisade_wall(building_construction_type()))) {
             tiles[i] = 1;
         }
@@ -540,7 +540,7 @@ static int aqueduct_connects_to_tile(int grid_offset, int offset)
     if (aqueduct_preview_contains(offset)) {
         return 1;
     }
-    if (map_terrain_is(offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(offset, terrain_types().aqueduct)) {
         return 1;
     }
     if (map_property_is_constructing(offset) &&

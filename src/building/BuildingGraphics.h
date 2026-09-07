@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/BuildingGraphicsDef.h"
 #include "building/BuildingGraphicsState.h"

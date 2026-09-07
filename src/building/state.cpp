@@ -22,7 +22,7 @@
 #include "game/save_version.h"
 #include "map/building.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -380,8 +380,8 @@ static int detach_unsupported_plaza_surface_record(const building *b)
     if (map_building_loaded_id_at(grid_offset) != b->id) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) ||
-        !map_terrain_is_superset(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building) ||
+        !terrain_map().contains_all(grid_offset, terrain_types().road | terrain_types().garden)) {
         return 0;
     }
 

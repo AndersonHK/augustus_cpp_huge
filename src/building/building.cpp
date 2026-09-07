@@ -79,7 +79,7 @@
 #include "map/road_network.h"
 #include "map/sprite.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #define WATER_DESIRABILITY_RANGE 3
 #define WATER_DESIRABILITY_BONUS 15
@@ -106,7 +106,7 @@ static int geometry_has_water_within_range(
     for (int y = bounds.min_y - range; y < bounds.max_y + range; ++y) {
         for (int x = bounds.min_x - range; x < bounds.max_x + range; ++x) {
             if (map_grid_is_inside(x, y, 1) && geometry.contains_within_range(x, y, range) &&
-                map_terrain_is(map_grid_offset(x, y), TERRAIN_WATER)) {
+                terrain_map().contains(map_grid_offset(x, y), terrain_types().water)) {
                 return 1;
             }
         }
@@ -2879,7 +2879,7 @@ static void building_delete(building *b)
 static bool rubble_record_has_map_presence(const building *record)
 {
     if (!record || !record->id || !map_grid_is_valid_offset(record->grid_offset) ||
-        !map_terrain_is(record->grid_offset, TERRAIN_RUBBLE)) {
+        !terrain_map().contains(record->grid_offset, terrain_types().rubble)) {
         return false;
     }
     return map_building_loaded_id_at(record->grid_offset) == record->id ||
@@ -3034,7 +3034,7 @@ int Building::yield_rubble_to_repair(const RubbleState &origin)
         return 0;
     }
     map_building_clear_at(offset);
-    map_terrain_remove(offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
+    terrain_map().remove(offset, terrain_types().rubble | terrain_types().building);
     return 1;
 }
 
@@ -3254,7 +3254,7 @@ int building_elevation_desirability(int grid_offset)
 
 int building_shoreline_desirability(int grid_offset)
 {
-    return map_terrain_exists_tile_in_radius_with_type(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), 1, WATER_DESIRABILITY_RANGE, TERRAIN_WATER) ? 10 : 0;
+    return terrain_map().exists_tile_in_radius_with_type(map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), 1, WATER_DESIRABILITY_RANGE, terrain_types().water) ? 10 : 0;
 }
 
 void building_update_desirability(void)
@@ -3953,7 +3953,7 @@ static bool loaded_record_owns_unbound_foundation(const building &record)
         }
         const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
         has_owned_delta = has_owned_delta || deltas[cell_index].added_terrain || deltas[cell_index].removed_terrain;
-        if ((static_cast<unsigned int>(map_terrain_get(grid_offset)) & deltas[cell_index].added_terrain) !=
+        if ((terrain_map().at(grid_offset) & deltas[cell_index].added_terrain) !=
             deltas[cell_index].added_terrain) {
             return false;
         }
@@ -3978,7 +3978,7 @@ static bool bind_loaded_unbound_foundation(const building &record)
             return false;
         }
         const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
-        const uint32_t terrain = static_cast<uint32_t>(map_terrain_get(grid_offset));
+        const TerrainSet &terrain = terrain_map().at(grid_offset);
         if (cell.definition->added_terrain && (terrain & cell.definition->added_terrain) != cell.definition->added_terrain) {
             return false;
         }
@@ -3997,7 +3997,7 @@ static bool bind_loaded_unbound_foundation(const building &record)
 
 static int legacy_tile_has_blocking_loaded_record(int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return 0;
     }
     const unsigned int building_id = map_building_loaded_id_at(grid_offset);
@@ -4008,7 +4008,7 @@ static int legacy_tile_has_blocking_loaded_record(int grid_offset)
 
 static int legacy_tile_is_bridge_sprite(int grid_offset)
 {
-    return map_bridge_legacy_section_at(grid_offset) && map_terrain_is(grid_offset, TERRAIN_WATER);
+    return map_bridge_legacy_section_at(grid_offset) && terrain_map().contains(grid_offset, terrain_types().water);
 }
 
 static int legacy_highway_tile_is_complete_top_left(int grid_offset)
@@ -4016,7 +4016,7 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
     if (map_grid_is_valid_offset(grid_offset) == 0) {
         return 0;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY_TOP_LEFT) == 0) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway_top_left) == 0) {
         return 0;
     }
 
@@ -4041,13 +4041,13 @@ static int legacy_highway_tile_is_complete_top_left(int grid_offset)
     if (legacy_tile_has_blocking_loaded_record(bottom_right)) {
         return 0;
     }
-    if (map_terrain_is(bottom_left, TERRAIN_HIGHWAY_BOTTOM_LEFT) == 0) {
+    if (terrain_map().contains(bottom_left, terrain_types().highway_bottom_left) == 0) {
         return 0;
     }
-    if (map_terrain_is(top_right, TERRAIN_HIGHWAY_TOP_RIGHT) == 0) {
+    if (terrain_map().contains(top_right, terrain_types().highway_top_right) == 0) {
         return 0;
     }
-    return map_terrain_is(bottom_right, TERRAIN_HIGHWAY_BOTTOM_RIGHT);
+    return terrain_map().contains(bottom_right, terrain_types().highway_bottom_right);
 }
 
 static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTilePromotionTypes &types)
@@ -4070,42 +4070,42 @@ static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTi
             return types.highway;
         }
     }
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         return BUILDING_NONE;
     }
     if (types.aqueduct != BUILDING_NONE) {
-        if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+        if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
             return types.aqueduct;
         }
     }
     if (types.wall != BUILDING_NONE) {
-        if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
-            if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE) == 0) {
+        if (terrain_map().contains(grid_offset, terrain_types().wall)) {
+            if (terrain_map().contains(grid_offset, terrain_types().gatehouse) == 0) {
                 return types.wall;
             }
         }
     }
     if (types.plaza != BUILDING_NONE) {
-        if (map_terrain_is_superset(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
+        if (terrain_map().contains_all(grid_offset, terrain_types().road | terrain_types().garden)) {
             if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
                 return types.plaza;
             }
         }
     }
-    if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+    if (terrain_map().contains(grid_offset, terrain_types().garden)) {
         if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
             return types.overgrown_gardens;
         }
         return types.gardens;
     }
     if (types.road != BUILDING_NONE) {
-        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(grid_offset, terrain_types().road)) {
             return types.road;
         }
     }
     if (types.burning_ruin != BUILDING_NONE) {
-        if (map_terrain_is(grid_offset, TERRAIN_RUBBLE)) {
-            if (map_terrain_is(grid_offset, TERRAIN_WATER) == 0) {
+        if (terrain_map().contains(grid_offset, terrain_types().rubble)) {
+            if (terrain_map().contains(grid_offset, terrain_types().water) == 0) {
                 return types.burning_ruin;
             }
         }
@@ -4116,7 +4116,7 @@ static building_type legacy_tile_type_for_offset(int grid_offset, const LegacyTi
 static int legacy_tile_promoted_state(building_type type, int grid_offset, const LegacyTilePromotionTypes &types)
 {
     if (type == types.burning_ruin) {
-        if (map_terrain_is(grid_offset, TERRAIN_BUILDING) == 0) {
+        if (terrain_map().contains(grid_offset, terrain_types().building) == 0) {
             return BUILDING_STATE_RUBBLE;
         }
     }
@@ -4211,9 +4211,9 @@ static void bind_legacy_tile_building_record_to_map(const building *record, cons
 
     map_building_set_loaded_id(grid_offset, id);
     if (record->type == types.wall) {
-        map_terrain_add(grid_offset, TERRAIN_WALL | TERRAIN_BUILDING);
+        terrain_map().add(grid_offset, terrain_types().wall | terrain_types().building);
     } else if (record->type == types.burning_ruin) {
-        map_terrain_add(grid_offset, TERRAIN_RUBBLE | TERRAIN_BUILDING);
+        terrain_map().add(grid_offset, terrain_types().rubble | terrain_types().building);
         map_building_set_rubble_grid_building_id(grid_offset, id, 1);
     }
 }
@@ -4258,7 +4258,8 @@ static void stage_legacy_tile_foundation_state(const building &record)
             break;
         }
         const int grid_offset = map_grid_offset(record.x + cell.x, record.y + cell.y);
-        saved.added[cell_index] = static_cast<uint32_t>(map_terrain_get(grid_offset)) & cell.definition->added_terrain;
+        if (!saved.recovered_added) saved.recovered_added.emplace();
+        (*saved.recovered_added)[cell_index] = terrain_map().at(grid_offset).intersection(cell.definition->added_terrain);
     }
     if (saved.published) {
         building_runtime_stage_loaded_foundation_state(record.id, saved);
@@ -4465,11 +4466,11 @@ static void repair_loaded_rubble_terrain()
         if (!definition || !definition->has_rubble()) continue;
         const int grid_offset = record.grid_offset;
         if (!map_grid_is_valid_offset(grid_offset) || map_building_loaded_id_at(grid_offset) != record.id ||
-            !map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_RUBBLE | TERRAIN_WATER)) continue;
+            !terrain_map().contains(grid_offset, terrain_types().building) || terrain_map().contains(grid_offset, terrain_types().rubble | terrain_types().water)) continue;
         char detail[160];
         snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
         log_warning("Repairing missing rubble terrain on a serialized ruin", detail, 0);
-        map_terrain_add(grid_offset, TERRAIN_RUBBLE);
+        terrain_map().add(grid_offset, terrain_types().rubble);
     }
 }
 

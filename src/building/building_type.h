@@ -11,14 +11,7 @@ enum {
     BUILDING_TYPE_MAX = 512
 };
 
-enum {
-    BUILDING_TYPE_TERRAIN_MEADOW = 1 << 0,
-    BUILDING_TYPE_TERRAIN_ROCK = 1 << 1,
-    BUILDING_TYPE_TERRAIN_TREE = 1 << 2,
-    BUILDING_TYPE_TERRAIN_WATER = 1 << 3,
-    BUILDING_TYPE_TERRAIN_WALL = 1 << 4,
-    BUILDING_TYPE_TERRAIN_DISTANT_WATER = 1 << 5
-};
+
 
 /**
  * House levels
@@ -130,8 +123,7 @@ enum class WaterAccessRequirementWhere {
 
 enum class WaterAccessRequirementTermKind {
     Access,
-    WaterSourceAny,
-    WaterSourceFreshOnly
+    FoundationRequirement
 };
 
 enum class SpecialSpawnMode {
@@ -616,10 +608,15 @@ struct WaterAccessProvideRule {
     WaterAccessOrigin origin = WaterAccessOrigin::Footprint;
 };
 
+struct FoundationProximityRequirement;
+
 struct WaterAccessRequirementTerm {
     WaterAccessRequirementTermKind kind = WaterAccessRequirementTermKind::Access;
     uint8_t mask = 0;
     WaterAccessRequirementWhere where = WaterAccessRequirementWhere::Footprint;
+    std::string foundation_requirement_name;
+    const FoundationDef *foundation = nullptr;
+    const FoundationProximityRequirement *foundation_requirement = nullptr;
 };
 
 struct WaterAccessRequirementRule {
@@ -630,6 +627,7 @@ struct WaterAccessRequirementRule {
 class WaterAccessDefinition {
 public:
     void set_requires_open_water(int required);
+    bool bind_foundation_requirements(const FoundationDef &foundation);
     void add_provide_rule(WaterAccessProvideRule rule);
     void add_requirement_rule(WaterAccessRequirementRule rule);
     void add_node(WaterAccessNode node);
@@ -844,6 +842,7 @@ public:
     void add_water_access_provide_rule(WaterAccessProvideRule rule);
     void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
     void set_water_access_requires_open_water(int required);
+    bool bind_water_foundation_requirements(const FoundationDef &foundation) { return water_access_.bind_foundation_requirements(foundation); }
     void add_water_access_node(WaterAccessNode node);
     void add_water_access_provider_node(WaterAccessNode node);
     void add_water_access_requirement_node(WaterAccessNode node);

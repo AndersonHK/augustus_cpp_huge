@@ -36,7 +36,7 @@
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #define MAX_LOOTING_DISTANCE 120

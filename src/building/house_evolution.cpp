@@ -23,7 +23,7 @@
 #include "game/time.h"
 #include "map/grid.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #define DEVOLVE_DELAY 2
 #define DEVOLVE_DELAY_WITH_VENUS 20
@@ -770,9 +770,9 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
     }
     int grid_offset = map_grid_offset(x, y);
     if (!map_building_exists_at(grid_offset)) {
-        if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+        if (terrain_map().contains(grid_offset, terrain_types().highway)) {
             return building_type_registry_impl::type_from_attr("highway");
-        } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
             return building_type_registry_impl::type_from_attr("reservoir");
         } else {
             return BUILDING_NONE;

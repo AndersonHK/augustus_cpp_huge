@@ -16,7 +16,7 @@
 #include "map/image.h"
 #include "map/random.h"
 #include "map/road_access.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "sound/speech.h"
 
 #define NATIVE_ATTACK_SOUND_DELAY 60000
@@ -82,7 +82,7 @@ void NativeBuildingSpawner::spawn_hut_resident()
     }
     int x_out, y_out;
     if (b->subtype.native_meeting_center_id > 0 &&
-        map_terrain_get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
+        terrain_map().get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
         b->figure_spawn_delay++;
         if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(4)) {
             b->figure_spawn_delay = 0;
@@ -104,7 +104,7 @@ void NativeBuildingSpawner::spawn_meeting_trader()
         return;
     }
     int x_out, y_out;
-    if (map_terrain_get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
+    if (terrain_map().get_adjacent_road_or_clear_land(owner_, &x_out, &y_out)) {
         b->figure_spawn_delay++;
         if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(8)) {
             b->figure_spawn_delay = 0;
@@ -199,7 +199,7 @@ void figure_indigenous_native_action(Figure *f)
                         f->state = FIGURE_STATE_DEAD;
                         break;
                     }
-                    if (map_terrain_get_adjacent_road_or_clear_land(
+                    if (terrain_map().get_adjacent_road_or_clear_land(
                             *meeting_building, &x_tile, &y_tile)) {
                         f->action_state = FIGURE_ACTION_156_NATIVE_GOING_TO_MEETING_CENTER;
                         f->destination_x = static_cast<unsigned char>(x_tile);

@@ -20,7 +20,7 @@
 #include "game/time.h"
 #include "figuretype/entertainer.h"
 #include "map/data.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 static int house_tax_multiplier(const Building &house)
 {

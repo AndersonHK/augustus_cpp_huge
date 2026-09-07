@@ -48,7 +48,7 @@
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/routing.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 

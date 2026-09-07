@@ -13,7 +13,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/road_aqueduct.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 #include "scenario/map.h"
 
@@ -34,7 +34,7 @@ using building_type_registry_impl::RotatedFoundationCell;
 
 namespace {
 
-constexpr int FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD;
+static TerrainSet force_place_clearable_terrain() { return terrain_types().tree | terrain_types().shrub | terrain_types().road; }
 
 int normalize_rotation(int rotation)
 {
@@ -47,9 +47,9 @@ int clear_land_cost()
     return type != BUILDING_NONE ? model_get_construction_cost(type) : 0;
 }
 
-int force_place_can_clear_terrain(int terrain)
+int force_place_can_clear_terrain(TerrainSet terrain)
 {
-    return terrain && !(terrain & ~FORCE_PLACE_CLEARABLE_TERRAIN);
+    return terrain && !(terrain - force_place_clearable_terrain());
 }
 
 int placement_part_checks_figures(const BuildingType &definition, int active_cells)
@@ -67,34 +67,16 @@ bool tile_has_bound_aqueduct_occupancy(int grid_offset)
         return false;
     }
     const Building &occupant = map_building_at(grid_offset);
-    return occupant.matches("aqueduct") && map_terrain_is(grid_offset, TERRAIN_AQUEDUCT);
+    return occupant.matches("aqueduct") && terrain_map().contains(grid_offset, terrain_types().aqueduct);
 }
 
-bool meets_proximity_requirements(const ConstructionPlacementPart &part)
+const building_type_registry_impl::FoundationProximityRequirement *proximity_failure(const ConstructionPlacementPart &part)
 {
-    const FoundationDef *foundation = part.definition->foundation_def();
-    for (const auto &requirement : foundation->proximity_requirements()) {
-        int count = 0;
-        for (int y = part.y - requirement.max_distance; y < part.y + part.height + requirement.max_distance; ++y) {
-            for (int x = part.x - requirement.max_distance; x < part.x + part.width + requirement.max_distance; ++x) {
-                if (!map_grid_is_inside(x, y, 1)) continue;
-                int distance = std::numeric_limits<int>::max();
-                for (const auto &cell : part.tiles) distance = std::min(distance, std::max(std::abs(x - cell.x), std::abs(y - cell.y)));
-                if (distance < requirement.min_distance || distance > requirement.max_distance) continue;
-                const int offset = map_grid_offset(x, y);
-                if ((map_terrain_get(offset) & requirement.terrain) != requirement.terrain) continue;
-                if (requirement.navigable && !water_navigation::is_passable(offset, WaterNavigationProfile::Boat)) continue;
-                if (requirement.sea) {
-                    const map_point entry = scenario_map_river_entry();
-                    if ((x != entry.x || y != entry.y) && water_navigation::path_length({x, y}, entry, WaterNavigationProfile::Boat) <= 0) continue;
-                }
-                if (++count >= requirement.min_count) break;
-            }
-            if (count >= requirement.min_count) break;
-        }
-        if (count < requirement.min_count) return false;
+    const FoundationDef &foundation = *part.definition->foundation_def();
+    for (const auto &requirement : foundation.proximity_requirements()) {
+        if (requirement.placement && !foundation.meets_proximity(requirement, part.x, part.y, part.foundation_rotation)) return &requirement;
     }
-    return true;
+    return nullptr;
 }
 
 int placement_extent(const BuildingType &definition, int rotation)
@@ -224,6 +206,7 @@ const std::vector<ConstructionPlacementPart> &ConstructionPlacementPlan::parts()
 void ConstructionPlacementPlan::reset_attempt()
 {
     blocked_ = 0;
+    failed_proximity_ = nullptr;
     failure_reason_ = PlacementFailureReason::None;
     forbidden_tiles_ = 0;
     clear_cost_ = 0;
@@ -382,9 +365,9 @@ void ConstructionPlacementPlan::build_rotation(int rotation)
 
     for (ConstructionPlacementPart &part : parts_) {
         validate_part(part);
-        if (!blocked_ && !meets_proximity_requirements(part)) {
-            blocked_ = 1;
-            failure_reason_ = PlacementFailureReason::Proximity;
+        if (!blocked_) {
+            failed_proximity_ = proximity_failure(part);
+            if (failed_proximity_) { blocked_ = 1; failure_reason_ = PlacementFailureReason::Proximity; }
         }
     }
     if (!blocked_) {
@@ -511,13 +494,13 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         return PlacementTileState::Forbidden;
     }
 
-    const unsigned int terrain = static_cast<unsigned int>(map_terrain_get(tile.grid_offset));
+    const TerrainSet &terrain = terrain_map().at(tile.grid_offset);
     if (replaceable_rubble_ && map_building_exists_at(tile.grid_offset)) {
         const Building &occupant = map_building_at(tile.grid_offset);
         const RubbleState *occupant_state = occupant.Rubble ? occupant.Rubble->state() : nullptr;
         if (occupant_state && replaceable_rubble_->same_origin(*occupant_state)) {
             tile.rubble = RepairRubbleOccupancy::MatchingOrigin;
-            if (!(cell->required_terrain & TERRAIN_WATER)) {
+            if (!(cell->required_terrain & terrain_types().water)) {
                 return PlacementTileState::Allowed;
             }
         } else if (occupant_state) {
@@ -525,18 +508,18 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         }
     }
 
-    const unsigned int superseded_terrain = part.definition
+    const TerrainSet superseded_terrain = part.definition
         ? add_supersession(*part.definition, tile.grid_offset, terrain, cell->added_terrain)
-        : 0;
-    const unsigned int effective_terrain = terrain & ~superseded_terrain;
-    unsigned int supplied_terrain = terrain;
+        : TerrainSet();
+    const TerrainSet effective_terrain = terrain - superseded_terrain;
+    TerrainSet supplied_terrain = terrain;
     if ((terrain & cell->required_terrain) != cell->required_terrain && !cell->support_type.empty()) {
         const auto *support = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr(cell->support_type.c_str()));
         const auto *support_foundation = support ? support->foundation_def() : nullptr;
         if (support_foundation && support_foundation->cells().size() == 1 && !support->has_phased_construction()) {
             const auto &support_cell = support_foundation->cells().front();
-            const unsigned int supporting_terrain = support_cell.added_terrain & ~TERRAIN_BUILDING;
-            const int support_obstacles = effective_terrain & TERRAIN_NOT_CLEAR & ~support_cell.permitted_blocking_terrain;
+            const TerrainSet supporting_terrain = support_cell.added_terrain - terrain_types().building;
+            const TerrainSet support_obstacles = effective_terrain & terrain_types().not_clear - support_cell.permitted_blocking_terrain;
             if ((supporting_terrain & cell->required_terrain) == cell->required_terrain &&
                 (cell->added_terrain & supporting_terrain) == supporting_terrain &&
                 (!support_obstacles || (force_place_ && force_place_can_clear_terrain(support_obstacles)))) {
@@ -552,14 +535,14 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         return PlacementTileState::Forbidden;
     }
 
-    const unsigned int permitted = cell->permitted_blocking_terrain;
-    const unsigned int generated_transport = cell->added_terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_AQUEDUCT);
+    const TerrainSet permitted = cell->permitted_blocking_terrain;
+    const TerrainSet generated_transport = cell->added_terrain & (terrain_types().road | terrain_types().highway | terrain_types().aqueduct);
     const bool places_road_under_aqueduct =
-        (effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
-        (generated_transport & TERRAIN_ROAD);
+        (effective_terrain & terrain_types().aqueduct) && (permitted & terrain_types().aqueduct) &&
+        (generated_transport & terrain_types().road);
     const bool places_highway_under_aqueduct =
-        (effective_terrain & TERRAIN_AQUEDUCT) && (permitted & TERRAIN_AQUEDUCT) &&
-        (generated_transport & TERRAIN_HIGHWAY);
+        (effective_terrain & terrain_types().aqueduct) && (permitted & terrain_types().aqueduct) &&
+        (generated_transport & terrain_types().highway);
     const bool valid_road_aqueduct_crossing =
         places_road_under_aqueduct && map_can_place_road_under_aqueduct(tile.grid_offset);
     const bool valid_highway_aqueduct_crossing =
@@ -576,14 +559,14 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         }
         return PlacementTileState::Forbidden;
     }
-    if ((generated_transport & TERRAIN_AQUEDUCT) && (effective_terrain & TERRAIN_ROAD) &&
+    if ((generated_transport & terrain_types().aqueduct) && (effective_terrain & terrain_types().road) &&
         !map_can_place_aqueduct_on_road(tile.grid_offset)) {
         if (failure_reason_ == PlacementFailureReason::None) {
             failure_reason_ = PlacementFailureReason::Terrain;
         }
         return PlacementTileState::Forbidden;
     }
-    if ((generated_transport & TERRAIN_AQUEDUCT) && (effective_terrain & TERRAIN_HIGHWAY) &&
+    if ((generated_transport & terrain_types().aqueduct) && (effective_terrain & terrain_types().highway) &&
         !map_can_place_aqueduct_on_highway(tile.grid_offset, 0)) {
         if (failure_reason_ == PlacementFailureReason::None) {
             failure_reason_ = PlacementFailureReason::Terrain;
@@ -591,17 +574,17 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
         return PlacementTileState::Forbidden;
     }
 
-    unsigned int blocking_terrain = effective_terrain;
+    TerrainSet blocking_terrain = effective_terrain;
     if ((valid_road_aqueduct_crossing || valid_highway_aqueduct_crossing) &&
         tile_has_bound_aqueduct_occupancy(tile.grid_offset)) {
         // Aqueducts are real bound buildings, but their BUILDING bit describes
-        // the same crossing occupancy as TERRAIN_AQUEDUCT. A valid transport
+        // the same crossing occupancy as terrain_types().aqueduct. A valid transport
         // crossing may share that occupancy without granting roads permission
         // to pass through unrelated buildings.
-        blocking_terrain &= ~static_cast<unsigned int>(TERRAIN_BUILDING);
+        blocking_terrain -= terrain_types().building;
     }
-    const int blocked_terrain = static_cast<int>(blocking_terrain) &
-        TERRAIN_NOT_CLEAR & ~static_cast<int>(permitted);
+    const TerrainSet blocked_terrain = blocking_terrain &
+        terrain_types().not_clear - permitted;
     PlacementTileState result = blocked_terrain ? PlacementTileState::Forbidden : PlacementTileState::Allowed;
 
     if (result == PlacementTileState::Forbidden && force_place_ && force_place_can_clear_terrain(blocked_terrain)) {
@@ -643,11 +626,11 @@ int ConstructionPlacementPlan::support_resource_amount(resource_type resource) c
     return amount;
 }
 
-unsigned int ConstructionPlacementPlan::add_supersession(
+TerrainSet ConstructionPlacementPlan::add_supersession(
     const BuildingType &definition,
     int grid_offset,
-    unsigned int terrain,
-    unsigned int replacement_terrain)
+    TerrainSet terrain,
+    TerrainSet replacement_terrain)
 {
     const Building *bound_occupant = map_building_exists_at(grid_offset) ? &map_building_at(grid_offset) : nullptr;
     for (const BuildingType *replaceable : definition.foundation_replacement_types()) {
@@ -656,7 +639,7 @@ unsigned int ConstructionPlacementPlan::add_supersession(
             continue;
         }
         const FoundationCellDefinition &cell = foundation->cells().front();
-        unsigned int generated = 0;
+        TerrainSet generated;
         unsigned int building_id = 0;
         const Building *occupant = bound_occupant;
         if (!occupant) {
@@ -693,7 +676,7 @@ unsigned int ConstructionPlacementPlan::add_supersession(
         });
         return generated;
     }
-    return 0;
+    return {};
 }
 
 void ConstructionPlacementPlan::add_force_clear_offset(int grid_offset)
@@ -713,7 +696,7 @@ void ConstructionPlacementPlan::finalize_cell_accounting()
         owner_part_count += parts_[part_index].is_owner ? 1 : 0;
         for (const ConstructionPlacementTile &tile : parts_[part_index].tiles) {
             const bool requires_rubble = tile.foundation_cell &&
-                !(tile.foundation_cell->required_terrain & TERRAIN_WATER);
+                !(tile.foundation_cell->required_terrain & terrain_types().water);
             cells.push_back(PlacementAccountingCell{
                 tile.grid_offset,
                 parts_[part_index].is_owner,
@@ -747,3 +730,8 @@ void ConstructionPlacementPlan::finalize_cell_accounting()
 }
 
 } // namespace building_construction
+
+const char *building_construction::ConstructionPlacementPlan::proximity_warning() const
+{
+    return failed_proximity_ && !failed_proximity_->warning_key.empty() ? failed_proximity_->warning_key.c_str() : "TR_CITY_WARNING_FOUNDATION_PROXIMITY";
+}

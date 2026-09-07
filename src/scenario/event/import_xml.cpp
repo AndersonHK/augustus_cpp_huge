@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "scenario/definition_overrides.h"
 #include "import_xml.h"
+#include "map/TerrainRegistry.h"
 #include "translation/translation.h"
 #include "scenario/event/event.h"
 #include "scenario/event/parameter_city.h"
@@ -69,6 +70,20 @@ static int xml_import_special_parse_number(xml_data_attribute_t *attr, int *targ
 
 static condition_types get_condition_type_from_element_name(const char *name);
 static action_types get_action_type_from_element_name(const char *name);
+
+static int import_terrain_attribute(const xml_data_attribute_t *attr, TerrainSet &terrain)
+{
+    try {
+        const char *value = xml_parser_get_attribute_string(attr->name);
+        // Older event XML exported this display label rather than the terrain name.
+        const std::string name = value && xml_parser_compare_multiple("Fertile Ground", value) ? "meadow" : value ? value : "none";
+        terrain = terrain_registry().bind(name, "Scenario event XML");
+        return 1;
+    } catch (const std::exception &error) {
+        xml_import_log_error(error.what());
+        return 0;
+    }
+}
 
 static int condition_populate_parameters(scenario_condition_t *condition);
 static int action_populate_parameters(scenario_action_t *action);
@@ -342,7 +357,8 @@ static int condition_populate_parameters(scenario_condition_t *condition)
         return success;
     }
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm2, &condition->parameter2);
-    success &= xml_import_special_parse_attribute(&condition_data->xml_parm3, &condition->parameter3);
+    if (condition_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) success &= import_terrain_attribute(&condition_data->xml_parm3, condition->terrain);
+    else success &= xml_import_special_parse_attribute(&condition_data->xml_parm3, &condition->parameter3);
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm4, &condition->parameter4);
     success &= xml_import_special_parse_attribute(&condition_data->xml_parm5, &condition->parameter5);
     if (condition->type == CONDITION_TYPE_TIME_PASSED && xml_parser_get_attribute_int("sample_on_init")) condition->parameter5 = 1;
@@ -397,10 +413,12 @@ static int action_populate_parameters(scenario_action_t *action)
             xml_data_attribute_t resolved_attr = action_data->xml_parm3;
             resolved_attr.type = type3;
             resolved_attr.name = info.param_names[0];
-            success &= xml_import_special_parse_attribute_with_resolved_type(&resolved_attr, type3, &action->parameter3);
+            if (type3 == PARAMETER_TYPE_TERRAIN) success &= import_terrain_attribute(&resolved_attr, action->terrain);
+            else success &= xml_import_special_parse_attribute_with_resolved_type(&resolved_attr, type3, &action->parameter3);
         }
     } else {
-        success &= xml_import_special_parse_attribute(&action_data->xml_parm3, &action->parameter3);
+        if (action_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) success &= import_terrain_attribute(&action_data->xml_parm3, action->terrain);
+        else success &= xml_import_special_parse_attribute(&action_data->xml_parm3, &action->parameter3);
     }
 
     if (action_data->xml_parm4.type == PARAMETER_TYPE_FLEXIBLE) {
@@ -522,7 +540,6 @@ static int xml_import_special_parse_attribute_with_resolved_type(xml_data_attrib
         case PARAMETER_TYPE_TARGET_TYPE:
         case PARAMETER_TYPE_GOD:
         case PARAMETER_TYPE_CLIMATE:
-        case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
         case PARAMETER_TYPE_HOUSE_DATA_TYPE:
         case PARAMETER_TYPE_WIN_CONDITION:

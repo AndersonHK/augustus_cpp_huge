@@ -309,12 +309,7 @@ int link_action_to_event(scenario_event_t *event, scenario_action_t *action)
         return 0;
     }
 
-    new_action->type = action->type;
-    new_action->parameter1 = action->parameter1;
-    new_action->parameter2 = action->parameter2;
-    new_action->parameter3 = action->parameter3;
-    new_action->parameter4 = action->parameter4;
-    new_action->parameter5 = action->parameter5;
+    *new_action = *action;
     new_action->parent_event_id = event->id;
     return 1;
 }

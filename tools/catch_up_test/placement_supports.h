@@ -33,7 +33,7 @@ inline void validate_placement_supports()
         bool clear = true;
         for (int dy = 0; dy < 7; ++dy) for (int dx = 0; dx < 7; ++dx) {
             const int offset = map_grid_offset(xx + dx, yy + dy);
-            if (!map_grid_is_inside(xx + dx, yy + dy, 1) || map_terrain_is(offset, TERRAIN_NOT_CLEAR) || map_figure_at(offset)) clear = false;
+            if (!map_grid_is_inside(xx + dx, yy + dy, 1) || terrain_map().contains(offset, terrain_types().not_clear) || map_figure_at(offset)) clear = false;
         }
         if (clear) { x = xx + 2; y = yy + 2; break; }
     }
@@ -42,18 +42,18 @@ inline void validate_placement_supports()
     const auto *wall = definition_for_type(type_from_attr("wall"));
     require(tower && wall, "Support fixture requires tower and wall data");
     const int offset = map_grid_offset(x, y);
-    const int original = map_terrain_get(offset);
-    struct RestoreTerrain { int offset, terrain; ~RestoreTerrain() { map_terrain_set(offset, terrain); } } restore{offset, original};
+    const TerrainSet original = terrain_map().at(offset);
+    struct RestoreTerrain { int offset; TerrainSet terrain; ~RestoreTerrain() { terrain_map().set(offset, terrain); } } restore{offset, original};
     for (int rotation = 0; rotation < 4; ++rotation) {
         ConstructionPlacementPlan bare(*tower, x, y, 1, 0, rotation, nullptr, rotation, false, true);
         require(bare.can_place() && bare.support_cost() == 4 * model_get_construction_cost(wall->type()), "Bare tower must quote four full-price wall supports in every rotation");
     }
-    map_terrain_add(offset, TERRAIN_WALL);
+    terrain_map().add(offset, terrain_types().wall);
     ConstructionPlacementPlan partial(*tower, x, y, 1, 0);
     require(partial.can_place() && partial.support_cost() == 3 * model_get_construction_cost(wall->type()), "Pre-existing walls must not be charged twice");
-    map_terrain_set(offset, original | TERRAIN_BUILDING | TERRAIN_WALL);
+    terrain_map().set(offset, original | terrain_types().building | terrain_types().wall);
     require(!ConstructionPlacementPlan(*tower, x, y, 1, 0).can_place(), "Unowned building occupancy must not qualify as a supporting wall");
-    map_terrain_set(offset, original);
+    terrain_map().set(offset, original);
     const auto *roadblock = definition_for_type(type_from_attr("roadblock"));
     if (roadblock) {
         ConstructionPlacementPlan road(*roadblock, x, y, 1, 0);
@@ -62,21 +62,21 @@ inline void validate_placement_supports()
     FoundationDef proximity("test_proximity");
     proximity.set_dimensions(1, 1);
     FoundationCellDefinition cell;
-    cell.added_terrain = TERRAIN_BUILDING;
+    cell.added_terrain = terrain_types().building;
     proximity.add_cell(cell);
-    proximity.add_proximity_requirement({TERRAIN_WATER, 2, 2, 2, false, false});
+    proximity.add_proximity_requirement({terrain_types().water, 2, 2, 2, false, false});
     BuildingType candidate(tower->type(), "proximity_fixture");
     candidate.set_foundation_definition(&proximity);
     const int water1 = map_grid_offset(x + 2, y);
     const int water2 = map_grid_offset(x + 2, y + 1);
-    RestoreTerrain restore_water1{water1, map_terrain_get(water1)}, restore_water2{water2, map_terrain_get(water2)};
-    map_terrain_add(water1, TERRAIN_WATER);
+    RestoreTerrain restore_water1{water1, terrain_map().at(water1)}, restore_water2{water2, terrain_map().at(water2)};
+    terrain_map().add(water1, terrain_types().water);
     require(!ConstructionPlacementPlan(candidate, x, y, 1, 0).can_place(), "Proximity must enforce minimum matching tile count");
-    map_terrain_add(water2, TERRAIN_WATER);
+    terrain_map().add(water2, terrain_types().water);
     require(ConstructionPlacementPlan(candidate, x, y, 1, 0).can_place(), "Proximity must accept two matching tiles at the specified distance");
     require(!ConstructionPlacementPlan(candidate, x + 1, y, 1, 0).can_place(), "Proximity must reject matching tiles inside the minimum distance");
-    map_terrain_set(water1, restore_water1.terrain);
-    map_terrain_set(water2, restore_water2.terrain);
+    terrain_map().set(water1, restore_water1.terrain);
+    terrain_map().set(water2, restore_water2.terrain);
     // The authored lighthouse requirement is part of the same planner as ordinary terrain rules.
     if (const auto *lighthouse = definition_for_type(type_from_attr("lighthouse"))) {
         require(!lighthouse->foundation_def()->proximity_requirements().empty(), "Lighthouse must declare its proximity rule in data");
@@ -133,7 +133,7 @@ inline void validate_placement_supports()
         city_without_overlay_draw(0, nullptr, &hovered, 0);
         const ConstructionPlacementPlan preview(*definition, x, y, 0, 0);
         require(building_construction_cost() == model_get_construction_cost(definition->type()) + preview.support_cost(), "Hover price must include the supporting foundation");
-        require(map_terrain_get(offset) == original && !map_building_exists_at(offset), "Hover support graphics must not mutate the map");
+        require(terrain_map().at(offset) == original && !map_building_exists_at(offset), "Hover support graphics must not mutate the map");
         const int width = screen_pixel_width(), height = screen_pixel_height();
         std::vector<color_t> pixels(static_cast<size_t>(width) * height);
         require(graphics_renderer()->save_screen_buffer(pixels.data(), 0, 0, width, height, width) != 0, "Could not capture support preview");
@@ -150,7 +150,7 @@ inline void validate_placement_supports()
     require(game_undo_start_build(tower->type()) != 0, "Could not start support publication undo fixture");
     require(building_construction_place_building(tower->type(), x, y, 1) != 0, "Could not publish tower and supports atomically");
     require(city_resource_count_warehouses_amount(resource_stone()) == stone_before - required_stone, "Supports must consume their complete material cost");
-    require(map_terrain_is(offset, TERRAIN_WALL) && map_building_exists_at(offset), "Published tower must own its wall support");
+    require(terrain_map().contains(offset, terrain_types().wall) && map_building_exists_at(offset), "Published tower must own its wall support");
     auto require_single_tower = [&]() {
         Building &placed_tower = map_building_at(offset);
         int draw_tiles = 0;
@@ -180,7 +180,7 @@ inline void validate_placement_supports()
     game_undo_finish_build(0);
     game_undo_perform();
     require(city_resource_count_warehouses_amount(resource_stone()) == stone_before, "Undo must return support material costs");
-    require(!map_building_exists_at(offset) && map_terrain_get(offset) == original, "Undo must restore pre-support terrain and ownership");
+    require(!map_building_exists_at(offset) && terrain_map().at(offset) == original, "Undo must restore pre-support terrain and ownership");
     // Previously placed walls have records that are retired on a later state update.
     building_construction_set_type(wall, 0);
     for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
@@ -197,7 +197,7 @@ inline void validate_placement_supports()
         map_tiles_update_all_walls();
         require_single_tower();
         for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
-            require(map_terrain_is(map_grid_offset(x + dx, y + dy), TERRAIN_WALL), "Retired walls must not remove the tower's wall terrain");
+            require(terrain_map().contains(map_grid_offset(x + dx, y + dy), terrain_types().wall), "Retired walls must not remove the tower's wall terrain");
         }
         window_draw(1);
     }
@@ -205,26 +205,26 @@ inline void validate_placement_supports()
     building_update_state();
     for (int dy = 0; dy < 2; ++dy) for (int dx = 0; dx < 2; ++dx) {
         const int tile = map_grid_offset(x + dx, y + dy);
-        require(!map_building_exists_at(tile) && !map_terrain_is(tile, TERRAIN_BUILDING | TERRAIN_WALL), "Tower cleanup must release its complete footprint");
+        require(!map_building_exists_at(tile) && !terrain_map().contains(tile, terrain_types().building | terrain_types().wall), "Tower cleanup must release its complete footprint");
     }
     if (roadblock) {
         for (bool existing_road : {false, true}) {
-            if (existing_road) map_terrain_add(offset, TERRAIN_ROAD);
+            if (existing_road) terrain_map().add(offset, terrain_types().road);
             building_construction_set_type(roadblock, 0);
             require(game_undo_start_build(roadblock->type()) != 0, "Could not start blocker undo fixture");
             require(building_construction_place_building(roadblock->type(), x, y, 1) != 0, "Could not place blocker fixture");
             const auto *delta = map_building_at(offset).Foundation->terrain_delta_at(offset);
-            require(delta && !(delta->added_terrain & TERRAIN_ROAD), "Blocker must not own the underlying road");
+            require(delta && !(delta->added_terrain & terrain_types().road), "Blocker must not own the underlying road");
             game_undo_finish_build(0);
             game_undo_perform();
-            require(!map_building_exists_at(offset) && bool(map_terrain_is(offset, TERRAIN_ROAD)) == existing_road, "Undo must restore the terrain before road/blocker placement");
+            require(!map_building_exists_at(offset) && bool(terrain_map().contains(offset, terrain_types().road)) == existing_road, "Undo must restore the terrain before road/blocker placement");
             require(building_construction_place_building(roadblock->type(), x, y, 1) != 0, "Could not replace blocker after undo");
             building *record = const_cast<building *>(map_building_at(offset).record());
             record->state = BUILDING_STATE_DELETED_BY_PLAYER;
             record->is_deleted = 1;
             building_update_state();
-            require(!map_building_exists_at(offset) && map_terrain_is(offset, TERRAIN_ROAD), "Deleting a blocker must leave its supporting road, however that road was placed");
-            map_terrain_remove(offset, TERRAIN_ROAD);
+            require(!map_building_exists_at(offset) && terrain_map().contains(offset, terrain_types().road), "Deleting a blocker must leave its supporting road, however that road was placed");
+            terrain_map().remove(offset, terrain_types().road);
         }
     }
     const auto plaza = type_from_attr("plaza");
@@ -235,18 +235,18 @@ inline void validate_placement_supports()
         ConstructionAreaTilePlacement area(x, y, x + 1, y + 1, plaza, true);
         require(area.place() == 0 && area.support_cost() == 0, "Plaza drag must skip clear ground without quoting roads");
         ConstructionAreaTilePlacement::restore_preview_map(plaza);
-        require(map_terrain_get(offset) == original, "Plaza preview cancellation must restore bare ground");
+        require(terrain_map().at(offset) == original, "Plaza preview cancellation must restore bare ground");
         const int second_road = map_grid_offset(x + 1, y + 1);
-        map_terrain_add(offset, TERRAIN_ROAD);
-        map_terrain_add(second_road, TERRAIN_ROAD);
+        terrain_map().add(offset, terrain_types().road);
+        terrain_map().add(second_road, terrain_types().road);
         require(game_undo_start_build(plaza) != 0, "Could not start mixed plaza fixture");
         require(area.place() == 2 && area.support_cost() == 0, "Plaza drag must cover only the two existing roads");
         require(map_property_is_plaza_earthquake_or_overgrown_garden(offset) && map_property_is_plaza_earthquake_or_overgrown_garden(second_road), "Plaza preview must decorate existing roads");
-        require(!map_terrain_is(map_grid_offset(x + 1, y), TERRAIN_ROAD), "Plaza preview must leave intervening clear ground alone");
+        require(!terrain_map().contains(map_grid_offset(x + 1, y), terrain_types().road), "Plaza preview must leave intervening clear ground alone");
         ConstructionAreaTilePlacement::restore_preview_map(plaza);
-        require(map_terrain_is(offset, TERRAIN_ROAD) && !map_property_is_plaza_earthquake_or_overgrown_garden(offset), "Cancelling a plaza preview must preserve its original road");
-        map_terrain_remove(offset, TERRAIN_ROAD);
-        map_terrain_remove(second_road, TERRAIN_ROAD);
+        require(terrain_map().contains(offset, terrain_types().road) && !map_property_is_plaza_earthquake_or_overgrown_garden(offset), "Cancelling a plaza preview must preserve its original road");
+        terrain_map().remove(offset, terrain_types().road);
+        terrain_map().remove(second_road, terrain_types().road);
         game_undo_disable();
     }
     for (const char *storage_name : {"granary", "warehouse"}) {
@@ -256,10 +256,10 @@ inline void validate_placement_supports()
             ConstructionPlacementPlan clear(*storage, x, y, 1, 0, rotation, nullptr, rotation, false, true);
             require(clear.can_place(), "Storage must place without pre-built roads in every rotation");
             const int blocked = clear.parts().front().tiles.front().grid_offset;
-            map_terrain_add(blocked, TERRAIN_ROAD);
+            terrain_map().add(blocked, terrain_types().road);
             ConstructionPlacementPlan shifted(*storage, x, y, 1, 1, rotation, nullptr, rotation, false, true);
             require(shifted.can_place(), "Shift must allow storage to clear roads through the shared placement system");
-            map_terrain_remove(blocked, TERRAIN_ROAD);
+            terrain_map().remove(blocked, terrain_types().road);
         }
         building_construction_set_type(storage, 0);
         require(game_undo_start_build(storage->type()) != 0, "Could not start storage foundation fixture");
@@ -268,9 +268,9 @@ inline void validate_placement_supports()
         const auto &foundation_state = built.Foundation->state();
         int internal_roads = 0;
         for (const auto &storage_cell : built.Foundation->cells(foundation_state.rotation())) {
-            if (!(storage_cell.definition->added_terrain & TERRAIN_ROAD)) continue;
+            if (!(storage_cell.definition->added_terrain & terrain_types().road)) continue;
             ++internal_roads;
-            require(map_terrain_is(map_grid_offset(foundation_state.origin_x() + storage_cell.x, foundation_state.origin_y() + storage_cell.y), TERRAIN_ROAD), "Foundation must publish all storage internal roads");
+            require(terrain_map().contains(map_grid_offset(foundation_state.origin_x() + storage_cell.x, foundation_state.origin_y() + storage_cell.y), terrain_types().road), "Foundation must publish all storage internal roads");
         }
         require(internal_roads > 0, "Storage foundation must declare its own internal roads");
         game_undo_finish_build(0);
@@ -282,7 +282,7 @@ inline void validate_placement_supports()
     const auto original_figures = city_data.figure;
     const int original_allow_occupied = config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES);
     auto restore_policy = std::shared_ptr<void>(nullptr, [&](void *) { city_data.figure = original_figures; config_set(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES, original_allow_occupied); });
-    for (int dx = 0; dx < 3; ++dx) map_terrain_add(map_grid_offset(x + dx, y), TERRAIN_WATER);
+    for (int dx = 0; dx < 3; ++dx) terrain_map().add(map_grid_offset(x + dx, y), terrain_types().water);
     require(map_bridge_create_native_chain(offset, 3, DIR_2_RIGHT, 0, 0), "Could not create bridge policy fixture");
     city_data.figure.enemies = city_data.figure.imperial_soldiers = 0;
     require(!map_bridge_demolition_warning(offset).name, "Empty bridge must be deletable outside invasions");
@@ -313,7 +313,7 @@ inline void validate_placement_supports()
     citizen->remove();
     map_bridge_remove(offset, 0);
     building_update_state();
-    for (int dx = 0; dx < 3; ++dx) map_terrain_remove(map_grid_offset(x + dx, y), TERRAIN_WATER);
+    for (int dx = 0; dx < 3; ++dx) terrain_map().remove(map_grid_offset(x + dx, y), terrain_types().water);
     Figure *retreating = Figure::create(FIGURE_ENEMY43_SPEAR, x, y, DIR_2_RIGHT);
     require(retreating && retreating->id(), "Could not create retreat fixture");
     const int retreat_formation = formation_create_enemy(FIGURE_ENEMY43_SPEAR, x, y, 0, DIR_2_RIGHT, 0, 0, 0, 0);

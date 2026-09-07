@@ -18,7 +18,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/data.h" // TODO remove this dependency
 #include "scenario/property.h"
 
@@ -124,7 +124,7 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
                         is_storage)) {
                     return 1;
                 }
-            } else if (map_terrain_is(map_grid_offset(xx, yy), TERRAIN_AQUEDUCT | TERRAIN_WALL | TERRAIN_GARDEN)) {
+            } else if (terrain_map().contains(map_grid_offset(xx, yy), terrain_types().aqueduct | terrain_types().wall | terrain_types().garden)) {
                 return 1;
             }
         }
@@ -222,7 +222,7 @@ void map_natives_init(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_exists_at(grid_offset)) {
+            if (!terrain_map().contains(grid_offset, terrain_types().building) || map_building_exists_at(grid_offset)) {
                 continue;
             }
 
@@ -272,7 +272,7 @@ void map_natives_init_editor(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_exists_at(grid_offset)) {
+            if (!terrain_map().contains(grid_offset, terrain_types().building) || map_building_exists_at(grid_offset)) {
                 continue;
             }
 

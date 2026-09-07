@@ -19,7 +19,7 @@
 #include "map/grid.h"
 #include "map/point.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
 #include "window/building/common.h"
@@ -152,8 +152,8 @@ void figuretype::Animal::update_graphics()
 
 static int terrain_blocked_for_animals(int grid_offset)
 {
-    return map_terrain_is(grid_offset, TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER |
-        TERRAIN_BUILDING | TERRAIN_SHRUB );
+    return terrain_map().contains(grid_offset, terrain_types().tree | terrain_types().rock | terrain_types().water |
+        terrain_types().building | terrain_types().shrub );
 }
 
 void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal_tile_offset, int building_size)

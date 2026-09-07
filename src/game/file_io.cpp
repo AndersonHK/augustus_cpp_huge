@@ -68,7 +68,8 @@
 #include "map/random.h"
 #include "map/routing.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
+#include "map/TerrainSaveBridge.h"
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_media.h"
@@ -116,6 +117,7 @@ typedef struct {
     buffer *graphic_ids;
     buffer *edge;
     buffer *terrain;
+    buffer *terrain_ledger;
     buffer *bitfields;
     buffer *random;
     buffer *elevation;
@@ -160,6 +162,7 @@ typedef struct {
     buffer *edge_grid;
     buffer *building_grid;
     buffer *terrain_grid;
+    buffer *terrain_ledger;
     buffer *aqueduct_grid;
     buffer *figure_grid;
     buffer *bitfields_grid;
@@ -496,7 +499,8 @@ static void init_scenario_data(scenario_version_t version)
     }
     state->graphic_ids = create_scenario_piece(GRID_SIZE_BUF_U16, 0);
     state->edge = create_scenario_piece(GRID_SIZE_BUF_U8, 0);
-    state->terrain = create_scenario_piece(GRID_SIZE_BUF_U16, 0);
+    state->terrain = create_scenario_piece(version > SCENARIO_LAST_NO_TERRAIN_LEDGER ? GRID_SIZE_BUF_U32 : GRID_SIZE_BUF_U16, 0);
+    if (version > SCENARIO_LAST_NO_TERRAIN_LEDGER) state->terrain_ledger = create_scenario_piece(PIECE_SIZE_DYNAMIC, 0);
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         state->bitfields = create_scenario_piece(GRID_SIZE_BUF_U16, 0);
     } else {
@@ -733,6 +737,9 @@ template <typename Emit> static void visit_native_savegame_layout(savegame_versi
     if (version_data.features.building_type_table) {
         emit(offsetof(savegame_state, building_type_table), "building_type_table", PIECE_SIZE_DYNAMIC, 0);
     }
+    if (version > SAVE_GAME_LAST_NO_TERRAIN_LEDGER) {
+        emit(offsetof(savegame_state, terrain_ledger), "terrain_ledger", PIECE_SIZE_DYNAMIC, 0);
+    }
     if (version_data.features.water_access_type_table) {
         emit(offsetof(savegame_state, water_access_type_table), "water_access_type_table", PIECE_SIZE_DYNAMIC, 0);
     }
@@ -894,7 +901,7 @@ static void init_savegame_data(savegame_version_t version)
 
 #include "game/archive_origin_impl.h"
 
-static void scenario_load_from_state(scenario_state *file, scenario_version_t version)
+static bool scenario_load_from_state(scenario_state *file, scenario_version_t version)
 {
     resource_version_t resource_version = resource_id_bridge_original_version();
     if (version > SCENARIO_LAST_NO_STATIC_RESOURCES) {
@@ -903,7 +910,8 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     resource_set_mapping(resource_version);
 
     map_image_load_state_legacy(file->graphic_ids);
-    map_terrain_load_state(file->terrain, 0, file->graphic_ids, 1);
+    if (!terrain_save::load_ledger(file->terrain_ledger, version > SCENARIO_LAST_NO_TERRAIN_LEDGER)) return false;
+    terrain_map().load_state(file->terrain, version > SCENARIO_LAST_NO_TERRAIN_LEDGER, file->graphic_ids, 1);
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         map_property_load_state(file->bitfields, file->edge);
     } else {
@@ -976,6 +984,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     }
 
     buffer_skip(file->end_marker, 4);
+    return true;
 }
 
 static void scenario_save_to_state(scenario_state *file)
@@ -984,7 +993,8 @@ static void scenario_save_to_state(scenario_state *file)
 
     map_natives_prepare_scenario_tokens();
     map_natives_save_scenario_image_grid(file->graphic_ids);
-    map_terrain_save_state_legacy(file->terrain);
+    terrain_save::prepare();
+    terrain_map().save_state(file->terrain);
     map_property_save_state(file->bitfields, file->edge);
     map_random_save_state(file->random);
     map_elevation_save_state(file->elevation);
@@ -1005,6 +1015,7 @@ static void scenario_save_to_state(scenario_state *file)
     empire_save_custom_map(file->empire_map);
     model_save_model_data(file->model_data);
     production_rates_save(file->production_rates);
+    terrain_save::write_ledger(file->terrain_ledger);
     buffer_skip(file->end_marker, 4);
 }
 
@@ -1030,6 +1041,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     }
 
     scenario_version_t scenario_version = save_version_to_scenario_version(version, state->scenario_version);
+    if (!terrain_save::load_ledger(state->terrain_ledger, version > SAVE_GAME_LAST_NO_TERRAIN_LEDGER)) return 0;
     game_file_clear_scenario_data_for_save_load();
     scenario_settings_load_state(state->scenario_campaign_mission,
         state->scenario_settings,
@@ -1075,7 +1087,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     scenario_map_init();
 
     map_building_load_state(state->building_grid, state->building_damage_grid, state->rubble_grid, version);
-    map_terrain_load_state(state->terrain_grid, version > SAVE_GAME_LAST_ORIGINAL_TERRAIN_DATA_SIZE_VERSION,
+    terrain_map().load_state(state->terrain_grid, version > SAVE_GAME_LAST_ORIGINAL_TERRAIN_DATA_SIZE_VERSION,
         version <= SAVE_GAME_LAST_STORED_IMAGE_IDS ? state->image_grid : 0,
         version <= SAVE_GAME_LAST_SMALLER_IMAGE_ID_VERSION);
     map_aqueduct_load_state(state->aqueduct_grid, state->aqueduct_backup_grid);
@@ -1104,7 +1116,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     if (!building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version)) return 0;
     if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
-        map_terrain_migrate_old_bridges();
+        terrain_map().migrate_old_bridges();
     }
     if (!map_building_validate_loaded_references()) {
         return 0;
@@ -1230,8 +1242,8 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     }
     if (version <= SAVE_GAME_LAST_NO_STRICT_NATIVE_BRIDGE_WALL_RECORDS) {
         map_bridge_migrate_loaded_native_bridges();
-        map_terrain_migrate_old_walls();
-    } else if (!map_bridge_validate_loaded_native_bridges() || !map_terrain_validate_loaded_walls()) {
+        terrain_map().migrate_old_walls();
+    } else if (!map_bridge_validate_loaded_native_bridges() || !terrain_map().validate_loaded_walls()) {
         return 0;
     }
 
@@ -1251,6 +1263,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
 
 static void savegame_save_to_state(savegame_state *state)
 {
+    terrain_save::prepare();
     buffer_write_i32(state->file_version, SAVE_GAME_CURRENT_VERSION);
     buffer_write_u32(state->resource_version, resource_id_bridge_current_version());
     buffer_write_i32(state->scenario_version, SCENARIO_CURRENT_VERSION);
@@ -1271,7 +1284,7 @@ static void savegame_save_to_state(savegame_state *state)
     god_id_bridge_save_table_save_state(state->god_type_table);
 
     map_building_save_state(state->building_grid, state->building_damage_grid, state->rubble_grid);
-    map_terrain_save_state(state->terrain_grid);
+    terrain_map().save_state(state->terrain_grid);
     map_aqueduct_save_state(state->aqueduct_grid, state->aqueduct_backup_grid);
     map_figure_save_state(state->figure_grid);
     map_sprite_save_state(state->sprite_grid, state->sprite_backup_grid);
@@ -1350,6 +1363,7 @@ static void savegame_save_to_state(savegame_state *state)
     map_road_service_history_save_state(state->road_service_history);
     building_local_workforce_save_state(state->local_workforce_allocations);
     widget_minimap_save_preview(state->minimap_preview);
+    terrain_save::write_ledger(state->terrain_ledger);
 }
 
 static void write_int32(FILE *fp, int value)
@@ -1476,7 +1490,7 @@ static int load_scenario_from_buffer(buffer *buf)
         }
     }
     core_memory_block_free(&compress_buffer);
-    return 1;
+    return terrain_save::load_ledger(scenario_data.state.terrain_ledger, version > SCENARIO_LAST_NO_TERRAIN_LEDGER);
 }
 
 int game_file_io_read_scenario_from_buffer(buffer *buf)
@@ -1484,8 +1498,7 @@ int game_file_io_read_scenario_from_buffer(buffer *buf)
     if (!load_scenario_from_buffer(buf)) {
         return 0;
     }
-    scenario_load_from_state(&scenario_data.state, scenario_data.version);
-    return 1;
+    return scenario_load_from_state(&scenario_data.state, scenario_data.version);
 }
 
 int game_file_io_read_scenario(const char *filename)
@@ -1503,9 +1516,9 @@ int game_file_io_read_scenario(const char *filename)
     return game_file_io_read_scenario_from_buffer(&source);
 }
 
-static int scenario_terrain_at(int grid_offset)
+static TerrainSet scenario_terrain_at(int grid_offset)
 {
-    return map_terrain_get_from_buffer_16(scenario_data.state.terrain, grid_offset);
+    return terrain_save::read_at(scenario_data.state.terrain, grid_offset, scenario_data.version > SCENARIO_LAST_NO_TERRAIN_LEDGER);
 }
 
 static int scenario_legacy_tile_size_at(int grid_offset)

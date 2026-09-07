@@ -19,7 +19,7 @@
 #include "figure/formation.h"
 #include "game/resource.h"
 #include "game/state.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/parameter_city.h"
 #include "scenario/custom_messages.h"
@@ -807,17 +807,8 @@ static special_attribute_mapping_t special_attribute_mappings_climate[] =
 
 #define SPECIAL_ATTRIBUTE_MAPPINGS_CLIMATE_SIZE (sizeof(special_attribute_mappings_climate) / sizeof(special_attribute_mapping_t))
 
-static special_attribute_mapping_t special_attribute_mappings_terrain[] =
-{
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Water",            .value = TERRAIN_WATER,    .key = "TR_PARAMETER_TERRAIN_WATER" },
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Rock",             .value = TERRAIN_ROCK,     .key = "TR_PARAMETER_TERRAIN_ROCK" },
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Fertile Ground",   .value = TERRAIN_MEADOW,   .key = "TR_PARAMETER_TERRAIN_MEADOW" },
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Tree",             .value = TERRAIN_TREE,     .key = "TR_PARAMETER_TERRAIN_TREE" },
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Shrub",            .value = TERRAIN_SHRUB,    .key = "TR_PARAMETER_TERRAIN_SHRUB" },
-    {.type = PARAMETER_TYPE_TERRAIN,            .text = "Rubble",           .value = TERRAIN_RUBBLE,   .key = "TR_PARAMETER_TERRAIN_RUBBLE" },
-};
 
-#define SPECIAL_ATTRIBUTE_MAPPINGS_TERRAIN_SIZE (sizeof(special_attribute_mappings_terrain) / sizeof(special_attribute_mapping_t))
+
 
 special_attribute_mapping_t special_attribute_mappings_data_type[] =
 {
@@ -1275,7 +1266,7 @@ special_attribute_mapping_t *scenario_events_parameter_data_get_attribute_mappin
         case PARAMETER_TYPE_CLIMATE:
             return &special_attribute_mappings_climate[index];
         case PARAMETER_TYPE_TERRAIN:
-            return &special_attribute_mappings_terrain[index];
+            return nullptr;
         case PARAMETER_TYPE_DATA_TYPE:
             return &special_attribute_mappings_data_type[index];
         case PARAMETER_TYPE_MODEL:
@@ -1352,7 +1343,7 @@ int scenario_events_parameter_data_get_mappings_size(parameter_type type)
         case PARAMETER_TYPE_CLIMATE:
             return SPECIAL_ATTRIBUTE_MAPPINGS_CLIMATE_SIZE;
         case PARAMETER_TYPE_TERRAIN:
-            return SPECIAL_ATTRIBUTE_MAPPINGS_TERRAIN_SIZE;
+            return 0;
         case PARAMETER_TYPE_DATA_TYPE:
             return SPECIAL_ATTRIBUTE_MAPPINGS_DATA_TYPE_SIZE;
         case PARAMETER_TYPE_MODEL:
@@ -1466,7 +1457,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_CLIMATE:
             return CLIMATE_CENTRAL;
         case PARAMETER_TYPE_TERRAIN:
-            return TERRAIN_WATER;
+            return 0; // Terrain parameters use their bound reference field.
         case PARAMETER_TYPE_DATA_TYPE:
             return MODEL_COST;
         case PARAMETER_TYPE_HOUSING_TYPE:
@@ -2034,11 +2025,11 @@ void scenario_events_parameter_data_get_display_string_for_action(const scenario
             result_text = append_text(translation_for_key("TR_PARAMETER_GRID_OFFSET_CORNER2"), result_text, &maxlength);
             result_text = translation_for_grid_offset(action->parameter2, result_text, &maxlength);
             if (action->parameter4) {
-                result_text = translation_for_type_lookup_by_value(PARAMETER_TYPE_TERRAIN, action->parameter3, result_text, &maxlength);
+                result_text = append_text(string_from_ascii(terrain_names(action->terrain).c_str()), result_text, &maxlength);
                 result_text = append_text(string_from_ascii(" "), result_text, &maxlength);
                 result_text = append_text(translation_for_key("TR_PARAMETER_ADD"), result_text, &maxlength);
             } else {
-                result_text = translation_for_type_lookup_by_value(PARAMETER_TYPE_TERRAIN, action->parameter3, result_text, &maxlength);
+                result_text = append_text(string_from_ascii(terrain_names(action->terrain).c_str()), result_text, &maxlength);
                 result_text = append_text(string_from_ascii(" "), result_text, &maxlength);
                 result_text = append_text(translation_for_key("TR_EDITOR_DELETE"), result_text, &maxlength);
             }
@@ -2092,6 +2083,7 @@ void scenario_events_parameter_data_get_display_string_for_action(const scenario
             }
             result_text = append_text(string_from_ascii(" = "), result_text, &maxlength);
             result_text = translation_for_type_lookup_by_value(PARAMETER_TYPE_CITY_PROPERTY, action->parameter2, result_text, &maxlength);
+            if (scenario_action_uses_terrain(*action)) result_text = append_text(string_from_ascii(terrain_names(action->terrain).c_str()), result_text, &maxlength);
             return;
         }
         case ACTION_TYPE_GOD_SENTIMENT_CHANGE:
@@ -2253,7 +2245,8 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
             result_text = append_text(translation_for_key("TR_PARAMETER_GRID_OFFSET"), result_text, &maxlength);
             result_text = translation_for_grid_offset(condition->parameter2, result_text, &maxlength);
             parameter_type param_type = condition->type == CONDITION_TYPE_BUILDING_COUNT_AREA ? PARAMETER_TYPE_BUILDING : PARAMETER_TYPE_TERRAIN;
-            result_text = translation_for_type_lookup_by_value(param_type, condition->parameter3, result_text, &maxlength);
+            if (param_type == PARAMETER_TYPE_TERRAIN) result_text = append_text(string_from_ascii(terrain_names(condition->terrain).c_str()), result_text, &maxlength);
+            else result_text = translation_for_type_lookup_by_value(param_type, condition->parameter3, result_text, &maxlength);
             result_text = translation_for_attr_mapping_text(xml_info->xml_parm4.type, condition->parameter4, result_text, &maxlength);
             result_text = translation_for_formula_index(condition->parameter5, result_text, &maxlength);
             return;

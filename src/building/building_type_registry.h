@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+void building_type_registry_reset();
 int building_type_registry_load(void);
 const char *building_type_registry_get_failure_reason(void);
 int building_type_registry_load_layers(

@@ -25,7 +25,7 @@
 #include "city/population.h"
 #include "city/view.h"
 #include "game/resource.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/random.h"
 #include "core/log.h"
 
@@ -259,7 +259,7 @@ int selected_option_for_selection(
     if (selection == building_type_registry_impl::GraphicsOptionSelection::RoadCrossing) {
         const int grid_offset = building.grid_offset();
         const int option = road_aqueduct_crossing_option(
-            map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_ROAD),
+            terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().road),
             map_tiles_is_paved_road(grid_offset));
         return option % option_count;
     }

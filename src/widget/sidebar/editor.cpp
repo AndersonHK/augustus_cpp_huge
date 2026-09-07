@@ -1,3 +1,4 @@
+#include "map/Terrain.h"
 #include "editor/tool.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -73,6 +74,7 @@ static void draw_status(void)
         case TOOL_EARTHQUAKE_CUSTOM: tool_name = "TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM"; break;
         case TOOL_EARTHQUAKE_CUSTOM_REMOVE: tool_name = "TR_EDITOR_TOOL_EARTHQUAKE_REMOVE"; break;
         case TOOL_NATIVE_RUINS: tool_name = "TR_EDITOR_TOOL_NATIVE_RUINS"; break;
+        case TOOL_SHALLOW: tool_name = "TR_EDITOR_TOOL_SHALLOW"; break;
         case TOOL_SELECT_LAND: tool_name = "TR_EDITOR_TOOL_SELECT_LAND"; break;
         default: tool_name = current_string_key(49, selected_tool); break;
     }
@@ -80,6 +82,7 @@ static void draw_status(void)
     switch (selected_tool) {
         case TOOL_GRASS:
         case TOOL_TREES:
+        case TOOL_SHALLOW:
         case TOOL_WATER:
         case TOOL_SHRUB:
         case TOOL_ROCKS:
@@ -202,6 +205,7 @@ static void button_attributes(int show, int param2)
 
 static void button_build_tool(int tool, int param2)
 {
+    if (tool == TOOL_WATER && !terrain_types().shallow_water.empty()) { button_build_menu(MENU_WATER, 0); return; }
     (void)param2;
 
     window_editor_build_menu_hide();

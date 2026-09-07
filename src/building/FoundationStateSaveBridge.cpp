@@ -2,7 +2,8 @@
 
 #include "building/FoundationDef.h"
 #include "building/FoundationState.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
+#include "map/TerrainSaveBridge.h"
 
 #include <algorithm>
 
@@ -23,7 +24,7 @@ int uses_legacy_waterside_rotation(const FoundationDef &definition)
     int has_water_cell = 0;
     int has_non_water_cell = 0;
     for (const FoundationCellDefinition &cell : definition.cells()) {
-        if (cell.required_terrain & TERRAIN_WATER) {
+        if (cell.required_terrain & terrain_types().water) {
             has_water_cell = 1;
         } else {
             has_non_water_cell = 1;
@@ -49,8 +50,8 @@ FoundationTerrainSaveState foundation_terrain_state_for_save(
         if (delta.cell_index < 0 || delta.cell_index >= cell_count) {
             continue;
         }
-        saved.added[delta.cell_index] = delta.added_terrain;
-        saved.removed[delta.cell_index] = delta.removed_terrain;
+        saved.added[delta.cell_index] = terrain_save::encode(delta.added_terrain);
+        saved.removed[delta.cell_index] = terrain_save::encode(delta.removed_terrain);
     }
     return saved;
 }
@@ -69,15 +70,16 @@ int foundation_terrain_deltas_from_save(
     deltas->reserve(definition.cells().size());
     for (int cell_index = 0; cell_index < static_cast<int>(definition.cells().size()); ++cell_index) {
         const FoundationCellDefinition &cell = definition.cells()[cell_index];
-        if ((saved.added[cell_index] & ~cell.added_terrain) ||
-            (saved.removed[cell_index] & ~cell.removed_terrain)) {
+        const TerrainSet added = saved.recovered_added ? (*saved.recovered_added)[cell_index] : terrain_save::decode(saved.added[cell_index]);
+        const TerrainSet removed = terrain_save::decode(saved.removed[cell_index]);
+        if ((added - cell.added_terrain) || (removed - cell.removed_terrain)) {
             deltas->clear();
             return 0;
         }
         FoundationTerrainDelta delta;
         delta.cell_index = cell_index;
-        delta.added_terrain = saved.added[cell_index];
-        delta.removed_terrain = saved.removed[cell_index];
+        delta.added_terrain = added;
+        delta.removed_terrain = removed;
         delta.bound_building = cell.binds_building;
         deltas->push_back(delta);
     }

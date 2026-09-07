@@ -1,5 +1,7 @@
 #pragma once
 
+#include "map/TerrainSet.h"
+
 #include "game/resource.h"
 #include "building/resource_consumption.h"
 #include <cstdint>
@@ -9,7 +11,7 @@
 namespace building_type_registry_impl {
 
 struct InfrastructureDefinition {
-    uint32_t terrain_mask = 0;
+    TerrainSet terrains;
     int tiles_per_unit = 1;
     int monthly_levy = 0;
 };

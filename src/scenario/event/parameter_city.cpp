@@ -25,7 +25,7 @@
 #include "figure/formation.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
 #define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
@@ -220,22 +220,22 @@ static int get_building_count(scenario_action_t *action)
             total_count = building_count_any_total(active_only);
             break;
         case SCENARIO_BUILDING_ROAD:
-            total_count = building_count_terrain(TERRAIN_ROAD, count_no_condition);
+            total_count = building_count_terrain(terrain_types().road, count_no_condition);
             break;
         case SCENARIO_BUILDING_HIGHWAY:
-            total_count = building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
+            total_count = building_count_terrain(terrain_types().highway, count_no_condition);
             break;
         case SCENARIO_BUILDING_PLAZA:
-            total_count = building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
+            total_count = building_count_terrain(terrain_types().road, map_property_is_plaza_earthquake_or_overgrown_garden);
             break;
         case SCENARIO_BUILDING_GARDENS:
-            total_count = building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
+            total_count = building_count_terrain(terrain_types().garden, count_not_overgrown);
             break;
         case SCENARIO_BUILDING_OVERGROWN_GARDENS:
-            total_count = building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
+            total_count = building_count_terrain(terrain_types().garden, map_property_is_plaza_earthquake_or_overgrown_garden);
             break;
         case SCENARIO_BUILDING_RUBBLE:
-            total_count = building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
+            total_count = building_count_terrain(terrain_types().rubble, count_no_condition);
             break;
         case SCENARIO_BUILDING_LOW_BRIDGE:
             total_count = building_count_bridges(0);
@@ -286,7 +286,7 @@ static int get_enemy_troops_count(scenario_action_t *action)
 
 static int get_terrain_tiles_count(scenario_action_t *action)
 {
-    int terrain_type = action->parameter3;
+    const TerrainSet &terrain_type = action->terrain;
     return building_count_terrain(terrain_type, count_no_condition);
 }
 

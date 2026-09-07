@@ -51,7 +51,7 @@ The first prototype must demonstrate the complete binding path with a foundation
 
 ## Status
 
-D13 is implemented. Terrain/D14 remains planned, not implemented by this commit.
+D13 is committed as `d839c3da7` (`Commit ledger part 4 - D13`). Terrain/D14 is implemented in the working tree for review; it is not included in that commit. Validation results and limitations follow below.
 
 The reverse mint declares `<output resource="gold" rate_from="city_mint_basic" destination="building_storage" />`. Binding occurs after overlay resolution; a missing source or cycle fails startup. An explicit recipe scenario override takes precedence; otherwise the recipe follows its source. Resource events modify independent controlling producers, so denarii events affect both mint directions once and gold events remain independent.
 
@@ -65,3 +65,31 @@ Validation on 2026-09-07:
 - Julius legacy import/canonical roundtrip and a separate 3,000-tick in-game settings/UI run passed without warnings after rewrite. Julius and Vespasian sidebar captures were visually inspected; the first Augustus capture exposed a panel-height error, corrected in the final XML. Captures/logs remain ignored validation artifacts under `out`; no extracted assets were staged.
 
 Production-average rounding, the 102-based efficiency formula, the combined workforce slider and upstream ancestry remain unchanged.
+
+## D14 implementation record
+
+The legacy terrain enum/free API has been replaced by `Terrain`, `TerrainSet`, `TerrainMap` and a definition-loader registry. Seventeen Julius definitions and five Augustus extensions bind traversal collections, foundation profiles, graphics conditions, service queries and scenario parameters. Shared immutable tile compositions contain actual object references with no fixed terrain-count ceiling. Startup clears dependent owners and archive caches before rebuilding terrain definitions. Graphics are rebound even when an existing climate atlas is reused.
+
+Native SVV 207 and scenario 27 include an uncompressed UTF-8 name/set ledger. Foundation rollback records and terrain-bearing scenario actions/conditions use the same archive reference table as map tiles. The original fixed masks are translated only in the legacy bridge. Scenario event copying now copies the complete record so bound references survive linking into loaded events. Recoverable missing-mod names use declared load aliases or log their removal; a canonical rewrite emits active definitions only.
+
+Tree/sawmill, rock/mine, meadow and water proximity gates are authored Foundation queries, measured from actual rotated cells. Reservoir water supply consumes a bound, named operational query, independently of placement eligibility. D14 shallow water is an Augustus definition with included water, sea blocking and named native image entries. Painting normal water or grass removes its overlay and derived graphic; navigation invalidates when a sea barrier changes on an otherwise water tile. No extracted graphics have been added to source.
+
+The map owner holds its tile references, backup, immutable compositions and count cache as private state. Generic land-route classification uses authored traversal collections independently of construction blocking. Water providers register the terrain dependencies of their operational foundation queries; terrain edits invalidate the declared radius, and navigation-dependent queries also react to sea topology changes.
+
+Validation on 2026-09-07:
+
+- Release game and parser builds pass. The 100-additional-terrain registry/ledger fixture passes, including archive-ID permutation, missing references, include cycles, and independent traversal/construction policies.
+- The full corpus completed 70 city runs of 3,000 ticks each: 68 passed; `Praetor 2 10.svv` and `Praetor 2 8.svv` missed the existing 1,000 steady simulation TPS threshold at 885.5 and 908.2 respectively. Both reported zero post-migration warnings/errors. The gate remains a timing failure, not a pass. Logs: ignored `out/d14-complete-startup.*`.
+- Final focused testing after the generic routing/source-invalidation corrections exposed an invalid `free` of a grid slice borrowed from the map's ring pool. The terrain action now respects that ownership. The corrected Release runtime passes terrain closure, navigation, native graphics, reservoir source conditions, scenario action roundtrip, existing placement/figure/accounting regressions, live mod settings and a 3,000-tick rendered Consul soak with empty stderr. Logs: `out/d14-final-runtime2.*`.
+- Final editor painting, native scenario cells/actions/conditions roundtrip, and editor compatibility smoke tests pass with empty stderr (`out/d14-final-editor.*`). The inspector reads both native SVV and scenario ledgers. The broad corpus preceded the final focused corrections; it is not presented as a second full corpus run on the final binary.
+- The final build additionally passes two 3,000-tick Julius runs (legacy `Citizen.sav` and `Citizen - Julius Only Save.svv`) and an Augustus-stack SVV run. Legacy repairs are logged; canonical reloads are clean. Logs: `out/d14-final-julius2.*` and `out/d14-final-augustus.*`. The corrected runtime is deployed to the game installation; D14 remains uncommitted for review.
+
+The newer foreign Augustus SVX semantic converter remains open under SB04+ / S13. Its terrain bit is recognized by the bridge, but the divergent full archive cannot safely enter the native reader yet. No ancestry adjustment is made by this slice.
+
+### Movement regression follow-up (2026-09-07)
+
+Formation endpoints now account for the half-tile difference between cross-country drawing from a tile center and integer routing anchors. Validation covers the drawn tile and the local approach; already assigned endpoints are checked after terrain edits. Fallback reservations retain the minimum spacing of the authored layout instead of only excluding identical points. This resolves endpoint crowding, but physical bumping during travel remains an open movement feature.
+
+Herds use their own terrain traversal policy throughout route search, path reconstruction and movement, without enemy building-entry permissions. Passive herd XML declares a four-tile building buffer, independent of desirability, with outward escape permitted after construction. Destination validation now uses actual occupied roster slots and the same formation origin as individual movement. Construction proximity prompts roaming reconsideration.
+
+Validation: Release builds and definition contracts pass (`out/terrain-movement-parser.*`). Boundary, corner, building-buffer entry/escape and existing catch-up contracts pass with a 3,000-tick Consul render soak (`out/terrain-movement-fixed.*`). The Aedile collision fixture passes all seven layouts with 64 distinct stations, plus checks that every member of its constrained deployed formation is stationed on passable ground (`out/terrain-formation-final.*`). Both Aedile 1 17 saves and legacy Julius Citizen.sav pass migration, clean canonical reloads and 3,000 rendered ticks each (`out/terrain-movement-aedile.*`, `out/terrain-movement-julius.*`). Import repairs are logged; post-rewrite checks are clean. The executable and authored herd XML are deployed, with no commit or ancestry adjustment.

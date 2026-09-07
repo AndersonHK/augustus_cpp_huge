@@ -34,7 +34,7 @@
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tile_runtime_api.h"
 #include "map/water_navigation.h"
 #include "map/tiles.h"
@@ -273,7 +273,7 @@ int game_undo_start_build(building_type type)
     }
 
     map_image_backup();
-    map_terrain_backup();
+    terrain_map().backup();
     map_aqueduct_backup();
     map_property_backup();
     map_sprite_backup();
@@ -319,7 +319,7 @@ static void restore_map_images(void)
         for (int x = 0; x < map_width; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (!map_building_exists_at(grid_offset) ||
-                map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) ||
+                terrain_map().contains(grid_offset, terrain_types().aqueduct) ||
                 map_building_at(grid_offset).is_surface_terrain_tile()) {
                 map_image_restore_at(grid_offset);
             }
@@ -329,7 +329,7 @@ static void restore_map_images(void)
 
 void game_undo_restore_map(int include_properties)
 {
-    map_terrain_restore();
+    terrain_map().restore();
     map_aqueduct_restore();
     map_building_restore();
     if (include_properties) {
@@ -419,7 +419,7 @@ void game_undo_perform(void)
                 }
             }
         }
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         map_sprite_restore();
         map_image_restore();
@@ -428,25 +428,25 @@ void game_undo_perform(void)
         map_property_clear_constructing_and_deleted();
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"aqueduct", "road", "wall", "highway"})) {
         discard_created_buildings();
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         restore_map_images();
         game_undo_restore_building_types();
         building_connectable_update_connections();
 
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"low_bridge", "ship_bridge"})) {
-        map_terrain_restore();
+        terrain_map().restore();
         map_building_restore();
         map_sprite_restore();
         restore_map_images();
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         map_property_restore();
         restore_map_images();
     } else if (data.num_buildings) {
         if (building_type_registry_impl::type_attr_is(data.type, "reservoir")) {
-            map_terrain_restore();
+            terrain_map().restore();
             map_aqueduct_restore();
             restore_map_images();
         }
@@ -460,7 +460,7 @@ void game_undo_perform(void)
         building_update_state();
     }
     for (auto it = data.support_terrain.rbegin(); it != data.support_terrain.rend(); ++it) {
-        map_terrain_set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(map_terrain_get(it->grid_offset), *it));
+        terrain_map().set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(terrain_map().at(it->grid_offset), *it));
         const int x = map_grid_offset_to_x(it->grid_offset), y = map_grid_offset_to_y(it->grid_offset);
         map_tiles_update_region_empty_land(x, y, x, y);
         map_tiles_update_area_roads(x, y, 1);

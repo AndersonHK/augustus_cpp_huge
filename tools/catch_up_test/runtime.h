@@ -1,3 +1,4 @@
+#include "terrain.h"
 #pragma once
 #include "scenario_overrides.h"
 #include "archive_origin.h"
@@ -22,7 +23,7 @@
 #include "game/time.h"
 #include "graphics/window.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "window/advisors.h"
 #include "window/city.h"
 #include "window/empire.h"
@@ -49,11 +50,12 @@ inline bool run_catch_up_runtime_test()
     buffer_init(&gifts, gift_backup.data(), gift_backup.size()); city_monument_gifts_save(&gifts);
     buffer_init(&time, time_backup.data(), time_backup.size()); game_time_save_state(&time);
     bool success = true;
-    std::vector<std::pair<int, uint32_t>> terrain;
+    std::vector<std::pair<int, TerrainSet>> terrain;
     try {
         validate_scenario_model_overrides();
         validate_archive_origins();
         validate_placement_supports();
+        validate_terrain_runtime();
         validate_cart_criminal_graphics();
         require(!accounting.overflow && !gifts.overflow, "Could not preserve fixture accounting");
         const auto dog_type = figure_type_from_xml_name("dog");
@@ -61,7 +63,7 @@ inline bool run_catch_up_runtime_test()
             int road = -1;
             for (int y = 2; y < map_grid_height() - 2 && road < 0; ++y) for (int x = 2; x < map_grid_width() - 2; ++x) {
                 const int offset = map_grid_offset(x, y);
-                if (map_grid_is_inside(x, y, 2) && map_terrain_is(offset, TERRAIN_ROAD) && map_terrain_is(map_grid_offset(x + 1, y), TERRAIN_ROAD)) { road = offset; break; }
+                if (map_grid_is_inside(x, y, 2) && terrain_map().contains(offset, terrain_types().road) && terrain_map().contains(map_grid_offset(x + 1, y), terrain_types().road)) { road = offset; break; }
             }
             require(road >= 0, "Dog roaming test requires connected roads");
             auto cleanup = [](Figure *figure) { if (figure && figure->id()) figure->remove(); };
@@ -81,7 +83,7 @@ inline bool run_catch_up_runtime_test()
             int moved = 0, previous = dog->grid_offset;
             for (int tick = 0; tick < 420 && dog->state == FIGURE_STATE_ALIVE; ++tick) {
                 require(figure_runtime_execute(dog.get()) != 0, "Dog did not use its native data profile");
-                require(!dog->use_cross_country && map_terrain_is(dog->grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY), "Dog left its road network");
+                require(!dog->use_cross_country && terrain_map().contains(dog->grid_offset, terrain_types().road | terrain_types().highway), "Dog left its road network");
                 if (dog->grid_offset != previous) { ++moved; previous = dog->grid_offset; }
             }
             require(moved > 0, "Dog road-roaming fixture did not move");
@@ -100,7 +102,7 @@ inline bool run_catch_up_runtime_test()
                 int citizen_moves = 0, previous_offset = citizen->grid_offset;
                 for (int tick = 0; tick < 420 && citizen->state == FIGURE_STATE_ALIVE; ++tick) {
                     require(figure_runtime_execute(citizen.get()) != 0, "Citizen did not use its native data profile");
-                    require(!citizen->use_cross_country && map_terrain_is(citizen->grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY), "Citizen left its road network");
+                    require(!citizen->use_cross_country && terrain_map().contains(citizen->grid_offset, terrain_types().road | terrain_types().highway), "Citizen left its road network");
                     if (citizen->grid_offset != previous_offset) { ++citizen_moves; previous_offset = citizen->grid_offset; }
                 }
                 require(citizen_moves > 0, "Wandering citizen did not move");
@@ -154,14 +156,14 @@ inline bool run_catch_up_runtime_test()
             for (int y = 0; y < map_grid_height(); ++y) for (int x = 0; x < map_grid_width(); ++x) {
                 if (!map_grid_is_inside(x, y, 1)) continue;
                 const int offset = map_grid_offset(x, y);
-                terrain.emplace_back(offset, map_terrain_get(offset));
-                map_terrain_remove(offset, TERRAIN_HIGHWAY);
+                terrain.emplace_back(offset, terrain_map().at(offset));
+                terrain_map().remove(offset, terrain_types().highway);
                 cells.push_back(offset);
             }
             require(cells.size() > 204, "Fixture map too small for infrastructure test");
-            require(map_terrain_count(TERRAIN_HIGHWAY) == 0, "Terrain count cache failed removals");
-            for (int i = 0; i < 204; ++i) map_terrain_add(cells[i], TERRAIN_HIGHWAY);
-            require(map_terrain_count(TERRAIN_HIGHWAY) == 204, "Terrain count cache failed additions");
+            require(terrain_map().count(terrain_types().highway) == 0, "Terrain count cache failed removals");
+            for (int i = 0; i < 204; ++i) terrain_map().add(cells[i], terrain_types().highway);
+            require(terrain_map().count(terrain_types().highway) == 204, "Terrain count cache failed additions");
             building record{}; record.id = 65000; record.type = station->type(); record.state = BUILDING_STATE_IN_USE; record.num_workers = 1;
             building_runtime_impl::ScopedEphemeralBuildingRuntime scope({{65000, 65000, &record, station, {}}});
             require(scope.valid(), "Could not create service runtime fixture");
@@ -233,7 +235,7 @@ inline bool run_catch_up_runtime_test()
             require(record.resources[resource_stone()] == 0 && record.resources[resource_sand()] == 0 && resource_stockpile_amount(resource_stone()) == 100, "Legacy buffers and global stockpile were not accounted together");
 
         }
-        for (auto [offset, original] : terrain) map_terrain_set(offset, original);
+        for (auto [offset, original] : terrain) terrain_map().set(offset, original);
         terrain.clear();
         const auto *arch = definition_for_type(type_from_attr("triumphal_arch"));
         if (arch && arch->has_phased_construction()) {
@@ -299,7 +301,7 @@ inline bool run_catch_up_runtime_test()
         window_city_show();
         std::fprintf(stdout, "Catch-up contracts passed: accounting, history, roundtrip, service demand/consumption, single-building phases, gifts.\n");
     } catch (const std::exception &error) { std::fprintf(stderr, "Catch-up contract failed: %s\n", error.what()); success = false; }
-    for (auto [offset, original] : terrain) map_terrain_set(offset, original);
+    for (auto [offset, original] : terrain) terrain_map().set(offset, original);
     buffer_reset(&time); game_time_load_state(&time);
     buffer_reset(&gifts); city_monument_gifts_load(&gifts);
     buffer_reset(&accounting); city_trade_ledger_load(&accounting);

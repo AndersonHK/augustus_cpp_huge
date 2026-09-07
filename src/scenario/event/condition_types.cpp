@@ -25,7 +25,7 @@
 #include "game/time.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/custom_variable.h"
 #include "scenario/event/condition_comparison_helper.h"
 #include "scenario/event/controller.h"
@@ -75,24 +75,24 @@ static int special_building_count(int type, int active_only, int minx, int miny,
             break;
         case SCENARIO_BUILDING_ROAD:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_ROAD, count_no_condition) : building_count_terrain(TERRAIN_ROAD, count_no_condition);
+                terrain_types().road, count_no_condition) : building_count_terrain(terrain_types().road, count_no_condition);
         case SCENARIO_BUILDING_HIGHWAY:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_HIGHWAY, count_no_condition) : building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
+                terrain_types().highway, count_no_condition) : building_count_terrain(terrain_types().highway, count_no_condition);
         case SCENARIO_BUILDING_PLAZA:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden) :
-                building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
+                terrain_types().road, map_property_is_plaza_earthquake_or_overgrown_garden) :
+                building_count_terrain(terrain_types().road, map_property_is_plaza_earthquake_or_overgrown_garden);
         case SCENARIO_BUILDING_GARDENS:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_GARDEN, count_not_overgrown) : building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
+                terrain_types().garden, count_not_overgrown) : building_count_terrain(terrain_types().garden, count_not_overgrown);
         case SCENARIO_BUILDING_OVERGROWN_GARDENS:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden) :
-                building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
+                terrain_types().garden, map_property_is_plaza_earthquake_or_overgrown_garden) :
+                building_count_terrain(terrain_types().garden, map_property_is_plaza_earthquake_or_overgrown_garden);
         case SCENARIO_BUILDING_RUBBLE:
             return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_RUBBLE, count_no_condition) : building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
+                terrain_types().rubble, count_no_condition) : building_count_terrain(terrain_types().rubble, count_no_condition);
         case SCENARIO_BUILDING_LOW_BRIDGE:
             return in_area ? building_count_bridges_in_area(minx, miny, maxx + 1, maxy + 1, 0) : building_count_bridges(0);
         case SCENARIO_BUILDING_SHIP_BRIDGE:
@@ -149,7 +149,7 @@ int scenario_condition_type_terrain_count_area_met(const scenario_condition_t *c
 {
     int grid_offset1 = condition->parameter1;
     int grid_offset2 = condition->parameter2;
-    int terrain_type = condition->parameter3;
+    const TerrainSet &terrain_type = condition->terrain;
     int comparison = condition->parameter4;
     int value = scenario_formula_evaluate_formula(condition->parameter5);
 
@@ -157,7 +157,7 @@ int scenario_condition_type_terrain_count_area_met(const scenario_condition_t *c
     grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
     for (int i = 0; i < slice->size; i++) {
         int grid_offset = slice->grid_offsets[i];
-        if (map_terrain_is(grid_offset, terrain_type)) {
+        if (terrain_map().contains(grid_offset, terrain_type)) {
             current_count++;
         }
     }

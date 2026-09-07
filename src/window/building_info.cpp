@@ -43,7 +43,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "window/city.h"
 #include "window/message_dialog.h"
 #include "window/building/depot.h"
@@ -379,7 +379,7 @@ static void init(int grid_offset)
     context.advisor_button = ADVISOR_NONE;
     context.building = nullptr;
     context.rubble_building_id = map_building_rubble_building_id(grid_offset);
-    context.has_reservoir_pipes = map_terrain_is(grid_offset, TERRAIN_RESERVOIR_RANGE);
+    context.has_reservoir_pipes = terrain_map().contains(grid_offset, terrain_types().reservoir_range);
     context.aqueduct_has_water = map_aqueduct_has_water_access_at(grid_offset);
     context.has_road_access = 0;
     context.worker_percentage = 0;
@@ -401,22 +401,22 @@ static void init(int grid_offset)
         if (selected_building) {
             context.building = selected_runtime_building;
         }
-        if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        if (terrain_map().contains(grid_offset, terrain_types().water)) {
             context.terrain_type = TERRAIN_INFO_BRIDGE;
         } else {
             context.terrain_type = TERRAIN_INFO_EMPTY;
         }
     } else if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(grid_offset, terrain_types().road)) {
             context.terrain_type = TERRAIN_INFO_PLAZA;
-        } else if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().rock)) {
             context.terrain_type = TERRAIN_INFO_EARTHQUAKE;
-        } else if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().garden)) {
             context.terrain_type = TERRAIN_INFO_GARDEN;
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_TREE)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().tree)) {
         context.terrain_type = TERRAIN_INFO_TREE;
-    } else if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().rock)) {
         if (grid_offset == city_map_entry_flag()->grid_offset) {
             context.terrain_type = TERRAIN_INFO_ENTRY_FLAG;
         } else if (grid_offset == city_map_exit_flag()->grid_offset) {
@@ -424,21 +424,21 @@ static void init(int grid_offset)
         } else {
             context.terrain_type = TERRAIN_INFO_ROCK;
         }
-    } else if ((map_terrain_get(grid_offset) & (TERRAIN_WATER | TERRAIN_BUILDING)) == TERRAIN_WATER) {
+    } else if ((terrain_map().at(grid_offset) & (terrain_types().water | terrain_types().building)) == terrain_types().water) {
         context.terrain_type = TERRAIN_INFO_WATER;
-    } else if (map_terrain_is(grid_offset, TERRAIN_SHRUB)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().shrub)) {
         context.terrain_type = TERRAIN_INFO_SHRUB;
-    } else if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().garden)) {
         context.terrain_type = TERRAIN_INFO_GARDEN;
-    } else if ((map_terrain_get(grid_offset) & (TERRAIN_ROAD | TERRAIN_BUILDING)) == TERRAIN_ROAD) {
+    } else if ((terrain_map().at(grid_offset) & (terrain_types().road | terrain_types().building)) == terrain_types().road) {
         context.terrain_type = TERRAIN_INFO_ROAD;
-    } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         context.terrain_type = TERRAIN_INFO_AQUEDUCT;
-    } else if (map_terrain_is(grid_offset, TERRAIN_RUBBLE)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().rubble)) {
         context.terrain_type = TERRAIN_INFO_RUBBLE;
-    } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         context.terrain_type = TERRAIN_INFO_WALL;
-    } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         context.terrain_type = TERRAIN_INFO_HIGHWAY;
     } else if (!selected_building) {
         context.terrain_type = TERRAIN_INFO_EMPTY;

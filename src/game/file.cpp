@@ -68,7 +68,7 @@
 #include "map/road_network.h"
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tile_runtime_api.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
@@ -159,7 +159,7 @@ static void clear_scenario_data(void)
     // clear grids
     map_image_clear();
     map_building_clear();
-    map_terrain_clear();
+    terrain_map().clear();
     map_aqueduct_clear();
     map_figure_clear();
     map_property_clear();
@@ -376,7 +376,7 @@ static bool initialize_saved_game(void)
         for (int y = 0; y < map_grid_height(); ++y) {
             for (int x = 0; x < map_grid_width(); ++x) {
                 const int offset = map_grid_offset(x, y);
-                if (map_terrain_is(offset, TERRAIN_GARDEN) && !map_terrain_is(offset, TERRAIN_ROAD) && map_property_is_plaza_earthquake_or_overgrown_garden(offset)) {
+                if (terrain_map().contains(offset, terrain_types().garden) && !terrain_map().contains(offset, terrain_types().road) && map_property_is_plaza_earthquake_or_overgrown_garden(offset)) {
                     map_property_clear_plaza_earthquake_or_overgrown_garden(offset);
                     ++repaired;
                 }

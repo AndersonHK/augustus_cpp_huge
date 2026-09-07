@@ -1,3 +1,4 @@
+#include "map/TerrainRegistry.h"
 #ifndef GRAPHICS_EXTRACTION_BUILD_DLL
 #include "assets/graphics_extraction_client.h"
 #endif
@@ -21,7 +22,7 @@
 #include "graphics/font.h"
 #include "graphics/renderer.h"
 #include "game/mod_manager.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "platform/file_manager.h"
 #include "scenario/property.h"
 
@@ -913,7 +914,7 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 {
     if (climate_id == data.current_climate && is_editor == data.is_editor && !force_reload &&
         graphics_renderer()->has_image_atlas(ATLAS_MAIN)) {
-        return 1;
+        return terrain_registry().bind_graphics();
     }
     runtime_overlay_images_reset();
     graphics_renderer()->get_max_image_size(&data.max_image_width, &data.max_image_height);
@@ -1023,6 +1024,7 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 
     data.current_climate = climate_id;
     data.is_editor = is_editor;
+    if (!terrain_registry().bind_graphics()) return 0;
 
     data.images_with_tops = 0;
 

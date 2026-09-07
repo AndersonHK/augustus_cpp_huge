@@ -33,7 +33,7 @@
 #include "graphics/text.h"
 #include "graphics/ui_constants.h"
 #include "map/road_network.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "translation/translation.h"
 #include "window/building/common.h"
 

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<terrain text_id="fountain_range">
+    <traversal land="true" sea="true" enemy="true" herd="true" earthquake="true" water="false" />
+    <placement blocking="false" clearable="false" editable="true" paintable="false" />
+</terrain>

@@ -42,7 +42,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "scenario/allowed_building.h"
 #include "scenario/custom_variable.h"
@@ -68,19 +68,19 @@ static int collapse_type_is_terrain(int type)
         type == SCENARIO_BUILDING_RUBBLE;
 }
 
-static int terrain_for_collapse_type(int type)
+static TerrainSet terrain_for_collapse_type(int type)
 {
     switch (type) {
         case SCENARIO_BUILDING_GARDENS:
         case SCENARIO_BUILDING_OVERGROWN_GARDENS:
-            return TERRAIN_GARDEN;
+            return terrain_types().garden;
         case SCENARIO_BUILDING_HIGHWAY:
-            return TERRAIN_HIGHWAY;
+            return terrain_types().highway;
         case SCENARIO_BUILDING_RUBBLE:
-            return TERRAIN_RUBBLE;
+            return terrain_types().rubble;
         case SCENARIO_BUILDING_ROAD:
         default:
-            return TERRAIN_ROAD;
+            return terrain_types().road;
     }
 }
 
@@ -395,21 +395,21 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         if (!map_grid_is_valid_offset(current_grid_offset)) {
             continue;
         }
-        if (map_terrain_is(current_grid_offset, (TERRAIN_IMPASSABLE_ENEMY ^ TERRAIN_GARDEN ^ TERRAIN_RUBBLE) | TERRAIN_ACCESS_RAMP)) {
+        if (terrain_map().contains(current_grid_offset, (terrain_types().impassable_enemy ^ terrain_types().garden ^ terrain_types().rubble) | terrain_types().access_ramp)) {
             continue;
         }
         if (type == SCENARIO_BUILDING_OVERGROWN_GARDENS || type == SCENARIO_BUILDING_PLAZA || destroy_all) {
             map_property_clear_plaza_earthquake_or_overgrown_garden(current_grid_offset);
         }
-        if ((collapse_type_is_terrain(type) && !map_terrain_is(current_grid_offset, TERRAIN_BUILDING)) || destroy_all) {
-            int terrain = terrain_for_collapse_type(type);
+        if ((collapse_type_is_terrain(type) && !terrain_map().contains(current_grid_offset, terrain_types().building)) || destroy_all) {
+            TerrainSet terrain = terrain_for_collapse_type(type);
             if (type == SCENARIO_BUILDING_HIGHWAY || destroy_all) {
                 map_tiles_clear_highway(current_grid_offset, 0);
             }
             if (destroy_all) {
-                terrain = TERRAIN_ROAD | TERRAIN_GARDEN | TERRAIN_HIGHWAY | TERRAIN_RUBBLE;
+                terrain = terrain_types().road | terrain_types().garden | terrain_types().highway | terrain_types().rubble;
             }
-            map_terrain_remove(current_grid_offset, terrain);
+            terrain_map().remove(current_grid_offset, terrain);
         }
         if (!map_building_exists_at(current_grid_offset)) {
             continue;
@@ -759,17 +759,18 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
 {
     int grid_offset1 = action->parameter1;
     int grid_offset2 = action->parameter2;
-    int terrain = action->parameter3;
+    const TerrainSet &terrain = action->terrain;
     int add = action->parameter4;
     grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
 
+    if (!slice) return 0;
     for (int i = 0; i < slice->size; i++) {
         int current_grid_offset = slice->grid_offsets[i];
         if (!map_grid_is_valid_offset(current_grid_offset)) {
             continue;
         }
         if (add) {
-            if (terrain & TERRAIN_NOT_CLEAR) {
+            if (terrain & terrain_types().not_clear) {
                 // Destroy buildings if the new terrains doesn't allow for buildings
                 if (map_building_exists_at(current_grid_offset)) {
                     Building &selected = map_building_at(current_grid_offset);
@@ -778,13 +779,12 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                         (selected.Composition ? selected.Composition->owner() : &selected);
                     owner->destroy_without_rubble();
                 }
-                // Since the engine only supports one blocking terrain per tile, 
-                // remove all others before adding a new one
-                map_terrain_remove(current_grid_offset, TERRAIN_NOT_CLEAR);
+                // Painting a blocking terrain replaces the previous blocking surface.
+                terrain_map().remove(current_grid_offset, terrain_types().not_clear);
             }
-            map_terrain_add(current_grid_offset, terrain);
+            terrain_map().add(current_grid_offset, terrain);
         } else {
-            if (terrain == TERRAIN_WATER && map_terrain_get(current_grid_offset) & TERRAIN_WATER) {
+            if (terrain.intersects(terrain_types().water) && terrain_map().contains(current_grid_offset, terrain_types().water)) {
                 // Destroy water buildings when removing water
                 if (map_building_exists_at(current_grid_offset)) {
                     Building &selected = map_building_at(current_grid_offset);
@@ -795,10 +795,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 }
 
             }
-            map_terrain_remove(current_grid_offset, terrain);
+            terrain_map().remove(current_grid_offset, terrain);
         }
     }
 
+    // The grid slice is borrowed from the map's ring pool.
     map_tiles_update_all();
     Route::updateAllTerrain();
 

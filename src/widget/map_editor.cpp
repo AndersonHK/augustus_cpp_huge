@@ -36,7 +36,7 @@
 #include "map/grid.h"
 #include "map/point.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/custom_variable.h"
 #include "scenario/empire.h"
 #include "scenario/event/controller.h"
@@ -148,7 +148,7 @@ static void draw_custom_earthquake(int x, int y, int grid_offset)
         return;
     }
     if (map_property_is_future_earthquake(grid_offset) && editor_is_active() &&
-        !map_terrain_is(grid_offset, static_cast<int>(TERRAIN_IMPASSABLE_EARTHQUAKE))) {
+        !terrain_map().contains(grid_offset, terrain_types().impassable_earthquake)) {
         static terrain_image images[GRID_SIZE * GRID_SIZE] = { 0 };
         if (data.custom_earthquake_refresh || !images[grid_offset].is_valid) {
             images[grid_offset] = *map_image_context_get_future_earthquake(grid_offset);

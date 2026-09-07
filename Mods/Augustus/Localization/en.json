@@ -2214,6 +2214,7 @@
         "TR_SCENARIO_WIN_CONDITION_PEACE": "Peace",
         "TR_SCENARIO_WIN_CONDITION_POPULATION": "Population",
         "TR_SCENARIO_WIN_CONDITION_PROSPERITY": "Prosperity",
-        "TR_SCENARIO_WIN_CONDITION_WINNING_TIME": "Survival time"
+        "TR_SCENARIO_WIN_CONDITION_WINNING_TIME": "Survival time",
+        "TR_EDITOR_TOOL_SHALLOW": "Shallow water"
     }
 }

@@ -364,6 +364,9 @@ int parse_herd_behavior()
     else if (!xml_definition::parse_required_nonnegative_int_attribute("reproduction_delay", &g_parse_state.spawn.herd.reproduction_delay)) invalid_attribute = "reproduction_delay";
     else if (!xml_value::parse_bool(xml_parser_get_attribute_string("aggressive"), &aggressive)) invalid_attribute = "aggressive";
     else if (!xml_value::parse_bool(xml_parser_get_attribute_string("allow_negative_desirability"), &allow_negative_desirability)) invalid_attribute = "allow_negative_desirability";
+    else if (xml_parser_has_attribute("building_clearance") &&
+        (!xml_definition::parse_required_nonnegative_int_attribute("building_clearance", &g_parse_state.spawn.herd.building_clearance) ||
+         g_parse_state.spawn.herd.building_clearance > 16)) invalid_attribute = "building_clearance";
     if (invalid_attribute) {
         log_error("Herd FormationType spawn requires a valid behavior attribute", invalid_attribute, 0);
         g_parse_state.error = true;

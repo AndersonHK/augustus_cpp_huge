@@ -10,7 +10,7 @@
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/road_network.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 #include <algorithm>
@@ -22,7 +22,7 @@ static int terrain_is_road_like(int grid_offset)
 {
     // Building road access ignores highways. Figure roaming has figure-specific
     // terrain checks in movement.cpp so roads_highway profiles can opt in.
-    return map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ? 1 : 0;
+    return terrain_map().contains(grid_offset, terrain_types().road | terrain_types().access_ramp) ? 1 : 0;
 }
 
 static int tile_has_controlled_passage(int grid_offset)
@@ -41,10 +41,10 @@ static int tile_has_controlled_passage(int grid_offset)
 
 static int tile_accepts_storage_road_access(int grid_offset, int global_labor)
 {
-    const int valid_terrain = global_labor ?
-        TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP :
-        TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
-    if (!map_terrain_is(grid_offset, valid_terrain)) {
+    const TerrainSet valid_terrain = global_labor ?
+        terrain_types().road | terrain_types().highway | terrain_types().access_ramp :
+        terrain_types().road | terrain_types().access_ramp;
+    if (!terrain_map().contains(grid_offset, valid_terrain)) {
         return 0;
     }
     return global_labor ||
@@ -328,9 +328,9 @@ void map_update_building_internal_roads(const building *b)
         }
         const int grid_offset = map_grid_offset(x, y);
         if (!touches_exterior || touches_road) {
-            map_terrain_add(grid_offset, TERRAIN_ROAD);
+            terrain_map().add(grid_offset, terrain_types().road);
         } else {
-            map_terrain_remove(grid_offset, TERRAIN_ROAD);
+            terrain_map().remove(grid_offset, terrain_types().road);
         }
     }
     map_tiles_update_area_roads(
@@ -498,7 +498,7 @@ int map_road_get_internal_passage_tiles_count(building *b)
     for (const auto &cell : building->Foundation->cells(state.rotation())) {
         if (cell.definition &&
             cell.definition->passage != building_type_registry_impl::FoundationPassage::None &&
-            map_terrain_is(map_grid_offset(state.origin_x() + cell.x, state.origin_y() + cell.y), TERRAIN_ROAD)) {
+            terrain_map().contains(map_grid_offset(state.origin_x() + cell.x, state.origin_y() + cell.y), terrain_types().road)) {
             ++count;
         }
     }

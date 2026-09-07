@@ -27,7 +27,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 
 #include <string.h>
@@ -43,7 +43,7 @@ static struct {
     int monument_confirmed;
 } confirm;
 
-#define TREE_CLEAR_TERRAIN_MASK (TERRAIN_TREE | TERRAIN_SHRUB)
+#define TREE_CLEAR_TERRAIN_MASK (terrain_types().tree | terrain_types().shrub)
 
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
@@ -83,7 +83,7 @@ static Building *get_deletable_building(int grid_offset)
 
 static void remove_legacy_aqueduct_tile(int grid_offset)
 {
-    map_terrain_remove(grid_offset, TERRAIN_AQUEDUCT);
+    terrain_map().remove(grid_offset, terrain_types().aqueduct);
     map_aqueduct_remove(grid_offset);
 }
 
@@ -137,31 +137,31 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     continue;
                 }
                 map_building_tiles_mark_deleting(grid_offset);
-                if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+                if (terrain_map().contains(grid_offset, terrain_types().building)) {
                     if (b) {
                         items_placed++;
                     }
-                } else if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+                } else if (terrain_map().contains(grid_offset, terrain_types().rock | terrain_types().elevation | terrain_types().access_ramp)) {
                     continue;
-                } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { // keep the "bridge is free" bug from C3
+                } else if (terrain_map().contains(grid_offset, terrain_types().water)) { // keep the "bridge is free" bug from C3
                     continue;
-                } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+                } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
                     items_placed++;
-                } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+                } else if (terrain_map().contains(grid_offset, terrain_types().highway)) {
                     int next_highways_removed = map_tiles_clear_highway(grid_offset, measure_only);
                     highways_removed += next_highways_removed;
                     items_placed += next_highways_removed;
-                } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+                } else if (terrain_map().contains(grid_offset, terrain_types().not_clear)) {
                     items_placed++;
                 }
                 continue;
             }
-            if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+            if (terrain_map().contains(grid_offset, terrain_types().rock | terrain_types().elevation | terrain_types().access_ramp)) {
                 continue;
             }
             Building *building_obj = get_deletable_building(grid_offset);
             const bool is_native_aqueduct = building_obj && building_obj->matches("aqueduct");
-            if ((map_terrain_is(grid_offset, TERRAIN_BUILDING) || is_native_aqueduct) && !map_is_bridge(grid_offset)) {
+            if ((terrain_map().contains(grid_offset, terrain_types().building) || is_native_aqueduct) && !map_is_bridge(grid_offset)) {
                 if (!building_obj) {
                     continue;
                 }
@@ -202,23 +202,23 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 }
                 dock_endpoints_changed = dock_endpoints_changed || building_obj->matches("dock");
                 mark_composition_deleted(*building_obj);
-            } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+            } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
                 remove_legacy_aqueduct_tile(grid_offset);
                 items_placed++;
-            } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
+            } else if (terrain_map().contains(grid_offset, terrain_types().water)) { //only bridges fall here
                 if (confirm.bridge_confirmed == 1) {
                     map_bridge_remove(grid_offset, measure_only);
                     items_placed++;
                 }
-            } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+            } else if (terrain_map().contains(grid_offset, terrain_types().highway)) {
                 int next_highways_removed = map_tiles_clear_highway(grid_offset, measure_only);
                 highways_removed += next_highways_removed;
                 items_placed += next_highways_removed;
-            } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
-                if (map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
+            } else if (terrain_map().contains(grid_offset, terrain_types().not_clear)) {
+                if (terrain_map().contains(grid_offset, terrain_types().road | terrain_types().garden)) {
                     map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
                 }
-                if (map_terrain_is(grid_offset, TERRAIN_RUBBLE) && !measure_only) {
+                if (terrain_map().contains(grid_offset, terrain_types().rubble) && !measure_only) {
                     if (map_building_exists_at(grid_offset)) {
                         Building &rubble = map_building_at(grid_offset);
                         building *record = const_cast<::building *>(rubble.record());
@@ -229,7 +229,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     }
                     map_building_set_rubble_grid_building_id(grid_offset, 0, 1);
                 }
-                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+                terrain_map().remove(grid_offset, terrain_types().clearable);
                 items_placed++;
             }
         }
@@ -393,11 +393,11 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
             if (measure_only) {
                 map_property_mark_deleted(grid_offset);
             }
-            if (!map_terrain_is(grid_offset, TREE_CLEAR_TERRAIN_MASK)) {
+            if (!terrain_map().contains(grid_offset, TREE_CLEAR_TERRAIN_MASK)) {
                 continue;
             }
             if (!measure_only) {
-                map_terrain_remove(grid_offset, TREE_CLEAR_TERRAIN_MASK);
+                terrain_map().remove(grid_offset, TREE_CLEAR_TERRAIN_MASK);
             }
             items_cleared++;
         }

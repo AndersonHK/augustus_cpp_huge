@@ -45,6 +45,7 @@
     <ClCompile Include="src\building\CompositionPlacementAccounting.cpp" />
     <ClCompile Include="src\building\CompositionTypeReplacement.cpp" />
     <ClCompile Include="src\building\FoundationDef.cpp" />
+    <ClCompile Include="src\building\FoundationPlacement.cpp" />
     <ClCompile Include="src\building\FoundationRegistry.cpp" />
     <ClCompile Include="src\building\FoundationState.cpp" />
     <ClCompile Include="src\building\FoundationStateSaveBridge.cpp" />
@@ -376,7 +377,11 @@
     <ClCompile Include="src\map\routing_terrain.cpp" />
     <ClCompile Include="src\map\soldier_strength.cpp" />
     <ClCompile Include="src\map\sprite.cpp" />
-    <ClCompile Include="src\map\terrain.cpp" />
+    <ClCompile Include="src\map\TerrainMap.cpp" />
+    <ClCompile Include="src\map\Terrain.cpp" />
+    <ClCompile Include="src\map\TerrainRegistry.cpp" />
+    <ClCompile Include="src\map\TerrainArchive.cpp" />
+    <ClCompile Include="src\map\TerrainSaveBridge.cpp" />
     <ClCompile Include="src\map\tile_runtime.cpp" />
     <ClCompile Include="src\map\tiles.cpp" />
     <ClCompile Include="src\map\water.cpp" />
@@ -959,7 +964,11 @@
     <ClInclude Include="src\map\routing_data.h" />
     <ClInclude Include="src\map\soldier_strength.h" />
     <ClInclude Include="src\map\sprite.h" />
-    <ClInclude Include="src\map\terrain.h" />
+    <ClInclude Include="src\map\Terrain.h" />
+    <ClInclude Include="src\map\TerrainMap.h" />
+    <ClInclude Include="src\map\TerrainRegistry.h" />
+    <ClInclude Include="src\map\TerrainSet.h" />
+    <ClInclude Include="src\map\TerrainSaveBridge.h" />
     <ClInclude Include="src\map\tile_runtime.h" />
     <ClInclude Include="src\map\tile_runtime_api.h" />
     <ClInclude Include="src\map\tile_runtime_internal.h" />

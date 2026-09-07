@@ -42,7 +42,7 @@
 #include "game/time.h"
 #include "map/sprite.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "core/log.h"
 
 #include <algorithm>

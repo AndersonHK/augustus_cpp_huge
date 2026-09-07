@@ -11,7 +11,7 @@
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 
@@ -176,15 +176,15 @@ static void update_terrain(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            int terrain = map_terrain_get(grid_offset);
+            TerrainSet terrain = terrain_map().at(grid_offset);
             if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
                 const model_building *model = nullptr;
-                if (terrain & TERRAIN_ROAD) {
+                if (terrain & terrain_types().road) {
                     model = plaza_model;
-                } else if (terrain & TERRAIN_ROCK) {
+                } else if (terrain & terrain_types().rock) {
                     // earthquake fault line: slight negative
                     model = earthquake_model;
-                } else if (terrain & TERRAIN_GARDEN) {
+                } else if (terrain & terrain_types().garden) {
                     add_garden_desirability(x, y, garden_model, venus_garden_bonus);
                     continue;
                 } else {
@@ -200,11 +200,11 @@ static void update_terrain(void)
                     model->desirability_step,
                     model->desirability_step_size,
                     model->desirability_range);
-            } else if (terrain & TERRAIN_GARDEN) {
+            } else if (terrain & terrain_types().garden) {
                 add_garden_desirability(x, y, garden_model, venus_garden_bonus);
-            } else if (terrain & TERRAIN_RUBBLE) {
+            } else if (terrain & terrain_types().rubble) {
                 add_to_terrain_cell(x, y, -2, 1, 1, 2);
-            } else if (terrain & TERRAIN_HIGHWAY) {
+            } else if (terrain & terrain_types().highway) {
                 if (highway_model) {
                     add_to_terrain_cell(x, y,
                         highway_model->desirability_value,
@@ -212,7 +212,7 @@ static void update_terrain(void)
                         highway_model->desirability_step_size,
                         highway_model->desirability_range);
                 }
-            } else if (terrain & TERRAIN_AQUEDUCT) {
+            } else if (terrain & terrain_types().aqueduct) {
                 add_to_terrain_cell(x, y, -2, 1, 1, 2);
             }
         }

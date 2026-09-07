@@ -2075,3 +2075,19 @@ unsigned char BuildingType::upgrade_level_for(const Building &building) const
 }
 
 } // namespace building_type_registry_impl
+
+namespace building_type_registry_impl {
+bool WaterAccessDefinition::bind_foundation_requirements(const FoundationDef &foundation)
+{
+    for (auto &rule : requirement_rules_) for (auto &term : rule.terms) {
+        if (term.kind != WaterAccessRequirementTermKind::FoundationRequirement) continue;
+        term.foundation = &foundation;
+        term.foundation_requirement = nullptr;
+        for (const auto &requirement : foundation.proximity_requirements()) {
+            if (requirement.name == term.foundation_requirement_name) term.foundation_requirement = &requirement;
+        }
+        if (!term.foundation_requirement) return false;
+    }
+    return true;
+}
+}

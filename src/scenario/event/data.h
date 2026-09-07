@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include <stdint.h>
 
@@ -159,6 +160,7 @@ typedef struct {
     int parameter4;
     int parameter5;
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
+    TerrainSet terrain; // bound at load/edit; parameter3 is unused for terrain-bearing records
 } scenario_condition_t;
 
 using scenario_condition_array_t = std::vector<scenario_condition_t>;
@@ -176,6 +178,7 @@ typedef struct {
     int parameter4;
     int parameter5;
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
+    TerrainSet terrain; // bound at load/edit; parameter3 is unused for terrain-bearing records
 } scenario_action_t;
 
 using scenario_condition_group_array_t = std::vector<scenario_condition_group_t>;
@@ -206,3 +209,5 @@ typedef struct {
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
 
+
+bool scenario_action_uses_terrain(const scenario_action_t &action);

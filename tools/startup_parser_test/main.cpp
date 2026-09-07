@@ -1,3 +1,5 @@
+#include "terrain_test.h"
+#include "map/TerrainRegistry.h"
 #include "startup/startup_parser_abi.h"
 #include "startup/startup_parser_graphics_test.h"
 
@@ -16,7 +18,7 @@
 #include "game/defines.h"
 #include "map/access_ramp_rules.h"
 #include "map/road_aqueduct_rules.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "platform/arguments.h"
 #include "core/relationship.h"
 #include "building_graphics_contract_test.h"
@@ -612,7 +614,7 @@ bool validate_road_aqueduct_crossing_rules()
             for (const building_type_registry_impl::GraphicsCondition &condition : variant.conditions) {
                 requires_road = requires_road ||
                     (condition.type == building_type_registry_impl::GraphicsConditionType::Terrain &&
-                        condition.terrain_mask == TERRAIN_ROAD);
+                        condition.terrains == terrain_types().road);
             }
             if (!requires_road) {
                 continue;
@@ -1748,7 +1750,7 @@ bool run_dependency_stack_save_soak_tests(const std::filesystem::path &game_root
 
 bool run_original_campaign_save_test(const std::filesystem::path &game_root, const std::filesystem::path &tool_directory, int tick_count)
 {
-    // Scenario 14 contains original burning ruins without TERRAIN_RUBBLE,
+    // Scenario 14 contains original burning ruins without terrain_types().rubble,
     // row-ordered warehouse bays, and an unowned duplicate fountain. Read the
     // user's mission pack at test time; never check original game data in.
     std::ifstream pack(game_root / "mission1.pak", std::ios::binary);
@@ -1946,6 +1948,8 @@ int run_startup_parser_test(int argc, char **argv)
         std::cout << (i ? " -> " : "") << mods[i];
     }
     std::cout << "\nSelected mod path: " << environment.mod_path << "\n" << std::flush;
+
+    if (!terrain_registry_load() || !validate_terrain_contract(std::cerr)) return 1;
 
     // These fixture loaders intentionally publish temporary registries. Run
     // them before startup so the ordinary parse replaces them before any

@@ -32,7 +32,7 @@
 #include "figure/route.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 

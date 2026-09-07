@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "city/view_render.h"
 #include "graphics/color.h"

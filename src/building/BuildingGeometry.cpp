@@ -4,7 +4,7 @@
 #include "building/BuildingFoundation.h"
 #include "building/building.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <set>
 #include <utility>
@@ -59,7 +59,7 @@ BuildingGeometry BuildingGeometry::query(const Building &building)
                 member,
                 cell.definition,
                 cell.definition->passage,
-                (cell.definition->required_terrain & TERRAIN_WATER) != 0
+                cell.definition->required_terrain.intersects(terrain_types().water)
             });
         }
     }

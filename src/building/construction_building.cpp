@@ -49,7 +49,7 @@
 #include "map/property.h"
 #include "map/routing.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #include <algorithm>
@@ -232,26 +232,26 @@ int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode cle
     int total_cost = 0;
     for (int i = 0; i < grid_slice->size; i++) {
         int g_offset = grid_slice->grid_offsets[i];
-        int terrain_mask_to_remove = 0;
+        TerrainSet terrain_mask_to_remove;
         switch (clear_mode) { //ugly but efficient
             case CLEAR_MODE_FORCE:
-                terrain_mask_to_remove = TERRAIN_NOT_CLEAR;
+                terrain_mask_to_remove = terrain_types().not_clear;
                 break;
             case CLEAR_MODE_RUBBLE:
-                terrain_mask_to_remove = TERRAIN_RUBBLE;
+                terrain_mask_to_remove = terrain_types().rubble;
                 break;
             case CLEAR_MODE_TREES:
-                terrain_mask_to_remove = TERRAIN_TREE | TERRAIN_SHRUB;
+                terrain_mask_to_remove = terrain_types().tree | terrain_types().shrub;
                 break;
             case CLEAR_MODE_PLAYER:
             default:
-                terrain_mask_to_remove = TERRAIN_CLEARABLE;
+                terrain_mask_to_remove = terrain_types().clearable;
                 break;
         }
-        if (map_terrain_is(g_offset, terrain_mask_to_remove)) {
+        if (terrain_map().contains(g_offset, terrain_mask_to_remove)) {
             total_cost += (cost == COST_FREE) ? 0 : RUBBLE_CLEAR_COST_PER_TILE;
             if (cost != COST_MEASURE) {
-                map_terrain_remove(g_offset, terrain_mask_to_remove);
+                terrain_map().remove(g_offset, terrain_mask_to_remove);
             }
         }
     }
@@ -662,9 +662,8 @@ int building_construction_fill_vacant_lots(grid_slice *area)
     return items_placed;
 }
 
-enum {
-    FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD
-};
+static TerrainSet force_place_clearable_terrain() { return terrain_types().tree | terrain_types().shrub | terrain_types().road
+; }
 
 struct force_place_check {
     int active = 0;
@@ -758,18 +757,7 @@ static int building_construction_global_rules_allow_placement(
     return 1;
 }
 
-static int terrain_requirement_allows_placement(int x, int y, PlaceWarningMessage *warning)
-{
-    warning_type type = WARNING_NONE;
-    translation_key text_key = "TR_CITY_WARNING_CLEAR_LAND_NEEDED";
-    if (building_construction_can_place_on_terrain(x, y, &type, &text_key)) {
-        return 1;
-    }
-    if (warning) {
-        *warning = warning_text(type, text_key);
-    }
-    return 0;
-}
+
 
 static void instant_building_remove_required_resources(building_type type)
 {
@@ -818,10 +806,10 @@ static void force_place_clear_offsets(force_place_check *check)
         if (y < y_min) { y_min = y; }
         if (y > y_max) { y_max = y; }
 
-        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(grid_offset, terrain_types().road)) {
             map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
         }
-        map_terrain_remove(grid_offset, FORCE_PLACE_CLEARABLE_TERRAIN);
+        terrain_map().remove(grid_offset, force_place_clearable_terrain());
     }
 
     int radius = x_max - x_min <= y_max - y_min ? y_max - y_min + 3 : x_max - x_min + 3;
@@ -842,7 +830,7 @@ static int building_construction_validate_local_placement_plan(
     const int size = placement.placement_size();
     if (!placement.can_place()) {
         if (placement.failure_reason() == building_construction::PlacementFailureReason::Proximity) {
-            warning_text(WARNING_CLEAR_LAND_NEEDED, "TR_CITY_WARNING_FOUNDATION_PROXIMITY").show_when(emit_warnings);
+            warning_text(WARNING_CLEAR_LAND_NEEDED, placement.proximity_warning()).show_when(emit_warnings);
         } else if (placement.has_open_water_failure()) {
             dock_open_water_needed_warning().show_when(emit_warnings);
         } else {
@@ -860,11 +848,6 @@ static int building_construction_validate_local_placement_plan(
         }
     }
 
-    PlaceWarningMessage terrain_warning;
-    if (!terrain_requirement_allows_placement(x, y, &terrain_warning)) {
-        terrain_warning.show_when(emit_warnings);
-        return 0;
-    }
     if (emit_warnings) {
         building_construction_warning_check_all(type, x, y, size);
     }
@@ -899,7 +882,7 @@ public:
     {
         for (const building_construction::ConstructionPlacementSupersession &supersession :
                 placement.supersessions()) {
-            const unsigned int removed = static_cast<unsigned int>(map_terrain_get(supersession.grid_offset)) &
+            const TerrainSet &removed = terrain_map().at(supersession.grid_offset) &
                 supersession.generated_terrain;
             if (removed) {
                 terrain_.push_back(Terrain{
@@ -907,7 +890,7 @@ public:
                     removed,
                     supersession.replacement_terrain
                 });
-                map_terrain_remove(supersession.grid_offset, static_cast<int>(removed));
+                terrain_map().remove(supersession.grid_offset, removed);
             }
             if (!supersession.building_id) {
                 continue;
@@ -960,9 +943,9 @@ public:
         for (const auto &part : placement.parts()) for (const auto &tile : part.tiles) {
             const auto *foundation = tile.support ? tile.support->foundation_def() : nullptr;
             if (!foundation || foundation->cells().size() != 1 || foundation->cells().front().binds_building) continue;
-            const auto mutation = building_type_registry_impl::foundation_apply_terrain_cell(foundation->cells().front(), 0, tile.grid_offset, map_terrain_get(tile.grid_offset));
+            const auto mutation = building_type_registry_impl::foundation_apply_terrain_cell(foundation->cells().front(), 0, tile.grid_offset, terrain_map().at(tile.grid_offset));
             supports_.push_back(mutation.delta);
-            map_terrain_set(tile.grid_offset, mutation.terrain_after);
+            terrain_map().set(tile.grid_offset, mutation.terrain_after);
         }
         active_ = !terrain_.empty() || !records_.empty() || !supports_.empty();
     }
@@ -973,7 +956,7 @@ public:
             return;
         }
         for (auto it = supports_.rbegin(); it != supports_.rend(); ++it) {
-            map_terrain_set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(map_terrain_get(it->grid_offset), *it));
+            terrain_map().set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(terrain_map().at(it->grid_offset), *it));
         }
         for (const Record &saved : records_) {
             Building *surface = Building::get(saved.id);
@@ -992,7 +975,7 @@ public:
             }
         }
         for (const Terrain &saved : terrain_) {
-            map_terrain_add(saved.grid_offset, static_cast<int>(saved.removed_terrain));
+            terrain_map().add(saved.grid_offset, saved.removed_terrain);
         }
     }
 
@@ -1003,8 +986,8 @@ public:
             game_undo_add_replaced_building(&saved.undo_snapshot);
         }
         for (const Terrain &saved : terrain_) {
-            if ((saved.removed_terrain & TERRAIN_AQUEDUCT) &&
-                !(saved.replacement_terrain & TERRAIN_AQUEDUCT)) {
+            if ((saved.removed_terrain & terrain_types().aqueduct) &&
+                !(saved.replacement_terrain & terrain_types().aqueduct)) {
                 map_aqueduct_remove(saved.grid_offset);
             }
         }
@@ -1024,8 +1007,8 @@ private:
     };
     struct Terrain {
         int grid_offset;
-        unsigned int removed_terrain;
-        unsigned int replacement_terrain;
+        TerrainSet removed_terrain;
+        TerrainSet replacement_terrain;
     };
 
     std::vector<Record> records_;

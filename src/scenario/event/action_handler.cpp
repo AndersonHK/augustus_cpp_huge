@@ -1,4 +1,6 @@
 #include "action_handler.h"
+#include "map/TerrainSaveBridge.h"
+#include "scenario/event/parameter_city.h"
 #include "building/building_type_id_bridge.h"
 
 #include "game/resource_id_bridge.h"
@@ -117,7 +119,7 @@ int scenario_action_type_execute(scenario_action_t *action)
 
 void scenario_action_type_delete(scenario_action_t *action)
 {
-    memset(action, 0, sizeof(scenario_action_t));
+    *action = {};
     action->type = ACTION_TYPE_UNDEFINED;
 }
 
@@ -128,7 +130,7 @@ void scenario_action_type_save_state(buffer *buf, const scenario_action_t *actio
     buffer_write_i16(buf, static_cast<int16_t>(action->type));
     buffer_write_i32(buf, action->parameter1);
     buffer_write_i32(buf, action->parameter2);
-    buffer_write_i32(buf, action->parameter3);
+    buffer_write_i32(buf, scenario_action_uses_terrain(*action) ? static_cast<int32_t>(terrain_save::encode(action->terrain)) : action->parameter3);
     buffer_write_i32(buf, action->parameter4);
     buffer_write_i32(buf, action->parameter5);
 }
@@ -144,6 +146,7 @@ unsigned int scenario_action_type_load_state(buffer *buf, scenario_action_t *act
     action->parameter3 = buffer_read_i32(buf);
     action->parameter4 = buffer_read_i32(buf);
     action->parameter5 = buffer_read_i32(buf);
+    if (scenario_action_uses_terrain(*action)) { action->terrain = terrain_save::decode(static_cast<uint32_t>(action->parameter3)); action->parameter3 = 0; }
 
     if (action->type == ACTION_TYPE_CHANGE_RESOURCE_PRODUCED) {
         action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
@@ -195,4 +198,9 @@ int scenario_action_uses_custom_variable(const scenario_action_t *action, int cu
         default:
             return 0;
     }
+}
+
+bool scenario_action_uses_terrain(const scenario_action_t &action)
+{
+    return action.type == ACTION_TYPE_CHANGE_TERRAIN || (action.type == ACTION_TYPE_CUSTOM_VARIABLE_CITY_PROPERTY && action.parameter2 == CITY_PROPERTY_TERRAIN_COUNT_TILES);
 }

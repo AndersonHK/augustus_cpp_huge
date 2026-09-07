@@ -6,7 +6,8 @@
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
 #include "game/mod_definition_loader.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
+#include "map/TerrainRegistry.h"
 
 #include <algorithm>
 #include <cctype>
@@ -66,61 +67,15 @@ std::vector<std::string> tokens(const char *text)
     return result;
 }
 
-int parse_map_terrain_mask(const char *text, uint32_t *out)
+int parse_terrain_references(const char *text, TerrainSet *out)
 {
-    struct Entry { const char *name; uint32_t value; };
-    static const Entry ENTRIES[] = {
-        {"tree", TERRAIN_TREE}, {"rock", TERRAIN_ROCK}, {"water", TERRAIN_WATER},
-        {"building", TERRAIN_BUILDING}, {"shrub", TERRAIN_SHRUB}, {"garden", TERRAIN_GARDEN},
-        {"road", TERRAIN_ROAD}, {"reservoir_range", TERRAIN_RESERVOIR_RANGE},
-        {"aqueduct", TERRAIN_AQUEDUCT}, {"elevation", TERRAIN_ELEVATION},
-        {"access_ramp", TERRAIN_ACCESS_RAMP}, {"meadow", TERRAIN_MEADOW},
-        {"rubble", TERRAIN_RUBBLE}, {"fountain_range", TERRAIN_FOUNTAIN_RANGE},
-        {"wall", TERRAIN_WALL}, {"gatehouse", TERRAIN_GATEHOUSE},
-        {"originally_tree", TERRAIN_ORIGINALLY_TREE}, {"highway", TERRAIN_HIGHWAY},
-        {"highway_top_left", TERRAIN_HIGHWAY_TOP_LEFT},
-        {"highway_bottom_left", TERRAIN_HIGHWAY_BOTTOM_LEFT},
-        {"highway_top_right", TERRAIN_HIGHWAY_TOP_RIGHT},
-        {"highway_bottom_right", TERRAIN_HIGHWAY_BOTTOM_RIGHT}
-    };
-    *out = 0;
-    for (const std::string &token : tokens(text)) {
-        if (token == "none") {
-            continue;
-        }
-        const auto found = std::find_if(std::begin(ENTRIES), std::end(ENTRIES), [&token](const Entry &entry) {
-            return token == entry.name;
-        });
-        if (found == std::end(ENTRIES)) {
-            return 0;
-        }
-        *out |= found->value;
+    try {
+        *out = terrain_registry().bind(text ? text : "", "Foundation " + g_parse_state.expected_path);
+        return 1;
+    } catch (const std::exception &error) {
+        fail("Invalid foundation terrain reference", error.what());
+        return 0;
     }
-    return 1;
-}
-
-int parse_site_mask(const char *text, uint32_t *out)
-{
-    struct Entry { const char *name; uint32_t value; };
-    static const Entry ENTRIES[] = {
-        {"meadow", FOUNDATION_SITE_MEADOW}, {"rock", FOUNDATION_SITE_ROCK},
-        {"tree", FOUNDATION_SITE_TREE}, {"water", FOUNDATION_SITE_WATER},
-        {"wall", FOUNDATION_SITE_WALL}, {"distant_water", FOUNDATION_SITE_DISTANT_WATER}
-    };
-    *out = 0;
-    for (const std::string &token : tokens(text)) {
-        if (token == "none") {
-            continue;
-        }
-        const auto found = std::find_if(std::begin(ENTRIES), std::end(ENTRIES), [&token](const Entry &entry) {
-            return token == entry.name;
-        });
-        if (found == std::end(ENTRIES)) {
-            return 0;
-        }
-        *out |= found->value;
-    }
-    return 1;
 }
 
 int parse_permissions(const char *text, uint16_t *out)
@@ -158,29 +113,30 @@ int parse_requirement(const char *text, FoundationCellDefinition *cell)
         return 1;
     }
     if (requirement == "land_or_aqueduct") {
-        cell->permitted_blocking_terrain = TERRAIN_AQUEDUCT;
+        cell->permitted_blocking_terrain = terrain_types().aqueduct;
     } else if (requirement == "water") {
-        cell->required_terrain = TERRAIN_WATER;
-        cell->permitted_blocking_terrain = TERRAIN_WATER;
+        cell->required_terrain = terrain_types().water;
+        cell->permitted_blocking_terrain = terrain_types().water;
     } else if (requirement == "road") {
-        cell->required_terrain = TERRAIN_ROAD;
-        cell->permitted_blocking_terrain = TERRAIN_ROAD;
+        cell->required_terrain = terrain_types().road;
+        cell->permitted_blocking_terrain = terrain_types().road;
     } else if (requirement == "road_or_land") {
-        cell->permitted_blocking_terrain = TERRAIN_ROAD | TERRAIN_HIGHWAY;
+        cell->permitted_blocking_terrain = terrain_types().road | terrain_types().highway;
     } else if (requirement == "road_wall_or_land" || requirement == "road_or_wall_or_land") {
-        cell->permitted_blocking_terrain = TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_WALL;
+        cell->permitted_blocking_terrain = terrain_types().road | terrain_types().highway | terrain_types().wall;
     } else if (requirement == "wall") {
-        cell->required_terrain = TERRAIN_WALL;
-        cell->permitted_blocking_terrain = TERRAIN_WALL;
+        cell->required_terrain = terrain_types().wall;
+        cell->permitted_blocking_terrain = terrain_types().wall;
     } else if (requirement == "aqueduct") {
-        cell->required_terrain = TERRAIN_AQUEDUCT;
-        cell->permitted_blocking_terrain = TERRAIN_AQUEDUCT;
+        cell->required_terrain = terrain_types().aqueduct;
+        cell->permitted_blocking_terrain = terrain_types().aqueduct;
     } else if (requirement == "meadow") {
-        cell->required_terrain = TERRAIN_MEADOW;
+        cell->required_terrain = terrain_types().meadow;
     } else if (requirement == "any") {
-        cell->permitted_blocking_terrain = TERRAIN_ALL;
+        cell->permitted_blocking_terrain = terrain_types().not_clear;
     } else {
-        return 0;
+        if (!parse_terrain_references(requirement.c_str(), &cell->required_terrain) || cell->required_terrain.empty()) return 0;
+        cell->permitted_blocking_terrain = cell->required_terrain;
     }
     return 1;
 }
@@ -199,6 +155,7 @@ int parse_root()
         fail("Foundation xml is missing or has invalid identity attributes");
         return 0;
     }
+    if (xml_parser_has_attribute("site_requires")) { fail("Foundation site_requires was replaced by proximity rules"); return 0; }
     type = xml_definition::normalize_path(type.c_str());
     if (type != g_parse_state.expected_path) {
         fail("Foundation type does not match its definition path", type.c_str());
@@ -244,17 +201,9 @@ int parse_root()
         return 0;
     }
 
-    uint32_t site_requirements = 0;
-    if (xml_parser_has_attribute("site_requires") &&
-        !parse_site_mask(xml_parser_get_attribute_string("site_requires"), &site_requirements)) {
-        fail("Foundation has invalid site requirements", type.c_str());
-        return 0;
-    }
-
     g_parse_state.definition->set_dimensions(width, height);
     g_parse_state.definition->set_rotates(rotates);
     g_parse_state.definition->set_permissions(default_permissions, configurable_permissions);
-    g_parse_state.definition->set_site_requirements(site_requirements);
     return 1;
 }
 
@@ -283,22 +232,22 @@ int parse_profile()
         fail("Foundation profile has invalid terrain requirement", xml_parser_get_attribute_string("requires"));
         return 0;
     }
-    uint32_t mask = 0;
+    TerrainSet mask;
     if (xml_parser_has_attribute("permits")) {
-        if (!parse_map_terrain_mask(xml_parser_get_attribute_string("permits"), &mask)) {
+        if (!parse_terrain_references(xml_parser_get_attribute_string("permits"), &mask)) {
             fail("Foundation profile has invalid permits mask", symbol_text.c_str());
             return 0;
         }
         profile.permitted_blocking_terrain |= mask;
     }
     if (xml_parser_has_attribute("adds")) {
-        if (!parse_map_terrain_mask(xml_parser_get_attribute_string("adds"), &profile.added_terrain)) {
+        if (!parse_terrain_references(xml_parser_get_attribute_string("adds"), &profile.added_terrain)) {
             fail("Foundation profile has invalid adds mask", symbol_text.c_str());
             return 0;
         }
     }
     if (xml_parser_has_attribute("removes")) {
-        if (!parse_map_terrain_mask(xml_parser_get_attribute_string("removes"), &profile.removed_terrain)) {
+        if (!parse_terrain_references(xml_parser_get_attribute_string("removes"), &profile.removed_terrain)) {
             fail("Foundation profile has invalid removes mask", symbol_text.c_str());
             return 0;
         }
@@ -323,21 +272,21 @@ int parse_profile()
             return 0;
         }
     }
-    if (profile.passage != FoundationPassage::None && !(profile.added_terrain & TERRAIN_ROAD)) {
+    if (profile.passage != FoundationPassage::None && !(profile.added_terrain & terrain_types().road)) {
         fail("Foundation passage profile must add road terrain", symbol_text.c_str());
         return 0;
     }
-    if (profile.binds_building != ((profile.added_terrain & TERRAIN_BUILDING) != 0)) {
+    if ((profile.binds_building != 0) != profile.added_terrain.intersects(terrain_types().building)) {
         fail("Foundation profile building terrain must match binds", symbol_text.c_str());
         return 0;
     }
     if (profile.passage == FoundationPassage::OwnerControlled &&
-        (!profile.binds_building || !(profile.added_terrain & TERRAIN_BUILDING))) {
+        (!profile.binds_building || !(profile.added_terrain & terrain_types().building))) {
         fail("Owner-controlled passage must bind its building", symbol_text.c_str());
         return 0;
     }
     if (profile.passage == FoundationPassage::Uncontrolled &&
-        (profile.binds_building || (profile.added_terrain & TERRAIN_BUILDING))) {
+        (profile.binds_building || (profile.added_terrain & terrain_types().building))) {
         fail("Uncontrolled passage cannot bind a building", symbol_text.c_str());
         return 0;
     }
@@ -352,8 +301,8 @@ int parse_proximity()
     const char *terrain = xml_parser_get_attribute_string("terrain");
     requirement.navigable = xml_value::equals(terrain, "navigable_water") || xml_value::equals(terrain, "sea");
     requirement.sea = xml_value::equals(terrain, "sea");
-    if (requirement.navigable) requirement.terrain = TERRAIN_WATER;
-    else if (!parse_map_terrain_mask(terrain, &requirement.terrain)) requirement.terrain = 0;
+    if (requirement.navigable) requirement.terrain = terrain_types().water;
+    else if (!parse_terrain_references(terrain, &requirement.terrain)) requirement.terrain = {};
     if (!xml_parser_has_attribute("max_distance") || !xml_value::parse_int_strict(xml_parser_get_attribute_string("max_distance"), &requirement.max_distance) ||
         (xml_parser_has_attribute("min_distance") && !xml_value::parse_int_strict(xml_parser_get_attribute_string("min_distance"), &requirement.min_distance)) ||
         (xml_parser_has_attribute("min_count") && !xml_value::parse_int_strict(xml_parser_get_attribute_string("min_count"), &requirement.min_count))) {
@@ -365,7 +314,33 @@ int parse_proximity()
         fail("Foundation proximity has invalid terrain, distance or tile count");
         return 0;
     }
-    g_parse_state.definition->add_proximity_requirement(requirement);
+    if (xml_parser_has_attribute("match")) {
+        const char *match = xml_parser_get_attribute_string("match");
+        if (!xml_value::equals(match, "any") && !xml_value::equals(match, "all")) { fail("Invalid foundation proximity match"); return 0; }
+        requirement.match_any = xml_value::equals(match, "any");
+    }
+    if (xml_parser_has_attribute("metric")) {
+        const char *metric = xml_parser_get_attribute_string("metric");
+        if (!xml_value::equals(metric, "chebyshev") && !xml_value::equals(metric, "manhattan")) { fail("Invalid foundation proximity distance metric"); return 0; }
+        requirement.orthogonal_distance = xml_value::equals(metric, "manhattan");
+    }
+    if (xml_parser_has_attribute("exclude_map_flags")) {
+        int exclude = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("exclude_map_flags"), &exclude)) { fail("Invalid foundation map flag exclusion"); return 0; }
+        requirement.exclude_map_flags = exclude != 0;
+    }
+    if (xml_parser_has_attribute("warning_key")) requirement.warning_key = xml_parser_get_attribute_string("warning_key");
+    if (xml_parser_has_attribute("name")) requirement.name = xml_parser_get_attribute_string("name");
+    if (xml_parser_has_attribute("placement")) {
+        int placement = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("placement"), &placement)) { fail("Invalid foundation proximity placement flag"); return 0; }
+        requirement.placement = placement != 0;
+    }
+    for (const auto &existing : g_parse_state.definition->proximity_requirements()) {
+        if (!requirement.name.empty() && existing.name == requirement.name) { fail("Duplicate foundation proximity name"); return 0; }
+    }
+    if (!requirement.placement && requirement.name.empty()) { fail("Non-placement foundation requirement needs a name"); return 0; }
+    g_parse_state.definition->add_proximity_requirement(std::move(requirement));
     return 1;
 }
 
@@ -717,3 +692,12 @@ int foundation_layered_definition_buffers_are_valid_for_test(
     return 1;
 }
 #endif
+
+void foundation_registry_reset()
+{
+    using namespace building_type_registry_impl;
+    g_parse_state = {};
+    g_foundations.clear();
+    g_owned_foundations.clear();
+    g_foundation_overlays.clear();
+}

@@ -11,7 +11,7 @@
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/city_without_overlay.h"
 #include "window/city.h"
 
@@ -32,7 +32,7 @@ inline bool run_city_road_drag_render_test()
         // A three-tile drag through open land, away from viewport clipping.
         for (int dx = -2; dx <= 0; dx++) {
             const int offset = map_grid_add_delta(command.grid_offset, dx, 0);
-            if (offset < 0 || map_terrain_is(offset, TERRAIN_NOT_CLEAR)) return;
+            if (offset < 0 || terrain_map().contains(offset, terrain_types().not_clear)) return;
         }
         int x, y, width, height;
         city_view_get_viewport(&x, &y, &width, &height);
@@ -62,8 +62,8 @@ inline bool run_city_road_drag_render_test()
     building_construction_start(end.x - 2, end.y, map_grid_add_delta(end.grid_offset, -2, 0));
     building_construction_update(end.x, end.y, end.grid_offset);
     bool passed = building_construction_in_progress() && building_construction_can_place() &&
-        building_construction_cost() > 0 && map_terrain_is(end.grid_offset, TERRAIN_ROAD);
-    if (!passed) std::fprintf(stderr, "Road drag setup failed: active=%d valid=%d cost=%d road=%d.\n", building_construction_in_progress(), building_construction_can_place(), building_construction_cost(), map_terrain_is(end.grid_offset, TERRAIN_ROAD));
+        building_construction_cost() > 0 && terrain_map().contains(end.grid_offset, terrain_types().road);
+    if (!passed) std::fprintf(stderr, "Road drag setup failed: active=%d valid=%d cost=%d road=%d.\n", building_construction_in_progress(), building_construction_can_place(), building_construction_cost(), terrain_map().contains(end.grid_offset, terrain_types().road));
     if (passed) {
         const float scale = city_view_get_scale() / 100.0f;
         const int x = static_cast<int>((endpoint.x + 30) / scale) - 4;
@@ -87,7 +87,7 @@ inline bool run_city_road_drag_render_test()
     building_construction_clear_type();
     city_finance_treasury_add(previous_treasury - city_finance_treasury());
     config_set(CONFIG_UI_CV_CURSOR_SHADOW, previous_shadow);
-    passed = passed && !map_terrain_is(end.grid_offset, TERRAIN_ROAD);
+    passed = passed && !terrain_map().contains(end.grid_offset, terrain_types().road);
     std::fprintf(passed ? stdout : stderr, "Road drag endpoint render test %s: tile=%d.\n", passed ? "passed" : "failed", end.grid_offset);
     return passed;
 }
