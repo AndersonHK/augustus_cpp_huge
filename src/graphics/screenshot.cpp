@@ -287,6 +287,9 @@ static void create_full_city_screenshot(void)
     int canvas_width = 8 * TILE_X_SIZE;
     int old_scale = city_view_get_scale();
 
+    const int extended_camera_bounds = config_get(CONFIG_UI_EXTENDED_CAMERA_BOUNDS);
+    config_set(CONFIG_UI_EXTENDED_CAMERA_BOUNDS, 0);
+
     int draw_cloud_shadows = config_get(CONFIG_UI_DRAW_CLOUD_SHADOWS);
     config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, 0);
 
@@ -297,12 +300,12 @@ static void create_full_city_screenshot(void)
     int error = 0;
     int base_height = image_set_loop_height_limits(min_height, max_height);
     int size;
+    graphics_renderer()->push_state();
+    graphics_renderer()->set_render_domain(RENDER_DOMAIN_PIXEL);
+    graphics_renderer()->reset_viewport();
     city_view_set_scale(100);
-    graphics_set_clip_rectangle(0, TOP_MENU_HEIGHT, canvas_width, IMAGE_HEIGHT_CHUNK);
-    int viewport_x, viewport_y, viewport_width, viewport_height;
-    city_view_get_viewport(&viewport_x, &viewport_y, &viewport_width, &viewport_height);
-    city_view_set_viewport(canvas_width + (city_view_is_sidebar_collapsed() ? 42 : 162),
-        IMAGE_HEIGHT_CHUNK + TOP_MENU_HEIGHT);
+    graphics_set_clip_rectangle(0, 0, canvas_width, IMAGE_HEIGHT_CHUNK);
+    city_view_set_render_viewport({0, 0, canvas_width, IMAGE_HEIGHT_CHUNK});
     int current_height = base_height;
     while ((size = image_request_rows()) != 0) {
         int y_offset = current_height + IMAGE_HEIGHT_CHUNK > max_height ?
@@ -316,9 +319,13 @@ static void create_full_city_screenshot(void)
             }
             city_view_set_camera_from_pixel_position(min_width + width, current_height);
             city_without_overlay_draw(0, 0, &dummy_tile, 0);
-            graphics_renderer()->save_screen_buffer(&canvas[width], x_offset, TOP_MENU_HEIGHT + y_offset,
-                image_section_width, IMAGE_HEIGHT_CHUNK - y_offset, city_width_pixels);
+            if (!graphics_renderer()->save_screen_buffer(&canvas[width], x_offset, y_offset, image_section_width, IMAGE_HEIGHT_CHUNK - y_offset, city_width_pixels)) {
+                Logger::error("Unable to read full-city screenshot strip", 0, 0);
+                error = 1;
+                break;
+            }
         }
+        if (error) break;
         if (!image_write_rows(canvas, city_width_pixels)) {
             Logger::error("Error writing image", 0, 0);
             error = 1;
@@ -326,16 +333,17 @@ static void create_full_city_screenshot(void)
         }
         current_height += IMAGE_HEIGHT_CHUNK;
     }
-    city_view_set_viewport(viewport_width + (city_view_is_sidebar_collapsed() ? 42 : 162), viewport_height + TOP_MENU_HEIGHT);
     city_view_set_scale(old_scale);
+    config_set(CONFIG_UI_EXTENDED_CAMERA_BOUNDS, extended_camera_bounds);
     config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, draw_cloud_shadows);
-    graphics_reset_clip_rectangle();
+    graphics_renderer()->pop_state();
     city_view_set_camera_from_pixel_position(original_camera_pixels.x, original_camera_pixels.y);
     if (!error) {
         Logger::info("Saved full city screenshot:", filename, 0);
         show_saved_notice(filename);
     }
     image_free();
+    std::free(canvas);
     window_invalidate();
 }
 

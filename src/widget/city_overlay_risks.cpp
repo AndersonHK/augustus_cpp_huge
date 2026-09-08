@@ -22,6 +22,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/building_record.h"
 #include "figure/figure.h"
+#include "figure/figure_type_registry_internal.h"
 
 #include "core/config.h"
 #include "map/property.h"
@@ -214,8 +215,9 @@ static int show_figure_native(const Figure *f)
 
 static int show_figure_enemy(const Figure *f)
 {
+    const auto *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
     return f->is_category(FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_AGGRESSIVE_ANIMAL |
-        FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_PROJECTILE);
+        FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_PROJECTILE) || (definition && definition->behavior.visible_on_enemy_overlay);
 }
 
 static int get_column_height_fire(const building *b)

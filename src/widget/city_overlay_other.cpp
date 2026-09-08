@@ -1,4 +1,5 @@
 #include "building/BuildingGraphics.h"
+#include "building/BuildingComposition.h"
 #include "translation/translation.h"
 #include "building/building.h"
 #include "building/HousingProfileDef.h"
@@ -184,7 +185,9 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
 
 static int show_building_mothball(const building *b)
 {
-    return b->state == BUILDING_STATE_MOTHBALLED;
+    const Building value = building_from_record(b);
+    const Building *owner = value.Composition ? value.Composition->owner() : &value;
+    return owner && owner->state_id() == BUILDING_STATE_MOTHBALLED;
 }
 
 static int show_building_logistics(const building *b)
@@ -359,6 +362,7 @@ static int get_column_height_tax_income(const building *b)
 static int get_column_height_employment(const building *b)
 {
     const Building building = building_from_record(b);
+    if (building.Composition && building.Composition->is_child()) return NO_COLUMN;
     int full_staff = building.type ? building.type->required_workers() : 0;
     int pct_staff = calc_percentage(b->num_workers, full_staff);
 
@@ -501,6 +505,7 @@ static int get_tooltip_tax_income(tooltip_context *c, const building *b)
 static int get_tooltip_employment(tooltip_context *c, const building *b)
 {
     const Building building = building_from_record(b);
+    if (building.Composition && building.Composition->is_child()) return 0;
     int full = building.type ? building.type->required_workers() : 0;
     int missing = full - b->num_workers;
 

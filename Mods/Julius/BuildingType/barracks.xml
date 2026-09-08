@@ -24,4 +24,7 @@
             <amount value="100" />
         </labor_seeker>
     </labor>
+    <production_methods>
+        <production_method path="recruitment_delay" />
+    </production_methods>
 </building>

@@ -1,0 +1,82 @@
+# September 8 closure audit
+
+The user approved upstream finance year selectors with corrected layering, and D19 as a delay multiplier. The fetched target is `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`: 209 queued commits, plus 19 April carry-overs already in ancestry. This is an implementation/validation record, not a claim that ancestry has been reconciled.
+
+## Empire and finance
+
+Augustus and Vespasian use the upstream-style toolbar: reset sorting, name/quota/cost/profit selector, direction arrow, ledger, independent route-open and route-medium filters, trade direction, icon-grid resource picker, and reset filters. Julius retains its previous city-list layout. Native XML declares geometry, images, styles and bindings. The general dropdown primitive supports image grids and invalidates cached backgrounds when opened, changed or dismissed. Finance year selectors remain interactive; their menus draw in the foreground after all values. The upstream Trade History footer has no click handler and remains disabled; the ledger toolbar icon opens the ledger.
+
+Validation: `out/closure-final-ui-{Augustus,Vespasian,Julius}.log/.err` passes every toolbar interaction, all resource-picker cells, combined filters, historical read-only controls, navigation, ordinary (non-forced) finance dropdown redraws and 3,000 rendered city ticks per stack. All three stderr files are empty. Captures under the corresponding directories include both year menus and their fully repainted closed state. The toolbar and finance captures were visually compared with the user's upstream screenshots.
+
+## D19: recruitment delay
+
+`ProductionMethodKind::DelayFactor` is a generic rate unit, declared with `<kind value="delay_factor"/>` and `<output resource="troops" delay_percent="100"/>`. The barracks binds the definition at startup. After staffing and food-stress penalties, its existing delay is multiplied by that percentage before conversion to calendar ticks. A delay factor does not manufacture inventory, start production cycles or assign an industrial labor category. Percentage parsing rejects malformed/negative/overflowing values and throughput-rate references. Runtime multiplication saturates safely.
+
+Julius declares the neutral 100% method; Augustus and Vespasian inherit it. Scenario production set/add actions target the existing special resource identity and store only an explicit method override in the native string ledger. At 50%, eight legacy delay units become four; at 200%, they become sixteen. Zero retains instant timing, while an unstaffed negative sentinel remains unstaffed. Resetting the scenario restores mod defaults.
+
+Validation: `out/closure-native-contracts.log` passes action set/add, 50/200%, zero, overflow, reset and sparse save/reload contracts, then 3,000 rendered ticks with empty stderr. Parser contracts pass in `out/closure-definitions.log` (deliberate negative fixtures emit expected diagnostics). A source Augustus `87b7d8b4f` writer produced `out/closure-delay-{50,200}.svx` from original `Clerk c3.sav`, changing only its troops rate. Both imports compare the actual source percentage with the native method, re-save as SVV211, reload and soak 3,000 ticks. Four initial surface/composition migration warnings are reported; canonical reloads are clean. Evidence: `out/closure-delay-import-{50,200}.log/.err`.
+
+## April reconciliation
+
+The complete `c122ab18f` diff contains latrine names, a depot minimum-load condition and formation-standard visibility. Native depot logic already uses four loads for the destination-threshold condition. Corrected the English singular/plural catalog pair, added generic `plural_name_key` identity data for counted health-advisor labels, and restored formation standards through `visible_on_enemy_overlay` figure data. The native and multipart overlay reviews also found that composition children did not consistently follow the owner's mothball state or suppress duplicate employment tooltips; those callbacks now use composition relationships.
+
+The `ddfcde631` wild-boar addition is asset content, not a new figure behavior. `out/closure-assets.json` audits every asset changed from that commit's parent through the fetched target against the installed distribution: 427 packed-source matches, 11 equivalent packed compositions, 13 exact matches, 136 unused source assets and four upstream removals. No missing/different assets. No runtime-extracted graphics were added to source Mods.
+
+Translation reconciliation was expanded back to `c122ab18f^`, covering the April mixed merge and active-counter strings across all 16 catalogs. Ancestral or missing strings are updated; native compact depot statuses and explicit storage/cargo wording have recorded resolutions in `augustus_translation_resolutions_2026_09_07.json`. The audit distinguishes those authored choices from exact upstream matches.
+
+The first full gate stopped on a failed water readback. The diagnostic was made explicit and the canonical reproduction and complete replacement gate passed (`out/closure-startup-gate2.log`). A later road probe exposed a separate weather defect: the overlay drew before checking the disabled setting, leaving a one-frame tint. `update_weather` now checks that setting before drawing. The exact pixel test and all April/native contracts pass in `out/closure-april-complete.log`, with empty stderr and 3,000 rendered ticks. No pixel tolerance or renderer fallback threshold was relaxed.
+
+| April commit | Final native disposition and validation |
+| --- | --- |
+| `165b7c2a3` | Draw-tile guards prevent duplicate overlay tops. Native overlay owners retain their layering; rendered city/overlay contracts and the full gate cover the replacement. |
+| `8251ca91f` | Hippodrome composition children follow the owner's mothball state and suppress duplicate employment columns/tooltips. The real multipart building contract checks both. |
+| `c122ab18f` | Reconciled singular/plural health labels, four-load depot threshold and formation-standard visibility. Generic plural identity and figure visibility data replace ordinal switches; current contracts and catalog audit pass. |
+| `ddfcde631` | All sixteen added wild-boar frames are accounted for in the distributed asset audit. Upstream adds artwork, not a new gameplay type. |
+| `5b2a592d3` | The proposed shared-building singleton representation is superseded by native tile/foundation ownership and compositions. Reviewed destruction/undo/count/save consumers; source surface-record repair, native placement/cancel/undo and canonical save tests validate the replacement. |
+| `6c4c82c30` | Upstream render-file consolidation is superseded by native render commands/phases and building graphics modules. Retained functional tile guards, layering, water/grid colors and callbacks; do not import obsolete C ownership or duplicate build entries. |
+| `e69bfb98f` | Native overlay owners implement terrain/building/figure selection and per-overlay tooltips. Source API/file rearrangement is superseded; actual composition and rendered overlay tests exercise the replacement. |
+| `83b3c57e7` | The follow-up's footprint/top ordering is represented by native foundation anchors and draw-tile top dispatch. Water, desirability and native overlays use those owners. |
+| `bb56ac880` | Editor active price/demand counts are checked through creation, activation and deletion; all affected catalogs are reconciled. |
+| `ae6c183fe` | Real depot cart reroutes when destination changes, retains its carried resource when the order resource changes, recalls to source, and unloads four loads exactly once. The contract uses native owners and action dispatch. |
+| `1bedb8599` | Granary and warehouse tests protect maintained stock, make empty-all stock available, respect Caesar permissions and dispatch exactly the requested quantity. |
+| `105c02e70` | Real reservoir publication replaces nine aqueduct cells and gives all cells the correct owner. |
+| `5a9a8c6f6` | Real road and highway publication crosses existing aqueducts while retaining both surfaces. |
+| `fe9637540` | Cancel and undo restore exact terrain, graphic identity and owner at those crossings. |
+| `cbd181ae1` | Editor tree/meadow/rock/custom-earthquake previews use the reviewed terrain group/ring logic. The editor gate renders its map and action windows and roundtrips terrain references. |
+| `7931b9e22` | Arbitrary aqueduct placement under a reservoir is handled by its actual foundation cells, covered by the nine-cell test above. |
+| `b8923f053` | Source readers retain their versioned identity widths; native previews use current ledger identities. Source-produced imports and canonical save/scenario readers pass. |
+| `caa61f5ce` | Minimap selection checks aqueduct/wall terrain before building colors and gives palisades wall colors. Source verified and exercised by city/editor minimaps; no pixel-perfect equivalence claim across native terrain palettes. |
+| `2de6361d8` | Reviewed all mixed paths. Mouse focus, nullable text width, versioned hotkey migration and extraction offsets have native equivalents. Added the missing Android system-bar inset listener, toolbar and scroll layout. Retain the reviewed SDL2 Gradle/SDK toolchain; upstream SDL3 packaging/version churn and its absent native Flatpak manifest are not imported. Catalog audit passes; Android XML parses, but no device/APK certification is claimed. |
+
+The April behavioral evidence is in `tools/catch_up_test/april.h`, `fort_orientation.h`, and `editor.h`. The original April ledger remains historical; this table replaces its open carry-over dispositions.
+
+## Foreign-save closure
+
+The sparse model/event, city-record, finance/history and runtime hydration code committed before this turn is now exercised together with source-produced fixtures. Native source identity translation owns the boundary; incidental class defaults are not serialized into new saves. Tested source suppliers returning with cargo or interrupted in combat retain their resources; an unstarted supplier retires under the approved global-stockpile station policy. Dogs and wandering citizens retain their identities and owners. Each of the four source fort orientations reconstructs the source fort/ground geometry and survives canonical reload.
+
+Evidence: `out/closure-import-station-{return,going,combat}-final.log`, `out/closure-fort-import-{0,1,2,3}.log`, and the D19 files above. Each import is re-saved, reloaded and rendered for 3,000 ticks. Initial repairs warn; canonical reload/soak is clean. The deliberately inconsistent combat fixture adds its expected relationship-repair warning. `tools/fixtures/augustus_189_producer.patch` and its README preserve the actual producer recipe.
+
+Historical widths, missing city tails, formula indexing, five-religion fields, source monument state and source water-level domains also have typed boundary contracts in the existing archive/model/city/record tests. Actual-source tests complement those contracts; they do not assert exhaustive coverage of every version/state combination. This closes the prior “decoder exists, runtime hydration absent” limitation. Unknown or ambiguous values continue through the documented warning/repair or owning-mod policy; v189 action 44 uses the approved longer-lived ordering.
+
+## Mixed payloads and remaining limits
+
+`ecf4278d1` and `a91c6873a` are implemented through native accounting snapshots, transaction references and declarative finance/empire/ledger controls. The asset previewer now uses a complete native XML window and resolves the active mods' image groups, entries, frames and layered slices. This also fixes its pre-existing standalone crash from loading a bare legacy asset-list filename before native initialization. The diagnostic canvas uses explicit native draw requests, exposes source dimensions/string identities, and provides zoom, backgrounds, bounds, animation and cache refresh. It no longer reloads legacy asset atlases or invents numeric animation sequences. Signature-only complex-button/dropdown changes and upstream tab/grid classes are superseded by native controls. The small ancillary empire-editor signedness and trade-price whitespace/comment changes do not require new behavior. `a79c54d48` is represented by consistent native resource-unit accounting at production, supplier, construction and request owners; UI converts units at display boundaries, retaining fractional inputs rather than upstream's ambiguous small-count heuristic.
+
+`381449f16` is fully represented by the willow definition's cost, desirability, fire proofing, Venus bonus, draggable tool, cycle, menu and presentation, plus its source building identity in the bridge. Native string ledgers supersede the source enum/save bump. The final asset and catalog audits cover its artwork and text.
+
+Platform implementation dispositions are source-reviewed against `augustus_sync_platform_audit_2026_09_07.md`, with Windows Release and framebuffer/input contracts. Android/iOS hardware, Linux CI execution, physical mixed-DPI pointer operation and real AV1 decoding are not certified by these Windows runs. Those limits do not imply an unimplemented native port or justify importing SDL3/32-bit/Vita/original-Switch changes. Fullscreen preference synchronization is source-verified; tests use hidden windowed sessions, as requested.
+
+The only intentionally unfinished gameplay payload is D13's production-average rounding/102-percent efficiency arithmetic in mixed commit `2b8d428a6`. It remains **partial** in the status table because the user explicitly deferred that payload. The combined workforce slider is also still deferred; the accepted separate controls remain Augustus 45% and Vespasian 38%. Ancestry reconciliation records these deliberate decisions; it does not claim literal upstream parity.
+
+## Final validation and deployment
+
+- Release `/W4 /WX` build: `out/closure-build25.log`, empty build stderr. Installed executable SHA256: `7E1076EAF84A896297CAA1CC0A28E7FC450E481422D05C58EFC35A25D2A7CA35`, equal to the built file.
+- Deployed Julius/Augustus/Vespasian: `out/closure-deployed-{Julius,Augustus,Vespasian}.log/.err`; all exit 0, all stderr empty, 3,000 rendered ticks per city. All Empire/Finance input cases pass; the Vespasian run also repeats the full native catch-up suite.
+- Editor: `out/closure-editor-previews.log/.err`, exit 0 and empty stderr. Tree/meadow/rock/custom-earthquake preview captures and scenario roundtrip pass. Tree preview was visually inspected.
+- Native previewer: `out/closure-asset-preview3.log/.err`, exit 0, empty stderr, real press/release, rendered bounds and cache refresh. The deployed Julius/Augustus/Vespasian checks in `out/closure-preview-final-{Julius,Augustus,Vespasian}.log/.err` all pass with empty stderr. Final XML uses native text offsets and contrasting toolbar panels; empty groups leave no navigable payload.
+- Full-city screenshot: both extended-bounds settings produce pixel-identical 7,200 × 3,630 PNGs (`out/closure-full-city-comparison.json`). Captures were visually checked for stitching and UI contamination. The capture saves/restores renderer domain/viewport, camera and settings, checks every readback and frees its buffer.
+- Full corpus: `out/closure-startup-gate3.log/.err` completes 70 3,000-tick soaks with no canonical correctness warnings/errors. Its exit is 1 because Praetor 2 10, 9 and 8 miss the 1,000 simulation-ticks/s threshold; this is **not** an all-gates-pass claim. Focused rechecks retain clean correctness diagnostics. The earlier full gate2 passed; no thresholds or warning counts were changed to force a pass.
+- All 16 catalogs: `out/closure-translations-final.json`, zero unresolved conflicts or pending applications. Asset audit has zero missing/different payloads. Android manifest/layout parse; device/APK validation remains outside this Windows evidence.
+- Final fetched target remains `95e120d80`. `out/closure-ledger-final.json` verifies 209/209 rows and zero missing/extra/duplicate entries. The 19 April revisits have individual dispositions above.
+
+Deployment used `tools/deploy_release_to_game.py` and preserved installed extraction output. The original fork-era standalone Augustus backup remains untouched. All test sessions are hidden/windowed with isolated preferences; no interactive game was left open. The local ancestry merge is recorded after the final installed checks, with the approved D13 deferral retained.

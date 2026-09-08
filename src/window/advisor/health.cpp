@@ -56,7 +56,10 @@ static void draw_counted_building_name(building_type type, int count, int x, int
 {
     int desc_offset_x = text_draw_number(count, ' ', " ", x, y, FONT_NORMAL_WHITE,
         screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    text_draw(lang_get_building_type_string(type), x + desc_offset_x, y, FONT_NORMAL_WHITE,
+    const auto *definition = building_type_registry_impl::definition_for_type(type);
+    const char *plural = definition ? definition->identity().plural_name_key() : "";
+    const uint8_t *name = count != 1 && *plural ? translation_for_key(plural) : lang_get_building_type_string(type);
+    text_draw(name, x + desc_offset_x, y, FONT_NORMAL_WHITE,
         screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 }
 

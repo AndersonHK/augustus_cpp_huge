@@ -1008,10 +1008,11 @@ static int parse_behavior_node()
 {
     if (!parse_enabled_content("behavior") || !g_parse_state.definition) return 0;
     FigureBehaviorPolicy policy;
-    int recheck = 0, attack = 0, idle_walk = 0;
+    int recheck = 0, attack = 0, idle_walk = 0, enemy_overlay = 0;
     if ((xml_parser_has_attribute("recheck_animal_terrain") && !xml_value::parse_bool(xml_parser_get_attribute_string("recheck_animal_terrain"), &recheck)) ||
         (xml_parser_has_attribute("attack_fireproof_defenses") && !xml_value::parse_bool(xml_parser_get_attribute_string("attack_fireproof_defenses"), &attack)) ||
-        (xml_parser_has_attribute("idle_walk_animation") && !xml_value::parse_bool(xml_parser_get_attribute_string("idle_walk_animation"), &idle_walk))) {
+        (xml_parser_has_attribute("idle_walk_animation") && !xml_value::parse_bool(xml_parser_get_attribute_string("idle_walk_animation"), &idle_walk)) ||
+        (xml_parser_has_attribute("visible_on_enemy_overlay") && !xml_value::parse_bool(xml_parser_get_attribute_string("visible_on_enemy_overlay"), &enemy_overlay))) {
         g_parse_state.error = true;
         Logger::error("FigureType behavior has an invalid Boolean", 0, 0);
         return 0;
@@ -1019,6 +1020,7 @@ static int parse_behavior_node()
     policy.recheck_animal_terrain = recheck != 0;
     policy.attack_fireproof_defenses = attack != 0;
     policy.idle_walk_animation = idle_walk != 0;
+    policy.visible_on_enemy_overlay = enemy_overlay != 0;
     if (xml_parser_has_attribute("fireproof_targets")) {
         std::istringstream targets(xml_parser_get_attribute_string("fireproof_targets"));
         std::string target;

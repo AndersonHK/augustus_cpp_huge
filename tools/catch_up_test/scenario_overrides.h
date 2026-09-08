@@ -171,6 +171,28 @@ inline void validate_scenario_model_overrides()
     action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("-200"), INT_MIN, INT_MAX);
     require(scenario_action_type_change_production_rate_execute(&action) == 1 && production_method_registry_production_per_month_for_resource(resource_wheat()) == 0, "Production rate did not clamp at zero");
     production_method_registry_reset_production_overrides();
+    {
+        auto *delay = find_production_method_definition("recruitment_delay");
+        require(delay && delay->is_delay_factor() && !delay->has_resource_output() && delay->scale_delay(8) == 8, "Recruitment delay definition is not an independent factor");
+        const auto *barracks = definition_for_type(type_from_attr("barracks"));
+        require(std::find(barracks->production_methods().begin(), barracks->production_methods().end(), delay) != barracks->production_methods().end(), "Barracks does not bind its delay factor");
+        action.parameter1 = resource_troops(); action.parameter3 = 1;
+        action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("50"), INT_MIN, INT_MAX);
+        require(scenario_action_type_change_production_rate_execute(&action) && delay->scale_delay(8) == 4, "50 percent did not halve recruitment delay");
+        action.parameter3 = 0;
+        action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("150"), INT_MIN, INT_MAX);
+        require(scenario_action_type_change_production_rate_execute(&action) && delay->scale_delay(8) == 16, "Add action did not make recruitment delay 200 percent");
+        buffer rates{}; production_rates_save(&rates);
+        production_method_registry_reset_production_overrides();
+        require(delay->scale_delay(8) == 8, "Scenario reset retained recruitment delay override");
+        production_rates_load(&rates, true); std::free(rates.data);
+        require(delay->scale_delay(8) == 16, "Delay multiplier did not survive sparse save/reload");
+        production_method_registry_set_production_per_month_for_resource(resource_troops(), 0);
+        require(delay->scale_delay(8) == 0 && delay->scale_delay(-1) == -1, "Zero delay lost instant or unstaffed semantics");
+        production_method_registry_set_production_per_month_for_resource(resource_troops(), INT_MAX);
+        require(delay->scale_delay(INT_MAX) == INT_MAX, "Delay scaling overflowed");
+        production_method_registry_reset_production_overrides();
+    }
     if (auto *mint = find_production_method_definition("city_mint_basic")) {
         auto *reverse = find_production_method_definition("city_mint_gold_basic");
         require(reverse && reverse->rate_source() == mint, "Reverse mint does not bind to the denarii production method");

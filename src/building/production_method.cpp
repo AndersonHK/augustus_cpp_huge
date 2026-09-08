@@ -1,6 +1,9 @@
 #include "building/production_method.h"
 
 #include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <climits>
 
 namespace building_type_registry_impl {
 
@@ -36,7 +39,7 @@ resource_type ProductionMethod::output_resource() const
 
 int ProductionMethod::has_resource_output() const
 {
-    return output_resource_ != RESOURCE_NONE;
+    return !is_delay_factor() && output_resource_ != RESOURCE_NONE;
 }
 
 void ProductionMethod::set_output_destination(ProductionOutputDestination destination)
@@ -118,6 +121,12 @@ int ProductionMethod::default_base_monthly_production() const
 {
     if (rate_source_) return rate_source_->default_base_monthly_production();
     return default_base_monthly_production_;
+}
+
+int ProductionMethod::scale_delay(int delay) const
+{
+    if (!is_delay_factor() || delay < 0) return delay;
+    return static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(delay) * base_monthly_production() / 100, 0, INT_MAX));
 }
 
 void ProductionMethod::set_batch_size(int batch_size)

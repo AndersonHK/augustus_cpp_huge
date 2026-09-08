@@ -89,6 +89,16 @@ bool write_file(const std::filesystem::path &path, const char *contents)
 
 bool validate_production_method_layering_contract(std::ostream &errors)
 {
+    for (const char *percent : {"0", "50", "100", "200", "2147483647"}) {
+        const std::string xml = std::string("<production_method><kind value=\"delay_factor\"/><output resource=\"wheat\" delay_percent=\"") + percent + "\"/></production_method>";
+        const auto fixture = input(xml.c_str(), 0, "Julius", "Julius/ProductionMethod/delay.xml", "delay");
+        if (!valid(&fixture, 1, "delay")) { errors << "Valid delay percentage rejected: " << percent << '\n'; return false; }
+    }
+    for (const char *output : {"delay_percent=\"-1\"", "delay_percent=\"invalid\"", "delay_percent=\"2147483648\"", "production_per_month=\"100\"", "rate_from=\"farm\"", "delay_percent=\"100\" production_per_month=\"100\""}) {
+        const std::string xml = std::string("<production_method><kind value=\"delay_factor\"/><output resource=\"wheat\" ") + output + "/></production_method>";
+        const auto fixture = input(xml.c_str(), 0, "Julius", "Julius/ProductionMethod/delay.xml", "delay");
+        if (valid(&fixture, 1, "delay")) { errors << "Invalid delay rate accepted: " << output << '\n'; return false; }
+    }
     constexpr const char *LINK_XML = "<production_method><kind value=\"workshop\"/><output resource=\"clay\" rate_from=\"farm\"/></production_method>";
     const production_method_layer_test_input linked[] = {
         input(LOWER_XML, 0, "Julius", "Julius/ProductionMethod/farm.xml", "farm"),

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="latrines">
-    <identity name_key="TR_BUILDING_LATRINES" />
+    <identity name_key="TR_BUILDING_LATRINES" plural_name_key="TR_BUILDING_LATRINE" />
     <model cost="15" />
     <desirability>
         <value value="0" />
@@ -34,4 +34,3 @@
         <employees count="2" />
     </labor>
 </building>
-

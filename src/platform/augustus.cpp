@@ -1328,7 +1328,8 @@ static void setup(const augustus_args *args)
 
     time_set_millis(system_get_ticks());
 
-    int result = args->launch_asset_previewer ? window_asset_previewer_show() : game_init();
+    int result = game_init();
+    if (result && args->launch_asset_previewer) result = window_asset_previewer_show();
 
     if (!result) {
         if (platform_loading_screen_cancelled()) throw std::runtime_error("Loading cancelled");
@@ -1385,7 +1386,8 @@ int main(int argc, char **argv)
     }
 
     if (args.startup_test) {
-        if (!run_water_hover_render_test() || !run_menu_render_test() || data.warning_count || data.error_count) {
+        const bool rendered = args.launch_asset_previewer ? window_asset_previewer_validate_for_test() : (run_water_hover_render_test() && run_menu_render_test());
+        if (!rendered || data.warning_count || data.error_count) {
             teardown();
             return 8;
         }

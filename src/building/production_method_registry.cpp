@@ -113,6 +113,13 @@ int adjust_production_with_percent(int base_production, int percent_delta)
 
 int validate_definition(const ProductionMethod &definition, const char *filename, const char *definition_path)
 {
+    if (definition.is_delay_factor()) {
+        if (definition.base_monthly_production() < 0 || definition.has_effect_output() || !definition.inputs().empty() || !definition.climate_bonuses().empty()) {
+            Logger::error("Delay factor requires a nonnegative percentage and no production effects, inputs or climate bonuses", filename, 0);
+            return 0;
+        }
+        return 1;
+    }
     if (definition.batch_size() <= 0) {
         Logger::error("ProductionMethod batch_size must be positive", definition.path(), 0);
         Logger::error("ProductionMethod batch_size must be positive.", filename);
@@ -229,6 +236,8 @@ int parse_kind()
     const char *kind_text = xml_parser_get_attribute_string("value");
     if (kind_text && strcmp(kind_text, "farm") == 0) {
         g_parse_state.definition->set_kind(ProductionMethodKind::Farm);
+    } else if (kind_text && strcmp(kind_text, "delay_factor") == 0) {
+        g_parse_state.definition->set_kind(ProductionMethodKind::DelayFactor);
     } else if (kind_text && strcmp(kind_text, "workshop") == 0) {
         g_parse_state.definition->set_kind(ProductionMethodKind::Workshop);
     } else {
@@ -263,7 +272,13 @@ int parse_output()
         g_parse_state.error = 1;
         return 0;
     }
-    if (xml_parser_has_attribute("production_per_month") == xml_parser_has_attribute("rate_from")) {
+    const char *rate_attribute = g_parse_state.definition->is_delay_factor() ? "delay_percent" : "production_per_month";
+    if (g_parse_state.definition->is_delay_factor() && (xml_parser_has_attribute("rate_from") || xml_parser_has_attribute("production_per_month"))) {
+        Logger::error("Delay factor output requires delay_percent, not a production throughput rate", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (xml_parser_has_attribute(rate_attribute) == xml_parser_has_attribute("rate_from")) {
         Logger::error("ProductionMethod output requires exactly one of production_per_month or rate_from", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -324,7 +339,12 @@ int parse_output()
         if (source.empty()) { g_parse_state.error = 1; Logger::error("ProductionMethod rate_from must not be empty", 0, 0); return 0; }
         g_parse_state.definition->set_rate_source_path(source);
     } else {
-        g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
+        int rate = 0;
+        if (!xml_definition::parse_required_nonnegative_int_attribute(rate_attribute, &rate)) {
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_base_monthly_production(rate);
     }
     if (xml_parser_has_attribute("efficiency_limit")) {
         int limit = 0;
@@ -741,6 +761,11 @@ bool resolve_winners(StagedRegistry &staged, std::string *failure_reason)
             const std::string detail = staged.winners.at(entry.first).source.describe() + " references missing production rate source " + method.rate_source_path();
             if (failure_reason) *failure_reason = detail;
             Logger::error("Invalid production rate source", detail.c_str(), 0);
+            return false;
+        }
+        if (method.is_delay_factor() != source->second->is_delay_factor()) {
+            if (failure_reason) *failure_reason = "Production rates and delay percentages have different units: " + entry.first;
+            Logger::error("Production rate source has incompatible units", entry.first.c_str(), 0);
             return false;
         }
         method.resolve_rate_source(*source->second);

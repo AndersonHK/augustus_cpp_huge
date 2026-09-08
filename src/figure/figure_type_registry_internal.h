@@ -14,6 +14,7 @@ namespace figure_type_registry_impl {
 
 class FigureTypeDefinition;
 struct FigureBehaviorPolicy {
+    bool visible_on_enemy_overlay = false;
     bool recheck_animal_terrain = false;
     bool attack_fireproof_defenses = false;
     bool idle_walk_animation = false;

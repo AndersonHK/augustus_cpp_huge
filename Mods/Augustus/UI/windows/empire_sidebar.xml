@@ -1,15 +1,19 @@
 <?xml version='1.0' encoding='utf-8'?>
-<window id="empire_sidebar" base_width="576" base_height="960">
+<window id="empire_sidebar" base_width="576" base_height="960" min_blocks_width="36">
     <widget id="panel" type="panel" style="image_tile" phase="background" x="0" y="0" width="576" height="960" stretch_width="true" stretch_height="true" assetlist="UI\Empire_Panel_01" image="Empire_Panel_01" />
-    <widget id="header" type="panel" x="0" y="0" style="inner_panel" phase="background" width="576" height="40" stretch_width="true" />
-    <widget id="sort_icon" type="image" x="0" y="2" assetlist="UI\Sorting_Icon" image="Sorting_Icon" width="32" height="32" />
-    <widget id="sort" type="dropdown" x="36" y="6" binding="classic.sort" action="sort" width="204" height="28" stretch_width_percent="50" text_offset_y="6" ellipsize="true" />
-    <widget id="reverse" type="image_button" x="242" y="8" binding="sort.direction" action="reverse" width="24" height="24" offset_x_percent="50" />
-    <widget id="filter" type="dropdown" x="306" y="6" binding="filter" action="filter" width="226" height="28" offset_x_percent="50" stretch_width_percent="50" text_offset_y="6" ellipsize="true" />
-    <widget id="filter_icon" type="image" x="540" y="2" assetlist="UI\Filter_Icon" image="Filter_Icon" width="32" height="32" anchor_x="far" />
-    <widget id="filter_resource" type="dropdown" x="306" y="42" binding="filter.resource" action="filter.resource" visible_binding="filter.resource" width="226" height="28" offset_x_percent="50" stretch_width_percent="50" text_offset_y="6" ellipsize="true" />
-    <widget id="city_list" type="custom" x="3" y="44" binding="city.list" width="570" height="870" stretch_width="true" stretch_height="true" visible_binding="filter.general" />
-    <widget id="city_list_filtered" type="custom" x="3" y="76" binding="city.list" width="570" height="838" stretch_width="true" stretch_height="true" visible_binding="filter.resource" />
-    <widget id="history" type="text_button" x="4" y="924" translation="TR_UI_SIDEBAR_TRADE_HISTORY" action="ledger" width="262" height="30" stretch_width_percent="50" anchor_y="far" text_offset_y="7" />
+    <widget id="sort_panel" type="panel" x="0" y="0" width="248" height="40" style="inner_panel" phase="background" stretch_width_percent="50" offset_x_percent="0" />
+    <widget id="ledger_panel" type="panel" x="253" y="0" width="44" height="40" style="inner_panel" phase="background" stretch_width_percent="0" offset_x_percent="50" />
+    <widget id="filter_panel" type="panel" x="302" y="0" width="274" height="40" style="inner_panel" phase="background" stretch_width_percent="50" offset_x_percent="50" />
+    <widget id="sort_icon" type="image_button" x="0" y="4" width="32" height="32" assetlist="UI\Sorting_Icon" image="Sorting_Icon" action="sort.reset" tooltip_binding="sort.reset" />
+    <widget id="sort" type="dropdown" x="36" y="4" width="168" height="32" binding="classic.sort" action="sort" stretch_width_percent="50" text_offset_y="8" ellipsize="true" />
+    <widget id="reverse" type="image_button" x="208" y="4" width="32" height="32" binding="sort.direction" action="reverse" style="inset" draw_offset_x="7" draw_offset_y="4" offset_x_percent="50" />
+    <widget id="ledger" type="image_button" x="255" y="2" width="40" height="36" assetlist="UI\Trade_Ledger_Button_Idle" image="Trade_Ledger_Button_Idle" action="ledger" style="inset" draw_offset_x="4" draw_offset_y="2" offset_x_percent="50" tooltip_binding="ledger" />
+    <widget id="filter_open" type="image_button" x="306" y="4" width="32" height="32" binding="filter.open" action="filter.open" style="inset" draw_offset_x="10" draw_offset_y="10" offset_x_percent="50" tooltip_binding="filter.open" />
+    <widget id="filter_route" type="image_button" x="344" y="4" width="54" height="32" binding="filter.route" action="filter.route" style="inset" offset_x_percent="50" tooltip_binding="filter.route" />
+    <widget id="filter" type="dropdown" x="404" y="4" width="88" height="32" binding="filter.direction" action="filter.direction" text_offset_y="8" stretch_width_percent="50" offset_x_percent="50" />
+    <widget id="filter_resource" type="dropdown" x="498" y="4" width="32" height="32" binding="filter.picker" action="filter.picker" image_choices="true" choice_columns="6" anchor_x="far" tooltip_binding="filter.picker" />
+    <widget id="filter_icon" type="image_button" x="538" y="4" width="32" height="32" assetlist="UI\Filter_Icon" image="Filter_Icon" action="filter.reset" anchor_x="far" tooltip_binding="filter.reset" />
+    <widget id="city_list" type="custom" x="3" y="44" binding="city.list" width="570" height="870" stretch_width="true" stretch_height="true" />
+    <widget id="history" type="text_button" x="4" y="924" translation="TR_UI_SIDEBAR_TRADE_HISTORY" width="262" height="30" stretch_width_percent="50" anchor_y="far" text_offset_y="7" enabled_binding="history.available" tooltip_binding="history.disabled" />
     <widget id="year" type="dropdown" x="314" y="924" binding="history.year" action="history.year" width="258" height="30" stretch_width_percent="50" offset_x_percent="50" anchor_y="far" text_offset_y="7" />
 </window>

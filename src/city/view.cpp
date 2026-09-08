@@ -749,11 +749,11 @@ void city_view_rotate_right(void)
     check_camera_boundaries();
 }
 
-static void set_viewport(int x_offset, int y_offset, int width, int height)
+static void set_viewport(int x_offset, int y_offset, int width, int height, int right_inset = 2)
 {
     data.viewport.x = x_offset;
     data.viewport.y = y_offset;
-    data.viewport.width_pixels = width - 2;
+    data.viewport.width_pixels = width - right_inset;
     data.viewport.height_pixels = height;
     data.viewport.width_tiles = calc_adjust_with_percentage(width, data.scale) / TILE_WIDTH_PIXELS;
     data.viewport.height_tiles = calc_adjust_with_percentage(height, data.scale) / HALF_TILE_HEIGHT_PIXELS;
@@ -804,6 +804,12 @@ void city_view_get_viewport(int *x, int *y, int *width, int *height)
     *y = data.viewport.y;
     *width = data.viewport.width_pixels;
     *height = data.viewport.height_pixels;
+}
+
+void city_view_set_render_viewport(const pixel_area &area)
+{
+    set_viewport(area.x, area.y, area.width, area.height, 0);
+    check_camera_boundaries();
 }
 
 void city_view_get_viewport_size_tiles(int *width, int *height)

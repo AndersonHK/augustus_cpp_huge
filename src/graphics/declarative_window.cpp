@@ -27,6 +27,7 @@
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/ui_primitives.h"
+#include "graphics/window.h"
 #include "translation/translation.h"
 #include "window/main_menu.h"
 #endif
@@ -367,6 +368,8 @@ int parse_widget_node(void)
     };
     widget.scrollbar_appearance = {scrollbar_image("scroll_up"), scrollbar_image("scroll_down"), scrollbar_image("scroll_middle"), scrollbar_image("scroll_top"), scrollbar_image("scroll_bottom"), scrollbar_image("scroll_grip")};
     widget.scroll_always_visible = xml_parser_get_attribute_bool("scroll_always_visible");
+    widget.choice_columns = std::max(1, parse_optional_int("choice_columns", 1));
+    widget.image_choices = xml_parser_get_attribute_bool("image_choices");
     widget.border_padding = parse_optional_int("border_padding", 0);
     widget.image_collection = parse_optional_int("image_collection", 0);
     widget.image_offset = parse_optional_int("image_offset", 0);
@@ -1032,6 +1035,23 @@ static void declarative_widget_bounds(const DeclarativeWindowDefinition &window,
     *widget_height = widget.resolved_height(height, window.base_height());
 }
 
+namespace {
+struct DropdownLayout {
+    int x, y, width, height, rows, total_rows, columns, cell;
+    DropdownLayout(const DeclarativeWidgetDefinition &widget, const DeclarativeWindowDefinition &window, int count, int width_available, int height_available)
+    {
+        columns = widget.image_choices ? widget.choice_columns : 1;
+        cell = widget.image_choices ? 36 : 24;
+        total_rows = (count + columns - 1) / columns;
+        rows = std::min(total_rows, std::max(1, (height_available - 16) / cell));
+        width = widget.image_choices ? columns * cell + 8 : widget.resolved_width(width_available, window.base_width());
+        height = rows * cell + 8;
+        x = std::clamp(widget.resolved_x(width_available, window.base_width()), 0, std::max(0, width_available - width));
+        y = std::max(0, std::min(widget.resolved_y(height_available, window.base_height()) + widget.height + 2, height_available - height));
+    }
+};
+}
+
 void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int height, int origin_x, int origin_y) const
 {
     if (!definition_ || !controller_) return;
@@ -1076,12 +1096,19 @@ void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int h
                     widget.pressed_image_name : (focused && !widget.hover_image_name.empty() ? widget.hover_image_name : widget.image_name);
                 ImageGroupEntryRef image = !widget.binding.empty() ? controller_->image(widget.binding, item) :
                     ImageGroupEntryRef::from_group(widget.assetlist_name, image_name);
+                if (widget.style == DeclarativeWidgetStyle::Inset) graphics_draw_inset_rect(x, y, widget_width, widget_height, COLOR_INSET_LIGHT, COLOR_INSET_DARK);
                 if (image.is_bound()) image.draw(x + widget.draw_offset_x, y + widget.draw_offset_y);
                 if (widget.type == DeclarativeWidgetType::ImageButton && widget.style == DeclarativeWidgetStyle::ImageSmallBorder) {
                     ImageBorder::image_small().draw(x, y, selected || focused ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
                 } else if (widget.type == DeclarativeWidgetType::ImageButton && selected) {
                     button_border_draw(x - widget.border_padding, y - widget.border_padding, widget_width + 2 * widget.border_padding, widget_height + 2 * widget.border_padding, 1);
                 }
+                continue;
+            }
+            if (widget.type == DeclarativeWidgetType::Dropdown && widget.image_choices) {
+                button_border_draw(x, y, widget_width, widget_height, enabled && focused);
+                const auto image = controller_->image(widget.binding, -1);
+                if (image.is_bound()) image.draw(x + (widget_width - image.width()) / 2, y + (widget_height - image.height()) / 2);
                 continue;
             }
             std::string dynamic_text = widget.binding.empty() ? std::string() : controller_->text(widget.binding, item);
@@ -1124,16 +1151,18 @@ void DeclarativeWindowRuntime::draw(DeclarativeDrawPhase phase, int width, int h
         const auto *widget = definition_->widget(expanded_widget_);
         if (widget) {
             const auto options = controller_->choices(widget->binding);
-            const int menu_width = widget->resolved_width(width, definition_->base_width());
-            const int visible_rows = std::min(static_cast<int>(options.size()), std::max(1, (height - 16) / 24));
-        const int menu_height = visible_rows * 24 + 8;
-            const int x = origin_x + widget->resolved_x(width, definition_->base_width());
-            const int y = origin_y + std::max(0, std::min(widget->resolved_y(height, definition_->base_height()) + widget->height + 2, height - menu_height));
-            outer_panel_draw(x, y, (menu_width + 15) / 16, (menu_height + 15) / 16);
-            for (int row = 0; row < visible_rows; ++row) {
-                const int i = row + std::min(dropdown_scroll_, static_cast<int>(options.size()) - visible_rows);
-                if (i == dropdown_focus_) button_border_draw(x + 4, y + 4 + row * 24, menu_width - 8, 24, 1);
-                text_draw_ellipsized(reinterpret_cast<const uint8_t *>(options[i].c_str()), x + 8, y + 8 + row * 24, menu_width - 16, widget->font, screen_ui_to_pixel(font_definition_for(widget->font)->line_height), 0);
+            const DropdownLayout menu(*widget, *definition_, static_cast<int>(options.size()), width, height);
+            const int x = origin_x + menu.x, y = origin_y + menu.y;
+            outer_panel_draw(x, y, (menu.width + 15) / 16, (menu.height + 15) / 16);
+            for (int row = 0; row < menu.rows; ++row) for (int column = 0; column < menu.columns; ++column) {
+                const int i = (row + std::min(dropdown_scroll_, menu.total_rows - menu.rows)) * menu.columns + column;
+                if (i >= options.size()) continue;
+                const int cell_x = x + 4 + column * menu.cell, cell_y = y + 4 + row * menu.cell;
+                if (i == dropdown_focus_) button_border_draw(cell_x, cell_y, widget->image_choices ? menu.cell : menu.width - 8, menu.cell, 1);
+                if (widget->image_choices) {
+                    const auto image = controller_->image(widget->binding, i);
+                    if (image.is_bound()) image.draw(cell_x + (menu.cell - image.width()) / 2, cell_y + (menu.cell - image.height()) / 2);
+                } else text_draw_ellipsized(reinterpret_cast<const uint8_t *>(options[i].c_str()), cell_x + 4, cell_y + 4, menu.width - 16, widget->font, screen_ui_to_pixel(font_definition_for(widget->font)->line_height), 0);
             }
         }
     }
@@ -1149,13 +1178,11 @@ int DeclarativeWindowRuntime::handle_mouse(const mouse &mouse, int width, int he
     if (!expanded_widget_.empty()) {
         const auto *widget = definition_->widget(expanded_widget_);
         const auto options = controller_->choices(widget->binding);
-        const int menu_width = widget->resolved_width(width, definition_->base_width());
-        const int visible_rows = std::min(static_cast<int>(options.size()), std::max(1, (height - 16) / 24));
-        const int menu_height = visible_rows * 24 + 8;
-        const int x = widget->resolved_x(width, definition_->base_width());
-        const int y = std::max(0, std::min(widget->resolved_y(height, definition_->base_height()) + widget->height + 2, height - menu_height));
-        dropdown_scroll_ = std::clamp(dropdown_scroll_ + (mouse.scrolled == SCROLL_DOWN ? 1 : mouse.scrolled == SCROLL_UP ? -1 : 0), 0, static_cast<int>(options.size()) - visible_rows);
-        dropdown_focus_ = mouse.x >= x && mouse.x < x + menu_width && mouse.y >= y + 4 && mouse.y < y + menu_height - 4 ? dropdown_scroll_ + (mouse.y - y - 4) / 24 : -1;
+        const DropdownLayout menu(*widget, *definition_, static_cast<int>(options.size()), width, height);
+        dropdown_scroll_ = std::clamp(dropdown_scroll_ + (mouse.scrolled == SCROLL_DOWN ? 1 : mouse.scrolled == SCROLL_UP ? -1 : 0), 0, menu.total_rows - menu.rows);
+        const bool inside = mouse.x >= menu.x + 4 && mouse.x < menu.x + menu.width - 4 && mouse.y >= menu.y + 4 && mouse.y < menu.y + menu.height - 4;
+        dropdown_focus_ = inside ? (dropdown_scroll_ + (mouse.y - menu.y - 4) / menu.cell) * menu.columns + (widget->image_choices ? (mouse.x - menu.x - 4) / menu.cell : 0) : -1;
+        window_invalidate();
         if (mouse.left.went_up || mouse.right.went_up) {
             const std::string action = widget->action;
             expanded_widget_.clear();
@@ -1211,7 +1238,7 @@ int DeclarativeWindowRuntime::handle_mouse(const mouse &mouse, int width, int he
             }
             if (mouse.left.went_up) {
                 if (!widget.activate_on_press && pressed_widget_ == widget.id && pressed_item_ == item) {
-                    if (widget.type == DeclarativeWidgetType::Dropdown && !controller_->choices(widget.binding).empty()) { expanded_widget_ = widget.id; dropdown_focus_ = -1; dropdown_scroll_ = 0; }
+                    if (widget.type == DeclarativeWidgetType::Dropdown && !controller_->choices(widget.binding).empty()) { expanded_widget_ = widget.id; dropdown_focus_ = -1; dropdown_scroll_ = 0; window_invalidate(); }
                     else controller_->action(widget.action, item);
                 }
                 pressed_widget_.clear();

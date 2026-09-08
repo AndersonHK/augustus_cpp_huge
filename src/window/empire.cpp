@@ -282,7 +282,8 @@ static void setup_sidebar(void)
     int raw = (data.usable_map_width * active_width_percent) / 100;
     data.sidebar.width = ((raw + (BLOCK_SIZE / 2)) / BLOCK_SIZE) * BLOCK_SIZE + data.sidebar.margin_left + data.sidebar.margin_right;
     data.sidebar.border_btn.is_collapsed = active_width_percent <= 5;
-    if (!data.sidebar.border_btn.is_collapsed) data.sidebar.width = std::max(256, data.sidebar.width);
+    const auto *sidebar_definition = declarative_window_definition("empire_sidebar");
+    if (sidebar_definition && !data.sidebar.border_btn.is_collapsed) data.sidebar.width = std::max(sidebar_definition->min_blocks_width() * BLOCK_SIZE, data.sidebar.width);
     if (!declarative_window_definition("empire_sidebar")) {
         data.sidebar.width = 0;
         data.sidebar.dragging = 0;
@@ -985,6 +986,20 @@ public:
         return EmpireTradeController::handle_custom(widget, item, local, width, height);
     }
     int page = 0, resource_page = 0, capacity = 4;
+    int open_filter = 0, route_filter = 0, direction_filter = 0;
+    resource_type resource_filter = RESOURCE_NONE;
+    std::vector<resource_type> picker_resources() const
+    {
+        std::vector<resource_type> result;
+        for (int i = 0; i < resource_loaded_count(); ++i) {
+            const auto resource = resource_get_loaded(i);
+            for (int city = 1; city < empire_city_get_array_size(); ++city) {
+                const auto *entry = empire_city_get(city);
+                if (entry->in_use && entry->type == EMPIRE_CITY_TRADE && (entry->sells_resource[resource] || entry->buys_resource[resource])) { result.push_back(resource); break; }
+            }
+        }
+        return result;
+    }
     std::vector<int> cities;
     std::vector<resource_type> resources;
     std::map<int, int64_t> trade_balances;
@@ -1013,6 +1028,23 @@ public:
     }
     bool matches_filter(int city) const
     {
+        const auto *layout = declarative_window_definition("empire_sidebar");
+        if (layout && layout->has_widget("filter_open")) {
+            const auto *live = empire_city_get(city);
+            const auto *archive = period_index ? route(city) : nullptr;
+            if (period_index && !archive) return false;
+            const bool open = archive ? archive->open : live->is_open;
+            const bool sea = archive ? archive->sea : live->is_sea_trade;
+            if ((open_filter == 1 && !open) || (open_filter == 2 && open) || (route_filter == 1 && sea) || (route_filter == 2 && !sea)) return false;
+            if (resource_filter == RESOURCE_NONE) return true;
+            bool sells = live->sells_resource[resource_filter], buys = live->buys_resource[resource_filter];
+            if (archive) {
+                const auto found = archive->resources.find(resource_text_id(resource_filter));
+                sells = found != archive->resources.end() && found->second.import_limit > 0;
+                buys = found != archive->resources.end() && found->second.export_limit > 0;
+            }
+            return direction_filter == 1 ? buys : direction_filter == 2 ? sells : buys || sells;
+        }
         if (!period_index) return window_empire_sidebar_sort_city_matches_current_filter(empire_city_get(city));
         const auto filter = window_empire_sidebar_sort_get_current_filtering();
         if (filter == FILTER_NONE) return true;
@@ -1086,6 +1118,8 @@ public:
     {
         auto tr = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
         if (binding == "classic.sort") return {tr("TR_EMPIRE_SIDE_BAR_SORT_BY_NAME"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_EXPORT"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_IMPORT"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_ROUTE_COST"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_PROFIT")};
+        if (binding == "filter.direction") return {tr("TR_UI_TRADE_LEDGER_TRADES"), tr("TR_UI_TRADE_LEDGER_BUYS"), tr("TR_UI_TRADE_LEDGER_SELLS")};
+        if (binding == "filter.picker") { std::vector<std::string> result; for (const auto resource : picker_resources()) result.push_back(resource_text_id(resource)); result.push_back("Clear selection"); return result; }
         if (binding == "filter") return {tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_SELL"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_BUY"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_OPEN"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_CLOSED"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_LAND"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_SEA"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE")};
         std::vector<std::string> result;
         if (binding == "filter.resource") for (int i = 0; i < resource_loaded_count(); ++i) result.push_back(reinterpret_cast<const char *>(resource_get_data(resource_get_loaded(i))->text));
@@ -1096,6 +1130,7 @@ public:
     {
         auto tr = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
         if (binding == "history.year") return period_index ? std::to_string(period.year) : tr("TR_UI_CURRENT_YEAR");
+        if (binding == "filter.direction") return choices(binding)[direction_filter];
         if (binding == "treasury") return std::string("Dn ") + std::to_string(city_finance_treasury());
         if (binding == "period") return std::to_string(period.year) + (period.partial ? " - " + tr("TR_LEDGER_PARTIAL") : "");
         if (binding == "classic.sort") {
@@ -1170,7 +1205,14 @@ public:
     }
     ImageGroupEntryRef image(std::string_view binding, int index) const override
     {
-        if (binding == "sort.direction") return ImageGroupEntryRef::from_group("UI\\Arrow_Button", window_empire_sidebar_sort_get_sorting_reversed() ? "Decrease" : "Increase");
+        if (binding == "filter.picker") {
+            const auto items = picker_resources();
+            const auto selected = index < 0 ? resource_filter : index < items.size() ? items[index] : RESOURCE_NONE;
+            return selected == RESOURCE_NONE ? ImageGroupEntryRef::from_group("UI\\resource_picker", "resource_picker") : resource_graphics(selected).empire_icon();
+        }
+        if (binding == "filter.open") return open_filter == 0 ? ImageGroupEntryRef{} : ImageGroupEntryRef::from_group(open_filter == 1 ? "UI\\Selection_Checkmark" : "UI\\Denied_Walker_Checkmark", open_filter == 1 ? "Selection_Checkmark" : "Denied_Walker_Checkmark");
+        if (binding == "filter.route") return ImageGroupEntryRef::from_group("UI\\Both_Trade_Icons", route_filter == 0 ? "Both_Trade_Icons" : route_filter == 1 ? "Land_Trade_Icon_Centered" : "Sea_Trade_Icon_Centered");
+        if (binding == "sort.direction") return ImageGroupEntryRef::from_group("UI\\Arrow_Button", window_empire_sidebar_sort_get_sorting_reversed() ? "Increase" : "Decrease");
         return EmpireTradeController::image(binding, index);
     }
     int condition(std::string_view binding, int index) const override
@@ -1191,8 +1233,24 @@ public:
         if (binding == "selected.closed") return !period_index && selected() && !selected()->is_open && selected()->type == EMPIRE_CITY_TRADE;
         return 0;
     }
+    const char *tooltip(std::string_view binding, int) const override
+    {
+        if (binding == "history.disabled") return "TR_UI_LEDGER_DISABLED_1";
+        if (binding == "ledger") return "TR_UI_TOOLTIP_OPEN_TRADE_LEDGER";
+        if (binding == "sort.reset") return "TR_UI_TOOLTIP_RESET_SORTING";
+        if (binding == "filter.reset") return "TR_UI_TOOLTIP_RESET_FILTERS";
+        if (binding == "filter.open") return open_filter == 0 ? "TR_UI_TOOLTIP_SHOW_OPEN_AND_CLOSED_ROUTES" : open_filter == 1 ? "TR_UI_TOOLTIP_SHOW_OPEN_ROUTES" : "TR_UI_TOOLTIP_SHOW_CLOSED_ROUTES";
+        if (binding == "filter.route") return route_filter == 0 ? "TR_UI_TOOLTIP_SHOW_ALL_ROUTE_TYPES" : route_filter == 1 ? "TR_UI_TOOLTIP_SHOW_LAND_ROUTES" : "TR_UI_TOOLTIP_SHOW_SEA_ROUTES";
+        return nullptr;
+    }
     void action(std::string_view action, int index) override
     {
+        if (action == "sort.reset") { window_empire_sidebar_sort_set_current_sorting(SORT_BY_NAME); window_empire_sidebar_sort_set_sorting_reversed(0); }
+        if (action == "filter.reset") { open_filter = route_filter = direction_filter = 0; resource_filter = RESOURCE_NONE; }
+        if (action == "filter.open") open_filter = (open_filter + 1) % 3;
+        if (action == "filter.route") route_filter = (route_filter + 1) % 3;
+        if (action == "filter.direction" && index >= 0 && index < 3) direction_filter = index;
+        if (action == "filter.picker") { const auto items = picker_resources(); resource_filter = index >= 0 && index < items.size() ? items[index] : RESOURCE_NONE; }
         if (action == "city.select" && city_id(index)) empire_select_object_by_id(empire_city_get(city_id(index))->empire_object_id);
         else if (action == "city.ledger") window_trade_ledger_show(city_id(index), -1, static_cast<int>(period_index));
         else if (action == "ledger") window_trade_ledger_show(selected() ? data.selected_city : -1, -1, static_cast<int>(period_index));
@@ -1220,7 +1278,7 @@ public:
         else if (action == "sort") window_empire_sidebar_sort_set_current_sorting(index >= 0 ? index : (window_empire_sidebar_sort_get_current_sorting() + 1) % MAX_SORTING_KEY);
         else if (action == "reverse") window_empire_sidebar_sort_set_sorting_reversed(!window_empire_sidebar_sort_get_sorting_reversed());
         if (action == "history.year" && index >= 0 && index < period_count) select_period(index);
-        if (action == "sort" || action == "reverse" || action == "filter" || action == "filter.resource" || action == "history.year") { refresh(); empire_city_list.initialize(&cities); }
+        if (action == "sort" || action == "reverse" || action == "filter" || action == "filter.resource" || action == "history.year" || action == "sort.reset" || action.substr(0, 7) == "filter.") { refresh(); empire_city_list.initialize(&cities); }
         process_selection(); refresh(); window_invalidate();
     }
 };

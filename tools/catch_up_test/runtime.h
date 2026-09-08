@@ -3,6 +3,7 @@
 #include "scenario_overrides.h"
 #include "archive_origin.h"
 #include "fort_orientation.h"
+#include "april.h"
 #include "building/BuildingCityService.h"
 #include "building/BuildingFoundation.h"
 #include "figure/figure.h"
@@ -65,6 +66,7 @@ inline bool run_catch_up_runtime_test()
     std::vector<std::pair<int, TerrainSet>> terrain;
     try {
         validate_fort_orientation();
+        validate_april_placement_and_counters();
         {
             struct RestoreDemands { house_demands saved = *city_houses_demands(); ~RestoreDemands() { *city_houses_demands() = saved; } } restore_demands;
             city_houses_reset_demands();
@@ -502,6 +504,7 @@ inline bool run_catch_up_runtime_test()
         window_city_show(); window_empire_show(); render("empire", WINDOW_EMPIRE);
         window_city_show();
         validate_religion_callbacks_in_city();
+        validate_full_city_capture();
         std::fprintf(stdout, "Catch-up contracts passed: accounting, history, roundtrip, service demand/consumption, single-building phases, gifts.\n");
     } catch (const std::exception &error) { std::fprintf(stderr, "Catch-up contract failed: %s\n", error.what()); success = false; }
     for (auto [offset, original] : terrain) terrain_map().set(offset, original);

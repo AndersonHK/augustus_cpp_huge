@@ -1,5 +1,6 @@
 #pragma once
 #include "imported_state.h"
+#include "building/BuildingComposition.h"
 #include "game/archive_origin.h"
 #include "game/augustus_save_bridge.h"
 #include "game/augustus_record_bridge.h"
@@ -315,11 +316,50 @@ inline bool validate_foreign_archive_file(const char *filename, bool compare_run
         std::fprintf(stderr, "Foreign building decode failed: %s\n", diagnostic.c_str()); return false;
     }
     std::fprintf(stdout, "Foreign sequential building records verified: %zu records.\n", records.size());
+    if (compare_runtime) {
+        const auto &payload = archive.pieces.at("buildings");
+        int checked_forts = 0;
+        for (size_t id = 1; id < records.size(); ++id) {
+            const auto &source = records[id];
+            if (!source.state || source.type != 40) continue;
+            const auto ground_id = augustus_save::read_u16(payload, source.offset + 50);
+            const auto *fort = Building::get(static_cast<int>(id));
+            if (!ground_id || ground_id >= records.size() || !fort || !fort->Composition || fort->Composition->children().size() != 1) {
+                std::fprintf(stderr, "Foreign fort lost its parade ground: id=%zu\n", id); return false;
+            }
+            const auto &ground_source = records[ground_id];
+            const auto *ground = fort->Composition->children().front()->building();
+            if (fort->x() != payload[source.offset + 6] || fort->y() != payload[source.offset + 7] || ground->x() != payload[ground_source.offset + 6] || ground->y() != payload[ground_source.offset + 7]) {
+                std::fprintf(stderr, "Foreign fort geometry changed: id=%zu ground=%u\n", id, ground_id); return false;
+            }
+            ++checked_forts;
+        }
+        std::fprintf(stdout, "Foreign fort/parade-ground geometry verified: %d forts.\n", checked_forts);
+    }
     std::vector<augustus_save::FigureRecord> figures;
     if (!augustus_save::index_figures(archive, figures, diagnostic)) {
         std::fprintf(stderr, "Foreign figure decode failed: %s\n", diagnostic.c_str()); return false;
     }
     std::fprintf(stdout, "Foreign sequential figure records verified: %zu records.\n", figures.size());
+    if (compare_runtime) {
+        const auto &payload = archive.pieces.at("figures");
+        constexpr const char *names[] = {"wandering_citizen", "dog", "resource_delivery"};
+        int checked = 0;
+        for (size_t id = 1; id < figures.size(); ++id) {
+            const auto &source = figures[id];
+            if (source.state != FIGURE_STATE_ALIVE || source.type < 97 || source.type > 99) continue;
+            const auto *figure = Figure::get(static_cast<unsigned int>(id));
+            const int action = payload[source.offset + 44];
+            const int trip = action == FIGURE_ACTION_150_ATTACK ? payload[source.offset + 20] : action;
+            if (source.type == 99 && trip != FIGURE_ACTION_146_SUPPLIER_RETURNING) {
+                if (figure && figure->state == FIGURE_STATE_ALIVE) { std::fprintf(stderr, "Unstarted source station trip survived global-stockpile conversion\n"); return false; }
+            } else if (!figure || figure->state != FIGURE_STATE_ALIVE || figure->type != figure_type_from_xml_name(names[source.type - 97]) || !figure->building || figure->building->id != source.owner || (source.type == 99 && !figure->loads_sold_or_carrying)) {
+                std::fprintf(stderr, "Imported source walker lost identity, owner or collected cargo: id=%zu type=%d\n", id, source.type); return false;
+            }
+            ++checked;
+        }
+        std::fprintf(stdout, "Foreign ambient walkers and station trip dispositions verified: %d figures.\n", checked);
+    }
     std::vector<augustus_save::ModelException> model_exceptions;
     if (!augustus_save::decode_model_exceptions(archive, model_exceptions, diagnostic)) {
         std::fprintf(stderr, "Foreign model exception decode failed: %s\n", diagnostic.c_str()); return false;
@@ -332,6 +372,16 @@ inline bool validate_foreign_archive_file(const char *filename, bool compare_run
     }
     std::fprintf(stdout, "Foreign accounting decoded: %zu current routes, %u history years, %zu current transactions.\n", routes.current.size(), routes.years, accounting.transactions[0].size());
     if (compare_runtime && archive.origin.save_version >= 182 && !validate_imported_state(model_exceptions, accounting)) return false;
+    if (compare_runtime && archive.origin.save_version >= 184) {
+        const auto &rates = archive.pieces.at("production_rates");
+        const int percent = augustus_save::read_u16(rates, 44);
+        const auto *method = building_type_registry_impl::find_production_method_definition("recruitment_delay");
+        if (!method || !method->is_delay_factor() || method->scale_delay(100) != percent) {
+            std::fprintf(stderr, "Foreign recruitment delay factor was not preserved: expected=%d\n", percent);
+            return false;
+        }
+        std::fprintf(stdout, "Foreign recruitment delay preserved: %d percent.\n", percent);
+    }
     augustus_save::CityRecord city;
     if (!augustus_save::decode_city(archive, city, diagnostic)) {
         std::fprintf(stderr, "Foreign city decode failed: %s\n", diagnostic.c_str()); return false;

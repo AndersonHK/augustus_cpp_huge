@@ -110,9 +110,9 @@ inline bool run_water_hover_render_test(bool city_loaded = false)
             if (preview) Image::draw_footprint_overlay(20, 20, preview, 1.0f);
             return graphics_renderer()->save_screen_buffer(pixels.data(), 20, 20, 60, 32, 60) != 0;
         };
-        if (!capture(COLOR_MASK_NONE, normal)) return false;
+        if (!capture(COLOR_MASK_NONE, normal)) { std::fprintf(stderr, "Water hover baseline readback failed: frame=%d SDL=%s\n", frame, SDL_GetError()); return false; }
         for (color_t preview : { color_t(COLOR_OVERLAY_RED), color_t(COLOR_OVERLAY_GREEN), color_t(COLOR_MASK_YELLOW_RANGE), color_t(COLOR_MASK_GRAY), color_t(COLOR_OVERLAY_HOVER) }) {
-            if (!capture(COLOR_MASK_NONE, hovered, preview)) return false;
+            if (!capture(COLOR_MASK_NONE, hovered, preview)) { std::fprintf(stderr, "Water hover overlay readback failed: frame=%d SDL=%s\n", frame, SDL_GetError()); return false; }
             const int center = 15 * 60 + 29;
             const int alpha = (preview >> 24) & 255;
             for (int shift : { 0, 8, 16 }) {

@@ -312,6 +312,8 @@ struct SpawnDelayGroup {
 class IdentityDefinition {
 public:
     void set_name_key(std::string key);
+    void set_plural_name_key(std::string key) { plural_name_key_ = std::move(key); }
+    const char *plural_name_key() const { return plural_name_key_.c_str(); }
     bool add_alias(std::string alias);
 
     int has_name_key() const;
@@ -321,6 +323,7 @@ public:
 
 private:
     std::string name_key_;
+    std::string plural_name_key_;
     std::vector<std::string> aliases_;
 };
 
@@ -798,6 +801,7 @@ public:
     void assign_runtime_type(building_type type);
 
     void set_identity_name_key(std::string key);
+    void set_identity_plural_name_key(std::string key) { identity_.set_plural_name_key(std::move(key)); }
     bool add_identity_alias(std::string alias);
     void set_model_cost(int value);
     void set_model_hit_points(int value);

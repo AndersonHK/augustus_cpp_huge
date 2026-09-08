@@ -316,6 +316,7 @@ static int barracks_recruitment_delay(const Building &building)
     if (city_data.mess_hall.food_stress_cumulative > 20) {
         delay_days += city_data.mess_hall.food_stress_cumulative - 20;
     }
+    for (const auto *method : building.type->production_methods()) if (method->is_delay_factor()) delay_days = method->scale_delay(delay_days);
     return game_time_scale_legacy_day_ticks(delay_days);
 }
 

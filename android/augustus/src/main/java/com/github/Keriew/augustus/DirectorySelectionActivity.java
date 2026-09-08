@@ -10,6 +10,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class DirectorySelectionActivity extends AppCompatActivity {
     private static final String ARG_SKIP_INSTRUCTIONS = "arg_skip_instructions";
@@ -51,6 +54,13 @@ public class DirectorySelectionActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_directory_selection);
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.rootView), (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+        ViewCompat.requestApplyInsets(findViewById(R.id.rootView));
 
         Button button = findViewById(R.id.directory_selector_button);
         button.setOnClickListener(v -> directorySelectionLauncher.launch(Uri.EMPTY));

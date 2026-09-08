@@ -540,6 +540,7 @@ static int parse_identity()
     }
 
     g_parse_state.definition->set_identity_name_key(std::move(key));
+    if (xml_parser_has_attribute("plural_name_key")) g_parse_state.definition->set_identity_plural_name_key(xml_value::trim_copy(xml_parser_get_attribute_string("plural_name_key")));
     if (xml_parser_has_attribute("aliases")) {
         const std::string aliases = xml_parser_get_attribute_string("aliases");
         size_t start = 0;

@@ -28,6 +28,7 @@
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
+#include "widget/map_editor_tool.h"
 #include "SDL.h"
 #include <algorithm>
 #include <array>
@@ -42,8 +43,9 @@ inline bool run_editor_compatibility_test()
         if (!editor_is_present() || !game_init_editor()) throw std::runtime_error("Editor support or editor initialization failed");
         const std::filesystem::path output("out/editor-review");
         std::filesystem::create_directories(output);
-        auto capture = [&](const char *name) {
+        auto capture = [&](const char *name, const map_tile *preview = nullptr) {
             window_draw(1); window_draw(1);
+            if (preview) { screen_set_pixel_render_scale(); map_editor_tool_draw(preview); screen_set_ui_render_scale(); }
             const int width = screen_pixel_width(), height = screen_pixel_height();
             std::vector<color_t> pixels(static_cast<size_t>(width) * height);
             if (!graphics_renderer()->save_screen_buffer(pixels.data(), 0, 0, width, height, width)) throw std::runtime_error("Editor capture failed");
@@ -55,6 +57,17 @@ inline bool run_editor_compatibility_test()
             if (status) throw std::runtime_error("Editor screenshot write failed");
         };
         capture("map");
+        const map_tile preview{50, 50, map_grid_offset(50, 50)};
+        city_view_go_to_grid_offset(preview.grid_offset);
+        view_tile selected{};
+        city_view_grid_offset_to_xy_view(preview.grid_offset, &selected.x, &selected.y);
+        city_view_set_selected_view_tile(&selected);
+        const tool_type terrain_tools[] = {TOOL_TREES, TOOL_MEADOW, TOOL_ROCKS, TOOL_EARTHQUAKE_CUSTOM};
+        for (tool_type tool : terrain_tools) {
+            editor_tool_set_brush_size(4); editor_tool_set_type(tool);
+            capture(("terrain-preview-" + std::to_string(tool)).c_str(), &preview);
+        }
+        editor_tool_deactivate();
         window_editor_attributes_show(); capture("attributes"); window_editor_map_show();
         window_model_data_show(); capture("models"); window_editor_map_show();
         window_editor_scenario_events_show(); capture("events"); window_editor_map_show();

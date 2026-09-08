@@ -120,5 +120,93 @@
     "action": "upstream",
     "value": "請查看 Augustus 目錄中的 vespasian-log.txt 以獲取詳細信息。",
     "reason": "Adopt the translation while retaining the actual Vespasian log filename."
+  },
+  "en/TR_TOOLTIP_DEPOT_CLEAR_DST": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_TOOLTIP_DEPOT_CLEAR_SRC": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WARNING_DEPOT_RESOURCE_CHANGE": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_DELIVER": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_LOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "en/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_UNLOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_CONFIG_GRANARY_DEFAULT_TO_PASS_ALL_WALKERS": {
+    "action": "keep",
+    "reason": "Retain the existing equivalent native walker terminology."
+  },
+  "ru/TR_CONFIG_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS": {
+    "action": "keep",
+    "reason": "Retain the existing equivalent native walker terminology."
+  },
+  "ru/TR_TOOLTIP_DEPOT_CLEAR_DST": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_TOOLTIP_DEPOT_CLEAR_SRC": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WARNING_DEPOT_RECALL_ALL": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WARNING_DEPOT_RESOURCE_CHANGE": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_DELIVER": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_LOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
+  },
+  "ru/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_UNLOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot UI compact status and explicit storage/cargo wording."
   }
 }

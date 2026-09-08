@@ -15,7 +15,8 @@ namespace building_type_registry_impl {
 enum class ProductionMethodKind {
     None,
     Farm,
-    Workshop
+    Workshop,
+    DelayFactor
 };
 
 enum class ProductionOutputEffect {
@@ -109,6 +110,8 @@ public:
     int is_enabled() const;
     int is_disabled() const;
     int effective_monthly_production() const;
+    bool is_delay_factor() const { return kind_ == ProductionMethodKind::DelayFactor; }
+    int scale_delay(int delay) const;
     int max_progress_for(const Building &building) const;
     int has_required_inputs(const Building &building) const;
     int scaled_input_amount(const ProductionResourceAmount &input) const;

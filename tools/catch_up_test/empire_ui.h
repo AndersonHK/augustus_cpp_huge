@@ -47,9 +47,12 @@ void window_empire_validate_ui_for_test()
             click.left.went_down = 0; click.left.went_up = 1; empire_sidebar_ui->handle_mouse(click, data.sidebar.width, data.sidebar.height);
             if (widget->type == DeclarativeWidgetType::Dropdown) {
                 const auto options = empire_controller.choices(widget->binding);
-                const int menu_height = static_cast<int>(options.size()) * 24 + 8;
-                click.x = widget->resolved_x(data.sidebar.width, sidebar_definition->base_width()) + 8;
-                click.y = std::max(0, std::min(widget->resolved_y(data.sidebar.height, sidebar_definition->base_height()) + widget->height + 2, data.sidebar.height - menu_height)) + 8 + std::max(0, choice) * 24;
+                const int columns = widget->image_choices ? widget->choice_columns : 1;
+                const int cell = widget->image_choices ? 36 : 24;
+                const int menu_height = ((static_cast<int>(options.size()) + columns - 1) / columns) * cell + 8;
+                const int menu_width = widget->image_choices ? columns * cell + 8 : widget->resolved_width(data.sidebar.width, sidebar_definition->base_width());
+                click.x = std::clamp(widget->resolved_x(data.sidebar.width, sidebar_definition->base_width()), 0, std::max(0, data.sidebar.width - menu_width)) + 8 + std::max(0, choice) % columns * cell;
+                click.y = std::max(0, std::min(widget->resolved_y(data.sidebar.height, sidebar_definition->base_height()) + widget->height + 2, data.sidebar.height - menu_height)) + 8 + std::max(0, choice) / columns * cell;
                 empire_sidebar_ui->handle_mouse(click, data.sidebar.width, data.sidebar.height);
             }
             window_draw(1);
@@ -58,11 +61,39 @@ void window_empire_validate_ui_for_test()
         require(window_empire_sidebar_sort_get_current_sorting() == (original_sort + 1) % MAX_SORTING_KEY, "Classic sorting button does not change sorting");
         click_control("reverse");
         require(window_empire_sidebar_sort_get_sorting_reversed() != original_reverse, "Classic sort direction button does not work");
-        for (int i = 0; i < MAX_FILTER_KEY; ++i) {
-            click_control("filter", i);
-            for (const auto &entry : empire_city_list.cards) require(window_empire_sidebar_sort_city_matches_current_filter(entry->trade_city()), "Classic list includes a city excluded by its filter");
+        if (sidebar_definition->has_widget("filter_open")) {
+            for (int open = 0; open < 3; ++open) {
+                for (int route = 0; route < 3; ++route) {
+                    for (const auto &entry : empire_city_list.cards) {
+                        const auto *city = entry->trade_city();
+                        require(!empire_controller.open_filter || (empire_controller.open_filter == 1) == !!city->is_open, "Open/closed route filter mismatch");
+                        require(!empire_controller.route_filter || (empire_controller.route_filter == 2) == !!city->is_sea_trade, "Land/sea route filter mismatch");
+                    }
+                    click_control("filter_route");
+                }
+                click_control("filter_open");
+            }
+            click_control("filter", 1); require(empire_controller.direction_filter == 1, "Trade direction dropdown failed");
+            const auto resources = empire_controller.picker_resources();
+            for (int i = 0; i < resources.size(); ++i) {
+                click_control("filter_resource", i);
+                require(empire_controller.resource_filter == resources[i], "Resource grid selected the wrong cell");
+                for (const auto &entry : empire_city_list.cards) require(entry->trade_city()->buys_resource[resources[i]], "Combined buy/resource filter included a nonmatching city");
+            }
+            click_control("filter_resource", static_cast<int>(resources.size()));
+            require(empire_controller.resource_filter == RESOURCE_NONE, "Resource grid did not clear its selection");
+            click_control("filter_icon"); require(empire_controller.direction_filter == 0 && empire_controller.resource_filter == RESOURCE_NONE, "Filter reset failed");
+            const auto &history = *sidebar_definition->widget("history");
+            mouse disabled{}; disabled.x = history.x + 4; disabled.y = history.resolved_y(data.sidebar.height, sidebar_definition->base_height()) + 4; disabled.left.went_up = 1;
+            empire_sidebar_ui->handle_mouse(disabled, data.sidebar.width, data.sidebar.height);
+            require(window_is(WINDOW_EMPIRE), "Disabled Trade History navigated away");
+        } else {
+            for (int i = 0; i < MAX_FILTER_KEY; ++i) {
+                click_control("filter", i);
+                for (const auto &entry : empire_city_list.cards) require(window_empire_sidebar_sort_city_matches_current_filter(entry->trade_city()), "Classic list includes a city excluded by its filter");
+            }
+            require(window_empire_sidebar_sort_get_current_filtering() == FILTER_NONE, "Classic filter button does not cycle through every filter");
         }
-        require(window_empire_sidebar_sort_get_current_filtering() == FILTER_NONE, "Classic filter button does not cycle through every filter");
         if (sidebar_definition->has_widget("year") && city_trade_ledger_periods().size() > 1) {
             click_control("year", 1);
             require(empire_display_period_index == 1, "History year dropdown did not select the archive");
@@ -78,8 +109,8 @@ void window_empire_validate_ui_for_test()
             click_control("year", 0);
             require(empire_display_period_index == 0, "Current-year selection did not restore live trade");
         }
-        if (sidebar_definition->has_widget("history")) {
-            click_control("history"); require(window_is(WINDOW_TRADE_LEDGER), "Trade History did not open the ledger");
+        if (sidebar_definition->has_widget("ledger")) {
+            click_control("ledger"); require(window_is(WINDOW_TRADE_LEDGER), "Ledger toolbar button did not open the ledger");
             window_empire_show(); window_draw(1);
             require(!empire_city_list.cards.empty(), "Trade History return lost the city list");
             auto &entry = *empire_city_list.cards.front();
@@ -181,10 +212,13 @@ void window_empire_validate_ui_for_test()
     finance_click(tax_before < 25 ? "less" : "more");
     require(city_finance_tax_percentage() == tax_before, "Finance tax arrows did not restore the rate");
     if (finance->widget("previous") && finance->widget("previous")->type == DeclarativeWidgetType::Dropdown) {
-        finance_click("previous"); window_draw(1); capture_reference_frame("finance-years");
+        finance_click("previous"); window_draw(0); window_draw(0); capture_reference_frame("finance-years");
         mouse choice{}; choice.x = finance->widget("previous")->x + 8; choice.y = finance->widget("previous")->y + 30; choice.left.went_up = 1;
         require(financial->handle_mouse(&choice), "Finance year menu did not consume selection");
-        window_draw(1);
+        window_draw(0); window_draw(0); capture_reference_frame("finance-year-selected");
+        finance_click("current"); window_draw(0); window_draw(0); capture_reference_frame("finance-current-years");
+        mouse cancel{}; cancel.right.went_up = 1; financial->handle_mouse(&cancel);
+        window_draw(0); window_draw(0); capture_reference_frame("finance-years-closed");
         // A long data-provided list must remain selectable in a compact window.
         class Choices final : public DeclarativeWindowController {
         public:

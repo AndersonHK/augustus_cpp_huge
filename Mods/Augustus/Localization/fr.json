@@ -2061,7 +2061,7 @@
     "TR_CONFIG_UI_WT_PREVIEW_RAIN": "Aperçu de la pluie",
     "TR_CONFIG_UI_WT_PREVIEW_SNOW": "Aperçu de la neige",
     "TR_CONFIG_UI_WT_PREVIEW_SANDSTORM": "Aperçu de la tempête de sable",
-    "TR_CONFIG_UI_WT_PREVIEW_HEAVY_RAIN": "Aperçu de la forte pluie",
+    "TR_CONFIG_UI_WT_PREVIEW_HEAVY_RAIN": "Aperçu de l'orage",
     "TR_CONFIG_WT_RAIN_SPEED": "Vitesse des gouttes",
     "TR_CONFIG_WT_RAIN_LENGTH": "Taille des gouttes",
     "TR_CONFIG_WT_RAIN_INTENSITY": "Intensité du rendu",

@@ -459,8 +459,6 @@ void update_weather(void)
         return;
     }
 
-    render_weather_overlay();
-    update_current_particle_count();
     if (window_is(WINDOW_CONFIG)) { //preview weather in config menu
         if (config_get(CONFIG_UI_WT_PREVIEW_RAIN)) {
             data.weather_config.type = WEATHER_RAIN;
@@ -496,6 +494,9 @@ void update_weather(void)
         weather_stop();
         return;
     }
+
+    render_weather_overlay();
+    update_current_particle_count();
 
     int target_count = get_adjusted_intensity();
     if (target_count != data.last_elements_count && target_count > 0) {

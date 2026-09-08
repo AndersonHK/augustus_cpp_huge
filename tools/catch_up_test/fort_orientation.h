@@ -1,5 +1,6 @@
 #pragma once
 #include "building/construction_building.h"
+#include "building/building_record.h"
 #include "building/construction.h"
 #include "building/rotation.h"
 #include "building/BuildingComposition.h"
@@ -8,6 +9,8 @@
 #include "game/file_io.h"
 #include "map/figure.h"
 #include "map/building.h"
+#include "widget/city_overlay_other.h"
+#include "widget/city_overlay_risks.h"
 #include <filesystem>
 #include <chrono>
 #include <stdexcept>
@@ -47,6 +50,16 @@ inline void validate_fort_orientation()
                 require(building.type == fort && building.orientation() == rotation && building.Graphics().rotation() == rotation, "Fort placement/clone orientation aliases soldier type");
                 require(building.fort_figure_type() == fort->military().primary_figure_type(), "Fort rotation changed soldier type");
                 require(building.Composition && building.Composition->complete(), "Fort rotation lost its composed grounds");
+                auto *record = const_cast<::building *>(building.record());
+                const auto state = record->state;
+                record->state = BUILDING_STATE_MOTHBALLED;
+                for (const auto *child : building.Composition->children()) {
+                    require(city_overlay_for_mothball()->show_building(child->building()->record()), "Composition child ignored its mothballed owner");
+                    require(city_overlay_for_employment()->get_column_height(child->building()->record()) == NO_COLUMN, "Composition child displayed a duplicate employment column");
+                    tooltip_context tooltip{};
+                    require(city_overlay_for_employment()->get_tooltip_for_building(&tooltip, child->building()->record()) == 0, "Composition child displayed a duplicate employment tooltip");
+                }
+                record->state = state;
             };
             inspect();
             require(game_file_io_write_saved_game(rotated.c_str()) != 0 && game_file_load_saved_game(rotated.c_str()) == FILE_LOAD_SUCCESS, "Rotated fort save roundtrip failed");
@@ -55,5 +68,7 @@ inline void validate_fort_orientation()
         }
     } catch (...) { restore(); clean(); throw; }
     clean();
+    Figure standard; standard.type = FIGURE_FORT_STANDARD;
+    require(city_overlay_for_enemy()->show_figure(&standard), "Enemy overlay hid the data-declared formation standard");
     std::fprintf(stdout, "Fort rotation contracts passed: all four placement/clone orientations, definition-owned soldiers and native save roundtrips.\n");
 }

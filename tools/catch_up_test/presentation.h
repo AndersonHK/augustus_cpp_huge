@@ -17,6 +17,34 @@
 #include "figure/phrase.h"
 #include "building/rotation.h"
 #include "graphics/scrollbar.h"
+#include "graphics/screenshot.h"
+#include "core/dir.h"
+
+inline void validate_full_city_capture()
+{
+    const char *output = std::getenv("VESPASIAN_FULL_CITY_CAPTURE_TEST");
+    if (!output || !*output) return;
+    window_city_show(); window_draw(1);
+    const int original_bounds = config_get(CONFIG_UI_EXTENDED_CAMERA_BOUNDS);
+    const int original_scale = city_view_get_scale();
+    int original_x, original_y;
+    city_view_get_camera_in_pixels(&original_x, &original_y);
+    for (int extended : {0, 1}) {
+        config_set(CONFIG_UI_EXTENDED_CAMERA_BOUNDS, extended);
+        graphics_save_screenshot(SCREENSHOT_FULL_CITY);
+        int x, y; city_view_get_camera_in_pixels(&x, &y);
+        if (config_get(CONFIG_UI_EXTENDED_CAMERA_BOUNDS) != extended || city_view_get_scale() != original_scale || x != original_x || y != original_y) throw std::runtime_error("Full-city capture changed the camera or its bounds setting");
+        const auto directory = std::filesystem::path(dir_append_location("", PATH_LOCATION_SCREENSHOT));
+        std::filesystem::path latest;
+        for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+            if (entry.path().filename().string().starts_with("full city ") && entry.path().extension() == ".png" && (latest.empty() || entry.last_write_time() > std::filesystem::last_write_time(latest))) latest = entry.path();
+        }
+        if (latest.empty() || std::filesystem::file_size(latest) < 1024) throw std::runtime_error("Full-city capture did not write a PNG");
+        std::filesystem::copy_file(latest, std::string(output) + "-" + std::to_string(extended) + ".png", std::filesystem::copy_options::overwrite_existing);
+    }
+    config_set(CONFIG_UI_EXTENDED_CAMERA_BOUNDS, original_bounds);
+    std::fprintf(stdout, "Full-city captures completed with both camera bounds settings; camera and scale restored.\n");
+}
 
 inline void validate_scrollbar_pointer_capture()
 {

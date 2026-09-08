@@ -105,6 +105,8 @@ struct DeclarativeWidgetDefinition {
     ScrollbarAppearance scrollbar_appearance;
     bool scroll_always_visible = false;
     int border_padding = 0;
+    int choice_columns = 1;
+    bool image_choices = false;
     int image_collection = 0;
     int image_offset = 0;
     int label_type = 1;

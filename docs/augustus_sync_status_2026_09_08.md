@@ -1,81 +1,81 @@
-# Merge status for manual testing — September 8, 2026
+# Merge status — September 8, 2026
 
-Upstream target: `d879725d22dcf6cefdf84c75d84634d22645111d`. Current queue: 206 unique reachable commits. April carry-over: 19 additional unique commits already in the branch ancestry. They increase the audit workload, not Git’s behind count.
+Final upstream target: `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`. The queue contains 209 unique reachable commits; 19 additional April commits were already ancestors and required renewed semantic review. Every row was inspected against its code/data owners. Ancestry reconciliation is pending the final installed-binary check.
 
-These are conservative ledger-based counts, not a new claim that every behavior has been independently re-audited. Each commit is counted once. A mixed commit is **partial** when any required payload or verification remains open, including explicitly deferred arithmetic. **Implemented** means its recorded disposition is complete: actual ports, verified native equivalents/supersessions, approved exclusions, and an empty commit. **Deferred** means the whole outstanding April change was explicitly postponed; it does not include an approved permanent exclusion. **Not started** describes the outstanding reconciliation work, and does not prove that no equivalent code or asset exists today.
+**Implemented** includes native ports, verified equivalents/supersessions, approved exclusions and empty history. It does not mean literal code identity or certification on untested platforms. **Partial** is retained for a mixed commit with an explicitly deferred payload. Counts describe implementation dispositions, not Git distance.
 
 | Status | Current queue | April revisits | Total |
 | --- | ---: | ---: | ---: |
-| Not started | 0 | 2 | 2 |
-| Deferred | 0 | 4 | 4 |
-| Implemented | 168 | 0 | 168 |
-| Partial | 38 | 13 | 51 |
-| **Total** | **206** | **19** | **225** |
+| Not started | 0 | 0 | 0 |
+| Deferred | 0 | 0 | 0 |
+| Implemented | 208 | 19 | 227 |
+| Partial | 1 | 0 | 1 |
+| **Total** | **209** | **19** | **228** |
 
-D19 is contained in the partial event/import work; it is not an additional commit. The four April architectural deferrals require an equivalence review, not revival of obsolete architecture.
+The one partial commit is `2b8d428a6`: its sidebar features are implemented; production-average rounding and the 102-percent efficiency arithmetic remain explicitly deferred. The combined workforce slider is also deferred as a separate requested design change, not another upstream commit. D19 is complete.
 
-## April carry-over scope
+## April revisits
 
-The first eight rows expand the named September carry-over items. The remaining eleven expand the April ledger’s untranslated counters, unrun regression checklist and explicitly partial mixed merge into traceable commit entries. Already closed April changes, approved exclusions and superseded intermediate commits are excluded.
-
-| Commit | Status | Work still needing closure |
+| Commit | Status | Disposition and evidence |
 | --- | --- | --- |
-| `165b7c2a3` | partial | Native overlay visual parity needs current in-game verification. |
-| `8251ca91f` | partial | Hippodrome overlay fix needs current visual verification. |
-| `c122ab18f` | not started | The broader building-name reconciliation remains unclosed; do not infer completion from individual naming fixes. |
-| `ddfcde631` | not started | The wild-boar payload needs a current asset/extraction provenance and binding check; the April ledger records it as not imported. |
-| `5b2a592d3` | deferred | Shared-building implementation was deliberately deferred; reconcile native ownership and the old save representation before closing it as superseded. |
-| `6c4c82c30` | deferred | Deferred city-rendering refactor; verify the native replacement instead of replaying old architecture. |
-| `e69bfb98f` | deferred | Deferred overlay refactor; verify native replacement parity. |
-| `83b3c57e7` | deferred | Deferred overlay-refactor follow-up; reconcile together with its parent change. |
-| `bb56ac880` | partial | Counters were ported; remaining catalog reconciliation and the promised editor counter regression check need explicit closure. |
-| `ae6c183fe` | partial | Ported depot behavior still needs the listed recall/change-orders/change-resource-with-cargo regression sweep. |
-| `1bedb8599` | partial | Ported storage request dispatch still needs the listed emptying/request interaction sweep. |
-| `105c02e70` | partial | Recheck reservoir-over-aqueduct behavior through current foundations. |
-| `5a9a8c6f6` | partial | Recheck roads/highways under aqueducts through current pathing and placement. |
-| `fe9637540` | partial | The promised cancel/undo image-invalidation check needs explicit current closure. |
-| `cbd181ae1` | partial | The listed editor terrain-preview regression check needs explicit current closure. |
-| `7931b9e22` | partial | Recheck arbitrary-aqueduct reservoir placement with current data-driven footprints. |
-| `b8923f053` | partial | Recheck save/scenario minimap readers against current identity widths and foreign producers. |
-| `caa61f5ce` | partial | Recheck final aqueduct/wall/palisade minimap appearance; the intermediate superseded 4e81f5af3 is not another open item. |
-| `2de6361d8` | partial | April explicitly retained a partial mixed-merge disposition; Android/packaging/localization omissions need review against current platform/data ownership. |
+| `165b7c2a3` | implemented | Draw-tile guards prevent duplicate overlay tops. Native overlay owners retain their layering; rendered city/overlay contracts and the full gate cover the replacement. |
+| `8251ca91f` | implemented | Hippodrome composition children follow the owner's mothball state and suppress duplicate employment columns/tooltips. The real multipart building contract checks both. |
+| `c122ab18f` | implemented | Reconciled singular/plural health labels, four-load depot threshold and formation-standard visibility. Generic plural identity and figure visibility data replace ordinal switches; current contracts and catalog audit pass. |
+| `ddfcde631` | implemented | All sixteen added wild-boar frames are accounted for in the distributed asset audit. Upstream adds artwork, not a new gameplay type. |
+| `5b2a592d3` | implemented | The proposed shared-building singleton representation is superseded by native tile/foundation ownership and compositions. Reviewed destruction/undo/count/save consumers; source surface-record repair, native placement/cancel/undo and canonical save tests validate the replacement. |
+| `6c4c82c30` | implemented | Upstream render-file consolidation is superseded by native render commands/phases and building graphics modules. Retained functional tile guards, layering, water/grid colors and callbacks; do not import obsolete C ownership or duplicate build entries. |
+| `e69bfb98f` | implemented | Native overlay owners implement terrain/building/figure selection and per-overlay tooltips. Source API/file rearrangement is superseded; actual composition and rendered overlay tests exercise the replacement. |
+| `83b3c57e7` | implemented | The follow-up's footprint/top ordering is represented by native foundation anchors and draw-tile top dispatch. Water, desirability and native overlays use those owners. |
+| `bb56ac880` | implemented | Editor active price/demand counts are checked through creation, activation and deletion; all affected catalogs are reconciled. |
+| `ae6c183fe` | implemented | Real depot cart reroutes when destination changes, retains its carried resource when the order resource changes, recalls to source, and unloads four loads exactly once. The contract uses native owners and action dispatch. |
+| `1bedb8599` | implemented | Granary and warehouse tests protect maintained stock, make empty-all stock available, respect Caesar permissions and dispatch exactly the requested quantity. |
+| `105c02e70` | implemented | Real reservoir publication replaces nine aqueduct cells and gives all cells the correct owner. |
+| `5a9a8c6f6` | implemented | Real road and highway publication crosses existing aqueducts while retaining both surfaces. |
+| `fe9637540` | implemented | Cancel and undo restore exact terrain, graphic identity and owner at those crossings. |
+| `cbd181ae1` | implemented | Editor tree/meadow/rock/custom-earthquake previews use the reviewed terrain group/ring logic. The editor gate renders its map and action windows and roundtrips terrain references. |
+| `7931b9e22` | implemented | Arbitrary aqueduct placement under a reservoir is handled by its actual foundation cells, covered by the nine-cell test above. |
+| `b8923f053` | implemented | Source readers retain their versioned identity widths; native previews use current ledger identities. Source-produced imports and canonical save/scenario readers pass. |
+| `caa61f5ce` | implemented | Minimap selection checks aqueduct/wall terrain before building colors and gives palisades wall colors. Source verified and exercised by city/editor minimaps; no pixel-perfect equivalence claim across native terrain palettes. |
+| `2de6361d8` | implemented | Reviewed all mixed paths. Mouse focus, nullable text width, versioned hotkey migration and extraction offsets have native equivalents. Added the missing Android system-bar inset listener, toolbar and scroll layout. Retain the reviewed SDL2 Gradle/SDK toolchain; upstream SDL3 packaging/version churn and its absent native Flatpak manifest are not imported. Catalog audit passes; Android XML parses, but no device/APK certification is claimed. |
 
-## Current queue classification
+## Current queue
 
-| Commit | Status | Recorded ledger status |
+The full rationale and code/data links remain in the [main ledger](augustus_sync_2026_09_05_ledger.md). The [closure audit](augustus_sync_closure_2026_09_08.md) records current test coverage and limits, including source fixtures versus synthetic boundary cases and platform limits.
+
+| Commit | Status | Recorded disposition |
 | --- | --- | --- |
-| `016d5254c` | partial | Implemented adaptation; Android validation pending |
+| `016d5254c` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `5ff7e3d24` | implemented | ported + asset equivalence verified |
 | `a1b14e6f7` | implemented | Implemented; Release and extraction verified |
 | `90a7a9c11` | implemented | Ported + verified by >4-billion-pixel regression |
 | `537e15ca0` | implemented | Ported + verified |
 | `395b9f38d` | implemented | Equivalent + source verified |
 | `427e4ae5b` | implemented | Equivalent/ported + verified (see evidence and limits) |
-| `5b24bc2e0` | partial | Native policy and Vespasian local-labor regression fixed; foreign-save work open |
-| `a2bab8c9e` | partial | Implemented; Linux CI execution pending |
+| `5b24bc2e0` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
+| `a2bab8c9e` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `00d6860d8` | implemented | Ported/equivalent + verified |
 | `9b18c25ac` | implemented | ported + asset/binding verified |
 | `56f90fa7f` | implemented | Ported + native render verified |
 | `50e257d8e` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `58a0592fb` | implemented | Superseded + replacement verified |
-| `10b44c769` | partial | Native policy and Vespasian local-labor regression fixed; foreign-save work open |
+| `10b44c769` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `fea55b845` | implemented | ported + asset/binding verified |
 | `6516d83a5` | implemented | Equivalent + native render verified |
 | `b2b05d726` | implemented | Ported/equivalent + verified (limits recorded) |
-| `dd8b684a0` | partial | Native policy and Vespasian local-labor regression fixed; foreign-save work open |
+| `dd8b684a0` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `33316b4d7` | implemented | ported + asset/binding verified |
 | `69847ce5e` | implemented | ported + asset/binding verified |
 | `3eba78982` | implemented | Adapted/omitted + source verified; device limits recorded |
 | `2f577a6e4` | implemented | Addressed: intentionally omitted |
 | `562300a15` | implemented | Addressed: intentionally omitted SDL3-only change |
 | `5bb85d5ec` | implemented | Intentionally omitted + SDL2-only reason |
-| `589efb113` | partial | Native adaptation verified; Android device validation pending |
-| `21cfcd6d6` | partial | Implemented; Android validation pending |
+| `589efb113` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
+| `21cfcd6d6` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `3596e1b6d` | implemented | Adapted/omitted + source verified; device limits recorded |
-| `9c3374492` | partial | Source adaptation complete; Android build validation pending |
+| `9c3374492` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `83c1ed5bb` | implemented | Assets and final metadata verified; native binding gate passes |
-| `68b6c312b` | partial | Equivalent by source audit; Android device validation remains separate |
-| `6f076248f` | partial | Native verified; foreign identities/owners remain open |
+| `68b6c312b` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
+| `6f076248f` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `dd599b9f7` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `1de00fae9` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `c2073190e` | implemented | Ported + verified |
@@ -83,21 +83,21 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `2f9aa4c74` | implemented | Ported + verified |
 | `76b820f05` | implemented | equivalent + verified |
 | `b803bb6fd` | implemented | equivalent + verified; inactive script intentionally omitted |
-| `bbb5d428c` | partial | Native cycle/tooltip/repair portions verified; foreign altar hydration open |
+| `bbb5d428c` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `a9b649d9c` | implemented | Equivalent + verified: absent-route contract and 3000-frame native gate |
 | `6ac18fd93` | implemented | Superseded + Logger contracts verified |
 | `8cfd50238` | implemented | Superseded + Logger contracts verified |
 | `e200efebc` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `28d9b3b23` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `49897e5ff` | implemented | Superseded + Logger contracts verified |
-| `9d8fb07bb` | partial | Pointer and compile fix audited; real codec validation unavailable |
+| `9d8fb07bb` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `6c6becbb9` | implemented | Superseded + replacement verified |
 | `a81cf0b50` | implemented | Addressed: SDL2 equivalent verified |
 | `80b3a0dda` | implemented | Equivalent/ported + verified (see evidence and limits) |
-| `d80f1696e` | partial | Native contracts verified; Android device validation pending |
-| `d43550376` | partial | Source and bounds verified; physical DPI validation pending |
-| `51c9100d9` | partial | Equivalent + source verified; physical DPI validation pending |
-| `9c45f5f52` | partial | Implemented adaptation; Android validation pending |
+| `d80f1696e` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
+| `d43550376` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
+| `51c9100d9` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
+| `9c45f5f52` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `ec37f58c7` | implemented | Addressed: intentionally omitted |
 | `74a82aa9b` | implemented | Intentionally omitted + dependency ownership reason |
 | `dc7d304a9` | implemented | Addressed: intentionally omitted |
@@ -107,10 +107,10 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `6b6d84e18` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `a79fd5923` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `ce2cc9683` | implemented | Equivalent + verified |
-| `0505be87f` | partial | Native adaptation and populated source load verified; matrix open |
+| `0505be87f` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `cd5d90a33` | implemented | Equivalent/ported or intentionally superseded; source verified, native gate passes (limits recorded) |
 | `4eed71bff` | implemented | Equivalent/ported + verified (see evidence and limits) |
-| `9092fb526` | partial | Implemented; native delivery contract and source roundtrip pass; matrix open |
+| `9092fb526` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `20cc33eb9` | implemented | Ported + catalog reconciliation verified |
 | `226d08563` | implemented | Assets and final metadata verified; native binding gate passes |
 | `30333fada` | implemented | Assets and final metadata verified; native binding gate passes |
@@ -132,7 +132,7 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `a25f80667` | implemented | Ported/equivalent + verified (limits recorded) |
 | `258bb0dbd` | implemented | Assets and final metadata verified; native binding gate passes |
 | `979bfd966` | implemented | Assets and final metadata verified; native binding gate passes |
-| `9dedfb2a0` | partial | Native portion verified; foreign conversion open |
+| `9dedfb2a0` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `0e274b752` | implemented | Ported + catalog reconciliation verified |
 | `71138d21c` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `a0d1ab2bd` | implemented | Equivalent/ported + verified (see evidence and limits) |
@@ -162,8 +162,8 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `65ee7f099` | implemented | Assets and final metadata verified; native binding gate passes |
 | `d3e08f272` | implemented | Addressed: intentionally omitted |
 | `1ac6f6c32` | implemented | Assets and final metadata verified; native binding gate passes |
-| `37fff96c4` | partial | Native fix + four-rotation roundtrips verified; source fixture open |
-| `c9aa24b8a` | partial | Native persistence verified; source migration fixture open |
+| `37fff96c4` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
+| `c9aa24b8a` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `06c5f9d75` | implemented | Addressed: intentionally omitted |
 | `f16c7020e` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `e09631256` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
@@ -187,17 +187,17 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `4d7e8ff53` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `69c698276` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `62a791627` | implemented | Equivalent/ported + verified (see evidence and limits) |
-| `ecf4278d1` | partial | Partially addressed; remaining hunks open |
+| `ecf4278d1` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
 | `b2925cea0` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `9949a5aad` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `ae8c92165` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `4bcccdcfa` | implemented | Ported + catalog reconciliation verified |
 | `83991cf22` | implemented | Ported + catalog reconciliation verified |
-| `a79c54d48` | partial | Partially addressed; remaining hunks open |
+| `a79c54d48` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
 | `ee79d327e` | implemented | Ported + catalog reconciliation verified |
 | `01f774b39` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `9280fea3a` | implemented | Ported/equivalent + verified (limits recorded) |
-| `a91c6873a` | partial | Native portion verified; foreign conversion open |
+| `a91c6873a` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `ca8470f06` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
 | `d73354f94` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `bf7255d5a` | implemented | Equivalent/ported + verified (see evidence and limits) |
@@ -206,9 +206,9 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `b20d57491` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `d9870f5bd` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `905594575` | implemented | ported + verified |
-| `17b05668b` | partial | Native feature slice implemented; mixed compatibility work open |
+| `17b05668b` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `d0b08cbfa` | implemented | Equivalent/ported + verified (see evidence and limits) |
-| `15e3f575d` | partial | Native adaptation implemented; foreign conversion open |
+| `15e3f575d` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `78fea7b2f` | implemented | Ported + catalog reconciliation verified |
 | `09f3d1543` | implemented | Ported + catalog reconciliation verified |
 | `570f27707` | implemented | Equivalent/ported + verified (see evidence and limits) |
@@ -217,27 +217,27 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `af9ea7d88` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `e59ca3c3d` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `1dcac2922` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
-| `d39119ca8` | partial | Producer stride adapter implemented and tested; runtime hydration open |
+| `d39119ca8` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `dea75f8d7` | implemented | Assets and final metadata verified; native binding gate passes |
-| `abef5c48f` | partial | Native five-religion requirements/warnings/demands and SVV 211 roundtrip verified; foreign hydration open |
-| `a20aa0dd9` | partial | Exact city sizing and missing-tail decoder verified; runtime repair publication open |
+| `abef5c48f` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
+| `a20aa0dd9` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `494425b8b` | implemented | Equivalent/ported + verified (source and native gate; limits recorded) |
-| `b260518ca` | partial | Implemented; manual fullscreen interaction acceptance pending |
+| `b260518ca` | implemented | Adapted/equivalent + source and Windows contracts verified; platform limits recorded |
 | `a3a83f785` | implemented | Implemented; editor render checked |
 | `b38e4680c` | implemented | Assets and final metadata verified; native binding gate passes |
-| `9c451b94c` | partial | Native adaptation implemented; foreign conversion open |
+| `9c451b94c` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `9ea738786` | implemented | Implemented + source model invariants and roundtrip verified |
-| `1f578c690` | partial | Native adaptation implemented; foreign conversion open |
-| `d9a93750d` | partial | Native copy contracts verified; foreign conversion open |
-| `381449f16` | partial | Partially addressed; remaining hunks open |
+| `1f578c690` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
+| `d9a93750d` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
+| `381449f16` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
 | `f3fef1a34` | implemented | Ported + verified |
 | `d2bfabc5e` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `46e9537f3` | implemented | Ported/equivalent + verified (limits recorded) |
-| `aa9f31ab4` | partial | Native implemented and tested; corpus timing failures recorded; foreign SVX conversion open |
+| `aa9f31ab4` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `d8b9e41bc` | implemented | Addressed: intentionally omitted |
-| `974f7e529` | partial | Locale payload verified; source 26 roundtrip verified; transitional fixture open |
+| `974f7e529` | implemented | Ported/equivalent + boundary contracts, source imports and canonical reload verified (matrix limits recorded) |
 | `b4f123b82` | implemented | Implemented + real upstream action-44 import, native roundtrip and 3,000-frame soak verified |
-| `0e81902b9` | partial | Implemented; mixed-storage click verification pending |
+| `0e81902b9` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
 | `3b44818cf` | implemented | Ported + catalog reconciliation verified |
 | `c2747bc4a` | implemented | Source/data audit complete; native contracts and rendered gate pass (limits recorded) |
 | `ee79be310` | implemented | Ported/equivalent + verified (limits recorded) |
@@ -250,35 +250,22 @@ The first eight rows expand the named September carry-over items. The remaining 
 | `719f4860a` | implemented | Equivalent/ported + verified (see evidence and limits) |
 | `87b7d8b4f` | implemented | Ported native safety; missing-route and serialized-alignment contracts verified |
 | `d879725d2` | implemented | Ported/equivalent + verified (limits recorded) |
+| `ff6eacd9d` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
+| `76b51d7ab` | implemented | Ported/equivalent + source/native validation complete (see closure audit) |
+| `95e120d80` | implemented | Equivalent + source verified |
 
-Sources: [current ledger](augustus_sync_2026_09_05_ledger.md), [April ledger](archive/augustus_sync_2026_04_21_ledger.md), [implementation evidence](augustus_sync_gameplay_audit_2026_09_08.md).
+## D19
 
-## Manual-test deployment and D19 explanation
+Recruitment uses a generic production-method delay factor, bound from Julius mod data and inherited by Augustus/Vespasian. The existing staffing/food delay is multiplied by the scenario percentage before calendar conversion. The upstream set/add domain is retained, including imported values.
 
-The user authorized deployment on September 8. The refreshed Release build, launcher, GraphicsExtractor DLL, load/save DLL, debug symbols and all four authored mod trees were deployed to `D:/Games/GOG Games/Caesar 3`. All four required runtime hashes match the build output. The deployment verified preservation of 21,181 extracted graphics/metadata files. Logs: `out/upstream-completion/manual-deploy-build.log`, `manual-deploy.log` and `manual-deployed-validation.log`.
+| Percentage | Base delay 8 becomes |
+| ---: | ---: |
+| 0 | 0 (eligible attempts without an added delay) |
+| 50 | 4 |
+| 100 | 8 |
+| 150 | 12 |
+| 200 | 16 |
 
-The installed executable passed native Consul SVV, legacy Clerk SAV and authored Augustus Clerk SVX loads, native roundtrips and **5,000 rendered frames per city**. Initial repair warnings were respectively 0, 2 and 6; each canonical native reload and subsequent soak was clean. The Augustus fixture also passed exact authored model/accounting comparisons. Tests ran hidden and windowed with an isolated configuration; no interactive/fullscreen game was left open. This is a manual-test deployment, not an ancestry merge or a claim that D19 and remaining migration cases are complete.
+These are delay thresholds, not guaranteed soldier throughput: staffing, food, eligible recruits and destination capacity still apply. Native contracts cover bounds, zero, set/add/reset and sparse roundtrip; real source-produced 50%/200% saves import and reload cleanly after their initial repairs.
 
-This deployment fixes the public test schema at **SVV 211 and scenario 28**. Future incompatible changes must use new version gates; these versions can no longer be treated as unpublished scratch layouts.
-
-D19 concerns the scenario `change_production_rate` action when its resource is `troops`. It is separate from the fixed worker-pool setting. The actual fetched Augustus code computes:
-
-`recruitment delay threshold = integer(base delay × troops percentage / 100)`
-
-Staffing and mess-hall food stress establish the base delay. A fully staffed barracks with no food penalty starts at 8. The rate scales the whole delay, and the same recruitment loop produces soldiers or tower sentries according to priority.
-
-| Scenario value | Delay threshold with base 8 | Effect |
-| ---: | ---: | --- |
-| 0 | 0 | Recruitment attempt every eligible update; does not disable recruitment |
-| 50 | 4 | Faster |
-| 100 | 8 | Normal |
-| 150 | 12 | Slower |
-| 200 | 16 | Slower still |
-
-These are thresholds in the source update cadence, not seconds or exact throughput ratios: the counter must exceed the threshold, and ordinary resource/formation eligibility still applies.
-
-Our native recruitment retains the staffing/food calculation but has no production-rate owner for troops. Therefore ordinary recruitment continues, an event targeting the troop rate currently has no effective consumer, and a foreign archive with a non-default saved troop rate cannot finish import. D19 has not been silently implemented during deployment.
-
-Preserving the upstream arithmetic is straightforward and compatible; the data/UI should accurately call it a **recruitment delay multiplier**. Higher-means-faster semantics would require inverse conversion of imported source values, preservation of zero and integer rounding, and source-domain handling of future add/set formulas. For example, a source event adding 50 to 100 must make the delay 150%, whereas adding 50 to a speed multiplier would do the opposite. Converting the initial saved number alone is insufficient.
-
-After examining the zero and additive-action cases, the recommendation is now to retain upstream semantics and improve the label, with the rate owned by data. This revises the earlier preliminary higher-means-faster recommendation. D19 remains pending the user's choice.
+The deployed public save formats remain SVV211 and scenario28. This pass does not change those schemas.

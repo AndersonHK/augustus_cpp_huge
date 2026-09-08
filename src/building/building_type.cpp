@@ -1460,7 +1460,7 @@ void BuildingType::add_storage_type(const StorageType *storage_type)
 void BuildingType::add_production_method(ProductionMethod *production_method)
 {
     production_methods_.push_back(production_method);
-    const resource_type output = production_method ? production_method->output_resource() : RESOURCE_NONE;
+    const resource_type output = production_method && production_method->has_resource_output() ? production_method->output_resource() : RESOURCE_NONE;
     if (labor_category_ == LaborCategory::None && output != RESOURCE_NONE) {
         labor_category_ = resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
     }

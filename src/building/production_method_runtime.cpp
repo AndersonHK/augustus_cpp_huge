@@ -87,6 +87,7 @@ int ProductionMethod::labor_access_for(const Building &building) const
 
 int ProductionMethod::can_start_cycle(const Building &building) const
 {
+    if (is_delay_factor()) return 0;
     const ::building *record = building.record();
     if (!record) {
         return 0;
