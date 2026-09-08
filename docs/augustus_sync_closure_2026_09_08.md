@@ -1,6 +1,6 @@
 # September 8 closure audit
 
-The user approved upstream finance year selectors with corrected layering, and D19 as a delay multiplier. The fetched target is `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`: 209 queued commits, plus 19 April carry-overs already in ancestry. This is an implementation/validation record, not a claim that ancestry has been reconciled.
+The user approved upstream finance year selectors with corrected layering, and D19 as a delay multiplier. The fetched target is `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`: 209 queued commits, plus 19 April carry-overs already in ancestry. This records the native implementation, its validation and the accompanying ancestry reconciliation. Approved semantic differences and validation limits remain explicit below.
 
 ## Empire and finance
 
@@ -79,4 +79,4 @@ The only intentionally unfinished gameplay payload is D13's production-average r
 - All 16 catalogs: `out/closure-translations-final.json`, zero unresolved conflicts or pending applications. Asset audit has zero missing/different payloads. Android manifest/layout parse; device/APK validation remains outside this Windows evidence.
 - Final fetched target remains `95e120d80`. `out/closure-ledger-final.json` verifies 209/209 rows and zero missing/extra/duplicate entries. The 19 April revisits have individual dispositions above.
 
-Deployment used `tools/deploy_release_to_game.py` and preserved installed extraction output. The original fork-era standalone Augustus backup remains untouched. All test sessions are hidden/windowed with isolated preferences; no interactive game was left open. The local ancestry merge is recorded after the final installed checks, with the approved D13 deferral retained.
+Deployment used `tools/deploy_release_to_game.py` and preserved installed extraction output. The original fork-era standalone Augustus backup remains untouched. All test sessions are hidden/windowed with isolated preferences; no interactive game was left open. Native implementation commit `65a597c63` contains this closure. After the final installed checks, the accompanying local merge records upstream `95e120d80babd55e93a6e5d755a4971ddbb4b2a5` as its second parent using the audited native tree. Git distance to that fetched target is zero behind; the approved D13 deferral is retained. The merge changes only these closure/status records relative to the tested native tree and leaves master and remote branches untouched.

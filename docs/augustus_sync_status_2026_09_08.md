@@ -1,6 +1,6 @@
 # Merge status — September 8, 2026
 
-Final upstream target: `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`. The queue contains 209 unique reachable commits; 19 additional April commits were already ancestors and required renewed semantic review. Every row was inspected against its code/data owners. Ancestry reconciliation is pending the final installed-binary check.
+Final upstream target: `95e120d80babd55e93a6e5d755a4971ddbb4b2a5`. The queue contains 209 unique reachable commits; 19 additional April commits were already ancestors and required renewed semantic review. Every row was inspected against its code/data owners. Native closure commit `65a597c63` passed the final installed-binary checks. The accompanying merge records the pinned upstream target as a parent, leaving this branch zero commits behind that target while preserving the audited native ports and approved deferral.
 
 **Implemented** includes native ports, verified equivalents/supersessions, approved exclusions and empty history. It does not mean literal code identity or certification on untested platforms. **Partial** is retained for a mixed commit with an explicitly deferred payload. Counts describe implementation dispositions, not Git distance.
 

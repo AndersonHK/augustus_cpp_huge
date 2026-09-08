@@ -16,7 +16,8 @@ The native SVV211/scenario28 bridge now performs semantic hydration, not merely 
 | Upstream | `https://github.com/Keriew/augustus.git`, final fetch September 8 |
 | Pinned target | `95e120d80babd55e93a6e5d755a4971ddbb4b2a5` |
 | Queue | `280df2036..95e120d80`: 209 reachable / 208 first-parent commits |
-| Ancestry reconciliation | Pending the final deployment check and local merge commit |
+| Ancestry reconciliation | Merged through `95e120d80`; zero commits behind the fetched target |
+| Native closure implementation | `65a597c63` |
 | Original September audit HEAD | `16fb9319828448589a11180c4727fbed2c7034a0` |
 | User-committed part 6 | `2558649f2` |
 | Historical reference | [April ledger](archive/augustus_sync_2026_04_21_ledger.md) |
@@ -523,4 +524,4 @@ The following records the initial ledger-writing pass, before the implementation
 
 ## September 8 final fetch and closure work
 
-The final fetch retained `95e120d80`. All 209 rows are covered and the 19 April revisits are reconciled. Final validation and deployment evidence is recorded in the [closure audit](augustus_sync_closure_2026_09_08.md). Ancestry reconciliation follows the final installed-binary check; the intentionally deferred D13 arithmetic remains visible as one partial mixed commit.
+The final fetch retained `95e120d80`. All 209 rows are covered and the 19 April revisits are reconciled. Final validation and deployment evidence is recorded in the [closure audit](augustus_sync_closure_2026_09_08.md). Native closure commit `65a597c63` passed the final installed-binary checks. The accompanying ancestry merge records `95e120d80` as its upstream parent, leaving the catch-up branch zero commits behind that fetched target. The intentionally deferred D13 arithmetic remains visible as one partial mixed commit; master is left for the user to merge manually.
