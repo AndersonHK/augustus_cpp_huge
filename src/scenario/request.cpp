@@ -92,7 +92,7 @@ static void make_request_visible_and_send_message(scenario_request *request)
 {
     request->visible = 1;
     request->amount.requested = random_between_from_stdlib(request->amount.min, request->amount.max);
-    if (city_resource_count_warehouses_amount(request->resource) >= (int) request->amount.requested) {
+    if (city_resource_get_amount_for_request(request->resource, request->amount.requested) >= (int) request->amount.requested) {
         request->can_comply_dialog_shown = 1;
     }
     int requested = request->amount.requested;
@@ -167,8 +167,8 @@ void scenario_request_show_ready_message(scenario_request *request)
         resource_type resource = request->resource;
         int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
         if (resource_amount >= (int) request->amount.requested) {
-            request->can_comply_dialog_shown = 1;
             city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
+            request->can_comply_dialog_shown = 1;
         }
     }
 }
@@ -219,14 +219,7 @@ static void process_request(scenario_request *request)
                 schedule_request_again(request);
             }
         }
-        if (!request->can_comply_dialog_shown) {
-            resource_type resource = request->resource;
-            int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
-            if (resource_amount >= (int) request->amount.requested) {
-                request->can_comply_dialog_shown = 1;
-                city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
-            }
-        }
+        scenario_request_show_ready_message(request);
         return;
     }
 

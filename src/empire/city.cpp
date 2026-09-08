@@ -245,7 +245,7 @@ int empire_city_get_for_trade_route(int route_id)
             return city_id;
         }
     }
-    return -1; //should this be 0 for consitency? I think -1 can cause overflow?
+    return -1; // Native callers use -1; city_at bounds-checks before indexing.
 }
 
 int empire_city_buys_resource(int city_id, int resource)
@@ -291,7 +291,7 @@ int empire_city_is_trade_route_sea(int route_id)
 {
     int city_id = empire_city_get_for_trade_route(route_id);
     if (city_id <= 0) {
-        return -1;
+        return 0;
     }
     empire_city *city = empire_city_get(city_id);
     return city->is_sea_trade;

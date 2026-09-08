@@ -2537,6 +2537,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::StableVariant;
     } else if (compare_text(selection, "build_rotation") == 0) {
         option_selection = GraphicsOptionSelection::BuildRotation;
+    } else if (compare_text(selection, "paired_orientation") == 0) {
+        option_selection = GraphicsOptionSelection::PairedOrientation;
     } else if (compare_text(selection, "connectable") == 0) {
         option_selection = GraphicsOptionSelection::Connectable;
     } else if (compare_text(selection, "orientation") == 0) {
@@ -4770,6 +4772,10 @@ static int validate_graphics_target_entry(
         }
 
         const int option_count = target.option_count();
+        if (target.option_selection() == GraphicsOptionSelection::PairedOrientation && option_count % 2 != 0) {
+            log_error("Paired orientation graphics require complete option pairs", definition.attr(), 0);
+            return 0;
+        }
         for (int i = 0; i < option_count; i++) {
             // Validate the exact target the renderer will see after path inheritance.
             GraphicsTarget resolved = target.resolved_option(static_cast<unsigned char>(i));

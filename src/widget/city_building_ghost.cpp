@@ -117,9 +117,8 @@ static void prepare_ghost_water_access_state(
     building &ghost)
 {
     if (definition.water_access().has_requirements() || definition.has_water_access_provider()) {
-        BuildingGraphicsState graphics_state;
-        Building ghost_building(ghost, graphics_state);
-        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost_building));
+        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_type_has_required_access_at(
+            &definition, ghost.x, ghost.y, ghost.subtype.orientation));
     }
 }
 

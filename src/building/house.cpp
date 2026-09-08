@@ -165,6 +165,9 @@ void building_house_change_to_vacant_lot(Building house_object)
     const bool has_multiple_cells = occupied_cells.size() > 1;
     const int origin_x = house->x;
     const int origin_y = house->y;
+    if (has_multiple_cells) {
+        game_undo_disable();
+    }
     remove_house_tiles(house_object);
     house_object.Housing->state().population = 0;
     building_type type = vacant_lot_fill_type();

@@ -558,7 +558,11 @@ static void draw_elevated_figures(Figure *first_figure, int x, int y)
     Figure *f = first_figure;
     while (f) {
         if (f->draws_elevated() && (!f->is_ghost || f->height_adjusted_ticks) && overlay->show_figure(f)) {
-            city_draw_figure(f, x, y, scale, 0);
+            int highlight = 0;
+            if (f->building && f->building->id == city_roamer_preview_selected_building_id && config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
+                highlight = f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY ? FIGURE_HIGHLIGHT_RED : FIGURE_HIGHLIGHT_GREEN;
+            }
+            city_draw_figure(f, x, y, scale, highlight);
         } else if (f->building && f->building->id == city_roamer_preview_selected_building_id) { //figure from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;

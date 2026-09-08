@@ -512,6 +512,9 @@ static void draw_elevated_figures(Figure *first_figure, int x, int y)
     while (f) {
         if (f->draws_elevated() && (!f->is_ghost || f->height_adjusted_ticks)) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
+            if (f->building && f->building->id == draw_context.selected_building_id && config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
+                highlight = f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY ? FIGURE_HIGHLIGHT_RED : FIGURE_HIGHLIGHT_GREEN;
+            }
             if (f->id() == draw_context.selected_figure_id) city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
             else city_draw_figure(f, x, y, draw_context.scale, highlight);
         } else if (f->building && f->building->id == draw_context.selected_building_id) { //figure originates from selected building

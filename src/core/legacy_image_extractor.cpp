@@ -22,7 +22,7 @@
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v13:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v14:";
 constexpr int kLegacyIncreaseButtonImage = 15;
 constexpr int kLegacyDecreaseButtonImage = 17;
 class LegacyFamily {
@@ -159,6 +159,7 @@ static bool is_house_or_house_variant_group(int group_id)
 static bool is_climate_sensitive_group(int group_id)
 {
     return group_id == GROUP_BUILDING_RESERVOIR ||
+        group_id == GROUP_BUILDING_WALL ||
         group_id == GROUP_BUILDING_AQUEDUCT ||
         group_id == GROUP_BUILDING_AQUEDUCT_NO_WATER ||
         is_house_or_house_variant_group(group_id);
@@ -1235,7 +1236,8 @@ static void append_image_xml(
     const image *img,
     int image_height,
     int footprint_layer_y,
-    const std::vector<std::string> &frames = {})
+    const std::vector<std::string> &frames = {},
+    const std::string &foreground = {})
 {
     const bool has_animation = !frames.empty();
     const bool is_layered = img->is_isometric || img->top != nullptr;
@@ -1284,6 +1286,15 @@ static void append_image_xml(
         }
     }
 
+    if (!foreground.empty() && img->animation) {
+        append_indent(xml, 2);
+        xml += "<layer";
+        append_attribute(xml, "src", foreground);
+        append_attribute(xml, "x", img->animation->sprite_offset_x);
+        append_attribute(xml, "y", img->animation->sprite_offset_y);
+        append_attribute(xml, "part", "top");
+        xml += "/>\n";
+    }
     if (has_animation) {
         append_indent(xml, 2);
         xml += "<animation";
@@ -1564,7 +1575,9 @@ static bool export_group(
                         make_group_assetlist_name(family_for_group(target->group_id), target->group_id, climate_flavor)));
                 }
             }
-            append_image_xml(xml, exported_images, image_name, image_name, image_name + "_Top", img, exported_image_height, footprint_layer_y, frames);
+            // The original arch's single sprite is its foreground pier, not an animation.
+            const std::string foreground = range.group_id == GROUP_BUILDING_TRIUMPHAL_ARCH && (local_index == 0 || local_index == 2) ? make_generated_image_id(local_index + 1) : std::string();
+            append_image_xml(xml, exported_images, image_name, image_name, image_name + "_Top", img, exported_image_height, footprint_layer_y, frames, foreground);
         }
         exported_local_indices.insert(local_index);
     }

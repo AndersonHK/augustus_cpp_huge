@@ -1,4 +1,6 @@
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
 #include "map/TerrainRegistry.h"
+#endif
 #ifndef GRAPHICS_EXTRACTION_BUILD_DLL
 #include "assets/graphics_extraction_client.h"
 #endif
@@ -914,7 +916,11 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 {
     if (climate_id == data.current_climate && is_editor == data.is_editor && !force_reload &&
         graphics_renderer()->has_image_atlas(ATLAS_MAIN)) {
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
         return terrain_registry().bind_graphics();
+#else
+        return 1;
+#endif
     }
     runtime_overlay_images_reset();
     graphics_renderer()->get_max_image_size(&data.max_image_width, &data.max_image_height);
@@ -924,6 +930,7 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
         free(data.main[i].top);
         free(data.main[i].animation);
     }
+    memset(data.main, 0, sizeof(data.main));
 
     release_external_buffers();
     free(data.external_draw_data);
@@ -934,14 +941,13 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
     const char *filename_bmp = is_editor ? EDITOR_GRAPHICS_555[climate_id] : MAIN_GRAPHICS_555[climate_id];
     const char *filename_idx = is_editor ? EDITOR_GRAPHICS_SG2[climate_id] : MAIN_GRAPHICS_SG2[climate_id];
     uint8_t *tmp_data = (uint8_t *) malloc(MAIN_DATA_SIZE * sizeof(uint8_t));
-    image_draw_data *draw_data = (image_draw_data *) malloc((IMAGE_MAIN_ENTRIES + data.images_with_tops) * sizeof(image_draw_data));
+    image_draw_data *draw_data = (image_draw_data *) malloc(IMAGE_MAIN_ENTRIES * sizeof(image_draw_data));
     if (!tmp_data || !draw_data ||
         MAIN_INDEX_SIZE != io_read_file_into_buffer(filename_idx, MAY_BE_LOCALIZED, tmp_data, MAIN_INDEX_SIZE)) {
         free(tmp_data);
         free(draw_data);
         return 0;
     }
-    memset(data.main, 0, sizeof(data.main));
     memset(draw_data, 0, IMAGE_MAIN_ENTRIES * sizeof(image_draw_data));
 
     buffer buf;
@@ -1024,7 +1030,9 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 
     data.current_climate = climate_id;
     data.is_editor = is_editor;
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
     if (!terrain_registry().bind_graphics()) return 0;
+#endif
 
     data.images_with_tops = 0;
 

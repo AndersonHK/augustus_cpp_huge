@@ -77,7 +77,7 @@ static int export_attribute_number(xml_data_attribute_t *attr, int target)
 static int export_attribute_route(xml_data_attribute_t *attr, int target)
 {
     int city_id = empire_city_get_for_trade_route(target);
-    if (city_id) {
+    if (city_id > 0) {
         empire_city *city = empire_city_get(city_id);
         const uint8_t *city_name = empire_city_get_name(city);
         xml_exporter_add_attribute_encoded_text(attr->name, city_name);

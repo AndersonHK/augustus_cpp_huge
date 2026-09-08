@@ -269,13 +269,11 @@ void trade_routes_migrate_to_buys_sells(buffer *limit, buffer *traded, int versi
             continue;
         }
         int city_id = empire_city_get_for_trade_route(i);
-        if (city_id < 0) {
-            continue;
-        }
         for (int r = 0; r < resource_total_mapped(); r++) {
             resource_type remapped = resource_remap(r);
             int limit_amount = buffer_read_i32(limit);
             int traded_amount = buffer_read_i32(traded);
+            if (city_id < 0) continue; // Missing cities still occupy their serialized resource rows.
             if (empire_city_buys_resource(city_id, remapped)) {
                 route->buys.limit[remapped] = limit_amount;
                 route->buys.traded[remapped] = traded_amount;

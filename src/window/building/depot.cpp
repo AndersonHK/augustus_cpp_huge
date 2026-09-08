@@ -186,6 +186,7 @@ static void setup_buttons_for_selected_depot(void)
         const data_storage *storage = building_storage_get_array_entry(i);
         Building *store = storage->runtime_building;
         if (!store || !storage->in_use || store->state_id() == BUILDING_STATE_MOTHBALLED ||
+            store->state_id() == BUILDING_STATE_RUBBLE ||
         (!resource_is_food(data.target_resource_id) &&
             store->type && store->type->is_granary())) {
             continue;
@@ -223,14 +224,14 @@ static void setup_buttons_for_selected_depot(void)
     for (int i = 0; i < storage_array_size; i++) {
         const data_storage *storage = building_storage_get_array_entry(i);
         Building *store = storage->runtime_building;
-        if (!store ||
+        if (!store || !storage->in_use || store->state_id() == BUILDING_STATE_RUBBLE ||
         (!resource_is_food(data.target_resource_id) &&
             store->type && store->type->is_granary())) {
             continue;
         }
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
         int max_storable = building_storage_resource_max_storable(*store, data.target_resource_id);
-        if ((max_storable == 0 || !storage->in_use || store->state_id() == BUILDING_STATE_MOTHBALLED) &&
+        if ((max_storable == 0 || store->state_id() == BUILDING_STATE_MOTHBALLED) &&
             store->storage_id > 0) {
             row_count++;
             if (row_count <= scrollbar.scroll_position || drawn_rows >= MAX_VISIBLE_ROWS) {
@@ -276,13 +277,13 @@ static void calculate_available_storages(Building &depot)
 
         const data_storage *storage = building_storage_get_array_entry(i);
         Building *store_obj = storage->runtime_building;
-        if (!store_obj ||
+        if (!store_obj || !storage->in_use ||
         (!resource_is_food(data.target_resource_id) &&
             store_obj->type && store_obj->type->is_granary())) {
             continue;
         }
         int max_storable = building_storage_resource_max_storable(*store_obj, data.target_resource_id);
-        int active = storage->in_use;
+        int active = store_obj->state_id() != BUILDING_STATE_MOTHBALLED;
         if (store_obj->state_id() == BUILDING_STATE_RUBBLE) {
             continue; // skip rubble buildings
         }

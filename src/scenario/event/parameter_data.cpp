@@ -1659,7 +1659,7 @@ void scenario_events_parameter_data_get_display_string_for_value(parameter_type 
         case PARAMETER_TYPE_ROUTE:
         {
             int city_id = empire_city_get_for_trade_route(value);
-            if (city_id) {
+            if (city_id > 0) {
                 empire_city *city = empire_city_get(city_id);
                 const uint8_t *text = empire_city_get_name(city);
                 result_text = string_copy(text, result_text, maxlength);

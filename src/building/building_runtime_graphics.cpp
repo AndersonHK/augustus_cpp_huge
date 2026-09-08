@@ -212,6 +212,9 @@ int selected_option_for_selection(
             graphics_variant % option_count;
         return option < 0 ? option + option_count : option;
     }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::PairedOrientation) {
+        return (graphics_variant ^ ((city_view_orientation() / 2) % 2)) % option_count;
+    }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
         return building_type_registry_impl::graphics_orientation_option_index(
             building.orientation(), city_view_orientation(), option_count);

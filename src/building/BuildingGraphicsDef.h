@@ -51,6 +51,7 @@ enum class GraphicsConditionType {
 enum class GraphicsOptionSelection {
     StableVariant,
     BuildRotation,
+    PairedOrientation,
     Connectable,
     Orientation,
     ProductionProgress,
