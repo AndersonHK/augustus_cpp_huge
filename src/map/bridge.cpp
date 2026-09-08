@@ -9,7 +9,7 @@
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "game/undo.h"
 #include "map/building.h"
@@ -744,7 +744,7 @@ static int report_loaded_bridge_validation_failure(const char *reason, int grid_
 {
     char detail[192];
     snprintf(detail, sizeof(detail), "grid_offset=%d building_id=%u reason=%s", grid_offset, building_id, reason ? reason : "<none>");
-    log_error("Current save contains an invalid native bridge chain", detail, 0);
+    Logger::error("Current save contains an invalid native bridge chain", detail, 0);
     return 0;
 }
 

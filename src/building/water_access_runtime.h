@@ -28,6 +28,7 @@ int water_access_runtime_building_type_requires_access_text(
     const building_type_registry_impl::BuildingType *definition,
     const char *text_id);
 int water_access_runtime_tile_has_access(int grid_offset, const char *text_id);
+int water_access_runtime_tile_has_inactive_access(int grid_offset, const char *text_id);
 int water_access_runtime_building_area_has_access(const Building *building, const char *text_id);
 int water_access_runtime_building_has_required_access(const Building *building);
 int water_access_runtime_building_has_open_water_access(const Building *building);

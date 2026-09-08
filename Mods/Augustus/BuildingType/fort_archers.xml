@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_archers">
+    <presentation overlay="enemy" />
     <button group="forts" order="140" text_key="TR_BUILDING_FORT_ARCHERS" />
     <graphics>
         <default>

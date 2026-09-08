@@ -1,3 +1,4 @@
+#include "core/Logger.h"
 #include "joystick.h"
 
 #include "input/joystick.h"
@@ -216,14 +217,14 @@ static void add_joystick(int index)
 
     if (SDL_IsGameController(index)) {
         controller = SDL_GameControllerOpen(index);
-        if (!controller) { SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Unable to open controller: %s", SDL_GetError()); return; }
+        if (!controller) { Logger::warningf("Unable to open controller: %s", SDL_GetError()); return; }
         joystick = SDL_GameControllerGetJoystick(controller);
-        SDL_Log("Game controller found. Setting default gamepad mapping.");
+        Logger::infof("Game controller found. Setting default gamepad mapping.");
     } else {
         joystick = SDL_JoystickOpen(index);    
     }
     if (!joystick) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Unable to open joystick: %s", SDL_GetError());
+        Logger::warningf("Unable to open joystick: %s", SDL_GetError());
         if (controller) SDL_GameControllerClose(controller);
         return;
     }
@@ -274,7 +275,7 @@ void platform_joystick_init(int force_enable)
         return;
     }
     if (SDL_JoystickEventState(SDL_ENABLE) != SDL_ENABLE) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Joystick events could not be enabled: %s", SDL_GetError());
+        Logger::warningf("Joystick events could not be enabled: %s", SDL_GetError());
     }
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
         add_joystick(i);

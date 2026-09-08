@@ -1,3 +1,4 @@
+#include "game/defines.h"
 #include "building/destruction.h"
 #include "graphics/declarative_window.h"
 #include <algorithm>
@@ -26,7 +27,7 @@
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
@@ -151,22 +152,23 @@ public:
     {
         if (binding != "durability") return {};
         const int grid = grid_offset_;
-        const int maximum = std::max(1, building_hit_points_at(grid) + 1);
+        const int maximum = std::max(1, building_hit_points_at(grid) + game_defines_building_damage_extra_hit());
         return std::string(reinterpret_cast<const char *>(translation_for_key("TR_DURABILITY"))) + ": " + std::to_string(std::max(0, maximum - building_damage_at(grid))) + " / " + std::to_string(maximum);
     }
     void action(std::string_view, int) override {}
 private:
     int grid_offset_;
 };
-void draw_durability(building_info_context *context)
+}
+void window_building_draw_durability(building_info_context *context)
 {
+    if (!context->building || !context->building->type || !context->building->type->presentation().show_durability) return;
     const auto *definition = declarative_window_definition("building_durability");
     const int grid = context->building ? context->building->record()->grid_offset : context->grid_offset;
     if (!definition || grid < 0) return;
     DurabilityController controller(grid);
     DeclarativeWindowRuntime runtime(*definition, controller);
     runtime.draw(DeclarativeDrawPhase::Foreground, context->width_blocks * BLOCK_SIZE, context->height_blocks * BLOCK_SIZE, context->x_offset, context->y_offset);
-}
 }
 
 void window_building_draw_wall(building_info_context *c)
@@ -176,7 +178,6 @@ void window_building_draw_wall(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.139.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, 139, 1);
-    draw_durability(c);
 }
 
 void window_building_draw_gatehouse(building_info_context *c)
@@ -187,7 +188,6 @@ void window_building_draw_gatehouse(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.90.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, 90, 1);
-    draw_durability(c);
 }
 
 void window_building_draw_tower(building_info_context *c)
@@ -211,7 +211,6 @@ void window_building_draw_tower(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
-    draw_durability(c);
 }
 
 void window_building_draw_barracks(building_info_context *c)
@@ -636,7 +635,7 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
             } else {
                 title_id = 16;
                 text_id = 22;
-                log_info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
+                Logger::info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
             }
             break;
     }

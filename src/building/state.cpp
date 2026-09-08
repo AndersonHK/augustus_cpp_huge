@@ -18,7 +18,7 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/housing_profile_registry.h"
 #include "building/monument.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/save_version.h"
 #include "map/building.h"
 #include "map/grid.h"
@@ -29,6 +29,11 @@
 #include <cstddef>
 #include <cstring>
 #include <vector>
+#include <unordered_set>
+
+namespace { std::unordered_set<unsigned int> removed_imported_owners; }
+void building_state_begin_import() { removed_imported_owners.clear(); }
+bool building_state_import_removed_owner(unsigned int id) { return removed_imported_owners.count(id) != 0; }
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
@@ -343,7 +348,7 @@ static void log_loaded_building_type_problem(const building *b, uint16_t saved_t
 {
     char detail[1200];
     format_loaded_building_type_problem(detail, sizeof(detail), b, saved_type, reason);
-    log_warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
+    Logger::warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
 }
 
 static void remove_tiles_for_unsupported_building(const building *b)
@@ -400,6 +405,7 @@ static void quarantine_loaded_building_type_problem(
     }
     log_loaded_building_type_problem(b, saved_type, reason);
     if (!for_preview) {
+        removed_imported_owners.insert(b->id);
         b->type = BUILDING_NONE;
         if (!detach_unsupported_plaza_surface_record(b)) {
             remove_tiles_for_unsupported_building(b);

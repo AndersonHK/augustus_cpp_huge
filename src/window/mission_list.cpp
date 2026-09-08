@@ -21,7 +21,7 @@
 
 #include "assets/assets.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -205,7 +205,7 @@ static void generate_list(void)
 
     data.items = static_cast<campaign_item *>(malloc(sizeof(campaign_item) * data.total_items));
     if (!data.items) {
-        log_error("Error creating mission items. The game will probably crash.", 0, 0);
+        Logger::error("Error creating mission items. The game will probably crash.", 0, 0);
     }
     memset(data.items, 0, sizeof(campaign_item) * data.total_items);
     int mission_id = 1;

@@ -1,6 +1,6 @@
 #include "custom_media.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <deque>
 

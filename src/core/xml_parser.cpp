@@ -1,6 +1,6 @@
 #include "xml_parser.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include "sxml/sxml.h"
 
@@ -186,7 +186,7 @@ static void start_element(const sxmltok_t *token)
     const xml_parser_element *element = get_element_from_name(name);
     if (!element) {
         data.error_depth = data.depth;
-        log_error("Invalid XML element name", name, 0);
+        Logger::error("Invalid XML element name", name, 0);
         if (data.stop_on_invalid_xml) {
             data.error = 1;
         }
@@ -196,7 +196,7 @@ static void start_element(const sxmltok_t *token)
 
     if (!handle_attributes(token + 1, token->size)) {
         data.error_depth = data.depth;
-        log_error("Malformed attributes for the element", element->name, 0);
+        Logger::error("Malformed attributes for the element", element->name, 0);
     } else if (!element->on_enter()) {
         data.error_depth = data.depth;
     }
@@ -237,7 +237,7 @@ static void end_element(const sxmltok_t *token)
     data.buffer.data[token->endpos] = 0;
     if (!data.current_element || strcmp(data.current_element->name, name) != 0) {
         data.error = 1;
-        log_error("XML mismatch between element open and close", name, 0);
+        Logger::error("XML mismatch between element open and close", name, 0);
         return;
     }
     finish_text();
@@ -395,7 +395,7 @@ int xml_parser_parse(const char *buffer, unsigned int buffer_size, int is_final)
     sxmlerr_t result;
     data.parser.context.bufferpos = 0;
     if (!fit_buffer(data.buffer.cursor + buffer_size)) {
-        log_error("Out of memory", 0, 0);
+        Logger::error("Out of memory", 0, 0);
         data.error = 1;
         return 0;
     }
@@ -406,13 +406,13 @@ int xml_parser_parse(const char *buffer, unsigned int buffer_size, int is_final)
         result = sxml_parse(&data.parser.context, data.buffer.data, buffer_size + data.buffer.cursor,
             data.parser.tokens, data.parser.num_tokens);
         if (data.parser.current_position == data.parser.context.bufferpos && !expand_xml_token_array()) {
-            log_error("Unable to parse more data - token buffer full", 0, 0);
+            Logger::error("Unable to parse more data - token buffer full", 0, 0);
             data.error = 1;
             return 0;
         }
         if (result == SXML_ERROR_XMLINVALID) {
             increase_line_count(data.parser.context.bufferpos);
-            log_error("XML parse error on line:", 0, xml_parser_get_current_line_number());
+            Logger::error("XML parse error on line:", 0, xml_parser_get_current_line_number());
             data.error = 1;
             return 0;
         }
@@ -425,13 +425,13 @@ int xml_parser_parse(const char *buffer, unsigned int buffer_size, int is_final)
 
     if (result == SXML_ERROR_BUFFERDRY) {
         if (is_final) {
-            log_error("XML input file ended unexpectedly", 0, 0);
+            Logger::error("XML input file ended unexpectedly", 0, 0);
             data.error = 1;
             return 0;
         } else {
             data.buffer.cursor += buffer_size - data.parser.context.bufferpos;
             if (!fit_buffer(data.buffer.cursor + buffer_size)) {
-                log_error("Out of memory", 0, 0);
+                Logger::error("Out of memory", 0, 0);
                 data.error = 1;
                 return 0;
             }

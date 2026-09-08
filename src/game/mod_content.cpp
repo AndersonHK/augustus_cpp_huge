@@ -1,4 +1,5 @@
 #include "game/mod_content.h"
+#include "core/loading_progress.h"
 #include "sxml/sxml.h"
 
 #include <algorithm>
@@ -398,6 +399,15 @@ void Session::load(const std::vector<Layer> &layers, const std::filesystem::path
             if (result.ec == std::errc{} && (result.ptr == value.data() + value.size() || *result.ptr == '\r')) legacy_values[key] = parsed;
         }
     }
+    if (!values_file.empty()) {
+        std::ifstream inf(values_file.parent_path() / "c3.inf", std::ios::binary);
+        inf.seekg(556);
+        unsigned char enabled[4]{};
+        if (inf.read(reinterpret_cast<char *>(enabled), sizeof(enabled))) {
+            const unsigned value = enabled[0] | (enabled[1] << 8) | (enabled[2] << 16) | (static_cast<unsigned>(enabled[3]) << 24);
+            if (value <= 1) legacy_values["disable_god_effects"] = value == 0;
+        }
+    }
     for (const auto &layer : layers_) {
         auto path = layer.root / "mod.xml";
         if (!require_manifests && !std::filesystem::exists(path)) continue;
@@ -466,7 +476,10 @@ void Session::compile()
         }
         std::sort(paths.begin(), paths.end());
         std::set<std::string> layer_ids;
+        std::size_t completed = 0;
+        const std::string progress_label = "Loading " + layer.name + " definitions";
         for (const auto &path : paths) {
+            loading_progress::report(progress_label.c_str(), completed++, paths.size());
             try {
                 std::vector<Reference> refs;
                 auto source = expand_source(read(path), layer.name, settings_, &refs);
@@ -484,6 +497,7 @@ void Session::compile()
                 files[path_key(path)] = document + "\n";
             } catch (const std::exception &e) { fail(path_text(path) + ": " + e.what()); }
         }
+        loading_progress::report(progress_label.c_str(), paths.size(), paths.size());
     }
     std::set<std::string> live;
     for (const auto &entry : merged) {

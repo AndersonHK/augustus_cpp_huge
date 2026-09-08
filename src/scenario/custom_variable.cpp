@@ -1,6 +1,6 @@
 #include "custom_variable.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/save_version.h"
 #include "graphics/color.h"

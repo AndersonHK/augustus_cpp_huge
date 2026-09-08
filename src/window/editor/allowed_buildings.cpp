@@ -176,7 +176,9 @@ static void draw_allowed_building(const grid_box_item *item)
             x_offset = 20;
             y_offset = -4;
         }
-        draw_button(lang_get_building_type_string(current_menu->building), current_menu->building,
+        const auto *definition = building_type_registry_impl::definition_for_type(current_menu->building);
+        const char *key = definition ? definition->button_text_key() : nullptr;
+        draw_button(key && *key ? lang_get_string(key) : lang_get_building_type_string(current_menu->building), current_menu->building,
             item->x + x_offset, item->y + y_offset, item->width - x_offset, item->height, item->is_focused);
     } else if (current_menu->type == ITEM_TYPE_MENU) {
         if (building_menu_is_submenu(current_menu->menu)) {

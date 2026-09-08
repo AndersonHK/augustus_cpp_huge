@@ -2,7 +2,7 @@
 
 #include "core/encoding.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -7368,7 +7368,7 @@ void encoding_japanese_init(void)
     if (!utf8_to_codepage) {
         utf8_to_codepage = (japanese_entry*) malloc(sizeof(codepage_to_utf8));
         if (!utf8_to_codepage) {
-            log_error("Unable to allocate memory for Japanese codepage", 0, 0);
+            Logger::error("Unable to allocate memory for Japanese codepage", 0, 0);
             return;
         }
     }

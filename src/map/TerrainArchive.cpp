@@ -1,6 +1,6 @@
 #include "map/TerrainSaveBridge.h"
 #include "map/TerrainRegistry.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include <map>
 #include <charconv>
 #include <set>
@@ -33,7 +33,7 @@ const Terrain *resolve(const std::string &name)
     const auto *replacement = terrain_registry().load_alias(name);
     if (reported_repairs.insert(name).second) {
         const std::string detail = name + (replacement ? " -> " + replacement->name() : " (removed)");
-        log_warning("Repairing imported terrain absent from the active mod stack", detail.c_str(), 0);
+        Logger::warning("Repairing imported terrain absent from the active mod stack", detail.c_str(), 0);
     }
     return replacement;
 }
@@ -70,7 +70,7 @@ TerrainSet decode_legacy(uint32_t mask)
         if (mask & (1u << bit)) if (const auto *entry = resolve(legacy_names[bit])) terrain.add(*entry);
     }
     const uint32_t unknown = mask & ~((1u << std::size(legacy_names)) - 1);
-    if (unknown && reported_repairs.insert("unknown legacy bits").second) log_warning("Removing unknown legacy terrain bits", nullptr, static_cast<int>(unknown));
+    if (unknown && reported_repairs.insert("unknown legacy bits").second) Logger::warning("Removing unknown legacy terrain bits", nullptr, static_cast<int>(unknown));
     return terrain;
 }
 
@@ -175,7 +175,7 @@ bool load_ledger(buffer *source, bool has_ledger)
         if (!ended || !loaded_sets.count(0) || std::getline(text, line)) throw std::runtime_error("Incomplete terrain ledger");
         return true;
     } catch (const std::exception &error) {
-        log_error("Unable to load terrain ledger", error.what(), 0);
+        Logger::error("Unable to load terrain ledger", error.what(), 0);
         return false;
     }
 }

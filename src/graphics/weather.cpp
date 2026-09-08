@@ -71,6 +71,7 @@ static struct {
     int last_intensity;
     int last_active;
     int is_sound_playing;
+    int is_wind_playing;
     int weather_duration_left;
     weather_type displayed_type;
     weather_type last_type;
@@ -212,7 +213,8 @@ static void update_lightning(void)
 static void update_wind(void)
 {
     data.wind_angle += data.wind_speed;
-    data.weather_config.dx = ((data.wind_angle / 10) % 5) - 2;
+    if (data.wind_angle > 1000000) data.wind_angle %= 1000;
+    data.weather_config.dx = static_cast<int>(sinf(data.wind_angle * 0.011f) * 1.5f + sinf(data.wind_angle * 0.025f) * 0.8f);
 }
 
 static void update_current_particle_count(void)
@@ -253,7 +255,7 @@ static void update_overlay_alpha(void)
 
 static void render_weather_overlay(void)
 {
-    if (data.displayed_type == WEATHER_RAIN && data.current_particle_count < 800) {
+    if (data.displayed_type == WEATHER_RAIN && data.weather_config.intensity < 800) {
         return; // no overlay for light rain
     }
 
@@ -265,11 +267,11 @@ static void render_weather_overlay(void)
 
     int alpha_factor = 40;
     if (data.displayed_type == WEATHER_SNOW) {
-        alpha_factor = config_get(CONFIG_WT_SNOW_INTENSITY);
-    } else if (data.displayed_type == WEATHER_RAIN && data.current_particle_count > 800) {
-        alpha_factor = config_get(CONFIG_WT_RAIN_INTENSITY);
+        alpha_factor = config_get(CONFIG_WT_SNOW_INTENSITY) * 30 / 100;
+    } else if (data.displayed_type == WEATHER_RAIN) {
+        alpha_factor = config_get(CONFIG_WT_RAIN_INTENSITY) * 60 / 100;
     } else if (data.displayed_type == WEATHER_SAND) {
-        alpha_factor = config_get(CONFIG_WT_SANDSTORM_INTENSITY);
+        alpha_factor = config_get(CONFIG_WT_SANDSTORM_INTENSITY) * 10 / 100;
     }
 
     uint8_t alpha = (uint8_t) (((alpha_factor * data.overlay_alpha) / 100) * 255 / 100);
@@ -435,9 +437,24 @@ static void draw_rain(void)
     }
 }
 
+static void stop_wind_sound()
+{
+    if (!data.is_wind_playing) return;
+    sound_device_stop_file(ASSETS_DIRECTORY "/Sounds/Wind.ogg", SOUND_TYPE_EFFECTS);
+    data.is_wind_playing = 0;
+}
+
+static void start_wind_sound()
+{
+    if (data.is_wind_playing || window_is(WINDOW_CONFIG) || !window_city_is_window_cityview()) return;
+    data.is_wind_playing = sound_device_play_file_on_channel_panned(ASSETS_DIRECTORY "/Sounds/Wind.ogg",
+        SOUND_TYPE_EFFECTS, setting_sound(SOUND_TYPE_EFFECTS)->volume, 100, 100, 1);
+}
+
 void update_weather(void)
 {
     if (!window_city_is_window_cityview() && !window_is(WINDOW_CONFIG)) {
+        stop_wind_sound();
         if (data.is_sound_playing) { sound_device_stop_type(SOUND_TYPE_EFFECTS); data.is_sound_playing = 0; }
         return;
     }
@@ -471,6 +488,7 @@ void update_weather(void)
     }
 
     if (!config_get(CONFIG_UI_DRAW_WEATHER)) {
+        stop_wind_sound();
         if (data.is_sound_playing) {
             sound_device_stop_type(SOUND_TYPE_EFFECTS);
             data.is_sound_playing = 0;
@@ -506,8 +524,10 @@ void update_weather(void)
             data.is_sound_playing = 0;
         }
         weather_stop();
+        start_wind_sound();
         return;
     }
+    stop_wind_sound();
 
     // SNOW
     if (data.displayed_type == WEATHER_SNOW) {
@@ -544,8 +564,10 @@ void set_weather(int active, int intensity, weather_type type)
 
 void weather_reset(void)
 {
+    stop_wind_sound();
     weather_stop();
     sound_device_stop_type(SOUND_TYPE_EFFECTS);
+    data.is_sound_playing = 0;
 }
 
 void city_weather_update(int month)
@@ -591,6 +613,7 @@ void city_weather_update(int month)
             data.weather_duration_left = random_between_from_stdlib(1, WEATHER_MAX_DURATION[duration_setting]);
             // Play sounds only if weather is enabled
             if (config_get(CONFIG_UI_DRAW_WEATHER)) {
+                stop_wind_sound();
                 if (WEATHER_RAIN == type) {
                     if (intensity > 800) {
                         sound_device_play_file_on_channel_panned(ASSETS_DIRECTORY "/Sounds/HeavyRain.ogg",

@@ -1,6 +1,6 @@
 #include "game/mod_definition_loader.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "game/mod_manager.h"
 
@@ -307,7 +307,7 @@ bool for_each_definition_file(
         const std::string message = "No " + std::string(label ? label : "definition") +
             " xml files found in the configured mod layers.";
         set_failure(failure_reason, message);
-        log_error(message.c_str(), 0, 0);
+        Logger::error(message.c_str(), 0, 0);
         return false;
     }
     return true;

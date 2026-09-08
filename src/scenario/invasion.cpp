@@ -4,7 +4,7 @@
 #include "city/emperor.h"
 #include "city/message.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/object.h"
 #include "figure/enemy_army.h"
@@ -57,9 +57,7 @@ static const enemy_type_t ENEMY_ID_TO_ENEMY_TYPE[20] = {
     ENEMY_6_SELEUCID
 };
 
-static const int LOCAL_UPRISING_NUM_ENEMIES[20] = {
-    0, 0, 0, 0, 0, 3, 3, 3, 0, 6, 6, 6, 6, 6, 9, 9, 9, 9, 9, 9
-};
+
 
 static const struct {
     int pct_type1;
@@ -702,23 +700,14 @@ void scenario_invasion_process(void)
 
 }
 
-int scenario_invasion_start_from_mars(void)
+int scenario_invasion_start_local(int amount, int message)
 {
-    int mission = scenario_campaign_mission();
-    int amount;
-    if (game_campaign_is_original() && 0 <= mission && mission <= 19) {
-        amount = LOCAL_UPRISING_NUM_ENEMIES[mission];
-    } else if (scenario_invasion_count_total() > 0) {
-        amount = random_between_from_stdlib(3, 9);
-    } else {
-        amount = 0;
-    }
     if (amount <= 0) {
         return 0;
     }
     int grid_offset = start_invasion(ENEMY_0_BARBARIAN, amount, 8, FORMATION_ATTACK_FOOD_CHAIN, CHEATED_ARMY_ID);
     if (grid_offset) {
-        city_message_post(1, MESSAGE_LOCAL_UPRISING_MARS, data.last_internal_invasion_id, grid_offset);
+        city_message_post(1, message, data.last_internal_invasion_id, grid_offset);
     }
     return 1;
 }

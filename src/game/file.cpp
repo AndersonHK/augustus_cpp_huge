@@ -12,6 +12,10 @@
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/storage.h"
+#include "building/state.h"
+#include "building/properties.h"
+#include "building/building_type_startup_bridge.h"
+#include "building/production_method_registry.h"
 #include "building/water_access_runtime.h"
 #include "city/data.h"
 #include "city/emperor.h"
@@ -26,7 +30,7 @@
 #include "core/file.h"
 #include "core/image.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/empire.h"
@@ -66,9 +70,11 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/road_network.h"
+#include "map/routing.h"
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
 #include "map/TerrainMap.h"
+#include "map/TerrainSaveBridge.h"
 #include "map/tile_runtime_api.h"
 #include "map/tiles.h"
 #include "map/water_navigation.h"
@@ -91,9 +97,19 @@
 #include "sound/city.h"
 #include "sound/music.h"
 #include "window/plain_message_dialog.h"
+#include "graphics/window.h"
+#include "window/main_menu.h"
 
 #include <string>
 #include <string.h>
+#include <exception>
+#include <vector>
+
+namespace {
+bool loaded_world = false;
+int load_transaction_depth = 0;
+uint64_t world_generation = 0;
+}
 
 static const char MISSION_SAVED_GAMES[][32] = {
     "Citizen.svv",
@@ -128,6 +144,10 @@ void game_file_show_loaded_save_mod_mismatch_warning(void)
 
 static void clear_scenario_data(void)
 {
+    loaded_world = false;
+    ++world_generation;
+    water_navigation::reset_world();
+    water_access_runtime_begin_world_load();
     // clear data
     city_victory_reset();
     building_construction_clear_type();
@@ -138,6 +158,7 @@ static void clear_scenario_data(void)
     sound_city_init();
     building_menu_enable_all();
     building_clear_all();
+    building_state_begin_import();
     building_storage_clear_all();
     Figure::init_scenario();
     enemy_armies_clear();
@@ -148,6 +169,9 @@ static void clear_scenario_data(void)
     figure_visited_buildings_init();
     scenario_events_clear();
     custom_messages_clear_all();
+    model_reset();
+    building_type_startup_bridge_apply_model_overrides();
+    production_method_registry_reset_production_overrides();
 
     game_time_init(2098);
 
@@ -160,6 +184,7 @@ static void clear_scenario_data(void)
     map_image_clear();
     map_building_clear();
     terrain_map().clear();
+    terrain_save::load_ledger(nullptr, false);
     map_aqueduct_clear();
     map_figure_clear();
     map_property_clear();
@@ -172,6 +197,8 @@ static void clear_scenario_data(void)
 
     map_image_context_init();
     map_random_init();
+    scenario = {};
+    scenario_map_init();
 }
 
 void game_file_clear_scenario_data_for_save_load(void)
@@ -179,12 +206,13 @@ void game_file_clear_scenario_data_for_save_load(void)
     clear_scenario_data();
 }
 
-static void initialize_scenario_data(const uint8_t *scenario_name)
+static bool initialize_scenario_data(const uint8_t *scenario_name)
 {
     water_navigation::begin_world_load();
     water_access_runtime_begin_world_load();
     scenario_set_name(scenario_name);
     scenario_map_init();
+    game_file_repair_loaded_terrain();
 
     // initialize grids
     map_tiles_update_all_elevation();
@@ -247,12 +275,17 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     game_state_unpause();
 
     weather_reset();
-    if (!building_hydrate_loaded_compositions(SAVE_GAME_CURRENT_VERSION)) log_error("Scenario building composition initialization failed", 0, 0);
+    if (!building_hydrate_loaded_compositions(SAVE_GAME_CURRENT_VERSION)) {
+        Logger::error("Scenario building composition initialization failed", 0, 0);
+        return false;
+    }
     // After new city/scenario init, every live building instance is rebound to its runtime wrapper and rebuilds native
     // graphics/storage/production state.
     building_runtime_initialize_city_graphics_cache();
     water_navigation::finish_world_load();
     figure_runtime_initialize_city();
+    loaded_world = true;
+    return true;
 }
 
 static void load_empire_data(int is_custom_scenario, int empire_id)
@@ -280,8 +313,7 @@ static int load_custom_scenario(const uint8_t *scenario_name, const char *scenar
     if (!load_scenario_data(scenario_file)) {
         return 0;
     }
-    initialize_scenario_data(scenario_name);
-    return 1;
+    return initialize_scenario_data(scenario_name);
 }
 
 /**
@@ -294,11 +326,11 @@ static bool validate_loaded_hippodrome_composition(Building b)
         Building *next = Building::get(static_cast<unsigned int>(record->next_part_building_id));
         Building *prev = Building::get(static_cast<unsigned int>(record->prev_part_building_id));
         if (!next || !prev) {
-            log_error("Loaded save contains an incomplete hippodrome composition", 0, b.id);
+            Logger::error("Loaded save contains an incomplete hippodrome composition", 0, b.id);
             return false;
         }
         if (b.orientation() != next->orientation() || b.orientation() != prev->orientation()) {
-            log_error("Loaded save contains inconsistent hippodrome orientations", 0, b.id);
+            Logger::error("Loaded save contains inconsistent hippodrome orientations", 0, b.id);
             return false;
         }
     }
@@ -319,8 +351,30 @@ static bool validate_loaded_hippodromes(void)
     return true;
 }
 
+void game_file_repair_loaded_terrain(void)
+{
+    if (!tile_runtime_garden_option_count(0, 1)) {
+        int repaired = 0;
+        for (int y = 0; y < map_grid_height(); ++y) {
+            for (int x = 0; x < map_grid_width(); ++x) {
+                const int offset = map_grid_offset(x, y);
+                if (terrain_map().contains(offset, terrain_types().garden) && !terrain_map().contains(offset, terrain_types().road) && map_property_is_plaza_earthquake_or_overgrown_garden(offset)) {
+                    map_property_clear_plaza_earthquake_or_overgrown_garden(offset);
+                    ++repaired;
+                }
+            }
+        }
+        if (repaired) Logger::warning("Converting imported overgrown gardens to the active mod's ordinary gardens", 0, repaired);
+    }
+}
+
 static bool initialize_saved_game(void)
 {
+    // Reconstructing derived routes is not a new simulation action.
+    struct RestoreRoutingStatistics {
+        MapRoutingStatistics value = map_routing_statistics();
+        ~RestoreRoutingStatistics() { map_routing_restore_statistics(value); }
+    } restore_routing_statistics;
     water_navigation::begin_world_load();
     water_access_runtime_begin_world_load();
     load_empire_data(!game_campaign_is_original(), scenario_empire_id());
@@ -371,19 +425,6 @@ static bool initialize_saved_game(void)
     weather_reset();
     // This is where restored saved buildings rebuild renderer/runtime state again after the world has finished loading.
     building_runtime_initialize_city_graphics_cache();
-    if (!tile_runtime_garden_option_count(0, 1)) {
-        int repaired = 0;
-        for (int y = 0; y < map_grid_height(); ++y) {
-            for (int x = 0; x < map_grid_width(); ++x) {
-                const int offset = map_grid_offset(x, y);
-                if (terrain_map().contains(offset, terrain_types().garden) && !terrain_map().contains(offset, terrain_types().road) && map_property_is_plaza_earthquake_or_overgrown_garden(offset)) {
-                    map_property_clear_plaza_earthquake_or_overgrown_garden(offset);
-                    ++repaired;
-                }
-            }
-        }
-        if (repaired) log_warning("Converting imported overgrown gardens to the active mod's ordinary gardens", 0, repaired);
-    }
     map_tiles_update_all_gardens();
     map_tiles_update_all_roads();
     map_tiles_update_all_highways();
@@ -397,11 +438,11 @@ static bool initialize_saved_game(void)
     building_maintenance_check_rome_access();
     house_population_update_room();
     if (!Figure::resolve_loaded_building_references(SAVE_GAME_CURRENT_VERSION)) {
-        log_error("World initialization failed strict figure/building reference validation", 0, 0);
+        Logger::error("World initialization failed strict figure/building reference validation", 0, 0);
         return false;
     }
     if (!formation_finish_load_bridge()) {
-        log_error("World initialization failed formation destination migration", 0, 0);
+        Logger::error("World initialization failed formation destination migration", 0, 0);
         return false;
     }
     figure_runtime_initialize_city();
@@ -409,7 +450,55 @@ static bool initialize_saved_game(void)
     map_tiles_update_all_plazas();
     map_building_rebind_runtime_references();
     city_view_restore_lookup();
+    loaded_world = true;
     return true;
+}
+
+template<class Load> static int load_world_transaction(Load load)
+{
+    if (load_transaction_depth) return load();
+    struct Depth { Depth() { ++load_transaction_depth; } ~Depth() { --load_transaction_depth; } } depth;
+    const bool had_world = loaded_world;
+    const uint64_t generation = world_generation;
+    const int paused = game_state_is_paused(), overlay = game_state_overlay(), speed = setting_game_speed();
+    std::vector<uint8_t> checkpoint;
+    try {
+        if (had_world && !game_file_io_snapshot(checkpoint)) {
+            Logger::error("Unable to checkpoint current city; load cancelled before changing the world", nullptr, 0);
+            return FILE_LOAD_VALIDATION_FAILED;
+        }
+    } catch (const std::exception &e) {
+        Logger::error("Unable to checkpoint current city", e.what(), 0);
+        return FILE_LOAD_VALIDATION_FAILED;
+    }
+    int result = FILE_LOAD_VALIDATION_FAILED;
+    try { result = load(); }
+    catch (const std::exception &e) { Logger::error("City load failed", e.what(), 0); }
+    if (result != FILE_LOAD_SUCCESS && generation != world_generation) {
+        // No partially imported owner, definition override, grid or derived cache
+        // may survive a rejected world. Restore only from the clean checkpoint.
+        clear_scenario_data();
+        if (had_world) {
+            bool restored = false;
+            try {
+                buffer source;
+                buffer_init(&source, checkpoint.data(), checkpoint.size());
+                restored = game_file_io_read_save_game_from_buffer(&source, ArchiveFamily::Vespasian) == FILE_LOAD_SUCCESS && validate_loaded_hippodromes() && initialize_saved_game();
+            } catch (const std::exception &e) { Logger::error("City checkpoint restoration failed", e.what(), 0); }
+            if (restored) {
+                building_storage_reset_building_ids();
+                game_state_set_overlay(overlay);
+                setting_set_game_speed(speed);
+                if (paused) game_state_pause(); else game_state_unpause();
+            } else {
+                clear_scenario_data();
+                Logger::error("City checkpoint could not be restored; discarded both worlds", nullptr, 0);
+                window_main_menu_show(0);
+            }
+        }
+    }
+    window_invalidate();
+    return result;
 }
 
 static int start_scenario(const uint8_t *scenario_name, const char *scenario_file)
@@ -461,7 +550,7 @@ static const char *get_scenario_filename(const uint8_t *scenario_name, const cha
     return filename;
 }
 
-int game_file_start_scenario_from_buffer(uint8_t *data, int length, int is_save_game)
+static int start_scenario_from_buffer(uint8_t *data, int length, int is_save_game)
 {
     buffer buf;
     buffer_init(&buf, data, length);
@@ -497,7 +586,7 @@ int game_file_start_scenario_from_buffer(uint8_t *data, int length, int is_save_
         scenario_set_name(game_campaign_get_scenario(mission)->name);
         city_data_init_campaign_mission();
     } else {
-        initialize_scenario_data(game_campaign_get_scenario(mission)->name);
+        if (!initialize_scenario_data(game_campaign_get_scenario(mission)->name)) return 0;
     }
     scenario_set_custom(game_campaign_is_original() ? 0 : 2);
     scenario_set_campaign_mission(mission);
@@ -524,7 +613,12 @@ int game_file_start_scenario_from_buffer(uint8_t *data, int length, int is_save_
     return 1;
 }
 
-int game_file_start_scenario_by_name(const uint8_t *scenario_name)
+int game_file_start_scenario_from_buffer(uint8_t *data, int length, int is_save_game)
+{
+    return load_world_transaction([&] { return start_scenario_from_buffer(data, length, is_save_game) ? FILE_LOAD_SUCCESS : FILE_LOAD_VALIDATION_FAILED; }) == FILE_LOAD_SUCCESS;
+}
+
+static int start_scenario_by_name(const uint8_t *scenario_name)
 {
     if (start_scenario(scenario_name, get_scenario_filename(scenario_name, "map", 0))) {
         return 1;
@@ -538,7 +632,12 @@ int game_file_start_scenario_by_name(const uint8_t *scenario_name)
     return start_scenario(scenario_name, get_scenario_filename(scenario_name, "mapx", 1));
 }
 
-int game_file_load_saved_game(const char *filename)
+int game_file_start_scenario_by_name(const uint8_t *scenario_name)
+{
+    return load_world_transaction([&] { return start_scenario_by_name(scenario_name) ? FILE_LOAD_SUCCESS : FILE_LOAD_VALIDATION_FAILED; }) == FILE_LOAD_SUCCESS;
+}
+
+static int load_saved_game(const char *filename)
 {
     game_campaign_suspend();
     int result = game_file_io_read_saved_game(filename, 0);
@@ -556,6 +655,11 @@ int game_file_load_saved_game(const char *filename)
     building_storage_reset_building_ids();
     sound_music_update(1);
     return 1;
+}
+
+int game_file_load_saved_game(const char *filename)
+{
+    return load_world_transaction([&] { return load_saved_game(filename); });
 }
 
 int game_file_write_saved_game(const char *filename)
@@ -581,7 +685,7 @@ int game_file_make_yearly_autosave(void)
         next_autosave_slot, ".svv");
 
     if (file_exists(current_save_name, NOT_LOCALIZED) && !platform_file_manager_copy_file(current_save_name, backup_save_name)) {
-        log_error("Unable to preserve the previous yearly autosave", backup_save_name, 0);
+        Logger::error("Unable to preserve the previous yearly autosave", backup_save_name, 0);
         return 0;
     }
     int result = game_file_write_saved_game(current_save_name);

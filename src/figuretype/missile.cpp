@@ -2,8 +2,9 @@
 
 #include "city/view.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/formation.h"
+#include "figure/combat.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/properties.h"
@@ -33,7 +34,7 @@ static void select_projectile_graphics(Figure &projectile)
         case FIGURE_SPEAR:
             break;
         default:
-            log_error("Cannot select projectile graphics for a non-projectile figure", 0, projectile.type);
+            Logger::error("Cannot select projectile graphics for a non-projectile figure", 0, projectile.type);
             std::terminate();
     }
     const int direction = (16 + projectile.direction - 2 * city_view_orientation()) % 16;
@@ -112,6 +113,7 @@ void figure_create_missile(int figure_id, int x, int y, int x_dst, int y_dst, fi
 
 static int is_citizen(Figure *f)
 {
+    if (!figure_combat_is_targetable(*f)) return 0;
     const figure_properties *target_props = figure_properties_for_type(static_cast<figure_type>(f->type));
     const figure_category_mask category = target_props->category;
     if (f->action_state != FIGURE_ACTION_149_CORPSE) {
@@ -129,6 +131,7 @@ static int get_citizen_on_tile(int grid_offset)
 
 static int is_non_citizen(Figure *f)
 {
+    if (!figure_combat_is_targetable(*f)) return 0;
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         return 0;
     }
@@ -245,7 +248,7 @@ static bool projectile_targets_citizens(figure_type type)
         case FIGURE_BOLT:
             return false;
         default:
-            log_error("Cannot choose targets for a non-projectile figure", 0, type);
+            Logger::error("Cannot choose targets for a non-projectile figure", 0, type);
             std::terminate();
     }
 }
@@ -264,7 +267,7 @@ static sound_effect_type projectile_impact_sound(figure_type type)
         case FIGURE_CATAPULT_MISSILE:
             return SOUND_EFFECT_BALLISTA_HIT_GROUND;
         default:
-            log_error("Cannot choose impact sound for a non-projectile figure", 0, type);
+            Logger::error("Cannot choose impact sound for a non-projectile figure", 0, type);
             std::terminate();
     }
 }

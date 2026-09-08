@@ -11,7 +11,7 @@ void runtime_diagnostics_write_crash_dump(const char *)
 #include "building/building_runtime.h"
 #include "city/population.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "game/time.h"
@@ -95,7 +95,7 @@ void runtime_diagnostics_write_crash_dump(const char *reason)
     const std::string path = crash_dump_path();
     FILE *file = platform_file_manager_open_file(path.c_str(), "wb");
     if (!file) {
-        log_error("Unable to write runtime crash dump", path.c_str(), 0);
+        Logger::error("Unable to write runtime crash dump", path.c_str(), 0);
         writing_dump = 0;
         return;
     }
@@ -113,7 +113,7 @@ void runtime_diagnostics_write_crash_dump(const char *reason)
     fprintf(file, "\n}\n");
 
     platform_file_manager_close_file(file);
-    log_info("Runtime crash dump written", path.c_str(), 0);
+    Logger::info("Runtime crash dump written", path.c_str(), 0);
     writing_dump = 0;
 }
 

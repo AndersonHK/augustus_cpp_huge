@@ -17,6 +17,9 @@ int building_construction_type_num_cycles(building_type type);
 
 int building_construction_type_cycle_steps(building_type type);
 
+void building_construction_reset_cycle_steps(void);
+int building_construction_type_cycle_position(building_type type);
+
 void building_construction_set_cost(int cost);
 void building_construction_set_force_place_clear_cost(int cost);
 

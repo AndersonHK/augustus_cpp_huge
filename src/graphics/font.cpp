@@ -591,6 +591,8 @@ const font_definition *font_definition_for(font_t font)
     return &data.font_definitions[font];
 }
 
+const font_definition *font_original_definition_for(font_t font) { return &data.font_definitions[font]; }
+
 int font_can_display(const uint8_t *character)
 {
     if (font_vector_runtime_is_active()) {
@@ -625,6 +627,11 @@ int font_letter_id(const font_definition *def, const uint8_t *str, int *num_byte
         *num_bytes = 1;
         return custom_char_id;
     }
+    return font_original_letter_id(def, str, num_bytes);
+}
+
+int font_original_letter_id(const font_definition *def, const uint8_t *str, int *num_bytes)
+{
     if (data.multibyte != MULTIBYTE_NONE && *str >= 0x80) {
         *num_bytes = 2;
         if (data.multibyte == MULTIBYTE_TRADITIONAL_CHINESE) {

@@ -12,7 +12,7 @@
 #include "city/map.h"
 #include "core/direction.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"

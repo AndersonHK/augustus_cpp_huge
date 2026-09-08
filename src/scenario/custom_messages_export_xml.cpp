@@ -2,7 +2,7 @@
 
 #include "core/buffer.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_exporter.h"
 #include "scenario/custom_messages.h"
@@ -89,7 +89,7 @@ int custom_messages_export_to_xml(const char *filename)
     int buf_size = XML_EXPORT_MAX_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to allocate buffer to export messages XML", 0, 0);
+        Logger::error("Unable to allocate buffer to export messages XML", 0, 0);
         free(buf_data);
         return 0;
     }

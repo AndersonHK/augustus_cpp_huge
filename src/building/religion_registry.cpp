@@ -4,12 +4,11 @@
 
 #include "building/god_registry.h"
 #include "building/religion.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
 #include "game/mod_definition_loader.h"
 
-#include "core/log.h"
 #include "core/xml_parser.h"
 
 #include <cstring>
@@ -46,7 +45,7 @@ int reject_tombstone_content(const char *node)
     if (!g_parse_state.disabled) {
         return 0;
     }
-    log_error("Disabled Religion tombstone contains definition data", node, 0);
+    Logger::error("Disabled Religion tombstone contains definition data", node, 0);
     g_parse_state.error = 1;
     return 1;
 }
@@ -101,7 +100,7 @@ int require_presentation_attribute(const char *attribute)
     if (xml_parser_has_attribute(attribute)) {
         return 1;
     }
-    log_error("Religion presentation is missing required attribute", attribute, 0);
+    Logger::error("Religion presentation is missing required attribute", attribute, 0);
     g_parse_state.error = 1;
     return 0;
 }
@@ -109,14 +108,14 @@ int require_presentation_attribute(const char *attribute)
 int parse_root()
 {
     if (!g_parse_state.definition || g_parse_state.saw_root) {
-        log_error("Religion has an invalid or duplicate root", 0, 0);
+        Logger::error("Religion has an invalid or duplicate root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("Religion has an invalid disabled value", 0, 0);
+        Logger::error("Religion has an invalid disabled value", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -131,12 +130,12 @@ int parse_presentation()
         return 0;
     }
     if (!g_parse_state.definition) {
-        log_error("Encountered Religion presentation before root", 0, 0);
+        Logger::error("Encountered Religion presentation before root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (g_parse_state.saw_presentation) {
-        log_error("Religion xml contains duplicate presentation nodes", g_parse_state.definition->path(), 0);
+        Logger::error("Religion xml contains duplicate presentation nodes", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -158,10 +157,18 @@ int parse_presentation()
     presentation.set_quote_key(translation_key(xml_value::trim_copy(xml_parser_get_attribute_string("quote_key"))));
     presentation.set_banner_group(xml_value::trim_copy(xml_parser_get_attribute_string("banner_group")));
     presentation.set_banner_image(xml_value::trim_copy(xml_parser_get_attribute_string("banner_image")));
+    const auto optional_portrait_value = [](const char *name) { const char *value = xml_parser_get_attribute_string(name); return value ? xml_value::trim_copy(value) : std::string(); };
+    const auto portrait_group = optional_portrait_value("portrait_group"), portrait_image = optional_portrait_value("portrait_image");
+    if (portrait_group.empty() != portrait_image.empty()) {
+        Logger::error("Religion portrait requires both a group and an image", g_parse_state.definition->path(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    presentation.set_portrait(portrait_group, portrait_image, optional_portrait_value("selected_portrait_image"));
 
     int content_y_offset = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("content_y_offset"), &content_y_offset)) {
-        log_error("Unsupported Religion presentation content_y_offset", xml_parser_get_attribute_string("content_y_offset"), 0);
+        Logger::error("Unsupported Religion presentation content_y_offset", xml_parser_get_attribute_string("content_y_offset"), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -170,7 +177,7 @@ int parse_presentation()
     int height_blocks = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("height_blocks"), &height_blocks) ||
         height_blocks <= 0) {
-        log_error("Unsupported Religion presentation height_blocks", xml_parser_get_attribute_string("height_blocks"), 0);
+        Logger::error("Unsupported Religion presentation height_blocks", xml_parser_get_attribute_string("height_blocks"), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -178,14 +185,14 @@ int parse_presentation()
 
     int module_index = parse_presentation_module_index(xml_parser_get_attribute_string("module_key"));
     if (module_index < 0) {
-        log_error("Unsupported Religion presentation module_key", xml_parser_get_attribute_string("module_key"), 0);
+        Logger::error("Unsupported Religion presentation module_key", xml_parser_get_attribute_string("module_key"), 0);
         g_parse_state.error = 1;
         return 0;
     }
     presentation.set_module_index(module_index);
 
     if (!presentation.is_complete()) {
-        log_error("Religion presentation is incomplete", g_parse_state.definition->path(), 0);
+        Logger::error("Religion presentation is incomplete", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -200,19 +207,19 @@ int parse_god()
         return 0;
     }
     if (!g_parse_state.definition) {
-        log_error("Encountered Religion god before root", 0, 0);
+        Logger::error("Encountered Religion god before root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("path")) {
-        log_error("Religion god is missing required attribute 'path'", g_parse_state.definition->path(), 0);
+        Logger::error("Religion god is missing required attribute 'path'", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     std::string god_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
     if (god_path.empty()) {
-        log_error("Religion god path must not be empty", 0, 0);
+        Logger::error("Religion god path must not be empty", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -228,24 +235,24 @@ int parse_tier()
         return 0;
     }
     if (!g_parse_state.definition) {
-        log_error("Encountered Religion tier before root", 0, 0);
+        Logger::error("Encountered Religion tier before root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (g_parse_state.saw_tier) {
-        log_error("Religion xml contains duplicate tier nodes", g_parse_state.definition->path(), 0);
+        Logger::error("Religion xml contains duplicate tier nodes", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("value")) {
-        log_error("Religion tier is missing required attribute 'value'", g_parse_state.definition->path(), 0);
+        Logger::error("Religion tier is missing required attribute 'value'", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     ReligionTier tier = parse_tier(xml_parser_get_attribute_string("value"));
     if (tier == ReligionTier::None) {
-        log_error("Unsupported Religion tier", xml_parser_get_attribute_string("value"), 0);
+        Logger::error("Unsupported Religion tier", xml_parser_get_attribute_string("value"), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -261,24 +268,24 @@ int parse_capacity()
         return 0;
     }
     if (!g_parse_state.definition) {
-        log_error("Encountered Religion capacity before root", 0, 0);
+        Logger::error("Encountered Religion capacity before root", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (g_parse_state.saw_capacity) {
-        log_error("Religion xml contains duplicate capacity nodes", g_parse_state.definition->path(), 0);
+        Logger::error("Religion xml contains duplicate capacity nodes", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("amount")) {
-        log_error("Religion capacity is missing required attribute 'amount'", g_parse_state.definition->path(), 0);
+        Logger::error("Religion capacity is missing required attribute 'amount'", g_parse_state.definition->path(), 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     int amount = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("amount"), &amount) || amount < 0) {
-        log_error("Unsupported Religion capacity amount", xml_parser_get_attribute_string("amount"), 0);
+        Logger::error("Unsupported Religion capacity amount", xml_parser_get_attribute_string("amount"), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -294,14 +301,14 @@ int parse_epithet()
     auto attribute = [](const char *key) { const char *value = xml_parser_get_attribute_string(key); return xml_value::trim_copy(value ? value : ""); };
     const std::string name = attribute("name_key");
     const std::string description = attribute("description_key");
-    if (name.empty() || description.empty()) { g_parse_state.error = 1; log_error("Epithet requires a name and description", 0, 0); return 0; }
+    if (name.empty() || description.empty()) { g_parse_state.error = 1; Logger::error("Epithet requires a name and description", 0, 0); return 0; }
     ReligionEpithet epithet;
     epithet.name_key = translation_key(name);
     epithet.description_key = translation_key(description);
     epithet.image = attribute("image");
     epithet.required_building = attribute("requires_building");
     int requires_fort = 0;
-    if (xml_parser_has_attribute("requires_any_fort") && !xml_value::parse_bool(xml_parser_get_attribute_string("requires_any_fort"), &requires_fort)) { g_parse_state.error = 1; log_error("Invalid epithet fort prerequisite", name.c_str(), 0); return 0; }
+    if (xml_parser_has_attribute("requires_any_fort") && !xml_value::parse_bool(xml_parser_get_attribute_string("requires_any_fort"), &requires_fort)) { g_parse_state.error = 1; Logger::error("Invalid epithet fort prerequisite", name.c_str(), 0); return 0; }
     epithet.requires_any_fort = requires_fort != 0;
     g_parse_state.definition->epithets().push_back(std::move(epithet));
     return 1;
@@ -330,7 +337,7 @@ bool parse_definition_buffer(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("religion_registry.parse_definition", filename);
+    Logger::Scope error_scope("religion_registry.parse_definition", filename);
 
     const std::string stable_id = xml_definition::normalize_path(definition_path);
     g_parse_state = {};
@@ -348,8 +355,8 @@ bool parse_definition_buffer(
         (!needs_presentation || g_parse_state.definition->presentation().is_complete());
     if (!parsed || stable_id.empty() || g_parse_state.error || !g_parse_state.saw_root ||
         !g_parse_state.definition || (!g_parse_state.disabled && !complete_definition)) {
-        log_error("Unable to parse Religion xml", filename, 0);
-        error_context_report_error("Unable to parse Religion xml.", filename);
+        Logger::error("Unable to parse Religion xml", filename, 0);
+        Logger::error("Unable to parse Religion xml.", filename);
         if (failure_reason) {
             *failure_reason = xml_definition::format_failure_reason(
                 "Unable to parse Religion xml.", filename);
@@ -403,8 +410,8 @@ bool stage_definition(
 {
     const std::string stable_id = parsed.definition ? parsed.definition->path() : "";
     if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
-        log_error("Unable to layer Religion definition", staged.overlay.failure_reason().c_str(), 0);
-        error_context_report_error(
+        Logger::error("Unable to layer Religion definition", staged.overlay.failure_reason().c_str(), 0);
+        Logger::error(
             "Unable to layer Religion definition.", staged.overlay.failure_reason().c_str());
         if (failure_reason) {
             *failure_reason = staged.overlay.failure_reason();
@@ -431,8 +438,8 @@ bool resolve_winners(StagedRegistry &staged, std::string *failure_reason)
             if (!god) {
                 const std::string detail = "Religion '" + entry.first + "' from " +
                     winner.source.describe() + " references unknown God '" + god_path + "'.";
-                log_error("Unable to resolve final Religion god reference", detail.c_str(), 0);
-                error_context_report_error("Unable to resolve final Religion god reference.", detail.c_str());
+                Logger::error("Unable to resolve final Religion god reference", detail.c_str(), 0);
+                Logger::error("Unable to resolve final Religion god reference.", detail.c_str());
                 if (failure_reason) {
                     *failure_reason = detail;
                 }
@@ -483,7 +490,7 @@ int religion_registry_load(void)
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure Religion definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure Religion definition layers", failure_reason.c_str(), 0);
         building_type_registry_impl::g_failure_reason = failure_reason;
         return 0;
     }

@@ -8,7 +8,7 @@
 #include "city/population.h"
 #include "city/ratings.h"
 #include "city/resource.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"

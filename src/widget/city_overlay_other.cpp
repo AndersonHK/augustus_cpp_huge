@@ -546,16 +546,20 @@ static int get_tooltip_water(tooltip_context *c, int grid_offset)
     return 0;
 }
 
-static int terrain_overlay_desirability(int grid_offset)
+static int terrain_overlay_desirability(int grid_offset, bool include_all = false)
 {
     int value = map_desirability_get(grid_offset);
-    if (config_get(CONFIG_UI_SHOW_SHORELINE_DESIRABILITY)) value += building_shoreline_desirability(grid_offset);
-    if (config_get(CONFIG_UI_SHOW_ELEVATION_DESIRABILITY)) value += building_elevation_desirability(grid_offset);
+    if (include_all || config_get(CONFIG_UI_SHOW_SHORELINE_DESIRABILITY)) value += building_shoreline_desirability(grid_offset);
+    if (include_all || config_get(CONFIG_UI_SHOW_ELEVATION_DESIRABILITY)) value += building_elevation_desirability(grid_offset);
     return calc_bound(value, -100, 100);
 }
 
 static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
 {
+    if (terrain_map().contains(grid_offset, terrain_types().impassable_earthquake)) {
+        c->precomposed_text = lang_get_string("main_strings.66.91");
+        return 1;
+    }
     int desirability;
     if (terrain_map().contains(grid_offset, terrain_types().building)) {
         building *b = building_record_at(grid_offset);
@@ -564,7 +568,7 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
         }
         desirability = b->desirability;
     } else {
-        desirability = terrain_overlay_desirability(grid_offset);
+        desirability = terrain_overlay_desirability(grid_offset, true);
     }
     const uint8_t *text;
     if (desirability < 0) {
@@ -834,6 +838,7 @@ static color_t water_overlay_runtime_color(int grid_offset)
     if (water_access_runtime_tile_has_access(grid_offset, "well")) {
         return COLOR_MASK_DARK_BLUE;
     }
+    if (water_access_runtime_tile_has_inactive_access(grid_offset, "fountain")) return COLOR_MASK_GRAY;
     if (water_access_runtime_tile_has_access(grid_offset, "reservoir")) {
         return terrain_map().contains(grid_offset, terrain_types().road) ? ALPHA_MASK_SEMI_TRANSPARENT : COLOR_MASK_RESERVOIR_RANGE;
     }

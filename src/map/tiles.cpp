@@ -236,7 +236,7 @@ static void clear_garden_image(int x, int y, int grid_offset)
     (void) x;
     (void) y;
     if (terrain_map().contains(grid_offset, terrain_types().garden) &&
-        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp)) {
+        !terrain_map().contains(grid_offset, terrain_types().road | terrain_types().elevation | terrain_types().access_ramp)) {
         map_image_set(grid_offset, 0);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_clear_multi_tile_xy(grid_offset);
@@ -347,7 +347,7 @@ static void set_garden_image_with_boundary(
     int allowed_grid_offset_count)
 {
     if (terrain_map().contains(grid_offset, terrain_types().garden) &&
-        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp)) {
+        !terrain_map().contains(grid_offset, terrain_types().road | terrain_types().elevation | terrain_types().access_ramp)) {
         if (!map_image_at(grid_offset)) {
             int is_overgrown_garden = map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) != 0;
             int is_large = is_large_garden(

@@ -1,7 +1,7 @@
 #include "hotkey_config.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/system.h"
 #include "input/hotkey.h"
 #include "platform/file_manager.h"
@@ -212,8 +212,8 @@ static void set_layout_mapping(
 {
     key_type key = system_keyboard_key_for_symbol(name);
     if (key == KEY_TYPE_NONE) {
-        if (log_is_debug_enabled()) {
-            log_info("No key found on layout for", name, 0);
+        if (Logger::debug_enabled()) {
+            Logger::info("No key found on layout for", name, 0);
         }
         key = default_key;
     }
@@ -392,7 +392,7 @@ static void load_file(void)
             if (platform_file_manager_copy_file(INI_FILENAME, new_file_name)) {
                 platform_file_manager_remove_file(INI_FILENAME);
                 file_name = new_file_name;
-                log_info("Copied hotkey configuration file from default path to config path", 0, 0);
+                Logger::info("Copied hotkey configuration file from default path to config path", 0, 0);
             }
         }
     } else {
@@ -471,7 +471,7 @@ void hotkey_config_save(void)
     }
     FILE *fp = file_open(file_name, "wt");
     if (!fp) {
-        log_error("Unable to write hotkey configuration file", INI_FILENAME, 0);
+        Logger::error("Unable to write hotkey configuration file", INI_FILENAME, 0);
         return;
     }
     fprintf(fp, "version=%d\n", HOTKEY_CURRENT_VERSION);

@@ -5,6 +5,11 @@
 #include "graphics/image_button.h"
 #include "graphics/screen.h"
 #include "graphics/ui_runtime_api.h"
+#include "graphics/window.h"
+#include "graphics/graphics.h"
+#include "graphics/ui_primitives.h"
+#include "graphics/runtime_texture.h"
+#include <algorithm>
 
 enum {
     TOUCH_DRAG_NONE = 0,
@@ -30,6 +35,18 @@ static image_button image_button_scroll_down = {
 
 static scrollbar_type *current;
 
+static int button_height(const scrollbar_type *bar) { return bar->appearance ? bar->appearance->up.height() : SCROLL_BUTTON_HEIGHT; }
+static int button_width(const scrollbar_type *bar) { return bar->appearance ? bar->appearance->up.width() : SCROLL_BUTTON_WIDTH; }
+static int thumb_height(const scrollbar_type *bar)
+{
+    if (!bar->appearance) return SCROLL_DOT_SIZE;
+    const int track = std::max(1, bar->height - 2 * button_height(bar) - 2 * bar->dot_padding);
+    const int ends = bar->appearance->top.height() + bar->appearance->bottom.height();
+    const unsigned int total = bar->elements_in_view + bar->max_scroll_position;
+    return std::clamp(total ? static_cast<int>(static_cast<int64_t>(track) * bar->elements_in_view / total) : track, std::min(track, ends + 8), track);
+}
+
+
 void scrollbar_init(scrollbar_type *scrollbar, unsigned int scroll_position, unsigned int total_elements)
 {
     unsigned int max_scroll_position;
@@ -41,6 +58,8 @@ void scrollbar_init(scrollbar_type *scrollbar, unsigned int scroll_position, uns
     scrollbar->scroll_position = calc_bound(scroll_position, 0, max_scroll_position);
     scrollbar->max_scroll_position = max_scroll_position;
     scrollbar->is_dragging_scrollbar_dot = 0;
+    scrollbar->scrollbar_dot_drag_offset = 0;
+    scrollbar->scrollbar_dot_mouse_offset = 0;
     scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
 }
 
@@ -48,6 +67,8 @@ void scrollbar_reset(scrollbar_type *scrollbar, unsigned int scroll_position)
 {
     scrollbar->scroll_position = calc_bound(scroll_position, 0, scrollbar->max_scroll_position);
     scrollbar->is_dragging_scrollbar_dot = 0;
+    scrollbar->scrollbar_dot_drag_offset = 0;
+    scrollbar->scrollbar_dot_mouse_offset = 0;
     scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
 }
 
@@ -59,8 +80,8 @@ void scrollbar_update_total_elements(scrollbar_type *scrollbar, unsigned int tot
     } else {
         max_scroll_position = total_elements - scrollbar->elements_in_view;
     }
+    if (scrollbar->max_scroll_position != max_scroll_position) scrollbar->is_dragging_scrollbar_dot = 0;
     scrollbar->max_scroll_position = max_scroll_position;
-    scrollbar->is_dragging_scrollbar_dot = 0;
     if (!max_scroll_position) scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
     if (scrollbar->scroll_position > max_scroll_position) {
         scrollbar->scroll_position = max_scroll_position;
@@ -70,6 +91,20 @@ void scrollbar_update_total_elements(scrollbar_type *scrollbar, unsigned int tot
 void scrollbar_draw(scrollbar_type *scrollbar)
 {
     if (scrollbar->max_scroll_position > 0 || scrollbar->always_visible) {
+        if (const auto *skin = scrollbar->appearance) {
+            const int x = scrollbar->x, y = scrollbar->y, width = button_width(scrollbar), bh = button_height(scrollbar);
+            skin->up.draw(x, y); skin->down.draw(x, y + scrollbar->height - bh);
+            graphics_draw_inset_rect(x, y + bh, width, scrollbar->height - 2 * bh, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
+            const int thumb = thumb_height(scrollbar);
+            const int travel = std::max(0, scrollbar->height - 2 * bh - 2 * scrollbar->dot_padding - thumb);
+            const int offset = scrollbar->max_scroll_position ? static_cast<int>(static_cast<int64_t>(travel) * scrollbar->scroll_position / scrollbar->max_scroll_position) : 0;
+            const int top = y + bh + scrollbar->dot_padding + offset;
+            skin->top.draw(x, top);
+            UiPrimitives().draw_tiled_slice(skin->middle.runtime_slice(), x, top + skin->top.height(), width, thumb - skin->top.height() - skin->bottom.height());
+            skin->bottom.draw(x, top + thumb - skin->bottom.height());
+            if (skin->grip.is_bound()) skin->grip.draw(x, top + (thumb - skin->grip.height()) / 2);
+            return;
+        }
         image_buttons_draw(scrollbar->x, scrollbar->y, &image_button_scroll_up, 1);
         image_buttons_draw(scrollbar->x, scrollbar->y + scrollbar->height - SCROLL_BUTTON_HEIGHT,
             &image_button_scroll_down, 1);
@@ -104,8 +139,11 @@ static int handle_touch(scrollbar_type *scrollbar, const touch *t, int in_dialog
         if (!scrollbar->elements_in_view) return 0;
         int element_height = (scrollbar->height - 8 * scrollbar->has_y_margin) / scrollbar->elements_in_view;
         if (element_height <= 0) return 0;
-        int current_y = t->current_point.y - ((t->current_point.y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
-        int start_y = t->start_point.y - ((t->start_point.y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
+        const int dialog_y = in_dialog ? screen_dialog_offset_y() : 0;
+        const int current_touch_y = t->current_point.y - dialog_y;
+        const int start_touch_y = t->start_point.y - dialog_y;
+        int current_y = current_touch_y - ((current_touch_y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
+        int start_y = start_touch_y - ((start_touch_y - (scrollbar->y + 8 * scrollbar->has_y_margin)) % element_height);
         int touch_scrolled = (current_y - start_y) / element_height;
         scrollbar->scroll_position = calc_bound(scrollbar->position_on_touch - touch_scrolled, 0, scrollbar->max_scroll_position);
         active = 1;
@@ -113,8 +151,9 @@ static int handle_touch(scrollbar_type *scrollbar, const touch *t, int in_dialog
     if (t->has_ended) {
         scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
     }
-    if (scrollbar->on_scroll_callback && old_position != scrollbar->scroll_position) {
-        scrollbar->on_scroll_callback();
+    if (old_position != scrollbar->scroll_position) {
+        if (scrollbar->on_scroll_callback) scrollbar->on_scroll_callback();
+        window_invalidate();
     }
     return active;
 }
@@ -124,16 +163,24 @@ static int handle_scrollbar_dot(scrollbar_type *scrollbar, const mouse *m)
     if (scrollbar->max_scroll_position <= 0 || !m->left.is_down) {
         return 0;
     }
-    int track_height = scrollbar->height - TOTAL_BUTTON_HEIGHT - 2 * scrollbar->dot_padding;
+    int track_height = scrollbar->height - (2 * button_height(scrollbar) + thumb_height(scrollbar)) - 2 * scrollbar->dot_padding;
     if (track_height <= 0) return 0;
-    if (m->x < scrollbar->x || m->x >= scrollbar->x + SCROLL_BUTTON_WIDTH) {
-        return 0;
+    const int track_y = scrollbar->y + button_height(scrollbar) + scrollbar->dot_padding;
+    if (!scrollbar->is_dragging_scrollbar_dot) {
+        if (m->x < scrollbar->x || m->x >= scrollbar->x + button_width(scrollbar) ||
+            m->y < track_y || m->y > scrollbar->y + scrollbar->height - button_height(scrollbar) - scrollbar->dot_padding) return 0;
+        const int offset = calc_adjust_with_percentage(track_height, calc_percentage(scrollbar->scroll_position, scrollbar->max_scroll_position));
+        const int within_dot = m->y - track_y - offset;
+        scrollbar->scrollbar_dot_mouse_offset = within_dot >= 0 && within_dot < thumb_height(scrollbar) ? within_dot : thumb_height(scrollbar) / 2;
+        scrollbar->is_dragging_scrollbar_dot = 1;
+        // Capture the pointer without quantizing the position on the initial
+        // press. Clicking the track still moves the thumb to that location.
+        if (within_dot >= 0 && within_dot < thumb_height(scrollbar)) {
+            scrollbar->scrollbar_dot_drag_offset = offset;
+            return 1;
+        }
     }
-    if (m->y < scrollbar->y + SCROLL_BUTTON_HEIGHT + scrollbar->dot_padding ||
-        m->y > scrollbar->y + scrollbar->height - SCROLL_BUTTON_HEIGHT - scrollbar->dot_padding) {
-        return 0;
-    }
-    int dot_offset = m->y - scrollbar->y - SCROLL_DOT_SIZE / 2 - SCROLL_BUTTON_HEIGHT;
+    int dot_offset = m->y - track_y - scrollbar->scrollbar_dot_mouse_offset;
     if (dot_offset < 0) {
         dot_offset = 0;
     }
@@ -151,6 +198,7 @@ static int handle_scrollbar_dot(scrollbar_type *scrollbar, const mouse *m)
     if (scrollbar->on_scroll_callback) {
         scrollbar->on_scroll_callback();
     }
+    window_invalidate();
     return 1;
 }
 
@@ -161,6 +209,9 @@ int scrollbar_handle_mouse(scrollbar_type *scrollbar, const mouse *m, int in_dia
         return 0;
     }
     current = scrollbar;
+    image_button_scroll_up.width = image_button_scroll_down.width = static_cast<short>(button_width(scrollbar));
+    image_button_scroll_up.height = image_button_scroll_down.height = static_cast<short>(button_height(scrollbar));
+    if (scrollbar->is_dragging_scrollbar_dot) return handle_scrollbar_dot(scrollbar, m);
     if (!m->is_touch) {
         scrollbar->touch_drag_state = TOUCH_DRAG_NONE;
     }
@@ -176,7 +227,7 @@ int scrollbar_handle_mouse(scrollbar_type *scrollbar, const mouse *m, int in_dia
             return 1;
         }
         if (image_buttons_handle_mouse(m,
-            scrollbar->x, scrollbar->y + scrollbar->height - SCROLL_BUTTON_HEIGHT,
+            scrollbar->x, scrollbar->y + scrollbar->height - button_height(scrollbar),
             &image_button_scroll_down, 1, 0)) {
             return 1;
         }
@@ -206,4 +257,5 @@ static void text_scroll(int is_down, int num_lines)
     if (scrollbar->on_scroll_callback) {
         scrollbar->on_scroll_callback();
     }
+    window_invalidate();
 }

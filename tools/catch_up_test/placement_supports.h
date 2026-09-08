@@ -227,6 +227,37 @@ inline void validate_placement_supports()
             terrain_map().remove(offset, terrain_types().road);
         }
     }
+    if (const auto *gate = definition_for_type(type_from_attr("palisade_gate"))) {
+        const auto finance = city_data.finance;
+        auto restore_finance = std::shared_ptr<void>(nullptr, [&](void *) { city_data.finance = finance; });
+        building_construction_set_type(gate, 0);
+        require(building_construction_place_building(gate->type(), x, y, 1) != 0, "Could not place palisade gate repair fixture");
+        building_update_state();
+        map_building_at(offset).destroy_by_collapse();
+        require(map_building_exists_at(offset) && map_building_at(offset).Rubble, "Collapsed gate must retain recoverable rubble");
+        // The collapse animation temporarily occupies the tile; repair after it clears.
+        for (unsigned int id = 1; id < Figure::count(); ++id) {
+            Figure *effect = Figure::get(id);
+            if (effect && effect->type == FIGURE_EXPLOSION && effect->grid_offset == offset) effect->remove();
+        }
+        if (map_building_at(offset).repair() <= 0) {
+            const auto &rubble = map_building_at(offset);
+            const auto assessment = building_construction_assess_repair(*rubble.Rubble->original_type(), *rubble.Rubble->state());
+            std::fprintf(stderr, "Gate repair rejected: treasury=%d quoted_cost=%d type=%s model_cost=%d allowed=%d global=%d plan=%d reason=%d owner_charges=%d rubble=%d/%d\n", city_data.finance.treasury, rubble.repair_cost(), rubble.Rubble->original_type()->attr(), model_get_construction_cost(gate->type()), assessment.can_place, assessment.global_blocked, assessment.placement.can_place(), static_cast<int>(assessment.placement.failure_reason()), assessment.placement.owner_charge_count(), assessment.placement.replaceable_rubble_tiles(), assessment.placement.required_rubble_tiles());
+            throw std::runtime_error("Palisade gate rubble must be repairable");
+        }
+        require(map_building_exists_at(offset) && map_building_at(offset).type == gate && terrain_map().contains(offset, terrain_types().road),
+            "Repair must republish the gate's road through its authored foundation");
+        building *record = const_cast<building *>(map_building_at(offset).record());
+        record->state = BUILDING_STATE_DELETED_BY_PLAYER; record->is_deleted = 1;
+        building_update_state();
+        terrain_map().set(offset, original);
+        for (unsigned int id = 1; id < Figure::count(); ++id) {
+            Figure *effect = Figure::get(id);
+            if (effect && effect->type == FIGURE_EXPLOSION && std::abs(effect->x - x) <= 2 && std::abs(effect->y - y) <= 2) effect->remove();
+        }
+        std::fprintf(stdout, "Palisade gate collapse/repair passed: native foundation restores the road.\n");
+    }
     const auto plaza = type_from_attr("plaza");
     if (plaza != BUILDING_NONE) {
         require(!ConstructionPlacementPlan(plaza, x, y, 1, 0).can_place(), "Plazas must reject clear ground");

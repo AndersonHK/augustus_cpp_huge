@@ -4,6 +4,7 @@
 #include "sound/effect.h"
 #include <algorithm>
 #include <cstdint>
+#include <climits>
 #include "map/figure.h"
 #include "graphics/weather.h"
 #include "city/view.h"
@@ -12,6 +13,7 @@
 #include "action_types.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/dock.h"
 #include "building/granary.h"
@@ -1009,10 +1011,34 @@ int scenario_action_type_change_goal_execute(scenario_action_t *action)
 int scenario_action_type_definition_execute(scenario_action_t *action)
 {
     switch (action->type) {
-        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA:
-            return scenario_house_model_change(static_cast<building_type>(action->parameter1), action->parameter2, scenario_formula_evaluate_formula(action->parameter3), action->parameter4 != 0);
-        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES:
-            return scenario_construction_requirement_change(static_cast<building_type>(action->parameter1), action->parameter2 - 1, static_cast<resource_type>(action->parameter3), scenario_formula_evaluate_formula(action->parameter4));
+        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA: {
+            const int evaluated = scenario_formula_evaluate_formula(action->parameter3);
+            auto apply = [&](int building, int scale) -> int {
+                const auto type = static_cast<building_type>(building);
+                int64_t amount = int64_t(evaluated) * scale;
+                if (!action->value_domain.empty()) {
+                    if (!action->parameter4) {
+                        const int current = scenario_house_model_value(type, action->parameter2);
+                        const auto found = std::find(action->value_domain.begin(), action->value_domain.end(), current);
+                        if (found == action->value_domain.end()) return 0;
+                        amount += found - action->value_domain.begin();
+                    }
+                    const auto ordinal = static_cast<size_t>(std::clamp<int64_t>(amount, 0, action->value_domain.size() - 1));
+                    return scenario_house_model_change(type, action->parameter2, action->value_domain[ordinal], true);
+                }
+                return scenario_house_model_change(type, action->parameter2, static_cast<int>(std::clamp<int64_t>(amount, INT_MIN, INT_MAX)), action->parameter4 != 0);
+                };
+            int success = apply(action->parameter1, action->value_scale);
+            for (const auto &target : action->model_targets) success &= apply(target.building, target.value_scale);
+            return success;
+        }
+        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES: {
+            const auto type = static_cast<building_type>(action->parameter1);
+            const auto *definition = building_type_registry_impl::definition_for_type(type);
+            if (!definition) return 0;
+            const int phase = definition->has_phased_construction() ? action->parameter2 : action->parameter2 == 1 ? 0 : action->parameter2;
+            return scenario_construction_requirement_change(type, phase, static_cast<resource_type>(action->parameter3), scenario_formula_evaluate_formula(action->parameter4));
+        }
         case ACTION_TYPE_IMMIGRATION_PERCENTAGE:
             return scenario_definition_override_set({ScenarioOverrideKind::Migration, {}, action->parameter2 != 0, {}, std::clamp(scenario_formula_evaluate_formula(action->parameter1), 0, 1000000)});
         case ACTION_TYPE_HIDE_TRADE_ROUTE:

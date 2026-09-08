@@ -12,7 +12,7 @@
 #include "city/resource.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "city/resource.h"
 #include "empire/city.h"
@@ -683,15 +683,15 @@ void building_storage_load_state(buffer *buf, int version)
 
             for (int r = 0; r < num_resources; r++) {
                 int remapped = resource_remap(r);
-                s->storage.resource_state[remapped].state = static_cast<building_storage_state>(buffer_read_u8(buf));
+                resource_storage_entry entry{};
+                entry.state = static_cast<building_storage_state>(buffer_read_u8(buf));
                 if (version <= SAVE_GAME_LAST_U16_GRIDS) {
-                    s->storage.resource_state[remapped].state = states_remap(s->storage.resource_state[remapped].state);
+                    entry.state = states_remap(entry.state);
                 }
-                s->storage.resource_state[remapped].quantity = static_cast<building_storage_quantity>(buffer_read_u8(buf));
-            }
-
-            if (storage_buf_size > STORAGE_CURRENT_BUFFER_SIZE) {
-                buffer_skip(buf, storage_buf_size - STORAGE_CURRENT_BUFFER_SIZE);
+                entry.quantity = static_cast<building_storage_quantity>(buffer_read_u8(buf));
+                // Unmapped resource slots must not overwrite the separately saved
+                // sentinel entry. Their bytes still belong to this record.
+                if (remapped != RESOURCE_NONE || r == 0) s->storage.resource_state[remapped] = entry;
             }
 
             if (s->in_use) {
@@ -733,15 +733,13 @@ void building_storage_load_state(buffer *buf, int version)
         }
 
         for (int r = 0; r < num_resources; r++) {
-            int remapped = resource_remap(r);
-            uint8_t legacy = buffer_read_u8(buf);
-            decode_legacy_storage_state(legacy, &s->storage.resource_state[remapped]);
+                int remapped = resource_remap(r);
+                uint8_t legacy = buffer_read_u8(buf);
+                if (remapped != RESOURCE_NONE || r == 0) decode_legacy_storage_state(legacy, &s->storage.resource_state[remapped]);
         }
 
         if (!includes_storage_size) {
             buffer_skip(buf, 6); // hardcoded old unused bytes
-        } else if (storage_buf_size > STORAGE_CURRENT_BUFFER_SIZE) {
-            buffer_skip(buf, storage_buf_size - STORAGE_CURRENT_BUFFER_SIZE);
         }
 
         if (s->in_use) {

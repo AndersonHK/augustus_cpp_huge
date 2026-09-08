@@ -1,6 +1,6 @@
 #include "map/TerrainRegistry.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -262,7 +262,7 @@ int terrain_registry_load()
 {
     std::vector<mod_definition::DefinitionLayer> layers;
     if (!mod_definition::configured_layers(layers, &failure_reason) || !registry.load(layers, failure_reason)) {
-        log_error("Unable to load Terrain definitions", failure_reason.c_str(), 0);
+        Logger::error("Unable to load Terrain definitions", failure_reason.c_str(), 0);
         return 0;
     }
     return 1;

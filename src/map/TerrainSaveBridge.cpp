@@ -11,7 +11,7 @@
 #include "city/map.h"
 #include "core/direction.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/grid.h"
@@ -231,13 +231,13 @@ int TerrainMap::validate_loaded_walls(void)
             continue;
         }
         if (!map_building_exists_at(grid_offset)) {
-            log_error("Current save wall terrain has no building record", 0, grid_offset);
+            Logger::error("Current save wall terrain has no building record", 0, grid_offset);
             return 0;
         }
         Building &wall = map_building_at(grid_offset);
         const building *record = wall.record();
         if (!record || !record->id || !wall.matches("wall") || record->grid_offset != grid_offset || record->x != map_grid_offset_to_x(grid_offset) || record->y != map_grid_offset_to_y(grid_offset)) {
-            log_error("Current save wall terrain does not exactly match its wall building record", 0, grid_offset);
+            Logger::error("Current save wall terrain does not exactly match its wall building record", 0, grid_offset);
             return 0;
         }
     }
@@ -248,7 +248,7 @@ int TerrainMap::validate_loaded_walls(void)
         }
         const building *record = candidate->record();
         if (!record || !map_grid_is_valid_offset(record->grid_offset) || !terrain_map().contains(record->grid_offset, terrain_types().wall) || !map_building_exists_at(record->grid_offset) || map_building_at(record->grid_offset).record() != record) {
-            log_error("Current save contains an orphaned wall building record", 0, record ? record->id : 0);
+            Logger::error("Current save contains an orphaned wall building record", 0, record ? record->id : 0);
             valid = 0;
         }
     });

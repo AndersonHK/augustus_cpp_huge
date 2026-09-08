@@ -29,6 +29,12 @@ static const UnitType *unit_type_for(const Figure &f)
     return unit_type_registry_impl::find_unit_type(type_of(f));
 }
 
+bool figure_combat_is_targetable(const Figure &figure)
+{
+    const auto *unit = unit_type_for(figure);
+    return !unit || unit->targetable();
+}
+
 static figure_category_mask category_for(const Figure &f)
 {
     return properties_for(f)->category;
@@ -247,7 +253,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || f->is_ghost) {
+        if (f->is_dead() || f->is_ghost || !figure_combat_is_targetable(*f)) {
             // Do not allow to target dead and enemies located outside of the map
             continue;
         }
@@ -269,7 +275,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     }
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_enemy() || f->type == FIGURE_RIOTER || is_attacking_native(f)) {
@@ -285,7 +291,7 @@ int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || !f->type) {
+        if (f->is_dead() || !f->type || !figure_combat_is_targetable(*f)) {
             continue;
         }
         switch (f->type) {
@@ -335,7 +341,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (!f->targeted_by_figure.save_id() && f->is_legion()) {
@@ -352,7 +358,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
     // no 'free' soldier found, take first one
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_legion()) {
@@ -364,6 +370,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
 
 static int is_valid_missile_target(Figure *f, formation *l)
 {
+    if (!figure_combat_is_targetable(*f)) return 0;
     if (f->is_enemy() || is_attacking_native(f)) {
         return 1;
     }
@@ -389,7 +396,7 @@ int figure_combat_get_missile_target_for_soldier(Figure *shooter, int max_distan
     formation *l = formation_get(shooter->formation_id);
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || f->is_ghost) {
+        if (f->is_dead() || f->is_ghost || !figure_combat_is_targetable(*f)) {
             // Do not allow to target dead and enemies located outside of the map
             continue;
         }
@@ -422,7 +429,7 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
     int min_distance = max_distance;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || !f->type) {
+        if (f->is_dead() || !f->type || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_herd()) {
@@ -501,7 +508,7 @@ void figure_combat_attack_figure_at(Figure *f, int grid_offset)
             break;
         }
         Figure *opponent = Figure::get(opponent_id);
-        if (opponent_id == f->id() || opponent->is_ghost) {
+        if (opponent_id == f->id() || opponent->is_ghost || !figure_combat_is_targetable(*opponent)) {
             // Do not allow troops to attack themselves or enemies located outside of the map
             opponent_id = opponent->next_figure_id_on_same_tile;
             continue;

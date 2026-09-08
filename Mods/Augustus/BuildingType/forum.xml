@@ -2,6 +2,7 @@
 <building type="forum">
     <button group="administration" order="700" icon="Admin_Logistics\Forum" text_key="main_strings.28.86" />
     <graphics>
+        <status_icon x="52" y="30" />
         <default>
             <path value="Admin_Logistics\Forum" />
         </default>

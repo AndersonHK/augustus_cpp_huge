@@ -1,9 +1,11 @@
 #include "city/data_private.h"
 #include "city/trade_ledger.h"
 #include "city/resource.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "game/time.h"
+#include "empire/city.h"
+#include "empire/trade_route.h"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -42,6 +44,24 @@ AccountingPeriod &current()
 
 void snapshot(AccountingPeriod &period)
 {
+    period.routes.clear();
+    for (int id = 1; id < empire_city_get_array_size(); ++id) {
+        const auto *city = empire_city_get(id);
+        if (!city->in_use || city->type != EMPIRE_CITY_TRADE) continue;
+        auto &route = period.routes[id];
+        route.open = city->is_open != 0;
+        route.sea = city->is_sea_trade != 0;
+        route.cost = city->cost_to_open;
+        for (int i = 0; i < resource_loaded_count(); ++i) {
+            const auto resource = resource_get_loaded(i);
+            if (!city->buys_resource[resource] && !city->sells_resource[resource]) continue;
+            auto &amounts = route.resources[identity(resource)];
+            amounts.import_limit = city->sells_resource[resource] ? trade_route_limit(city->route_id, resource, false) : 0;
+            amounts.export_limit = city->buys_resource[resource] ? trade_route_limit(city->route_id, resource, true) : 0;
+            amounts.imported = trade_route_traded(city->route_id, resource, false);
+            amounts.exported = trade_route_traded(city->route_id, resource, true);
+        }
+    }
     for (int i = 0; i < resource_loaded_count(); ++i) {
         const resource_type resource = resource_get_loaded(i);
         if (resource == RESOURCE_NONE || resource_is_special(resource)) continue;
@@ -175,16 +195,37 @@ void city_trade_ledger_save(buffer *buf)
         for (auto &[resource, totals] : period.resources) {
             write_string(buf, resource);
             resource_fields(totals, [buf](int64_t &value) { write64(buf, static_cast<uint64_t>(value)); });
+            write64(buf, static_cast<uint64_t>(totals.balance_adjustment)); buffer_write_u8(buf, totals.complete_cash_flows);
         }
         buffer_write_u32(buf, static_cast<uint32_t>(period.transactions.size()));
         for (const auto &t : period.transactions) {
             write_string(buf, t.resource); write64(buf, t.visit); buffer_write_i32(buf, t.city); buffer_write_i32(buf, t.storage);
             buffer_write_i32(buf, t.month); buffer_write_i32(buf, t.price); buffer_write_u8(buf, t.imported); write64(buf, t.units);
+            buffer_write_u8(buf, t.direction_known);
+            buffer_write_i32(buf, t.source_trader); buffer_write_i32(buf, t.source_storage);
+        }
+        buffer_write_u32(buf, static_cast<uint32_t>(period.routes.size()));
+        for (const auto &[city, route] : period.routes) {
+            buffer_write_i32(buf, city); buffer_write_u8(buf, route.open); buffer_write_u8(buf, route.sea); buffer_write_i32(buf, route.cost);
+            buffer_write_u32(buf, static_cast<uint32_t>(route.resources.size()));
+            for (const auto &[resource, amounts] : route.resources) {
+                write_string(buf, resource);
+                buffer_write_i32(buf, amounts.import_limit); buffer_write_i32(buf, amounts.export_limit);
+                buffer_write_i32(buf, amounts.imported); buffer_write_i32(buf, amounts.exported);
+            }
         }
     }
 }
 
-void city_trade_ledger_load(buffer *buf)
+void city_trade_ledger_import(std::vector<AccountingPeriod> history)
+{
+    city_trade_ledger_reset(true);
+    periods = std::move(history);
+    for (const auto &period : periods) for (const auto &transaction : period.transactions) next_visit = std::max(next_visit, transaction.visit + 1);
+    if (!periods.empty()) for (size_t i = 0; i < periods.front().transactions.size(); ++i) transaction_index.emplace(key(periods.front().transactions[i]), i);
+}
+
+void city_trade_ledger_load(buffer *buf, bool has_route_history, bool has_balance_adjustments)
 {
     city_trade_ledger_reset();
     try {
@@ -213,6 +254,10 @@ void city_trade_ledger_load(buffer *buf)
                 auto name = read_string(buf);
                 if (period.resources.count(name)) throw std::runtime_error("Duplicate accounting resource");
                 resource_fields(period.resources[name], [buf](int64_t &value) { value = static_cast<int64_t>(read64(buf)); });
+                if (has_balance_adjustments) {
+                    period.resources[name].balance_adjustment = static_cast<int64_t>(read64(buf));
+                    period.resources[name].complete_cash_flows = buffer_read_u8(buf) != 0;
+                }
             }
             const uint32_t transactions = buffer_read_u32(buf);
             if (transactions > (buf->size - std::min(buf->index, buf->size)) / 36) throw std::runtime_error("Invalid accounting transaction count");
@@ -222,8 +267,32 @@ void city_trade_ledger_load(buffer *buf)
                 transaction.city = buffer_read_i32(buf); transaction.storage = buffer_read_i32(buf);
                 transaction.month = buffer_read_i32(buf); transaction.price = buffer_read_i32(buf);
                 transaction.imported = buffer_read_u8(buf) != 0; transaction.units = static_cast<int64_t>(read64(buf));
-                if (transaction.month < 0 || transaction.month >= 12 || transaction.units <= 0) throw std::runtime_error("Invalid accounting transaction");
+                if (has_balance_adjustments) {
+                    transaction.direction_known = buffer_read_u8(buf) != 0;
+                    transaction.source_trader = buffer_read_i32(buf); transaction.source_storage = buffer_read_i32(buf);
+                }
+                if (transaction.month < 0 || transaction.month >= 12 || (transaction.direction_known && transaction.units <= 0)) throw std::runtime_error("Invalid accounting transaction");
                 period.transactions.push_back(std::move(transaction));
+            }
+            if (has_route_history) {
+                const uint32_t routes = buffer_read_u32(buf);
+                if (routes > 100000) throw std::runtime_error("Invalid accounting route count");
+                for (uint32_t r = 0; r < routes; ++r) {
+                    const int city = buffer_read_i32(buf);
+                    if (city <= 0 || period.routes.count(city)) throw std::runtime_error("Invalid accounting city identity");
+                    auto &route = period.routes[city];
+                    route.open = buffer_read_u8(buf) != 0; route.sea = buffer_read_u8(buf) != 0; route.cost = buffer_read_i32(buf);
+                    const uint32_t route_resources = buffer_read_u32(buf);
+                    if (route_resources > 4096) throw std::runtime_error("Invalid accounting route resources");
+                    for (uint32_t resource = 0; resource < route_resources; ++resource) {
+                        const auto name = read_string(buf);
+                        if (route.resources.count(name)) throw std::runtime_error("Duplicate accounting route resource");
+                        auto &amounts = route.resources[name];
+                        amounts.import_limit = buffer_read_i32(buf); amounts.export_limit = buffer_read_i32(buf);
+                        amounts.imported = buffer_read_i32(buf); amounts.exported = buffer_read_i32(buf);
+                        if (amounts.import_limit < 0 || amounts.export_limit < 0 || amounts.imported < 0 || amounts.exported < 0) throw std::runtime_error("Invalid accounting route amounts");
+                    }
+                }
             }
             periods.push_back(std::move(period));
         }
@@ -231,7 +300,7 @@ void city_trade_ledger_load(buffer *buf)
         for (size_t i = 0; i < periods.front().transactions.size(); ++i) transaction_index.emplace(key(periods.front().transactions[i]), i);
     } catch (const std::exception &error) {
         // Accounting is auxiliary history: losing damaged history must not strand the city.
-        log_warning("Repaired unreadable accounting history", error.what(), 0);
+        Logger::warning("Repaired unreadable accounting history", error.what(), 0);
         city_trade_ledger_reset(true);
     }
 }

@@ -8,7 +8,7 @@
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/png_read.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
@@ -133,7 +133,7 @@ static int xml_start_layer_element(void)
     if (!asset_image_add_layer(img, path, group, image_id, src_x, src_y,
         offset_x, offset_y, width, height, invert, rotate,
         part == PART_NONE ? PART_BOTH : part, mask)) {
-        log_info("Invalid layer for image", img->id, 0);
+        Logger::info("Invalid layer for image", img->id, 0);
     }
     return 1;
 }
@@ -221,7 +221,7 @@ static void xml_end_image_element(void)
     image *img = &data.current_image->img;
     if (img->is_isometric) {
         if (((img->width + 2) % (FOOTPRINT_WIDTH + 2)) != 0) {
-            log_info("Isometric image has invalid width", data.current_image->id, img->width);
+            Logger::info("Isometric image has invalid width", data.current_image->id, img->width);
         }
     }
     if (!img->width || !img->height) {
@@ -248,18 +248,18 @@ void xml_init(void)
 
 int xml_process_assetlist_file_from_source(const char *xml_file_name, xml_asset_source source)
 {
-    log_info("Loading assetlist file", xml_file_name, 0);
+    Logger::info("Loading assetlist file", xml_file_name, 0);
 
     char full_path[FILE_NAME_MAX];
     if (!xml_resolve_graphics_path(full_path, xml_file_name, source, 0)) {
-        log_error("Unable to resolve assetlist file", xml_file_name, 0);
+        Logger::error("Unable to resolve assetlist file", xml_file_name, 0);
         return 0;
     }
 
     FILE *xml_file = file_open(full_path, "r");
 
     if (!xml_file) {
-        log_error("Error opening assetlist file", xml_file_name, 0);
+        Logger::error("Error opening assetlist file", xml_file_name, 0);
         return 0;
     }
 
@@ -274,7 +274,7 @@ int xml_process_assetlist_file_from_source(const char *xml_file_name, xml_asset_
         size_t bytes_read = fread(buffer, 1, XML_BUFFER_SIZE, xml_file);
         done = bytes_read < sizeof(buffer);
         if (!xml_parser_parse(buffer, (unsigned int) bytes_read, done)) {
-            log_error("Error parsing file", xml_file_name, 0);
+            Logger::error("Error parsing file", xml_file_name, 0);
             error = 1;
             break;
         }
@@ -318,13 +318,13 @@ void xml_finish(void)
 void xml_get_full_image_path(char *full_path, const char *image_file_name)
 {
     if (!xml_resolve_image_path(full_path, data.base_path, image_file_name, data.current_source)) {
-        log_error("Unable to resolve image path", image_file_name, 0);
+        Logger::error("Unable to resolve image path", image_file_name, 0);
     }
 }
 
 void xml_get_full_group_image_path(char *full_path, const char *group_name)
 {
     if (!xml_resolve_group_image_path(full_path, group_name, data.current_source)) {
-        log_error("Unable to resolve group image path", group_name, 0);
+        Logger::error("Unable to resolve group image path", group_name, 0);
     }
 }

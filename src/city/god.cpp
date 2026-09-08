@@ -23,14 +23,9 @@
 #include "game/time.h"
 #include "scenario/property.h"
 #include "scenario/invasion.h"
+#include <algorithm>
 
 #define TIE 10
-
-#define FLAT_CHANCE_FOR_BLESSING 1
-#define HAPPINESS_BLESSING_FACTOR 20
-#define FESTIVAL_BLESSING_FACTOR 6
-#define FESTIVAL_BLESSING_LENGTH 24
-#define BLESSING_BOLTS_NEEDED_FOR_BLESSING 5
 
 static constexpr int GOD_STATUS_CAPACITY = static_cast<int>(GOD_ALL);
 
@@ -44,24 +39,6 @@ int city_gods_count(void)
         return GOD_STATUS_CAPACITY;
     }
     return count;
-}
-
-static int blessing_months_for_god(god_type god, GodBlessingType blessing)
-{
-    const God *definition =
-        building_type_registry_impl::find_god_definition_by_runtime_id(god_id_bridge_runtime_from_legacy(god));
-    return definition ? definition->blessing_months(blessing) : 0;
-}
-
-static int count_active(const char *text_id)
-{
-    building_type type = building_type_registry_impl::type_from_attr(text_id);
-    return type > BUILDING_NONE ? building_count_active(type) : 0;
-}
-
-static int city_has_sea_trade_buildings(void)
-{
-    return count_active("shipyard") > 0 || count_active("wharf") > 0;
 }
 
 static int temple_definition_serves_god(const building_type_registry_impl::BuildingType *definition, god_type god)
@@ -113,133 +90,35 @@ void city_gods_update_blessings(void)
     }
 }
 
-static void perform_blessing(god_type god)
+bool city_gods_have_effects(religion::Trigger trigger)
 {
-    switch (god) {
-        case GOD_CERES:
-            city_message_post(1, MESSAGE_BLESSING_FROM_CERES, 0, 0);
-            building_bless_farms();
-            break;
-        case GOD_NEPTUNE:
-            city_message_post(1, MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE, 0, 0);
-            city_data.religion.neptune_trade_bonus_active =
-                blessing_months_for_god(GOD_NEPTUNE, GodBlessingType::NeptuneTradeBonus);
-            break;
-        case GOD_MERCURY:
-            city_message_post(1, MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE, 0, 0);
-            building_bless_industry();
-            break;
-        case GOD_MARS:
-            city_message_post(1, MESSAGE_BLESSING_FROM_MARS, 0, 0);
-            city_data.religion.mars_spirit_power = 10;
-            break;
-        case GOD_VENUS:
-            city_message_post(1, MESSAGE_BLESSING_FROM_VENUS_ALTERNATE, 0, 0);
-            city_data.sentiment.blessing_festival_boost += 18;
-            city_population_venus_blessing();
-            city_data.religion.venus_blessing_months_left =
-                blessing_months_for_god(GOD_VENUS, GodBlessingType::VenusEmployment);
-            break;
-        default:
-            break;
+    for (int i = 0; i < building_type_registry_impl::god_definition_count(); ++i) {
+        const auto *definition = building_type_registry_impl::god_definition_at_runtime_index(i);
+        for (const auto &effect : definition->effects) if (effect.trigger == trigger) return true;
     }
+    return false;
 }
-
-static void perform_small_curse(god_type god)
+bool city_gods_have_effects()
 {
-    switch (god) {
-        case GOD_CERES:
-            city_message_post(1, MESSAGE_CERES_IS_UPSET, 0, 0);
-            building_curse_farms(0);
-            break;
-        case GOD_NEPTUNE:
-            if (city_data.trade.num_sea_routes <= 0 && !city_has_sea_trade_buildings()) {
-                city_message_post(1, MESSAGE_WRATH_OF_NEPTUNE_NO_SEA_TRADE, 0, 0);
-                break;
-            } else {
-                city_message_post(1, MESSAGE_WRATH_OF_NEPTUNE, 0, 0);
-                figure_sink_half_ships();
-                city_data.religion.neptune_sank_ships = 1;
-                city_trade_start_sea_trade_problems(40);
-            }
-            break;
-        case GOD_MERCURY:
-            city_message_post(1, MESSAGE_MERCURY_IS_UPSET, 0, 0);
-            building_granary_warehouse_curse(0);
-            break;
-        case GOD_MARS:
-            if (scenario_invasion_start_from_mars()) {
-                city_message_post(1, MESSAGE_MARS_IS_UPSET, 0, 0);
-            } else {
-                city_message_post(1, MESSAGE_WRATH_OF_MARS_NO_NATIVES, 0, 0);
-            }
-            break;
-        case GOD_VENUS:
-            city_message_post(1, MESSAGE_VENUS_IS_UPSET, 0, 0);
-            city_data.sentiment.blessing_festival_boost -= 15;
-            city_health_change(-10);
-            city_sentiment_update();
-            break;
-        default:
-            break;
-    }
+    return city_gods_have_effects(religion::Trigger::Blessing) || city_gods_have_effects(religion::Trigger::MinorCurse) || city_gods_have_effects(religion::Trigger::MajorCurse);
 }
-
-static int perform_large_curse(god_type god)
+static void perform_effect(god_type god, religion::Trigger trigger)
 {
-    switch (god) {
-        case GOD_CERES:
-            city_message_post(1, MESSAGE_WRATH_OF_CERES, 0, 0);
-            building_curse_farms(1);
-            break;
-        case GOD_NEPTUNE:
-            if (city_data.trade.num_sea_routes <= 0 && !city_has_sea_trade_buildings()) {
-                city_message_post(1, MESSAGE_WRATH_OF_NEPTUNE_NO_SEA_TRADE, 0, 0);
-                return 0;
-            } else {
-                city_message_post(1, MESSAGE_WRATH_OF_NEPTUNE, 0, 0);
-                figure_sink_all_ships();
-                city_data.religion.neptune_sank_ships = 1;
-                city_trade_start_sea_trade_problems(80);
-            }
-            break;
-        case GOD_MERCURY:
-            city_message_post(1, MESSAGE_WRATH_OF_MERCURY, 0, 0);
-            building_granary_warehouse_curse(1);
-            break;
-        case GOD_MARS:
-            if (formation_legion_curse()) {
-                city_message_post(1, MESSAGE_WRATH_OF_MARS, 0, 0);
-                scenario_invasion_start_from_mars();
-            } else {
-                city_message_post(1, MESSAGE_WRATH_OF_MARS_NO_MILITARY, 0, 0);
-                scenario_invasion_start_from_mars();
-            }
-            break;
-        case GOD_VENUS:
-            city_message_post(1, MESSAGE_WRATH_OF_VENUS, 0, 0);
-            city_sentiment_set_max_happiness(40);
-            city_sentiment_change_happiness(-10);
-            if (city_data.health.value >= 80) {
-                city_health_change(-50);
-            } else if (city_data.health.value >= 60) {
-                city_health_change(-40);
-            } else {
-                city_health_change(-20);
-            }
-            city_data.religion.venus_curse_active = 1;
-            city_sentiment_update();
-            break;
-        default:
-            break;
+    const auto *definition = building_type_registry_impl::find_god_definition(god);
+    if (!definition) return;
+    auto context = religion::context_for_god(god);
+    for (const auto &effect : definition->effects) {
+        if (effect.trigger == trigger && !effect.automatic_only) religion::apply_effect(effect, context, false);
     }
-    return 1;
 }
 
 static void update_god_moods(void)
 {
     for (int i = 0; i < city_gods_count(); i++) {
         god_status *god = &city_data.religion.gods[i];
+        const auto *definition = building_type_registry_impl::find_god_definition(static_cast<god_type>(i));
+        if (!definition) continue;
+        const int neutral = definition->wrath.neutral;
         if (god->happiness < god->target_happiness) {
             god->happiness++;
         } else if (god->happiness > god->target_happiness) {
@@ -250,10 +129,10 @@ static void update_god_moods(void)
                 god->happiness = 50;
             }
         }
-        if (god->happiness > 50) {
+        if (god->happiness > neutral) {
             god->small_curse_done = 0;
         }
-        if (god->happiness < 50) {
+        if (god->happiness < neutral) {
             god->blessing_done = 0;
         }
     }
@@ -261,34 +140,33 @@ static void update_god_moods(void)
     int god_id = random_byte() & 7;
     if (god_id < city_gods_count()) {
         god_status *god = &city_data.religion.gods[god_id];
-        if (god->happiness >= 50) {
+        const auto *definition = building_type_registry_impl::find_god_definition(static_cast<god_type>(god_id));
+        if (!definition) return;
+        const auto &rules = definition->favor;
+        const auto &wrath = definition->wrath;
+        if (god->happiness >= wrath.neutral) {
             god->wrath_bolts = 0;
-        } else if (god->happiness < 40) {
-            if (god->happy_bolts > 0) {
-                god->happy_bolts -= 1;
-            } else if (god->happiness >= 20) {
-                god->wrath_bolts += 1;
-            } else if (god->happiness >= 10) {
-                god->wrath_bolts += 2;
+        } else if (god->happiness < wrath.threshold) {
+            if (wrath.favor_decay && god->happy_bolts > 0) {
+                god->happy_bolts = static_cast<int8_t>(std::max(0, god->happy_bolts - wrath.favor_decay));
             } else {
-                god->wrath_bolts += 5;
+                const int amount = god->happiness >= wrath.mild_threshold ? wrath.mild_amount : god->happiness >= wrath.severe_threshold ? wrath.moderate_amount : wrath.severe_amount;
+                god->wrath_bolts = static_cast<int8_t>(std::min(wrath.maximum, god->wrath_bolts + amount));
             }
         }
-        if (god->wrath_bolts > 50) {
-            god->wrath_bolts = 50;
-        }
-        if (god->happiness >= 50) {
-            int chance_for_happy_bolt = (god->happiness - 50) / HAPPINESS_BLESSING_FACTOR + FLAT_CHANCE_FOR_BLESSING;
-            if (god->months_since_festival <= FESTIVAL_BLESSING_LENGTH) {
-                chance_for_happy_bolt += (FESTIVAL_BLESSING_LENGTH - god->months_since_festival) / FESTIVAL_BLESSING_FACTOR + FLAT_CHANCE_FOR_BLESSING;
+        god->wrath_bolts = static_cast<int8_t>(std::min(wrath.maximum, static_cast<int>(god->wrath_bolts)));
+        if (rules.enabled && god->happiness >= rules.neutral) {
+            int chance_for_happy_bolt = std::max(0, god->happiness - rules.neutral) / rules.happiness_divisor + rules.base_chance;
+            if (god->months_since_festival <= rules.festival_months) {
+                chance_for_happy_bolt += (rules.festival_months - god->months_since_festival) / rules.festival_divisor + rules.base_chance;
             }
             random_generate_next();
             int roll = random_short_alt() % 100;
             if (roll < chance_for_happy_bolt) {
                 god->happy_bolts++;
             }
-            if (god->happy_bolts > 5) {
-                god->happy_bolts = 5;
+            if (god->happy_bolts > rules.maximum) {
+                god->happy_bolts = static_cast<int8_t>(rules.maximum);
             }
         }
     }
@@ -305,34 +183,19 @@ static void update_god_moods(void)
             god_id = city_data.religion.least_happy_god - 1;
         }
     }
-    if (!setting_gods_enabled()) {
-        return;
-    }
-
     if (god_id < city_gods_count()) {
-        god_status *god = &city_data.religion.gods[god_id];
-        if (god->happiness >= 50 && god->happy_bolts >= BLESSING_BOLTS_NEEDED_FOR_BLESSING) {
-            god->blessing_done = 1;
-            god->happy_bolts = 0;
-            perform_blessing(static_cast<god_type>(god_id));
-        } else if (god->wrath_bolts >= 20 && !god->small_curse_done && god->months_since_festival > 3) {
-            god->small_curse_done = 1;
-            god->wrath_bolts = 0;
-            god->happiness += 12;
-            perform_small_curse(static_cast<god_type>(god_id));
-        } else if (god->wrath_bolts >= 50 && god->months_since_festival > 3) {
-            if (scenario_campaign_rank() < 4 && game_campaign_is_original()) {
-                // no large curses in early original scenarios
-                god->small_curse_done = 0;
-                return;
-            }
-            god->wrath_bolts = 0;
-            god->happiness += 30;
-            if (!perform_large_curse(static_cast<god_type>(god_id))) {
-                return;
+        const auto *definition = building_type_registry_impl::find_god_definition(static_cast<god_type>(god_id));
+        if (definition) {
+            auto context = religion::context_for_god(god_id);
+            for (const auto &effect : definition->effects) {
+                if (!effect.matches(context)) continue;
+                religion::apply_effect(effect, context, true);
+                if (effect.stop_update) return;
+                break;
             }
         }
     }
+    if (!city_gods_have_effects(religion::Trigger::MinorCurse) && !city_gods_have_effects(religion::Trigger::MajorCurse)) return;
 
     int min_happiness = 100;
     for (int i = 0; i < city_gods_count(); i++) {
@@ -526,8 +389,8 @@ int city_god_neptune_create_shipwreck_flotsam(void)
 
 int city_god_venus_bonus_employment(void)
 {
-    if (city_data.religion.venus_blessing_months_left > 0) {
-        return ((city_data.religion.venus_blessing_months_left / 12) + 1);
+    if (city_data.religion.venus_blessing_months_left > 0 && city_data.religion.employment_months_per_point > 0) {
+        return city_data.religion.venus_blessing_months_left / city_data.religion.employment_months_per_point + city_data.religion.employment_base_bonus;
     } else {
         return 0;
     }
@@ -537,10 +400,10 @@ void city_god_blessing(int god_id)
 {
     if (god_id == GOD_ALL) {
         for (int i = 0; i < city_gods_count(); i++) {
-            perform_blessing(static_cast<god_type>(i));
+            perform_effect(static_cast<god_type>(i), religion::Trigger::Blessing);
         }
     } else {
-        perform_blessing(static_cast<god_type>(god_id));
+        perform_effect(static_cast<god_type>(god_id), religion::Trigger::Blessing);
     }
 
 }
@@ -550,16 +413,16 @@ void city_god_curse(int god_id, int is_major)
     if (god_id == GOD_ALL) {
         for (int i = 0; i < city_gods_count(); i++) {
             if (is_major) {
-                perform_large_curse(static_cast<god_type>(i));
+                perform_effect(static_cast<god_type>(i), religion::Trigger::MajorCurse);
             } else {
-                perform_small_curse(static_cast<god_type>(i));
+                perform_effect(static_cast<god_type>(i), religion::Trigger::MinorCurse);
             }
         }
     } else {
         if (is_major) {
-            perform_large_curse(static_cast<god_type>(god_id));
+            perform_effect(static_cast<god_type>(god_id), religion::Trigger::MajorCurse);
         } else {
-            perform_small_curse(static_cast<god_type>(god_id));
+            perform_effect(static_cast<god_type>(god_id), religion::Trigger::MinorCurse);
         }
     }
 }

@@ -12,6 +12,8 @@
 #include "figure/movement.h"
 #include "scenario/event/action_handler.h"
 #include "scenario/event/condition_handler.h"
+#include "scenario/data.h"
+#include "scenario/map.h"
 #include "building/building_type_registry_internal.h"
 #include <array>
 #include <cstdlib>
@@ -73,6 +75,36 @@ inline void validate_terrain_runtime()
         require(!terrain_map().contains(center, terrain_types().shallow_water), "Removing a prerequisite terrain must remove dependent overlays");
         terrain_map().set(center, terrain_types().water);
         require(water_navigation::is_passable(center, WaterNavigationProfile::Boat), "Removing shallow overlay must restore navigation");
+    }
+    {
+        struct RestoreAnchors {
+            map_point entry = scenario.river_entry_point, exit = scenario.river_exit_point;
+            std::array<map_point, MAX_FISH_POINTS> fishing;
+            RestoreAnchors() { std::copy(std::begin(scenario.fishing_points), std::end(scenario.fishing_points), fishing.begin()); }
+            ~RestoreAnchors() {
+                scenario.river_entry_point = entry; scenario.river_exit_point = exit;
+                std::copy(fishing.begin(), fishing.end(), std::begin(scenario.fishing_points));
+                water_navigation::invalidate_river_anchors();
+            }
+        } anchors;
+        for (int dy = 0; dy < 7; ++dy) for (int dx = 0; dx < 7; ++dx) terrain_map().set(map_grid_offset(x + dx, y + dy), dx == 3 ? TerrainSet{} : TerrainSet(terrain_types().water));
+        std::fill(std::begin(scenario.fishing_points), std::end(scenario.fishing_points), map_point{-1, -1});
+        scenario.fishing_points[0] = scenario.river_exit_point = {x + 5, y + 2};
+        scenario.fishing_points[1] = scenario.river_entry_point = {x + 1, y + 4};
+        water_navigation::invalidate_river_anchors();
+        map_point destination{};
+        require(scenario_map_closest_fishing_point(x + 1, y + 2, &destination) && destination.x == x + 1 && destination.y == y + 4,
+            "Fishing boats must skip geometrically close spots behind sea barriers");
+        require(scenario_map_closest_reachable_river_exit(x + 1, y + 2, &destination) && destination.x == x + 1,
+            "Trade ships must choose the reachable river anchor");
+        scenario.fishing_points[1] = scenario.river_entry_point = {-1, -1};
+        water_navigation::invalidate_river_anchors();
+        require(!scenario_map_closest_fishing_point(x + 1, y + 2, &destination) && !scenario_map_closest_reachable_river_exit(x + 1, y + 2, &destination),
+            "Disconnected waters must not advertise an unreachable fishing spot or exit");
+        for (int dy = 0; dy < 7; ++dy) terrain_map().set(map_grid_offset(x + 3, y + dy), terrain_types().water);
+        require(scenario_map_closest_fishing_point(x + 1, y + 2, &destination) && destination.x == x + 5,
+            "Fishing targets must become reachable after removing the sea barrier");
+        std::fprintf(stdout, "Water destinations passed: blocked fishing spots and river exits, disconnected water and topology refresh.\n");
     }
     using namespace building_type_registry_impl;
     const auto *reservoir = definition_for_type(type_from_attr("reservoir"));

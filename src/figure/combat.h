@@ -3,6 +3,8 @@
 #include "figure/figure.h"
 #include "map/point.h"
 
+bool figure_combat_is_targetable(const Figure &figure);
+
 
 void figure_combat_handle_corpse(Figure *f);
 void figure_combat_handle_attack(Figure *f);

@@ -5,7 +5,7 @@
 #include "building/monument.h"
 #include "city/data_private.h"
 #include "city/map.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "figure/action.h"
 #include "figure/figure_runtime_api.h"
@@ -60,14 +60,14 @@ void city_monument_gifts_load(buffer *buf)
 {
     grants.clear();
     const uint32_t count = buffer_read_u32(buf);
-    if (count > BUILDING_TYPE_MAX) { log_error("Invalid monument gift count", 0, count); return; }
+    if (count > BUILDING_TYPE_MAX) { Logger::error("Invalid monument gift count", 0, count); return; }
     for (uint32_t i = 0; i < count; ++i) {
         const uint16_t size = buffer_read_u16(buf);
-        if (!size || size > 4096 || buf->index + size + sizeof(int32_t) > buf->size) { log_error("Invalid monument gift identity", 0, size); return; }
+        if (!size || size > 4096 || buf->index + size + sizeof(int32_t) > buf->size) { Logger::error("Invalid monument gift identity", 0, size); return; }
         std::string type(size, '\0');
         buffer_read_raw(buf, type.data(), size);
         const int earned = buffer_read_i32(buf);
-        if (earned < 0) log_warning("Repaired negative monument gift count", type.c_str(), earned);
+        if (earned < 0) Logger::warning("Repaired negative monument gift count", type.c_str(), earned);
         grants[type] = std::max(0, earned);
     }
 }

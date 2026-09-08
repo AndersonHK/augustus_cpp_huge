@@ -1,7 +1,7 @@
 #include "scenario/definition_overrides.h"
 #include "building/building_type_registry_internal.h"
 #include "building/housing_profile_registry.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "scenario/event/parameter_data.h"
 #include <algorithm>
 #include <array>
@@ -15,7 +15,7 @@ std::map<Key, ScenarioDefinitionOverride> overrides;
 std::map<std::string, HousingProfileDef> profile_defaults;
 struct BuildingDefaults { ConstructionDefinition construction; int capacity; };
 std::map<std::string, BuildingDefaults> building_defaults;
-const std::array<int, 17> housing_maximum = {1000,1000,100,2,5,3,1,1,2,10,100,100,100,2,100,32767,1000};
+const std::array<int, 17> housing_maximum = {1000,1000,100,3,5,3,1,1,2,10,100,100,100,2,100,32767,1000};
 
 int *housing_field(HousingProfileDef &profile, int field)
 {
@@ -52,7 +52,7 @@ bool apply(const ScenarioDefinitionOverride &entry)
         auto *profile = find_mutable_housing_profile_definition(entry.target.c_str());
         if (!profile || entry.field < 0 || entry.field > 16 || entry.value < (entry.field < 2 ? -1000 : 0) || entry.value > housing_maximum[entry.field]) return false;
         if (entry.field == 3) {
-            if (entry.value < 0 || entry.value > 2) return false;
+            if (entry.value < 0 || entry.value > 3) return false;
             profile->requirements.water = static_cast<HousingWaterRequirement>(entry.value);
         } else {
             int *field = housing_field(*profile, entry.field);
@@ -208,7 +208,7 @@ bool scenario_definition_overrides_read(buffer *buf, std::vector<ScenarioDefinit
 
 void scenario_definition_overrides_apply(const std::vector<ScenarioDefinitionOverride> &entries)
 {
-    for (const auto &entry : entries) if (!scenario_definition_override_set(entry)) log_warning("Skipping unavailable scenario definition override", entry.target.c_str(), entry.field);
+    for (const auto &entry : entries) if (!scenario_definition_override_set(entry)) Logger::warning("Skipping unavailable scenario definition override", entry.target.c_str(), entry.field);
 }
 
 int scenario_text_add(const char *text)

@@ -15,6 +15,8 @@ void platform_screen_set_windowed(void);
 void platform_screen_set_window_size(int pixel_width, int pixel_height);
 void platform_screen_center_window(void);
 void platform_screen_update_window_grab(void);
+void platform_screen_window_to_pixels(int *x, int *y);
+void platform_screen_pixels_to_window(int *x, int *y);
 
 #ifdef _WIN32
 void platform_screen_recreate_texture(void);

@@ -252,7 +252,7 @@ int scenario_get_state_buffer_size_by_scenario_version(int scenario_version)
 void scenario_save_state(buffer *buf)
 {
     int buf_size = scenario_get_state_buffer_size_by_scenario_version(SCENARIO_CURRENT_VERSION);
-    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
+    uint8_t *buf_data = static_cast<uint8_t *>(calloc(buf_size, 1));
     buffer_init(buf, buf_data, buf_size);
 
     // size

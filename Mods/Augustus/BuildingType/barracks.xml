@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barracks">
+    <presentation overlay="enemy"/>
     <identity name_key="main_strings.28.95" />
     <model cost="150" />
     <desirability>

@@ -4,7 +4,7 @@
     <month_days values="16,16,16,16,16,16,16,16,16,16,16,16" />
   </calendar>
 
-  <combat default_building_hit_points="10" />
+  <combat default_building_hit_points="10" building_damage_extra_hit="1" />
   <presentation legacy_figure_logical_units_per_source_pixel="120" />
 
   <birth_table id="default">

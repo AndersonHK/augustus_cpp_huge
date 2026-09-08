@@ -1,7 +1,7 @@
 #include "condition_handler.h"
 #include "map/TerrainSaveBridge.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
 #include "scenario/event/condition_types.h"
@@ -111,11 +111,14 @@ static void save_conditions_in_group(buffer *buf, const scenario_condition_group
 {
     for (const scenario_condition_t &condition : group->conditions) {
         buffer_write_i16(buf, static_cast<int16_t>(condition.type));
-        buffer_write_i32(buf, condition.parameter1);
-        buffer_write_i32(buf, condition.parameter2);
-        buffer_write_i32(buf, condition.type == CONDITION_TYPE_TERRAIN_IN_AREA ? static_cast<int32_t>(terrain_save::encode(condition.terrain)) : condition.parameter3);
-        buffer_write_i32(buf, condition.parameter4);
-        buffer_write_i32(buf, condition.parameter5);
+        const int values[] = {condition.parameter1, condition.parameter2, condition.parameter3, condition.parameter4, condition.parameter5};
+        for (int index = 0; index < 5; ++index) {
+            int minimum = 0, maximum = 0;
+            const auto type = scenario_events_parameter_data_get_condition_parameter_type(condition.type, index + 1, &minimum, &maximum);
+            const int value = index == 2 && condition.type == CONDITION_TYPE_TERRAIN_IN_AREA ? static_cast<int32_t>(terrain_save::encode(condition.terrain)) :
+                scenario_parameter_archive_value(type, values[index], true, ScenarioParameterArchive::Keyed);
+            buffer_write_i32(buf, value);
+        }
     }
 }
 
@@ -129,7 +132,7 @@ void scenario_condition_group_save_state(buffer *buf, const scenario_condition_g
     save_conditions_in_group(buf, group);
 }
 
-void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *group, scenario_condition_t *condition)
+void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *group, scenario_condition_t *condition, ScenarioParameterArchive format)
 {
     (void) group;
     condition->type = static_cast<condition_types>(buffer_read_i16(buf));
@@ -140,21 +143,20 @@ void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *grou
     condition->parameter5 = buffer_read_i32(buf);
     if (condition->type == CONDITION_TYPE_TERRAIN_IN_AREA) { condition->terrain = terrain_save::decode(static_cast<uint32_t>(condition->parameter3)); condition->parameter3 = 0; }
 
-    if (condition->type == CONDITION_TYPE_TRADE_SELL_PRICE) {
-        condition->parameter1 = static_cast<int>(resource_remap(condition->parameter1));
-    } else if (condition->type == CONDITION_TYPE_RESOURCE_STORED_COUNT) {
-        condition->parameter1 = static_cast<int>(resource_remap(condition->parameter1));
-    } else if (condition->type == CONDITION_TYPE_RESOURCE_STORAGE_AVAILABLE) {
-        condition->parameter1 = static_cast<int>(resource_remap(condition->parameter1));
+    int *values[] = {&condition->parameter1, &condition->parameter2, &condition->parameter3, &condition->parameter4, &condition->parameter5};
+    for (int index = 0; index < 5; ++index) {
+        int minimum = 0, maximum = 0;
+        const auto type = scenario_events_parameter_data_get_condition_parameter_type(condition->type, index + 1, &minimum, &maximum);
+        *values[index] = scenario_parameter_archive_value(type, *values[index], false, format);
     }
 }
 
 int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t *group,
-    int *link_type, int32_t *link_id)
+    int *link_type, int32_t *link_id, ScenarioParameterArchive format)
 {
     const size_t group_header_size = sizeof(int16_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint32_t);
     if (!buf || !group || !link_type || !link_id || buf->index > buf->size || buf->size - buf->index < group_header_size) {
-        log_error("Malformed scenario condition group header in save.", 0, 0);
+        Logger::error("Malformed scenario condition group header in save.", 0, 0);
         return 0;
     }
 
@@ -163,11 +165,11 @@ int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t 
     group->type = static_cast<fulfillment_type>(buffer_read_u8(buf));
     unsigned int total_conditions = buffer_read_u32(buf);
     if (group->type != FULFILLMENT_TYPE_ALL && group->type != FULFILLMENT_TYPE_ANY) {
-        log_error("Malformed scenario condition group type in save.", 0, group->type);
+        Logger::error("Malformed scenario condition group type in save.", 0, group->type);
         return 0;
     }
     if (buf->index > buf->size || total_conditions > (buf->size - buf->index) / CONDITION_STRUCT_SIZE) {
-        log_error("Malformed scenario condition count in save.", 0, total_conditions);
+        Logger::error("Malformed scenario condition count in save.", 0, total_conditions);
         return 0;
     }
     group->conditions.clear();
@@ -175,9 +177,9 @@ int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t 
     for (unsigned int i = 0; i < total_conditions; i++) {
         group->conditions.push_back({});
         scenario_condition_t *condition = &group->conditions.back();
-        scenario_condition_load_state(buf, group, condition);
+        scenario_condition_load_state(buf, group, condition, format);
         if (buf->overflow) {
-            log_error("Malformed scenario condition data in save.", 0, i);
+            Logger::error("Malformed scenario condition data in save.", 0, i);
             return 0;
         }
     }

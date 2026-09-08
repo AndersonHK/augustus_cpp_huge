@@ -59,7 +59,7 @@ int scenario_invasion_count_active_from_buffer(buffer *buf);
 
 int scenario_invasion_get_years_remaining(void);
 
-int scenario_invasion_start_from_mars(void);
+int scenario_invasion_start_local(int amount, int message);
 
 int scenario_invasion_start_from_caesar(int size);
 

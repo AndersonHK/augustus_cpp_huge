@@ -90,7 +90,8 @@ static void rotate_forward(void)
     }
     data.rotation += 1;
     data.extra_rotation += 1;
-    if (data.rotation > MAX_ROTATION) {
+    const int rotation_limit = building_construction_type_can_cycle(type) ? building_construction_type_cycle_steps(type) - 1 : MAX_ROTATION;
+    if (data.rotation > rotation_limit) {
         data.rotation = 0;
     }
     const int rotations = get_num_rotations(type);
@@ -111,7 +112,7 @@ static void rotate_backward(void)
     data.rotation -= 1;
     data.extra_rotation -= 1;
     if (data.rotation < 0) {
-        data.rotation = MAX_ROTATION;
+        data.rotation = building_construction_type_can_cycle(type) ? building_construction_type_cycle_steps(type) - 1 : MAX_ROTATION;
     }
     if (data.extra_rotation < 0) {
         const int rotations = get_num_rotations(type);
@@ -178,6 +179,9 @@ void building_rotation_reset_rotation(void)
 void building_rotation_setup_rotation(int variant)
 {
     building_rotation_reset_rotation();
+    building_construction_reset_cycle_steps();
+    const building_type type = building_construction_type();
+    if (building_construction_type_can_cycle(type)) data.extra_rotation = building_construction_type_cycle_position(type);
 
     for (int i = 0; i < variant; i++) {
         building_rotation_rotate_forward();

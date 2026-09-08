@@ -35,11 +35,12 @@
 #include "building/building_type_id_bridge.h"
 #include "building/granary.h"
 #include "building/monument.h"
+#include "building/religion_effects.h"
 #include "building/properties.h"
 #include "city/message.h"
 #include "city/view.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/memory_block.h"
 #include "core/random.h"
 #include "core/string.h"
@@ -110,6 +111,7 @@ typedef struct {
     buffer buf;
     int compressed;
     int dynamic;
+    const char *name;
 } file_piece;
 
 typedef struct {
@@ -143,6 +145,9 @@ typedef struct {
     buffer *end_marker;
     buffer *model_data;
     buffer *production_rates;
+    buffer *resource_type_table;
+    buffer *building_type_table;
+    buffer *god_type_table;
 } scenario_state;
 
 static struct {
@@ -271,6 +276,7 @@ typedef struct {
     buffer *road_service_history;
     buffer *local_workforce_allocations;
     buffer *minimap_preview;
+    buffer *religion_effect_payload;
 } savegame_state;
 
 typedef struct {
@@ -369,7 +375,7 @@ static int allocate_zeroed_piece_buffer(buffer *buf, int size)
 {
     uint8_t *data = static_cast<uint8_t *>(malloc(size));
     if (!data) {
-        log_error("Unable to allocate file piece buffer", 0, size);
+        Logger::error("Unable to allocate file piece buffer", 0, size);
         return 0;
     }
 
@@ -501,6 +507,11 @@ static void init_scenario_data(scenario_version_t version)
     state->edge = create_scenario_piece(GRID_SIZE_BUF_U8, 0);
     state->terrain = create_scenario_piece(version > SCENARIO_LAST_NO_TERRAIN_LEDGER ? GRID_SIZE_BUF_U32 : GRID_SIZE_BUF_U16, 0);
     if (version > SCENARIO_LAST_NO_TERRAIN_LEDGER) state->terrain_ledger = create_scenario_piece(PIECE_SIZE_DYNAMIC, 0);
+    if (version > SCENARIO_LAST_NO_PARAMETER_LEDGERS) {
+        state->resource_type_table = create_scenario_piece(PIECE_SIZE_DYNAMIC, 0);
+        state->building_type_table = create_scenario_piece(PIECE_SIZE_DYNAMIC, 0);
+        state->god_type_table = create_scenario_piece(PIECE_SIZE_DYNAMIC, 0);
+    }
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         state->bitfields = create_scenario_piece(GRID_SIZE_BUF_U16, 0);
     } else {
@@ -737,6 +748,7 @@ template <typename Emit> static void visit_native_savegame_layout(savegame_versi
     if (version_data.features.building_type_table) {
         emit(offsetof(savegame_state, building_type_table), "building_type_table", PIECE_SIZE_DYNAMIC, 0);
     }
+    if (version > SAVE_GAME_LAST_NO_RELIGION_EFFECT_PAYLOAD) emit(offsetof(savegame_state, religion_effect_payload), "religion_effect_payload", 12, 0);
     if (version > SAVE_GAME_LAST_NO_TERRAIN_LEDGER) {
         emit(offsetof(savegame_state, terrain_ledger), "terrain_ledger", PIECE_SIZE_DYNAMIC, 0);
     }
@@ -893,13 +905,15 @@ static void init_savegame_data(savegame_version_t version)
 {
     clear_savegame_pieces();
     savegame_data.state = {};
-    visit_native_savegame_layout(version, resource_total_mapped(), resource_total_food_mapped(), [](size_t offset, const char *, int size, int compressed) {
+    visit_native_savegame_layout(version, resource_total_mapped(), resource_total_food_mapped(), [](size_t offset, const char *name, int size, int compressed) {
         auto *slot = reinterpret_cast<buffer **>(reinterpret_cast<uint8_t *>(&savegame_data.state) + offset);
         *slot = create_savegame_piece(size, compressed);
+        savegame_data.pieces[savegame_data.num_pieces - 1].name = name;
     });
 }
 
 #include "game/archive_origin_impl.h"
+#include "game/augustus_runtime_import.h"
 
 static bool scenario_load_from_state(scenario_state *file, scenario_version_t version)
 {
@@ -927,6 +941,13 @@ static bool scenario_load_from_state(scenario_state *file, scenario_version_t ve
         custom_messages_load_state(file->custom_messages, file->custom_media);
     }
     scenario_load_state(file->scenario, version);
+    if (version > SCENARIO_LAST_NO_PARAMETER_LEDGERS) {
+        resource_id_bridge_save_table_load_state(file->resource_type_table, true);
+        building_type_id_bridge_save_table_load_state(file->building_type_table, true);
+        god_id_bridge_save_table_load_state(file->god_type_table, true);
+    } else {
+        god_id_bridge_save_table_load_state(nullptr, false);
+    }
     if (version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
         scenario_request_load_state(file->requests, version);
     }
@@ -944,7 +965,7 @@ static bool scenario_load_from_state(scenario_state *file, scenario_version_t ve
     }
     if (version > SCENARIO_LAST_NO_EVENTS) {
         scenario_events_load_state(file->scenario_events, file->scenario_conditions, file->scenario_actions,
-            file->scenario_formulas, version);
+            file->scenario_formulas, version, version > SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS);
     } else {
         scenario_events_clear();
     }
@@ -966,7 +987,7 @@ static bool scenario_load_from_state(scenario_state *file, scenario_version_t ve
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         const auto format = version > SCENARIO_LAST_NO_EXPLICIT_MODEL_OVERRIDES ? ModelDataFormat::ExplicitOverrides :
             (version > SCENARIO_LAST_NO_KEYED_MODELS ? ModelDataFormat::LegacyNativeOverlay : ModelDataFormat::LegacyNativeSnapshot);
-        if (!model_load_model_data(file->model_data, format)) log_error("Invalid scenario model overlay", nullptr, version);
+        if (!model_load_model_data(file->model_data, format)) Logger::error("Invalid scenario model overlay", nullptr, version);
     } else {
         scenario_events_migrate_to_formulas();
         scenario_events_migrate_to_resolved_display_names();
@@ -975,7 +996,7 @@ static bool scenario_load_from_state(scenario_state *file, scenario_version_t ve
     }
     resource_init();
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        if (!production_rates_load(file->production_rates, version > SCENARIO_LAST_NO_KEYED_MODELS)) log_error("Invalid scenario production overlay", nullptr, version);
+        if (!production_rates_load(file->production_rates, version > SCENARIO_LAST_NO_KEYED_MODELS)) Logger::error("Invalid scenario production overlay", nullptr, version);
     }
     if (version <= SCENARIO_LAST_NO_TIME_FORMULAS) scenario_events_migrate_time_formulas();
     scenario_events_assign_parent_event_ids();
@@ -990,6 +1011,11 @@ static bool scenario_load_from_state(scenario_state *file, scenario_version_t ve
 static void scenario_save_to_state(scenario_state *file)
 {
     buffer_write_u32(file->resource_version, resource_id_bridge_current_version());
+    resource_id_bridge_save_table_save_state(file->resource_type_table);
+    building_type_id_bridge_prepare_new_save_table();
+    building_type_id_bridge_save_table_save_state(file->building_type_table);
+    god_id_bridge_prepare_new_save_table();
+    god_id_bridge_save_table_save_state(file->god_type_table);
 
     map_natives_prepare_scenario_tokens();
     map_natives_save_scenario_image_grid(file->graphic_ids);
@@ -1033,16 +1059,16 @@ static scenario_version_t save_version_to_scenario_version(savegame_version_t sa
     return static_cast<scenario_version_t>(buffer_read_i32(buf));
 }
 
-static int savegame_load_from_state(savegame_state *state, savegame_version_t version, ArchiveFamily family)
+static int savegame_load_from_state(savegame_state *state, savegame_version_t version, ArchiveFamily family, AugustusImport *foreign = nullptr)
 {
     if (!state) {
-        log_error("Unable to load savegame state: state is null", 0, 0);
+        Logger::error("Unable to load savegame state: state is null", 0, 0);
         return 0;
     }
 
-    scenario_version_t scenario_version = save_version_to_scenario_version(version, state->scenario_version);
-    if (!terrain_save::load_ledger(state->terrain_ledger, version > SAVE_GAME_LAST_NO_TERRAIN_LEDGER)) return 0;
+    scenario_version_t scenario_version = foreign ? SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS : save_version_to_scenario_version(version, state->scenario_version);
     game_file_clear_scenario_data_for_save_load();
+    if (!terrain_save::load_ledger(state->terrain_ledger, version > SAVE_GAME_LAST_NO_TERRAIN_LEDGER)) return 0;
     scenario_settings_load_state(state->scenario_campaign_mission,
         state->scenario_settings,
         state->scenario_is_custom,
@@ -1063,6 +1089,10 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     building_type_id_bridge_save_table_load_state(
         state->building_type_table,
         version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
+    if (foreign) {
+        building_type_id_bridge_bind_imported_id(211, "highway_station");
+        building_type_id_bridge_bind_imported_id(212, "willow_tree");
+    }
 
     if (scenario_version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
         scenario_request_load_state(state->requests, scenario_version);
@@ -1080,7 +1110,8 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
 
     if (scenario_version > SCENARIO_LAST_NO_EVENTS) {
         scenario_events_load_state(state->scenario_events, state->scenario_conditions, state->scenario_actions,
-            state->scenario_formulas, scenario_version);
+            state->scenario_formulas, scenario_version, family == ArchiveFamily::Vespasian);
+        if (foreign) foreign->bind_event_value_domains();
     } else {
         scenario_events_clear();
     }
@@ -1099,6 +1130,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         map_property_load_state_u8(state->bitfields_grid, state->edge_grid);
     }
     map_random_load_state(state->random_grid);
+    game_file_repair_loaded_terrain();
     map_desirability_load_state(state->desirability_grid);
     map_elevation_load_state(state->elevation_grid);
     Figure::load_state(state->figures, state->figure_sequence, version);
@@ -1107,13 +1139,17 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
 
     city_data_load_state(state->city_data, state->city_graph_order, state->city_entry_exit_xy,
         state->city_entry_exit_grid_offset, version);
+    if (foreign) {
+        city_houses_demands()->missing.fourth_religion = foreign->city.fourth_religion;
+        city_houses_demands()->missing.fifth_religion = foreign->city.fifth_religion;
+        if (foreign->city.missing_tail_bytes) Logger::warning("Repairing fields omitted by the Augustus city allocation", nullptr, static_cast<int>(foreign->city.missing_tail_bytes));
+    }
+    if (!religion::load_state(state->religion_effect_payload)) return 0;
 
     water_access_type_id_bridge_save_table_load_state(
         state->water_access_type_table,
         version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
-    god_id_bridge_save_table_load_state(
-        state->god_type_table,
-        version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
+
     if (!building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version)) return 0;
     if (version <= SAVE_GAME_LAST_SPRITE_BRIDGES_MIGRATION_FIX) {
         terrain_map().migrate_old_bridges();
@@ -1132,19 +1168,20 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     // and restore its modules before any cross-object relationship is repaired.
     if (!building_runtime_hydrate_loaded_modules()) return 0;
     if (!formation_refresh_runtime_definitions()) {
-        log_error("Loaded save contains invalid fort-formation ownership links", 0, 0);
+        Logger::error("Loaded save contains invalid fort-formation ownership links", 0, 0);
         return 0;
     }
     if (!Figure::resolve_loaded_building_references(version)) {
-        log_error("Loaded save failed figure/building reference validation", 0, 0);
+        Logger::error("Loaded save failed figure/building reference validation", 0, 0);
         return 0;
     }
     if (!formation_finish_load_bridge()) {
-        log_error("Loaded save failed formation destination migration", 0, 0);
+        Logger::error("Loaded save failed formation destination migration", 0, 0);
         return 0;
     }
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
+    if (version <= SAVE_GAME_LAST_ORIGINAL_LIMITS_VERSION) religion::import_original_effects();
     random_load_state(state->random_iv);
     if (version < SAVE_GAME_INCREASE_GRANARY_CAPACITY) {
         building_granary_update_built_granaries_capacity();
@@ -1152,20 +1189,22 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
 
     model_reset();
     building_type_startup_bridge_apply_model_overrides();
-    if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
+    if (foreign) {
+        if (!foreign->apply_models()) return 0;
+    } else if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         const auto format = version > SAVE_GAME_LAST_NO_EXPLICIT_MODEL_OVERRIDES ? ModelDataFormat::ExplicitOverrides :
             (version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS ? ModelDataFormat::LegacyNativeOverlay : ModelDataFormat::LegacyNativeSnapshot);
         const int loaded = family == ArchiveFamily::SharedLegacy ? model_import_legacy_source_data(state->building_model_data, version) : model_load_model_data(state->building_model_data, format, version);
         if (!loaded) {
-            log_error("Invalid saved scenario model overlay", nullptr, version);
+            Logger::error("Invalid saved scenario model overlay", nullptr, version);
             return 0;
         }
     }
 
     resource_init();
     if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        if (!production_rates_load(state->production_rates, version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS)) {
-            log_error("Invalid saved production overlay", nullptr, version);
+        if (!(foreign ? foreign->apply_production() : production_rates_load(state->production_rates, version > SAVE_GAME_LAST_NO_KEYED_SCENARIO_MODELS))) {
+            Logger::error("Invalid saved production overlay", nullptr, version);
             return 0;
         }
     }
@@ -1201,6 +1240,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         state->message_counts, state->message_delays,
         state->population_messages);
     traders_load_state(state->figure_traders);
+    if (foreign) foreign->repair_trader_references();
 
     building_list_load_state(state->building_list_small, state->building_list_large,
         state->building_list_burning, state->building_list_burning_totals,
@@ -1229,8 +1269,10 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         building_monument_delivery_load_state(state->deliveries,
             version > SAVE_GAME_LAST_STATIC_MONUMENT_DELIVERIES_VERSION);
     }
+    if (foreign) foreign->bind_service_deliveries();
     if (version > SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
-        empire_object_load(state->custom_empire, scenario_version);
+        empire_object_load(state->custom_empire, foreign ? SCENARIO_CURRENT_VERSION : scenario_version);
+        if (foreign && !foreign->apply_empire()) return 0;
         if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE && resource_id_bridge_mapping_joins_meat_and_fish()) {
             empire_city_migrate_legacy_fishing_production();
         }
@@ -1253,11 +1295,12 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
         scenario_events_migrate_to_grid_slices();
         scenario_events_min_max_migrate_to_formulas();
     }
-    if (version <= SAVE_GAME_LAST_NO_TIME_FORMULAS) scenario_events_migrate_time_formulas();
+    if (foreign ? foreign->archive.origin.save_version < 184 : version <= SAVE_GAME_LAST_NO_TIME_FORMULAS) scenario_events_migrate_time_formulas();
     scenario_events_assign_parent_event_ids();
     if (version <= SAVE_GAME_LAST_NO_EMPIRE_EDITOR) {
         scenario_events_migrate_to_buys_sells();
     }
+    if (foreign) foreign->apply_accounting();
     return 1;
 }
 
@@ -1364,6 +1407,7 @@ static void savegame_save_to_state(savegame_state *state)
     building_local_workforce_save_state(state->local_workforce_allocations);
     widget_minimap_save_preview(state->minimap_preview);
     terrain_save::write_ledger(state->terrain_ledger);
+    religion::save_state(state->religion_effect_payload);
 }
 
 static void write_int32(FILE *fp, int value)
@@ -1383,7 +1427,7 @@ static int read_compressed_chunk_from_buffer(buffer *buf, void *dst, size_t byte
         return buffer_read_raw(buf, dst, (int) bytes_to_read) == bytes_to_read;
     }
     if (input_size <= 0 || input_size > MAX_COMPRESSED_CHUNK_SIZE) {
-        log_error("Invalid compressed save chunk size", 0, input_size);
+        Logger::error("Invalid compressed save chunk size", 0, input_size);
         return 0;
     }
 
@@ -1427,7 +1471,7 @@ static int prepare_dynamic_piece_from_buffer(buffer *buf, file_piece *piece)
             return 0;
         }
         if (size < 0 || size > MAX_DYNAMIC_PIECE_SIZE) {
-            log_error("Invalid dynamic save piece size", 0, size);
+            Logger::error("Invalid dynamic save piece size", 0, size);
             return -1;
         }
         if (!allocate_zeroed_piece_buffer(&piece->buf, size)) {
@@ -1443,7 +1487,7 @@ static scenario_version_t get_scenario_version_from_buffer(buffer *buf)
     char version_magic[sizeof(kVersionMagic) - 1];
     size_t read = buffer_read_raw(buf, version_magic, sizeof(version_magic));
     if (read != sizeof(version_magic)) {
-        log_error("Unable to read version header from file", 0, 0);
+        Logger::error("Unable to read version header from file", 0, 0);
         return SCENARIO_VERSION_NONE;
     }
     if (memcmp(version_magic, kVersionMagic, sizeof(version_magic)) != 0) {
@@ -1460,7 +1504,7 @@ static int load_scenario_from_buffer(buffer *buf)
 {
     scenario_version_t version = get_scenario_version_from_buffer(buf);
     if (version < SCENARIO_LAST_UNVERSIONED || version > SCENARIO_CURRENT_VERSION || buf->overflow) {
-        log_error("Scenario version incompatible with current version, got version", 0, version);
+        Logger::error("Scenario version incompatible with current version, got version", 0, version);
         return 0;
     }
     init_scenario_data(version);
@@ -1483,8 +1527,8 @@ static int load_scenario_from_buffer(buffer *buf)
             result = buffer_read_raw(buf, piece->buf.data, piece->buf.size) == piece->buf.size;
         }
         if (!result) {
-            log_info("Incorrect buffer size, got", 0, result);
-            log_info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
+            Logger::info("Incorrect buffer size, got", 0, result);
+            Logger::info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
             core_memory_block_free(&compress_buffer);
             return 0;
         }
@@ -1503,12 +1547,12 @@ int game_file_io_read_scenario_from_buffer(buffer *buf)
 
 int game_file_io_read_scenario(const char *filename)
 {
-    log_info("Loading scenario", filename, 0);
+    Logger::info("Loading scenario", filename, 0);
     std::vector<uint8_t> archive;
     std::string diagnostic;
     const uint32_t read_status = LoadSaveModuleClient().readArchive(filename, 0, archive, diagnostic);
     if (read_status != VESPASIAN_LOAD_SAVE_OK) {
-        log_error("Unable to load scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
+        Logger::error("Unable to load scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
         return 0;
     }
     buffer source;
@@ -1624,7 +1668,7 @@ int game_file_io_read_scenario_info(const char *filename, saved_game_info *info)
     std::string diagnostic;
     const uint32_t read_status = LoadSaveModuleClient().readArchive(filename, 0, archive, diagnostic);
     if (read_status != VESPASIAN_LOAD_SAVE_OK) {
-        log_error("Unable to inspect scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
+        Logger::error("Unable to inspect scenario archive", diagnostic.c_str(), static_cast<int>(read_status));
         return SAVEGAME_STATUS_INVALID;
     }
     buffer source;
@@ -1650,14 +1694,14 @@ int game_file_io_read_scenario_info_from_buffer(buffer *buf, saved_game_info *in
 
 int game_file_io_write_scenario(const char *filename)
 {
-    log_info("Saving scenario", filename, 0);
+    Logger::info("Saving scenario", filename, 0);
     resource_set_mapping(resource_id_bridge_current_version());
     init_scenario_data(SCENARIO_CURRENT_VERSION);// SCENARIO_CURRENT_VERSION
     scenario_save_to_state(&scenario_data.state);
 
     FILE *fp = file_open(filename, "wb");
     if (!fp) {
-        log_error("Unable to save scenario", 0, 0);
+        Logger::error("Unable to save scenario", 0, 0);
         return 0;
     }
     memory_block compress_buffer;
@@ -1708,8 +1752,8 @@ static int savegame_read_from_buffer(buffer *buf, savegame_version_t version)
         }
         // The last piece may be smaller than buf.size
         if (!result && i != (savegame_data.num_pieces - 1)) {
-            log_info("Incorrect buffer size, got", 0, (int) result);
-            log_info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
+            Logger::info("Incorrect buffer size, got", 0, (int) result);
+            Logger::info("Incorrect buffer size, expected", 0, (int) piece->buf.size);
             core_memory_block_free(&compress_buffer);
             return 0;
         }
@@ -1738,6 +1782,32 @@ static void savegame_write_to_file(FILE *fp, memory_block *compress_buffer)
 
 static int saved_game_file_has_valid_structure(const char *filename);
 
+bool game_file_io_snapshot(std::vector<uint8_t> &archive, std::vector<SaveSnapshotPiece> *pieces)
+{
+    if (pieces) pieces->clear();
+    struct Cleanup { ~Cleanup() { clear_savegame_context(); } } cleanup;
+    resource_set_mapping(resource_id_bridge_current_version());
+    init_savegame_data(SAVE_GAME_CURRENT_VERSION);
+    savegame_save_to_state(&savegame_data.state);
+    std::vector<uint8_t> bytes;
+    auto append_u32 = [&](uint32_t value) { for (int shift = 0; shift < 32; shift += 8) bytes.push_back(static_cast<uint8_t>(value >> shift)); };
+    for (int i = 0; i < savegame_data.num_pieces; ++i) {
+        const auto &piece = savegame_data.pieces[i];
+        if (piece.buf.overflow || piece.buf.size > MAX_DYNAMIC_PIECE_SIZE) return false;
+        if (piece.dynamic) {
+            append_u32(static_cast<uint32_t>(piece.buf.size));
+            if (!piece.buf.size) continue;
+        }
+        if (piece.compressed) append_u32(UNCOMPRESSED);
+        if (pieces) pieces->push_back({piece.name, bytes.size(), piece.buf.size});
+        if (piece.buf.size) bytes.insert(bytes.end(), piece.buf.data, piece.buf.data + piece.buf.size);
+    }
+    const auto origin = game_file_io_identify_archive(bytes.data(), bytes.size(), ArchiveFamily::Vespasian);
+    if (origin.status != ArchiveIdentification::Identified || origin.family != ArchiveFamily::Vespasian) return false;
+    archive = std::move(bytes);
+    return true;
+}
+
 static int get_savegame_versions_from_buffer(buffer *buf, savegame_version_t *save_version,
     resource_version_t *resource_version)
 {
@@ -1758,22 +1828,33 @@ int game_file_io_read_save_game_from_buffer(buffer *buf, ArchiveFamily explicit_
     if (!archive_can_enter_native_reader(buf, origin, explicit_origin)) return FILE_LOAD_INCOMPATIBLE_VERSION;
     clear_loaded_save_mod_metadata();
     clear_savegame_context();
+    if (origin.family == ArchiveFamily::Augustus) {
+        AugustusImport foreign;
+        std::string diagnostic;
+        if (!foreign.prepare(*buf, diagnostic)) {
+            Logger::error("Augustus semantic import preparation failed", diagnostic.c_str(), origin.save_version);
+            return FILE_LOAD_VALIDATION_FAILED;
+        }
+        resource_set_mapping(static_cast<resource_version_t>(origin.resource_version));
+        for (const auto action : foreign.scenario.assumed_lock_actions) Logger::warning("Augustus version 189 action 44 uses the longer-lived lock-trade-route ordering", nullptr, static_cast<int>(action));
+        return savegame_load_from_state(&foreign.state, SAVE_GAME_LAST_NO_MOD_METADATA, origin.family, &foreign) ? FILE_LOAD_SUCCESS : FILE_LOAD_VALIDATION_FAILED;
+    }
     int result = 0;
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (get_savegame_versions_from_buffer(buf, &save_version, &resource_version)) {
         if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
-            log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
+            Logger::error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
             return FILE_LOAD_INCOMPATIBLE_VERSION;
         }
-        log_info("Savegame version", 0, save_version);
+        Logger::info("Savegame version", 0, save_version);
         resource_set_mapping(resource_version);
         init_savegame_data(save_version);
         result = savegame_read_from_buffer(buf, save_version);
     }
     if (!result) {
         clear_savegame_context();
-        log_error("Unable to load game, incompatible savefile.", 0, 0);
+        Logger::error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
@@ -1789,9 +1870,9 @@ int game_file_io_read_save_game_from_buffer(buffer *buf, ArchiveFamily explicit_
 
 int game_file_io_read_saved_game(const char *filename, int offset, ArchiveFamily explicit_origin)
 {
-    log_info("Loading saved game", filename, 0);
+    Logger::info("Loading saved game", filename, 0);
     if (offset < 0) {
-        log_error("Unable to load game archive with a negative offset", filename, offset);
+        Logger::error("Unable to load game archive with a negative offset", filename, offset);
         return FILE_LOAD_VALIDATION_FAILED;
     }
     std::vector<uint8_t> archive;
@@ -1799,7 +1880,7 @@ int game_file_io_read_saved_game(const char *filename, int offset, ArchiveFamily
     const uint32_t read_status = LoadSaveModuleClient().readArchive(
         filename, static_cast<uint64_t>(offset), archive, diagnostic);
     if (read_status != VESPASIAN_LOAD_SAVE_OK) {
-        log_error("Unable to load game archive", diagnostic.c_str(), static_cast<int>(read_status));
+        Logger::error("Unable to load game archive", diagnostic.c_str(), static_cast<int>(read_status));
         return read_status == VESPASIAN_LOAD_SAVE_NOT_FOUND ? FILE_LOAD_DOES_NOT_EXIST : FILE_LOAD_VALIDATION_FAILED;
     }
     buffer source;
@@ -1838,10 +1919,10 @@ static void get_saved_game_origin(saved_game_info *info, const savegame_state *s
     file_remove_extension(info->origin.campaign_name);
 }
 
-static savegame_load_status savegame_read_file_info(saved_game_info *info, savegame_version_t version)
+static savegame_load_status savegame_read_file_info(saved_game_info *info, savegame_version_t version, const savegame_state *foreign_state = nullptr)
 {
-    const savegame_state *state = &savegame_data.state;
-    scenario_version_t scenario_version = save_version_to_scenario_version(version, state->scenario_version);
+    const savegame_state *state = foreign_state ? foreign_state : &savegame_data.state;
+    scenario_version_t scenario_version = foreign_state ? SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS : save_version_to_scenario_version(version, state->scenario_version);
 
     city_data_load_basic_info(state->city_data, &info->population, &info->treasury,
         &minimap_data.caravanserai_id, version);
@@ -1890,7 +1971,7 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     clear_savegame_context();
     memset(info, 0, sizeof(saved_game_info));
     if (offset < 0) {
-        log_error("Unable to inspect save archive with a negative offset", filename, offset);
+        Logger::error("Unable to inspect save archive with a negative offset", filename, offset);
         return SAVEGAME_STATUS_INVALID;
     }
     std::vector<uint8_t> archive;
@@ -1898,7 +1979,7 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     const uint32_t read_status = LoadSaveModuleClient().readArchive(
         filename, static_cast<uint64_t>(offset), archive, diagnostic);
     if (read_status != VESPASIAN_LOAD_SAVE_OK) {
-        log_error("Unable to inspect save archive", diagnostic.c_str(), static_cast<int>(read_status));
+        Logger::error("Unable to inspect save archive", diagnostic.c_str(), static_cast<int>(read_status));
         return SAVEGAME_STATUS_INVALID;
     }
     buffer source;
@@ -1908,6 +1989,10 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
 
 int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info, ArchiveFamily explicit_origin)
 {
+    struct RestoreMapping {
+        int version = resource_mapping_get_version();
+        ~RestoreMapping() { resource_set_mapping(static_cast<resource_version_t>(version)); }
+    } restore_mapping;
     ArchiveOrigin origin;
     if (!archive_can_enter_native_reader(buf, origin, explicit_origin)) return SAVEGAME_STATUS_INVALID;
     if (!info) {
@@ -1916,22 +2001,32 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
     clear_savegame_context();
     memset(info, 0, sizeof(saved_game_info));
 
+    if (origin.family == ArchiveFamily::Augustus) {
+        AugustusImport foreign;
+        std::string diagnostic;
+        if (!foreign.prepare(*buf, diagnostic)) {
+            Logger::error("Augustus preview preparation failed", diagnostic.c_str(), origin.save_version);
+            return SAVEGAME_STATUS_INVALID;
+        }
+        resource_set_mapping(static_cast<resource_version_t>(origin.resource_version));
+        return savegame_read_file_info(info, SAVE_GAME_LAST_NO_MOD_METADATA, &foreign.state);
+    }
     int result = 0;
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (get_savegame_versions_from_buffer(buf, &save_version, &resource_version)) {
         if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
-            log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
+            Logger::error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
             return FILE_LOAD_INCOMPATIBLE_VERSION;
         }
-        log_info("Savegame version", 0, save_version);
+        Logger::info("Savegame version", 0, save_version);
         resource_set_mapping(resource_version);
         init_savegame_data(save_version);
         result = savegame_read_from_buffer(buf, save_version);
     }
     if (!result) {
         clear_savegame_context();
-        log_error("Unable to load game, incompatible savefile.", 0, 0);
+        Logger::error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     return savegame_read_file_info(info, save_version);
@@ -1942,11 +2037,11 @@ int game_file_io_write_saved_game(const char *filename)
     resource_set_mapping(resource_id_bridge_current_version());
     init_savegame_data(SAVE_GAME_CURRENT_VERSION);
 
-    log_info("Saving game", filename, 0);
+    Logger::info("Saving game", filename, 0);
     savegame_save_to_state(&savegame_data.state);
     for (int i = 0; i < savegame_data.num_pieces; ++i) {
         if (savegame_data.pieces[i].buf.overflow) {
-            log_error("Unable to save game: serialized payload exceeded its buffer", filename, i);
+            Logger::error("Unable to save game: serialized payload exceeded its buffer", filename, i);
             clear_savegame_context();
             return 0;
         }
@@ -1957,7 +2052,7 @@ int game_file_io_write_saved_game(const char *filename)
     FILE *fp = file_open(temporary_filename.c_str(), "wb");
     if (!fp) {
         clear_savegame_context();
-        log_error("Unable to save game", 0, 0);
+        Logger::error("Unable to save game", 0, 0);
         return 0;
     }
     memory_block compress_buffer;
@@ -1969,12 +2064,12 @@ int game_file_io_write_saved_game(const char *filename)
     clear_savegame_context();
     if (!write_result || !close_result || !saved_game_file_has_valid_structure(temporary_filename.c_str())) {
         platform_file_manager_remove_file(temporary_filename.c_str());
-        log_error("Unable to validate temporary save game", filename, 0);
+        Logger::error("Unable to validate temporary save game", filename, 0);
         return 0;
     }
     if (!platform_file_manager_replace_file(temporary_filename.c_str(), filename)) {
         platform_file_manager_remove_file(temporary_filename.c_str());
-        log_error("Unable to commit temporary save game", filename, 0);
+        Logger::error("Unable to commit temporary save game", filename, 0);
         return 0;
     }
     return 1;
@@ -2006,10 +2101,10 @@ static int saved_game_file_has_valid_structure(const char *filename)
 
 int game_file_io_delete_saved_game(const char *filename)
 {
-    log_info("Deleting game", filename, 0);
+    Logger::info("Deleting game", filename, 0);
     int result = file_remove(filename);
     if (!result) {
-        log_error("Unable to delete game", 0, 0);
+        Logger::error("Unable to delete game", 0, 0);
     }
     return result;
 }

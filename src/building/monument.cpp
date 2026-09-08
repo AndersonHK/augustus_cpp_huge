@@ -17,7 +17,7 @@
 #include "city/message.h"
 #include "city/resource.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "empire/city.h"
 #include "game/resource_id_bridge.h"
 #include "map/grid.h"
@@ -643,7 +643,9 @@ int building_monument_progress(building *b)
 
     building *main_record = const_cast<building *>(main->record());
     if (main_record && main_record->monument.phase == MONUMENT_FINISHED) {
-        if (building_monument_is_grand_temple(main_record->type)) {
+        if (main->type->construction().completion_message) {
+            city_message_post(1, main->type->construction().completion_message, 0, main_record->grid_offset);
+        } else if (building_monument_is_grand_temple(main_record->type)) {
             city_message_post(1, MESSAGE_GRAND_TEMPLE_COMPLETE, 0, main_record->grid_offset);
         } else if (building_type_registry_impl::type_attr_is(main_record->type, "pantheon")) {
             city_message_post(1, MESSAGE_PANTHEON_COMPLETE, 0, main_record->grid_offset);

@@ -18,4 +18,5 @@ void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_tab
 uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id);
 building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id);
 int building_type_id_bridge_save_id_is_missing(uint16_t save_id);
+void building_type_id_bridge_bind_imported_id(uint16_t save_id, const char *text_id);
 

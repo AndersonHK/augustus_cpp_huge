@@ -22,7 +22,7 @@
 #include "scenario_event_details.h"
 #include "graphics/image.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"
@@ -236,7 +236,7 @@ static void update_visible_conditions_and_actions(void)
         data.conditions.selected = static_cast<uint8_t *>(std::calloc(max_needed_items, sizeof(uint8_t)));
 
         if (!data.conditions.list) {
-            log_error("Unable to create conditions list - out of memory. The game will probably crash.", 0, 0);
+            Logger::error("Unable to create conditions list - out of memory. The game will probably crash.", 0, 0);
             data.conditions.available = 0;
         } else {
             data.conditions.available = max_needed_items;
@@ -287,7 +287,7 @@ static void update_visible_conditions_and_actions(void)
         data.actions.selected = static_cast<uint8_t *>(std::calloc(action_count, sizeof(uint8_t)));
 
         if (!data.actions.list) {
-            log_error("Unable to create actions list - out of memory. The game will probably crash.", 0, 0);
+            Logger::error("Unable to create actions list - out of memory. The game will probably crash.", 0, 0);
             data.actions.available = 0;
         } else {
             data.actions.available = action_count;
@@ -315,7 +315,7 @@ static void update_groups(void)
     unsigned int group_count = scenario_event_condition_group_count(data.event);
     data.conditions.groups.names = static_cast<uint8_t **>(std::calloc(group_count + 1, sizeof(uint8_t *)));
     if (!data.conditions.groups.names) {
-        log_error("Unable to create groups list - out of memory. The game will probably crash.", 0, 0);
+        Logger::error("Unable to create groups list - out of memory. The game will probably crash.", 0, 0);
         data.conditions.groups.available = 0;
         return;
     }
@@ -887,7 +887,7 @@ static void set_selected_to_group(int group_id)
     if ((unsigned int) group_id >= scenario_event_condition_group_count(data.event)) {
         group = scenario_event_condition_group_add(data.event);
         if (!group) {
-            log_error("Unable to create new group - memory full. The game will probably crash", 0, 0);
+            Logger::error("Unable to create new group - memory full. The game will probably crash", 0, 0);
             return;
         }
     } else {
@@ -903,7 +903,7 @@ static void set_selected_to_group(int group_id)
         }
         scenario_condition_t *condition = scenario_condition_group_condition_add(group);
         if (!condition) {
-            log_error("Unable to add condition to group - memory full. The game will probably crash", 0, 0);
+            Logger::error("Unable to add condition to group - memory full. The game will probably crash", 0, 0);
             return;
         }
         *condition = *data.conditions.list[i].condition;

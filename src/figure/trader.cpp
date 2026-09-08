@@ -28,6 +28,13 @@ void traders_clear(void)
     std::memset(&data, 0, sizeof(data));
 }
 
+bool trader_reset_import_slot(int slot)
+{
+    if (slot < 0 || slot >= MAX_TRADERS) return false;
+    data.traders[slot] = {};
+    return true;
+}
+
 int trader_create(void)
 {
     int trader_id = data.next_index++;

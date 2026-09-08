@@ -1,6 +1,7 @@
 #include "figure/figure_runtime_native.h"
 
 #include "building/distribution.h"
+#include "building/BuildingCityService.h"
 #include "building/list.h"
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
@@ -30,7 +31,7 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "assets/assets.h"
 #include "assets/image_group_payload.h"
@@ -476,8 +477,8 @@ bool exit_owner_cross_country(Figure *f, const building &owner, int action_state
 
 void retire_unsupported_native_state(Figure *f, const char *native_class)
 {
-    const ErrorContextScope scope("Native FigureType action", native_class);
-    error_context_report_warning(
+    const Logger::Scope scope("Native FigureType action", native_class);
+    Logger::warning(
         "Native FigureType walker reached an unsupported action state.",
         "The legacy fallback for this walker has been retired; the invalid Figure will be removed.");
     if (f) {
@@ -2004,6 +2005,31 @@ private:
 
 };
 
+class ResourceDeliveryFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        Figure *f = data_figure();
+        if (f->action_state == FIGURE_ACTION_149_CORPSE) { figure_combat_handle_corpse(f); return 1; }
+        if (f->action_state == FIGURE_ACTION_150_ATTACK) { figure_combat_handle_attack(f); return 1; }
+        figure_runtime_apply_profile_movement(f);
+        figure_image_increase_offset(f, definition()->graphics().max_image_offset);
+        if (!f->destination_building || !f->destination_building->is_in_use() || !f->loads_sold_or_carrying) {
+            f->state = FIGURE_STATE_DEAD;
+            return 1;
+        }
+        figure_movement_move_ticks(f, profile()->movement_profile().roam_ticks);
+        if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            BuildingCityService receiver(*f->destination_building);
+            while (f->loads_sold_or_carrying && receiver.receive_load(static_cast<resource_type>(f->collecting_item_id))) --f->loads_sold_or_carrying;
+            if (!f->loads_sold_or_carrying) f->state = FIGURE_STATE_DEAD;
+        } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) Route::remove(f);
+        return 1;
+    }
+};
+
 class LandTradeFigure : public NativeFigure {
 public:
     using NativeFigure::NativeFigure;
@@ -2878,10 +2904,11 @@ std::unique_ptr<NativeFigure> make_controller(
         case figure_type_registry_impl::NativeClassId::LandTrade:
         case figure_type_registry_impl::NativeClassId::TradeFollower:
             if (!unit_type_registry_impl::find_unit_type(static_cast<figure_type>(f->type))) {
-                error_context_report_fatal_error_dialog("FigureType error", "Trade figure has no UnitType stats.", definition->attr());
-                std::terminate();
+                Logger::fatal("FigureType error", "Trade figure has no UnitType stats.", definition->attr());
             }
             return std::make_unique<LandTradeFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::ResourceDelivery:
+            return std::make_unique<ResourceDeliveryFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::FishingBoat:
             return std::make_unique<FishingBoatFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:
@@ -3069,7 +3096,7 @@ void log_failed_enemy_graphics_once(const Figure &figure)
         figure.type,
         figure.image_id,
         figure.action_state);
-    error_context_report_error("Enemy graphics lookup produced no drawable enemy-atlas image.", detail);
+    Logger::error("Enemy graphics lookup produced no drawable enemy-atlas image.", detail);
 }
 
 void log_unresolved_draw_request_once(const Figure &figure)
@@ -3096,7 +3123,7 @@ void log_unresolved_draw_request_once(const Figure &figure)
         figure.action_state,
         figure.direction,
         figure.image_offset);
-    error_context_report_error("Figure graphics request is unresolved;", detail);
+    Logger::error("Figure graphics request is unresolved;", detail);
 }
 
 void log_incomplete_composite_once(const Figure &figure, const FigureGraphicDrawRequest &request)
@@ -3120,7 +3147,7 @@ void log_incomplete_composite_once(const Figure &figure, const FigureGraphicDraw
         request.layer_count,
         request.required_layer_count,
         request.missing_layer_role.empty() ? "<unknown>" : request.missing_layer_role.c_str());
-    error_context_report_error("Figure graphics composite is incomplete;", detail);
+    Logger::error("Figure graphics composite is incomplete;", detail);
 }
 
 void record_debug_draw_result(const Figure &figure, bool handled, const FigureGraphicDrawRequest &request)

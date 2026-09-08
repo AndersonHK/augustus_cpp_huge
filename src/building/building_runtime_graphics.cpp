@@ -18,7 +18,7 @@
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/calc.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/direction.h"
 
 #include "core/image_group.h"
@@ -27,7 +27,6 @@
 #include "game/resource.h"
 #include "map/TerrainMap.h"
 #include "map/random.h"
-#include "core/log.h"
 
 #include <cstdio>
 #include <cstdint>
@@ -116,7 +115,7 @@ void log_building_scope_state(void *userdata)
         definition ? definition->upgrade_level_for(b) : 0,
         target && target->has_path() ? target->path() : "",
         target && target->has_image() ? target->image() : "");
-    log_info("Graphics building state", details, 0);
+    Logger::info("Graphics building state", details, 0);
 }
 
 const char *building_type_attr_or_unknown(const building_runtime *runtime)
@@ -164,11 +163,10 @@ void format_rebuild_failure_detail(
 {
     char detail[512];
     format_rebuild_failure_detail(detail, sizeof(detail), runtime, reason, target, entry);
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "Native building graphics cache rebuild failed.",
         detail);
-    std::terminate();
 }
 
 [[noreturn]] void report_layer_rebuild_failure(
@@ -186,11 +184,10 @@ void format_rebuild_failure_detail(
         layer.has_path() ? layer.path() : "",
         layer.has_image() ? layer.image() : (entry ? entry->id().c_str() : ""),
         reason ? reason : "");
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "Native building graphics layer cache rebuild failed.",
         detail);
-    std::terminate();
 }
 
 int selected_option_for_selection(
@@ -761,7 +758,7 @@ const RuntimeDrawSlice *building_runtime::graphic_footprint()
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_base_image",
         context,
         log_building_scope_state,
@@ -780,7 +777,7 @@ const RuntimeDrawSlice *building_runtime::graphic_top()
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_top_image",
         context,
         log_building_scope_state,
@@ -799,7 +796,7 @@ const RuntimeDrawSlice *building_runtime::graphic_animation(int animation_cursor
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_animation_image",
         context,
         log_building_scope_state,

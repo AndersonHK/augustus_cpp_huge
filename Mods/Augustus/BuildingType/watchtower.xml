@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="watchtower">
+    <presentation show_durability="true" preview_figure="watchman" overlay="enemy" enemy_roamer="true" />
     <identity name_key="TR_BUILDING_WATCHTOWER" />
     <model cost="100" />
     <desirability>

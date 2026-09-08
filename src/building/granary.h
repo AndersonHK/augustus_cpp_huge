@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 #include "building/building_type.h"
 #include "game/resource.h"
@@ -46,5 +47,5 @@ void building_granaries_calculate_stocks(void);
 void building_granaries_invalidate_cached_stocks(void);
 void building_granary_update_built_granaries_capacity(void);
 int building_granaries_send_resources_to_rome(resource_type resource, int amount);
-void building_granary_bless(void);
-void building_granary_warehouse_curse(int big);
+void building_granary_fill_least_stocked(int loads, const std::vector<resource_type> &resources);
+void building_granary_warehouse_curse(int destroy, int loads);

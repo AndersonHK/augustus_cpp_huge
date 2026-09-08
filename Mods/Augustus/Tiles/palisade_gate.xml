@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="palisade_gate">
+    <presentation show_durability="true" overlay="enemy"/>
     <identity name_key="TR_BUILDING_PALISADE_GATE" />
     <model cost="12" hp="60" />
     <desirability>

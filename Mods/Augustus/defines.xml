@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <defines>
+    <combat default_building_hit_points="10" building_damage_extra_hit="0" />
     <enemy_retreat speed_multiplier="$ENEMY_RETREAT_SPEED" low_morale_combat_divisor="3" />
     <labor retirement_age="$RETIREMENT_AGE" fixed_workers="$FIXED_WORKERS" fixed_worker_percentage="$FIXED_WORKER_PERCENTAGE" />
     <ui_feature id="sidebar_grid_button" enabled="true" />

@@ -2,9 +2,22 @@
 
 This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`. For water access type identity and mask propagation after the save table resolves, see `docs/water_access_runtime.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xc9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 23`.
+Current working save version is **SVV 211 (`0xd3`)**; the current scenario version is **28**. This schema was deployed for manual testing on September 8; subsequent incompatible changes require new version gates.
 
-The dynamic city payload now appends named monument-gift awards after the existing city fields (0xc8), followed by trade/resource/finance history (0xc9). The history stores stable resource text ids, wide quantities and visit identities, current and seven previous accounting years, and partial-period metadata. The writer rejects overflowing pieces before replacing an existing save. These native gates do not decode post-fork Augustus SVX layouts; see the current sync ledger's save-bridge audit.
+The dynamic city payload now appends named monument-gift awards after the existing city fields (0xc8), followed by trade/resource/finance history (0xc9). The history stores stable resource text ids, wide quantities and visit identities, current and seven previous accounting years, and partial-period metadata. The writer rejects overflowing pieces before replacing an existing save. Post-fork Augustus archives use the separate source-schema converter described below; native version gates never identify their dialect.
+
+## Current schema changes (September 8)
+
+The detailed older piece tables below are historical structural reference. The authoritative allocation/order visitors are in `game/file_io.cpp`; the current layout adds the following versioned payloads to those tables:
+
+- Native model data stores explicit per-field scenario exceptions, not complete mod definitions. Terrain data uses a readable string ledger and explicit references. Religion state stores active effect magnitudes; static Religion/Gods definitions remain mod data.
+- SVV 210 adds per-year route snapshots. SVV 211 preserves imported accounting balances separately from gross cash flows (`balance_adjustment`, `complete_cash_flows`) and marks transactions whose source sign cannot establish direction. Each such transaction retains its opaque source trader/storage identifiers separately from native visit/storage identity. Missing historical facts remain unknown.
+- SVV 211 extends housing demand with fourth/fifth-religion counters and warnings. It also corrects fort orientation semantics: soldier type is definition data, and orientation occupies the existing orientation field. Older fort values are repaired from their composed ground geometry before publishing current owners.
+- Scenario 28 includes resource, building and god ledgers before events. Savegame loading likewise resolves all event identity ledgers before reading actions/conditions. Current parameter metadata decides which resource/building/god selectors are ledger references; negative building-category selectors retain their category meaning. Special resources such as denarii and troops are ledger identities too, without occupying ordinary inventory array slots.
+- Current action records retain the 28-byte fixed prefix, followed by signed 32-bit `value_scale`, unsigned 32-bit domain count, that many signed 32-bit domain values, unsigned 32-bit additional-model-target count, then pairs of signed 32-bit building save id and scale. Writers pad each record to the largest actual action record in the array. Readers enforce record bounds and a 4,096-entry limit. An empty extension is 12 bytes. Older scenario versions do not read it. Related definitions share one formula evaluation; finite domains preserve authored set/add ordinal semantics.
+- Scenario 28 custom empire quantities use signed 32-bit native quantities rather than signed 16-bit values. Foreign 184+ empire records have their own unsigned 32-bit wire schema and hidden-route/cost fields; their decoder normalizes quantities and publishes keyed scenario exceptions separately.
+
+The foreign converter retains immutable producer identity and source pieces, constructs separate normalized common records, and hydrates native owners. It writes a new native archive through the normal atomic writer. It never rewrites the original `.svx`. See the current ledger's SB04–SB09 rows for tested cases and remaining gaps; a successful decoder test alone is not proof of complete semantic migration.
 
 ## Top-Level Flow
 

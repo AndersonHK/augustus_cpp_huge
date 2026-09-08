@@ -6,7 +6,7 @@
 #include "city/race_bet.h"
 #include "core/calc.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/formation.h"
 #include "figure/image.h"
@@ -134,7 +134,7 @@ void figuretype::Animal::action()
 {
     formation *owner = formation_get(formation_id);
     if (!owner) {
-        log_error("Herd member references an unknown formation", 0, static_cast<int>(formation_id));
+        Logger::error("Herd member references an unknown formation", 0, static_cast<int>(formation_id));
         std::terminate();
     }
     owner->update_herd_member(*this);
@@ -144,7 +144,7 @@ void figuretype::Animal::update_graphics()
 {
     formation *owner = formation_get(formation_id);
     if (!owner) {
-        log_error("Herd member graphics reference an unknown formation", 0, static_cast<int>(formation_id));
+        Logger::error("Herd member graphics reference an unknown formation", 0, static_cast<int>(formation_id));
         std::terminate();
     }
     owner->update_herd_member_graphics(*this);

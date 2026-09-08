@@ -276,6 +276,9 @@ extern struct city_data_t {
         int32_t neptune_trade_bonus_active;
         int32_t neptune_sank_ships;
         int32_t mars_spirit_power;
+        int32_t trade_bonus_percent;
+        int32_t employment_months_per_point;
+        int32_t employment_base_bonus;
     } religion;
     struct {
         int32_t theater_shows;

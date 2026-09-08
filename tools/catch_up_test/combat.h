@@ -2,9 +2,11 @@
 
 #include "building/destruction.h"
 #include "figure/figure.h"
+#include "figure/combat.h"
 #include "figure/movement.h"
 #include "figuretype/missile.h"
 #include "game/save_version.h"
+#include "game/defines.h"
 #include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -30,6 +32,32 @@ inline bool run_combat_runtime_test()
         require(x >= 0, "Projectile fixture requires an unoccupied flight area");
         auto remove = [](Figure *f) { if (f && f->id()) f->remove(); };
         using TestFigure = std::unique_ptr<Figure, decltype(remove)>;
+        auto check_contact = [&](figure_type attacker_type, figure_type defender_type, int defender_action, bool should_attack) {
+            TestFigure attacker(Figure::create(attacker_type, x, y, DIR_0_TOP), remove);
+            TestFigure defender(Figure::create(defender_type, x, y, DIR_0_TOP), remove);
+            require(attacker && defender && attacker->id() && defender->id(), "Could not create contact-combat fixture");
+            attacker->action_state = 0;
+            defender->action_state = static_cast<unsigned char>(defender_action);
+            figure_combat_attack_figure_at(attacker.get(), map_grid_offset(x, y));
+            require((attacker->action_state == FIGURE_ACTION_150_ATTACK) == should_attack, "Contact-combat allegiance rule differs from the expected native/criminal policy");
+        };
+        check_contact(FIGURE_FORT_LEGIONARY, FIGURE_INDIGENOUS_NATIVE, 0, false);
+        check_contact(FIGURE_WOLF, FIGURE_INDIGENOUS_NATIVE, 0, false);
+        check_contact(FIGURE_FORT_LEGIONARY, FIGURE_INDIGENOUS_NATIVE, FIGURE_ACTION_159_NATIVE_ATTACKING, true);
+        check_contact(FIGURE_CRIMINAL, FIGURE_CRIMINAL, 0, false);
+        const auto dog_type = figure_type_from_xml_name("dog");
+        if (dog_type != FIGURE_NONE) {
+            check_contact(FIGURE_ENEMY43_SPEAR, dog_type, 0, false);
+            check_contact(FIGURE_WOLF, dog_type, 0, false);
+            TestFigure dog(Figure::create(dog_type, x, y, DIR_0_TOP), remove);
+            TestFigure enemy(Figure::create(FIGURE_ENEMY43_SPEAR, x, y, DIR_0_TOP), remove);
+            require(dog && dog->id() && !figure_combat_is_targetable(*dog), "Dog did not bind its authored combat exclusion");
+            require(dog->is_category(FIGURE_CATEGORY_CITIZEN), "Dog must retain the upstream ambient-citizen classification");
+            map_point target{};
+            require(figure_combat_get_target_for_aggressive_herd(x, y, 0) != static_cast<int>(dog->id()), "Herd selected a dog as prey");
+            require(figure_combat_get_missile_target_for_enemy(enemy.get(), 6, 1, &target) != static_cast<int>(dog->id()), "Enemy missile targeting selected a dog");
+        }
+        std::puts("Contact combat passed: peaceful natives, aggressive natives and criminal non-aggression.");
         TestFigure launcher(Figure::create(FIGURE_BALLISTA, x, y, DIR_0_TOP), remove);
         require(launcher && launcher->id(), "Could not create ballista fixture");
         const int destinations[][2] = {{0, -15}, {15, -15}, {15, 0}, {15, 15}, {0, 15}, {-15, 15}, {-15, 0}, {-15, -15}, {3, 11}, {-11, 3}, {11, -3}, {-3, -11}};
@@ -103,7 +131,10 @@ inline bool run_combat_runtime_test()
         buffer_reset(&b); buffer_reset(&d); buffer_reset(&r);
         map_building_load_state(&b, &d, &r, SAVE_GAME_CURRENT_VERSION);
         map_building_rebind_runtime_references();
-        for (int i = 300; i <= hp; ++i) building_apply_enemy_damage(wall);
+        const int destruction_threshold = hp + game_defines_building_damage_extra_hit();
+        for (int i = 300; i < destruction_threshold - 1; ++i) building_apply_enemy_damage(wall);
+        require(terrain_map().contains(wall, terrain_types().wall), "Wall was destroyed before its damage threshold");
+        building_apply_enemy_damage(wall);
         require(!terrain_map().contains(wall, terrain_types().wall), "Wall survived damage beyond its authored hit points");
         fprintf(stdout, "Combat: %d-HP wall accumulated damage beyond 255, survived backup/save/reload, and was destroyed\n", hp);
         return true;

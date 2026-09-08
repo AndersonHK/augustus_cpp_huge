@@ -1,7 +1,6 @@
 #include "building/FoundationRegistry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -42,7 +41,7 @@ ParseState g_parse_state;
 
 void fail(const char *message, const char *detail = nullptr)
 {
-    log_error(message, detail, 0);
+    Logger::error(message, detail, 0);
     g_parse_state.error = 1;
 }
 
@@ -444,7 +443,7 @@ int take_parsed_definition(
     std::string *failure_reason)
 {
     if (!parsed || !finish_definition()) {
-        log_error("Unable to parse Foundation xml", source_name, 0);
+        Logger::error("Unable to parse Foundation xml", source_name, 0);
         if (failure_reason) {
             *failure_reason = std::string("Unable to parse Foundation xml: ") +
                 (source_name ? source_name : "<unknown>");
@@ -462,7 +461,7 @@ int parse_definition_file(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("foundation_registry.parse_definition", filename);
+    Logger::Scope error_scope("foundation_registry.parse_definition", filename);
     g_parse_state = {};
     g_parse_state.expected_path = definition_path ? definition_path : "";
     const int parsed = xml_definition::parse_file(
@@ -513,8 +512,8 @@ bool stage_definition(
 {
     const std::string stable_id = parsed.definition ? parsed.definition->path() : "";
     if (!overlays.apply(stable_id, parsed.disabled != 0, source)) {
-        log_error("Unable to layer Foundation definition", overlays.failure_reason().c_str(), 0);
-        error_context_report_error("Unable to layer Foundation definition.", overlays.failure_reason().c_str());
+        Logger::error("Unable to layer Foundation definition", overlays.failure_reason().c_str(), 0);
+        Logger::error("Unable to layer Foundation definition.", overlays.failure_reason().c_str());
         if (failure_reason) {
             *failure_reason = overlays.failure_reason();
         }
@@ -604,7 +603,7 @@ int foundation_registry_load(void)
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure Foundation definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure Foundation definition layers", failure_reason.c_str(), 0);
         return 0;
     }
     return foundation_registry_load_layers(layers, &failure_reason);

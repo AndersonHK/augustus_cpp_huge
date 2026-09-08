@@ -65,6 +65,12 @@ inline bool run_city_road_drag_render_test()
         building_construction_cost() > 0 && terrain_map().contains(end.grid_offset, terrain_types().road);
     if (!passed) std::fprintf(stderr, "Road drag setup failed: active=%d valid=%d cost=%d road=%d.\n", building_construction_in_progress(), building_construction_can_place(), building_construction_cost(), terrain_map().contains(end.grid_offset, terrain_types().road));
     if (passed) {
+        // Compare the endpoint itself, not weather particles or moving cloud
+        // shadows between the three independently rendered frames.
+        const int weather = config_get(CONFIG_UI_DRAW_WEATHER);
+        const int clouds = config_get(CONFIG_UI_DRAW_CLOUD_SHADOWS);
+        config_set(CONFIG_UI_DRAW_WEATHER, 0);
+        config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, 0);
         const float scale = city_view_get_scale() / 100.0f;
         const int x = static_cast<int>((endpoint.x + 30) / scale) - 4;
         const int y = static_cast<int>((endpoint.y + 15) / scale) - 2;
@@ -82,6 +88,8 @@ inline bool run_city_road_drag_render_test()
         passed = passed && invalid_captured && std::memcmp(baseline, invalid, sizeof(baseline)) != 0;
         if (!passed) std::fprintf(stderr, "Road drag pixels: baseline=%08x valid=%08x invalid=%08x valid_equal=%d invalid_equal=%d.\n", baseline[0], valid[0], invalid[0], std::memcmp(baseline, valid, sizeof(baseline)) == 0, std::memcmp(baseline, invalid, sizeof(baseline)) == 0);
         screen_set_ui_render_scale();
+        config_set(CONFIG_UI_DRAW_WEATHER, weather);
+        config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, clouds);
     }
     building_construction_cancel();
     building_construction_clear_type();

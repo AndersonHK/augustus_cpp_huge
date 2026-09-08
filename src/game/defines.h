@@ -12,6 +12,7 @@ int game_defines_ticks_per_year(void);
 int game_defines_is_last_day_of_month(int month, int day);
 int game_defines_is_last_day_of_year(int month, int day);
 int game_defines_default_building_hit_points(void);
+int game_defines_building_damage_extra_hit(void);
 int game_defines_retirement_age(void);
 int game_defines_fixed_workers(void);
 int game_defines_fixed_worker_percentage(void);

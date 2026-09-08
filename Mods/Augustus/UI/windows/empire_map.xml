@@ -1,0 +1,20 @@
+<window id="empire_map" base_width="640" base_height="480">
+    <widget id="icon_1" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Empire_Icon_Construction_01"/>
+    <widget id="icon_2" type="image" x="0" y="0" assetlist="PaperMap\Empire_Foreign_City" image="Empire_Icon_Distant_01"/>
+    <widget id="icon_3" type="image" x="0" y="0" assetlist="PaperMap\Empire_Foreign_City" image="Empire_Icon_Distant_02"/>
+    <widget id="icon_4" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Resource_01"/>
+    <widget id="icon_5" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Resource_02"/>
+    <widget id="icon_6" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Resource_03"/>
+    <widget id="icon_7" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Roman_01"/>
+    <widget id="icon_8" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Empire_Icon_Roman_02"/>
+    <widget id="icon_9" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Roman_03"/>
+    <widget id="icon_10" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Empire_Icon_Roman_04"/>
+    <widget id="icon_11" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Empire_Icon_Roman_05"/>
+    <widget id="icon_12" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Trade_01"/>
+    <widget id="icon_13" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Empire_Icon_Trade_02"/>
+    <widget id="icon_14" type="image" x="0" y="0" assetlist="PaperMap\Empire_City" image="Image_0000"/>
+    <widget id="icon_15" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Trade" image="Image_0000"/>
+    <widget id="icon_16" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Image_0000"/>
+    <widget id="icon_17" type="image" x="0" y="0" assetlist="PaperMap\Empire_Foreign_City" image="Image_0000"/>
+    <widget id="icon_18" type="image" x="0" y="0" assetlist="PaperMap\Empire_City_Distant_Roman" image="Empire_Icon_Flag_01"/>
+</window>

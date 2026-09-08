@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_monument">
+    <presentation overlay="native" />
     <identity name_key="TR_BUILDING_NATIVE_MONUMENT" />
     <model cost="0" />
     <desirability>

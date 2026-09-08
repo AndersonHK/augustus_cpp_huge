@@ -5,7 +5,7 @@
 #include "building/building_type_legacy_migration.h"
 #include "game/legacy_model_defaults.generated.h"
 #include "game/save_version.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -148,7 +148,7 @@ int model_load_model_data(buffer *buf, ModelDataFormat format, int source_save_v
         // table. No identity or edit provenance survives; never reinterpret them.
         std::copy(std::begin(mod_defaults), std::end(mod_defaults), std::begin(buildings));
         std::fill(std::begin(scenario_fields), std::end(scenario_fields), 0);
-        log_warning("Repairing corrupted legacy native building models by restoring mod defaults", nullptr, 0);
+        Logger::warning("Repairing corrupted legacy native building models by restoring mod defaults", nullptr, 0);
         return 1;
     }
     buffer source = *buf;
@@ -175,7 +175,7 @@ int model_load_model_data(buffer *buf, ModelDataFormat format, int source_save_v
         if (source.overflow) return 0;
         if (legacy) continue; // VMO1/2 auto-promoted corrupt snapshots into apparent overrides.
         const building_type type = building_type_id_bridge_runtime_from_text(id.c_str());
-        if (type == BUILDING_NONE) { log_warning("Scenario model override references an unavailable building", id.c_str(), 0); continue; }
+        if (type == BUILDING_NONE) { Logger::warning("Scenario model override references an unavailable building", id.c_str(), 0); continue; }
         entries.push_back({type, mask, model});
     }
     std::vector<ScenarioDefinitionOverride> definition_overrides;
@@ -184,7 +184,7 @@ int model_load_model_data(buffer *buf, ModelDataFormat format, int source_save_v
     if (legacy) {
         std::copy(std::begin(mod_defaults), std::end(mod_defaults), std::begin(buildings));
         std::fill(std::begin(scenario_fields), std::end(scenario_fields), 0);
-        if (count) log_warning("Repairing corrupted legacy native building model overlays by restoring mod defaults", nullptr, count);
+        if (count) Logger::warning("Repairing corrupted legacy native building model overlays by restoring mod defaults", nullptr, count);
     }
     for (const auto &entry : entries) {
         for (size_t field = 0; field < MODEL_FIELDS.size(); ++field) {
@@ -224,13 +224,13 @@ int model_import_legacy_source_data(buffer *buf, int save_version)
         if (!mask) continue;
         const char *id = building_type_legacy_migration_text_id_for_enum(static_cast<uint16_t>(index));
         const building_type type = id ? building_type_id_bridge_runtime_from_text(id) : BUILDING_NONE;
-        if (type == BUILDING_NONE) { log_warning("Legacy scenario model override references an unavailable building", id, static_cast<int>(index)); continue; }
+        if (type == BUILDING_NONE) { Logger::warning("Legacy scenario model override references an unavailable building", id, static_cast<int>(index)); continue; }
         for (size_t field = 0; field < MODEL_FIELDS.size(); ++field) {
             if (mask & (1u << field)) buildings[type].*MODEL_FIELDS[field] = model.*MODEL_FIELDS[field];
         }
         scenario_fields[type] |= mask;
     }
-    if (ambiguous_fields) log_warning("Repairing ambiguous legacy model values matching older upstream defaults by inheriting mod definitions", nullptr, ambiguous_fields);
+    if (ambiguous_fields) Logger::warning("Repairing ambiguous legacy model values matching older upstream defaults by inheriting mod definitions", nullptr, ambiguous_fields);
     return !source.overflow;
 }
 

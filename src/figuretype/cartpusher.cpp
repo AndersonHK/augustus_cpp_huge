@@ -96,6 +96,8 @@ int figuretype::CartPusher::returning_empty() const
 
 void figuretype::CartPusher::draw(building_info_context *c)
 {
+    const bool is_getting = action_state == FIGURE_ACTION_54_WAREHOUSEMAN_GETTING_FOOD || action_state == FIGURE_ACTION_57_WAREHOUSEMAN_GETTING_RESOURCE || action_state == FIGURE_ACTION_56_WAREHOUSEMAN_RETURNING_WITH_FOOD || action_state == FIGURE_ACTION_59_WAREHOUSEMAN_RETURNING_WITH_RESOURCE;
+    const resource_type displayed_resource = static_cast<resource_type>(is_getting && collecting_item_id ? collecting_item_id : resource_id);
     const Building *source = building;
     const int is_armoury_cart = source && source->type && source->type->is_armoury();
     if (is_armoury_cart) {
@@ -116,14 +118,18 @@ void figuretype::CartPusher::draw(building_info_context *c)
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
 
-    if (resource_id != RESOURCE_NONE) {
-        resource_graphics(static_cast<resource_type>(resource_id)).panel_icon()
-            .draw(c->x_offset + 92 + width, c->y_offset + 135);
+    if (is_getting && collecting_item_id) {
+        width += lang_text_draw(resource_id ? "main_strings.129.18" : "main_strings.129.17", c->x_offset + 92 + width, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+    if (displayed_resource != RESOURCE_NONE) {
+        const auto &icon = resource_graphics(displayed_resource).panel_icon();
+        icon.draw(c->x_offset + 92 + width + (24 - icon.width() + 1) / 2, c->y_offset + 133 + (22 - icon.height() + 1) / 2);
+        width += 24;
     }
 
     if (loads_sold_or_carrying > 0 && resource_id != RESOURCE_NONE && !returning_empty()) {
         text_draw_number(loads_sold_or_carrying, 'x', "",
-            c->x_offset + 118 + width, c->y_offset + 139,
+            c->x_offset + 92 + width, c->y_offset + 139,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE);
     }
 
@@ -164,19 +170,22 @@ void figuretype::CartPusher::draw(building_info_context *c)
             }
             width += lang_text_draw("main_strings.129.14", x_base + width, y_base,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            if (last_destination) {
-                width += draw_building_type_and_storage(*last_destination, x_base + width, y_base);
+            const Building *from = is_getting ? destination_building : last_destination;
+            if (from) {
+                width += draw_building_type_and_storage(*from, x_base + width, y_base);
             }
         } else {
             width = lang_text_draw("main_strings.129.15", x_base, y_base,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            if (destination_building) {
-                width += draw_building_type_and_storage(*destination_building, x_base + width, y_base);
+            const Building *to = is_getting ? source : destination_building;
+            const Building *from = is_getting ? destination_building : source;
+            if (to) {
+                width += draw_building_type_and_storage(*to, x_base + width, y_base);
             }
             width += lang_text_draw("main_strings.129.14", x_base + width, y_base,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            if (source) {
-                width += draw_building_type_and_storage(*source, x_base + width, y_base);
+            if (from) {
+                width += draw_building_type_and_storage(*from, x_base + width, y_base);
             }
         }
     }

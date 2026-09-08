@@ -21,9 +21,9 @@ void building_industry_update_production(int new_day);
 
 void building_industry_start_new_production(building *b);
 
-void building_bless_farms(void);
-void building_curse_farms(int big_curse);
-void building_bless_industry(void);
+void building_bless_farms(int days);
+void building_curse_farms(int days);
+void building_bless_industry(int batches);
 
 int building_workshop_add_raw_material(Building *b, int resource, int loads, Figure &figure);
 

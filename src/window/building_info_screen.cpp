@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/roadblock.h"
+#include "building/monument.h"
 #include "window/building/common.h"
 
 BuildingInfoScreenSelection BuildingInfoScreenSelection::resolve(
@@ -21,7 +22,7 @@ BuildingInfoScreenSelection BuildingInfoScreenSelection::resolve(
         return BuildingInfoScreenSelection(BuildingInfoScreenId::Storage);
     }
 
-    if (Roadblock(building).kind() == ROADBLOCK_FOUNDATION) {
+    if (!building_monument_is_unfinished_monument(building.record()) && Roadblock(building).kind() == ROADBLOCK_FOUNDATION) {
         return BuildingInfoScreenSelection(
             special_orders ? BuildingInfoScreenId::FoundationRoadblockOrders : BuildingInfoScreenId::FoundationRoadblock);
     }

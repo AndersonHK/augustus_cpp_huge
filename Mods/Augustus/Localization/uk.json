@@ -1,7 +1,7 @@
 {
   "metadata": {
     "code": "uk",
-    "display_name": "??????????",
+    "display_name": "Українська",
     "english_name": "Ukrainian",
     "source": "Augustus"
   },
@@ -9,6 +9,8 @@
   "editor_strings": {},
   "messages": {},
   "project_keys": {
+    "TR_CONFIG_FIXED_WORKERS": "Фіксований розмір пулу працівників у 45% від населення",
+    "TR_USER_DIRECTORIES_WINDOW_USER_PATH": "Каталог корист.:",
     "TR_NO_PATCH_TITLE": "Патч 1.0.1.0 не встановлений",
     "TR_NO_PATCH_MESSAGE": "Патч 1.0.1.0 у вашій версії гри Caesar 3 відсутній.Ви можете завантажити патч тут:\nhttps://github.com/bvschaik/julius/wiki/Patches\nПродовжуйте на свій страх і ризик.",
     "TR_MISSING_FONTS_TITLE": "Відсутні шрифти",

@@ -1,8 +1,7 @@
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "assets/graphics_extractor_shims.h"
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/log.h"
 #include "assets/assets.h"
 #include "building/building_type.h"
 #include "game/mod_manager.h"
@@ -34,7 +33,6 @@ public:
 };
 
 ListingStorage g_listing;
-int g_debug_enabled = 0;
 std::filesystem::path g_game_root = std::filesystem::current_path();
 std::string g_augustus_graphics_path = "Mods/Augustus/Graphics/";
 std::string g_julius_graphics_path = "Mods/Julius/Graphics/";
@@ -117,18 +115,6 @@ long modified_time_for(const std::filesystem::directory_entry &entry)
     return static_cast<long>(value.time_since_epoch().count());
 }
 
-void log_line(const char *label, const char *msg, const char *param_str, int param_int)
-{
-    std::ostream &stream = std::strcmp(label, "Error") == 0 ? std::cerr : std::cout;
-    stream << label << ": " << (msg ? msg : "");
-    if (param_str) {
-        stream << "  " << param_str;
-    }
-    if (param_int) {
-        stream << "  " << param_int;
-    }
-    stream << "\n";
-}
 
 std::string with_trailing_separator(const std::string &path)
 {
@@ -379,35 +365,6 @@ void map_building_tiles_add(unsigned int building_id, int x, int y, int size, in
     (void) size;
     (void) image_id;
     (void) terrain;
-}
-
-void log_info(const char *msg, const char *param_str, int param_int)
-{
-    log_line("Info", msg, param_str, param_int);
-}
-
-void log_set_debug_enabled(bool enabled)
-{
-    g_debug_enabled = enabled ? 1 : 0;
-}
-
-bool log_is_debug_enabled()
-{
-    return g_debug_enabled != 0;
-}
-
-void log_warning(const char *msg, const char *param_str, int param_int)
-{
-    log_line("Warning", msg, param_str, param_int);
-}
-
-void log_error(const char *msg, const char *param_str, int param_int)
-{
-    log_line("Error", msg, param_str, param_int);
-}
-
-void log_repeated_messages()
-{
 }
 
 FILE *file_open(const char *filename, const char *mode)
@@ -814,114 +771,4 @@ bool validate_graphics_path()
     return true;
 }
 
-}
-
-CrashContextScope::CrashContextScope(
-    const char *stage,
-    const char *context,
-    crash_context_log_callback callback,
-    void *userdata)
-{
-    (void) stage;
-    (void) context;
-    (void) callback;
-    (void) userdata;
-}
-
-CrashContextScope::~CrashContextScope()
-{
-}
-
-void CrashContextScope::set_context(const char *context)
-{
-    (void) context;
-}
-
-void CrashContextScope::set_callback(crash_context_log_callback callback, void *userdata)
-{
-    (void) callback;
-    (void) userdata;
-}
-
-void crash_context_clear(void)
-{
-}
-
-int crash_context_push_scope(
-    const char *stage,
-    const char *context,
-    crash_context_log_callback callback,
-    void *userdata)
-{
-    (void) stage;
-    (void) context;
-    (void) callback;
-    (void) userdata;
-    return 1;
-}
-
-void crash_context_pop_scope(int token)
-{
-    (void) token;
-}
-
-void crash_context_update_scope_context(int token, const char *context)
-{
-    (void) token;
-    (void) context;
-}
-
-void crash_context_update_scope_callback(int token, crash_context_log_callback callback, void *userdata)
-{
-    (void) token;
-    (void) callback;
-    (void) userdata;
-}
-
-void crash_context_set_stage(const char *stage, const char *context)
-{
-    (void) stage;
-    (void) context;
-}
-
-void crash_context_log_current(void)
-{
-}
-
-void error_context_log_current(void)
-{
-}
-
-void error_context_flush_report_counts(void)
-{
-}
-
-void error_context_report_info(const char *message, const char *detail)
-{
-    log_info(message, detail, 0);
-}
-
-void error_context_report_warning(const char *message, const char *detail)
-{
-    log_warning(message, detail, 0);
-}
-
-void error_context_report_error(const char *message, const char *detail)
-{
-    log_error(message, detail, 0);
-}
-
-void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
-{
-    log_error(title ? title : message, detail, 0);
-}
-
-void crash_context_report_error(const char *message, const char *detail)
-{
-    log_error(message, detail, 0);
-}
-
-void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
-{
-    log_error(title ? title : message, detail, 0);
 }

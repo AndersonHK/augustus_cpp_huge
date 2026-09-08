@@ -1,7 +1,6 @@
 #include "figure/formation_type.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -69,7 +68,7 @@ ParseState g_parse_state;
 int parse_enabled_content(const char *element)
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled) {
-        log_error("Disabled FormationType definition must contain only its root identity", element, 0);
+        Logger::error("Disabled FormationType definition must contain only its root identity", element, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -115,7 +114,7 @@ bool parse_combat_modifier(const char *attribute, int *out_value, bool *saw_attr
     int value = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) ||
         value < -100 || value > 100) {
-        log_error("FormationType combat modifier must be an integer from -100 through 100", attribute, 0);
+        Logger::error("FormationType combat modifier must be an integer from -100 through 100", attribute, 0);
         return false;
     }
     *out_value = value;
@@ -129,7 +128,7 @@ bool parse_combat_policy(const char *attribute, int minimum, int *out_value, boo
     int value = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) ||
         value < minimum || value > 100) {
-        log_error("FormationType strategic combat value is outside its supported range", attribute, value);
+        Logger::error("FormationType strategic combat value is outside its supported range", attribute, value);
         return false;
     }
     *out_value = value;
@@ -140,13 +139,13 @@ bool parse_combat_policy(const char *attribute, int minimum, int *out_value, boo
 int parse_root()
 {
     if (g_parse_state.saw_root) {
-        log_error("FormationType contains duplicate root nodes", 0, 0);
+        Logger::error("FormationType contains duplicate root nodes", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     std::string key;
     if (!xml_definition::parse_required_nonempty_string_attribute("key", &key)) {
-        log_error("FormationType xml requires a non-empty key", 0, 0);
+        Logger::error("FormationType xml requires a non-empty key", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -154,19 +153,19 @@ int parse_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("FormationType has invalid Boolean attribute 'disabled'", key.c_str(), 0);
+        Logger::error("FormationType has invalid Boolean attribute 'disabled'", key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
     int recruit_capacity = 0;
     if (xml_parser_has_attribute("recruit_capacity") &&
         !xml_definition::parse_required_positive_int_attribute("recruit_capacity", &recruit_capacity)) {
-        log_error("FormationType has invalid positive recruit_capacity", key.c_str(), 0);
+        Logger::error("FormationType has invalid positive recruit_capacity", key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
     if (disabled && recruit_capacity) {
-        log_error("Disabled FormationType cannot declare recruit_capacity", key.c_str(), 0);
+        Logger::error("Disabled FormationType cannot declare recruit_capacity", key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -187,7 +186,7 @@ int parse_grid()
     int height = 0;
     if (!xml_definition::parse_required_positive_int_attribute("width", &width) ||
         !xml_definition::parse_required_positive_int_attribute("height", &height)) {
-        log_error("FormationType grid requires positive width and height", 0, 0);
+        Logger::error("FormationType grid requires positive width and height", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -198,7 +197,7 @@ int parse_grid()
     } else if (xml_value::equals(alignment_value, "tile_anchor")) {
         station_alignment = FormationStationAlignment::TileAnchor;
     } else {
-        log_error("FormationType grid requires station_alignment 'scaled_tile_anchor' or 'tile_anchor'", alignment_value, 0);
+        Logger::error("FormationType grid requires station_alignment 'scaled_tile_anchor' or 'tile_anchor'", alignment_value, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -215,7 +214,7 @@ int parse_combat()
         return 0;
     }
     if (g_parse_state.saw_combat) {
-        log_error("FormationType contains duplicate combat nodes", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationType contains duplicate combat nodes", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -231,7 +230,7 @@ int parse_combat()
         !parse_combat_policy("curse_weight_per_figure", 1, &modifiers.curse_weight_per_figure, &saw_attribute) ||
         !saw_attribute) {
         if (!saw_attribute) {
-            log_error("FormationType combat node requires at least one modifier", g_parse_state.key.c_str(), 0);
+            Logger::error("FormationType combat node requires at least one modifier", g_parse_state.key.c_str(), 0);
         }
         g_parse_state.error = true;
         return 0;
@@ -245,19 +244,19 @@ int parse_combat()
 int parse_slot()
 {
     if (!parse_enabled_content("slot") || !g_parse_state.saw_grid) {
-        log_error("FormationType slot requires a preceding grid", 0, 0);
+        Logger::error("FormationType slot requires a preceding grid", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     if (!xml_parser_has_attribute("unit")) {
-        log_error("FormationType slot is missing required unit", 0, 0);
+        Logger::error("FormationType slot is missing required unit", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     const std::string unit_key = xml_value::trim_copy(xml_parser_get_attribute_string("unit"));
     if (unit_key.empty()) {
-        log_error("FormationType slot unit is empty", 0, 0);
+        Logger::error("FormationType slot unit is empty", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -280,7 +279,7 @@ int parse_slot()
             xml_parser_get_attribute_string("row");
         if (!parse_row_range(row_text, &first_row, &last_row) ||
             first_row < 0 || last_row < first_row || last_row >= g_parse_state.height) {
-            log_error("FormationType slot row range is invalid", row_text, 0);
+            Logger::error("FormationType slot row range is invalid", row_text, 0);
             g_parse_state.error = true;
             return 0;
         }
@@ -298,7 +297,7 @@ int parse_slot()
     if (!xml_definition::parse_required_nonnegative_int_attribute("x", &x) ||
         !xml_definition::parse_required_nonnegative_int_attribute("y", &y) ||
         x >= g_parse_state.width || y >= g_parse_state.height) {
-        log_error("FormationType explicit slot requires valid x, y, and unit", 0, 0);
+        Logger::error("FormationType explicit slot requires valid x, y, and unit", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -311,14 +310,14 @@ int parse_slot()
 int parse_spawn()
 {
     if (!parse_enabled_content("spawn") || g_parse_state.spawn.role != FormationSpawnRole::None) {
-        log_error("FormationType contains an invalid or duplicate spawn node", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationType contains an invalid or duplicate spawn node", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
     const char *role = xml_parser_get_attribute_string("role");
     if (xml_value::equals(role, "enemy")) {
         if (xml_parser_has_attribute("climate") || xml_parser_has_attribute("count")) {
-            log_error("Enemy FormationType spawn cannot declare herd population data", g_parse_state.key.c_str(), 0);
+            Logger::error("Enemy FormationType spawn cannot declare herd population data", g_parse_state.key.c_str(), 0);
             g_parse_state.error = true;
             return 0;
         }
@@ -326,7 +325,7 @@ int parse_spawn()
         return 1;
     }
     if (!xml_value::equals(role, "herd")) {
-        log_error("FormationType spawn role must be 'enemy' or 'herd'", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationType spawn role must be 'enemy' or 'herd'", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -335,12 +334,12 @@ int parse_spawn()
     else if (xml_value::equals(climate, "northern")) g_parse_state.spawn.climate = 1;
     else if (xml_value::equals(climate, "desert")) g_parse_state.spawn.climate = 2;
     else {
-        log_error("Herd FormationType spawn requires central, northern, or desert climate", g_parse_state.key.c_str(), 0);
+        Logger::error("Herd FormationType spawn requires central, northern, or desert climate", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
     if (!xml_definition::parse_required_positive_int_attribute("count", &g_parse_state.spawn.initial_count)) {
-        log_error("Herd FormationType spawn requires a positive count", g_parse_state.key.c_str(), 0);
+        Logger::error("Herd FormationType spawn requires a positive count", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -351,7 +350,7 @@ int parse_spawn()
 int parse_herd_behavior()
 {
     if (!parse_enabled_content("herd") || g_parse_state.saw_herd_behavior) {
-        log_error("FormationType contains invalid or duplicate herd behavior", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationType contains invalid or duplicate herd behavior", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -368,7 +367,7 @@ int parse_herd_behavior()
         (!xml_definition::parse_required_nonnegative_int_attribute("building_clearance", &g_parse_state.spawn.herd.building_clearance) ||
          g_parse_state.spawn.herd.building_clearance > 16)) invalid_attribute = "building_clearance";
     if (invalid_attribute) {
-        log_error("Herd FormationType spawn requires a valid behavior attribute", invalid_attribute, 0);
+        Logger::error("Herd FormationType spawn requires a valid behavior attribute", invalid_attribute, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -380,7 +379,7 @@ int parse_herd_behavior()
     } else if (xml_value::equals(movement_sound, "wolf_howl")) {
         g_parse_state.spawn.herd.movement_sound = FormationHerdMovementSound::WolfHowl;
     } else {
-        log_error("Herd FormationType movement_sound must be none or wolf_howl", g_parse_state.key.c_str(), 0);
+        Logger::error("Herd FormationType movement_sound must be none or wolf_howl", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -390,7 +389,7 @@ int parse_herd_behavior()
 int parse_herd_member()
 {
     if (!parse_enabled_content("herd_member") || g_parse_state.saw_herd_member) {
-        log_error("FormationType contains invalid or duplicate herd member behavior", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationType contains invalid or duplicate herd member behavior", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -402,7 +401,7 @@ int parse_herd_member()
     else if (!xml_definition::parse_required_positive_int_attribute("animation_frames", &g_parse_state.spawn.herd.member_animation_frames)) invalid_attribute = "animation_frames";
     else if (!xml_value::parse_bool(xml_parser_get_attribute_string("alternate_rest_animation"), &alternate_rest_animation)) invalid_attribute = "alternate_rest_animation";
     if (invalid_attribute) {
-        log_error("Herd FormationType member requires a valid behavior attribute", invalid_attribute, 0);
+        Logger::error("Herd FormationType member requires a valid behavior attribute", invalid_attribute, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -415,7 +414,7 @@ int parse_herd_member()
     } else if (xml_value::equals(combat_animation, "rest")) {
         g_parse_state.spawn.herd.combat_animation = FormationHerdCombatAnimation::Rest;
     } else {
-        log_error("Herd FormationType combat_animation must be move, attack, or rest", g_parse_state.key.c_str(), 0);
+        Logger::error("Herd FormationType combat_animation must be move, attack, or rest", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -435,30 +434,30 @@ const xml_parser_element XML_ELEMENTS[] = {
 bool validate_definition(const FormationType &definition, const char *filename)
 {
     if (!definition.has_grid() || definition.capacity() <= 0) {
-        log_error("FormationType is missing a valid grid", definition.key(), 0);
-        error_context_report_error("FormationType is missing a valid grid.", filename);
+        Logger::error("FormationType is missing a valid grid", definition.key(), 0);
+        Logger::error("FormationType is missing a valid grid.", filename);
         return false;
     }
     if (definition.recruit_capacity() <= 0 ||
         definition.recruit_capacity() > definition.capacity()) {
-        log_error("FormationType recruit_capacity exceeds its formation capacity", definition.key(), 0);
-        error_context_report_error("FormationType has invalid recruit_capacity.", filename);
+        Logger::error("FormationType recruit_capacity exceeds its formation capacity", definition.key(), 0);
+        Logger::error("FormationType has invalid recruit_capacity.", filename);
         return false;
     }
     if (!definition.has_slots()) {
-        log_error("FormationType requires at least one declared slot", definition.key(), 0);
-        error_context_report_error("FormationType requires declared slots.", filename);
+        Logger::error("FormationType requires at least one declared slot", definition.key(), 0);
+        Logger::error("FormationType requires declared slots.", filename);
         return false;
     }
 
     if (!definition.has_valid_slots()) {
-        log_error("FormationType contains invalid slot", definition.key(), 0);
-        error_context_report_error("FormationType contains invalid slot.", filename);
+        Logger::error("FormationType contains invalid slot", definition.key(), 0);
+        Logger::error("FormationType contains invalid slot.", filename);
         return false;
     }
     if (definition.has_duplicate_slots()) {
-        log_error("FormationType contains duplicate slot coordinates", definition.key(), 0);
-        error_context_report_error("FormationType contains duplicate slot coordinates.", filename);
+        Logger::error("FormationType contains duplicate slot coordinates", definition.key(), 0);
+        Logger::error("FormationType contains duplicate slot coordinates.", filename);
         return false;
     }
     return true;
@@ -469,7 +468,7 @@ int parse_definition_buffer(
     const std::vector<char> &buffer,
     StagedFormationType *out_definition)
 {
-    ErrorContextScope error_scope("formation_type_registry.parse_definition", filename);
+    Logger::Scope error_scope("formation_type_registry.parse_definition", filename);
 
     g_parse_state = {};
     const int parsed = xml_definition::parse_buffer(
@@ -487,11 +486,11 @@ int parse_definition_buffer(
             g_parse_state.key.c_str(), static_cast<int>(g_parse_state.spawn.role),
             g_parse_state.saw_grid, g_parse_state.saw_slot,
             g_parse_state.saw_herd_behavior, g_parse_state.saw_herd_member);
-        log_error("FormationType herd role requires exactly one herd and herd_member declaration", detail, 0);
+        Logger::error("FormationType herd role requires exactly one herd and herd_member declaration", detail, 0);
     }
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.key.empty() || !herd_schema_matches_role ||
         (!g_parse_state.disabled && (!g_parse_state.saw_grid || !g_parse_state.saw_slot))) {
-        log_error("Unable to parse FormationType xml", filename, 0);
+        Logger::error("Unable to parse FormationType xml", filename, 0);
         return 0;
     }
 

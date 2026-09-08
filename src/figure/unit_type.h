@@ -82,6 +82,8 @@ public:
     bool set_attack_for_difficulty(set_difficulty difficulty, int value);
     bool has_valid_combat_stats() const;
     const UnitCombatStats &combat_stats() const;
+    void set_targetable(bool value) { targetable_ = value; }
+    bool targetable() const { return targetable_; }
     bool has_morale() const;
 
     void set_pathing_key(std::string key);
@@ -107,6 +109,7 @@ private:
     std::string key_;
     figure_type figure_type_ = FIGURE_NONE;
     UnitCombatStats combat_stats_;
+    bool targetable_ = true;
     bool has_morale_ = false;
     std::string pathing_key_;
     int recruit_type_ = LEGION_RECRUIT_NONE;

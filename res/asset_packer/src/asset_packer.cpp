@@ -1,4 +1,4 @@
-#include "log.h"
+#include "core/Logger.h"
 
 #include "assets/assets.h"
 #include "assets/group.h"
@@ -32,6 +32,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 #endif
+
+// This archival packer has no runtime configuration store.
+const char *config_get_string(int) { return nullptr; }
 
 #define ASSETS_IMAGE_SIZE 2048
 #define CURSOR_IMAGE_SIZE 256
@@ -96,15 +99,15 @@ static int find_packed_assets_dir(const char *dir, long unused)
 static int prepare_packed_assets_dir(void)
 {
     if (platform_file_manager_list_directory_contents(0, TYPE_DIR, 0, find_packed_assets_dir) == LIST_MATCH) {
-        log_info("The packed assets dir exists, deleting its contents", 0, 0);
+        Logger::info("The packed assets dir exists, deleting its contents", 0, 0);
         if (!platform_file_manager_remove_directory(PACKED_ASSETS_DIR)) {
-            log_error("There was a problem deleting the packed assets directory.", 0, 0);
+            Logger::error("There was a problem deleting the packed assets directory.", 0, 0);
             return 0;
         }
     }
     if (!platform_file_manager_create_directory(PACKED_ASSETS_DIR "/" ASSETS_IMAGE_PATH, 0, 1) ||
         !platform_file_manager_create_directory(PACKED_ASSETS_DIR "/" CURSORS_DIR, 0, 1)) {
-        log_error("Failed to create directories", 0, 0);
+        Logger::error("Failed to create directories", 0, 0);
         return 0;
     }
     return 1;
@@ -228,7 +231,7 @@ static void add_asset_image_to_list(layer *l)
     if (!asset) {
         array_new_item_after_index(packed_assets, 1, asset);
         if (!asset) {
-            log_error("Out of memory.", 0, 0);
+            Logger::error("Out of memory.", 0, 0);
             return;
         }
         asset->path = l->asset_image_path;
@@ -353,7 +356,7 @@ static void populate_asset_rects(image_packer *packer)
         }
         asset->pixels = malloc(sizeof(color_t) * width * height);
         if (!asset->pixels) {
-            log_error("Out of memory.", 0, 0);
+            Logger::error("Out of memory.", 0, 0);
             continue;
         }
         if (!png_read(asset->pixels, 0, 0, width, height, 0, 0, width, 0)) {
@@ -407,12 +410,12 @@ static void save_final_image(const char *path, unsigned int width, unsigned int 
     spng_ctx *ctx = spng_ctx_new(SPNG_CTX_ENCODER);
 
     if (!ctx || spng_set_option(ctx, SPNG_IMG_COMPRESSION_LEVEL, 3)) {
-        log_error("Error creating png structure for", path, 0);
+        Logger::error("Error creating png structure for", path, 0);
         return;
     }
     FILE *fp = fopen(path, "wb");
     if (!fp || spng_set_png_file(ctx, fp)) {
-        log_error("Error creating final png file at", path, 0);
+        Logger::error("Error creating final png file at", path, 0);
         spng_ctx_free(ctx);
         fclose(fp);
         return;
@@ -425,7 +428,7 @@ static void save_final_image(const char *path, unsigned int width, unsigned int 
     };
     if (spng_set_ihdr(ctx, &ihdr) ||
         spng_encode_image(ctx, 0, 0, SPNG_FMT_PNG, SPNG_ENCODE_PROGRESSIVE | SPNG_ENCODE_FINALIZE)) {
-        log_error("Error creating final png file at", path, 0);
+        Logger::error("Error creating final png file at", path, 0);
         spng_ctx_free(ctx);
         fclose(fp);
         return;
@@ -433,7 +436,7 @@ static void save_final_image(const char *path, unsigned int width, unsigned int 
 
     uint8_t *row_pixels = malloc(width * BYTES_PER_PIXEL);
     if (!row_pixels) {
-        log_error("Out of memory for png creation", path, 0);
+        Logger::error("Out of memory for png creation", path, 0);
         fclose(fp);
         spng_ctx_free(ctx);
         return;
@@ -452,7 +455,7 @@ static void save_final_image(const char *path, unsigned int width, unsigned int 
         }
         int result = spng_encode_scanline(ctx, row_pixels, width * BYTES_PER_PIXEL);
         if (result != SPNG_OK && result != SPNG_EOI) {
-            log_error("Error constructing png file", path, 0);
+            Logger::error("Error constructing png file", path, 0);
             break;
         }
     }
@@ -516,7 +519,7 @@ static void pack_group(int group_id)
     const image_groups *group = group_get_from_id(group_id);
 
     if (!group || !*group->name) {
-        log_error("Could not retreive a valid group from id", 0, group_id);
+        Logger::error("Could not retreive a valid group from id", 0, group_id);
         return;
     }
 
@@ -530,12 +533,12 @@ static void pack_group(int group_id)
     packer.options.allow_rotation = 1;
     packer.options.reduce_image_size = 1;
 
-    log_info("Packing", group->name, 0);
+    Logger::info("Packing", group->name, 0);
 
     populate_asset_rects(&packer);
 
     if (image_packer_pack(&packer) != packed_assets.size) {
-        log_error("Error during pack.", 0, 0);
+        Logger::error("Error during pack.", 0, 0);
         image_packer_free(&packer);
         return;
     }
@@ -544,7 +547,7 @@ static void pack_group(int group_id)
     final_image_height = packer.result.last_image_height;
     final_image_pixels = malloc(sizeof(color_t) * final_image_width * final_image_height);
     if (!final_image_pixels) {
-        log_error("Out of memory when creating the final image.", 0, 0);
+        Logger::error("Out of memory when creating the final image.", 0, 0);
         image_packer_free(&packer);
         return;
     }
@@ -555,7 +558,7 @@ static void pack_group(int group_id)
     printf("Info: %d Images packed. Texture size: %dx%d.\n", packed_assets.size,
         packer.result.last_image_width, packer.result.last_image_height);
 
-    log_info("Creating xml file...", 0, 0);
+    Logger::info("Creating xml file...", 0, 0);
 
     snprintf(current_file, FILE_NAME_MAX, "%s/%s/%s", PACKED_ASSETS_DIR, ASSETS_IMAGE_PATH, group->path);
 
@@ -611,7 +614,7 @@ static void pack_group(int group_id)
     FILE *xml_dest = fopen(current_file, "wb");
 
     if (!xml_dest) {
-        log_error("Failed to create file", group->path, 0);
+        Logger::error("Failed to create file", group->path, 0);
         return;
     }
 
@@ -623,7 +626,7 @@ static void pack_group(int group_id)
 
     snprintf(current_file, FILE_NAME_MAX, "%s/%s/%s.png", PACKED_ASSETS_DIR, ASSETS_IMAGE_PATH, group->name);
 
-    log_info("Creating png file...", 0, 0);
+    Logger::info("Creating png file...", 0, 0);
 
     save_final_image(current_file, final_image_width, final_image_height, final_image_pixels);
 
@@ -654,7 +657,7 @@ static void pack_cursors(void)
             cursor->calculated_image_id = index;
             cursor->asset_image_path = malloc(FILE_NAME_MAX);
             if (!cursor->asset_image_path) {
-                log_error("Out of memory.", 0, 0);
+                Logger::error("Out of memory.", 0, 0);
                 image_packer_free(&packer);
                 return;
             }
@@ -672,7 +675,7 @@ static void pack_cursors(void)
             }
             color_t *data = malloc(cursor->width * cursor->height * sizeof(color_t));
             if (!data) {
-                log_error("Out of memory.", 0, 0);
+                Logger::error("Out of memory.", 0, 0);
                 image_packer_free(&packer);
                 return;
             }
@@ -689,13 +692,13 @@ static void pack_cursors(void)
     final_image_height = packer.result.last_image_height;
     final_image_pixels = malloc(sizeof(color_t) * final_image_width * final_image_height);
     if (!final_image_pixels) {
-        log_error("Out of memory when creating the final cursor image.", 0, 0);
+        Logger::error("Out of memory when creating the final cursor image.", 0, 0);
         image_packer_free(&packer);
         return;
     }
     memset(final_image_pixels, 0, sizeof(color_t) * final_image_width * final_image_height);
 
-    log_info("Cursor positions and sizes in packed image:", 0, 0);
+    Logger::info("Cursor positions and sizes in packed image:", 0, 0);
 
     printf("   Name             x       y      width      height\n");
 
@@ -721,9 +724,9 @@ int main(int argc, char **argv)
 {
     int using_custom_path = 0;
     if (argc == 2) {
-        log_info("Attempting to use the path", argv[1], 0);
+        Logger::info("Attempting to use the path", argv[1], 0);
         if (!platform_file_manager_set_base_path(argv[1])) {
-            log_info("Unable to change the base path. Attempting to run from local directory...", 0, 0);
+            Logger::info("Unable to change the base path. Attempting to run from local directory...", 0, 0);
         } else {
             using_custom_path = 1;
         }
@@ -731,9 +734,9 @@ int main(int argc, char **argv)
     const dir_listing *xml_files = dir_find_files_with_extension(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH, "xml");
     if (xml_files->num_files == 0) {
         if (using_custom_path) {
-            log_error("No assets found on", argv[1], 0);
+            Logger::error("No assets found on", argv[1], 0);
         }
-        log_error("Please add a valid assets folder to this directory.\n"
+        Logger::error("Please add a valid assets folder to this directory.\n"
             "Alternatively, you can run as:\n\n"
             "asset_packer.exe [WORK_DIRECTORY]\n\n"
             "where WORK_DIRECTORY is the directory where the assets folder is in.", 0, 0);
@@ -746,7 +749,7 @@ int main(int argc, char **argv)
 
 #ifdef PACK_XMLS
     if (!group_create_all(xml_files->num_files) || !asset_image_init_array()) {
-        log_error("Not enough memory to initialize extra assets.", 0, 0);
+        Logger::error("Not enough memory to initialize extra assets.", 0, 0);
         return 3;
     }
 
@@ -758,7 +761,7 @@ int main(int argc, char **argv)
 
     xml_finish();
 
-    log_info("Preparing to pack...", 0, 0);
+    Logger::info("Preparing to pack...", 0, 0);
 
     for (int i = 0; i < group_get_total(); i++) {
         pack_group(i);
@@ -768,17 +771,17 @@ int main(int argc, char **argv)
 
 #ifdef PACK_CURSORS
 
-    log_info("Packing cursors...", 0, 0);
+    Logger::info("Packing cursors...", 0, 0);
 
     pack_cursors();
 
 #endif
 
-    log_info("Copying other assets...", 0, 0);
+    Logger::info("Copying other assets...", 0, 0);
 
     platform_file_manager_copy_directory(ASSETS_DIRECTORY, PACKED_ASSETS_DIR, 1);
 
-    log_info("All done!", 0, 0);
+    Logger::info("All done!", 0, 0);
 
     png_unload();
     return 0;

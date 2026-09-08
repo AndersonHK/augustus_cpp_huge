@@ -81,6 +81,8 @@ void mod_settings_validate_live_changes()
         const int alternate = setting.boolean ? !setting.value : setting.value == setting.maximum ? setting.minimum : setting.maximum;
         mod_settings_apply(setting.key(), alternate);
         if (city_population() != population || city_finance_treasury() != treasury) throw std::runtime_error("Live setting changed city population or treasury");
+        if (setting.key() == "Julius:DISABLE_GOD_BLESSINGS" && city_gods_have_effects(religion::Trigger::Blessing) == (alternate != 0)) throw std::runtime_error("Blessing switch did not apply immediately");
+        if (setting.key() == "Julius:DISABLE_GOD_CURSES" && (city_gods_have_effects(religion::Trigger::MinorCurse) == (alternate != 0) || city_gods_have_effects(religion::Trigger::MajorCurse) == (alternate != 0))) throw std::runtime_error("Curse switch did not apply immediately");
         if (setting.key() == "Augustus:RETIREMENT_AGE" && game_defines_retirement_age() != alternate) throw std::runtime_error("Retirement age did not apply immediately");
         if (setting.key() == "Augustus:ENEMY_RETREAT_SPEED" && game_defines_enemy_retreat_speed_multiplier() != alternate) throw std::runtime_error("Enemy retreat speed did not apply immediately");
         if (setting.key() == "Augustus:FIXED_WORKERS" && game_defines_fixed_workers() != alternate) throw std::runtime_error("Fixed worker pool did not apply immediately");

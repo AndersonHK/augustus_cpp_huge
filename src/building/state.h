@@ -23,3 +23,6 @@ void building_state_save_to_buffer(buffer *buf, const building *b);
 
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview);
 
+void building_state_begin_import();
+bool building_state_import_removed_owner(unsigned int id);
+

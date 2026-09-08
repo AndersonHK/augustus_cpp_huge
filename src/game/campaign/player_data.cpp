@@ -2,7 +2,7 @@
 
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_parser.h"
 #include "core/xml_exporter.h"
 
@@ -47,7 +47,7 @@ static char *file_to_buffer(const char *filename, size_t *output_length)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
-        log_error("Error opening file", filename, 0);
+        Logger::error("Error opening file", filename, 0);
         return 0;
     }
     fseek(file, 0, SEEK_END);
@@ -56,13 +56,13 @@ static char *file_to_buffer(const char *filename, size_t *output_length)
 
     char *buf = static_cast<char *>(malloc(size));
     if (!buf) {
-        log_error("Error creating memory for file", filename, 0);
+        Logger::error("Error creating memory for file", filename, 0);
         return 0;
     }
 
     *output_length = fread(buf, 1, size, file);
     if (*output_length > size) {
-        log_error("Unable to read file into buffer", filename, 0);
+        Logger::error("Unable to read file into buffer", filename, 0);
         free(buf);
         file_close(file);
         *output_length = 0;
@@ -95,7 +95,7 @@ static void load_campaign_player_data(void)
 
     if (!xml_parser_init(xml_elements, XML_PARSER_ELEMENTS, 0)) {
         free(xml_data);
-        log_error("Problem creating the campaign player data xml parser.", 0, 0);
+        Logger::error("Problem creating the campaign player data xml parser.", 0, 0);
         return;
     }
     xml_parser_parse(xml_data, (unsigned int) xml_file_length, 1);
@@ -121,7 +121,7 @@ static void save_campaign_player_data(void)
     int buf_size = 1024 + 512 * static_cast<int>(data.campaigns.size());
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to save campaign player data. Out of memory", 0, 0);
+        Logger::error("Unable to save campaign player data. Out of memory", 0, 0);
         return;
     }
     buffer_init(&buf, buf_data, buf_size);
@@ -140,7 +140,7 @@ static void save_campaign_player_data(void)
     FILE *xml_dest = fopen(xml_file, "wb");
 
     if (!xml_dest) {
-        log_error("Failed to create file", XML_FILE_NAME, 0);
+        Logger::error("Failed to create file", XML_FILE_NAME, 0);
         free(buf_data);
         return;
     }
@@ -166,7 +166,7 @@ void campaign_player_data_update_current_mission(const char *campaign_file_name,
     if (!campaign) {
         char * new_file_name = static_cast<char *>(malloc((strlen(campaign_file_name) + 1) * sizeof(char)));
         if (!new_file_name) {
-            log_error("Problem creating a campaign element. Out of memory.", 0, 0);
+            Logger::error("Problem creating a campaign element. Out of memory.", 0, 0);
             return;
         }
         snprintf(new_file_name, strlen(campaign_file_name) + 1, "%s", campaign_file_name);

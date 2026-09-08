@@ -106,7 +106,6 @@
     <ClCompile Include="src\graphics\runtime_texture.cpp" />
     <ClCompile Include="src\platform\file_manager.cpp" />
     <ClCompile Include="src\platform\file_manager_cache.cpp" />
-    <ClCompile Include="src\platform\log.cpp" />
     <ClCompile Include="src\platform\platform.cpp" />
     <ClCompile Include="src\platform\prefs.cpp" />
     <ClCompile Include="src\startup\startup_parser_cache_invalidation_boundary.cpp" />

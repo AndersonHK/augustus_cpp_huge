@@ -1,3 +1,4 @@
+#include "core/Logger.h"
 #include "platform/hardware_requirements.h"
 #include "SDL.h"
 #define VK_NO_PROTOTYPES
@@ -56,7 +57,7 @@ bool platform_meets_hardware_requirements(std::string &failure)
                     if (memory_properties.memoryHeaps[heap].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) device_memory += memory_properties.memoryHeaps[heap].size;
                 }
                 if (device_memory >= 1024ull * 1024 * 1024) {
-                    SDL_Log("Hardware requirements: %llu MB RAM; Vulkan GPU %s, %llu MB device-local memory", memory_mb, device_properties.deviceName, device_memory / (1024 * 1024));
+                    Logger::infof("Hardware requirements: %llu MB RAM; Vulkan GPU %s, %llu MB device-local memory", memory_mb, device_properties.deviceName, device_memory / (1024 * 1024));
                     supported = true;
                     break;
                 }

@@ -49,7 +49,7 @@ public:
         resources.assign(period.resources.begin(), period.resources.end());
         transactions.clear();
         for (const auto &t : period.transactions) {
-            if ((!resource.empty() && t.resource != resource) || (city >= 0 && t.city != city) || (direction >= 0 && t.imported != bool(direction)) || (month >= 0 && t.month != month) || (storage >= 0 && t.storage != storage) || (visit && t.visit != visit)) continue;
+            if ((!resource.empty() && t.resource != resource) || (city >= 0 && t.city != city) || (direction >= 0 && (!t.direction_known || t.imported != bool(direction))) || (month >= 0 && t.month != month) || (storage >= 0 && t.storage != storage) || (visit && t.visit != visit)) continue;
             transactions.push_back(t);
         }
         auto resource_value = [this](const ResourceAccounts &a) {
@@ -60,7 +60,7 @@ public:
             if (sort == "stock") return a.stock;
             if (sort == "income") return a.income;
             if (sort == "expense") return a.expense;
-            return a.income - a.expense;
+            return a.balance();
         };
         std::stable_sort(resources.begin(), resources.end(), [&](const auto &a, const auto &b) {
             const bool less = sort == "resource" ? resource_name(a.first) < resource_name(b.first) : resource_value(a.second) < resource_value(b.second);
@@ -105,20 +105,20 @@ public:
             if (binding == "row.imported") return quantity(a.imported);
             if (binding == "row.exported") return quantity(a.exported);
             if (binding == "row.stock") return quantity(a.stock);
-            if (binding == "row.income") return std::to_string(a.income);
-            if (binding == "row.expense") return std::to_string(a.expense);
-            if (binding == "row.balance") return std::to_string(a.income - a.expense);
+            if (binding == "row.income") return a.complete_cash_flows ? std::to_string(a.income) : "—";
+            if (binding == "row.expense") return a.complete_cash_flows ? std::to_string(a.expense) : "—";
+            if (binding == "row.balance") return std::to_string(a.balance());
         } else if (tab == 1) {
             const auto &t = transactions[row];
             if (binding == "row.resource") return resource_name(t.resource);
             if (binding == "row.city") return city_name(t.city);
             if (binding == "row.month") return std::to_string(t.month + 1);
-            if (binding == "row.direction") return tr(t.imported ? "TR_LEDGER_IMPORT" : "TR_LEDGER_EXPORT");
-            if (binding == "row.storage") return std::to_string(t.storage);
-            if (binding == "row.visit") return std::to_string(t.visit);
+            if (binding == "row.direction") return t.direction_known ? tr(t.imported ? "TR_LEDGER_IMPORT" : "TR_LEDGER_EXPORT") : "—";
+            if (binding == "row.storage") return t.source_storage >= 0 ? "—" : std::to_string(t.storage);
+            if (binding == "row.visit") return t.source_trader >= 0 ? "—" : std::to_string(t.visit);
             if (binding == "row.units") return quantity(t.units);
             if (binding == "row.price") return std::to_string(t.price);
-            if (binding == "row.value") return std::to_string(t.units * t.price / resource_units_per_load());
+            if (binding == "row.value") return t.direction_known ? std::to_string(t.units * t.price / resource_units_per_load()) : "—";
         } else {
             const auto &f = period.finance;
             const char *labels[] = {"main_strings.60.8", "main_strings.60.9", "main_strings.60.20", "TR_WINDOW_ADVISOR_TOURISM", "main_strings.60.10", "main_strings.60.11", "main_strings.60.12", "main_strings.60.13", "main_strings.60.14", "main_strings.60.15", "main_strings.60.16", "main_strings.60.21", "TR_ADVISOR_FINANCE_LEVIES", "main_strings.60.17", "main_strings.60.18", "main_strings.60.19"};
@@ -182,12 +182,13 @@ void input(const mouse *m, const hotkeys *keys)
     if (input_go_back_requested(m, keys)) window_go_back();
 }
 }
-void window_trade_ledger_show(int city, int resource)
+void window_trade_ledger_show(int city, int resource, int period)
 {
     definition = declarative_window_definition("trade_ledger");
     if (!definition || !definition->widget("resource_rows")) return;
     controller = LedgerController();
     controller.city = city;
+    controller.period_index = std::max(0, period);
     if (resource > RESOURCE_NONE) controller.resource = resource_text_id(static_cast<resource_type>(resource));
     if (city >= 0 || resource > RESOURCE_NONE) controller.tab = 1;
     controller.page_size = std::max(1, definition->widget("resource_rows")->height / std::max(1, definition->widget("resource_rows")->repeat_spacing_y));

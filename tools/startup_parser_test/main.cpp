@@ -1,4 +1,6 @@
 #include "terrain_test.h"
+#include "core/dir.h"
+#include "platform/file_manager.h"
 #include "map/TerrainRegistry.h"
 #include "startup/startup_parser_abi.h"
 #include "startup/startup_parser_graphics_test.h"
@@ -71,6 +73,7 @@ constexpr int REQUIRED_COLD_SAVE_SOAK_TICKS = 3000;
 
 struct Options {
     std::filesystem::path game_root;
+    std::filesystem::path test_config;
     bool dump_building_graphics_metadata = false;
     bool definitions_only = false;
     bool cold_save_validation = false;
@@ -223,6 +226,11 @@ int parse_options(int argc, char **argv, Options &options)
         if (arg == "--help" || arg == "-h") {
             print_usage();
             return 0;
+        }
+        if (arg == "--test-config") {
+            if (i + 1 >= argc) { std::cerr << "Missing value for --test-config.\n"; return -1; }
+            options.test_config = argv[++i];
+            continue;
         }
         if (arg == "--game-root") {
             if (i + 1 >= argc) {
@@ -1588,10 +1596,12 @@ bool run_executable_startup_test(const std::filesystem::path &game_root, const s
 #if defined(_WIN32)
     const std::wstring executable_arg = executable.wstring();
     const std::wstring game_root_arg = game_root.wstring();
-    const std::wstring command_line = L"\"" + executable_arg + L"\" --startup-test --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root_arg + L"\"";
+    std::wstring command_line = L"\"" + executable_arg + L"\" --startup-test --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root_arg + L"\"";
+    command_line += L" --test-config \"" + std::filesystem::path(platform_file_manager_get_directory_for_location(PATH_LOCATION_CONFIG)).wstring() + L"\"";
     const int result = run_hidden_process(executable, command_line);
 #else
-    const std::string command = quoted(executable) + " --startup-test --no-audio --mod " + mod_name + " " + quoted(game_root);
+    std::string command = quoted(executable) + " --startup-test --no-audio --mod " + mod_name + " " + quoted(game_root);
+    command += " --test-config " + quoted(std::filesystem::path(platform_file_manager_get_directory_for_location(PATH_LOCATION_CONFIG)));
     const int result = std::system(command.c_str());
 #endif
     if (result != 0) {
@@ -1703,6 +1713,7 @@ bool run_executable_save_validation_process(const std::filesystem::path &executa
         command_line += L" --load-save-test \"" + saves[index].wstring() + L"\" --save-roundtrip-test \"" + roundtrip_saves[index].wstring() + L"\"";
     }
     command_line += L" --save-soak-ticks " + std::to_wstring(tick_count) + L" --no-audio --mod " + std::filesystem::path(mod_name).wstring() + L" \"" + game_root.wstring() + L"\"";
+    command_line += L" --test-config \"" + std::filesystem::path(platform_file_manager_get_directory_for_location(PATH_LOCATION_CONFIG)).wstring() + L"\"";
     const int result = run_hidden_process(executable, command_line);
 #else
     std::string command = quoted(executable);
@@ -1710,6 +1721,7 @@ bool run_executable_save_validation_process(const std::filesystem::path &executa
         command += " --load-save-test " + quoted(saves[index]) + " --save-roundtrip-test " + quoted(roundtrip_saves[index]);
     }
     command += " --save-soak-ticks " + std::to_string(tick_count) + " --no-audio --mod " + mod_name + " " + quoted(game_root);
+    command += " --test-config " + quoted(std::filesystem::path(platform_file_manager_get_directory_for_location(PATH_LOCATION_CONFIG)));
     const int result = std::system(command.c_str());
 #endif
     if (result != 0) {
@@ -1904,6 +1916,12 @@ int run_startup_parser_test(int argc, char **argv)
     const int parse_result = parse_options(argc, argv, options);
     if (parse_result <= 0) {
         return parse_result == 0 ? 0 : 2;
+    }
+    if (!options.test_config.empty()) {
+        if (!options.test_config.is_absolute() || !std::filesystem::is_directory(options.test_config)) {
+            std::cerr << "Test configuration must be an existing absolute directory.\n"; return 2;
+        }
+        platform_file_manager_set_validation_config(options.test_config.string().c_str());
     }
 
     if (!options.game_root.empty()) {

@@ -9,7 +9,7 @@
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/random.h"
 
 #include <cstdio>
@@ -279,7 +279,7 @@ int city_population_at_level(int level)
 
 static void yearly_advance_ages_and_calculate_deaths(void)
 {
-    CrashContextScope yearly_scope("yearly population age/death update");
+    Logger::Scope yearly_scope("yearly population age/death update");
     int aged100 = city_data.population.at_age[99];
     for (int age = 99; age > 0; age--) {
         city_data.population.at_age[age] = city_data.population.at_age[age - 1];
@@ -317,19 +317,19 @@ static void yearly_advance_ages_and_calculate_deaths(void)
     }
 }
 
-void city_population_venus_blessing(void)
+void city_population_rejuvenate(int years_to_grant, int minimum_age)
 {
-    int years_to_grant = 3;
+
     int total_before = 0;
     int total_after = 0;
     for (int age = 0; age < 95; age++) {
         total_before += city_data.population.at_age[age];
     }
-    for (int age = 25; age < 25 + years_to_grant; age++) {
+    for (int age = minimum_age; age < minimum_age + years_to_grant; age++) {
         city_data.population.at_age[age] += city_data.population.at_age[age + years_to_grant];
 
     }
-    for (int age = 25 + years_to_grant; age < 100 - years_to_grant; age++) {
+    for (int age = minimum_age + years_to_grant; age < 100 - years_to_grant; age++) {
         city_data.population.at_age[age] = city_data.population.at_age[age + years_to_grant];
     }
 

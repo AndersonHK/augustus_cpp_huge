@@ -10,7 +10,7 @@
 #include "city/message.h"
 #include "city/military.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
@@ -500,7 +500,7 @@ static void mars_kill_enemies(void)
 static void get_layout_orientation_offset(const enemy_army *army, const formation *m, int *x_offset, int *y_offset)
 {
     if (!army->layout_definition) {
-        log_error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
+        Logger::error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
         std::terminate();
     }
     const FormationLayoutPosition offset = army->layout_definition->army_offset(m->orientation / 2, m->enemy_legion_index);

@@ -6,7 +6,7 @@
 
 #include "core/file.h"
 #include "assets/assets.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/png_read.h"
 #include "core/string.h"
 
@@ -18,11 +18,11 @@ static color_t DUMMY_LAYER_DATA = COLOR_BLACK;
 static void load_dummy_layer(layer *l)
 {
     if (l->asset_image_path) {
-        log_error("Using black dummy layer for failed image", l->asset_image_path, 0);
+        Logger::error("Using black dummy layer for failed image", l->asset_image_path, 0);
     } else if (l->calculated_image_id) {
-        log_error("Using black dummy layer for failed image id", 0, l->calculated_image_id);
+        Logger::error("Using black dummy layer for failed image id", 0, l->calculated_image_id);
     } else {
-        log_error("Using black dummy layer for unknown source", 0, 0);
+        Logger::error("Using black dummy layer for unknown source", 0, 0);
     }
     l->data = &DUMMY_LAYER_DATA;
     l->width = 1;
@@ -51,7 +51,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
 {
     const image *img = image_get(l->calculated_image_id);
     if (!img) {
-        log_error("Problem loading layer from image id", 0, l->calculated_image_id);
+        Logger::error("Problem loading layer from image id", 0, l->calculated_image_id);
         load_dummy_layer(l);
         return;
     }
@@ -63,7 +63,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
         l->calculated_image_id >= IMAGE_MAIN_ENTRIES) {
         asset_img = asset_image_get_from_id(l->calculated_image_id - IMAGE_MAIN_ENTRIES);
         if (!asset_img) {
-            log_error("Problem loading layer from image id", 0, l->calculated_image_id);
+            Logger::error("Problem loading layer from image id", 0, l->calculated_image_id);
             load_dummy_layer(l);
             return;
         }
@@ -104,7 +104,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
     size_t size = sizeof(color_t) * width * height;
     color_t *data = static_cast<color_t *>(malloc(size));
     if (!data) {
-        log_error("Problem loading layer from image id - out of memory", 0, l->calculated_image_id);
+        Logger::error("Problem loading layer from image id - out of memory", 0, l->calculated_image_id);
         load_dummy_layer(l);
         return;
     }
@@ -146,7 +146,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
     } else if (type == ATLAS_EXTERNAL) {
         if (!image_load_external_pixels(data, img, width)) {
             free(data);
-            log_error("Problem loading layer from image id", 0, l->calculated_image_id);
+            Logger::error("Problem loading layer from image id", 0, l->calculated_image_id);
             load_dummy_layer(l);
             return;
         }
@@ -154,7 +154,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
             color_t *new_data = malloc(sizeof(color_t) * l->width * l->height);
             if (!new_data) {
                 free(data);
-                log_error("Problem loading layer from image id", 0, l->calculated_image_id);
+                Logger::error("Problem loading layer from image id", 0, l->calculated_image_id);
                 load_dummy_layer(l);
                 return;
             }
@@ -177,7 +177,7 @@ static void load_layer_from_another_image(layer *l, color_t **main_data, int *ma
         const color_t *atlas_pixels = main_data[img->atlas.id & IMAGE_ATLAS_BIT_MASK];
         if (!atlas_width || !atlas_pixels) {
             free(data);
-            log_error("Problem loading layer from image id", 0, l->calculated_image_id);
+            Logger::error("Problem loading layer from image id", 0, l->calculated_image_id);
             load_dummy_layer(l);
             return;
         }
@@ -230,7 +230,7 @@ void layer_load(layer *l, color_t **main_data, int *main_image_widths)
     }
 #endif
     if (!l->asset_image_path) {
-        log_error("No layer source", l->asset_image_path, 0);
+        Logger::error("No layer source", l->asset_image_path, 0);
         load_dummy_layer(l);
         return;
     }
@@ -238,7 +238,7 @@ void layer_load(layer *l, color_t **main_data, int *main_image_widths)
     size_t size = sizeof(color_t) * l->width * l->height;
     color_t *data = static_cast<color_t *>(malloc(size));
     if (!data) {
-        log_error("Problem loading layer - out of memory", l->asset_image_path, 0);
+        Logger::error("Problem loading layer - out of memory", l->asset_image_path, 0);
         load_dummy_layer(l);
         return;
     }
@@ -246,7 +246,7 @@ void layer_load(layer *l, color_t **main_data, int *main_image_widths)
     if (!png_load_from_file(l->asset_image_path, 0) ||
         !png_read(data, l->src_x, l->src_y, l->width, l->height, 0, 0, l->width, 0)) {
         free(data);
-        log_error("Problem loading layer from file", l->asset_image_path, 0);
+        Logger::error("Problem loading layer from file", l->asset_image_path, 0);
         load_dummy_layer(l);
         return;
     }
@@ -320,7 +320,7 @@ int layer_add_from_image_path(layer *l, const char *path,
 #ifndef BUILDING_ASSET_PACKER
     if (!l->width || !l->height) {
         if (!png_load_from_file(l->asset_image_path, 0) || !png_get_image_size(&width, &height)) {
-            log_info("Unable to load image", path, 0);
+            Logger::info("Unable to load image", path, 0);
             layer_unload(l);
             return 0;
         }
@@ -346,7 +346,7 @@ static char *copy_attribute(const char *attribute)
     size_t buf_size = (strlen(attribute) + 1) * sizeof(char);
     char *dest = static_cast<char *>(malloc(buf_size));
     if (!dest) {
-        log_error("There was no memory to copy the attribute", attribute, 0);
+        Logger::error("There was no memory to copy the attribute", attribute, 0);
         return 0;
     }
     memcpy(dest, attribute, buf_size);
@@ -388,7 +388,7 @@ int layer_add_from_image_id(layer *l, const char *group_id, const char *image_id
     const image *original_image = 0;
     if (strcmp(group_id, "this") == 0) {
         if (!image_id) {
-            log_error("No image ID provided for the current layer", 0, 0);
+            Logger::error("No image ID provided for the current layer", 0, 0);
             layer_unload(l);
             return 0;
         }
@@ -403,7 +403,7 @@ int layer_add_from_image_id(layer *l, const char *group_id, const char *image_id
             img = asset_image_get_from_id(img->index + 1);
         }
         if (!l->calculated_image_id) {
-            log_error("Unable to find image on current group with id", image_id, 0);
+            Logger::error("Unable to find image on current group with id", image_id, 0);
             layer_unload(l);
             return 0;
         }
@@ -413,17 +413,17 @@ int layer_add_from_image_id(layer *l, const char *group_id, const char *image_id
             int id = image_id ? atoi(image_id) : 0;
             l->calculated_image_id = image_group(group) + id;
         } else {
-            log_info("Image group is out of range", group_id, 0);
+            Logger::info("Image group is out of range", group_id, 0);
         }
         if (l->calculated_image_id >= 0 && l->calculated_image_id < IMAGE_MAIN_ENTRIES) {
             original_image = image_get(l->calculated_image_id);
         } else {
-            log_info("Image id is out of range", 0, l->calculated_image_id);
+            Logger::info("Image id is out of range", 0, l->calculated_image_id);
             l->calculated_image_id = 0;
         }
     }
     if (!original_image) {
-        log_error("Unable to find image for group id", group_id, 0);
+        Logger::error("Unable to find image for group id", group_id, 0);
         layer_unload(l);
         return 0;
     }

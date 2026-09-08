@@ -74,6 +74,8 @@ public:
     void reset_base_monthly_production_override();
     int base_monthly_production() const;
     int default_base_monthly_production() const;
+    void set_efficiency_limit(int limit) { efficiency_limit_ = limit; }
+    int efficiency_limit() const { return efficiency_limit_; }
     bool has_production_override() const { return has_production_override_; }
     void set_rate_source_path(std::string path) { rate_source_path_ = std::move(path); }
     const std::string &rate_source_path() const { return rate_source_path_; }
@@ -123,6 +125,7 @@ private:
     ProductionOutputSource output_source_ = ProductionOutputSource::WorkerProgress;
     int base_monthly_production_ = 0;
     int default_base_monthly_production_ = 0;
+    int efficiency_limit_ = 100; // Zero leaves delivery-based output uncapped.
     bool has_production_override_ = false;
     std::string rate_source_path_;
     const ProductionMethod *rate_source_ = nullptr;

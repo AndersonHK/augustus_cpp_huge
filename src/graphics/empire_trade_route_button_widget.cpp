@@ -1,6 +1,6 @@
 #include "graphics/empire_trade_route_button_widget.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/bordered_button_widget.h"
 #include "graphics/ui_sprite_primitive.h"
 
@@ -24,7 +24,7 @@ EmpireTradeRouteButtonWidget::EmpireTradeRouteButtonWidget(
 
 void EmpireTradeRouteButtonWidget::draw() const
 {
-    ErrorContextScope error_scope("ui.empire_trade_route_button");
+    Logger::Scope error_scope("ui.empire_trade_route_button");
     BorderedButtonWidget(
         primitives_,
         x_,

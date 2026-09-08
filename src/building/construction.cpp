@@ -349,6 +349,23 @@ int building_construction_type_cycle_steps(building_type type)
     return steps;
 }
 
+void building_construction_reset_cycle_steps(void)
+{
+    data.cycle_step = 0;
+}
+
+int building_construction_type_cycle_position(building_type type)
+{
+    int steps = 1;
+    const auto entries = construction_cycle_entries_for_type(type, &steps);
+    int position = 0;
+    for (const auto &entry : entries) {
+        if (entry.type == type) return position;
+        if (scenario_allowed_building(building_type_registry_impl::definition_for_type(entry.type))) position += steps;
+    }
+    return 0;
+}
+
 int building_construction_cycle_forward(void)
 {
     if (data.tool.type == BUILDING_NONE) {
@@ -370,7 +387,7 @@ int building_construction_cycle_forward(void)
                 j = (j + 1) % size;
                 building_type new_type = entries[j].type;
                 if (scenario_allowed_building(building_type_registry_impl::definition_for_type(new_type))) {
-                    data.tool.force_type(new_type);
+                    data.tool.select_cycle_type(new_type);
                     return 1;
                 }
             }
@@ -401,7 +418,7 @@ int building_construction_cycle_back(void)
                 j = j - 1 < 0 ? size - 1 : j - 1;
                 building_type new_type = entries[j].type;
                 if (scenario_allowed_building(building_type_registry_impl::definition_for_type(new_type))) {
-                    data.tool.force_type(new_type);
+                    data.tool.select_cycle_type(new_type);
                     return 1;
                 }
             }

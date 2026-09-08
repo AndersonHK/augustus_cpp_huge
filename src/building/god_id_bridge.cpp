@@ -3,7 +3,7 @@
 #include "building/god_registry.h"
 #include "city/god.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <array>
 #include <cstdint>
@@ -205,7 +205,7 @@ void god_id_bridge_save_table_save_state(buffer *buf)
         }
         if (save_id > std::numeric_limits<uint16_t>::max() ||
             text_id.size() > std::numeric_limits<uint16_t>::max()) {
-            log_error("God text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
+            Logger::error("God text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
             continue;
         }
         buffer_write_u16(buf, static_cast<uint16_t>(save_id));
@@ -226,7 +226,7 @@ void god_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 
     buffer table = *buf;
     if (buffer_load_dynamic(&table) < sizeof(uint32_t) * 2) {
-        log_error("God save table is invalid; falling back to legacy ids", 0, 0);
+        Logger::error("God save table is invalid; falling back to legacy ids", 0, 0);
         load_legacy_save_table();
         return;
     }
@@ -234,7 +234,7 @@ void god_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
     uint32_t version = buffer_read_u32(&table);
     uint32_t count = buffer_read_u32(&table);
     if (version != SAVE_TABLE_VERSION) {
-        log_error("Unsupported god save table version", 0, static_cast<int>(version));
+        Logger::error("Unsupported god save table version", 0, static_cast<int>(version));
         load_legacy_save_table();
         return;
     }
@@ -248,7 +248,7 @@ void god_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
         }
         int runtime_id = god_id_bridge_runtime_from_text(text_id.c_str());
         if (runtime_id < 0 && !text_id.empty()) {
-            log_error("God referenced by save is not available in active mod", text_id.c_str(), save_id);
+            Logger::error("God referenced by save is not available in active mod", text_id.c_str(), save_id);
         }
         append_save_id_mapping(save_id, runtime_id, text_id.c_str());
     }

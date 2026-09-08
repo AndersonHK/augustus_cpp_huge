@@ -1,0 +1,124 @@
+{
+  "en/TR_BUILDING_HIGHWAY_STATION": {
+    "action": "keep",
+    "reason": "Retain the reviewed native label and sentence style; the feature meaning is unchanged."
+  },
+  "en/TR_EDITOR_TOOL_SHALLOW": {
+    "action": "keep",
+    "reason": "Retain the reviewed native label and sentence style; the feature meaning is unchanged."
+  },
+  "en/TR_WARNING_DEPOT_RECALL_ALL": {
+    "action": "keep",
+    "reason": "Retain the reviewed native label and sentence style; the feature meaning is unchanged."
+  },
+  "en/TR_WINDOW_ADVISOR_EPITHETS": {
+    "action": "keep",
+    "reason": "Retain the reviewed native label and sentence style; the feature meaning is unchanged."
+  },
+  "fr/TR_CONFIG_GRANARY_DEFAULT_TO_PASS_ALL_WALKERS": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_CONFIG_WAREHOUSE_DEFAULT_TO_PASS_ALL_WALKERS": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_EDITOR_DEMAND_CHANGE": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "fr/TR_EDITOR_DEMAND_CHANGES": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "fr/TR_EDITOR_PRICE_CHANGE": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "fr/TR_EDITOR_PRICE_CHANGES": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "fr/TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "fr/TR_TOOLTIP_DEPOT_CLEAR_DST": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_TOOLTIP_DEPOT_CLEAR_SRC": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WARNING_DEPOT_RECALL_ALL": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WARNING_DEPOT_RESOURCE_CHANGE": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_DELIVER": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_LOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "fr/TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_UNLOAD": {
+    "action": "keep",
+    "reason": "Retain the native depot/status wording and walker terminology used by the current interface."
+  },
+  "pt/TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_EDUCATION": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "pt/TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_LABOR_SEEKER": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "pt/TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MARKET": {
+    "action": "keep",
+    "reason": "This permission governs the market distributor, not the buyer."
+  },
+  "pt/TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_TAX_COLLECTOR": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "pt/TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_WATCHMAN": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "ru/TR_ACTION_TYPE_CHANGE_MODEL_DATA": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "ru/TR_PARAMETER_DESIRABILITY_RANGE": {
+    "action": "upstream",
+    "reason": "Adopt the completed upstream translation for the same native behavior."
+  },
+  "zh-Hans/TR_EDITOR_CHECK_LOG_MESSAGE": {
+    "action": "upstream",
+    "value": "请查看 Augustus 目录中的 vespasian-log.txt 以获取详细信息。",
+    "reason": "Adopt the translation while retaining the actual Vespasian log filename."
+  },
+  "zh-Hant/TR_EDITOR_CHECK_LOG_MESSAGE": {
+    "action": "upstream",
+    "value": "請查看 Augustus 目錄中的 vespasian-log.txt 以獲取詳細信息。",
+    "reason": "Adopt the translation while retaining the actual Vespasian log filename."
+  }
+}

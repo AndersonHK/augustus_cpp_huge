@@ -42,7 +42,7 @@ struct god_layer_test_result {
     int queried_source_layer;
     int queried_legacy_type;
     int queried_runtime_id;
-    int queried_neptune_blessing_months;
+    int queried_trade_bonus_months;
     int runtime_count;
 };
 

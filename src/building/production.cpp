@@ -18,7 +18,7 @@
 namespace {
 
 constexpr int kRecordProductionMonths = 12;
-constexpr int kMercuryBlessingLoads = 3;
+
 
 int get_resource_slot_index(resource_type resource)
 {
@@ -160,7 +160,7 @@ int Production::efficiency() const
     }
     const int percentage =
         calc_percentage(legacy->data.industry.average_production_per_month, production_for_resource);
-    return calc_bound(percentage, 0, 100);
+    return method_->efficiency_limit() ? calc_bound(percentage, 0, method_->efficiency_limit()) : std::max(0, percentage);
 }
 
 int Production::update_daily(int new_day, int *out_is_striking)
@@ -353,7 +353,7 @@ void Production::advance_stats()
         static_cast<short>(leftover_from_average - pending_production_percentage);
 }
 
-void Production::bless_farm()
+void Production::bless_farm(int days)
 {
     ::building *legacy = record_;
     if (!legacy || !method_ || !method_->is_farm()) {
@@ -366,11 +366,11 @@ void Production::bless_farm()
     }
     legacy->data.industry.progress = static_cast<short>(max_progress());
     state_record->data.industry.curse_days_left = 0;
-    state_record->data.industry.blessing_days_left = 16;
+    state_record->data.industry.blessing_days_left = static_cast<unsigned char>(days);
     refresh_images();
 }
 
-void Production::curse_farm(int big_curse)
+void Production::curse_farm(int days)
 {
     ::building *legacy = record_;
     if (!legacy || !method_ || !method_->is_farm()) {
@@ -383,11 +383,11 @@ void Production::curse_farm(int big_curse)
     }
     legacy->data.industry.progress = 0;
     state_record->data.industry.blessing_days_left = 0;
-    state_record->data.industry.curse_days_left = big_curse ? 48 : 4;
+    state_record->data.industry.curse_days_left = static_cast<unsigned char>(days);
     refresh_images();
 }
 
-void Production::bless_industry()
+void Production::bless_industry(int batches)
 {
     ::building *legacy = record_;
     if (!legacy || !method_ || !method_->is_workshop()) {
@@ -405,7 +405,7 @@ void Production::bless_industry()
             continue;
         }
         const int resource_slot = building_.resource_amount(input.resource);
-        const int blessed_amount = kMercuryBlessingLoads * method_->scaled_input_amount(input);
+        const int blessed_amount = batches * method_->scaled_input_amount(input);
         if (resource_slot > 0 && resource_slot < blessed_amount) {
             building_.add_resource(input.resource, blessed_amount - resource_slot);
         }

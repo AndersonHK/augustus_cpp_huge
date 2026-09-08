@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="empire_city_card" base_width="320" base_height="120">
+    <widget id="panel" type="panel" style="inner_panel" phase="background" x="0" y="0" width="320" height="112" stretch_width="true" selected_binding="city.selected"/>
+    <widget id="badge" type="image" visible_binding="city.badge_fits" assetlist="UI\Empire_sidebar_city_badge" image="Empire_sidebar_city_badge" x="5" y="5" width="262" height="33"/>
+    <widget id="name" type="label" binding="city.name" x="21" y="9" width="235" height="24" stretch_width="true" font="large_black" ellipsize="true"/>
+    <widget id="route_type" type="image" binding="city.route_type" x="279" y="11" width="34" height="24" anchor_x="far"/>
+    <widget id="sells" type="custom" binding="trade.sells" visible_binding="city.open" x="10" y="49" width="296" height="26" stretch_width="true" font="normal_green" padding_x="5" text_offset_y="9" repeat_columns="2"/>
+    <widget id="buys" type="custom" binding="trade.buys" visible_binding="city.open" x="10" y="75" width="296" height="26" stretch_width="true" font="normal_green" padding_x="5" text_offset_y="9" repeat_columns="2"/>
+    <widget id="closed_resources" type="custom" binding="trade.closed" visible_binding="city.closed" x="10" y="41" width="296" height="26" stretch_width="true" font="normal_green" padding_x="5" padding_y="10" text_offset_y="9" repeat_columns="2"/>
+    <widget id="open" type="custom" binding="trade.open" visible_binding="city.closed" x="30" y="79" width="260" height="26" stretch_width="true" font="normal_green" padding_x="8" text_offset_y="9"/>
+</window>

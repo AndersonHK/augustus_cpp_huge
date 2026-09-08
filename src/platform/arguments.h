@@ -16,6 +16,8 @@ typedef struct {
     int debug;
     int disable_audio;
     int startup_test;
+    const char *loading_screen_test;
+    const char *validation_config;
     const char *load_save_tests[MAX_LOAD_SAVE_TESTS];
     const char *save_roundtrip_tests[MAX_LOAD_SAVE_TESTS];
     int load_save_test_count;
@@ -23,7 +25,12 @@ typedef struct {
     int save_soak_ticks;
     int formation_test;
     int mod_settings_test;
+    int empire_ui_test;
     int catch_up_test;
+    int religion_test;
+    int religion_repair_test;
+    int load_transaction_test;
+    const char *foreign_archive_test;
     int combat_test;
     int placement_test;
     int editor_test;

@@ -88,3 +88,6 @@ void traders_save_state(buffer *buf);
  * @param buf Buffer
  */
 void traders_load_state(buffer *buf);
+
+// Initialize an explicitly allocated slot when repairing an imported reference.
+bool trader_reset_import_slot(int slot);

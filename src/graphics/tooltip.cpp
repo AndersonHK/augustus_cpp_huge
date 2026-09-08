@@ -9,7 +9,7 @@
 #include "window/advisors.h"
 #include "tooltip.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "game/settings.h"
 #include "building/building_record.h"
@@ -169,7 +169,7 @@ static void log_empty_button_tooltip(const tooltip_context *c)
         c->translation_key.id ? c->translation_key.id : "<none>",
         c->mouse_x,
         c->mouse_y);
-    error_context_report_error("Button tooltip resolved to no text", detail);
+    Logger::error("Button tooltip resolved to no text", detail);
 }
 
 static void log_tooltip_creation_failure(
@@ -189,7 +189,7 @@ static void log_tooltip_creation_failure(
         height,
         c->mouse_x,
         c->mouse_y);
-    error_context_report_error("Tooltip render target creation failed", detail);
+    Logger::error("Tooltip render target creation failed", detail);
 }
 
 static void draw_button_tooltip(tooltip_context *c)
@@ -476,7 +476,7 @@ static void draw_tile_tooltip(tooltip_context *c)
                 break;
             case 3: // terrain flags and other info included
                 width = 160 + (b_id_at ? 60 : 0);
-                height = 61 + (b_id_at ? 14 : 0) + (rubble_id_at ? 14 : 0) + (num_flags * 14);
+                height = 61 + (b_id_at ? 28 : 0) + (rubble_id_at ? 14 : 0) + (num_flags * 14);
                 break;
             case 2:
                 width = 90;
@@ -533,6 +533,9 @@ static void draw_tile_tooltip(tooltip_context *c)
                 const ::building *record = building_at_grid ? building_at_grid->record() : nullptr;
                 text_draw_label_and_number(string_from_ascii(" (state: "), record ? record->state : 0,
                     ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
+                y_offset += 14;
+                text_draw_label_and_number(string_from_ascii("rotation: "), building_at_grid->Graphics().rotation(),
+                    "", 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }
             if (map_building_rubble_building_id(grid_offset)) {

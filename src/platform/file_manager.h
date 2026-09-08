@@ -1,5 +1,8 @@
 #pragma once
 
+// Process-local configuration root for isolated headless validation.
+void platform_file_manager_set_validation_config(const char *directory);
+
 #include <stdio.h>
 
 #include <string>

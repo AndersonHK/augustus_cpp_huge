@@ -436,7 +436,7 @@ int building_damage_at(int grid_offset)
 
 void building_apply_enemy_damage(int grid_offset)
 {
-    if (map_building_damage_increase(grid_offset) > building_hit_points_at(grid_offset)) {
+    if (map_building_damage_increase(grid_offset) >= building_hit_points_at(grid_offset) + game_defines_building_damage_extra_hit()) {
         building_destroy_by_enemy(grid_offset);
     }
 }

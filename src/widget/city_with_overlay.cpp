@@ -38,7 +38,7 @@
 #include "building/properties.h"
 #include "city/view.h"
 #include "core/config.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/FormationDestination.h"
 #include "graphics/renderer.h"
 
@@ -289,7 +289,7 @@ void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, in
     if (overlay->type == OVERLAY_PROBLEMS) {
         city_overlay_problems_prepare_building(overlay_building);
     }
-    if (overlay->show_building(overlay_building)) {
+    if ((building.type && building.type->presentation().overlay_always_visible) || overlay->show_building(overlay_building)) {
         if (is_building_selected(building)) {
             color_mask = get_building_color_mask(building);
         }
@@ -433,7 +433,7 @@ static void city_with_overlay_draw_building_top_for_building(Building *building,
         return;
     }
     const ::building *overlay_building = building->record();
-    if (overlay->show_building(overlay_building)) {
+    if ((building->type && building->type->presentation().overlay_always_visible) || overlay->show_building(overlay_building)) {
         draw_building_top(*building, x, y, grid_offset);
     } else {
         int column_height = overlay->get_column_height(overlay_building);

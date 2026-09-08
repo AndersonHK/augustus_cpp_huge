@@ -1,6 +1,6 @@
 #include "trade_route.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "empire/city.h"
 #include "game/resource_id_bridge.h"
 #include "game/save_version.h"
@@ -56,7 +56,7 @@ static int stored_resource_count_for_routes(const buffer *trade_routes, int rout
         return 0;
     }
     if (payload_size % divisor) {
-        log_error("Malformed trade route save data", 0, static_cast<int>(trade_routes->size));
+        Logger::error("Malformed trade route save data", 0, static_cast<int>(trade_routes->size));
     }
 
     return static_cast<int>(payload_size / divisor);

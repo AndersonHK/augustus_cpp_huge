@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="willow_tree">
+    <presentation panel="garden" overlay="desirability" />
     <identity name_key="TR_BUILDING_WILLOW_TREE" />
     <model cost="12" />
     <desirability>

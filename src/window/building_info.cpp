@@ -239,6 +239,7 @@ static int get_height_id(void)
         }
         const BuildingType &type_definition = *current_building.type;
         const building_type type = static_cast<building_type>(b->type);
+        if (type_definition.presentation().panel == BuildingType::InformationPanel::Garden) return HEIGHT_1_16_BLOCKS;
         const int is_dock = type_definition.attr_is("dock");
         if (type_definition.is_well()) {
             return HEIGHT_4_14_BLOCKS;
@@ -397,6 +398,8 @@ static void init(int grid_offset)
     building *selected_building = selected_runtime_building ?
         const_cast<::building *>(selected_runtime_building->record()) : nullptr;
 
+    if (selected_runtime_building) context.building = selected_runtime_building;
+
     if (map_is_bridge(grid_offset)) {
         if (selected_building) {
             context.building = selected_runtime_building;
@@ -438,7 +441,7 @@ static void init(int grid_offset)
         context.terrain_type = TERRAIN_INFO_RUBBLE;
     } else if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         context.terrain_type = TERRAIN_INFO_WALL;
-    } else if (terrain_map().contains(grid_offset, terrain_types().highway)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().highway) && !selected_building) {
         context.terrain_type = TERRAIN_INFO_HIGHWAY;
     } else if (!selected_building) {
         context.terrain_type = TERRAIN_INFO_EMPTY;
@@ -618,7 +621,11 @@ static void draw_background(void)
             BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
-        if (type_definition.city_service().enabled()) {
+        if (window_building_draw_construction_panel(&context)) {
+            // The construction definition owns this phase's layout and text.
+        } else if (type_definition.presentation().panel == BuildingType::InformationPanel::Garden) {
+            window_building_draw_garden(&context);
+        } else if (type_definition.city_service().enabled()) {
             window_building_draw_city_service(&context);
         } else if (current_building.Housing) {
             window_building_draw_house(&context);
@@ -803,7 +810,7 @@ static void draw_background(void)
             window_building_draw_prefect(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "obelisk")) {
             window_building_draw_obelisk(&context);
-        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE && context.show_special_orders) {
+        } else if (!building_monument_is_unfinished_monument(b) && Roadblock(*context.building).kind() != ROADBLOCK_NONE && context.show_special_orders) {
             window_building_draw_roadblock_orders(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "roadblock")) {
             window_building_draw_roadblock(&context);
@@ -944,7 +951,7 @@ static void draw_foreground(void)
             } else {
                 window_building_distributor_draw_foreground(&context);
             }
-        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE) {
+        } else if (!building_monument_is_unfinished_monument(b) && Roadblock(*context.building).kind() != ROADBLOCK_NONE) {
             if (context.show_special_orders) {
                 window_building_draw_roadblock_orders_foreground(&context);
             } else {
@@ -991,6 +998,8 @@ static void draw_foreground(void)
             window_building_draw_roadblock_button(&context);
         }
     }
+
+    if (!context.show_special_orders && context.depot_selection == 0) window_building_draw_durability(&context);
 
     // general buttons
     if (context.show_special_orders ||
@@ -1204,8 +1213,9 @@ static void get_tooltip(tooltip_context *c)
                     window_building_roadblock_get_tooltip_walker_permissions(&translation);
                 } else {
                     window_building_get_tooltip_storage_orders(&group_id, &text_id, &translation);
+                    if (!group_id && !text_id && !translation) precomposed_text = window_building_storage_resource_hover_tooltip(&context);
                 }
-            } else if (current_building && Roadblock(*current_building).kind() != ROADBLOCK_NONE) {
+            } else if (current_building && !building_monument_is_unfinished_monument(current_building->record()) && Roadblock(*current_building).kind() != ROADBLOCK_NONE) {
                 window_building_roadblock_get_tooltip_walker_permissions(&translation);
             } else if (type_definition->has_distribution()) {
                 window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
@@ -1372,6 +1382,7 @@ void window_building_info_reset_previous_context(void)
 
 void window_building_info_show_roadblock_orders(void)
 {
+    if (context.building && building_monument_is_unfinished_monument(context.building->record())) return;
     context.show_special_orders = SPECIAL_ORDERS_ROADBLOCK;
     window_invalidate();
 }

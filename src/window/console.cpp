@@ -3,7 +3,7 @@
 
 #include "city/warning.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/cheats.h"
 #include "graphics/graphics.h"
@@ -77,7 +77,7 @@ static void send_command(int param1, int param2)
     uint8_t command_copy[MAX_COMMAND_SIZE];
     string_copy(command_input.text, command_copy, MAX_COMMAND_SIZE);
     button_back(0, 0);
-    log_info("Command received: ", (char *) command_copy, 0);
+    Logger::info("Command received: ", (char *) command_copy, 0);
     city_warning_show(WARNING_CONSOLE_COMMAND, command_copy);
     game_cheat_parse_command(command_copy);
 }

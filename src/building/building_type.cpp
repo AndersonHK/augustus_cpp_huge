@@ -1677,6 +1677,7 @@ int BuildingType::placement_height(int orientation) const
 
 figure_type BuildingType::preview_figure_type() const
 {
+    if (presentation_.preview_figure != FIGURE_NONE) return presentation_.preview_figure;
     if (!has_housing()) {
         for (const SpawnDelayGroup &group : spawn_groups()) {
             for (const SpawnPolicy &policy : group.policies) {

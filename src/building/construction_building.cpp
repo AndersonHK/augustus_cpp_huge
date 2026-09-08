@@ -41,7 +41,7 @@
 #include "city/resource.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/city.h"
 #include "map/figure.h"
@@ -359,7 +359,7 @@ static bool add_native_composed_building(
         definition.composition().children();
 
     if (!placement.can_place() || placement.owner_charge_count() != 1 || !main_part.is_owner) {
-        log_error("Native composition construction received an invalid placement transaction",
+        Logger::error("Native composition construction received an invalid placement transaction",
             definition.attr(), 0);
         abandon_unpublished_composition(main_record, {});
         return false;
@@ -373,13 +373,13 @@ static bool add_native_composed_building(
         }
     }
     if (!composition || !composition->is_owner() || child_parts.size() != child_definitions.size()) {
-        log_error("Native composition construction has an incomplete placement layout", definition.attr(), 0);
+        Logger::error("Native composition construction has an incomplete placement layout", definition.attr(), 0);
         abandon_unpublished_composition(main_record, {});
         return false;
     }
     for (std::size_t index = 0; index < child_parts.size(); ++index) {
         if (!child_parts[index] || child_parts[index]->definition != child_definitions[index].type) {
-            log_error("Native composition placement order does not match CompositionDef", definition.attr(), 0);
+            Logger::error("Native composition placement order does not match CompositionDef", definition.attr(), 0);
             abandon_unpublished_composition(main_record, {});
             return false;
         }
@@ -400,7 +400,7 @@ static bool add_native_composed_building(
         initialize_composed_child(main_record, child_object, *part, main_runtime->graphics_variant());
         child_objects.push_back(&child_object);
         if (!child_object.Composition) {
-            log_error("Native composition child has no BuildingComposition module", definition.attr(), 0);
+            Logger::error("Native composition child has no BuildingComposition module", definition.attr(), 0);
             abandon_unpublished_composition(main_record, child_objects);
             return false;
         }
@@ -409,12 +409,12 @@ static bool add_native_composed_building(
 
     std::string relationship_error;
     if (!composition->attach_children(child_modules, &relationship_error)) {
-        log_error("Unable to bind native building composition", relationship_error.c_str(), 0);
+        Logger::error("Unable to bind native building composition", relationship_error.c_str(), 0);
         abandon_unpublished_composition(main_record, child_objects);
         return false;
     }
     if (!composition->complete(&relationship_error)) {
-        log_error("Native building composition is incomplete before map publication",
+        Logger::error("Native building composition is incomplete before map publication",
             relationship_error.c_str(), 0);
         abandon_unpublished_composition(main_record, child_objects);
         return false;
@@ -447,7 +447,7 @@ static bool add_composed_building(
         return false;
     }
     if (!main_part || main_part->type != main_record->type) {
-        log_error("Composition placement has no owner part", definition->attr(), 0);
+        Logger::error("Composition placement has no owner part", definition->attr(), 0);
         abandon_unpublished_composition(main_record, {});
         return false;
     }
@@ -477,7 +477,7 @@ static void assign_fort_formation_to_parts(building *main_record)
     const int formation_id = formation_legion_create_for_fort(fort_object);
     if (!fort_object.Composition || !fort_object.Composition->is_owner() ||
         !fort_object.Composition->complete()) {
-        log_error("Fort is missing its native BuildingComposition", fort_object.type->attr(), fort_object.id);
+        Logger::error("Fort is missing its native BuildingComposition", fort_object.type->attr(), fort_object.id);
         return;
     }
     fort_object.Composition->for_each_member([formation_id](Building &part) {
@@ -513,10 +513,10 @@ static bool add_to_map(
     const building_construction::ConstructionPlacementPart *owner_part =
         placement_owner_part(placement);
     if (!owner_part || owner_part->definition != &definition) {
-        log_error("Building construction placement has no matching owner part", definition.attr(), 0);
+        Logger::error("Building construction placement has no matching owner part", definition.attr(), 0);
         return false;
     }
-    if (definition.has_rotated_placement_geometry() && !building_is_fort(type)) {
+    if (definition.has_rotated_placement_geometry()) {
         b->subtype.orientation = static_cast<short>(owner_part->building_orientation);
     }
     if (definition.attr_is("dock")) {
@@ -542,9 +542,6 @@ static bool add_to_map(
     if (definition.has_composition()) {
         if (definition.is_warehouse()) {
             building_obj.set_storage_id(building_storage_create(b->id));
-        } else if (building_is_fort(type)) {
-            b->subtype.fort_figure_type =
-                static_cast<short>(building_count_forts_get_figure_type_from_building(type));
         }
         if (!add_composed_building(b, placement)) {
             if (b->storage_id) {

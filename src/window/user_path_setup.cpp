@@ -124,7 +124,7 @@ static void draw_background(void)
     outer_panel_draw(0, 0, 40, 9);
     lang_text_draw_centered("TR_USER_DIRECTORIES_WINDOW_TITLE", 0, 20, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw("TR_USER_DIRETORIES_WINDOW_USER_PATH", 16, 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_USER_DIRECTORIES_WINDOW_USER_PATH", 16, 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     text_draw_ellipsized(get_path_text(), path_button.x + 10, path_button.y + 9, path_button.width - 20,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);

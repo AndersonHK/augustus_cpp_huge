@@ -7,7 +7,7 @@ void Terrain::remove_at(int grid_offset) const { terrain_map().remove(grid_offse
 
 #include "map/TerrainRegistry.h"
 #include "assets/image_group_payload.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 const ImageGroupEntry *Terrain::water_image(WaterShoreShape shape, unsigned variation) const
 {
@@ -24,7 +24,7 @@ bool TerrainRegistry::bind_graphics()
             const ImageGroupEntry *entry = payload ? payload->entry_for(image.c_str()) : nullptr;
             if (!entry) {
                 const std::string detail = name + ": " + rule.group + "/" + image;
-                log_error("Unable to bind terrain image", detail.c_str(), 0);
+                Logger::error("Unable to bind terrain image", detail.c_str(), 0);
                 return false;
             }
             rule.bound_images.push_back(entry);

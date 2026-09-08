@@ -3,7 +3,7 @@
 #include "building/warehouse.h"
 #include "building/granary.h"
 #include "city/trade_ledger.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include <algorithm>
 #include <limits>
 #include <map>
@@ -48,7 +48,7 @@ bool resource_stockpile_consume(const std::vector<ResourceConsumptionAmount> &in
         if (remaining && include_granaries && resource_is_food(resource)) Building::for_each(BuildingRuntimeList::Granaries, [&](Building *granary) {
             if (remaining && granary->is_in_use() && !granary->has_plague()) remaining -= building_granary_try_remove_resource(*granary, resource, remaining);
         });
-        if (remaining) { log_error("Global stockpile changed during consumption", resource_text_id(resource), remaining); return false; }
+        if (remaining) { Logger::error("Global stockpile changed during consumption", resource_text_id(resource), remaining); return false; }
         city_trade_ledger_consumed(resource, static_cast<int>(amount));
     }
     return true;

@@ -646,6 +646,7 @@ private:
 
 void window_building_draw_city_service(building_info_context *c)
 {
+    c->advisor_button = ADVISOR_FINANCIAL;
     const auto *definition = declarative_window_definition("city_service");
     if (!definition || !c->building) return;
     CityServiceController controller(*c->building);

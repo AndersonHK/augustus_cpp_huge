@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="monument_construction" base_width="464" base_height="448">
+    <widget type="panel" id="panel" style="outer_panel" x="0" y="0" width="464" height="448" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="title" binding="construction.title" x="16" y="12" width="432" text_alignment="center" font="large_black" />
+    <widget type="label" id="phase" binding="construction.phase" x="24" y="48" width="416" />
+    <widget type="rich_text" id="phase_description" binding="construction.phase_description" x="24" y="80" width="416" height="100" />
+    <widget type="image" id="icon" binding="construction.icon" repeat_source="construction.resources" repeat_spacing_y="26" x="24" y="186" width="24" height="24" />
+    <widget type="label" id="resource" binding="construction.resource" repeat_source="construction.resources" repeat_spacing_y="26" x="60" y="190" width="380" />
+    <widget type="rich_text" id="description" binding="construction.description" x="24" y="278" width="416" height="76" />
+    <widget type="rich_text" id="status" binding="construction.status" x="24" y="360" width="416" height="32" />
+</window>

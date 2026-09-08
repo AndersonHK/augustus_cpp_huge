@@ -27,7 +27,7 @@
 #include <vector>
 
 #define MAX_GRANARIES 100
-#define CURSE_LOADS BUILDING_STORAGE_QUANTITY_MAX / 2
+
 #define INFINITE 10000
 #define ONE_CARTLOAD 1 //used to be 100 to equal units; 
 //resource_units_per_load() in resource.h still points to 100, since it's used in distribution
@@ -666,7 +666,7 @@ Building *building_granary_for_getting(const Building &src, map_point *dst, int 
     return min_building;
 }
 
-void building_granary_bless(void)
+void building_granary_fill_least_stocked(int loads, const std::vector<resource_type> &resources)
 {
     int min_stored = INFINITE;
     Building *min_building = nullptr;
@@ -687,19 +687,13 @@ void building_granary_bless(void)
         }
     }
     if (min_building) {
-        city_resource_determine_available(1);
-
-        const resource_list *list = city_resource_get_available_foods();
-
-        for (unsigned int i = 0; i < list->size; i++) {
-            for (int n = 0; n < 6; n++) {
-                building_granary_try_add_resource(*min_building, list->items[i], 1, 0, 1);
-            }
+        for (const auto resource : resources) {
+            for (int n = 0; n < loads; ++n) building_granary_try_add_resource(*min_building, resource, 1, 0, 1);
         }
     }
 }
 
-void building_granary_warehouse_curse(int big)
+void building_granary_warehouse_curse(int destroy, int loads)
 {
     int max_stored = 0;
     Building *max_building = nullptr;
@@ -738,7 +732,7 @@ void building_granary_warehouse_curse(int big)
     if (!max_building) {
         return;
     }
-    if (big) {
+    if (destroy) {
         city_message_disable_sound_for_next_message();
         city_message_post(
             0,
@@ -750,9 +744,9 @@ void building_granary_warehouse_curse(int big)
         Route::updateLandTerrain();
     } else {
         if (is_warehouse_building(*max_building)) {
-            building_warehouse_remove_resource_curse(*max_building, CURSE_LOADS);
+            building_warehouse_remove_resource_curse(*max_building, loads);
         } else if (is_granary_building(*max_building)) {
-            int amount = CURSE_LOADS;
+            int amount = loads;
             for (resource_type food = (RESOURCE_NONE + 1); food < RESOURCE_SLOT_COUNT; food = static_cast<resource_type>(food + 1)) {
                 if (!resource_is_food(food)) {
                     continue;

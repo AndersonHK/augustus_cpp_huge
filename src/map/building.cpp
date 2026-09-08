@@ -5,8 +5,7 @@
 #include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
 #include "core/config.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/save_version.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
@@ -30,7 +29,7 @@ static Building *building_objects_grid_backup[GRID_SIZE * GRID_SIZE];
 
 [[noreturn]] static void report_missing_runtime_building(int grid_offset)
 {
-    log_error("map_building_at called without a runtime building", 0, grid_offset);
+    Logger::error("map_building_at called without a runtime building", 0, grid_offset);
     std::terminate();
 }
 
@@ -246,9 +245,9 @@ bool map_building_validate_loaded_references(void)
         snprintf(detail, sizeof(detail), "grid_offset=%d x=%d y=%d saved_building_id=%u terrain_building=%d",
             grid_offset, map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), saved_building_id,
             has_terrain_building);
-        ErrorContextScope scope("Strict save-load building map validation", detail);
-        error_context_report_error("Save contains a building tile without a matching live building record.", detail);
-        log_error("Loaded save failed building map reference validation", detail, grid_offset);
+        Logger::Scope scope("Strict save-load building map validation", detail);
+        Logger::error("Save contains a building tile without a matching live building record.", detail);
+        Logger::error("Loaded save failed building map reference validation", detail, grid_offset);
         return false;
     }
     return true;

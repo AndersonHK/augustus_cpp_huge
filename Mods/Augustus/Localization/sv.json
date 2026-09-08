@@ -9,6 +9,8 @@
   "editor_strings": {},
   "messages": {},
   "project_keys": {
+    "TR_CONFIG_FIXED_WORKERS": "Fixerad arbetsstyrka - 45% av plebejbefolkningen",
+    "TR_USER_DIRECTORIES_WINDOW_USER_PATH": "Användarmapp:",
     "TR_NO_PATCH_TITLE": "Uppdatering 1.0.1.0 ej installerad",
     "TR_NO_PATCH_MESSAGE": "Din Caesar 3-installation har inte uppdatering 1.0.1.0 installerad. Du kan ladda ner installationen från:\nhttps://github.com/bvschaik/julius/wiki/Patches\nFortsätt på egen risk.",
     "TR_MISSING_FONTS_TITLE": "Saknade typsnitt",

@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tools\augustus_graphics_extractor\main.cpp" />
+    <ClCompile Include="src\core\Logger.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\extractor_shims.cpp" />
     <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c" />
     <ClCompile Include="src\assets\graphics_extraction_client.cpp" />

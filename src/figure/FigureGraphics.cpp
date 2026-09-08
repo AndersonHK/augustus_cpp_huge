@@ -3,11 +3,10 @@
 
 #include "assets/image_group_payload.h"
 #include "city/view.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/direction.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "core/log.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/image.h"
@@ -81,7 +80,7 @@ void report_invalid_resource_cart_graphic(const char *message, resource_type res
 {
     char detail[128];
     snprintf(detail, sizeof(detail), "%s resource=%d value=%d", resource_name(resource), resource, value);
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 int valid_resource_cart_graphics_index(resource_type resource)
@@ -1649,7 +1648,7 @@ static std::string figure_graphics_validation_detail(
 static int fail_figure_graphics_validation(const char *message, const std::string &detail)
 {
     set_failure_reason(message, detail.c_str());
-    log_error(message, detail.c_str(), 0);
+    Logger::error(message, detail.c_str(), 0);
     return 0;
 }
 

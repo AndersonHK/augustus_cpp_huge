@@ -29,5 +29,7 @@ int scenario_map_has_fishing_points(void);
 
 int scenario_map_closest_fishing_point(int x, int y, map_point *fish);
 
+int scenario_map_closest_reachable_river_exit(int x, int y, map_point *destination);
+
 int scenario_map_has_flotsam(void);
 

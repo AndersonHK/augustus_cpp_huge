@@ -25,7 +25,7 @@ android {
     defaultConfig {
         compileSdk 35
         applicationId "com.github.Keriew.augustus"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 35
 
         versionName getVersion.versionName

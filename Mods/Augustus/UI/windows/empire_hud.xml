@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="empire_hud" base_width="640" base_height="480">
+    <widget id="cash_panel" type="panel" style="solid" color="black" x="20" y="19" width="112" height="18" />
+    <widget id="cash_border" type="panel" style="inset" x="20" y="19" width="112" height="18" />
+    <widget id="cash" type="label" binding="treasury" font="normal_white" x="24" y="20" width="104" height="16" text_alignment="center" />
+</window>

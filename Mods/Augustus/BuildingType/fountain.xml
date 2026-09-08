@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fountain">
+    <presentation inactive_water_range="true" />
     <button group="water" order="30" icon="Admin_Logistics\Fountain_1" icon_image="Image_0000" text_key="main_strings.28.91" />
     <graphics>
         <status_icon x="20" y="-15" />

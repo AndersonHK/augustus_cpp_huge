@@ -296,9 +296,9 @@ public:
     int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();
-    void bless_native_farm();
-    void curse_native_farm(int big_curse);
-    void bless_native_industry();
+    void bless_native_farm(int days);
+    void curse_native_farm(int days);
+    void bless_native_industry(int batches);
     void set_industry_stockpiling(int value);
     void set_mothballed(int value);
     void change_type(building_type type, const std::source_location &location = std::source_location::current());

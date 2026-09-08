@@ -1,7 +1,6 @@
 #include "figure/formation_layout.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -93,13 +92,13 @@ bool parse_signed_attribute(const char *attribute, int *value)
 int parse_root()
 {
     if (g_parse_state.saw_root) {
-        log_error("FormationLayout contains duplicate root nodes", 0, 0);
+        Logger::error("FormationLayout contains duplicate root nodes", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     if (!xml_definition::parse_required_nonempty_string_attribute("key", &g_parse_state.key)) {
-        log_error("FormationLayout xml requires a non-empty key", 0, 0);
+        Logger::error("FormationLayout xml requires a non-empty key", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -107,7 +106,7 @@ int parse_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("FormationLayout has invalid Boolean attribute 'disabled'", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout has invalid Boolean attribute 'disabled'", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -116,12 +115,12 @@ int parse_root()
     if (!g_parse_state.disabled &&
         (!xml_definition::parse_required_nonnegative_int_attribute("legacy_id", &g_parse_state.legacy_id) ||
             g_parse_state.legacy_id >= formation_layout_legacy::COUNT)) {
-        log_error("FormationLayout requires legacy_id in the supported save range", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout requires legacy_id in the supported save range", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
     if (g_parse_state.disabled && xml_parser_has_attribute("legacy_id")) {
-        log_error("Disabled FormationLayout cannot declare legacy_id", g_parse_state.key.c_str(), 0);
+        Logger::error("Disabled FormationLayout cannot declare legacy_id", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -129,7 +128,7 @@ int parse_root()
         if (g_parse_state.disabled ||
             !xml_definition::parse_required_nonempty_string_attribute(
                 "army_from", &g_parse_state.army_offsets_reference)) {
-            log_error("FormationLayout has invalid army_from reference", g_parse_state.key.c_str(), 0);
+            Logger::error("FormationLayout has invalid army_from reference", g_parse_state.key.c_str(), 0);
             g_parse_state.error = true;
             return 0;
         }
@@ -137,14 +136,14 @@ int parse_root()
     if (xml_parser_has_attribute("stationary_facing") &&
         (!parse_signed_attribute("stationary_facing", &g_parse_state.stationary_facing) ||
             g_parse_state.stationary_facing < DIR_0_TOP || g_parse_state.stationary_facing >= DIR_8_NONE)) {
-        log_error("FormationLayout stationary_facing must be a direction from 0 through 7", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout stationary_facing must be a direction from 0 through 7", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
 
     if (xml_parser_has_attribute("restore_when_idle") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("restore_when_idle"), &g_parse_state.restore_when_idle)) {
-        log_error("FormationLayout has invalid Boolean attribute 'restore_when_idle'", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout has invalid Boolean attribute 'restore_when_idle'", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -155,14 +154,14 @@ int parse_root()
 int parse_position()
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled) {
-        log_error("Disabled FormationLayout definition must contain only its root identity", 0, 0);
+        Logger::error("Disabled FormationLayout definition must contain only its root identity", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     FormationLayoutPosition position = {};
     if (!parse_signed_attribute("x", &position.x) || !parse_signed_attribute("y", &position.y)) {
-        log_error("FormationLayout position requires signed integer x and y", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout position requires signed integer x and y", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -170,7 +169,7 @@ int parse_position()
         g_parse_state.army_offsets[static_cast<size_t>(g_parse_state.current_army_orientation)]
             .push_back(position);
     } else {
-        log_error("FormationLayout positions belong only to army spacing; member positions require geometry", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout positions belong only to army spacing; member positions require geometry", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -181,14 +180,14 @@ int parse_army()
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled ||
         !g_parse_state.army_offsets_reference.empty() || g_parse_state.current_army_orientation >= 0) {
-        log_error("FormationLayout army offsets cannot be nested or combined with army_from", 0, 0);
+        Logger::error("FormationLayout army offsets cannot be nested or combined with army_from", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     int orientation = -1;
     if (!xml_definition::parse_required_nonnegative_int_attribute("orientation", &orientation) ||
         orientation >= ARMY_ORIENTATION_COUNT || g_parse_state.saw_army_orientation[orientation]) {
-        log_error("FormationLayout army requires a unique orientation from 0 through 3", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout army requires a unique orientation from 0 through 3", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -205,7 +204,7 @@ void finish_army()
 int parse_geometry()
 {
     if (g_parse_state.disabled || g_parse_state.saw_geometry) {
-        log_error("FormationLayout geometry must occur once in an active definition", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout geometry must occur once in an active definition", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -216,7 +215,7 @@ int parse_geometry()
     else if (xml_value::equals(shape, "staggered")) geometry.shape = FormationLayoutShape::Staggered;
     else if (xml_value::equals(shape, "scatter")) geometry.shape = FormationLayoutShape::Scatter;
     else {
-        log_error("FormationLayout geometry requires square, ranks, staggered, or scatter shape", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout geometry requires square, ranks, staggered, or scatter shape", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -226,7 +225,7 @@ int parse_geometry()
         (xml_parser_has_attribute("transpose") && !xml_value::parse_bool(xml_parser_get_attribute_string("transpose"), &transpose)) ||
         (xml_parser_has_attribute("spacing_percent") && (!parse_signed_attribute("spacing_percent", &geometry.spacing_percent) ||
             geometry.spacing_percent < 50 || geometry.spacing_percent > 200))) {
-        log_error("FormationLayout geometry has invalid alignment or spacing (50..200 percent)", g_parse_state.key.c_str(), 0);
+        Logger::error("FormationLayout geometry has invalid alignment or spacing (50..200 percent)", g_parse_state.key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -248,7 +247,7 @@ int parse_definition_buffer(
     const std::vector<char> &buffer,
     StagedLayout *out_definition)
 {
-    ErrorContextScope error_scope("formation_layout_registry.parse_definition", filename);
+    Logger::Scope error_scope("formation_layout_registry.parse_definition", filename);
 
     g_parse_state = {};
     const int parsed = xml_definition::parse_buffer(
@@ -258,11 +257,11 @@ int parse_definition_buffer(
         static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
         buffer);
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.key.empty()) {
-        log_error("Unable to parse FormationLayout xml", filename, 0);
+        Logger::error("Unable to parse FormationLayout xml", filename, 0);
         return 0;
     }
     if (!g_parse_state.disabled && !g_parse_state.saw_geometry) {
-        log_error("FormationLayout requires mathematical geometry", filename, 0);
+        Logger::error("FormationLayout requires mathematical geometry", filename, 0);
         return 0;
     }
     if (!g_parse_state.disabled) {
@@ -277,7 +276,7 @@ int parse_definition_buffer(
                 ((!uses_reference && (!g_parse_state.saw_army_orientation[orientation] ||
                     position_count != AUTHORED_ARMY_POSITION_COUNT)) ||
                 (uses_reference && (g_parse_state.saw_army_orientation[orientation] || position_count != 0)))) {
-                log_error(
+                Logger::error(
                     "FormationLayout requires either army_from or four army orientations with seven positions each",
                     filename,
                     orientation);
@@ -451,7 +450,7 @@ const FormationLayoutDef *formation_layout_from_legacy_id(int legacy_id)
         return layout;
     }
 
-    log_warning("Repairing unknown serialized formation layout as column", 0, legacy_id);
+    Logger::warning("Repairing unknown serialized formation layout as column", 0, legacy_id);
     return formation_layout_registry_impl::find_layout("column");
 }
 

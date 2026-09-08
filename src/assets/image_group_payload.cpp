@@ -1,7 +1,7 @@
 #include "assets/image_group_payload.h"
 #include "assets/image_group_payload_internal.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include <memory>
 #include <utility>
@@ -113,7 +113,7 @@ int image_group_payload_load(const char *path_key)
         return 0;
     }
 
-    CrashContextScope crash_scope("image_group.load", normalized_key.c_str());
+    Logger::Scope crash_scope("image_group.load", normalized_key.c_str());
     if (image_group_payload_get(normalized_key.c_str())) {
         return 1;
     }
@@ -123,7 +123,7 @@ int image_group_payload_load(const char *path_key)
     }
     if (image_group_payload_internal::g_loading_group_payloads.find(normalized_key) !=
         image_group_payload_internal::g_loading_group_payloads.end()) {
-        crash_context_report_error("Detected recursive image group load", normalized_key.c_str());
+        Logger::error("Detected recursive image group load", normalized_key.c_str());
         image_group_payload_internal::g_failed_group_payloads.insert(normalized_key);
         return 0;
     }
@@ -149,7 +149,7 @@ int image_group_payload_load(const char *path_key)
                 merged->logical_units_per_source_pixel) :
             image_group_payload_internal::materialize_source_entry(selector.group_key, selector.source, selector.image_id);
         if (!resolved || resolved->footprint.texture_key.empty()) {
-            crash_context_report_error("Image group image id could not be resolved", selector.image_id.c_str());
+            Logger::error("Image group image id could not be resolved", selector.image_id.c_str());
             image_group_payload_internal::g_loading_group_payloads.erase(normalized_key);
             image_group_payload_internal::g_failed_group_payloads.insert(normalized_key);
             return 0;

@@ -3,7 +3,7 @@
 #include "city/figures.h"
 #include "city/sound.h"
 #include "core/config.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/combat.h"
 #include "figure/figure.h"
@@ -130,7 +130,7 @@ bool formation::is_aggressive_herd() const
 {
     require_definition("is_aggressive_herd");
     if (!in_use || !is_herd || formation_type_definition->spawn.role != FormationSpawnRole::Herd) {
-        log_error("Formation is not a data-defined herd", formation_type_definition->key(), static_cast<int>(id));
+        Logger::error("Formation is not a data-defined herd", formation_type_definition->key(), static_cast<int>(id));
         std::terminate();
     }
     return formation_type_definition->spawn.herd.aggressive;
@@ -139,7 +139,7 @@ bool formation::is_aggressive_herd() const
 void formation::update_herd_member(Figure &member) const
 {
     if (!owns_figure(member) || !is_herd) {
-        log_error("Figure is not owned by its data-defined herd", 0, static_cast<int>(member.id()));
+        Logger::error("Figure is not owned by its data-defined herd", 0, static_cast<int>(member.id()));
         std::terminate();
     }
     const FormationHerdBehavior &behavior = formation_type_definition->spawn.herd;
@@ -186,7 +186,7 @@ void formation::update_herd_member(Figure &member) const
             break;
         case FIGURE_ACTION_199_WOLF_ATTACKING:
             if (!behavior.aggressive) {
-                log_error("Passive herd member entered the aggressive movement state", formation_type_definition->key(), static_cast<int>(member.id()));
+                Logger::error("Passive herd member entered the aggressive movement state", formation_type_definition->key(), static_cast<int>(member.id()));
                 std::terminate();
             }
             figure_movement_move_ticks(&member, behavior.member_move_speed);
@@ -216,7 +216,7 @@ void formation::update_herd_member(Figure &member) const
 void formation::update_herd_member_graphics(Figure &member) const
 {
     if (!owns_figure(member) || !is_herd) {
-        log_error("Figure graphics are not owned by a data-defined herd", 0, static_cast<int>(member.id()));
+        Logger::error("Figure graphics are not owned by a data-defined herd", 0, static_cast<int>(member.id()));
         std::terminate();
     }
     const FormationHerdBehavior &behavior = formation_type_definition->spawn.herd;
@@ -230,7 +230,7 @@ void formation::update_herd_member_graphics(Figure &member) const
             case FormationHerdCombatAnimation::Attack: entry = "attack"; break;
             case FormationHerdCombatAnimation::Rest: entry = "rest"; break;
             default:
-                log_error("Herd member has no data-defined combat animation", formation_type_definition->key(), static_cast<int>(member.id()));
+                Logger::error("Herd member has no data-defined combat animation", formation_type_definition->key(), static_cast<int>(member.id()));
                 std::terminate();
         }
         figure_runtime_graphics_select_directional_entry_frame(&member, entry, graphics_direction, member.attack_image_offset / 4 + 1);

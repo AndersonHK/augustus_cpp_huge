@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <output resource="fish" production_per_month="100" source="figure_delivery" efficiency_limit="0" />
+</production_method>

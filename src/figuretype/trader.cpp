@@ -32,7 +32,7 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/city.h"
 #include "empire/object.h"
@@ -396,7 +396,7 @@ int figure_create_trade_caravan(int x, int y, int city_id)
     caravan->action_state = FIGURE_ACTION_100_TRADE_CARAVAN_CREATED;
     const auto *profile = figure_type_registry_impl::default_profile_for(FIGURE_TRADE_CARAVAN);
     if (!profile || profile->native_class() != figure_type_registry_impl::NativeClassId::LandTrade) {
-        log_error("Trade caravan requires an explicit land_trade profile", nullptr, 0);
+        Logger::error("Trade caravan requires an explicit land_trade profile", nullptr, 0);
         caravan->remove();
         return 0;
     }
@@ -1051,13 +1051,7 @@ static void reroute_trade_ship(Figure *f, const Building *exclude_dock)
 
     f->set_destination_building(nullptr);
     destination = scenario_map_river_entry();
-    if (scenario_map_has_river_exit()) {
-        const map_point exit = scenario_map_river_exit();
-        if (map_grid_chess_distance(f->grid_offset, map_grid_offset(exit.x, exit.y)) <
-            map_grid_chess_distance(f->grid_offset, map_grid_offset(destination.x, destination.y))) {
-            destination = exit;
-        }
-    }
+    scenario_map_closest_reachable_river_exit(f->x, f->y, &destination);
     f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
     f->destination_x = static_cast<unsigned char>(destination.x);
     f->destination_y = static_cast<unsigned char>(destination.y);

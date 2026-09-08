@@ -677,6 +677,8 @@ struct ConstructionRequirement {
 
 struct ConstructionPhase {
     int index = 0;
+    std::string name_key;
+    std::string description_key;
     std::vector<ConstructionRequirement> requirements;
 };
 
@@ -740,6 +742,9 @@ struct ConstructionGift {
 class ConstructionDefinition {
 public:
     ConstructionGift gift;
+    std::string window;
+    std::string description_key;
+    int completion_message = 0;
     int access_x = -1;
     int access_y = -1;
     void set_mode(ConstructionMode mode);
@@ -911,6 +916,21 @@ public:
     const char *button_text_key() const;
     int placement_width(int orientation) const;
     int placement_height(int orientation) const;
+    enum class InformationPanel { Automatic, Garden };
+    enum class InspectionOverlay { Automatic, Enemy, Native, Desirability };
+    struct Presentation {
+        bool declared = false;
+        InformationPanel panel = InformationPanel::Automatic;
+        InspectionOverlay overlay = InspectionOverlay::Automatic;
+        figure_type preview_figure = FIGURE_NONE;
+        bool enemy_roamer = false;
+        bool inactive_water_range = false;
+        bool rejected_distribution_problem = false;
+        bool show_durability = false;
+        bool overlay_always_visible = false;
+    };
+    const Presentation &presentation() const { return presentation_; }
+    void set_presentation(Presentation value) { presentation_ = value; }
     figure_type preview_figure_type() const;
     int required_workers() const;
     int is_temple(
@@ -980,6 +1000,7 @@ public:
 
 private:
     building_type type_;
+    Presentation presentation_;
     InfrastructureDefinition infrastructure_;
     CityServiceDefinition city_service_;
     std::string attr_;

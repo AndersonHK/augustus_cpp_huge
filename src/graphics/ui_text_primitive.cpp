@@ -1,6 +1,6 @@
 #include "graphics/ui_text_primitive.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "translation/translation.h"
@@ -22,7 +22,7 @@ void report_invalid_text_spec(const UiTextSpec &spec)
         spec.y,
         spec.box_width,
         spec.font);
-    error_context_report_error("Widget text primitive resolved to no renderable payload", detail);
+    Logger::error("Widget text primitive resolved to no renderable payload", detail);
 }
 
 } // namespace

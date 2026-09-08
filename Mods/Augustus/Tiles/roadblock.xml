@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="roadblock">
+    <presentation overlay_always_visible="true" />
     <identity name_key="TR_BUILDING_ROADBLOCK" />
     <model cost="12" />
     <desirability>

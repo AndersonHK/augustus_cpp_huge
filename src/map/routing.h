@@ -45,3 +45,7 @@ void map_routing_block(int x, int y, int size);
 void map_routing_save_state(buffer *buf);
 
 void map_routing_load_state(buffer *buf);
+
+struct MapRoutingStatistics { int total_routes_calculated, enemy_routes_calculated; };
+MapRoutingStatistics map_routing_statistics();
+void map_routing_restore_statistics(MapRoutingStatistics statistics);

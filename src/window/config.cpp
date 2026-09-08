@@ -28,7 +28,7 @@
 #include "game/settings.h"
 #include "core/calc.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/system.h"
 #include "game/speed.h"
@@ -141,7 +141,6 @@ enum {
     CONFIG_ORIGINAL_CITY_SOUNDS_VOLUME,
     CONFIG_ORIGINAL_SCROLL_SPEED,
     CONFIG_ORIGINAL_DIFFICULTY,
-    CONFIG_ORIGINAL_GODS_EFFECTS,
     CONFIG_MAX_ALL
 };
 
@@ -219,7 +218,7 @@ static int preview_weather_radio_buttons(int selected_key);
 
 // ---------- General ----------------------
 static config_widget page_general[] = {
-    {TYPE_SELECT, SELECT_USER_DIRECTORY, "TR_USER_DIRETORIES_WINDOW_USER_PATH", display_text_user_directory, 0, 1, ITEM_BASE_H, 8},
+    {TYPE_SELECT, SELECT_USER_DIRECTORY, "TR_USER_DIRECTORIES_WINDOW_USER_PATH", display_text_user_directory, 0, 1, ITEM_BASE_H, 8},
     {TYPE_SELECT, SELECT_LANGUAGE, "TR_CONFIG_LANGUAGE_LABEL", display_text_language, 0, 1, ITEM_BASE_H, 8},
     {TYPE_SELECT, SELECT_PLAYER_NAME, "TR_CONFIG_DEFAULT_PLAYER_NAME", display_text_player_name, 0, 1, ITEM_BASE_H, 8},
 
@@ -354,7 +353,7 @@ static config_widget ui_widgets_by_category[CATEGORY_UI_COUNT][MAX_WIDGETS] = {
     {
         {TYPE_CHECKBOX, CONFIG_UI_ANIMATE_TRADE_ROUTES, "TR_CONFIG_UI_ANIMATE_TRADE_ROUTES", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_HEADER, 0, "TR_CONFIG_HEADER_EMPIRE_EDITOR", NULL, 0, 1, ITEM_BASE_H, 14},
-        {TYPE_CHECKBOX, CONFIG_UI_EMPIRE_SMART_BORDER_PLACMENT, "TR_CONFIG_UI_EMPIRE_SMART_BORDER_PLACMENT", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
+        {TYPE_CHECKBOX, CONFIG_UI_EMPIRE_SMART_BORDER_PLACEMENT, "TR_CONFIG_UI_EMPIRE_SMART_BORDER_PLACEMENT", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_EMPIRE_CLICK_TO_DELETE, "TR_CONFIG_UI_EMPIRE_CLICK_TO_DELETE", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_EMPIRE_CONFIRM_DELETE, "TR_CONFIG_UI_EMPIRE_CONFIRM_DELETE", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_NONE}
@@ -366,7 +365,6 @@ static config_widget ui_widgets_by_category[CATEGORY_UI_COUNT][MAX_WIDGETS] = {
 static config_widget page_difficulty[] = {
     {TYPE_NUMERICAL_DESC, RANGE_DIFFICULTY, "TR_CONFIG_DIFFICULTY", NULL, 0, 1, ITEM_BASE_H, 0},
     {TYPE_NUMERICAL_RANGE, RANGE_DIFFICULTY, {}, display_text_difficulty, 0, 1, ITEM_BASE_H, 2},
-    {TYPE_CHECKBOX, CONFIG_ORIGINAL_GODS_EFFECTS, "TR_CONFIG_GODS_EFFECTS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_JEALOUS_GODS, "TR_CONFIG_JEALOUS_GODS", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_GLOBAL_LABOUR, "TR_CONFIG_GLOBAL_LABOUR", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_WOLVES_BLOCK, "TR_CONFIG_WOLVES_BLOCK", NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
@@ -875,13 +873,6 @@ static int config_set_difficulty(int key)
     while (setting_difficulty() < data.config_values[key].new_value) setting_increase_difficulty();
     return 1;
 }
-static int config_enable_gods_effects(int key)
-{
-    config_change_basic(key);
-    if (setting_gods_enabled() != data.config_values[key].new_value) setting_toggle_gods_enabled();
-    return 1;
-}
-
 //  Strings
 
 static int config_change_string_language(int key)
@@ -1157,7 +1148,6 @@ static void set_custom_config_changes(void)
 
     data.config_values[CONFIG_ORIGINAL_SCROLL_SPEED].change_action = config_change_scroll_speed;
     data.config_values[CONFIG_ORIGINAL_DIFFICULTY].change_action = config_set_difficulty;
-    data.config_values[CONFIG_ORIGINAL_GODS_EFFECTS].change_action = config_enable_gods_effects;
 }
 
 static void set_player_name_width(void)
@@ -1204,8 +1194,6 @@ static void fetch_original_config_values(void)
     data.config_values[CONFIG_ORIGINAL_DIFFICULTY].original_value = setting_difficulty();
     data.config_values[CONFIG_ORIGINAL_DIFFICULTY].new_value = setting_difficulty();
 
-    data.config_values[CONFIG_ORIGINAL_GODS_EFFECTS].original_value = setting_gods_enabled();
-    data.config_values[CONFIG_ORIGINAL_GODS_EFFECTS].new_value = setting_gods_enabled();
 
     //  player name
 
@@ -2430,10 +2418,6 @@ static void init(unsigned int page, unsigned int category, int show_background_i
         disable_widget_globally(TYPE_NUMERICAL_DESC, RANGE_DISPLAY_SCALE);
         disable_widget_globally(TYPE_NUMERICAL_RANGE, RANGE_DISPLAY_SCALE);
         disable_widget_globally(TYPE_CHECKBOX, CONFIG_ORIGINAL_FULLSCREEN);
-    }
-    if (system_is_fullscreen_only()) {
-        disable_widget_globally(TYPE_NUMERICAL_DESC, RANGE_CURSOR_SCALE);
-        disable_widget_globally(TYPE_NUMERICAL_RANGE, RANGE_CURSOR_SCALE);
     }
 
     init_list_boxes();

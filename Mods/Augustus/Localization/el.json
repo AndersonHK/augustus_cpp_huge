@@ -1,7 +1,7 @@
 {
   "metadata": {
     "code": "el",
-    "display_name": "????????",
+    "display_name": "Ελληνικά",
     "english_name": "Greek",
     "source": "Augustus"
   },
@@ -9,6 +9,8 @@
   "editor_strings": {},
   "messages": {},
   "project_keys": {
+    "TR_CONFIG_FIXED_WORKERS": "Σταθερό εργατικό δυναμικό - 45% του πληθυσμού των πληβείων",
+    "TR_USER_DIRECTORIES_WINDOW_USER_PATH": "Κατάλογος χρήστη:",
     "TR_NO_PATCH_TITLE": "Το patch 1.0.1.0 δεν είναι εγκατεστημένο",
     "TR_NO_PATCH_MESSAGE": "Η εγκατεστημένη έκδοση του Caesar 3 δεν περιλαμβάνει το patch 1.0.1.0Μπορείτε να κατεβάσετε το patch από εδώ:\nhttps://github.com/bvschaik/julius/wiki/Patches\nΣυνεχίζετε με δική σας ευθύνη.",
     "TR_MISSING_FONTS_TITLE": "Missing fonts",
@@ -1043,7 +1045,7 @@
     "TR_PARAMETER_TYPE_ROUTE": "Εμπορική διαδρομή-στόχος",
     "TR_PARAMETER_TYPE_STANDARD_MESSAGE": "Κανονικό μήνυμα",
     "TR_PARAMETER_TYPE_FUTURE_CITY": "Στόχος μελλοντικής εμπορικής πόλης",
-    "TR_PARAMETER_USE_PERCENTAGE": "Χρήση ποσοστού?",
+    "TR_PARAMETER_USE_PERCENTAGE": "Χρήση ποσοστού",
     "TR_PARAMETER_IN_CITY_ONLY": "Να μετράτε μόνο τους στρατιώτες στην πόλη;",
     "TR_PARAMETER_CHECK_FOR_ONGOING": "Ελέγξτε ότι είναι σε εξέλιξη;",
     "TR_PARAMETER_SHOW_MESSAGE": "Εμφάνιση μηνύματος;",

@@ -1,8 +1,14 @@
+#include "assets/image_group_payload.h"
 #include "scenario/definition_overrides.h"
+#include "core/Logger.h"
+#include <set>
 #include "graphics/declarative_window.h"
 #include "city/trade_ledger.h"
 #include "window/trade_ledger.h"
 #include <memory>
+#include <filesystem>
+#include <stdexcept>
+#include "SDL.h"
 #include "city/warning.h"
 #include "empire/empire.h"
 #include "graphics/arrow_button.h"
@@ -134,8 +140,6 @@ static int g_trade_edge_count = 0;
 // For each route_id: a list of 0-based edge indices, terminated by -1.
 static int trade_city_edges[MAX_SIDEBAR_CITIES][MAX_TRADE_EDGES];
 // measurements and scales helper functions
-static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent);
-static void animation_draw_scaled(const image *img, int image_id, int new_animation, int x, int y, color_t color, int draw_scale_percent);
 static int draw_images_at_interval(int image_id, int x_draw_offset, int y_draw_offset,
     int start_x, int start_y, int end_x, int end_y, int interval, int remaining);
 void window_empire_collect_trade_edges(void);
@@ -637,10 +641,10 @@ static void window_empire_draw_trade_route_pulses(const empire_object *route_obj
 
 void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offset)
 {
-    int num_bronze_shields = (trade_max % 100) / 20 + 1;
-    if (trade_max >= 600) {
-        num_bronze_shields = 5;
-    }
+    trade_max = std::max(0, trade_max);
+    int num_gold_shields = trade_max / 100;
+    int num_bronze_shields = std::min(5, ((trade_max % 100) + 10) / 20);
+    if (num_gold_shields > 7) { num_gold_shields = 7; num_bronze_shields = 0; }
 
     int top_left_x;
     if (num_bronze_shields == 1) {
@@ -657,10 +661,6 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
         Image::from_id(bronze_shield).draw(top_left_x + pt.x, top_left_y + pt.y);
     }
 
-    int num_gold_shields = trade_max / 100;
-    if (num_gold_shields > 5) {
-        num_gold_shields = 5;
-    }
     top_left_x = x_offset - 1;
     top_left_y = y_offset + 22;
     int gold_shield = assets_lookup_image_id(ASSET_GOLD_SHIELD);
@@ -855,53 +855,47 @@ static void draw_empire_object(const empire_object *obj)
         }
     }
     if (obj->type == EMPIRE_OBJECT_CITY) {
-        if (empire_object_get_full(obj->id)->city_type == EMPIRE_CITY_TRADE && obj->future_trade_after_icon) {
-            image_id = empire_city_get_icon_image_id(obj->future_trade_after_icon);
-        } else if (obj->empire_city_icon != EMPIRE_CITY_ICON_DEFAULT) {
-            image_id = empire_city_get_icon_image_id(obj->empire_city_icon); // fetch custom city icon
+        const auto *city = empire_city_get(empire_city_get_for_object(obj->id));
+        auto kind = obj->empire_city_icon;
+        if (city->type == EMPIRE_CITY_TRADE && obj->future_trade_after_icon) kind = obj->future_trade_after_icon;
+        if (kind == EMPIRE_CITY_ICON_DEFAULT) {
+            kind = city->type == EMPIRE_CITY_TRADE ? EMPIRE_CITY_ICON_TRADE_CITY : city->type == EMPIRE_CITY_OURS ? EMPIRE_CITY_ICON_OUR_CITY :
+                city->type == EMPIRE_CITY_DISTANT_FOREIGN || city->type == EMPIRE_CITY_FUTURE_ROMAN ? EMPIRE_CITY_ICON_DISTANT_CITY : EMPIRE_CITY_ICON_ROMAN_CITY;
         }
+        const auto icon = empire_city_icon(kind);
+        const auto base = icon.runtime_slice();
+        if (!base.is_valid()) { Logger::errorf("Empire city %u has an unresolved icon %d", obj->id, kind); return; }
+        const bool selected = empire_selected_object() == obj->id + 1;
+        const bool hovered = data.hovered_object == static_cast<int>(obj->id) + 1;
+        const float factor = selected ? 1.3f : hovered ? 1.2f : 1.0f;
+        const float draw_x = data.x_draw_offset + x + base.width * (1 - factor) / 2;
+        const float draw_y = data.y_draw_offset + y + base.height * (1 - factor) / 2;
+        if (selected) {
+            for (auto offset : {std::pair{-2, 0}, std::pair{2, 0}, std::pair{0, -2}, std::pair{0, 2}})
+                runtime_texture_draw(base, static_cast<int>((draw_x + offset.first) / factor), static_cast<int>((draw_y + offset.second) / factor), COLOR_MASK_ORANGE_GOLD, 1 / factor);
+        }
+        runtime_texture_draw(base, static_cast<int>(draw_x / factor), static_cast<int>(draw_y / factor), COLOR_MASK_NONE, 1 / factor);
+        const auto *payload = image_group_payload_get(icon.group_path().c_str());
+        const auto *entry = payload ? payload->entry_for(icon.entry_id().c_str()) : nullptr;
+        if (entry && entry->has_animation()) {
+            const auto &animation = entry->animation();
+            auto *live = empire_object_get(obj->id);
+            if (Animation::should_advance(animation.speed_id()) || live->animation_index < 1 || live->animation_index > animation.frame_count())
+                live->animation_index = live->animation_index % animation.frame_count() + 1;
+            const auto frame = animation.frame_slice_at_offset(live->animation_index, 0);
+            runtime_texture_draw(frame, static_cast<int>(draw_x / factor) + animation.sprite_offset_x(), static_cast<int>(draw_y / factor) + animation.sprite_offset_y(), COLOR_MASK_NONE, 1 / factor);
+        }
+        return;
+    }    if (image_id <= 0) {
+        Logger::errorf("Empire object %d has no image (type=%d, city icon=%d).", obj->id, obj->type, obj->empire_city_icon);
+        return;
     }
     const image *img = image_get(image_id);
-    if ((((unsigned int) data.hovered_object == obj->id + 1) && obj->type == EMPIRE_OBJECT_CITY) ||
-        ((empire_selected_object() == obj->id + 1) && obj->type == EMPIRE_OBJECT_CITY)) {
-        // actions for currently hovered or selected city objects 
-        if ((empire_selected_object() == obj->id + 1) && obj->type == EMPIRE_OBJECT_CITY) {
-            const int offsets[16][2] = {
-                {1, 0}, {0, 1}, {-1, 0}, {0, -1},
-                {3, 0}, {0, 3}, {-3, 0}, {0, -3},
-                {1, 1}, {-1, 1}, {-1, -1}, {1, -1},
-                {3, 3}, {-3, 3}, {-3, -3}, {3, -3}
-            }; // 3 an 1 offsets worked best in testing, other values can be used for readability if necessary
-            for (int i = 0; i < 16; i++) {
-                int dx = offsets[i][0];
-                int dy = offsets[i][1];
-        draw_silhouette_scaled_centered(image_id,
-                    data.x_draw_offset + x + dx, data.y_draw_offset + y + dy, COLOR_MASK_ORANGE_GOLD, 130);
-                // any mask will work
-            }
-
-            Image::from_id(image_id).draw_scaled_centered(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 130);
-
-            int new_animation = empire_object_update_animation(obj, image_id);
-            animation_draw_scaled(img, image_id, new_animation, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 130);
-
-        } else {
-            Image::from_id(image_id).draw_scaled_centered(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 120);
-
-            if (img->animation && img->animation->speed_id) {
-                int new_animation = empire_object_update_animation(obj, image_id);
-                animation_draw_scaled(img, image_id, new_animation, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 120);
-            }
-        }
-
-    } else {
-        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
-        if (img->animation && img->animation->speed_id) {
-            int new_animation = empire_object_update_animation(obj, image_id);
-            Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y);
-        }
+    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
+    if (img->animation && img->animation->speed_id) {
+        const int frame = empire_object_update_animation(obj, image_id);
+        Image::from_id(image_id + frame).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y);
     }
-
     // Manually fix the Hagia Sophia
     if (obj->image_id == 8122) {
         image_id = assets_lookup_image_id(ASSET_HAGIA_SOPHIA_FIX);
@@ -920,31 +914,6 @@ static void empire_draw_object_trade_route(const empire_object *obj)
         }
     }
     return;
-}
-
-static void animation_draw_scaled(const image *img, int image_id, int new_animation, int x, int y, color_t color, int draw_scale_percent)
-{
-    int anim_x = (x + img->width * (100 - draw_scale_percent) / 200) * 100 / draw_scale_percent;
-    int anim_y = (y + img->height * (100 - draw_scale_percent) / 200) * 100 / draw_scale_percent;
-
-    // Apply animation sprite offset if present, to the already centered position
-    if (img->animation) {
-         anim_x += img->animation->sprite_offset_x;
-         anim_y += img->animation->sprite_offset_y;
-    }
-
-    Image::from_id(image_id + new_animation).draw(anim_x, anim_y, color, 100.0f / draw_scale_percent);
-}
-
-static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent)
-{
-    float obj_draw_scale = 100.0f / draw_scale_percent;
-    const image *img = image_get(image_id);
-
-    float scaled_x = (((x) +img->width / 2.0f) - (img->width / obj_draw_scale) / 2.0f) * obj_draw_scale;
-    float scaled_y = (((y) +img->height / 2.0f) - (img->height / obj_draw_scale) / 2.0f) * obj_draw_scale;
-
-    Image::from_id(image_id).draw_silhouette((int) scaled_x, (int) scaled_y, color, obj_draw_scale);
 }
 
 static void draw_invasion_warning(int x, int y, int image_id)
@@ -998,24 +967,98 @@ static void draw_map(void)
 //                                              DRAW FOREGROUND
 // -------------------------------------------------------------------------------------------------------
 
+#include "empire_trade_widgets.h"
+
 namespace {
-class EmpireController final : public DeclarativeWindowController {
+class EmpireController final : public EmpireTradeController {
 public:
+    const empire_city *trade_city() const override { return selected(); }
+    int trade_city_id() const override { return data.selected_city; }
+    void draw_custom(const DeclarativeWidgetDefinition &widget, int item, int x, int y, int width, int height, bool focused) const override
+    {
+        if (widget.binding == "city.list") empire_city_list.draw(x, y, width, height);
+        else EmpireTradeController::draw_custom(widget, item, x, y, width, height, focused);
+    }
+    int handle_custom(const DeclarativeWidgetDefinition &widget, int item, const mouse &local, int width, int height) override
+    {
+        if (widget.binding == "city.list") return empire_city_list.handle(local);
+        return EmpireTradeController::handle_custom(widget, item, local, width, height);
+    }
     int page = 0, resource_page = 0, capacity = 4;
     std::vector<int> cities;
     std::vector<resource_type> resources;
     std::map<int, int64_t> trade_balances;
+    std::set<int> unknown_trade_balances;
+    AccountingPeriod period;
+    size_t period_index = 0, period_count = 0;
+    void select_period(size_t index)
+    {
+        const auto &history = city_trade_ledger_periods();
+        period_count = history.size();
+        period_index = std::min(index, history.size() - 1);
+        period = history[period_index];
+        empire_display_period = &period; empire_display_period_index = period_index;
+        trade_balances.clear();
+        unknown_trade_balances.clear();
+        for (const auto &t : period.transactions) {
+            if (!t.direction_known) unknown_trade_balances.insert(t.city);
+            else trade_balances[t.city] += (t.imported ? -1 : 1) * t.units * t.price / resource_units_per_load();
+        }
+        page = resource_page = 0;
+    }
+    const RouteAccounts *route(int city) const
+    {
+        const auto found = period.routes.find(city);
+        return found == period.routes.end() ? nullptr : &found->second;
+    }
+    bool matches_filter(int city) const
+    {
+        if (!period_index) return window_empire_sidebar_sort_city_matches_current_filter(empire_city_get(city));
+        const auto filter = window_empire_sidebar_sort_get_current_filtering();
+        if (filter == FILTER_NONE) return true;
+        const auto *entry = route(city);
+        if (!entry) return false;
+        if (filter == FILTER_BY_OPEN) return entry->open;
+        if (filter == FILTER_BY_CLOSED) return !entry->open;
+        if (filter == FILTER_BY_LAND) return !entry->sea;
+        if (filter == FILTER_BY_SEA) return entry->sea;
+        const char *key = resource_text_id(window_empire_sidebar_sort_get_selected_filter_resource());
+        const auto found = entry->resources.find(key ? key : "");
+        if (found == entry->resources.end()) return false;
+        return filter == FILTER_BY_RESOURCE ? found->second.import_limit || found->second.export_limit :
+            filter == FILTER_BY_RESOURCE_SELL ? found->second.import_limit != 0 : found->second.export_limit != 0;
+    }
+    int64_t sort_value(int city) const
+    {
+        const auto sorting = window_empire_sidebar_sort_get_current_sorting();
+        if (sorting == SORT_BY_PROFIT) {
+            const auto found = trade_balances.find(city);
+            return found == trade_balances.end() ? 0 : found->second;
+        }
+        const auto *entry = route(city);
+        if (!entry) return -1;
+        if (sorting == SORT_BY_ROUTE_COST) return entry->cost;
+        int64_t traded = 0, limit = 0;
+        for (const auto &[key, amounts] : entry->resources) {
+            const bool imports = sorting == SORT_BY_QUOTA_FILL_IMPORT;
+            traded += imports ? amounts.imported : amounts.exported;
+            limit += imports ? amounts.import_limit : amounts.export_limit;
+        }
+        return limit ? 100 * traded / limit : 0;
+    }
     void refresh()
     {
         std::vector<sidebar_city_entry> entries;
         for (int i = 1; i < empire_city_get_array_size(); ++i) {
             const auto *city = empire_city_get(i);
-            if (city->in_use && city->type == EMPIRE_CITY_TRADE && window_empire_sidebar_sort_city_matches_current_filter(city)) entries.push_back({0, city->empire_object_id, i});
+            if (city->in_use && city->type == EMPIRE_CITY_TRADE && matches_filter(i)) entries.push_back({0, city->empire_object_id, i});
         }
         std::sort(entries.begin(), entries.end(), [this](const auto &a, const auto &b) {
-            if (window_empire_sidebar_sort_get_current_sorting() == SORT_BY_PROFIT) {
-                const int64_t left = trade_balances[a.city_id], right = trade_balances[b.city_id];
+            if (!period_index && window_empire_sidebar_sort_get_current_sorting() != SORT_BY_PROFIT) return window_empire_sidebar_sort_sidebar_city_sorter(&a, &b) < 0;
+            if (window_empire_sidebar_sort_get_current_sorting() != SORT_BY_NAME) {
+                const int64_t left = sort_value(a.city_id), right = sort_value(b.city_id);
                 if (left != right) return window_empire_sidebar_sort_get_sorting_reversed() ? left > right : left < right;
+                return a.city_id < b.city_id;
             }
             return window_empire_sidebar_sort_sidebar_city_sorter(&a, &b) < 0;
         });
@@ -1023,10 +1066,11 @@ public:
         for (const auto &entry : entries) cities.push_back(entry.city_id);
         page = std::min(page, std::max(0, (static_cast<int>(cities.size()) - 1) / capacity));
         resources.clear();
-        const auto *city = selected();
-        if (city) for (int i = 0; i < resource_loaded_count(); ++i) {
+        const auto *selected_route = route(data.selected_city);
+        if (selected_route) for (int i = 0; i < resource_loaded_count(); ++i) {
             const auto resource = resource_get_loaded(i);
-            if (city->buys_resource[resource] || city->sells_resource[resource]) resources.push_back(resource);
+            const char *key = resource_text_id(resource);
+            if (key && selected_route->resources.count(key)) resources.push_back(resource);
         }
         resource_page = std::min(resource_page, std::max(0, (static_cast<int>(resources.size()) - 1) / 4));
     }
@@ -1038,9 +1082,26 @@ public:
         if (source == "resources") return std::max(0, std::min(4, static_cast<int>(resources.size()) - resource_page * 4));
         return 0;
     }
+    std::vector<std::string> choices(std::string_view binding) const override
+    {
+        auto tr = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
+        if (binding == "classic.sort") return {tr("TR_EMPIRE_SIDE_BAR_SORT_BY_NAME"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_EXPORT"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_IMPORT"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_ROUTE_COST"), tr("TR_EMPIRE_SIDE_BAR_SORT_BY_PROFIT")};
+        if (binding == "filter") return {tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_SELL"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_BUY"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_OPEN"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_CLOSED"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_LAND"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_SEA"), tr("TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE")};
+        std::vector<std::string> result;
+        if (binding == "filter.resource") for (int i = 0; i < resource_loaded_count(); ++i) result.push_back(reinterpret_cast<const char *>(resource_get_data(resource_get_loaded(i))->text));
+        if (binding == "history.year") { for (const auto &year : city_trade_ledger_periods()) result.push_back(std::to_string(year.year)); if (!result.empty()) result[0] = tr("TR_UI_CURRENT_YEAR"); }
+        return result;
+    }
     std::string text(std::string_view binding, int index) const override
     {
         auto tr = [](const char *key) { return std::string(reinterpret_cast<const char *>(translation_for_key(key))); };
+        if (binding == "history.year") return period_index ? std::to_string(period.year) : tr("TR_UI_CURRENT_YEAR");
+        if (binding == "treasury") return std::string("Dn ") + std::to_string(city_finance_treasury());
+        if (binding == "period") return std::to_string(period.year) + (period.partial ? " - " + tr("TR_LEDGER_PARTIAL") : "");
+        if (binding == "classic.sort") {
+            const char *labels[] = {"TR_EMPIRE_SIDE_BAR_SORT_BY_NAME", "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_EXPORT", "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_IMPORT", "TR_EMPIRE_SIDE_BAR_SORT_BY_ROUTE_COST", "TR_EMPIRE_SIDE_BAR_SORT_BY_PROFIT"};
+            return tr(labels[window_empire_sidebar_sort_get_current_sorting()]);
+        }
         if (binding == "sort") {
             const char *labels[] = {"main_strings.44.9", "TR_LEDGER_EXPORTED", "TR_LEDGER_IMPORTED", "TR_LEDGER_ROUTE_COST", "main_strings.60.19"};
             return tr(labels[window_empire_sidebar_sort_get_current_sorting()]) + (window_empire_sidebar_sort_get_sorting_reversed() ? " (Z-A)" : " (A-Z)");
@@ -1085,38 +1146,58 @@ public:
             const auto resource = resources[row];
             if (binding == "resource.name") return reinterpret_cast<const char *>(resource_get_data(resource)->text);
             const bool imports = binding == "resource.import";
-            if (!(imports ? selected()->sells_resource[resource] : selected()->buys_resource[resource])) return "-";
-            return std::to_string(trade_route_traded(selected()->route_id, resource, !imports)) + " / " + std::to_string(trade_route_limit(selected()->route_id, resource, !imports));
+            const auto *entry = route(data.selected_city);
+            if (!entry) return tr("TR_LEDGER_UNKNOWN");
+            const auto &amounts = entry->resources.at(resource_text_id(resource));
+            const int limit = imports ? amounts.import_limit : amounts.export_limit;
+            if (!limit) return "-";
+            return (entry->open ? std::to_string(imports ? amounts.imported : amounts.exported) + " / " : "") + std::to_string(limit);
         }
         const int id = city_id(index);
         const auto *city = id ? empire_city_get(id) : nullptr;
         if (!city) return {};
         if (binding == "city.name") return reinterpret_cast<const char *>(empire_city_get_name(city));
-        if (binding == "city.status") return city->is_open ? tr("TR_LEDGER_OPEN") : tr("TR_LEDGER_ROUTE_COST") + " " + std::to_string(city->cost_to_open);
+        if (binding == "city.status") {
+            const auto *entry = route(id);
+            return !entry ? tr("TR_LEDGER_UNKNOWN") : entry->open ? tr("TR_LEDGER_OPEN") : tr("TR_LEDGER_ROUTE_COST") + " " + std::to_string(entry->cost);
+        }
         if (binding == "city.balance") {
+            if (unknown_trade_balances.count(id)) return tr("main_strings.60.19") + ": —";
             const auto found = trade_balances.find(id);
             return tr("main_strings.60.19") + ": " + std::to_string(found != trade_balances.end() ? found->second : 0);
         }
         return {};
     }
+    ImageGroupEntryRef image(std::string_view binding, int index) const override
+    {
+        if (binding == "sort.direction") return ImageGroupEntryRef::from_group("UI\\Arrow_Button", window_empire_sidebar_sort_get_sorting_reversed() ? "Decrease" : "Increase");
+        return EmpireTradeController::image(binding, index);
+    }
     int condition(std::string_view binding, int index) const override
     {
+        if (binding == "sidebar.collapsed") return data.sidebar.border_btn.is_collapsed;
+        if (binding == "period.older") return period_index + 1 < period_count;
+        if (binding == "period.newer") return period_index > 0;
+        if (binding == "selected.open_trade") return display_city() && display_city()->type == EMPIRE_CITY_TRADE && display_city()->is_open;
         if (binding == "selected.trade") return selected() && selected()->type == EMPIRE_CITY_TRADE;
         if (binding == "filter.resource") return window_empire_sidebar_sort_get_current_filtering() <= FILTER_BY_RESOURCE_BUY;
+        if (binding == "filter.general") return window_empire_sidebar_sort_get_current_filtering() > FILTER_BY_RESOURCE_BUY;
         if (binding == "city.selected") return city_id(index) == data.selected_city;
         if (binding == "previous") return page > 0;
         if (binding == "next") return (page + 1) * capacity < cities.size();
         if (binding == "resources.previous") return resource_page > 0;
         if (binding == "resources.next") return (resource_page + 1) * 4 < resources.size();
         if (binding == "selected.city") return selected() != nullptr;
-        if (binding == "selected.closed") return selected() && !selected()->is_open && selected()->type == EMPIRE_CITY_TRADE;
+        if (binding == "selected.closed") return !period_index && selected() && !selected()->is_open && selected()->type == EMPIRE_CITY_TRADE;
         return 0;
     }
     void action(std::string_view action, int index) override
     {
         if (action == "city.select" && city_id(index)) empire_select_object_by_id(empire_city_get(city_id(index))->empire_object_id);
-        else if (action == "city.ledger") window_trade_ledger_show(city_id(index));
-        else if (action == "ledger") window_trade_ledger_show(selected() ? data.selected_city : -1);
+        else if (action == "city.ledger") window_trade_ledger_show(city_id(index), -1, static_cast<int>(period_index));
+        else if (action == "ledger") window_trade_ledger_show(selected() ? data.selected_city : -1, -1, static_cast<int>(period_index));
+        else if (action == "period.older" && condition(action, 0)) select_period(period_index + 1);
+        else if (action == "period.newer" && period_index) select_period(period_index - 1);
         else if (action == "prices") button_show_prices(0, 0);
         else if (action == "advisor") button_advisor(ADVISOR_TRADE, 0);
         else if (action == "close") button_return_to_city(0, 0);
@@ -1126,27 +1207,45 @@ public:
         else if (action == "next" && condition("next", 0)) ++page;
         else if (action == "resources.previous" && resource_page) --resource_page;
         else if (action == "resources.next" && condition(action, 0)) ++resource_page;
-        else if (action == "resource.settings" && selected() && selected()->is_open && index >= 0 && resource_page * 4 + index < resources.size()) window_resource_settings_show(resources[resource_page * 4 + index]);
-        else if (action == "filter") { window_empire_sidebar_sort_set_current_filtering((window_empire_sidebar_sort_get_current_filtering() + 1) % MAX_FILTER_KEY); page = 0; }
+        else if (action == "resource.settings" && !period_index && selected() && selected()->is_open && index >= 0 && resource_page * 4 + index < resources.size()) window_resource_settings_show(resources[resource_page * 4 + index]);
+        else if (action == "filter") { window_empire_sidebar_sort_set_current_filtering(index >= 0 ? index : (window_empire_sidebar_sort_get_current_filtering() + 1) % MAX_FILTER_KEY); page = 0; }
         else if (action == "filter.resource") {
+            if (index >= 0 && index < resource_loaded_count()) { window_empire_sidebar_sort_set_selected_filter_resource(resource_get_loaded(index)); refresh(); empire_city_list.initialize(&cities); window_invalidate(); return; }
             const auto previous = window_empire_sidebar_sort_get_selected_filter_resource();
             resource_type next = RESOURCE_NONE;
             if (previous == RESOURCE_NONE && resource_loaded_count()) next = resource_get_loaded(0);
             else for (int i = 0; i + 1 < resource_loaded_count(); ++i) if (resource_get_loaded(i) == previous) next = resource_get_loaded(i + 1);
             window_empire_sidebar_sort_set_selected_filter_resource(next); page = 0;
         }
-        else if (action == "sort") window_empire_sidebar_sort_set_current_sorting((window_empire_sidebar_sort_get_current_sorting() + 1) % MAX_SORTING_KEY);
+        else if (action == "sort") window_empire_sidebar_sort_set_current_sorting(index >= 0 ? index : (window_empire_sidebar_sort_get_current_sorting() + 1) % MAX_SORTING_KEY);
         else if (action == "reverse") window_empire_sidebar_sort_set_sorting_reversed(!window_empire_sidebar_sort_get_sorting_reversed());
+        if (action == "history.year" && index >= 0 && index < period_count) select_period(index);
+        if (action == "sort" || action == "reverse" || action == "filter" || action == "filter.resource" || action == "history.year") { refresh(); empire_city_list.initialize(&cities); }
         process_selection(); refresh(); window_invalidate();
     }
 };
 EmpireController empire_controller;
-std::unique_ptr<DeclarativeWindowRuntime> empire_sidebar_ui, empire_details_ui;
+std::unique_ptr<DeclarativeWindowRuntime> empire_sidebar_ui, empire_details_ui, empire_hud_ui;
 const DeclarativeWindowDefinition *sidebar_definition, *details_definition;
 void initialize_empire_ui()
 {
-    empire_controller.trade_balances.clear();
-    for (const auto &t : city_trade_ledger_periods().front().transactions) empire_controller.trade_balances[t.city] += (t.imported ? -1 : 1) * t.units * t.price / resource_units_per_load();
+    for (const char *name : {"empire_sidebar", "empire_details", "empire_city_card", "empire_map"}) {
+        const auto *definition = declarative_window_definition(name);
+        if (!definition) { Logger::error("Missing required empire window: ", name); continue; }
+        for (const auto &widget : definition->widgets()) {
+            if (widget.type != DeclarativeWidgetType::Image && widget.type != DeclarativeWidgetType::ImageButton) continue;
+            if (!widget.binding.empty()) continue;
+            for (const auto &image : {widget.image_name, widget.pressed_image_name}) {
+                if (image.empty()) continue;
+                const auto ref = ImageGroupEntryRef::from_group(widget.assetlist_name, image);
+                if (!ref.is_bound() || ref.width() <= 0 || ref.height() <= 0) Logger::errorf("Window %s widget %s has an unresolved image: %s/%s", name, widget.id.c_str(), widget.assetlist_name.c_str(), image.c_str());
+            }
+        }
+    }
+    const auto *hud = declarative_window_definition("empire_hud");
+    empire_hud_ui = hud ? std::make_unique<DeclarativeWindowRuntime>(*hud, empire_controller) : nullptr;
+    empire_controller.select_period(0);
+    empire_city_list.initialize();
     sidebar_definition = declarative_window_definition("empire_sidebar");
     details_definition = declarative_window_definition("empire_details");
     empire_sidebar_ui = sidebar_definition ? std::make_unique<DeclarativeWindowRuntime>(*sidebar_definition, empire_controller) : nullptr;
@@ -1161,12 +1260,14 @@ void draw_empire_ui()
     }
     empire_controller.refresh();
     for (auto phase : {DeclarativeDrawPhase::Background, DeclarativeDrawPhase::Foreground}) {
+        if (empire_hud_ui) empire_hud_ui->draw(phase, data.x_max - data.x_min, data.y_max - data.y_min, data.x_min, data.y_min);
         if (empire_sidebar_ui && !data.sidebar.border_btn.is_collapsed) empire_sidebar_ui->draw(phase, data.sidebar.width, data.sidebar.height, data.sidebar.x_min, data.sidebar.y_min);
         if (empire_details_ui) empire_details_ui->draw(phase, data.panel.x_max - data.panel.x_min, BOTTOM_PANEL_HEIGHT, data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT);
     }
 }
 int handle_empire_ui(const mouse *m)
 {
+    empire_city_list.hovered = false;
     mouse local = *m;
     if (m->y >= data.y_max - BOTTOM_PANEL_HEIGHT) {
         local.x -= data.panel.x_min; local.y -= data.y_max - BOTTOM_PANEL_HEIGHT;
@@ -1174,7 +1275,7 @@ int handle_empire_ui(const mouse *m)
     }
     if (!data.sidebar.border_btn.is_collapsed && m->x >= data.sidebar.x_min) {
         local.x -= data.sidebar.x_min; local.y -= data.sidebar.y_min;
-        if (m->scrolled != SCROLL_NONE) { empire_controller.action(m->scrolled == SCROLL_UP ? "previous" : "next", 0); return 1; }
+        if (m->scrolled != SCROLL_NONE && !sidebar_definition->widget("city_list")) { empire_controller.action(m->scrolled == SCROLL_UP ? "previous" : "next", 0); return 1; }
         return empire_sidebar_ui ? empire_sidebar_ui->handle_mouse(local, data.sidebar.width, data.sidebar.height) : 0;
     }
     return 0;
@@ -1355,6 +1456,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         empire_scroll_map(position.x, position.y);
     }
 
+    data.focus_resource = RESOURCE_NONE;
     if (handle_empire_ui(m)) return;
 
     if (m->is_touch) {
@@ -1435,6 +1537,7 @@ static void get_tooltip(tooltip_context *c)
         c->translation_key = "TR_TOOLTIP_CHANGE_SIDEBAR_WIDTH";
     } else {
         if (empire_sidebar_ui) empire_sidebar_ui->tooltip(*c);
+        empire_city_list.tooltip(*c);
         if (empire_details_ui) empire_details_ui->tooltip(*c);
     }
 }
@@ -1537,3 +1640,5 @@ void window_empire_show_checked(void)
         city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE_YET"));
     }
 }
+
+#include "../../tools/catch_up_test/empire_ui.h"

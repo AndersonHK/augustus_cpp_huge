@@ -4,7 +4,7 @@
 #include "core/io.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/campaign.h"
 #include "game/campaign/mission.h"
@@ -54,7 +54,7 @@ static campaign_scenario *new_scenario(int rank)
 {
     campaign_scenario *camp_scenario = campaign_mission_new_scenario();
     if (!camp_scenario) {
-        log_error("Problem generating original campaign data - memory full", 0, 0);
+        Logger::error("Problem generating original campaign data - memory full", 0, 0);
         return 0;
     }
 
@@ -69,7 +69,7 @@ static campaign_scenario *new_scenario(int rank)
         name = copy_new_string(lang_get_string(current_string_key(144, 2 + 3 * rank + (camp_scenario->id % SCENARIOS_PER_RANK))));
     }
     if (!name) {
-        log_error("Problem generating original campaign data - memory full", 0, 0);
+        Logger::error("Problem generating original campaign data - memory full", 0, 0);
         return 0;
     }
     uint8_t *description = find_in_string(name, ':');
@@ -100,14 +100,14 @@ static campaign_scenario *new_scenario(int rank)
 int campaign_original_setup(void)
 {
     if (!campaign_mission_init()) {
-        log_error("Problem parsing campaign file - unable to allocate memory for campaigns", 0, 0);
+        Logger::error("Problem parsing campaign file - unable to allocate memory for campaigns", 0, 0);
         return 0;
     }
 
     for (int rank = 0; rank < MAX_RANK; rank++) {
         campaign_mission *mission = campaign_mission_new();
         if (!mission) {
-            log_error("Problem generating original campaign data - memory full", 0, 0);
+            Logger::error("Problem generating original campaign data - memory full", 0, 0);
             return 0;
         }
         mission->title = lang_get_string(current_string_key(144, 1 + 3 * rank));
@@ -166,7 +166,7 @@ uint8_t *campaign_original_load_scenario(int scenario_id, size_t *length)
 
     uint8_t *scenario_data = static_cast<uint8_t *>(malloc(sizeof(uint8_t) * size));
     if (!scenario_data) {
-        log_error("Problem getting scenario data - memory full", 0, 0);
+        Logger::error("Problem getting scenario data - memory full", 0, 0);
         return 0;
     }
     buffer buf;

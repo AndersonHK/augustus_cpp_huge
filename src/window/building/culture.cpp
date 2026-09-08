@@ -1176,6 +1176,7 @@ void window_building_draw_hippodrome_background(building_info_context *c)
                 c->x_offset + 125, c->y_offset + y_offset + 240, 320,
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
+        if (!city_data.games.chosen_horse) window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 160, 73, 1);
         if (race && race->betting.enabled) {
             text_draw_centered(translation_for(city_data.games.chosen_horse ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
                 "TR_WINDOW_RACE_BET_TITLE"), c->x_offset + 88, c->y_offset + y_offset + 351, 300,

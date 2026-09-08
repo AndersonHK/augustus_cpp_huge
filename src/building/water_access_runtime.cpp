@@ -14,7 +14,7 @@
 #include "building/religion.h"
 #include "building/water_access_type.h"
 #include "core/direction.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -87,6 +87,8 @@ struct ContributionCounts {
 
 struct RuntimeState {
     MaskSet masks;
+    MaskSet inactive_masks;
+    bool inactive_masks_valid = false;
     ContributionCounts counts;
     PreviewState preview;
     std::unordered_map<int, ProviderSnapshot> providers;
@@ -590,13 +592,13 @@ void adjust_count(
         const bool was_set = count != 0;
         if (delta > 0) {
             if (count == UINT16_MAX) {
-                log_error("Water access contribution count overflow", 0, grid_offset);
+                Logger::error("Water access contribution count overflow", 0, grid_offset);
                 std::terminate();
             }
             ++count;
         } else {
             if (!count) {
-                log_error("Water access contribution count underflow", 0, grid_offset);
+                Logger::error("Water access contribution count underflow", 0, grid_offset);
                 std::terminate();
             }
             --count;
@@ -901,6 +903,7 @@ void set_provider_active(ProviderSnapshot &provider, bool active)
     if (provider.active == static_cast<int>(active)) {
         return;
     }
+    g_state.inactive_masks_valid = false;
     if (provider.active) {
         adjust_provider_contributions(provider, -1);
     }
@@ -1105,7 +1108,7 @@ void settle_non_network_providers()
         }
         set_provider_active(provider, active);
         if (++evaluations > limit) {
-            log_error("Water provider dependency graph did not converge", 0,
+            Logger::error("Water provider dependency graph did not converge", 0,
                 static_cast<int>(g_state.providers.size()));
             std::terminate();
         }
@@ -1129,6 +1132,7 @@ void sync_provider(Building &building)
     auto found = g_state.providers.find(building.id);
     if (!is_provider) {
         if (found != g_state.providers.end()) {
+            g_state.inactive_masks_valid = false;
             queue_reservoir_network(found->second);
             if (found->second.active) {
                 adjust_provider_contributions(found->second, -1);
@@ -1142,6 +1146,7 @@ void sync_provider(Building &building)
     const int state = building.state_id();
     const int has_workers = building_has_required_workers(&building);
     if (found == g_state.providers.end()) {
+        g_state.inactive_masks_valid = false;
         register_source_dependencies(definition->water_access());
         ProviderSnapshot snapshot;
         snapshot.building_id = building.id;
@@ -1162,6 +1167,7 @@ void sync_provider(Building &building)
     const bool geometry_changed = snapshot.definition != definition || snapshot.x != building.x() ||
         snapshot.y != building.y();
     const bool activity_input_changed = snapshot.state != state || snapshot.has_workers != has_workers;
+    if (geometry_changed || activity_input_changed) g_state.inactive_masks_valid = false;
     if (geometry_changed) {
         register_source_dependencies(definition->water_access());
         queue_reservoir_network(snapshot);
@@ -1291,6 +1297,7 @@ void ensure_runtime_refreshed()
 
 void water_access_runtime_reset(void)
 {
+    g_state.inactive_masks_valid = false;
     g_water_runtime_types.clear();
     clear_masks(g_state.masks);
     g_state.counts.access.fill({});
@@ -1331,6 +1338,7 @@ void water_access_runtime_finish_world_load(void)
 
 void water_access_runtime_refresh(void)
 {
+    g_state.inactive_masks_valid = false;
     if (g_state.updating || g_state.world_loading) {
         return;
     }
@@ -1438,6 +1446,7 @@ void water_access_runtime_building_changed(Building *building)
 
 void water_access_runtime_remove_building(Building *building)
 {
+    g_state.inactive_masks_valid = false;
     if (!building || !g_state.refreshed || g_state.updating || g_state.world_loading) {
         return;
     }
@@ -1586,6 +1595,23 @@ int water_access_runtime_tile_has_access(int grid_offset, const char *text_id)
     }
     const uint8_t mask = access_mask(text_id);
     return mask ? (g_state.masks.access[grid_offset] & mask) : 0;
+}
+
+int water_access_runtime_tile_has_inactive_access(int grid_offset, const char *text_id)
+{
+    ensure_runtime_refreshed();
+    if (!map_grid_is_valid_offset(grid_offset)) return 0;
+    if (!g_state.inactive_masks_valid) {
+        clear_masks(g_state.inactive_masks);
+        for (const auto &[id, provider] : g_state.providers) {
+            if (provider.active || !provider.definition || !provider.geometry.valid() ||
+                !provider.definition->presentation().inactive_water_range ||
+                (provider.state != BUILDING_STATE_CREATED && provider.state != BUILDING_STATE_IN_USE)) continue;
+            mark_provider_rules(g_state.inactive_masks, provider.definition->water_access(), provider.geometry, provider.x, provider.y);
+        }
+        g_state.inactive_masks_valid = true;
+    }
+    return g_state.inactive_masks.access[grid_offset] & access_mask(text_id);
 }
 
 int water_access_runtime_building_area_has_access(const Building *building, const char *text_id)

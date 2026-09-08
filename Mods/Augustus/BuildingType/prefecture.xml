@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="prefecture">
+    <presentation enemy_roamer="true" />
     <button group="security" order="70" icon="Admin_Logistics\Prefecture" text_key="main_strings.28.55" />
 </building>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="empire_sidebar" base_width="320" base_height="480">
+    <widget id="panel" type="panel" style="outer_panel" phase="background" x="0" y="0" width="320" height="480" stretch_width="true" stretch_height="true"/>
+    <widget id="sort" type="text_button" binding="classic.sort" action="sort" x="6" y="6" width="269" height="24" stretch_width="true" text_offset_y="4" ellipsize="true"/>
+    <widget id="reverse" type="image_button" binding="sort.direction" action="reverse" x="277" y="6" width="39" height="26" anchor_x="far"/>
+    <widget id="filter" type="text_button" binding="filter" action="filter" x="6" y="33" width="174" height="24" stretch_width="true" text_offset_y="4" ellipsize="true"/>
+    <widget id="filter_resource" type="text_button" binding="filter.resource" action="filter.resource" visible_binding="filter.resource" x="182" y="33" width="132" height="24" anchor_x="far" text_offset_y="4" ellipsize="true"/>
+    <widget id="city_list" type="custom" binding="city.list" x="3" y="61" width="314" height="413" stretch_width="true" stretch_height="true"/>
+</window>

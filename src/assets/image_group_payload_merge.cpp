@@ -1,6 +1,6 @@
 #include "assets/image_group_payload_internal.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 namespace image_group_payload_internal {
 
@@ -15,7 +15,7 @@ const MergedImageGroup *load_merged_group(const std::string &group_key)
         return nullptr;
     }
     if (g_loading_merged_groups.find(group_key) != g_loading_merged_groups.end()) {
-        crash_context_report_error("Detected recursive inherited image group", group_key.c_str());
+        Logger::error("Detected recursive inherited image group", group_key.c_str());
         g_failed_merged_groups.insert(group_key);
         return nullptr;
     }
@@ -57,14 +57,14 @@ const MergedImageGroup *load_merged_group(const std::string &group_key)
     }
     if (inherited_doc) {
         if (source_docs.size() != 1) {
-            crash_context_report_error("Inherited ImageGroup cannot be merged with another source layer", group_key.c_str());
+            Logger::error("Inherited ImageGroup cannot be merged with another source layer", group_key.c_str());
             g_loading_merged_groups.erase(group_key);
             g_failed_merged_groups.insert(group_key);
             return nullptr;
         }
         const MergedImageGroup *inherited = load_merged_group(inherited_doc->inherited_group_key);
         if (!inherited || inherited->ordered_entries.empty()) {
-            crash_context_report_error("Unable to resolve inherited ImageGroup target", inherited_doc->inherited_group_key.c_str());
+            Logger::error("Unable to resolve inherited ImageGroup target", inherited_doc->inherited_group_key.c_str());
             g_loading_merged_groups.erase(group_key);
             g_failed_merged_groups.insert(group_key);
             return nullptr;
@@ -77,7 +77,7 @@ const MergedImageGroup *load_merged_group(const std::string &group_key)
             }
         }
         if (merged->ordered_entries.empty()) {
-            crash_context_report_error("Inherited ImageGroup target is not visible from the declaring mod layer", inherited_doc->inherited_group_key.c_str());
+            Logger::error("Inherited ImageGroup target is not visible from the declaring mod layer", inherited_doc->inherited_group_key.c_str());
             g_loading_merged_groups.erase(group_key);
             g_failed_merged_groups.insert(group_key);
             return nullptr;
@@ -119,7 +119,7 @@ const ResolvedImageEntry *materialize_merged_entry(const std::string &group_key,
 
     const MergedImageEntrySelector *selector = find_merged_entry_selector(*merged, preferred_source, image_id);
     if (!selector) {
-        crash_context_report_error("Unable to resolve merged image id", image_id.c_str());
+        Logger::error("Unable to resolve merged image id", image_id.c_str());
         return nullptr;
     }
     if (merged->inherits_group()) {

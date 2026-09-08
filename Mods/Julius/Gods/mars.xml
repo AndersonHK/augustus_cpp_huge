@@ -1,3 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <god legacy="mars">
+    <wrath neutral="50" threshold="40" mild_threshold="20" severe_threshold="10" mild_amount="1" moderate_amount="2" severe_amount="5" maximum="50" favor_decay="0" />
+    <favor />
+    <blessings>
+        $!DISABLE_GOD_BLESSINGS{
+        <effect>
+            <condition metric="happiness" min="100" />
+            <condition metric="blessing_done" max="0" />
+            <on_trigger>
+                <action callback="blessing_done" value="1" />
+            </on_trigger>
+            <action callback="message" id="99" />
+            <action callback="military_protection" power="10" />
+        </effect>
+    }
+    </blessings>
+    <minor_curses>
+        $!DISABLE_GOD_CURSES{
+        <effect>
+            <condition metric="wrath" min="20" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="minor_curse_done" min="0" max="0" />
+            <on_trigger>
+                <action callback="minor_curse_done" value="1" />
+                <action callback="wrath" amount="0" />
+                <action callback="god_happiness" amount="12" />
+            </on_trigger>
+            <action callback="local_invasion" minimum="3" maximum="3" message="121" record_result="true">
+                <condition metric="campaign_mission" min="5" max="7" />
+            </action>
+            <action callback="local_invasion" minimum="6" maximum="6" message="121" record_result="true">
+                <condition metric="campaign_mission" min="9" max="13" />
+            </action>
+            <action callback="local_invasion" minimum="9" maximum="9" message="121" record_result="true">
+                <condition metric="campaign_mission" min="14" max="19" />
+            </action>
+            <action callback="message" id="94">
+                <condition metric="result" min="1" />
+            </action>
+            <action callback="message" id="44">
+                <condition metric="result" min="0" max="0" />
+            </action>
+        </effect>
+    }
+    </minor_curses>
+    <major_curses>
+        $!DISABLE_GOD_CURSES{
+        <effect automatic_only="true" stop_update="true">
+            <condition metric="wrath" min="50" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="campaign_rank" max="3" />
+            <action callback="minor_curse_done" value="0" />
+        </effect>
+        <effect>
+            <condition metric="wrath" min="50" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="campaign_rank" min="4" />
+            <on_trigger>
+                <action callback="wrath" amount="0" />
+                <action callback="god_happiness" amount="30" />
+            </on_trigger>
+            <action callback="legion_disband" months="96" record_result="true" />
+            <action callback="message" id="82">
+                <condition metric="result" min="1" />
+            </action>
+            <action callback="message" id="44">
+                <condition metric="result" min="0" max="0" />
+            </action>
+            <action callback="local_invasion" minimum="3" maximum="3" message="121" record_result="true">
+                <condition metric="campaign_mission" min="5" max="7" />
+                <condition metric="result" min="1" />
+            </action>
+            <action callback="local_invasion" minimum="6" maximum="6" message="121" record_result="true">
+                <condition metric="campaign_mission" min="9" max="13" />
+                <condition metric="result" min="1" />
+            </action>
+            <action callback="local_invasion" minimum="9" maximum="9" message="121" record_result="true">
+                <condition metric="campaign_mission" min="14" max="19" />
+                <condition metric="result" min="1" />
+            </action>
+        </effect>
+    }
+    </major_curses>
 </god>

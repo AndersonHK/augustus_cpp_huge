@@ -1,7 +1,6 @@
 #include "building/water_access_type.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -41,7 +40,7 @@ int parse_root()
 {
     if (g_parse_state.saw_root || !xml_parser_has_attribute("text_id") ||
         !xml_parser_has_attribute("number_id")) {
-        log_error("WaterAccessType xml is missing identity attributes or has duplicate roots", 0, 0);
+        Logger::error("WaterAccessType xml is missing identity attributes or has duplicate roots", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -55,7 +54,7 @@ int parse_root()
         number_id < 0 || number_id >= kMaxWaterAccessTypes ||
         (xml_parser_has_attribute("disabled") &&
             !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled))) {
-        log_error("Unsupported WaterAccessType identity or disabled value", text_id, number_id);
+        Logger::error("Unsupported WaterAccessType identity or disabled value", text_id, number_id);
         g_parse_state.error = true;
         return 0;
     }
@@ -84,7 +83,7 @@ bool parse_definition_buffer(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("water_access_type_registry.parse_definition", filename);
+    Logger::Scope error_scope("water_access_type_registry.parse_definition", filename);
     g_parse_state = {};
     const bool parsed = xml_definition::parse_buffer(
         filename,
@@ -95,7 +94,7 @@ bool parse_definition_buffer(
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition) {
         const std::string detail = xml_definition::format_failure_reason(
             "Unable to parse WaterAccessType xml.", filename);
-        error_context_report_error("Unable to parse WaterAccessType xml.", filename);
+        Logger::error("Unable to parse WaterAccessType xml.", filename);
         if (failure_reason) {
             *failure_reason = detail;
         }
@@ -107,8 +106,8 @@ bool parse_definition_buffer(
         const std::string detail = "WaterAccessType text_id '" +
             std::string(g_parse_state.definition->text_id()) + "' does not match definition path '" +
             stable_id + "' in " + (filename ? filename : "<unknown source>") + '.';
-        log_error("WaterAccessType text_id does not match its definition path", detail.c_str(), 0);
-        error_context_report_error("WaterAccessType identity mismatch.", detail.c_str());
+        Logger::error("WaterAccessType text_id does not match its definition path", detail.c_str(), 0);
+        Logger::error("WaterAccessType identity mismatch.", detail.c_str());
         if (failure_reason) {
             *failure_reason = detail;
         }
@@ -174,8 +173,8 @@ bool stage_definition(
         const std::string detail = "WaterAccessType '" + stable_id + "' changes number_id from " +
             std::to_string(identity->second.number_id) + " in " + identity->second.source.describe() +
             " to " + std::to_string(number_id) + " in " + source.describe() + '.';
-        log_error("WaterAccessType replacement changes stable numeric identity", detail.c_str(), 0);
-        error_context_report_error("WaterAccessType replacement changes stable numeric identity.", detail.c_str());
+        Logger::error("WaterAccessType replacement changes stable numeric identity", detail.c_str(), 0);
+        Logger::error("WaterAccessType replacement changes stable numeric identity.", detail.c_str());
         if (failure_reason) {
             *failure_reason = detail;
         }
@@ -186,8 +185,8 @@ bool stage_definition(
     }
 
     if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
-        log_error("Unable to layer WaterAccessType definition", staged.overlay.failure_reason().c_str(), 0);
-        error_context_report_error(
+        Logger::error("Unable to layer WaterAccessType definition", staged.overlay.failure_reason().c_str(), 0);
+        Logger::error(
             "Unable to layer WaterAccessType definition.", staged.overlay.failure_reason().c_str());
         if (failure_reason) {
             *failure_reason = staged.overlay.failure_reason();
@@ -211,8 +210,8 @@ bool materialize_winners(StagedRegistry &staged, std::string *failure_reason)
         if (existing) {
             const std::string detail = "WaterAccessType number_id " + std::to_string(number_id) +
                 " is claimed by both " + existing->source.describe() + " and " + winner.source.describe() + '.';
-            log_error("Duplicate active WaterAccessType number_id", detail.c_str(), number_id);
-            error_context_report_error("Duplicate active WaterAccessType number_id.", detail.c_str());
+            Logger::error("Duplicate active WaterAccessType number_id", detail.c_str(), number_id);
+            Logger::error("Duplicate active WaterAccessType number_id.", detail.c_str());
             if (failure_reason) {
                 *failure_reason = detail;
             }
@@ -324,7 +323,7 @@ int water_access_type_registry_load(void)
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure WaterAccessType definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure WaterAccessType definition layers", failure_reason.c_str(), 0);
         building_type_registry_impl::g_failure_reason = failure_reason;
         return 0;
     }

@@ -1,6 +1,7 @@
 #include "building/building_type.h"
 #include "building/HousingProfileDef.h"
 #include "building/construction.h"
+#include "building/connectable.h"
 #include "building/construction_building.h"
 #include "building/construction_clear.h"
 #include "building/distribution.h"
@@ -37,7 +38,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/production_method.h"
 #include "building/production_runtime.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
 #include "figure/PathingMode.h"
@@ -65,7 +66,6 @@
 #include "city/population.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/log.h"
 #include "figuretype/missile.h"
 #include "game/difficulty.h"
 #include "game/save_version.h"
@@ -274,11 +274,10 @@ static int building_record_requires_type_definition(const building *record)
         static_cast<unsigned>(location.line()),
         safe_text(location.function_name()));
 
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building runtime error",
         message,
         detail);
-    std::terminate();
 }
 
 static building *require_building_record(building *record, const std::source_location &location)
@@ -343,11 +342,10 @@ static void report_missing_building_type_definition(
         record ? record->next_part_building_id : 0,
         record ? record->is_deleted : 0);
 
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building runtime error",
         "Building has no type definition.",
         detail);
-    std::terminate();
 }
 
 static void report_missing_building_graphics_state(
@@ -382,11 +380,10 @@ static void report_missing_building_graphics_state(
         record ? record->next_part_building_id : 0,
         record ? record->is_deleted : 0);
 
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building runtime error",
         "Building graphics were requested without a BuildingGraphicsState.",
         detail);
-    std::terminate();
 }
 
 Building::Building(::building *record, BuildingGraphicsState *graphics_state, const std::source_location &location)
@@ -627,11 +624,10 @@ Building &Building::dynamic_bridge_owner() const
         record ? record->y : 0,
         record ? record->grid_offset : 0,
         building.is_surface_terrain_tile());
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "A world building has no native graphics definition.",
         detail);
-    std::terminate();
 }
 
 Building *Building::dynamic_bridge_next() const
@@ -917,10 +913,10 @@ void Building::initialize_loaded_foundation()
     }
     const int rotation = Foundation->definition().rotates() ? orientation() : 0;
     if (!Foundation->rebind(x(), y(), rotation)) {
-        log_warning("Unable to rebind loaded Building foundation", type ? type->attr() : "unknown", id);
+        Logger::warning("Unable to rebind loaded Building foundation", type ? type->attr() : "unknown", id);
         return;
     }
-    if (Foundation->repair_support_ownership()) log_warning("Repaired building ownership of independent supporting terrain", nullptr, id);
+    if (Foundation->repair_support_ownership()) Logger::warning("Repaired building ownership of independent supporting terrain", nullptr, id);
     if (!Foundation->has_owner_controlled_passage() || (type && type->bridge().is_bridge())) {
         return;
     }
@@ -1866,24 +1862,24 @@ void Building::advance_native_production_stats()
     }
 }
 
-void Building::bless_native_farm()
+void Building::bless_native_farm(int days)
 {
     if (Production *production = production_runtime_impl::get_or_create_primary(*this)) {
-        production->bless_farm();
+        production->bless_farm(days);
     }
 }
 
-void Building::curse_native_farm(int big_curse)
+void Building::curse_native_farm(int days)
 {
     if (Production *production = production_runtime_impl::get_or_create_primary(*this)) {
-        production->curse_farm(big_curse);
+        production->curse_farm(days);
     }
 }
 
-void Building::bless_native_industry()
+void Building::bless_native_industry(int batches)
 {
     if (Production *production = production_runtime_impl::get_or_create_primary(*this)) {
-        production->bless_industry();
+        production->bless_industry(batches);
     }
 }
 
@@ -2068,12 +2064,6 @@ void Building::set_fumigation_direction(int direction)
 
 int Building::fort_figure_type() const
 {
-    if (!record_) {
-        return 0;
-    }
-    if (record_->subtype.fort_figure_type) {
-        return record_->subtype.fort_figure_type;
-    }
     return type ? type->military().primary_figure_type() : 0;
 }
 
@@ -2188,7 +2178,7 @@ static int normalized_composed_rotation(int rotation)
 static int composed_rotation_fallback(const building *main_record,
     const building_type_registry_impl::BuildingType &definition)
 {
-    const bool owner_stores_orientation = definition.is_warehouse() || std::any_of(
+    const bool owner_stores_orientation = definition.has_rotated_placement_geometry() || definition.is_warehouse() || std::any_of(
         definition.composition().children().begin(),
         definition.composition().children().end(),
         [](const building_type_registry_impl::CompositionChildDef &child) {
@@ -2346,8 +2336,8 @@ static bool report_loaded_composition_failure(
         owner ? owner->prev_part_building_id : 0,
         owner ? owner->next_part_building_id : 0,
         reason ? reason : "<none>");
-    log_error("Unable to establish a complete loaded BuildingComposition", detail, owner ? owner->id : 0);
-    error_context_report_error("Savegame building composition validation failed.", detail);
+    Logger::error("Unable to establish a complete loaded BuildingComposition", detail, owner ? owner->id : 0);
+    Logger::error("Savegame building composition validation failed.", detail);
     return false;
 }
 
@@ -2405,14 +2395,19 @@ static int hydrate_loaded_native_composition(
     building *main_record,
     const building_type_registry_impl::BuildingType &definition,
     bool allow_legacy_repair,
+    bool repair_orientation,
     int *repaired_surface_bindings)
 {
     const int rotation = infer_loaded_composed_rotation(main_record, definition);
+    if (repair_orientation && definition.has_rotated_placement_geometry() && main_record->subtype.orientation != rotation) {
+        Logger::warning("Repairing composed building orientation from child geometry", definition.attr(), main_record->id);
+        main_record->subtype.orientation = static_cast<short>(rotation);
+    }
     const building_type_registry_impl::CompositionLayoutResult layout =
         building_type_registry_impl::build_composition_layout(
             &definition, definition.composition(), main_record->x, main_record->y, rotation);
     if (!layout.valid()) {
-        log_error("Unable to build loaded native composition layout", layout.detail.c_str(), 0);
+        Logger::error("Unable to build loaded native composition layout", layout.detail.c_str(), 0);
         return 0;
     }
 
@@ -2421,15 +2416,15 @@ static int hydrate_loaded_native_composition(
     const building_type_registry_impl::CompositionHydrationPlan hydration =
         building_type_registry_impl::plan_composition_hydration(layout, main_record->id, saved_chain);
     if (!hydration.valid()) {
-        log_error("Unable to hydrate loaded native composition", hydration.detail.c_str(), 0);
+        Logger::error("Unable to hydrate loaded native composition", hydration.detail.c_str(), 0);
         return 0;
     }
 
-    const bool owner_stores_orientation = definition.is_warehouse() || std::any_of(definition.composition().children().begin(), definition.composition().children().end(), [](const building_type_registry_impl::CompositionChildDef &child) { return child.orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner; });
+    const bool owner_stores_orientation = definition.has_rotated_placement_geometry() || definition.is_warehouse() || std::any_of(definition.composition().children().begin(), definition.composition().children().end(), [](const building_type_registry_impl::CompositionChildDef &child) { return child.orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner; });
 
     if (!allow_legacy_repair) {
-        if (!hydration.unrelated_tail_ids.empty() || hydration.actions.size() + 1 != layout.members.size() || saved_chain.size() != hydration.actions.size() || (owner_stores_orientation && !building_is_fort(main_record->type) && main_record->subtype.orientation != static_cast<short>(rotation)) || (definition.is_warehouse() && !main_record->storage_id)) {
-            log_error("Current save composition chain does not exactly match its declared layout", definition.attr(), main_record->id);
+        if (!hydration.unrelated_tail_ids.empty() || hydration.actions.size() + 1 != layout.members.size() || saved_chain.size() != hydration.actions.size() || (owner_stores_orientation && main_record->subtype.orientation != static_cast<short>(rotation)) || (definition.is_warehouse() && !main_record->storage_id)) {
+            Logger::error("Current save composition chain does not exactly match its declared layout", definition.attr(), main_record->id);
             return 0;
         }
         unsigned int expected_previous_id = main_record->id;
@@ -2438,20 +2433,20 @@ static int hydrate_loaded_native_composition(
             const unsigned int expected_next_id = index + 1 < hydration.actions.size() ? hydration.actions[index + 1].existing_id : 0;
             building *child = action.kind == building_type_registry_impl::CompositionHydrationActionKind::AdoptExisting ? building_slot(action.existing_id) : nullptr;
             if (!child || !composed_record_is_live(child) || !action.expected.type || child->type != action.expected.type->type() || child->x != action.expected.x || child->y != action.expected.y || static_cast<unsigned int>(child->prev_part_building_id) != expected_previous_id || static_cast<unsigned int>(child->next_part_building_id) != expected_next_id) {
-                log_error("Current save composition requires child synthesis, relocation, or link repair", definition.attr(), main_record->id);
+                Logger::error("Current save composition requires child synthesis, relocation, or link repair", definition.attr(), main_record->id);
                 return 0;
             }
             const std::vector<building_type_registry_impl::CompositionChildDef> &child_definitions = definition.composition().children();
             const int inherits_owner_orientation = action.expected.definition_index < child_definitions.size() && child_definitions[action.expected.definition_index].orientation == building_type_registry_impl::CompositionChildOrientation::InheritOwner;
             if (inherits_owner_orientation && child->subtype.orientation != static_cast<short>(action.expected.building_orientation)) {
-                log_error("Current save composition child has an invalid serialized orientation", definition.attr(), child->id);
+                Logger::error("Current save composition child has an invalid serialized orientation", definition.attr(), child->id);
                 return 0;
             }
             expected_previous_id = child->id;
         }
         const unsigned int expected_first_id = hydration.actions.empty() ? 0 : hydration.actions.front().existing_id;
         if (main_record->prev_part_building_id != 0 || static_cast<unsigned int>(main_record->next_part_building_id) != expected_first_id) {
-            log_error("Current save composition owner links do not exactly match its child chain", definition.attr(), main_record->id);
+            Logger::error("Current save composition owner links do not exactly match its child chain", definition.attr(), main_record->id);
             return 0;
         }
     }
@@ -2490,7 +2485,7 @@ static int hydrate_loaded_native_composition(
                     pending.record->state = BUILDING_STATE_DELETED_BY_GAME;
                 }
             }
-            log_error("Unable to materialize loaded native composition child", definition.attr(), 0);
+            Logger::error("Unable to materialize loaded native composition child", definition.attr(), 0);
             return 0;
         }
         children.push_back(LoadedChild{ action, child_object, child_record, created });
@@ -2506,12 +2501,12 @@ static int hydrate_loaded_native_composition(
                 pending.record->state = BUILDING_STATE_DELETED_BY_GAME;
             }
         }
-        log_error("Unable to bind loaded native composition", relationship_error.c_str(), 0);
+        Logger::error("Unable to bind loaded native composition", relationship_error.c_str(), 0);
         return 0;
     }
 
     for (const std::string &warning : hydration.warnings) {
-        log_warning("Repairing loaded composition chain", warning.c_str(), main_record->id);
+        Logger::warning("Repairing loaded composition chain", warning.c_str(), main_record->id);
     }
     for (const LoadedChild &child : children) {
         if (child.object && repaired_surface_bindings) {
@@ -2520,7 +2515,7 @@ static int hydrate_loaded_native_composition(
         }
     }
 
-    if (allow_legacy_repair && owner_stores_orientation && !building_is_fort(main_record->type)) {
+    if (allow_legacy_repair && owner_stores_orientation) {
         main_record->subtype.orientation = static_cast<short>(rotation);
     }
     if (allow_legacy_repair) main_record->output_resource_id = static_cast<unsigned char>(building_output_resource(&definition));
@@ -2573,7 +2568,7 @@ static int hydrate_loaded_native_composition(
     for (const LoadedChild &child : children) {
         publish_loaded_composed_record(child.record);
         if (!child.object || !loaded_composition_child_owns_surface(*child.object)) {
-            log_error("Loaded composition child failed to publish its declared surface", definition.attr(), child.record ? child.record->id : 0);
+            Logger::error("Loaded composition child failed to publish its declared surface", definition.attr(), child.record ? child.record->id : 0);
             return 0;
         }
     }
@@ -2595,12 +2590,12 @@ int building_hydrate_loaded_compositions(int save_version)
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(record->type);
         if (definition && definition->has_composition() &&
-            !hydrate_loaded_native_composition(record, *definition, allow_legacy_repair, &repaired_surface_bindings)) {
+            !hydrate_loaded_native_composition(record, *definition, allow_legacy_repair, save_version <= SAVE_GAME_LAST_FORT_TYPE_AS_ORIENTATION, &repaired_surface_bindings)) {
             return report_loaded_composition_failure(record, definition, "load hydration failed");
         }
     }
     if (repaired_surface_bindings) {
-        log_warning("Repairing composition child surface bindings owned by the parent record", 0, repaired_surface_bindings);
+        Logger::warning("Repairing composition child surface bindings owned by the parent record", 0, repaired_surface_bindings);
     }
 
     // The bridge ends here. From this point onward every composition owner and
@@ -2830,7 +2825,7 @@ int building_change_type(building *b, building_type type)
         building_type_registry_impl::plan_composition_type_replacement(
             current_definition, target_definition, membership);
     if (!replacement.accepted()) {
-        log_error("Rejected unsafe building type replacement", replacement.detail.c_str(), b->id);
+        Logger::error("Rejected unsafe building type replacement", replacement.detail.c_str(), b->id);
         return 0;
     }
     if (replacement.action ==
@@ -3143,6 +3138,8 @@ int Building::repair()
     for (Building *yielded : yielded_rubble) {
         yielded->retire_rubble_after_repair();
     }
+
+    building_connectable_update_connections();
 
     city_finance_process_construction(cost);
     const building_type_registry_impl::BuildingGeometry repaired_geometry =
@@ -3661,7 +3658,7 @@ static int building_resource_state_read_count(buffer *buf, const char *field_nam
 {
     uint32_t count = buffer_read_u32(buf);
     if (count > 4096) {
-        log_error("Malformed keyed building resource count in save", field_name, static_cast<int>(count));
+        Logger::error("Malformed keyed building resource count in save", field_name, static_cast<int>(count));
         return 0;
     }
     return static_cast<int>(count);
@@ -3763,7 +3760,7 @@ void building_resource_state_save(buffer *buf)
         }
         capacity *= 2;
         if (capacity > 4 * 1024 * 1024) {
-            log_error("Unable to save building resource state: payload is too large", 0, static_cast<int>(capacity));
+            Logger::error("Unable to save building resource state: payload is too large", 0, static_cast<int>(capacity));
             break;
         }
     }
@@ -3780,13 +3777,13 @@ void building_resource_state_load(buffer *buf)
 
     buffer payload = *buf;
     if (buffer_load_dynamic(&payload) < 2 * sizeof(uint32_t)) {
-        log_error("Unable to load building resource state: payload is invalid", 0, 0);
+        Logger::error("Unable to load building resource state: payload is invalid", 0, 0);
         return;
     }
 
     uint32_t format_version = buffer_read_u32(&payload);
     if (format_version != 1) {
-        log_error("Unable to load building resource state: unsupported format version", 0,
+        Logger::error("Unable to load building resource state: unsupported format version", 0,
             static_cast<int>(format_version));
         return;
     }
@@ -4314,12 +4311,12 @@ static void normalize_loaded_surface_records(int allow_unverified_foundation_rec
             stage_legacy_tile_foundation_state(record);
             char detail[160];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
-            log_warning("Repairing missing serialized unbound surface ownership", detail, 0);
+            Logger::warning("Repairing missing serialized unbound surface ownership", detail, 0);
         }
         if (!has_map_presence) {
             char detail[160];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
-            log_warning("Repairing surface building record with no serialized terrain ownership", detail, 0);
+            Logger::warning("Repairing surface building record with no serialized terrain ownership", detail, 0);
             discard_loaded_record(record);
             discarded++;
         }
@@ -4328,7 +4325,7 @@ static void normalize_loaded_surface_records(int allow_unverified_foundation_rec
     if (discarded) {
         trim_buildings();
         rebuild_loaded_record_type_links();
-        log_warning("Repaired surface building records with no serialized terrain ownership", 0, discarded);
+        Logger::warning("Repaired surface building records with no serialized terrain ownership", 0, discarded);
     }
 }
 
@@ -4354,7 +4351,7 @@ static bool validate_loaded_surface_records()
         if (!has_map_presence && !loaded_record_owns_unbound_foundation(record)) {
             char detail[160];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
-            error_context_report_error("Current save contains an unowned surface building record.", detail);
+            Logger::error("Current save contains an unowned surface building record.", detail);
             return false;
         }
     }
@@ -4422,7 +4419,7 @@ static void discard_loaded_duplicate_single_tile_records()
         if (!composed_record_is_live(owner) || owner->type != record.type || owner->x != record.x || owner->y != record.y) continue;
         char detail[192];
         snprintf(detail, sizeof(detail), "building_id=%u owner_id=%u type=%s x=%d y=%d", record.id, owner_id, definition->attr(), record.x, record.y);
-        log_warning("Discarding an unowned duplicate serialized building", detail, 0);
+        Logger::warning("Discarding an unowned duplicate serialized building", detail, 0);
         discard_loaded_record(record);
     }
     trim_buildings();
@@ -4446,7 +4443,7 @@ static bool validate_loaded_unbound_foundation_bindings()
             if (map_building_loaded_id_at(map_grid_offset(x, y)) == record.id) {
                 char detail[160];
                 snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, x, y);
-                error_context_report_error("Current save binds a building id to a non-binding foundation cell.", detail);
+                Logger::error("Current save binds a building id to a non-binding foundation cell.", detail);
                 return false;
             }
         }
@@ -4469,7 +4466,7 @@ static void repair_loaded_rubble_terrain()
             !terrain_map().contains(grid_offset, terrain_types().building) || terrain_map().contains(grid_offset, terrain_types().rubble | terrain_types().water)) continue;
         char detail[160];
         snprintf(detail, sizeof(detail), "building_id=%u type=%d x=%d y=%d", record.id, record.type, record.x, record.y);
-        log_warning("Repairing missing rubble terrain on a serialized ruin", detail, 0);
+        Logger::warning("Repairing missing rubble terrain on a serialized ruin", detail, 0);
         terrain_map().add(grid_offset, terrain_types().rubble);
     }
 }
@@ -4508,7 +4505,7 @@ static void normalize_loaded_rubble_records()
     if (discarded || normalized) {
         char detail[128];
         snprintf(detail, sizeof(detail), "discarded=%d normalized=%d", discarded, normalized);
-        log_info("Normalized loaded rubble records", detail, 0);
+        Logger::info("Normalized loaded rubble records", detail, 0);
     }
 }
 
@@ -4523,7 +4520,7 @@ static bool validate_loaded_rubble_records()
         if (disposition != RubbleRecordDisposition::Keep) {
             char detail[192];
             snprintf(detail, sizeof(detail), "building_id=%u type=%d state=%d disposition=%d", record.id, record.type, record.state, static_cast<int>(disposition));
-            error_context_report_error("Current save contains a rubble record that requires runtime repair.", detail);
+            Logger::error("Current save contains a rubble record that requires runtime repair.", detail);
             return false;
         }
     }
@@ -4608,6 +4605,7 @@ static int building_promote_legacy_tile_buildings_after_load()
 
 int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version)
 {
+    building_state_begin_import();
     int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
     size_t buf_size = buf->size;
 
@@ -4641,7 +4639,7 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
         if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
             b->type = BUILDING_NONE;
         } else {
-            error_context_report_error("Current save assigns a garden type to reserved building slot zero.", "building_id=0");
+            Logger::error("Current save assigns a garden type to reserved building slot zero.", "building_id=0");
             return 0;
         }
     }
@@ -4666,7 +4664,7 @@ int building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, i
         normalize_loaded_surface_records(1);
     }
     const int repaired_bindings = clear_unbound_foundation_bindings();
-    if (repaired_bindings) log_warning("Repairing serialized bindings on non-binding surface cells", 0, repaired_bindings);
+    if (repaired_bindings) Logger::warning("Repairing serialized bindings on non-binding surface cells", 0, repaired_bindings);
     repair_loaded_rubble_terrain();
     if (save_version <= SAVE_GAME_LAST_NO_NATIVE_SURFACE_BUILDING_RECORDS) {
         normalize_loaded_rubble_records();

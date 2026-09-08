@@ -2,7 +2,7 @@
 
 #include "core/encoding.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_parser.h"
 #include "game/campaign/file.h"
 #include "game/campaign/mission.h"
@@ -76,7 +76,7 @@ static int xml_start_description(void)
     data.info->name = copy_string_from_xml(xml_parser_get_attribute_string("title"));
     data.info->author = copy_string_from_xml(xml_parser_get_attribute_string("author"));
     if (!data.info->name) {
-        log_error("Problem parsing campaign file - missing name", 0, 0);
+        Logger::error("Problem parsing campaign file - missing name", 0, 0);
         data.success = 0;
         return 0;
     }
@@ -94,13 +94,13 @@ static int xml_start_missions(void)
         return 0;
     }
     if (data.missions_list_parsed) {
-        log_error("Problem parsing campaign file - duplicate mission list", 0, 0);
+        Logger::error("Problem parsing campaign file - duplicate mission list", 0, 0);
         data.success = 0;
         return 0;
     }
     data.missions_list_parsed = 1;
     if (!campaign_mission_init()) {
-        log_error("Problem parsing campaign file - unable to allocate memory for campaigns", 0, 0);
+        Logger::error("Problem parsing campaign file - unable to allocate memory for campaigns", 0, 0);
         data.success = 0;
         return 0;
     }
@@ -146,7 +146,7 @@ static int xml_start_mission(void)
     }
     data.current_mission = campaign_mission_new();
     if (!data.current_mission) {
-        log_error("Problem parsing campaign file - memory full", 0, 0);
+        Logger::error("Problem parsing campaign file - memory full", 0, 0);
         data.success = 0;
         return 0;
     }
@@ -187,7 +187,7 @@ static int xml_start_scenario(void)
     }
     campaign_scenario *camp_scenario = campaign_mission_new_scenario();
     if (!camp_scenario) {
-        log_error("Problem parsing campaign file - memory full", 0, 0);
+        Logger::error("Problem parsing campaign file - memory full", 0, 0);
         data.success = 0;
         return 0;
     }
@@ -218,13 +218,13 @@ static int xml_start_scenario(void)
 
     const char *scenario_path = xml_parser_get_attribute_string("file");
     if (!scenario_path) {
-        log_error("Problem parsing campaign file - missing path for mission scenario", 0, 0);
+        Logger::error("Problem parsing campaign file - missing path for mission scenario", 0, 0);
         data.success = 0;
         return 0;
     }
     camp_scenario->path = create_full_campaign_path("scenario", scenario_path);
     if (!camp_scenario->path) {
-        log_error("Problem parsing campaign file - scenario file does not exist", scenario_path, 0);
+        Logger::error("Problem parsing campaign file - scenario file does not exist", scenario_path, 0);
         // Files in directories are debug only - don't prevent opening them even if files are missing
         if (campaign_file_is_zip()) {
             data.success = 0;
@@ -237,7 +237,7 @@ static int xml_start_scenario(void)
         snprintf(name, FILE_NAME_MAX, "Scenario %d", camp_scenario->id);
         camp_scenario->name = copy_string_from_xml(name);
         if (!camp_scenario->name) {
-            log_error("Problem parsing campaign file - memory full", 0, 0);
+            Logger::error("Problem parsing campaign file - memory full", 0, 0);
             data.success = 0;
             return 0;
         }
@@ -253,7 +253,7 @@ static void xml_end_mission(void)
         return;
     }
     if (data.current_mission->last_scenario < data.current_mission->first_scenario) {
-        log_error("Problem parsing campaign file - mission with no scenarios. Mission index:",
+        Logger::error("Problem parsing campaign file - mission with no scenarios. Mission index:",
             0, data.current_mission->id);
         data.success = 0;
     }

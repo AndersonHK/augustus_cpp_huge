@@ -20,6 +20,7 @@ void invalidate_dock_endpoints();
 void invalidate_river_anchors();
 
 void begin_world_load();
+void reset_world();
 void finish_world_load();
 
 bool is_passable(int grid_offset, WaterNavigationProfile profile);

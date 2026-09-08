@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="overlay_menu" base_width="176" base_height="480">
+    <widget type="panel" id="panel" phase="background" style="outer_panel" x="0" y="0" width="176" height="480" stretch_height="true" />
+    <widget type="text_button" id="entries" repeat_source="entries" repeat_spacing_y="24" binding="entry.name" action="entry.select" selected_binding="entry.selected" x="8" y="8" width="160" height="24" text_offset_y="4" ellipsize="true" font="normal_green" />
+    <widget type="text_button" id="previous" action="page.previous" visible_binding="page.previous" text="^" x="8" y="448" width="72" height="24" anchor_y="far" text_offset_y="4" />
+    <widget type="text_button" id="next" action="page.next" visible_binding="page.next" text="v" x="96" y="448" width="72" height="24" anchor_y="far" text_offset_y="4" />
+</window>

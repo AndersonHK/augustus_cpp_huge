@@ -20,7 +20,7 @@
 #include "window/popup_dialog.h"
 #include "scenario/scenario.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -192,7 +192,7 @@ static void populate_list(void)
             data.total_custom_variables = 0;
             data.custom_variables_in_use = 0;
             data.selected = 0;
-            log_error("Failed to allocate memory for custom variable list", 0, 0);
+            Logger::error("Failed to allocate memory for custom variable list", 0, 0);
             return;
         }
         data.total_custom_variables = total_custom_variables;
@@ -479,7 +479,7 @@ static void create_new_variable(const uint8_t *name)
 {
     unsigned int id = scenario_custom_variable_create(name, 0);
     if (!id) {
-        log_error("There was an error creating the new variable - out of memory", 0, 0);
+        Logger::error("There was an error creating the new variable - out of memory", 0, 0);
         return;
     }
     populate_list();
@@ -699,7 +699,7 @@ static void button_delete_selected(const generic_button *button)
     unsigned int *variables_in_use = static_cast<unsigned int *>(
         calloc(data.custom_variables_in_use, sizeof(unsigned int)));
     if (!variables_in_use) {
-        log_error("Failed to allocate memory for custom variable list", 0, 0);
+        Logger::error("Failed to allocate memory for custom variable list", 0, 0);
         return;
     }
     unsigned int total_variables_in_use = 0;

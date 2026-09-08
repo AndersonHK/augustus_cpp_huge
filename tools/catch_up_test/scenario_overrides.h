@@ -5,11 +5,13 @@
 #include "building/production_method_registry.h"
 #include "building/housing_profile_registry.h"
 #include "scenario/event/action_types.h"
+#include "scenario/event/action_handler.h"
+#include "scenario/event/parameter_city.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/parameter_data.h"
 #include "scenario/definition_overrides.h"
 #include "SDL.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "scenario/model_xml.h"
 #include "game/legacy_model_defaults.generated.h"
 #include <filesystem>
@@ -106,18 +108,17 @@ inline void validate_scenario_model_overrides()
     // Capture only this deliberately corrupt fixture's expected repair warning.
     // The ordinary save/reload/soak path retains its strict zero-warning policy.
     struct RepairLog {
-        SDL_LogOutputFunction previous{}; void *context{};
+        Logger::Destination previous{};
         int repairs = 0; bool unexpected = false;
         RepairLog() {
-            log_repeated_messages();
-            SDL_LogGetOutputFunction(&previous, &context);
-            SDL_LogSetOutputFunction([](void *data, int category, SDL_LogPriority priority, const char *message) {
+            Logger::flush();
+            previous = Logger::set_output([](void *data, Logger::Severity severity, const char *message) {
                 auto &self = *static_cast<RepairLog *>(data);
-                if (priority == SDL_LOG_PRIORITY_WARN && (std::strstr(message, "Repairing corrupted legacy native building model") || std::strstr(message, "Repairing ambiguous legacy model values"))) ++self.repairs;
-                else if (priority >= SDL_LOG_PRIORITY_WARN) { self.unexpected = true; self.previous(self.context, category, priority, message); }
+                if (severity == Logger::Severity::Warning && (std::strstr(message, "Repairing corrupted legacy native building model") || std::strstr(message, "Repairing ambiguous legacy model values"))) ++self.repairs;
+                else if (severity >= Logger::Severity::Warning) { self.unexpected = true; self.previous.output(self.previous.userdata, severity, message); }
             }, this);
         }
-        ~RepairLog() { log_repeated_messages(); SDL_LogSetOutputFunction(previous, context); }
+        ~RepairLog() { Logger::flush(); Logger::set_output(previous.output, previous.userdata); }
     };
     {
         RepairLog logs;
@@ -195,15 +196,60 @@ inline void validate_scenario_model_overrides()
     const auto *house = definition_for_type(house_type);
     require(house && house->housing_def().profile, "Scenario housing fixture is unavailable");
     const int capacity = house->housing_def().capacity;
+    for (int requirement = 0; requirement < 4; ++requirement) {
+        HousingRequirements water;
+        water.water = static_cast<HousingWaterRequirement>(requirement);
+        for (int access = 0; access < 8; ++access) {
+            const bool well = access & 1, fountain = access & 2, latrine = access & 4;
+            const bool expected = requirement == 0 || fountain || (requirement == 1 && well) || (requirement == 3 && latrine);
+            require(water.has_required_water(well, fountain, latrine) == expected, "Data-owned housing water alternatives are incorrect");
+        }
+    }
+    require(scenario_house_model_change(house_type, 3, static_cast<int>(HousingWaterRequirement::LatrineOrFountain), true), "Scenario cannot require a latrine or fountain independently of house level");
+    scenario_action_t ordinal_action{ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA, static_cast<int>(house_type), 3,
+        static_cast<int>(scenario_formula_add(reinterpret_cast<const uint8_t *>("2"), 0, 1000)), 1};
+    ordinal_action.value_domain = {0, 1, 3, 2};
+    uint8_t ordinal_bytes[56]{}; buffer ordinal_wire{}; buffer_init(&ordinal_wire, ordinal_bytes, sizeof(ordinal_bytes));
+    scenario_action_type_save_state(&ordinal_wire, &ordinal_action, LINK_TYPE_SCENARIO_EVENT, 73);
+    buffer_reset(&ordinal_wire); scenario_action_t ordinal_restored{}; int ordinal_link = 0; int32_t ordinal_id = 0;
+    scenario_action_type_load_state(&ordinal_wire, &ordinal_restored, &ordinal_link, &ordinal_id, true);
+    require(!ordinal_wire.overflow && ordinal_restored.value_domain == ordinal_action.value_domain && scenario_action_type_definition_execute(&ordinal_restored) && scenario_house_model_value(house_type, 3) == 3, "Authored ordinal set lost its value domain on roundtrip");
+    ordinal_restored.parameter4 = 0;
+    ordinal_restored.parameter3 = scenario_formula_add(reinterpret_cast<const uint8_t *>("1"), 0, 1000);
+    require(scenario_action_type_definition_execute(&ordinal_restored) && scenario_house_model_value(house_type, 3) == 2, "Authored ordinal add used the native ordinal order");
+    require(scenario_action_type_definition_execute(&ordinal_action), "Ordinal fixture restore failed");
+    const auto merged_type = type_from_attr("house_small_tent_2x2");
+    if (definition_for_type(merged_type)) {
+        scenario_action_t shared{ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA, static_cast<int>(house_type), 15,
+            static_cast<int>(scenario_formula_add(reinterpret_cast<const uint8_t *>("(1,1000)"), 0, 1000)), 1};
+        shared.model_targets.push_back({merged_type, 4});
+        uint8_t shared_bytes[48]{}; buffer shared_wire{}; buffer_init(&shared_wire, shared_bytes, sizeof(shared_bytes));
+        scenario_action_type_save_state(&shared_wire, &shared, LINK_TYPE_SCENARIO_EVENT, 73);
+        buffer_reset(&shared_wire); scenario_action_t restored{};
+        scenario_action_type_load_state(&shared_wire, &restored, &ordinal_link, &ordinal_id, true);
+        require(!shared_wire.overflow && restored.model_targets.size() == 1 && restored.model_targets[0].building == merged_type, "Related model target lost its keyed identity");
+        for (int repeat = 0; repeat < 20; ++repeat) {
+            require(scenario_action_type_definition_execute(&restored) && scenario_house_model_value(merged_type, 15) == 4 * scenario_house_model_value(house_type, 15), "Related house definitions evaluated a random formula independently");
+        }
+    }
     require(scenario_house_model_change(house_type, 15, capacity + 7, true), "Housing capacity action failed");
     require(scenario_house_model_change(house_type, 0, -73, true), "Housing desirability action failed");
     require(scenario_construction_requirement_change(type, 0, resource_wheat(), 11), "Instant construction requirement action failed");
+    scenario_action_t construction_action{ACTION_TYPE_CHANGE_MONUMENT_RESOURCES, static_cast<int>(type), 1, resource_wheat(), static_cast<int>(scenario_formula_add(reinterpret_cast<const uint8_t *>("11"), 0, 1000))};
+    require(scenario_action_type_definition_execute(&construction_action) && definition_for_type(type)->construction().instant_requirement_amount(resource_wheat()) == 11, "First-stage action did not address instant construction");
+    const auto *oracle = definition_for_type(type_from_attr("oracle"));
+    if (oracle && oracle->has_phased_construction()) {
+        construction_action.parameter1 = oracle->type(); construction_action.parameter2 = 2;
+        const int first_phase = oracle->construction().requirement_amount(resource_wheat(), 1);
+        require(scenario_action_type_definition_execute(&construction_action) && oracle->construction().requirement_amount(resource_wheat(), 2) == 11 && oracle->construction().requirement_amount(resource_wheat(), 1) == first_phase, "Scenario action changed the preceding construction phase");
+    }
     require(scenario_definition_override_set({ScenarioOverrideKind::Migration, {}, 1, {}, 25}), "Migration action failed");
     buffer overlays{}; model_save_model_data(&overlays);
     model_reset(); building_type_startup_bridge_apply_model_overrides();
     require(house->housing_def().capacity == capacity, "New scenario retained housing capacity override");
     require(model_load_model_data(&overlays) == 1, "New scenario overlays did not reload");
     require(house->housing_def().capacity == capacity + 7 && house->housing_def().profile->evolution.devolve_desirability == -73, "Housing overlays did not survive save/reset/load");
+    require(house->housing_def().profile->requirements.water == HousingWaterRequirement::LatrineOrFountain, "Housing water alternative did not survive save/reset/load");
     require(definition_for_type(type)->construction().instant_requirement_amount(resource_wheat()) == 11, "Construction override did not survive save/reset/load");
     require(scenario_definition_override_value(ScenarioOverrideKind::Migration, {}, 1, {}, 100) == 25, "Migration override did not survive save/reset/load");
     std::free(overlays.data);
@@ -223,6 +269,29 @@ inline void validate_scenario_model_overrides()
     uint8_t label[512]{};
     scenario_events_parameter_data_get_display_string_for_action(&pasted.actions[0], label, sizeof(label));
     require(label[0] && std::string(reinterpret_cast<const char *>(label)).find("UNHANDLED") == std::string::npos, "New action has no usable editor description");
+    // Definition selectors must roundtrip through compact ledgers, including
+    // flexible city-property parameters and special resources outside inventory.
+    building_type_id_bridge_prepare_new_save_table();
+    god_id_bridge_prepare_new_save_table();
+    buffer resource_table{}; resource_id_bridge_save_table_save_state(&resource_table);
+    const scenario_action_t selector_actions[] = {
+        {ACTION_TYPE_CHANGE_MODEL_DATA, static_cast<int>(theater), MODEL_LABORERS, formula_id, 1},
+        {ACTION_TYPE_CHANGE_ALLOWED_BUILDINGS, static_cast<int>(theater), 1},
+        {ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA, static_cast<int>(house_type), 15, formula_id, 1},
+        {ACTION_TYPE_CHANGE_MONUMENT_RESOURCES, static_cast<int>(type), 1, resource_wheat(), formula_id},
+        {ACTION_TYPE_CHANGE_PRODUCTION_RATE, resource_denarii(), formula_id, 1},
+        {ACTION_TYPE_CHANGE_RESOURCE_STOCKPILES, resource_wheat(), formula_id, 0, 1},
+        {ACTION_TYPE_CUSTOM_VARIABLE_CITY_PROPERTY, 1, CITY_PROPERTY_BUILDING_COUNT, static_cast<int>(theater)}
+    };
+    for (const auto &source : selector_actions) {
+        uint8_t bytes[40]{}; buffer wire{}; buffer_init(&wire, bytes, sizeof(bytes));
+        scenario_action_type_save_state(&wire, &source, LINK_TYPE_SCENARIO_EVENT, 73);
+        buffer_reset(&wire); scenario_action_t restored{}; int link = 0; int32_t id = 0;
+        scenario_action_type_load_state(&wire, &restored, &link, &id, true);
+        require(!wire.overflow && restored.type == source.type && restored.parameter1 == source.parameter1 && restored.parameter2 == source.parameter2 && restored.parameter3 == source.parameter3 && restored.parameter4 == source.parameter4 && link == LINK_TYPE_SCENARIO_EVENT && id == 73, "Scenario selector lost its ledger identity");
+    }
+    std::free(resource_table.data);
+    std::fprintf(stdout, "Scenario selector contracts passed: compact building ledgers, flexible parameters and special resource identities.\n");
     std::fprintf(stdout, "D08 contracts passed: housing/construction/migration overlays, save/reset/restore, independent copied formulas and texts.\n");
     std::fprintf(stdout, "Scenario override contracts passed: action precedence, keyed restore, unrelated mod defaults, reset.\n");
 }

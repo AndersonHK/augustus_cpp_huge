@@ -1,13 +1,14 @@
 #
 
 #include "core/legacy_image_extractor.h"
+#include "core/loading_progress.h"
 
 #include "assets/graphics_extractor_common.h"
 #include "assets/legacy_animation_layouts.h"
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "platform/file_manager.h"
 
 #include "spng/spng.h"
@@ -1542,7 +1543,7 @@ static bool export_group(
         const std::string image_path = group_directory + "/" + image_name + ".png";
         ensure_directory(group_directory);
         if (!write_png(image_path, footprint_export.pixels.data(), width, footprint_export.height)) {
-            log_error("Failed to write Julius PNG", image_path.c_str(), 0);
+            Logger::error("Failed to write Julius PNG", image_path.c_str(), 0);
             return false;
         }
         manifest_entries.push_back("F|" + image_path);
@@ -1554,7 +1555,7 @@ static bool export_group(
             const int top_height = img->top->original.height > 0 ? img->top->original.height : img->top->height;
             const std::string top_path = group_directory + "/" + image_name + "_Top.png";
             if (top_pixels.empty() || !write_png(top_path, top_pixels.data(), top_width, top_height)) {
-                log_error("Failed to write Julius top PNG", top_path.c_str(), 0);
+                Logger::error("Failed to write Julius top PNG", top_path.c_str(), 0);
                 return false;
             }
             manifest_entries.push_back("F|" + top_path);
@@ -1568,7 +1569,7 @@ static bool export_group(
                     const int absolute = image_id + img->animation->start_offset + frame;
                     const LegacyGroupRange *target = find_range_for_absolute_image(ranges, absolute);
                     if (!target || is_placeholder_main_image(absolute) || !is_exportable_main_image(&images[absolute])) {
-                        log_error("Julius animation references a missing source frame", assetlist_name.c_str(), absolute);
+                        Logger::error("Julius animation references a missing source frame", assetlist_name.c_str(), absolute);
                         return false;
                     }
                     frames.push_back(explicit_legacy_frame(target->group_id, absolute - target->first_image_id,
@@ -1584,12 +1585,12 @@ static bool export_group(
 
     for (const auto &sequence : sequences) {
         if (!exported_local_indices.count(sequence.base)) {
-            log_error("Julius sequence base is missing", sequence.name.c_str(), sequence.base);
+            Logger::error("Julius sequence base is missing", sequence.name.c_str(), sequence.base);
             return false;
         }
         const image &source = images[range.first_image_id + sequence.base];
         if (source.is_isometric || source.top) {
-            log_error("Julius figure sequence must use complete flat sprites", sequence.name.c_str(), range.group_id);
+            Logger::error("Julius figure sequence must use complete flat sprites", sequence.name.c_str(), range.group_id);
             return false;
         }
         image_animation metadata = {};
@@ -1600,7 +1601,7 @@ static bool export_group(
         std::vector<std::string> frames;
         for (int frame : sequence.frames) {
             if (!exported_local_indices.count(frame)) {
-                log_error("Julius sequence frame is missing", sequence.name.c_str(), frame);
+                Logger::error("Julius sequence frame is missing", sequence.name.c_str(), frame);
                 return false;
             }
             std::string attributes;
@@ -1631,7 +1632,7 @@ static bool export_group(
         return true;
     }
     if (!write_text_file(xml_path, xml)) {
-        log_error("Failed to write Julius assetlist", xml_path.c_str(), 0);
+        Logger::error("Failed to write Julius assetlist", xml_path.c_str(), 0);
         return false;
     }
     manifest_entries.push_back("D|" + group_directory);
@@ -1665,12 +1666,12 @@ static bool export_arrow_buttons(
     ensure_directory(directory);
     for (const ArrowImage &source : kImages) {
         if (source.absolute_image_id < 0 || source.absolute_image_id >= image_count) {
-            log_error("Julius arrow-button image id is outside the legacy atlas", source.name, source.absolute_image_id);
+            Logger::error("Julius arrow-button image id is outside the legacy atlas", source.name, source.absolute_image_id);
             return false;
         }
         const image *img = &images[source.absolute_image_id];
         if (!is_exportable_main_image(img)) {
-            log_error("Julius arrow-button image is not exportable", source.name, source.absolute_image_id);
+            Logger::error("Julius arrow-button image is not exportable", source.name, source.absolute_image_id);
             return false;
         }
         const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
@@ -1678,7 +1679,7 @@ static bool export_arrow_buttons(
         const int height = img->original.height > 0 ? img->original.height : img->height;
         const std::string image_path = directory + "/" + source.name + ".png";
         if (pixels.empty() || !write_png(image_path, pixels.data(), width, height)) {
-            log_error("Failed to write Julius arrow-button PNG", image_path.c_str(), 0);
+            Logger::error("Failed to write Julius arrow-button PNG", image_path.c_str(), 0);
             return false;
         }
         manifest_entries.push_back("F|" + image_path);
@@ -1687,7 +1688,7 @@ static bool export_arrow_buttons(
     }
     xml += "</assetlist>\n";
     if (!write_text_file(xml_path, xml)) {
-        log_error("Failed to write Julius arrow-button assetlist", xml_path.c_str(), 0);
+        Logger::error("Failed to write Julius arrow-button assetlist", xml_path.c_str(), 0);
         return false;
     }
     manifest_entries.push_back("D|" + directory);
@@ -1707,7 +1708,7 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         return JuliusExtractionReport();
     }
     if (graphics_extractor::extraction_target_is_in_source_mods(mod_manager::julius_graphics_path())) {
-        log_error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
+        Logger::error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
         return JuliusExtractionReport();
     }
 
@@ -1732,15 +1733,15 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
     }
 
     if (!has_existing_stamp) {
-        log_info("Extracting Julius graphics because no extraction stamp was found", climate.source_name(), 0);
+        Logger::info("Extracting Julius graphics because no extraction stamp was found", climate.source_name(), 0);
     } else {
-        log_info(
+        Logger::info(
             "Extracting Julius graphics because the legacy source fingerprint or XML metadata version changed",
             climate.source_name(),
             0);
     }
 
-    log_info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
+    Logger::info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
     if (climate_flavor == LegacyClimateFlavor::central) {
         clear_all_existing_output();
     } else {
@@ -1749,27 +1750,31 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
 
     std::vector<std::string> manifest_entries;
     ExtractionStats stats;
+    std::size_t completed_groups = 0;
+    const std::string progress_label = std::string("Extracting Julius graphics: ") + climate.source_name();
     for (const LegacyGroupRange &range : ranges) {
+        loading_progress::report(progress_label.c_str(), completed_groups++, ranges.size());
         if (!should_export_group_for_climate(range.group_id, climate_flavor)) {
             continue;
         }
         if (!export_group(climate.images(), ranges, range, climate.atlas_data(), manifest_entries, stats, climate_flavor)) {
-            log_error("Julius graphics extraction failed", climate.source_name(), 0);
+            Logger::error("Julius graphics extraction failed", climate.source_name(), 0);
             return JuliusExtractionReport();
         }
     }
+    loading_progress::report(progress_label.c_str(), ranges.size(), ranges.size());
     if (climate_flavor == LegacyClimateFlavor::central &&
         !export_arrow_buttons(climate.images(), climate.image_count(), climate.atlas_data(), manifest_entries, stats)) {
-        log_error("Julius graphics extraction failed", climate.source_name(), 0);
+        Logger::error("Julius graphics extraction failed", climate.source_name(), 0);
         return JuliusExtractionReport();
     }
     ensure_directory(mod_manager::julius_graphics_path().c_str());
     if (!write_manifest_entries(climate_flavor, manifest_entries)) {
-        log_error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);
+        Logger::error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
     if (!write_text_file(make_stamp_path(climate_flavor), expected_stamp)) {
-        log_error("Failed to write Julius extraction stamp", make_stamp_path(climate_flavor).c_str(), 0);
+        Logger::error("Failed to write Julius extraction stamp", make_stamp_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
 
@@ -1781,7 +1786,7 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         stats.groups_exported,
         stats.images_exported,
         stats.pngs_written);
-    log_info("Julius legacy graphics extraction completed", summary, 0);
+    Logger::info("Julius legacy graphics extraction completed", summary, 0);
     return JuliusExtractionReport(true, stats.groups_exported, stats.images_exported, stats.pngs_written);
 }
 

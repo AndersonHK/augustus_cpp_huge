@@ -1,14 +1,14 @@
 #
 
 #include "assets/augustus_asset_extractor.h"
+#include "core/loading_progress.h"
 
 #include "assets/augustus_julius_template_resolver.h"
 #include "assets/graphics_extractor_common.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
 #include "platform/file_manager.h"
 #include "assets/assets.h"
 #include "core/dir.h"
@@ -369,7 +369,7 @@ static bool build_extraction_paths(
     paths.output_graphics_path = ensure_trailing_separator(std::move(paths.output_graphics_path));
     paths.julius_graphics_path = ensure_trailing_separator(std::move(paths.julius_graphics_path));
     if (graphics_extractor::extraction_target_is_in_source_mods(paths.output_graphics_path)) {
-        log_error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
+        Logger::error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
         return false;
     }
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
@@ -431,7 +431,7 @@ static bool resolve_extraction_paths(
     paths.output_graphics_path = ensure_trailing_separator(mod_manager::augustus_graphics_path().c_str());
     paths.julius_graphics_path = ensure_trailing_separator(mod_manager::julius_graphics_path().c_str());
     if (graphics_extractor::extraction_target_is_in_source_mods(paths.output_graphics_path)) {
-        log_error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
+        Logger::error("Refusing to extract Augustus graphics into a source checkout Mods directory", paths.output_graphics_path.c_str(), 0);
         return false;
     }
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
@@ -633,14 +633,14 @@ static std::string choose_canonical_group_key(
     }
 
     if (invalid_reference == 1) {
-        log_info(
+        Logger::info(
             "Falling back to assetlist-derived Augustus output path because a referenced group key was invalid",
             output_group.group_key.c_str(),
             0);
         return {};
     }
     if (invalid_reference == 2) {
-        log_info(
+        Logger::info(
             "Falling back to assetlist-derived Augustus output path because wrapper references were ambiguous",
             output_group.group_key.c_str(),
             0);
@@ -827,7 +827,7 @@ static int infer_image_parts(
 
     int &resolution_state = cache.resolution_state_by_image_id[image_data.id];
     if (resolution_state == 1) {
-        log_info("Augustus extracted image detected recursive local part inference; falling back to current partial knowledge", image_data.id.c_str(), 0);
+        Logger::info("Augustus extracted image detected recursive local part inference; falling back to current partial knowledge", image_data.id.c_str(), 0);
         return 0;
     }
 
@@ -861,10 +861,10 @@ static int infer_image_parts(
 
 static bool parse_document(const std::string &xml_path, AtlasDocument &document)
 {
-    CrashContextScope crash_scope("augustus_extractor.parse_document", xml_path.c_str());
+    Logger::Scope crash_scope("augustus_extractor.parse_document", xml_path.c_str());
     std::string xml_contents;
     if (!read_text_file(xml_path, xml_contents)) {
-        log_error("Unable to open Augustus source xml", xml_path.c_str(), 0);
+        Logger::error("Unable to open Augustus source xml", xml_path.c_str(), 0);
         return false;
     }
 
@@ -915,7 +915,7 @@ static bool parse_document(const std::string &xml_path, AtlasDocument &document)
 
         if (element.name() == "layer") {
             if (!current_image) {
-                log_error("Augustus source xml layer outside image", xml_path.c_str(), element.line_number());
+                Logger::error("Augustus source xml layer outside image", xml_path.c_str(), element.line_number());
                 return false;
             }
             current_image->layers.push_back(make_reference_from_element(element));
@@ -924,7 +924,7 @@ static bool parse_document(const std::string &xml_path, AtlasDocument &document)
 
         if (element.name() == "animation") {
             if (!current_image) {
-                log_error("Augustus source xml animation outside image", xml_path.c_str(), element.line_number());
+                Logger::error("Augustus source xml animation outside image", xml_path.c_str(), element.line_number());
                 return false;
             }
 
@@ -945,7 +945,7 @@ static bool parse_document(const std::string &xml_path, AtlasDocument &document)
 
         if (element.name() == "frame") {
             if (!current_animation) {
-                log_error("Augustus source xml frame outside animation", xml_path.c_str(), element.line_number());
+                Logger::error("Augustus source xml frame outside animation", xml_path.c_str(), element.line_number());
                 return false;
             }
 
@@ -956,7 +956,7 @@ static bool parse_document(const std::string &xml_path, AtlasDocument &document)
     }
 
     if (document.assetlist_name.empty()) {
-        log_error("Failed to parse Augustus source xml", xml_path.c_str(), 0);
+        Logger::error("Failed to parse Augustus source xml", xml_path.c_str(), 0);
         return false;
     }
 
@@ -1038,7 +1038,7 @@ static void merge_output_group_into(
         }
         const AtlasImage &image_data = document.images[image_index];
         if (!image_data.id.empty() && !existing_image_ids.insert(image_data.id).second) {
-            log_info("Augustus extractor duplicate image id in merged group", image_data.id.c_str(), 0);
+            Logger::info("Augustus extractor duplicate image id in merged group", image_data.id.c_str(), 0);
             continue;
         }
         target_group.image_indices.push_back(image_index);
@@ -1304,7 +1304,7 @@ static bool normalize_direct_crop_footprints(
 
         int trimmed_bottom_rows = 0;
         if (!measure_direct_crop_trim(image_data, reference, trimmed_bottom_rows)) {
-            log_error("Failed to measure Augustus extracted crop", image_data.id.c_str(), 0);
+            Logger::error("Failed to measure Augustus extracted crop", image_data.id.c_str(), 0);
             return false;
         }
         if (trimmed_bottom_rows <= 0) {
@@ -1342,11 +1342,11 @@ static bool write_direct_crop(
     const std::string &output_path,
     AugustusExtractionRun &run)
 {
-    CrashContextScope crash_scope("augustus_extractor.write_direct_crop", image_data.id.c_str());
+    Logger::Scope crash_scope("augustus_extractor.write_direct_crop", image_data.id.c_str());
     const int width = resolve_crop_width(reference, image_data);
     const int height = resolve_crop_height(reference, image_data);
     if (width <= 0 || height <= 0) {
-        log_error("Augustus extracted crop has invalid size", image_data.id.c_str(), 0);
+        Logger::error("Augustus extracted crop has invalid size", image_data.id.c_str(), 0);
         return false;
     }
 
@@ -1354,12 +1354,12 @@ static bool write_direct_crop(
     const int src_x = reference.has_src_x ? reference.src_x : 0;
     const int src_y = reference.has_src_y ? reference.src_y : 0;
     if (!png_read(pixels.data(), src_x, src_y, width, height, 0, 0, width, 0)) {
-        log_error("Failed to read Augustus atlas region", image_data.id.c_str(), 0);
+        Logger::error("Failed to read Augustus atlas region", image_data.id.c_str(), 0);
         return false;
     }
 
     if (!write_png(output_path, pixels.data(), width, height)) {
-        log_error("Failed to write Augustus extracted png", output_path.c_str(), 0);
+        Logger::error("Failed to write Augustus extracted png", output_path.c_str(), 0);
         return false;
     }
     run.count_png_written();
@@ -1394,7 +1394,7 @@ static bool translate_reference(
     std::string translated_group_key;
     std::string translated_image_id;
     if (run.reference_resolver().translate_group_image(source_reference, translated_group_key, translated_image_id, &translated_reference.frame) <= 0) {
-        log_error("Unable to translate Augustus legacy image reference", source_reference.group.c_str(), 0);
+        Logger::error("Unable to translate Augustus legacy image reference", source_reference.group.c_str(), 0);
         return false;
     }
 
@@ -1478,7 +1478,7 @@ static bool append_image_xml(
     InferredPartCache &part_cache,
     AugustusExtractionRun &run)
 {
-    CrashContextScope crash_scope("augustus_extractor.emit_image", image_data.id.c_str());
+    Logger::Scope crash_scope("augustus_extractor.emit_image", image_data.id.c_str());
     const std::string image_stem = sanitize_component(image_data.id.c_str());
     std::vector<AtlasReference> output_layers;
     if (!build_output_layers(
@@ -1489,13 +1489,13 @@ static bool append_image_xml(
             run,
             part_cache,
             output_layers)) {
-        crash_context_report_error("Augustus extractor could not infer image layer parts", image_data.id.c_str());
+        Logger::error("Augustus extractor could not infer image layer parts", image_data.id.c_str());
         return false;
     }
 
     int image_height_override = 0;
     if (!normalize_direct_crop_footprints(image_data, output_layers, image_height_override)) {
-        crash_context_report_error("Augustus extractor could not normalize direct footprint crops", image_data.id.c_str());
+        Logger::error("Augustus extractor could not normalize direct footprint crops", image_data.id.c_str());
         return false;
     }
 
@@ -1681,7 +1681,7 @@ bool AugustusExtractionRun::export_group(
     const OutputGroup &output_group,
     const LocalReferenceTargets &local_targets)
 {
-    CrashContextScope crash_scope("augustus_extractor.export_group", output_group.group_key.c_str());
+    Logger::Scope crash_scope("augustus_extractor.export_group", output_group.group_key.c_str());
     InferredPartCache part_cache;
 
     std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
@@ -1705,7 +1705,7 @@ bool AugustusExtractionRun::export_group(
     xml += "</assetlist>\n";
     ensure_directory(append_path_component(paths_.output_graphics_path, output_group.family_name));
     if (!write_text_file(output_group.xml_path, xml)) {
-        log_error("Failed to write Augustus extracted xml", output_group.xml_path.c_str(), 0);
+        Logger::error("Failed to write Augustus extracted xml", output_group.xml_path.c_str(), 0);
         return false;
     }
 
@@ -1737,7 +1737,7 @@ bool AugustusExtractionRun::export_alias_group(
     const OutputGroup &target_group,
     const std::string &alias_group_key)
 {
-    CrashContextScope crash_scope("augustus_extractor.export_alias_group", alias_group_key.c_str());
+    Logger::Scope crash_scope("augustus_extractor.export_alias_group", alias_group_key.c_str());
 
     OutputGroup alias_group;
     set_output_group_key(alias_group, alias_group_key, paths_);
@@ -1753,7 +1753,7 @@ bool AugustusExtractionRun::export_alias_group(
     xml += "</assetlist>\n";
     ensure_directory(append_path_component(paths_.output_graphics_path, alias_group.family_name));
     if (!write_text_file(alias_group.xml_path, xml)) {
-        log_error("Failed to write Augustus extracted alias xml", alias_group.xml_path.c_str(), 0);
+        Logger::error("Failed to write Augustus extracted alias xml", alias_group.xml_path.c_str(), 0);
         return false;
     }
 
@@ -1870,14 +1870,14 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         if (stem == "dog_walk") stem = "dog";
         const std::string target_group = local_targets.group_key_for_image_or(image_data.id, {});
         if (target_group.empty()) {
-            log_error("Unable to resolve Augustus figure-sequence image target", image_data.id.c_str(), 0);
+            Logger::error("Unable to resolve Augustus figure-sequence image target", image_data.id.c_str(), 0);
             return false;
         }
         FigureModelAlias alias { target_group, image_data.id };
         auto inserted = models[stem].emplace(entry_id, alias);
         if (!inserted.second &&
             (inserted.first->second.target_group != alias.target_group || inserted.first->second.target_image != alias.target_image)) {
-            log_error("Conflicting Augustus figure-sequence entry", entry_id.c_str(), 0);
+            Logger::error("Conflicting Augustus figure-sequence entry", entry_id.c_str(), 0);
             return false;
         }
     }
@@ -1888,7 +1888,7 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         if (entries.empty()) continue;
         const std::string group_key = document.family_name + "\\" + stem;
         if (exported_group_keys.find(group_key) != exported_group_keys.end()) {
-            log_error("Augustus conceptual figure model conflicts with an extracted group", group_key.c_str(), 0);
+            Logger::error("Augustus conceptual figure model conflicts with an extracted group", group_key.c_str(), 0);
             return false;
         }
         std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
@@ -1904,7 +1904,7 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         }
         for (const auto &[name, frames] : sequences) {
             if (frames.begin()->first != 1 || frames.rbegin()->first != static_cast<int>(frames.size())) {
-                log_error("Augustus figure animation has a missing frame", stem.c_str(), 0);
+                Logger::error("Augustus figure animation has a missing frame", stem.c_str(), 0);
                 return false;
             }
             const FigureModelAlias &base = frames.begin()->second;
@@ -1942,7 +1942,7 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
         }
         xml += "</assetlist>\n";
         if (!write_text_file(append_path_component(model_directory, stem + ".xml"), xml)) {
-            log_error("Failed to write Augustus conceptual figure-model xml", group_key.c_str(), 0);
+            Logger::error("Failed to write Augustus conceptual figure-model xml", group_key.c_str(), 0);
             return false;
         }
         stats_.count_group_exported();
@@ -1952,9 +1952,9 @@ bool AugustusExtractionRun::export_figure_models(const AtlasDocument &document, 
 
 bool AugustusExtractionRun::export_document(AtlasDocument &document)
 {
-    CrashContextScope crash_scope("augustus_extractor.export_document", document.xml_path.c_str());
+    Logger::Scope crash_scope("augustus_extractor.export_document", document.xml_path.c_str());
     if (!png_load_from_file(document.png_path.c_str(), 0)) {
-        log_error("Unable to load Augustus source atlas png", document.png_path.c_str(), 0);
+        Logger::error("Unable to load Augustus source atlas png", document.png_path.c_str(), 0);
         return false;
     }
 
@@ -1962,7 +1962,7 @@ bool AugustusExtractionRun::export_document(AtlasDocument &document)
         AtlasAnimation &animation = image.animation;
         if (!animation.present || !animation.frames_data.empty() || animation.frames <= 0) continue;
         if (image.source_index + animation.frames >= document.images.size()) {
-            log_error("Augustus animation exceeds its source document", image.id.c_str(), animation.frames);
+            Logger::error("Augustus animation exceeds its source document", image.id.c_str(), animation.frames);
             png_unload();
             return false;
         }
@@ -2027,7 +2027,7 @@ bool AugustusExtractionRun::export_document(AtlasDocument &document)
     for (const OutputGroup &output_group : groups) {
         for (const std::string &alias_group_key : output_group.alias_group_keys) {
             if (!exported_group_keys.insert(alias_group_key).second) {
-                log_info("Augustus extractor duplicate alias key after merge", alias_group_key.c_str(), 0);
+                Logger::info("Augustus extractor duplicate alias key after merge", alias_group_key.c_str(), 0);
                 continue;
             }
             if (!export_alias_group(document, output_group, alias_group_key)) {
@@ -2049,7 +2049,7 @@ bool AugustusExtractionRun::export_document(AtlasDocument &document)
 bool AugustusExtractionRun::extract_all_documents()
 {
     if (paths_.source_graphics_path.empty()) {
-        log_error("Unable to resolve Augustus source graphics directory", 0, 0);
+        Logger::error("Unable to resolve Augustus source graphics directory", 0, 0);
         return false;
     }
 
@@ -2060,7 +2060,9 @@ bool AugustusExtractionRun::extract_all_documents()
         xml_names.emplace_back(xml_files->files[i].name ? xml_files->files[i].name : "");
     }
 
+    std::size_t completed_sources = 0;
     for (const std::string &xml_name : xml_names) {
+        loading_progress::report("Extracting Augustus graphics", completed_sources++, xml_names.size());
         if (xml_name.empty()) {
             continue;
         }
@@ -2078,6 +2080,7 @@ bool AugustusExtractionRun::extract_all_documents()
         }
     }
 
+    loading_progress::report("Extracting Augustus graphics", xml_names.size(), xml_names.size());
     return true;
 }
 
@@ -2086,13 +2089,13 @@ bool AugustusExtractionRun::run()
     const std::string graphics_root = paths_.output_graphics_path;
     const std::string stamp_path = make_stamp_path(paths_);
     if (graphics_root.empty()) {
-        log_error("Unable to resolve Augustus extracted graphics directory", 0, 0);
+        Logger::error("Unable to resolve Augustus extracted graphics directory", 0, 0);
         return false;
     }
 
     std::string expected_stamp;
     if (!build_expected_stamp(expected_stamp)) {
-        log_error("Failed to fingerprint Augustus source graphics", 0, 0);
+        Logger::error("Failed to fingerprint Augustus source graphics", 0, 0);
         return false;
     }
 
@@ -2105,28 +2108,28 @@ bool AugustusExtractionRun::run()
     }
 
     if (force_) {
-        log_info("Bootstrapping Augustus graphics because extraction was forced", 0, 0);
+        Logger::info("Bootstrapping Augustus graphics because extraction was forced", 0, 0);
     } else if (!has_existing_stamp) {
-        log_info("Bootstrapping Augustus graphics because no extraction stamp was found", 0, 0);
+        Logger::info("Bootstrapping Augustus graphics because no extraction stamp was found", 0, 0);
     } else if (!has_current_stamp) {
-        log_info("Bootstrapping Augustus graphics because the source fingerprint or XML metadata version changed", 0, 0);
+        Logger::info("Bootstrapping Augustus graphics because the source fingerprint or XML metadata version changed", 0, 0);
     } else {
-        log_info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
+        Logger::info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
     }
 
     // The installed Graphics tree also contains deployed, authored XML modules.
     // Extraction owns only the files it writes and must never erase that tree.
     ensure_directory(graphics_root);
 
-    log_info("Extracting canonical Augustus graphics from packed source atlases", 0, 0);
+    Logger::info("Extracting canonical Augustus graphics from packed source atlases", 0, 0);
     if (!extract_all_documents()) {
-        log_error("Augustus graphics extraction failed", 0, 0);
+        Logger::error("Augustus graphics extraction failed", 0, 0);
         return false;
     }
     if (write_stamp_) {
         ensure_directory(graphics_root);
         if (!write_text_file(stamp_path, expected_stamp)) {
-            log_error("Failed to write Augustus extraction stamp", stamp_path.c_str(), 0);
+            Logger::error("Failed to write Augustus extraction stamp", stamp_path.c_str(), 0);
             return false;
         }
     }
@@ -2140,7 +2143,7 @@ bool AugustusExtractionRun::run()
         stats_.groups_exported(),
         stats_.images_exported(),
         stats_.pngs_written());
-    log_info("Augustus graphics extraction completed", summary, 0);
+    Logger::info("Augustus graphics extraction completed", summary, 0);
     return true;
 }
 
@@ -2152,7 +2155,7 @@ AugustusExtractionReport AugustusExtractor::extract(const ExtractorPaths &paths,
 {
     ResolvedExtractionPaths resolved_paths;
     if (!resolve_extraction_paths(paths, resolved_paths)) {
-        log_error("Invalid Augustus extraction paths", 0, 0);
+        Logger::error("Invalid Augustus extraction paths", 0, 0);
         return AugustusExtractionReport();
     }
 

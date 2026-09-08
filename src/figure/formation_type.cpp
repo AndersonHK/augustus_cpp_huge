@@ -1,6 +1,6 @@
 #include "figure/formation_type.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_value.h"
 #include "figure/movement.h"
 
@@ -106,7 +106,7 @@ int FormationType::modified_combat_value(FormationCombatStat stat, int base_valu
 int FormationType::distant_battle_strength(bool trained) const
 {
     if (combat_modifiers_.distant_battle_strength <= 0 || combat_modifiers_.trained_distant_battle_bonus < 0) {
-        log_error("FormationType lacks explicit distant-battle combat data", key_.c_str(), 0);
+        Logger::error("FormationType lacks explicit distant-battle combat data", key_.c_str(), 0);
         std::terminate();
     }
     return combat_modifiers_.distant_battle_strength + (trained ? combat_modifiers_.trained_distant_battle_bonus : 0);
@@ -115,7 +115,7 @@ int FormationType::distant_battle_strength(bool trained) const
 int FormationType::curse_weight(int figures) const
 {
     if (combat_modifiers_.curse_weight_per_figure <= 0) {
-        log_error("FormationType lacks explicit curse-weight combat data", key_.c_str(), 0);
+        Logger::error("FormationType lacks explicit curse-weight combat data", key_.c_str(), 0);
         std::terminate();
     }
     return figures * combat_modifiers_.curse_weight_per_figure;
@@ -192,7 +192,7 @@ bool FormationType::add_slot(int x, int y, const char *unit_key)
     std::string normalized_unit_key = xml_value::trim_copy(unit_key);
     const UnitType *unit = unit_type_registry_impl::find_unit_type(normalized_unit_key.c_str());
     if (!unit) {
-        log_error("FormationType references unknown UnitType", normalized_unit_key.c_str(), 0);
+        Logger::error("FormationType references unknown UnitType", normalized_unit_key.c_str(), 0);
         return false;
     }
 

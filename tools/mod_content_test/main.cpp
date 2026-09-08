@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
 
 using namespace mod_content;
 void check(bool condition, const char *message) { if (!condition) throw std::runtime_error(message); }
@@ -71,6 +72,49 @@ int main(int argc, char **argv)
             inherited.load({{"Parent", root / "Parent"}}, {});
             check(inherited.settings()[0].value == 45, "Removing a child mod must restore the parent's default");
             Session real; auto repo = std::filesystem::u8path(argv[1]);
+            for (int depth = 1; depth <= 3; ++depth) {
+                const char *names[] = {"Julius", "Augustus", "Vespasian"};
+                std::vector<Layer> god_layers;
+                for (int i = 0; i < depth; ++i) god_layers.push_back({names[i], repo / "Mods" / names[i]});
+                Session gods; gods.load(god_layers, {});
+                for (int blessings = 0; blessings <= 1; ++blessings) for (int curses = 0; curses <= 1; ++curses) {
+                    gods.set("Julius:DISABLE_GOD_BLESSINGS", blessings);
+                    gods.set("Julius:DISABLE_GOD_CURSES", curses);
+                    for (const auto &entry : std::filesystem::directory_iterator(repo / "Mods/Julius/Gods")) {
+                        auto effective = entry.path();
+                        const auto augustus = repo / "Mods/Augustus/Gods" / entry.path().filename();
+                        if (depth > 1 && std::filesystem::exists(augustus)) effective = augustus;
+                        const auto god = parse(*gods.file(effective));
+                        check(god.child("blessings")->children.empty() == (blessings != 0), "Blessings switch did not independently remove definitions");
+                        check(god.child("minor_curses")->children.empty() == (curses != 0) && god.child("major_curses")->children.empty() == (curses != 0), "Curses switch did not remove both severities");
+                    }
+                    if (!blessings) {
+                        auto mercury_path = repo / (depth > 1 ? "Mods/Augustus/Gods/mercury.xml" : "Mods/Julius/Gods/mercury.xml");
+                        const auto mercury = parse(*gods.file(mercury_path));
+                        const auto xml = serialize(*mercury.child("blessings"));
+                        check(xml.find(depth > 1 ? "workshop_inputs" : "granary_fill") != std::string::npos, "Julius/Augustus Mercury alternatives were mixed");
+                        const auto neptune = parse(*gods.file(repo / (depth > 1 ? "Mods/Augustus/Gods/neptune.xml" : "Mods/Julius/Gods/neptune.xml")));
+                        check(serialize(*neptune.child("blessings")).find(depth > 1 ? "percent=\"50\"" : "trade_bonus_until_year_end") != std::string::npos, "Julius/Augustus Neptune alternatives were mixed");
+                        check(mercury.child("favor")->attributes.empty() == (depth == 1), "Julius incorrectly inherited Augustus favor generation");
+                    }
+                    int rows = 0;
+                    for (const auto &setting : gods.settings()) if (setting.id == "DISABLE_GOD_BLESSINGS" || setting.id == "DISABLE_GOD_CURSES") { check(setting.mod == "Julius" && setting.effective, "God setting lost ownership or became ineffective"); ++rows; }
+                    check(rows == 2, "God settings duplicated through inheritance");
+                }
+            }
+            {
+                const auto migration = std::filesystem::temp_directory_path() / ("vespasian-god-preference-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+                std::filesystem::create_directories(migration);
+                const auto values = migration / "mod_settings.xml";
+                std::string inf(560, '\0');
+                write_atomic(migration / "c3.inf", inf);
+                Session gods; gods.load({{"Julius", repo / "Mods/Julius"}}, values);
+                for (const auto &setting : gods.settings()) check(setting.value == 1, "Legacy disabled effects were not migrated to both switches");
+                gods.set("Julius:DISABLE_GOD_BLESSINGS", 0); gods.save();
+                gods.load({{"Julius", repo / "Mods/Julius"}}, values);
+                for (const auto &setting : gods.settings()) check(setting.value == (setting.id == "DISABLE_GOD_BLESSINGS" ? 0 : 1), "Legacy preference overrode an explicit independent setting");
+                std::filesystem::remove(values); std::filesystem::remove(migration / "c3.inf"); std::filesystem::remove(migration);
+            }
             real.load({{"Julius", repo / "Mods/Julius"}, {"Augustus", repo / "Mods/Augustus"}, {"Vespasian", repo / "Mods/Vespasian"}}, {});
             std::cout << "Compiled " << real.files().size() << " repository definitions\n";
             for (const auto &stack : {std::vector<Layer>{{"Julius", repo / "Mods/Julius"}}, std::vector<Layer>{{"Julius", repo / "Mods/Julius"}, {"Augustus", repo / "Mods/Augustus"}}, real.layers()}) {

@@ -1,6 +1,6 @@
 #include "translation/localization_internal.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include <algorithm>
 
@@ -44,9 +44,9 @@ bool load_active_locale(int is_editor)
         if (!file_exists(locale_path.c_str(), NOT_LOCALIZED)) {
             return true;
         }
-        CrashContextScope crash_scope("localization.merge_locale_json", locale_path.c_str());
+        Logger::Scope crash_scope("localization.merge_locale_json", locale_path.c_str());
         if (!detail::merge_locale_json(locale_path, catalog, error)) {
-            error_context_report_error("Localization load failed.", error.c_str());
+            Logger::error("Localization load failed.", error.c_str());
             return false;
         }
         return true;
@@ -66,7 +66,7 @@ bool load_active_locale(int is_editor)
     }
 
     if (!catalog.has_main_strings || !catalog.has_main_messages || (is_editor && (!catalog.has_editor_strings || !catalog.has_editor_messages))) {
-        error_context_report_error("Selected locale is incomplete for the requested mode.", locale_code.c_str());
+        Logger::error("Selected locale is incomplete for the requested mode.", locale_code.c_str());
         return false;
     }
 

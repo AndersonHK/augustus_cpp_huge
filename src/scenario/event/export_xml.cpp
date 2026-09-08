@@ -2,10 +2,11 @@
 #include "export_xml.h"
 #include "map/Terrain.h"
 #include "scenario/definition_overrides.h"
+#include "building/building_type_id_bridge.h"
 
 #include "core/buffer.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_exporter.h"
 #include "empire/city.h"
@@ -31,7 +32,7 @@ static void log_exporting_error(const char *msg)
 {
     data.success = 0;
     snprintf(data.error_message, ERROR_MESSAGE_LENGTH, "%s", msg);
-    log_error("Error while exporting scenario events to XML. ", data.error_message, 0);
+    Logger::error("Error while exporting scenario events to XML. ", data.error_message, 0);
 
     window_plain_message_dialog_show_with_extra(
         "TR_EDITOR_UNABLE_TO_SAVE_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
@@ -321,6 +322,23 @@ static void export_event_action(scenario_action_t *action)
         export_parse_attribute(&action_data->xml_parm5, action->parameter5);
     }
 
+    if (action->value_scale != 1) xml_exporter_add_attribute_int("value_scale", action->value_scale);
+    if (!action->value_domain.empty()) {
+        std::string values;
+        for (int value : action->value_domain) { if (!values.empty()) values += ','; values += std::to_string(value); }
+        xml_exporter_add_attribute_text("value_domain", values.c_str());
+    }
+    if (!action->model_targets.empty()) {
+        std::string targets;
+        for (const auto &target : action->model_targets) {
+            const char *name = building_type_id_bridge_text_from_runtime(static_cast<building_type>(target.building));
+            if (!name) { log_exporting_error("Unknown model target definition"); return; }
+            if (!targets.empty()) targets += ';';
+            targets += std::string(name) + ':' + std::to_string(target.value_scale);
+        }
+        xml_exporter_add_attribute_text("model_targets", targets.c_str());
+    }
+
     xml_exporter_close_element();
 }
 
@@ -428,7 +446,7 @@ int scenario_events_export_to_xml(const char *filename)
     int buf_size = XML_EXPORT_MAX_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to allocate buffer to export scenario events XML", 0, 0);
+        Logger::error("Unable to allocate buffer to export scenario events XML", 0, 0);
         free(buf_data);
         return 0;
     }

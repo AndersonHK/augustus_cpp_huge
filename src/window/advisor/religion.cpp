@@ -121,7 +121,8 @@ public:
     }
     int condition(std::string_view binding, int index) const override
     {
-        if (binding == "gods.disabled") return !setting_gods_enabled();
+        if (binding == "god.many_bolts") { const auto *god = god_at(index + page * capacity); return god && (city_god_wrath_bolts(god->runtime_id()) / 10 > 1 || city_god_happy_bolts(god->runtime_id()) > 1); }
+        if (binding == "gods.disabled") return !city_gods_have_effects();
         if (binding == "page.previous") return page > 0;
         if (binding == "page.next") return (page + 1) * capacity < god_definition_count() + 1;
         index += page * capacity;
@@ -147,7 +148,7 @@ int window_height()
 {
     if (!definition) return 432;
     const auto *disabled = definition->widget("gods_disabled");
-    return disabled && !setting_gods_enabled() ? std::max(definition->base_height(), disabled->y + disabled->height + 8) : definition->base_height();
+    return disabled && !city_gods_have_effects() ? std::max(definition->base_height(), disabled->y + disabled->height + 8) : definition->base_height();
 }
 
 int draw_background()

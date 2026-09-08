@@ -18,7 +18,7 @@
 #include "core/dir.h"
 #include "core/direction.h"
 #include "core/encoding.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "core/string.h"
 #include "core/time.h"
@@ -143,7 +143,7 @@ static int update_entries(void)
     int total_images = data.active_group->last_image_index - data.active_group->first_image_index + 1;
     data.entries = static_cast<asset_entry *>(malloc(sizeof(asset_entry) * total_images));
     if (!data.entries) {
-        log_error("Not enough memory", 0, 0);
+        Logger::error("Not enough memory", 0, 0);
         return 0;
     }
     memset(data.entries, 0, sizeof(asset_entry) * total_images);
@@ -206,7 +206,7 @@ static int load_climate(int force)
         data.climate : static_cast<scenario_climate>(data.terrain - 1);
     if (data.climate != climate || force) {
         if (!image_load_climate(climate, 0, 1, 1, 0)) {
-            log_error("Unable to load main graphics", 0, 0);
+            Logger::error("Unable to load main graphics", 0, 0);
             return 0;
         }
         data.main_atlas = graphics_renderer()->get_image_atlas(ATLAS_MAIN);

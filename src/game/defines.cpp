@@ -2,11 +2,10 @@
 
 #include "game/defines.h"
 #include "game/time.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 
@@ -68,6 +67,7 @@ struct DefinesDocument {
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int building_damage_extra_hit = -1;
     int has_default_building_hit_points = 0;
     int default_building_hit_points = kDefaultBuildingHitPoints;
     int has_legacy_figure_logical_units_per_source_pixel = 0;
@@ -94,6 +94,7 @@ DefinesParseState g_parse_state;
 CalendarDefinition g_active_calendar;
 MortalityDefinition g_active_mortality;
 BirthDefinition g_active_birth;
+int g_building_damage_extra_hit = 1;
 int g_default_building_hit_points = kDefaultBuildingHitPoints;
 int g_retirement_age = 50;
 int g_fixed_workers = 0;
@@ -197,8 +198,8 @@ static void report_parse_error(const char *message, const char *detail = nullptr
             xml_parser_get_current_line_number());
     }
 
-    log_error(message, detail ? detail : g_parse_state.filename.c_str(), 0);
-    error_context_report_error(message, context);
+    Logger::error(message, detail ? detail : g_parse_state.filename.c_str(), 0);
+    Logger::error(message, context);
     g_parse_state.error = 1;
 }
 
@@ -281,6 +282,14 @@ static int parse_combat()
         return 0;
     }
 
+    if (xml_parser_has_attribute("building_damage_extra_hit")) {
+        int value = 0;
+        if (!parse_int_strict(xml_parser_get_attribute_string("building_damage_extra_hit"), &value) || value < 0 || value > 1) {
+            report_parse_error("combat building_damage_extra_hit must be 0 or 1");
+            return 0;
+        }
+        g_parse_state.document.building_damage_extra_hit = value;
+    }
     g_parse_state.document.has_default_building_hit_points = 1;
     g_parse_state.document.default_building_hit_points = hit_points;
     return 1;
@@ -561,7 +570,7 @@ static int parse_defines_file(const char *filename, DefinesDocument &document_ou
     g_parse_state = {};
     g_parse_state.filename = filename;
 
-    const ErrorContextScope scope("Defines XML", filename);
+    const Logger::Scope scope("Defines XML", filename);
     const int parsed = xml_definition::parse_file(
         filename,
         "Defines",
@@ -613,6 +622,7 @@ static int load_and_merge_defines()
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int building_damage_extra_hit = 1;
     int default_building_hit_points = kDefaultBuildingHitPoints;
     int legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 
@@ -636,6 +646,7 @@ static int load_and_merge_defines()
             return 0;
         }
 
+        if (document.building_damage_extra_hit >= 0) building_damage_extra_hit = document.building_damage_extra_hit;
         if (document.retirement_age) retirement_age = document.retirement_age;
         if (document.fixed_workers >= 0) fixed_workers = document.fixed_workers;
         if (document.fixed_worker_percentage >= 0) fixed_worker_percentage = document.fixed_worker_percentage;
@@ -668,6 +679,7 @@ static int load_and_merge_defines()
     g_active_calendar = calendar_it->second;
     g_active_mortality = mortality_it->second;
     g_active_birth = birth_it->second;
+    g_building_damage_extra_hit = building_damage_extra_hit;
     g_default_building_hit_points = default_building_hit_points;
     g_retirement_age = retirement_age;
     g_fixed_workers = fixed_workers;
@@ -759,6 +771,8 @@ int game_defines_is_last_day_of_year(int month, int day)
 int game_defines_retirement_age(void) { return g_retirement_age; }
 int game_defines_fixed_workers(void) { return g_fixed_workers; }
 int game_defines_fixed_worker_percentage(void) { return g_fixed_worker_percentage; }
+
+int game_defines_building_damage_extra_hit(void) { return g_building_damage_extra_hit; }
 
 int game_defines_default_building_hit_points(void)
 {

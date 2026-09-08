@@ -265,6 +265,7 @@
     <ClCompile Include="src\building\production_method_registry.cpp" />
     <ClCompile Include="src\building\production_runtime.cpp" />
     <ClCompile Include="src\building\religion.cpp" />
+    <ClCompile Include="src\building\religion_effects_runtime.cpp" />
     <ClCompile Include="src\building\religion_registry.cpp" />
     <ClCompile Include="src\building\properties.cpp" />
     <ClCompile Include="src\building\tool_mode.cpp" />
@@ -320,7 +321,7 @@
     <ClCompile Include="src\core\encoding_simp_chinese.cpp" />
     <ClCompile Include="src\core\encoding_trad_chinese.cpp" />
     <ClCompile Include="src\core\file.cpp" />
-    <ClCompile Include="src\core\crash_context.cpp" />
+    <ClCompile Include="src\core\Logger.cpp" />
     <ClCompile Include="src\core\hotkey_config.cpp" />
     <ClCompile Include="src\core\image.cpp" />
     <ClCompile Include="src\core\image_packer.cpp" />
@@ -538,13 +539,13 @@
     <ClCompile Include="src\platform\icon.cpp" />
     <ClCompile Include="src\platform\joystick.cpp" />
     <ClCompile Include="src\platform\keyboard_input.cpp" />
-    <ClCompile Include="src\platform\log.cpp" />
     <ClCompile Include="src\platform\mouse.cpp" />
     <ClCompile Include="src\platform\platform.cpp" />
     <ClCompile Include="src\platform\prefs.cpp" />
     <ClCompile Include="src\platform\render_2d_pipeline.cpp" />
     <ClCompile Include="src\platform\renderer.cpp" />
     <ClCompile Include="src\platform\screen.cpp" />
+    <ClCompile Include="src\platform\loading_screen.cpp" />
     <ClCompile Include="src\platform\sound_device.cpp" />
     <ClCompile Include="src\platform\touch.cpp" />
     <ClCompile Include="src\platform\user_path.cpp" />
@@ -820,6 +821,7 @@
     <ClInclude Include="src\building\production_method_registry.h" />
     <ClInclude Include="src\building\production_runtime.h" />
     <ClInclude Include="src\building\religion.h" />
+    <ClInclude Include="src\building\religion_effects.h" />
     <ClInclude Include="src\building\religion_registry.h" />
     <ClInclude Include="src\building\properties.h" />
     <ClInclude Include="src\building\roadblock.h" />
@@ -879,7 +881,7 @@
     <ClInclude Include="src\core\encoding_simp_chinese.h" />
     <ClInclude Include="src\core\encoding_trad_chinese.h" />
     <ClInclude Include="src\core\file.h" />
-    <ClInclude Include="src\core\crash_context.h" />
+    <ClInclude Include="src\core\Logger.h" />
     <ClInclude Include="src\core\hotkey_config.h" />
     <ClInclude Include="src\core\image.h" />
     <ClInclude Include="src\core\image_group.h" />
@@ -887,7 +889,7 @@
     <ClInclude Include="src\core\image_packer.h" />
     <ClInclude Include="src\core\io.h" />
     <ClInclude Include="src\core\locale.h" />
-    <ClInclude Include="src\core\log.h" />
+    <ClInclude Include="src\core\loading_progress.h" />
     <ClInclude Include="src\core\memory_block.h" />
     <ClInclude Include="src\core\png_read.h" />
     <ClInclude Include="src\core\random.h" />
@@ -1116,6 +1118,7 @@
     <ClInclude Include="src\platform\render_2d_pipeline.h" />
     <ClInclude Include="src\platform\renderer.h" />
     <ClInclude Include="src\platform\screen.h" />
+    <ClInclude Include="src\platform\loading_screen.h" />
     <ClInclude Include="src\platform\touch.h" />
     <ClInclude Include="src\platform\user_path.h" />
     <ClInclude Include="src\assets\xml_path_resolution.h" />

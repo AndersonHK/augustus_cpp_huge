@@ -5,7 +5,7 @@
 #include "core/image_group.h"
 #include "core/image.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_exporter.h"
 #include "empire/empire.h"
@@ -286,7 +286,7 @@ int empire_export_xml(const char *filename)
     int buf_size = XML_EXPORT_MAX_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to allocate buffer to export model data XML", 0, 0);
+        Logger::error("Unable to allocate buffer to export model data XML", 0, 0);
         free(buf_data);
         return 0;
     }

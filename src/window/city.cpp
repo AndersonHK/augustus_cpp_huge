@@ -413,6 +413,11 @@ static void show_roamers_for_overlay(int overlay)
             create_roamer_preview_for_building_attr("doctor");
             create_roamer_preview_for_building_attr("hospital");
             break;
+        case OVERLAY_ENEMY:
+            for (const auto &definition : building_type_registry_impl::g_building_types) {
+                if (definition && definition->presentation().enemy_roamer) figure_roamer_preview_create_all_for_building_type(definition->type());
+            }
+            break;
         case OVERLAY_NONE:
         default:
             break;
@@ -434,6 +439,13 @@ static void show_overlay(int overlay)
 
 static int get_overlay_for_building_type(const building_type_registry_impl::BuildingType &type)
 {
+    using Overlay = building_type_registry_impl::BuildingType::InspectionOverlay;
+    switch (type.presentation().overlay) {
+        case Overlay::Enemy: return OVERLAY_ENEMY;
+        case Overlay::Native: return OVERLAY_NATIVE;
+        case Overlay::Desirability: return OVERLAY_DESIRABILITY;
+        case Overlay::Automatic: break;
+    }
     const int is_dock = type.attr_is( "dock");
     int overlay = OVERLAY_NONE;
 

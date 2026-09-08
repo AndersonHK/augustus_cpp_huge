@@ -130,8 +130,10 @@ void ConstructionToolSession::set_raw_end(int x, int y, int grid_offset)
     raw_end = { x, y, grid_offset };
 }
 
-void ConstructionToolSession::force_type(building_type new_type)
+void ConstructionToolSession::select_cycle_type(building_type new_type)
 {
+    selected_type = building_tool_mode_selection_type(new_type);
+    compatibility_alias_type = new_type;
     type = new_type;
 }
 

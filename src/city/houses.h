@@ -11,6 +11,8 @@ typedef struct {
         int religion;
         int second_religion;
         int third_religion;
+        int fourth_religion;
+        int fifth_religion;
         int barber;
         int bathhouse;
         int clinic;
@@ -37,3 +39,5 @@ void city_houses_reset_demands(void);
 house_demands *city_houses_demands(void);
 
 void city_houses_calculate_culture_demands(void);
+
+bool city_houses_check_religion_requirement(int required, int available);

@@ -1,9 +1,9 @@
 #include "game/mod_manager.h"
 #include "game/mod_content.h"
-#include "core/crash_context.h"
+#include "core/loading_progress.h"
+#include "core/Logger.h"
 
 #include "core/file.h"
-#include "core/log.h"
 #include "platform/file_manager.h"
 #include "assets/assets.h"
 #include "core/dir.h"
@@ -140,7 +140,7 @@ static int parse_mod_list_root()
 {
     if (g_parse_state.saw_root) {
         g_parse_state.error = 1;
-        log_error("Duplicate mod list root node", 0, 0);
+        Logger::error("Duplicate mod list root node", 0, 0);
         return 0;
     }
 
@@ -152,14 +152,14 @@ static int parse_mod_entry()
 {
     if (!xml_parser_has_attribute("name")) {
         g_parse_state.error = 1;
-        log_error("Mod list entry is missing required attribute 'name'", 0, 0);
+        Logger::error("Mod list entry is missing required attribute 'name'", 0, 0);
         return 0;
     }
 
     std::string mod_name = xml_value::trim_copy(xml_parser_get_attribute_string("name"));
     if (!valid_mod_name(mod_name)) {
         g_parse_state.error = 1;
-        log_error("Mod list entry has an invalid name", 0, 0);
+        Logger::error("Mod list entry has an invalid name", 0, 0);
         return 0;
     }
 
@@ -176,7 +176,7 @@ static int parse_metadata_root()
 {
     if (g_metadata_parse_state.saw_root) {
         g_metadata_parse_state.error = 1;
-        log_error("Duplicate mod metadata root node", 0, 0);
+        Logger::error("Duplicate mod metadata root node", 0, 0);
         return 0;
     }
     g_metadata_parse_state.saw_root = 1;
@@ -188,13 +188,13 @@ static int parse_metadata_value()
     const char *element = xml_parser_get_current_element_name();
     if (!element || !xml_parser_has_attribute("value")) {
         g_metadata_parse_state.error = 1;
-        log_error("Mod metadata field is missing required attribute 'value'", element, 0);
+        Logger::error("Mod metadata field is missing required attribute 'value'", element, 0);
         return 0;
     }
     std::string value = xml_value::trim_copy(xml_parser_get_attribute_string("value"));
     if (value.empty()) {
         g_metadata_parse_state.error = 1;
-        log_error("Mod metadata field has an empty value", element, 0);
+        Logger::error("Mod metadata field has an empty value", element, 0);
         return 0;
     }
 
@@ -212,7 +212,7 @@ static int parse_metadata_value()
     }
     if (!seen || !target || *seen) {
         g_metadata_parse_state.error = 1;
-        log_error("Duplicate or unsupported mod metadata field", element, 0);
+        Logger::error("Duplicate or unsupported mod metadata field", element, 0);
         return 0;
     }
     *seen = 1;
@@ -224,7 +224,7 @@ static int parse_metadata_dependencies()
 {
     if (g_metadata_parse_state.saw_dependencies) {
         g_metadata_parse_state.error = 1;
-        log_error("Duplicate mod metadata dependencies node", 0, 0);
+        Logger::error("Duplicate mod metadata dependencies node", 0, 0);
         return 0;
     }
     g_metadata_parse_state.saw_dependencies = 1;
@@ -235,20 +235,20 @@ static int parse_metadata_dependency()
 {
     if (!xml_parser_has_attribute("name")) {
         g_metadata_parse_state.error = 1;
-        log_error("Mod dependency is missing required attribute 'name'", 0, 0);
+        Logger::error("Mod dependency is missing required attribute 'name'", 0, 0);
         return 0;
     }
     std::string dependency = xml_value::trim_copy(xml_parser_get_attribute_string("name"));
     if (!valid_mod_name(dependency)) {
         g_metadata_parse_state.error = 1;
-        log_error("Mod dependency has an invalid name", dependency.c_str(), 0);
+        Logger::error("Mod dependency has an invalid name", dependency.c_str(), 0);
         return 0;
     }
     const std::string normalized = normalized_mod_name(dependency);
     for (const std::string &existing : g_metadata_parse_state.metadata.dependencies) {
         if (normalized_mod_name(existing) == normalized) {
             g_metadata_parse_state.error = 1;
-            log_error("Duplicate mod dependency", dependency.c_str(), 0);
+            Logger::error("Duplicate mod dependency", dependency.c_str(), 0);
             return 0;
         }
     }
@@ -273,13 +273,13 @@ static const xml_parser_element MOD_METADATA_XML_ELEMENTS[] = {
         return 0;
     }
     if (!valid_mod_name(g_metadata_parse_state.metadata.name)) {
-        log_error("Mod metadata has an invalid name", g_metadata_parse_state.metadata.name.c_str(), 0);
+        Logger::error("Mod metadata has an invalid name", g_metadata_parse_state.metadata.name.c_str(), 0);
         return 0;
     }
     const std::string own_name = normalized_mod_name(g_metadata_parse_state.metadata.name);
     for (const std::string &dependency : g_metadata_parse_state.metadata.dependencies) {
         if (normalized_mod_name(dependency) == own_name) {
-            log_error("Mod metadata cannot depend on itself", dependency.c_str(), 0);
+            Logger::error("Mod metadata cannot depend on itself", dependency.c_str(), 0);
             return 0;
         }
     }
@@ -293,7 +293,7 @@ static int parse_mod_metadata_file(const char *filename, mod_manager::ModMetadat
         const auto parsed = mod_content::manifest(mod_content::utf8_path(filename));
         metadata_out = {parsed.name, parsed.description, parsed.version, parsed.dependencies};
     } catch (const std::exception &e) {
-        error_context_report_error("Invalid mod metadata XML", e.what());
+        Logger::error("Invalid mod metadata XML", e.what());
         return 0;
     }
     return 1;
@@ -302,7 +302,7 @@ static int parse_mod_metadata_file(const char *filename, mod_manager::ModMetadat
 static int parse_mod_list_file(const char *filename, std::vector<std::string> &mods_out)
 {
     g_parse_state = {};
-    const ErrorContextScope scope("Mod list XML", filename);
+    const Logger::Scope scope("Mod list XML", filename);
     const int parsed = xml_definition::parse_file(
         filename,
         "Mod list",
@@ -310,7 +310,7 @@ static int parse_mod_list_file(const char *filename, std::vector<std::string> &m
         static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
 
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || g_parse_state.mods.empty()) {
-        error_context_report_error("Invalid mod list XML", filename);
+        Logger::error("Invalid mod list XML", filename);
         set_failure_reason("Failed to load mod list.", filename);
         return 0;
     }
@@ -329,7 +329,7 @@ static int write_default_mod_list()
 
     FILE *fp = file_open(filename, "wb");
     if (!fp) {
-        log_error("Unable to create default mod list file", filename, 0);
+        Logger::error("Unable to create default mod list file", filename, 0);
         set_failure_reason("Failed to create default mod list.", filename);
         return 0;
     }
@@ -339,7 +339,7 @@ static int write_default_mod_list()
     file_close(fp);
 
     if (written != xml_length) {
-        log_error("Unable to write default mod list file", filename, 0);
+        Logger::error("Unable to write default mod list file", filename, 0);
         set_failure_reason("Failed to create default mod list.", filename);
         return 0;
     }
@@ -504,6 +504,15 @@ bool load_mod_list()
     }
 
     try {
+        // This runs after the list is parsed and before any mod definitions are
+        // compiled, so selecting the bootstrap theme cannot re-enter a parser.
+        for (auto it = loaded_mods.rbegin(); it != loaded_mods.rend(); ++it) {
+            const auto theme = build_mod_path(*it) + "UI/loading.xml";
+            if (std::filesystem::is_regular_file(mod_content::utf8_path(theme))) {
+                loading_progress::theme(theme.c_str());
+                break;
+            }
+        }
         std::vector<mod_content::Layer> layers;
         for (const auto &name : loaded_mods) layers.push_back({name, mod_content::utf8_path(build_mod_path(name))});
         mod_content::Session compiled;

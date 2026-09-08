@@ -22,7 +22,7 @@
 #include "building/temple.h"
 #include "building/water_access_runtime.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "building/granary.h"
 #include "building/monument.h"
@@ -39,7 +39,6 @@
 #include "game/Animation.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "core/log.h"
 #include "map/water.h"
 
 #include <algorithm>

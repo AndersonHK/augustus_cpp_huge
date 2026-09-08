@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wall">
+    <presentation show_durability="true" overlay="enemy" />
     <button group="security" order="40" text_key="main_strings.28.6" />
     <construction>
         <requirement type="stone" amount="1" />

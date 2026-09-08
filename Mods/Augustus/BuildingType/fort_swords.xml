@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_swords">
+    <presentation overlay="enemy" />
     <button group="forts" order="130" text_key="TR_BUILDING_FORT_AUXILIA_INFANTRY" />
     <graphics>
         <default>

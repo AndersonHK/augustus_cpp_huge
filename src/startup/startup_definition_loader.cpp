@@ -3,6 +3,7 @@
 #endif
 #include "map/TerrainSaveBridge.h"
 #include "startup/startup_definition_loader.h"
+#include "core/loading_progress.h"
 
 #include "building/building_type_registry.h"
 #include "building/FoundationRegistry.h"
@@ -35,6 +36,7 @@ namespace {
 void append_step(Result &result, const char *label, bool succeeded, const std::string &detail = {})
 {
     result.steps.push_back({label ? label : "", succeeded, detail});
+    loading_progress::report(label, result.steps.size(), result.planned_steps);
 }
 
 bool fail_step(Result &result, const char *label, const std::string &message)
@@ -47,6 +49,7 @@ bool fail_step(Result &result, const char *label, const std::string &message)
 
 bool run_step(Result &result, const char *label, int (*step)(), const char *(*failure_reason)() = nullptr)
 {
+    loading_progress::report(label, result.steps.size(), result.planned_steps);
     if (step()) {
         append_step(result, label, true);
         return true;
@@ -93,7 +96,9 @@ Environment inspect_environment()
 
 Result load(const Request &request)
 {
+    loading_progress::stage("mod_data");
     Result result;
+    result.planned_steps = 9 + request.load_localization + request.prepare_graphics_validation;
     if (request.load_config) {
         config_load();
         try {

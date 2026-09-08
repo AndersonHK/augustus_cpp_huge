@@ -1,7 +1,7 @@
 #include "game/performance_tracker.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/settings.h"
 #include "platform/platform.h"
 
@@ -247,7 +247,7 @@ void performance_tracker_init(int enabled)
 
     data.log_file = file_open(log_file, "wt");
     if (!data.log_file) {
-        log_error("Unable to open Vespasian performance log", log_file.c_str(), 0);
+        Logger::error("Unable to open Vespasian performance log", log_file.c_str(), 0);
         memset(&data, 0, sizeof(data));
         return;
     }

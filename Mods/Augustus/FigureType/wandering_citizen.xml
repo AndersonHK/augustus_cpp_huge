@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="wandering_citizen" base_type="patrician">
     <presentation name_key="TR_FIGURE_TYPE_WANDERING_CITIZEN"/>
+    <speech voice="plebeian"/>
     <profiles default="ambient">
         <profile id="ambient">
             <native class="transient_wanderer" />

@@ -790,6 +790,12 @@ void map_routing_save_state(buffer *buf)
     buffer_write_i32(buf, 0); // unused counter
 }
 
+MapRoutingStatistics map_routing_statistics() { return {stats.total_routes_calculated, stats.enemy_routes_calculated}; }
+void map_routing_restore_statistics(MapRoutingStatistics statistics) {
+    stats.total_routes_calculated = statistics.total_routes_calculated;
+    stats.enemy_routes_calculated = statistics.enemy_routes_calculated;
+}
+
 void map_routing_load_state(buffer *buf)
 {
     buffer_skip(buf, 4); // unused counter

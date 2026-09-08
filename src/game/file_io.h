@@ -54,6 +54,10 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
 
 int game_file_io_write_saved_game(const char *filename);
 
+// Complete native archive in memory, used to checkpoint a live world before import.
+struct SaveSnapshotPiece { std::string name; std::size_t offset, size; };
+bool game_file_io_snapshot(std::vector<uint8_t> &archive, std::vector<SaveSnapshotPiece> *pieces = nullptr);
+
 int game_file_io_delete_saved_game(const char *filename);
 
 int game_file_io_last_loaded_save_has_mod_mismatch(void);

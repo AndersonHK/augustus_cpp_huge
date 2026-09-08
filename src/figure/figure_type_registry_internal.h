@@ -35,7 +35,8 @@ enum class NativeClassId {
     DepotCartPusher,
     FishingBoat,
     LandTrade,
-    TradeFollower
+    TradeFollower,
+    ResourceDelivery
 };
 
 enum class FigureSlot {
@@ -157,6 +158,11 @@ public:
     const std::string &name_key() const { return name_key_; }
     const ImageGroupEntryRef &portrait() const { return portrait_; }
     FigureBehaviorPolicy behavior;
+    struct Speech {
+        bool declared = false;
+        int voice = -1;
+        std::string sound;
+    } speech;
 
     void set_native_class(NativeClassId native_class_id);
     NativeClassId native_class() const;

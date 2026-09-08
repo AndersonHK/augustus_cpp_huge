@@ -1,6 +1,6 @@
 #include "game/ResourceGraphics.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include <array>
 #include <cstdio>
@@ -21,7 +21,7 @@ void report_invalid_resource_graphic(const char *message, resource_type resource
 {
     char detail[128];
     snprintf(detail, sizeof(detail), "%s resource=%d value=%d", resource_name(resource), resource, value);
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 } // namespace

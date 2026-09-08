@@ -12,6 +12,10 @@ class Figure;
 
 struct ResourceAccounts {
     int64_t produced = 0, consumed = 0, imported = 0, exported = 0, income = 0, expense = 0, stock = 0;
+    // Imported history may retain a net balance without its gross cash flows.
+    int64_t balance_adjustment = 0;
+    bool complete_cash_flows = true;
+    int64_t balance() const { return income - expense + balance_adjustment; }
 };
 
 struct TradeTransaction {
@@ -20,6 +24,18 @@ struct TradeTransaction {
     int city = 0, storage = 0, month = 0, price = 0;
     bool imported = false;
     int64_t units = 0;
+    bool direction_known = true;
+    int source_trader = -1, source_storage = -1; // foreign references, never native visit/building identities
+};
+
+struct RouteResourceAccounts {
+    int import_limit = 0, export_limit = 0, imported = 0, exported = 0;
+};
+
+struct RouteAccounts {
+    bool open = false, sea = false;
+    int cost = 0;
+    std::map<std::string, RouteResourceAccounts> resources;
 };
 
 struct AccountingPeriod {
@@ -29,6 +45,8 @@ struct AccountingPeriod {
     int miscellaneous_income = 0;
     std::map<std::string, ResourceAccounts> resources;
     std::vector<TradeTransaction> transactions;
+    // City identities are stable within the scenario; resources use their authored identities.
+    std::map<int, RouteAccounts> routes;
 };
 
 // A synchronous exchange scope carries the actual caravan/ship through storage APIs.
@@ -53,4 +71,5 @@ void city_trade_ledger_revert_consumed(resource_type resource, int units, int ye
 void city_trade_ledger_year_change();
 const std::vector<AccountingPeriod> &city_trade_ledger_periods();
 void city_trade_ledger_save(buffer *buf);
-void city_trade_ledger_load(buffer *buf);
+void city_trade_ledger_load(buffer *buf, bool has_route_history = true, bool has_balance_adjustments = true);
+void city_trade_ledger_import(std::vector<AccountingPeriod> history);

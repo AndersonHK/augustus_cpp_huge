@@ -1,8 +1,7 @@
 #include "image.h"
 
 #include "assets/assets.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
 #include "graphics/runtime_overlay_images.h"
@@ -39,7 +38,7 @@ void report_invalid_image(const char *message, int id)
 {
     char detail[64];
     snprintf(detail, sizeof(detail), "%d", id);
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 void release_renderer_handle(image_handle handle)
@@ -227,7 +226,7 @@ void Image::draw_footprint_overlay(int x, int y, color_t color, float scale)
     // callers supply ARGB color/opacity, independently of the terrain beneath it.
     const Image *overlay = runtime_footprint_overlay_image();
     if (!overlay) {
-        log_error("Footprint overlay was not initialized", 0, 0);
+        Logger::error("Footprint overlay was not initialized", 0, 0);
         return;
     }
     overlay->draw_isometric_footprint_from_draw_tile(x, y, color, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
@@ -741,7 +740,7 @@ Image *ImageManager::load_png(std::string_view path_key, const char *file_path)
 Image *ImageManager::load_pixels(std::string_view path_key, const image &metadata, const color_t *pixels, int width, int height)
 {
     if (path_key.empty() || !pixels || width <= 0 || height <= 0) {
-        log_error("Unable to load managed image pixels", "invalid request", width * height);
+        Logger::error("Unable to load managed image pixels", "invalid request", width * height);
         return nullptr;
     }
     if (Image *existing = find(path_key)) {
@@ -751,7 +750,7 @@ Image *ImageManager::load_pixels(std::string_view path_key, const image &metadat
 
     const graphics_renderer_interface *renderer = graphics_renderer();
     if (!renderer || !renderer->upload_image_resource) {
-        log_error("Unable to load managed image pixels", !renderer ? "renderer interface unavailable" : "renderer upload callback unavailable", 0);
+        Logger::error("Unable to load managed image pixels", !renderer ? "renderer interface unavailable" : "renderer upload callback unavailable", 0);
         return nullptr;
     }
 
@@ -763,7 +762,7 @@ Image *ImageManager::load_pixels(std::string_view path_key, const image &metadat
     uploaded_image.animation = nullptr;
     renderer->upload_image_resource(&uploaded_image, pixels, width, height);
     if (uploaded_image.resource_handle <= 0) {
-        log_error("Managed image pixel upload returned no handle", "renderer upload callback", uploaded_image.resource_handle);
+        Logger::error("Managed image pixel upload returned no handle", "renderer upload callback", uploaded_image.resource_handle);
         return nullptr;
     }
 

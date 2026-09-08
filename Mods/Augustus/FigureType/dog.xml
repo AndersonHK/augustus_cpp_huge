@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="dog" base_type="sheep">
+<figure type="dog" base_type="patrician">
     <presentation name_key="TR_FIGURE_TYPE_DOG" portrait_path="Walkers\dog_portrait" portrait_image="dog_portrait"/>
+    <speech sound="assets/Sounds/Dog_Bark.ogg"/>
     <profiles default="ambient">
         <profile id="ambient">
             <native class="transient_wanderer" />

@@ -56,6 +56,13 @@ public:
         }
         return translated(religion.presentation().name_key());
     }
+    ImageGroupEntryRef image(std::string_view binding, int index) const override
+    {
+        const int id = page * page_size + index;
+        if (binding != "religion.portrait" || index < 0 || id >= religions.size()) return {};
+        const auto &presentation = religions[id]->presentation();
+        return ImageGroupEntryRef::from_group(presentation.portrait_group(), presentation.portrait_image(id == selected));
+    }
     int condition(std::string_view binding, int index) const override
     {
         if (binding == "religion.selected") return selected == page * page_size + index;
@@ -79,14 +86,14 @@ const DeclarativeWindowDefinition *definition;
 void draw_background()
 {
     window_draw_underlying_window();
-    graphics_in_dialog_with_size(definition->base_width(), definition->base_height());
+    graphics_in_dialog();
     runtime->draw(DeclarativeDrawPhase::Background, definition->base_width(), definition->base_height());
     graphics_reset_dialog();
 }
 
 void draw_foreground()
 {
-    graphics_in_dialog_with_size(definition->base_width(), definition->base_height());
+    graphics_in_dialog();
     runtime->draw(DeclarativeDrawPhase::Foreground, definition->base_width(), definition->base_height());
     const auto &body = *definition->widget("body");
     const auto &scrollbar = *definition->widget("scrollbar");
@@ -98,14 +105,20 @@ void draw_foreground()
     rich_text_set_scrollbar_bounds(scrollbar.x, scrollbar.y, scrollbar.height, body.width);
     const int line_height = std::max(1, rich_text_get_line_height());
     rich_text_draw(text, body.x, body.y, body.width, body.height / line_height, 0);
+    rich_text_set_scrollbar_appearance(scrollbar.scrollbar_appearance.is_bound() ? &scrollbar.scrollbar_appearance : nullptr, scrollbar.scroll_always_visible);
     rich_text_draw_scrollbar();
+    rich_text_set_scrollbar_appearance(nullptr);
     graphics_reset_dialog();
 }
 
 void handle_input(const mouse *m, const hotkeys *keys)
 {
-    const mouse *dialog = mouse_in_dialog_with_size(m, definition->base_width(), definition->base_height());
-    if (rich_text_handle_mouse(dialog) || runtime->handle_mouse(*dialog, definition->base_width(), definition->base_height())) return;
+    const mouse *dialog = mouse_in_dialog(m);
+    const auto &appearance = definition->widget("scrollbar")->scrollbar_appearance;
+    rich_text_set_scrollbar_appearance(appearance.is_bound() ? &appearance : nullptr);
+    const bool scrolled = rich_text_handle_mouse(dialog);
+    rich_text_set_scrollbar_appearance(nullptr);
+    if (scrolled || runtime->handle_mouse(*dialog, definition->base_width(), definition->base_height())) return;
     if (input_go_back_requested(m, keys)) window_go_back();
 }
 }
@@ -125,3 +138,5 @@ void window_epithets_show()
     window_type window = {WINDOW_EPITHETS, draw_background, draw_foreground, handle_input};
     window_show(&window);
 }
+
+#include "../../tools/catch_up_test/epithets_ui.h"

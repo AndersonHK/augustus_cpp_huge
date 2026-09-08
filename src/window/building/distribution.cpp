@@ -1137,6 +1137,37 @@ void window_building_get_tooltip_storage_orders(int *group_id, int *text_id, tra
     }
 }
 
+const uint8_t *window_building_storage_resource_hover_tooltip(building_info_context *c)
+{
+    const Building *storage = data.building;
+    if (!storage || !storage->type || !storage->type->is_storage()) return nullptr;
+    const resource_list *list = stored_resources_for_type(*storage->type);
+    const mouse *m = mouse_get();
+    const int x = c->x_offset + 54, y = window_building_get_vertical_offset(c, 28) + 50;
+    const int width = scrollbar.max_scroll_position > 0 ? 88 : 118;
+    if (!list || m->x < x || m->x >= x + width || m->y < y) return nullptr;
+    const unsigned int row = static_cast<unsigned int>((m->y - y) / 22);
+    const unsigned int index = row + scrollbar.scroll_position;
+    if (row >= scrollbar.elements_in_view || index >= list->size || (m->y - y) % 22 >= 16) return nullptr;
+    const resource_type resource = list->items[index];
+    int sources = 0, destinations = 0;
+    Building::for_each([&](Building *depot) {
+        if (!depot || !depot->type || !depot->type->attr_is("cart_depot") || !depot->record() || depot->state_id() == BUILDING_STATE_UNUSED || depot->state_id() == BUILDING_STATE_RUBBLE) return;
+        const auto &order = depot->record()->data.depot.current_order;
+        if (order.resource_type != resource) return;
+        if (order.src_storage_id == storage->id) ++sources;
+        if (order.dst_storage_id == storage->id) ++destinations;
+    });
+    if (!sources && !destinations) return nullptr;
+    static std::string text;
+    text = reinterpret_cast<const char *>(resource_get_data(resource)->text);
+    text += "\n";
+    text += reinterpret_cast<const char *>(translation_for("TR_BUILDING_DEPOTS"));
+    if (sources) text += "\n" + std::string(reinterpret_cast<const char *>(translation_for("TR_DESTRIBUTION_SOURCE"))) + std::to_string(sources);
+    if (destinations) text += "\n" + std::string(reinterpret_cast<const char *>(translation_for("TR_DESTRIBUTION_DESTINATION"))) + std::to_string(destinations);
+    return reinterpret_cast<const uint8_t *>(text.c_str());
+}
+
 const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
 {
     int x_offset = c->x_offset + 16;
@@ -1163,6 +1194,8 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
         }
         static uint8_t text[400];
         uint8_t *cursor = text;
+        cursor = string_copy(empire_city_get_name(city), cursor, 400 - (int) (cursor - text));
+        cursor = string_copy(string_from_ascii("\n"), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(lang_get_string("main_strings.47.5"), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(string_from_ascii(": "), cursor, 400 - (int) (cursor - text));
         int traded = 0;

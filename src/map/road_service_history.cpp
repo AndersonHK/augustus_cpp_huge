@@ -1,6 +1,6 @@
 #include "map/road_service_history.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "map/grid.h"
 
@@ -136,8 +136,8 @@ void map_road_service_history_load_state(
     map_road_service_history_clear();
 
     if (!has_saved_state || !buf || !buf->data || !buf->size) {
-        const ErrorContextScope scope("Savegame road service history");
-        error_context_report_info(
+        const Logger::Scope scope("Savegame road service history");
+        Logger::info(
             "Savegame has no road service history; smart walker pathing history will start at zero.",
             "This is expected when loading saves created before road service history was added.");
         return;
@@ -145,8 +145,8 @@ void map_road_service_history_load_state(
 
     const size_t payload_size = buffer_load_dynamic(buf);
     if (payload_size < kSaveHeaderSize) {
-        const ErrorContextScope scope("Savegame road service history");
-        error_context_report_warning("Invalid road service history; resetting it to zero.", 0);
+        const Logger::Scope scope("Savegame road service history");
+        Logger::warning("Invalid road service history; resetting it to zero.", 0);
         return;
     }
 
@@ -154,8 +154,8 @@ void map_road_service_history_load_state(
     const uint32_t effect_count = buffer_read_u32(buf);
     if (format_version != kSaveFormatVersion ||
         effect_count <= static_cast<uint32_t>(ROAD_SERVICE_EFFECT_NONE)) {
-        const ErrorContextScope scope("Savegame road service history");
-        error_context_report_warning("Unsupported road service history; resetting it to zero.", 0);
+        const Logger::Scope scope("Savegame road service history");
+        Logger::warning("Unsupported road service history; resetting it to zero.", 0);
         return;
     }
 

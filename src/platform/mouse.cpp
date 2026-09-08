@@ -2,6 +2,7 @@
 #include "core/config.h"
 #include "game/system.h"
 #include "input/mouse.h"
+#include "graphics/screen.h"
 #include "platform/screen.h"
 
 #include <SDL_mouse.h>
@@ -14,7 +15,11 @@ static struct {
 
 void system_mouse_get_relative_state(int *x, int *y)
 {
-    SDL_GetRelativeMouseState(x, y);
+    int delta_x, delta_y;
+    SDL_GetRelativeMouseState(&delta_x, &delta_y);
+    platform_screen_window_to_pixels(&delta_x, &delta_y);
+    if (x) *x = delta_x;
+    if (y) *y = delta_y;
 }
 
 void system_mouse_set_relative_mode(int enabled)
@@ -24,9 +29,9 @@ void system_mouse_set_relative_mode(int enabled)
     }
     if (enabled) {
         SDL_GetMouseState(&data.x, &data.y);
-        int scale_percentage = calc_percentage(100, platform_screen_get_scale());
-        data.x = calc_adjust_with_percentage(data.x, scale_percentage);
-        data.y = calc_adjust_with_percentage(data.y, scale_percentage);
+        platform_screen_window_to_pixels(&data.x, &data.y);
+        data.x = screen_pixel_to_ui(data.x);
+        data.y = screen_pixel_to_ui(data.y);
         SDL_SetRelativeMouseMode(SDL_TRUE);
         system_mouse_get_relative_state(NULL, NULL);
     } else {

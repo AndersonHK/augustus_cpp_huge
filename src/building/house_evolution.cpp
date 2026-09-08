@@ -102,22 +102,10 @@ static int has_required_goods_and_services(Building &house_object, building *hou
     const HousingServiceState &services = house_object.Housing->state().services;
     // water
     const auto water = requirements.water;
-    if (!house->has_water_access) {
-        if (water == building_type_registry_impl::HousingWaterRequirement::Fountain) {
-            if (level > HOUSE_SMALL_CASA) {
-                ++demands->missing.fountain;
-                return  0;
-            } else if (!house->has_well_access) {
-                ++demands->missing.well;
-                return 0;
-            } else if (level > HOUSE_LARGE_SHACK && !house->has_latrines_access) {
-                return 0;
-            }
-        }
-        if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_well_access) {
-            ++demands->missing.well;
-            return 0;
-        }
+    if (!requirements.has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        if (water == building_type_registry_impl::HousingWaterRequirement::Fountain) ++demands->missing.fountain;
+        if (water == building_type_registry_impl::HousingWaterRequirement::Well) ++demands->missing.well;
+        return 0;
     }
 
     // entertainment
@@ -147,24 +135,7 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.school;
     }
     // religion
-    int religion = requirements.religion;
-    if (religion > 3) {
-        religion = 3;
-    }
-    if (services.num_gods < religion) {
-        if (religion == 1) {
-            ++demands->missing.religion;
-            return 0;
-        } else if (religion == 2) {
-            ++demands->missing.second_religion;
-            return 0;
-        } else if (religion >= 3) {
-            ++demands->missing.third_religion;
-            return 0;
-        }
-    } else if (religion > 0) {
-        ++demands->requiring.religion;
-    }
+    if (!city_houses_check_religion_requirement(requirements.religion, services.num_gods)) return 0;
     // barber
     int barber = requirements.barber;
     if (services.barber < barber) {
@@ -342,6 +313,12 @@ static void consume_resource(building *b, int inventory, int amount)
     }
 }
 
+bool building_house_consumes_goods_this_month(int month, int reduction_percent)
+{
+    const int percent = std::clamp(100 - reduction_percent, 0, 100);
+    return percent == 100 || ((month % 100) * percent) % 100 < percent;
+}
+
 static void consume_resources(Building &house_object, building *b)
 {
     int consumption_reduction[RESOURCE_SLOT_COUNT] = { 0 };
@@ -374,8 +351,7 @@ static void consume_resources(Building &house_object, building *b)
         if (!resource_is_inventory_good(r)) {
             continue;
         }
-        if (!consumption_reduction[r] ||
-            (game_time_total_months() % (100 / consumption_reduction[r]))) {
+        if (building_house_consumes_goods_this_month(game_time_total_months(), consumption_reduction[r])) {
             int amount = 0;
             if (r == resource_wine()) {
                 amount = requirements.wine;
@@ -428,6 +404,17 @@ void building_house_process_evolve_and_consume_goods(void)
     }
 }
 
+const char *building_house_extended_evolution_translation(int warning)
+{
+    switch (warning) {
+        case HOUSE_EVOLUTION_FOURTH_RELIGION_DEVOLVE: return "TR_BUILDING_FOURTH_GOOD_MISSING_DEVOLVE";
+        case HOUSE_EVOLUTION_FIFTH_RELIGION_DEVOLVE: return "TR_BUILDING_FIFTH_GOOD_MISSING_DEVOLVE";
+        case HOUSE_EVOLUTION_FOURTH_RELIGION_EVOLVE: return "TR_BUILDING_FOURTH_GOOD_MISSING_EVOLVE";
+        case HOUSE_EVOLUTION_FIFTH_RELIGION_EVOLVE: return "TR_BUILDING_FIFTH_GOOD_MISSING_EVOLVE";
+        default: return nullptr;
+    }
+}
+
 void building_house_determine_evolve_text(Building house_object, int worst_desirability_building)
 {
     ::building *house = const_cast<::building *>(house_object.record());
@@ -456,24 +443,9 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // water
     auto water = requirements->water;
-    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
-        if (!house->has_well_access) {
-            state.evolve_text_id = 1;
-            return;
-        } else if (!house->has_latrines_access) {
-            state.evolve_text_id = 68;
-            return;
-        }
-    }
-
-    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
-        if (!house->has_latrines_access) {
-            state.evolve_text_id = 67;
-            return;
-        } else if (level >= HOUSE_LARGE_CASA) {
-            state.evolve_text_id = 2;
-            return;
-        }
+    if (!requirements->has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        state.evolve_text_id = water == building_type_registry_impl::HousingWaterRequirement::Well ? 1 : water == building_type_registry_impl::HousingWaterRequirement::LatrineOrFountain ? 67 : 2;
+        return;
     }
 
     // entertainment
@@ -545,10 +517,11 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // religion
     int religion = requirements->religion;
-    if (religion > 3) {
-        religion = 3;
-    }
     if (services.num_gods < religion) {
+        if (religion >= 4) {
+            state.evolve_text_id = static_cast<uint8_t>(religion == 4 ? HOUSE_EVOLUTION_FOURTH_RELIGION_DEVOLVE : HOUSE_EVOLUTION_FIFTH_RELIGION_DEVOLVE);
+            return;
+        }
         if (religion == 1) {
             state.evolve_text_id = 20;
             return;
@@ -621,21 +594,9 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // water
     water = requirements->water;
-    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
-        if (!house->has_well_access) {
-            state.evolve_text_id = 31;
-            return;
-        } else if (!house->has_latrines_access) {
-            state.evolve_text_id = 68;
-            return;
-        }
-    }
-
-    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
-        if (level >= HOUSE_LARGE_CASA && house->has_well_access && house->has_latrines_access) {
-            state.evolve_text_id = 32;
-            return;
-        }
+    if (!requirements->has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        state.evolve_text_id = water == building_type_registry_impl::HousingWaterRequirement::Well ? 31 : water == building_type_registry_impl::HousingWaterRequirement::LatrineOrFountain ? 67 : 32;
+        return;
     }
 
 
@@ -702,10 +663,11 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // religion
     religion = requirements->religion;
-    if (religion > 3) {
-        religion = 3;
-    }
     if (services.num_gods < religion) {
+        if (religion >= 4) {
+            state.evolve_text_id = static_cast<uint8_t>(religion == 4 ? HOUSE_EVOLUTION_FOURTH_RELIGION_EVOLVE : HOUSE_EVOLUTION_FIFTH_RELIGION_EVOLVE);
+            return;
+        }
         if (religion == 1) {
             state.evolve_text_id = 50;
             return;

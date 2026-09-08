@@ -185,31 +185,7 @@ void figure_shipwreck_action(Figure *f)
     figure_runtime_graphics_select_default_entry(f, entry);
 }
 
-void figure_sink_all_ships(void)
-{
-    for (unsigned int i = 1; i < Figure::count(); i++) {
-        Figure *f = Figure::get(i);
-        if (f->state != FIGURE_STATE_ALIVE) {
-            continue;
-        }
-        if (f->type == FIGURE_TRADE_SHIP) {
-            building *dock = record_for(f->destination_building);
-            if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
-                dock->data.dock.trade_ship_id = 0;
-            }
-        } else if (f->type == FIGURE_FISHING_BOAT) {
-            FishingBoat::from(*f).sink();
-            continue;
-        } else {
-            continue;
-        }
-    f->set_home_building(nullptr);
-        f->type = FIGURE_SHIPWRECK;
-        f->wait_ticks = 0;
-    }
-}
-
-void figure_sink_half_ships(void)
+void figure_sink_ships(int percent)
 {
     int fishing_to_destroy = 0;
     int trade_to_destroy = 0;
@@ -231,13 +207,13 @@ void figure_sink_half_ships(void)
         if (f->state != FIGURE_STATE_ALIVE) {
             continue;
         }
-        if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < (int)trade_to_destroy / 2 )) {
+        if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < trade_to_destroy * percent / 100 )) {
             building *dock = record_for(f->destination_building);
             if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
                 dock->data.dock.trade_ship_id = 0;
             }
             trade_destroyed++;
-        } else if (f->type == FIGURE_FISHING_BOAT && (fishing_destroyed < (int)fishing_to_destroy / 2 )) {
+        } else if (f->type == FIGURE_FISHING_BOAT && (fishing_destroyed < fishing_to_destroy * percent / 100 )) {
             FishingBoat::from(*f).sink();
             fishing_destroyed++;
             continue;

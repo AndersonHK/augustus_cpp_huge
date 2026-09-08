@@ -93,15 +93,15 @@ void system_init_cursors(int scale_percentage)
         }
         if (data.cursors[i]) {
             SDL_FreeCursor(data.cursors[i]);
+            data.cursors[i] = nullptr;
         }
         const cursor *c = get_valid_cursor(list);
         data.surfaces[i] = generate_cursor_surface(c);
 
+        if (!data.surfaces[i]) continue;
+        platform_renderer_generate_mouse_cursor_texture(i, data.surfaces[i]->w, static_cast<const color_t *>(data.surfaces[i]->pixels), c->hotspot_x, c->hotspot_y);
         if (platform_cursor_is_software()) {
             SDL_ShowCursor(SDL_DISABLE);
-            platform_renderer_generate_mouse_cursor_texture(i, data.surfaces[i]->w,
-                static_cast<const color_t *>(data.surfaces[i]->pixels),
-                c->hotspot_x, c->hotspot_y);
         } else {
             data.cursors[i] = SDL_CreateColorCursor(data.surfaces[i], c->hotspot_x, c->hotspot_y);
         }
@@ -142,9 +142,11 @@ int platform_cursor_is_software(void)
 #ifdef PLATFORM_USE_SOFTWARE_CURSOR
     return 1;
 #else
-    return data.software_cursor;
+    return data.software_cursor || !platform_cursor_has_hardware_cursor();
 #endif
 }
+
+int platform_cursor_has_hardware_cursor(void) { return SDL_GetDefaultCursor() != nullptr; }
 
 cursor_shape platform_cursor_get_current_shape(void)
 {

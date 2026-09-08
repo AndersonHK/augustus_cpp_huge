@@ -1,3 +1,5 @@
+#include "graphics/screen.h"
+#include "graphics/declarative_window.h"
 #include "translation/translation.h"
 #include "advisors.h"
 
@@ -219,6 +221,10 @@ static void draw_advisor_button(int index, int selected, int x, int y)
 void window_advisors_draw_dialog_background(void)
 {
     Image::from_id(Image::group(GROUP_ADVISOR_BACKGROUND)).draw_fullscreen_background();
+    if (const auto *frame = declarative_window_definition("advisor_frame")) {
+        class FrameController final : public DeclarativeWindowController { void action(std::string_view, int) override {} } controller;
+        DeclarativeWindowRuntime(*frame, controller).draw(DeclarativeDrawPhase::Foreground, screen_width(), screen_height());
+    }
     graphics_in_dialog();
     Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 13).draw(0, 432);
 

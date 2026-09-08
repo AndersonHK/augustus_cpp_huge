@@ -3,7 +3,7 @@
 #include "city/message.h"
 #include "building/dock.h"
 #include "building/menu.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"

@@ -1,7 +1,6 @@
 #include "building/storage_type_registry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -50,7 +49,7 @@ ParseState g_parse_state;
 int parse_enabled_content(const char *element)
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled) {
-        log_error("Disabled StorageType definition must contain only its root identity", element, 0);
+        Logger::error("Disabled StorageType definition must contain only its root identity", element, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -60,7 +59,7 @@ int parse_enabled_content(const char *element)
 int parse_root()
 {
     if (g_parse_state.saw_root) {
-        log_error("StorageType contains duplicate root nodes", 0, 0);
+        Logger::error("StorageType contains duplicate root nodes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -69,14 +68,14 @@ int parse_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("StorageType has invalid Boolean attribute 'disabled'", 0, 0);
+        Logger::error("StorageType has invalid Boolean attribute 'disabled'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     g_parse_state.disabled = disabled;
     if (disabled) {
         if (xml_parser_has_attribute("role")) {
-            log_error("Disabled StorageType definition must not declare role", 0, 0);
+            Logger::error("Disabled StorageType definition must not declare role", 0, 0);
             g_parse_state.error = 1;
             return 0;
         }
@@ -84,7 +83,7 @@ int parse_root()
     }
 
     if (!xml_parser_has_attribute("role")) {
-        log_error("StorageType is missing required attribute 'role'", 0, 0);
+        Logger::error("StorageType is missing required attribute 'role'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -95,7 +94,7 @@ int parse_root()
     } else if (xml_parser_compare_multiple(role_text, "output")) {
         g_parse_state.definition->set_role(StorageRole::Output);
     } else {
-        log_error("Unsupported StorageType role", role_text, 0);
+        Logger::error("Unsupported StorageType role", role_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -109,14 +108,14 @@ int parse_resource()
         return 0;
     }
     if (!xml_parser_has_attribute("resource")) {
-        log_error("StorageType resource is missing required attribute 'resource'", 0, 0);
+        Logger::error("StorageType resource is missing required attribute 'resource'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     const std::string resource = xml_value::trim_copy(xml_parser_get_attribute_string("resource"));
     if (resource.empty()) {
-        log_error("StorageType resource has empty attribute 'resource'", 0, 0);
+        Logger::error("StorageType resource has empty attribute 'resource'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -130,19 +129,19 @@ int parse_capacity()
         return 0;
     }
     if (g_parse_state.saw_capacity) {
-        log_error("StorageType xml contains duplicate capacity nodes", 0, 0);
+        Logger::error("StorageType xml contains duplicate capacity nodes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("amount")) {
-        log_error("StorageType capacity is missing required attribute 'amount'", 0, 0);
+        Logger::error("StorageType capacity is missing required attribute 'amount'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     int amount = 0;
     if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("amount"), &amount) || amount < 0) {
-        log_error("Unsupported StorageType capacity amount", xml_parser_get_attribute_string("amount"), 0);
+        Logger::error("Unsupported StorageType capacity amount", xml_parser_get_attribute_string("amount"), 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -164,7 +163,7 @@ int parse_definition_buffer(
     const std::vector<char> &buffer,
     StagedStorageType *out_definition)
 {
-    ErrorContextScope error_scope("storage_type_registry.parse_definition", filename);
+    Logger::Scope error_scope("storage_type_registry.parse_definition", filename);
 
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<StorageType>(definition_path ? definition_path : "");
@@ -176,7 +175,7 @@ int parse_definition_buffer(
         buffer);
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_root ||
         (!g_parse_state.disabled && (g_parse_state.resource_references.empty() || !g_parse_state.saw_role))) {
-        error_context_report_error("Unable to parse StorageType xml.", filename);
+        Logger::error("Unable to parse StorageType xml.", filename);
         return 0;
     }
 
@@ -299,7 +298,7 @@ int storage_type_registry_load(void)
 
     StagedStorageTypes staged;
     if (!load_staged_definitions(staged)) {
-        error_context_report_error("Unable to load layered StorageType definitions.", g_failure_reason.c_str());
+        Logger::error("Unable to load layered StorageType definitions.", g_failure_reason.c_str());
         return 0;
     }
 

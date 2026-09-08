@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="watchman" graphics_only="false">
+    <profiles default="patrol">
+        <profile id="patrol">
+            <native class="legacy_action" />
+            <spawn action_state="watchman_patrol_initiate" init_roaming="false" />
+            <owner slot="none" building="watchtower" state="in_use" />
+            <movement roam_ticks="1" max_roam_length="640" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" terrain="roads" />
+        </profile>
+    </profiles>
+</figure>

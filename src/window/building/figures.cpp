@@ -167,7 +167,7 @@ void window_building_play_figure_phrase(building_info_context *c)
     int figure_id = c->figure.figure_ids[c->figure.selected_index];
     Figure *f = Figure::get(figure_id);
     c->figure.sound_id = figure_phrase_play(f);
-    c->figure.phrase_id = f->phrase_id;
+    c->figure.phrase_id = c->figure.sound_id >= 0 ? f->phrase_id : -1;
 }
 
 static void figure_action(const generic_button *button)

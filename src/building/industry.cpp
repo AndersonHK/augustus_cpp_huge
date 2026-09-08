@@ -257,32 +257,32 @@ void building_industry_update_production(int new_day)
     }
 }
 
-void building_bless_farms(void)
+void building_bless_farms(int days)
 {
-    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [days] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
-            building->bless_native_farm();
+            building->bless_native_farm(days);
         }
     });
 }
 
-void building_bless_industry(void)
+void building_bless_industry(int batches)
 {
-    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [batches] (Building *building)
     {
         if (building->is_in_use()) {
-            building->bless_native_industry();
+            building->bless_native_industry(batches);
         }
     });
 }
 
-void building_curse_farms(int big_curse)
+void building_curse_farms(int days)
 {
-    Building::for_each(BuildingRuntimeList::Production, [big_curse] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [days] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
-            building->curse_native_farm(big_curse);
+            building->curse_native_farm(days);
         }
     });
 }

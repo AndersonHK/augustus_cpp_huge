@@ -1,14 +1,15 @@
 #include "building/god_registry.h"
 
 #include "city/god.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
 #include "game/mod_definition_loader.h"
 
 #include <array>
+#include <set>
+#include <stdexcept>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -21,19 +22,10 @@ namespace building_type_registry_impl {
 
 namespace {
 
-struct ParseState {
-    std::unique_ptr<God> definition;
-    bool disabled = false;
-    bool saw_root = false;
-    bool saw_legacy = false;
-    bool error = false;
-};
-
 std::unordered_map<std::string, std::unique_ptr<God>> g_gods;
 std::vector<const God *> g_runtime_gods;
 mod_definition::DefinitionOverlayTracker g_definition_sources;
 std::string g_failure_reason;
-ParseState g_parse_state;
 
 god_type parse_god_type(const char *value)
 {
@@ -56,83 +48,6 @@ god_type parse_god_type(const char *value)
     return GOD_ALL;
 }
 
-GodBlessingType parse_blessing_type(const char *value, bool &valid)
-{
-    const std::string text = xml_value::trim_copy(value ? value : "");
-    if (text == "neptune_trade_bonus") {
-        valid = true;
-        return GodBlessingType::NeptuneTradeBonus;
-    }
-    if (text == "venus_employment") {
-        valid = true;
-        return GodBlessingType::VenusEmployment;
-    }
-    valid = false;
-    return GodBlessingType::NeptuneTradeBonus;
-}
-
-int parse_root()
-{
-    if (!g_parse_state.definition || g_parse_state.saw_root ||
-        !xml_parser_has_attribute("legacy")) {
-        log_error("God xml is missing its legacy identity or has duplicate roots", 0, 0);
-        g_parse_state.error = true;
-        return 0;
-    }
-
-    const char *legacy_text = xml_parser_get_attribute_string("legacy");
-    const god_type legacy_type = parse_god_type(legacy_text);
-    int disabled = 0;
-    if (legacy_type == GOD_ALL ||
-        (xml_parser_has_attribute("disabled") &&
-            !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled))) {
-        log_error("Unsupported God legacy identity or disabled value", legacy_text, 0);
-        g_parse_state.error = true;
-        return 0;
-    }
-
-    g_parse_state.definition->set_legacy_type(legacy_type);
-    g_parse_state.disabled = disabled != 0;
-    g_parse_state.saw_legacy = true;
-    g_parse_state.saw_root = true;
-    return 1;
-}
-
-int parse_blessing()
-{
-    if (g_parse_state.disabled) {
-        log_error("Disabled God tombstone contains definition data", "blessing", 0);
-        g_parse_state.error = true;
-        return 0;
-    }
-    if (!g_parse_state.definition || !xml_parser_has_attribute("type") ||
-        !xml_parser_has_attribute("months")) {
-        log_error("God blessing is missing required attributes", 0, 0);
-        g_parse_state.error = true;
-        return 0;
-    }
-
-    bool valid_type = false;
-    const GodBlessingType blessing_type =
-        parse_blessing_type(xml_parser_get_attribute_string("type"), valid_type);
-    int months = 0;
-    if (!valid_type ||
-        !xml_value::parse_int_strict(xml_parser_get_attribute_string("months"), &months) ||
-        months < 0) {
-        log_error("Unsupported God blessing", xml_parser_get_attribute_string("type"), months);
-        g_parse_state.error = true;
-        return 0;
-    }
-
-    g_parse_state.definition->set_blessing_months(blessing_type, months);
-    return 1;
-}
-
-const xml_parser_element XML_ELEMENTS[] = {
-    { "god", parse_root, nullptr, nullptr, nullptr },
-    { "blessing", parse_blessing, nullptr, "god", nullptr }
-};
-
 struct ParsedDefinition {
     std::unique_ptr<God> definition;
     bool disabled = false;
@@ -145,30 +60,55 @@ bool parse_definition_buffer(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("god_registry.parse_definition", filename);
+    Logger::Scope error_scope("god_registry.parse_definition", filename);
     const std::string stable_id = xml_definition::normalize_path(definition_path);
-    g_parse_state = {};
-    g_parse_state.definition = std::make_unique<God>(stable_id);
-    const bool parsed = xml_definition::parse_buffer(
-        filename,
-        "God",
-        XML_ELEMENTS,
-        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])),
-        buffer);
-    if (!parsed || stable_id.empty() || g_parse_state.error || !g_parse_state.saw_root ||
-        !g_parse_state.saw_legacy || !g_parse_state.definition) {
-        const std::string detail = xml_definition::format_failure_reason(
-            "Unable to parse God xml.", filename);
-        log_error("Unable to parse God xml", filename, 0);
-        error_context_report_error("Unable to parse God xml.", filename);
-        if (failure_reason) {
-            *failure_reason = detail;
+    try {
+        std::string xml(buffer.begin(), buffer.end());
+        while (!xml.empty() && !xml.back()) xml.pop_back();
+        const auto root = mod_content::parse(xml);
+        if (root.name != "god" || stable_id.empty()) throw std::runtime_error("Invalid God root or identity");
+        const auto legacy = parse_god_type(root.attribute("legacy").c_str());
+        if (legacy == GOD_ALL) throw std::runtime_error("God requires a valid legacy save slot");
+        int disabled = 0;
+        if (root.attributes.count("disabled") && !xml_value::parse_bool(root.attribute("disabled").c_str(), &disabled)) throw std::runtime_error("Invalid God disabled value");
+        for (const auto &attribute : root.attributes) if (attribute.first != "legacy" && attribute.first != "disabled") throw std::runtime_error("Unknown God attribute " + attribute.first);
+        result.disabled = disabled != 0;
+        result.definition = std::make_unique<God>(stable_id);
+        result.definition->set_legacy_type(legacy);
+        if (disabled && !root.children.empty()) throw std::runtime_error("Disabled God contains definition data");
+        std::set<std::string> sections;
+        for (const auto &child : root.children) {
+            if (!sections.insert(child.name).second) throw std::runtime_error("Duplicate God section " + child.name);
+            if (child.name == "wrath") {
+                auto &rules = result.definition->wrath;
+                const std::map<std::string, int *> fields{{"neutral", &rules.neutral}, {"threshold", &rules.threshold}, {"mild_threshold", &rules.mild_threshold}, {"severe_threshold", &rules.severe_threshold}, {"mild_amount", &rules.mild_amount}, {"moderate_amount", &rules.moderate_amount}, {"severe_amount", &rules.severe_amount}, {"maximum", &rules.maximum}, {"favor_decay", &rules.favor_decay}};
+                if (!child.children.empty() || child.attributes.size() != fields.size()) throw std::runtime_error("Incomplete wrath rules");
+                for (const auto &field : fields) if (!xml_value::parse_int_strict(child.attribute(field.first).c_str(), field.second) || *field.second < 0 || *field.second > 100) throw std::runtime_error("Invalid wrath rule");
+                if (rules.neutral < rules.threshold || rules.threshold < rules.mild_threshold || rules.mild_threshold < rules.severe_threshold) throw std::runtime_error("Wrath thresholds must be descending");
+            } else if (child.name == "favor") {
+                auto &rules = result.definition->favor;
+                if (child.attributes.empty() && child.children.empty()) continue;
+                rules.enabled = true;
+                const std::map<std::string, int *> fields{{"neutral", &rules.neutral}, {"happiness_divisor", &rules.happiness_divisor}, {"base_chance", &rules.base_chance}, {"festival_months", &rules.festival_months}, {"festival_divisor", &rules.festival_divisor}, {"maximum", &rules.maximum}};
+                if (!child.children.empty() || child.attributes.size() != fields.size()) throw std::runtime_error("Incomplete favor rules");
+                for (const auto &field : fields) if (!xml_value::parse_int_strict(child.attribute(field.first).c_str(), field.second) || *field.second < 0 || *field.second > 100) throw std::runtime_error("Invalid favor rule");
+                if (!rules.happiness_divisor || !rules.festival_divisor) throw std::runtime_error("Favor divisor must be positive");
+            } else {
+                const auto trigger = child.name == "blessings" ? religion::Trigger::Blessing : child.name == "minor_curses" ? religion::Trigger::MinorCurse : religion::Trigger::MajorCurse;
+                if (child.name != "blessings" && child.name != "minor_curses" && child.name != "major_curses") throw std::runtime_error("Unknown God section " + child.name);
+                if (!child.attributes.empty()) throw std::runtime_error("Unexpected effect section attributes");
+                for (const auto &effect : child.children) {
+                    if (effect.name != "effect") throw std::runtime_error("Expected religion effect");
+                    result.definition->effects.push_back(religion::parse_effect(effect, trigger));
+                }
+            }
         }
+    } catch (const std::exception &error) {
+        const std::string detail = std::string(filename) + ": " + error.what();
+        Logger::error("Unable to parse God xml", detail.c_str(), 0);
+        if (failure_reason) *failure_reason = detail;
         return false;
     }
-
-    result.definition = std::move(g_parse_state.definition);
-    result.disabled = g_parse_state.disabled;
     return true;
 }
 
@@ -224,8 +164,8 @@ bool stage_definition(
         const std::string detail = "God '" + stable_id + "' changes legacy identity from " +
             std::to_string(identity->second.legacy_type) + " in " + identity->second.source.describe() +
             " to " + std::to_string(legacy_type) + " in " + source.describe() + '.';
-        log_error("God replacement changes stable legacy identity", detail.c_str(), 0);
-        error_context_report_error("God replacement changes stable legacy identity.", detail.c_str());
+        Logger::error("God replacement changes stable legacy identity", detail.c_str(), 0);
+        Logger::error("God replacement changes stable legacy identity.", detail.c_str());
         if (failure_reason) {
             *failure_reason = detail;
         }
@@ -236,8 +176,8 @@ bool stage_definition(
     }
 
     if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
-        log_error("Unable to layer God definition", staged.overlay.failure_reason().c_str(), 0);
-        error_context_report_error("Unable to layer God definition.", staged.overlay.failure_reason().c_str());
+        Logger::error("Unable to layer God definition", staged.overlay.failure_reason().c_str(), 0);
+        Logger::error("Unable to layer God definition.", staged.overlay.failure_reason().c_str());
         if (failure_reason) {
             *failure_reason = staged.overlay.failure_reason();
         }
@@ -260,8 +200,8 @@ bool materialize_winners(StagedRegistry &staged, std::string *failure_reason)
         if (existing) {
             const std::string detail = "God legacy identity " + std::to_string(legacy_type) +
                 " is claimed by both " + existing->source.describe() + " and " + winner.source.describe() + '.';
-            log_error("Duplicate active God legacy identity", detail.c_str(), legacy_type);
-            error_context_report_error("Duplicate active God legacy identity.", detail.c_str());
+            Logger::error("Duplicate active God legacy identity", detail.c_str(), legacy_type);
+            Logger::error("Duplicate active God legacy identity.", detail.c_str());
             if (failure_reason) {
                 *failure_reason = detail;
             }
@@ -349,7 +289,7 @@ int god_registry_load(void)
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure God definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure God definition layers", failure_reason.c_str(), 0);
         building_type_registry_impl::g_failure_reason = failure_reason;
         return 0;
     }
@@ -425,8 +365,9 @@ void fill_layer_test_result(
     if (definition != staged.definitions.end() && definition->second) {
         result->queried_legacy_type = definition->second->legacy_type();
         result->queried_runtime_id = definition->second->runtime_id();
-        result->queried_neptune_blessing_months =
-            definition->second->blessing_months(GodBlessingType::NeptuneTradeBonus);
+        for (const auto &effect : definition->second->effects) for (const auto &action : effect.actions) {
+            if (action.callback == religion::Callback::TradeBonus) result->queried_trade_bonus_months = action.arguments[0];
+        }
         return;
     }
     const auto identity = staged.identities.find(stable_id);

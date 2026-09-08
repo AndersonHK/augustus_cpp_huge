@@ -466,7 +466,12 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
         if (obj->type != EMPIRE_OBJECT_CITY) {
             return 0;
         }
-        image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
+        const auto icon = empire_city_icon(obj->empire_city_icon);
+        const int icon_x = x + (center - icon.width()) / 2;
+        const int icon_y = y + (center - icon.height()) / 2;
+        icon.draw(icon_x, icon_y, color_mask);
+        if (draw_borders) graphics_draw_rect(icon_x, icon_y, icon.width(), icon.height(), COLOR_BLACK);
+        return 1;
     } else {
         if (empire_editor_get_moving_ornament_id() < 0) {
             image_id = Image::group(preview_image_group);
@@ -550,7 +555,8 @@ static void draw_empire_object(const empire_object *obj)
         window_empire_draw_border(obj, data.x_draw_offset, data.y_draw_offset);
     }
     if (obj->type == EMPIRE_OBJECT_CITY) {
-        image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
+        empire_city_icon(obj->empire_city_icon).draw(data.x_draw_offset + x, data.y_draw_offset + y);
+        return;
     } else if (obj->type == EMPIRE_OBJECT_BATTLE_ICON) {
         draw_shadowed_number(obj->invasion_path_id,
             data.x_draw_offset + x - 9, data.y_draw_offset + y - 9, COLOR_WHITE);
@@ -867,15 +873,9 @@ static void draw_city_info(const empire_city *city)
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[2].x, data.y_max - 93,
                     24, 24, data.focus_city_button_id == 3);
                 const empire_object *obj = empire_object_get(city->empire_object_id);
-                int image_id = empire_city_get_icon_image_id(obj->future_trade_after_icon);
-                if (image_id > 0) {
-                    float scale = obj->width > obj->height ? obj->width : obj->height / 24.0f;
-                    Image::from_id(image_id).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
-                    const image *img = image_get(image_id);
-                    if (img->animation && img->animation->speed_id) {
-                        Image::from_id(image_id + obj->animation_index).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale), (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
-                    }
-                }
+                const auto icon = empire_city_icon(obj->future_trade_after_icon);
+                const float scale = std::max(icon.width(), icon.height()) / 24.0f;
+                if (scale > 0) icon.draw(static_cast<int>((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), static_cast<int>((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
             }
             if (!trade_city_buttons[1].parameter1) {
                 // if the change trade route cost button isn't hidden draw it

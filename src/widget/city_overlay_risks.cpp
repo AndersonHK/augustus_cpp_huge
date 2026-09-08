@@ -1,4 +1,6 @@
+#include "game/defines.h"
 #include "building/destruction.h"
+#include "building/distribution.h"
 #include "building/BuildingGeometry.h"
 #include "graphics/graphics.h"
 #include "core/calc.h"
@@ -93,6 +95,8 @@ void city_overlay_problems_prepare_building(building *b)
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         b->show_on_problem_overlay = 1;
+    } else if (type && type->presentation().rejected_distribution_problem && type->distribution() && type->distribution()->accepts_nothing(*building)) {
+        b->show_on_problem_overlay = 1;
     } else if (b->has_road_access == 0 &&
         type && static_cast<bool>(type->required_workers()) && !type->is_latrines() && !type->is_fountain()) {
         b->show_on_problem_overlay = 1;
@@ -154,19 +158,6 @@ static int draw_footprint_enemy(int x, int y, float scale, int grid_offset)
 
 static int draw_top_enemy(int x, int y, float scale, int grid_offset)
 {
-    if (map_building_exists_at(grid_offset) && map_property_is_draw_tile(grid_offset)) {
-        Building &target = map_building_at(grid_offset);
-        const int damage = building_damage_at(grid_offset);
-        if (damage > 0) {
-            target.draw_top({x, y, grid_offset, COLOR_MASK_NONE, scale});
-            const int maximum = std::max(1, building_hit_points_at(grid_offset) + 1);
-            const int percent = calc_bound(100 - damage * 100 / maximum, 0, 100);
-            graphics_fill_rect(x, y - 12, 42, 6, COLOR_BLACK);
-            graphics_fill_rect(x + 1, y - 11, 40 * percent / 100, 4, percent > 33 ? COLOR_MASK_GREEN : COLOR_RED);
-            return 1;
-        }
-    }
-
     if (terrain_map().contains(grid_offset, terrain_types().aqueduct | terrain_types().wall)) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, 0, scale);
         return 1;
@@ -176,6 +167,8 @@ static int draw_top_enemy(int x, int y, float scale, int grid_offset)
 
 static int show_building_enemy(const building *b)
 {
+    const auto *definition = building_type_registry_impl::definition_for_type(b->type);
+    if (definition && definition->presentation().overlay == building_type_registry_impl::BuildingType::InspectionOverlay::Enemy) return 1;
     return building_type_registry_impl::type_attr_is_any(
             b->type, {"prefecture", "watchtower", "tower", "fort_ground"}) ||
         building_is_fort(b->type) ||
@@ -196,7 +189,7 @@ static int show_figure_damage(const Figure *f)
 
 static int show_figure_crime(const Figure *f)
 {
-    return f->is_category(FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_CRIMINAL | FIGURE_CATEGORY_PROJECTILE);
+    return f->type != FIGURE_BALLISTA && (f->is_category(FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_CRIMINAL | FIGURE_CATEGORY_PROJECTILE) || f->type == FIGURE_FORT_STANDARD);
 }
 
 static int show_figure_problems(const Figure *f)
@@ -292,6 +285,8 @@ static int get_column_height_none(const building *b)
 
 static int get_tooltip_fire(tooltip_context *c, const building *b)
 {
+    const auto *definition = b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    if (!definition || definition->presentation().overlay_always_visible) return 0;
     (void) c;
     if (b->fire_risk <= 0) {
         return 46;
@@ -310,6 +305,8 @@ static int get_tooltip_fire(tooltip_context *c, const building *b)
 
 static int get_tooltip_damage(tooltip_context *c, const building *b)
 {
+    const auto *definition = b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    if (!definition || definition->presentation().overlay_always_visible) return 0;
     (void) c;
     if (b->damage_risk <= 0) {
         return 52;
@@ -328,6 +325,8 @@ static int get_tooltip_damage(tooltip_context *c, const building *b)
 
 static int get_tooltip_crime(tooltip_context *c, const building *b)
 {
+    const auto *definition = b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    if (!definition || definition->presentation().overlay_always_visible) return 0;
     (void) c;
     int crime = get_crime_level(b);
     if (crime == RAMPANT_CRIME) {
@@ -406,6 +405,9 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS";
+    } else if (type && building && type->presentation().rejected_distribution_problem && type->distribution() && type->distribution()->accepts_nothing(*building)) {
+        c->text_group = 97;
+        return 2;
     } else if (b->has_road_access == 0 &&
         type && static_cast<bool>(type->required_workers()) && !type->is_latrines() && !type->is_fountain()) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_ROAD_ACCESS";
@@ -566,13 +568,33 @@ const city_overlay *city_overlay_for_native(void)
     return &overlay;
 }
 
+static void draw_enemy_health(int x, int y, float scale, int grid_offset)
+{
+    if (!map_building_exists_at(grid_offset) || !map_property_is_draw_tile(grid_offset)) return;
+    const Building &target = map_building_at(grid_offset);
+    if (!target.type || !target.type->presentation().show_durability) return;
+    const int maximum = std::max(1, building_hit_points_at(grid_offset) + game_defines_building_damage_extra_hit());
+    const int damage = building_damage_at(grid_offset);
+    if (damage <= 0) return;
+    const int percent = calc_bound(100 - damage * 100 / maximum, 0, 100);
+    int offset_x = 9, offset_y = -12;
+    target.mothball_status_icon_offset(30, 6, &offset_x, &offset_y);
+    const int draw_x = static_cast<int>((x + offset_x) / scale), draw_y = static_cast<int>((y + offset_y) / scale);
+    const color_t color = percent > 75 ? 0xff00cc00 : percent > 50 ? 0xffffa500 : percent > 25 ? 0xffff5a08 : COLOR_RED;
+    graphics_fill_rect(draw_x, draw_y, 30, 6, COLOR_BLACK);
+    graphics_fill_rect(draw_x + 1, draw_y + 1, 28, 4, 0xffb3b3b3);
+    graphics_fill_rect(draw_x + 1, draw_y + 1, percent > 0 ? std::max(1, 28 * percent / 100) : 0, 4, color);
+}
+
 static int get_tooltip_enemy(tooltip_context *context, const building *record)
 {
     static char text[96];
-    if (!record) return 0;
-    const int maximum = std::max(1, building_hit_points_at(record->grid_offset) + 1);
+    const auto *definition = record ? building_type_registry_impl::definition_for_type(record->type) : nullptr;
+    if (!definition || !definition->presentation().show_durability) return 0;
+    const int maximum = std::max(1, building_hit_points_at(record->grid_offset) + game_defines_building_damage_extra_hit());
     const int damage = building_damage_at(record->grid_offset);
-    std::snprintf(text, sizeof(text), "%s: %d / %d", reinterpret_cast<const char *>(translation_for_key("TR_DURABILITY")), std::max(0, maximum - damage), maximum);
+    if (damage <= 0) return 0;
+    std::snprintf(text, sizeof(text), "%d / %d", std::max(0, maximum - damage), maximum);
     context->precomposed_text = reinterpret_cast<const uint8_t *>(text);
     return 0;
 }
@@ -588,7 +610,8 @@ const city_overlay *city_overlay_for_enemy(void)
         0,
         get_tooltip_enemy,
         draw_footprint_enemy,
-        draw_top_enemy
+        draw_top_enemy,
+        draw_enemy_health
     };
     return &overlay;
 }

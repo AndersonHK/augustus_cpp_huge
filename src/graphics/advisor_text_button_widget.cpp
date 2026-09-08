@@ -1,6 +1,6 @@
 #include "graphics/advisor_text_button_widget.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/bordered_button_widget.h"
 
 AdvisorTextButtonWidget::AdvisorTextButtonWidget(
@@ -23,7 +23,7 @@ AdvisorTextButtonWidget::AdvisorTextButtonWidget(
 
 void AdvisorTextButtonWidget::draw() const
 {
-    ErrorContextScope error_scope("ui.advisor_text_button");
+    Logger::Scope error_scope("ui.advisor_text_button");
     BorderedButtonWidget(
         primitives_,
         x_,

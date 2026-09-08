@@ -20,6 +20,7 @@ struct Step {
 };
 
 struct Result {
+    std::size_t planned_steps = 0;
     bool succeeded = false;
     int resource_definitions = 0;
     bool graphics_validation_prepared = false;

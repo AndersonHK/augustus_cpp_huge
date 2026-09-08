@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="mess_hall">
+    <presentation overlay="enemy"/>
     <identity name_key="TR_BUILDING_MESS_HALL" />
     <model cost="100" />
     <desirability>

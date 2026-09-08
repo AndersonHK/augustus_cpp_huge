@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
@@ -640,6 +641,14 @@ void invalidate_dock_endpoints()
 void invalidate_river_anchors()
 {
     state.river_anchors_dirty = true;
+}
+
+void reset_world()
+{
+    // Construct the large grid cache on the heap; clear stale destinations and
+    // abandoned load scopes together when replacing or rolling back a world.
+    auto clean = std::make_unique<NavigationState>();
+    state = std::move(*clean);
 }
 
 void begin_world_load()

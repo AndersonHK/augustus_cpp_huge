@@ -13,7 +13,8 @@ enum class HousingResidentClass {
 enum class HousingWaterRequirement {
     None,
     Well,
-    Fountain
+    Fountain,
+    LatrineOrFountain
 };
 
 struct HousingEvolutionThresholds {
@@ -22,6 +23,10 @@ struct HousingEvolutionThresholds {
 };
 
 struct HousingRequirements {
+    bool has_required_water(bool well, bool fountain, bool latrine) const {
+        return water == HousingWaterRequirement::None || fountain ||
+            (water == HousingWaterRequirement::Well && well) || (water == HousingWaterRequirement::LatrineOrFountain && latrine);
+    }
     int entertainment = 0;
     HousingWaterRequirement water = HousingWaterRequirement::None;
     int religion = 0;

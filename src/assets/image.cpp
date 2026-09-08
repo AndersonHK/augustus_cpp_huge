@@ -7,7 +7,7 @@
 #include "game/campaign.h"
 #include "core/image.h"
 #include "core/image_packer.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/png_read.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
@@ -229,7 +229,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
 
     color_t *pixels = static_cast<color_t *>(malloc(sizeof(color_t) * img->img.width * img->img.height));
     if (!pixels) {
-        log_error("Error creating image - out of memory", 0, 0);
+        Logger::error("Error creating image - out of memory", 0, 0);
         unload_image_layers(img);
         return 0;
     }
@@ -338,7 +338,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
         if (has_top_part(&img->img, pixels)) {
             img->img.top = static_cast<image *>(malloc(sizeof(image)));
             if (!img->img.top) {
-                log_error("Error creating image - out of memory", 0, 0);
+                Logger::error("Error creating image - out of memory", 0, 0);
                 unload_image_layers(img);
                 return 0;
             }
@@ -350,7 +350,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
             img->img.atlas.y_offset = img->img.top->height;
             color_t *new_data = static_cast<color_t *>(malloc(sizeof(color_t) * (img->img.height + img->img.top->height) * img->img.width));
             if (!new_data) {
-                log_error("Error creating image - out of memory", 0, 0);
+                Logger::error("Error creating image - out of memory", 0, 0);
                 unload_image_layers(img);
                 return 0;
             }
@@ -390,7 +390,7 @@ static layer *create_layer_for_image(asset_image *img)
     }
     layer *l = static_cast<layer *>(malloc(sizeof(layer)));
     if (!l) {
-        log_error("Out of memory to create layer", 0, 0);
+        Logger::error("Out of memory to create layer", 0, 0);
         return 0;
     }
     memset(l, 0, sizeof(layer));
@@ -635,7 +635,7 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
     graphics_renderer()->get_max_image_size(&max_width, &max_height);
     if (image_packer_init(&packer, static_cast<unsigned int>(data.asset_images.size()) + data.total_isometric_images,
         max_width, max_height) != IMAGE_PACKER_OK) {
-        log_error("Failed to init image packer", 0, 0);
+        Logger::error("Failed to init image packer", 0, 0);
         return 0;
     }
     packer.options.fail_policy = IMAGE_PACKER_NEW_IMAGE;
@@ -701,7 +701,7 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
         atlas_data = graphics_renderer()->prepare_image_atlas(ATLAS_EXTRA_ASSET,
             packer.result.images_needed, packer.result.last_image_width, packer.result.last_image_height);
         if (!atlas_data) {
-            log_error("Failed to create packed images atlas - out of memory", 0, 0);
+            Logger::error("Failed to create packed images atlas - out of memory", 0, 0);
             image_packer_free(&packer);
             return 0;
         }

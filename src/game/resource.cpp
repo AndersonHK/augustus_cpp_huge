@@ -10,8 +10,7 @@
 
 #include "building/production_method_registry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "game/mod_definition_loader.h"
@@ -141,13 +140,13 @@ static int stage_resource_definition(
 static int parse_required_int_attribute(const char *attribute_name, int *out_value)
 {
     if (!xml_parser_has_attribute(attribute_name)) {
-        log_error("Resource xml is missing required integer attribute", attribute_name, 0);
+        Logger::error("Resource xml is missing required integer attribute", attribute_name, 0);
         resource_parse_state.error = 1;
         return 0;
     }
     const char *text = xml_parser_get_attribute_string(attribute_name);
     if (!xml_value::parse_int_strict(text ? text : "", out_value)) {
-        log_error("Resource xml has invalid integer attribute", attribute_name, 0);
+        Logger::error("Resource xml has invalid integer attribute", attribute_name, 0);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -162,7 +161,7 @@ static int parse_optional_int_attribute(const char *attribute_name, int *out_val
     }
     const char *text = xml_parser_get_attribute_string(attribute_name);
     if (!xml_value::parse_int_strict(text ? text : "", out_value)) {
-        log_error("Resource xml has invalid integer attribute", attribute_name, 0);
+        Logger::error("Resource xml has invalid integer attribute", attribute_name, 0);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -191,7 +190,7 @@ static int parse_flags_attribute(resource_flags *out_flags)
         } else if (token == "special") {
             *out_flags = static_cast<resource_flags>(*out_flags | RESOURCE_FLAG_SPECIAL);
         } else if (!token.empty() && token != "none") {
-            log_error("Unsupported Resource flag", token.c_str(), 0);
+            Logger::error("Unsupported Resource flag", token.c_str(), 0);
             resource_parse_state.error = 1;
             return 0;
         }
@@ -206,7 +205,7 @@ static int parse_flags_attribute(resource_flags *out_flags)
 static ImageGroupEntryRef parse_image_ref()
 {
     if (!xml_parser_has_attribute("path")) {
-        log_error("Resource graphics node is missing required path", xml_parser_get_current_element_name(), 0);
+        Logger::error("Resource graphics node is missing required path", xml_parser_get_current_element_name(), 0);
         resource_parse_state.error = 1;
         return ImageGroupEntryRef();
     }
@@ -218,7 +217,7 @@ static ImageGroupEntryRef parse_image_ref()
 static int parse_enabled_content(const char *element)
 {
     if (!resource_parse_state.saw_root || resource_parse_state.disabled) {
-        log_error("Disabled Resource definition must contain only its root identity", element, 0);
+        Logger::error("Disabled Resource definition must contain only its root identity", element, 0);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -228,24 +227,24 @@ static int parse_enabled_content(const char *element)
 static int parse_resource_root()
 {
     if (resource_parse_state.saw_root) {
-        log_error("Duplicate Resource root node", 0, 0);
+        Logger::error("Duplicate Resource root node", 0, 0);
         resource_parse_state.error = 1;
         return 0;
     }
     int slot = RESOURCE_NONE;
     if (!parse_required_int_attribute("slot", &slot) || slot < RESOURCE_NONE || slot >= RESOURCE_ALL) {
-        log_error("Resource xml has unsupported slot", 0, slot);
+        Logger::error("Resource xml has unsupported slot", 0, slot);
         resource_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("id")) {
-        log_error("Resource xml is missing required attribute 'id'", 0, 0);
+        Logger::error("Resource xml is missing required attribute 'id'", 0, 0);
         resource_parse_state.error = 1;
         return 0;
     }
     const std::string text_id = xml_value::trim_copy(xml_parser_get_attribute_string("id"));
     if (text_id.empty()) {
-        log_error("Resource xml has empty id", 0, slot);
+        Logger::error("Resource xml has empty id", 0, slot);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -253,7 +252,7 @@ static int parse_resource_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("Resource xml has invalid Boolean attribute 'disabled'", text_id.c_str(), slot);
+        Logger::error("Resource xml has invalid Boolean attribute 'disabled'", text_id.c_str(), slot);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -277,7 +276,7 @@ static int parse_resource_root()
 
     if (disabled) {
         if (xml_parser_has_attribute("name_key")) {
-            log_error("Disabled Resource definition must not declare name_key", text_id.c_str(), slot);
+            Logger::error("Disabled Resource definition must not declare name_key", text_id.c_str(), slot);
             resource_parse_state.error = 1;
             return 0;
         }
@@ -285,13 +284,13 @@ static int parse_resource_root()
     }
 
     if (!xml_parser_has_attribute("name_key")) {
-        log_error("Resource xml is missing required attribute 'name_key'", text_id.c_str(), slot);
+        Logger::error("Resource xml is missing required attribute 'name_key'", text_id.c_str(), slot);
         resource_parse_state.error = 1;
         return 0;
     }
     resource_parse_state.name_key = xml_value::trim_copy(xml_parser_get_attribute_string("name_key"));
     if (resource_parse_state.name_key.empty()) {
-        log_error("Resource xml has empty name_key", text_id.c_str(), slot);
+        Logger::error("Resource xml has empty name_key", text_id.c_str(), slot);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -331,7 +330,7 @@ static int parse_resource_cart_graphic()
         return 0;
     }
     if (!xml_parser_has_attribute("load")) {
-        log_error("Resource cart graphic is missing required load", 0, 0);
+        Logger::error("Resource cart graphic is missing required load", 0, 0);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -345,7 +344,7 @@ static int parse_resource_cart_graphic()
     } else if (load && std::strcmp(load, "eight") == 0) {
         resource_parse_state.cart_eight_loads = std::move(ref);
     } else {
-        log_error("Unsupported Resource cart load", load, 0);
+        Logger::error("Unsupported Resource cart load", load, 0);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -359,7 +358,7 @@ static int parse_resource_storage_graphic()
     }
     int load = 0;
     if (!parse_required_int_attribute("load", &load) || load < 1 || load > 4) {
-        log_error("Resource storage graphic has unsupported load", 0, load);
+        Logger::error("Resource storage graphic has unsupported load", 0, load);
         resource_parse_state.error = 1;
         return 0;
     }
@@ -427,7 +426,7 @@ static int parse_resource_definition_buffer(
     const std::vector<char> &buffer,
     ResourceParseState *out_definition)
 {
-    const ErrorContextScope error_scope("Resource XML", filename);
+    const Logger::Scope error_scope("Resource XML", filename);
 
     resource_parse_state = {};
     const int parsed = xml_definition::parse_buffer(
@@ -437,7 +436,7 @@ static int parse_resource_definition_buffer(
         static_cast<int>(sizeof(RESOURCE_XML_ELEMENTS) / sizeof(RESOURCE_XML_ELEMENTS[0])),
         buffer);
     if (!parsed || resource_parse_state.error || !resource_parse_state.saw_root) {
-        log_error("Unable to parse Resource xml", filename, 0);
+        Logger::error("Unable to parse Resource xml", filename, 0);
         return 0;
     }
     if (out_definition) {
@@ -558,12 +557,12 @@ static int load_resource_definitions()
             nullptr,
             &enumeration_failure)) {
         resource_failure_reason = staged.failure_reason.empty() ? enumeration_failure : staged.failure_reason;
-        error_context_report_error("Unable to load layered Resource definitions.", resource_failure_reason.c_str());
+        Logger::error("Unable to load layered Resource definitions.", resource_failure_reason.c_str());
         return 0;
     }
     if (!validate_staged_resource_definitions(staged)) {
         resource_failure_reason = staged.failure_reason;
-        error_context_report_error("Unable to validate layered Resource definitions.", resource_failure_reason.c_str());
+        Logger::error("Unable to validate layered Resource definitions.", resource_failure_reason.c_str());
         return 0;
     }
 
@@ -799,7 +798,7 @@ int production_rates_load(buffer *buf, bool keyed)
     if (buf->size - buf->index != saved_resources.size() * sizeof(uint16_t)) {
         // Old arrays have no per-entry identity. An unmatched producer layout cannot
         // safely be zipped against the current mod's (possibly longer) resource list.
-        log_warning("Repairing unidentifiable legacy production rates by retaining mod defaults", nullptr, static_cast<int>(buf->size - buf->index));
+        Logger::warning("Repairing unidentifiable legacy production rates by retaining mod defaults", nullptr, static_cast<int>(buf->size - buf->index));
         buffer_set(buf, buf->size);
         return 1;
     }

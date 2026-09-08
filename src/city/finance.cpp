@@ -172,8 +172,8 @@ void city_finance_process_export(int price)
     city_data.finance.treasury += price;
     city_data.finance.this_year.income.exports += price;
     if (city_data.religion.neptune_trade_bonus_active) {
-        city_data.finance.treasury += price / 2;
-        city_data.finance.this_year.income.exports += price / 2;
+        city_data.finance.treasury += static_cast<int>(static_cast<int64_t>(price) * city_data.religion.trade_bonus_percent / 100);
+        city_data.finance.this_year.income.exports += static_cast<int>(static_cast<int64_t>(price) * city_data.religion.trade_bonus_percent / 100);
     }
 }
 

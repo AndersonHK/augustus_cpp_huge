@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gatehouse">
+    <presentation show_durability="true" overlay="enemy" />
     <button group="security" order="60" text_key="main_strings.28.58" />
 </building>

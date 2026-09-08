@@ -5,7 +5,7 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_value.h"
 
 #include <cstdint>
@@ -411,7 +411,7 @@ void building_type_id_bridge_save_table_save_state(buffer *buf)
         }
         size_t text_length = std::string_view(text_id).size();
         if (text_length > std::numeric_limits<uint16_t>::max()) {
-            log_error("Building type text id too long for save table", text_id, static_cast<int>(text_length));
+            Logger::error("Building type text id too long for save table", text_id, static_cast<int>(text_length));
             continue;
         }
         buffer_write_u16(buf, static_cast<uint16_t>(save_id));
@@ -432,7 +432,7 @@ void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_tab
 
     buffer table = *buf;
     if (buffer_load_dynamic(&table) < sizeof(uint32_t) * 2) {
-        log_error("Building type save table is invalid; falling back to legacy enum migration", 0, 0);
+        Logger::error("Building type save table is invalid; falling back to legacy enum migration", 0, 0);
         load_legacy_save_table();
         return;
     }
@@ -440,7 +440,7 @@ void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_tab
     uint32_t version = buffer_read_u32(&table);
     uint32_t count = buffer_read_u32(&table);
     if (version != SAVE_TABLE_VERSION) {
-        log_error("Unsupported building type save table version", 0, static_cast<int>(version));
+        Logger::error("Unsupported building type save table version", 0, static_cast<int>(version));
         load_legacy_save_table();
         return;
     }
@@ -456,7 +456,7 @@ void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_tab
         building_type runtime_id = building_type_id_bridge_runtime_from_text(text_id.c_str());
         bool missing = runtime_id == BUILDING_NONE && !text_id.empty();
         if (missing) {
-            log_warning("Marking unavailable imported building type for removal by the building load bridge", text_id.c_str(), save_id);
+            Logger::warning("Marking unavailable imported building type for removal by the building load bridge", text_id.c_str(), save_id);
         }
         append_save_id_mapping(save_id, runtime_id, missing, text_id.c_str());
     }
@@ -510,6 +510,13 @@ const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
     }
     building_type runtime_id = building_type_id_bridge_runtime_from_save_id(save_id);
     return building_type_id_bridge_text_from_runtime(runtime_id);
+}
+
+void building_type_id_bridge_bind_imported_id(uint16_t save_id, const char *text_id)
+{
+    ensure_save_table();
+    const auto type = building_type_id_bridge_runtime_from_text(text_id);
+    append_save_id_mapping(save_id, type, type == BUILDING_NONE, text_id);
 }
 
 int building_type_id_bridge_save_id_is_missing(uint16_t save_id)

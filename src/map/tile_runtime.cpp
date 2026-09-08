@@ -3,10 +3,9 @@
 #include "assets/image_group_payload.h"
 #include "building/building_type_registry_internal.h"
 #include "map/tile_runtime_graphics.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "core/image_group.h"
-#include "core/log.h"
 #include "map/grid.h"
 
 #include <cstdio>
@@ -38,7 +37,7 @@ void log_tile_scope_state(void *userdata)
         runtime->grid_offset(),
         runtime->graphics_path(),
         runtime->image_id());
-    log_info("Graphics tile state", details, 0);
+    Logger::info("Graphics tile state", details, 0);
 }
 
 void log_tile_graphics_issue_once(const char *message, int grid_offset, const char *path, const char *detail)
@@ -57,7 +56,7 @@ void log_tile_graphics_issue_once(const char *message, int grid_offset, const ch
         return;
     }
 
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 void log_tile_graphics_issue_once(const char *message, const tile_runtime *runtime, const char *detail)
@@ -340,7 +339,7 @@ const ImageGroupEntry *tile_runtime::cached_graphic_entry() const
 
     char context[128];
     make_tile_context(context, sizeof(context), grid_offset_);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "tile_runtime.resolve_graphic_image",
         context,
         log_tile_scope_state,

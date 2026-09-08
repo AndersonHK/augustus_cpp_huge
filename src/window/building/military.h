@@ -6,6 +6,8 @@
 
 class Temple;
 
+void window_building_draw_durability(building_info_context *c);
+
 void window_building_draw_wall(building_info_context *c);
 void window_building_draw_gatehouse(building_info_context *c);
 void window_building_draw_tower(building_info_context *c);

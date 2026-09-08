@@ -3,7 +3,7 @@
 
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -150,8 +150,8 @@ void config_load(void)
             for (int i = 0; i < CONFIG_MAX_ENTRIES; i++) {
                 if (strcmp(config_options[i].key, line) == 0) {
                     int value = parse_config_value(static_cast<config_key>(i), &equals[1]);
-                    if (log_is_debug_enabled()) {
-                        log_info("Config key", config_options[i].key, value);
+                    if (Logger::debug_enabled()) {
+                        Logger::info("Config key", config_options[i].key, value);
                     }
                     values[i] = value;
                     break;
@@ -160,9 +160,9 @@ void config_load(void)
             for (int i = 0; i < CONFIG_STRING_MAX_ENTRIES; i++) {
                 if (strcmp(ini_string_keys[i], line) == 0) {
                     const char *value = &equals[1];
-                    if (log_is_debug_enabled()) {
-                        log_info("Config key", ini_string_keys[i], 0);
-                        log_info("Config value", value, 0);
+                    if (Logger::debug_enabled()) {
+                        Logger::info("Config key", ini_string_keys[i], 0);
+                        Logger::info("Config value", value, 0);
                     }
                     snprintf(string_values[i], CONFIG_STRING_VALUE_MAX, "%s", value);
                     break;
@@ -190,7 +190,7 @@ void config_save(void)
     }
     FILE *fp = file_open(file_name, "wt");
     if (!fp) {
-        log_error("Unable to write configuration file", PRIMARY_INI_FILENAME, 0);
+        Logger::error("Unable to write configuration file", PRIMARY_INI_FILENAME, 0);
         return;
     }
     for (int i = 0; i < CONFIG_MAX_ENTRIES; i++) {

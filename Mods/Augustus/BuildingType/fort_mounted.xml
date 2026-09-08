@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_mounted">
+    <presentation overlay="enemy" />
     <graphics>
         <default>
             <options selection="orientation">

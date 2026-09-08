@@ -1,7 +1,7 @@
 #include "price_change.h"
 
 #include "city/message.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "game/resource_id_bridge.h"
 #include "empire/trade_prices.h"

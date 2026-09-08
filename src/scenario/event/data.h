@@ -170,7 +170,12 @@ typedef struct {
     scenario_condition_array_t conditions;
 } scenario_condition_group_t;
 
-typedef struct {
+struct ScenarioModelTarget {
+    int building;
+    int value_scale = 1;
+};
+
+struct scenario_action_t {
     action_types type;
     int parameter1;
     int parameter2;
@@ -179,7 +184,10 @@ typedef struct {
     int parameter5;
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
     TerrainSet terrain; // bound at load/edit; parameter3 is unused for terrain-bearing records
-} scenario_action_t;
+    std::vector<int> value_domain; // optional mapping from authored ordinal to definition value
+    int value_scale = 1; // authored units per definition unit
+    std::vector<ScenarioModelTarget> model_targets; // additional definitions sharing one evaluated formula
+};
 
 using scenario_condition_group_array_t = std::vector<scenario_condition_group_t>;
 

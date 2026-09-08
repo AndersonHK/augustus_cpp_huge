@@ -6,7 +6,7 @@
 #include "core/buffer.h"
 #include "core/config.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/screen.h"
 #include "graphics/graphics.h"
@@ -233,24 +233,24 @@ static void create_window_screenshot(void)
     int height = screen_height();
 
     if (!image_create(width, height, 0, 1)) {
-        log_error("Unable to create memory for screenshot", 0, 0);
+        Logger::error("Unable to create memory for screenshot", 0, 0);
         return;
     }
 
     const char *filename = generate_filename(SCREENSHOT_DISPLAY);
     if (!image_begin_io(filename) || !image_write_header()) {
-        log_error("Unable to write screenshot to:", filename, 0);
+        Logger::error("Unable to write screenshot to:", filename, 0);
         image_free();
         return;
     }
 
     if (!image_write_canvas()) {
-        log_error("Error writing image", 0, 0);
+        Logger::error("Error writing image", 0, 0);
         image_free();
         return;
     }
 
-    log_info("Saved screenshot:", filename, 0);
+    Logger::info("Saved screenshot:", filename, 0);
     show_saved_notice(filename);
     image_free();
 }
@@ -267,12 +267,12 @@ static void create_full_city_screenshot(void)
     int city_height_pixels = map_grid_height() * TILE_Y_SIZE;
 
     if (!image_create(city_width_pixels, city_height_pixels + TILE_Y_SIZE, 0, IMAGE_HEIGHT_CHUNK)) {
-        log_error("Unable to set memory for full city screenshot", 0, 0);
+        Logger::error("Unable to set memory for full city screenshot", 0, 0);
         return;
     }
     const char *filename = generate_filename(SCREENSHOT_FULL_CITY);
     if (!image_begin_io(filename) || !image_write_header()) {
-        log_error("Unable to write screenshot to:", filename, 0);
+        Logger::error("Unable to write screenshot to:", filename, 0);
         image_free();
         return;
     }
@@ -320,7 +320,7 @@ static void create_full_city_screenshot(void)
                 image_section_width, IMAGE_HEIGHT_CHUNK - y_offset, city_width_pixels);
         }
         if (!image_write_rows(canvas, city_width_pixels)) {
-            log_error("Error writing image", 0, 0);
+            Logger::error("Error writing image", 0, 0);
             error = 1;
             break;
         }
@@ -332,7 +332,7 @@ static void create_full_city_screenshot(void)
     graphics_reset_clip_rectangle();
     city_view_set_camera_from_pixel_position(original_camera_pixels.x, original_camera_pixels.y);
     if (!error) {
-        log_info("Saved full city screenshot:", filename, 0);
+        Logger::info("Saved full city screenshot:", filename, 0);
         show_saved_notice(filename);
     }
     image_free();
@@ -349,12 +349,12 @@ static void create_minimap_screenshot(void)
     int height_pixels = map_grid_height() * (int) MINIMAP_SCALE * 2;
 
     if (!image_create(width_pixels, height_pixels, 1, height_pixels)) {
-        log_error("Unable to set memory for minimap screenshot", 0, 0);
+        Logger::error("Unable to set memory for minimap screenshot", 0, 0);
         return;
     }
     const char *filename = generate_filename(SCREENSHOT_MINIMAP);
     if (!image_begin_io(filename) || !image_write_header()) {
-        log_error("Unable to write screenshot to:", filename, 0);
+        Logger::error("Unable to write screenshot to:", filename, 0);
         image_free();
         return;
     }
@@ -370,7 +370,7 @@ static void create_minimap_screenshot(void)
     graphics_renderer()->draw_custom_image(CUSTOM_IMAGE_MINIMAP, 0, 0, 1 / MINIMAP_SCALE, 1);
     graphics_renderer()->save_screen_buffer(canvas, 0, 0, width_pixels, height_pixels, width_pixels);
     if (image_write_rows(canvas, width_pixels)) {
-        log_info("Saved city map screenshot:", filename, 0);
+        Logger::info("Saved city map screenshot:", filename, 0);
         show_saved_notice(filename);
     }
     image_free();

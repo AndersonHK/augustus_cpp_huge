@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="triumphal_arch">
     <button group="administration" order="1000" text_key="main_strings.28.56" />
-    <construction mode="phased" road_update_radius="5" access_x="1" access_y="1">
+    <construction mode="phased" road_update_radius="5" access_x="1" access_y="1" window="monument_construction" description_key="TR_BUILDING_TRIUMPHAL_ARCH_CONSTRUCTION_DESC" completion_message="triumphal_arch_complete">
         <gift event="distant_battle_victory" materials="true" workers="true" loads_per_delivery="4" />
-        <phase index="1">
+        <phase index="1" name_key="TR_BUILDING_TRIUMPHAL_ARCH_PHASE_1" description_key="TR_BUILDING_TRIUMPHAL_ARCH_PHASE_1_TEXT">
             <graphics>
                 <path value="Monuments\Triumphal_Arch_Construction_01" />
                 <options selection="orientation">
@@ -17,7 +17,7 @@
             <requirement type="stone" amount="12" />
             <requirement type="timber" amount="8" />
         </phase>
-        <phase index="2">
+        <phase index="2" name_key="TR_BUILDING_TRIUMPHAL_ARCH_PHASE_2" description_key="TR_BUILDING_TRIUMPHAL_ARCH_PHASE_2_TEXT">
             <graphics>
                 <path value="Monuments\Triumphal_Arch_Construction_02" />
                 <options selection="orientation">

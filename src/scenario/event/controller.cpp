@@ -1,6 +1,6 @@
 #include "controller.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"   
 #include "empire/city.h"
 #include "game/save_version.h"
@@ -36,7 +36,7 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair);
 static int load_dynamic_array_header(buffer *buf, const char *label, size_t *array_size, size_t *element_size)
 {
     if (!buf || !buf->data || buf->size < 16 || !array_size || !element_size) {
-        log_error("Malformed dynamic scenario array in save.", label, 0);
+        Logger::error("Malformed dynamic scenario array in save.", label, 0);
         return 0;
     }
 
@@ -48,7 +48,7 @@ static int load_dynamic_array_header(buffer *buf, const char *label, size_t *arr
 
     if (buf->overflow || stored_size < 16 || stored_size > buf->size || !*element_size ||
         *array_size > (stored_size - 16) / *element_size) {
-        log_error("Malformed dynamic scenario array header in save.", label, (int) *array_size);
+        Logger::error("Malformed dynamic scenario array header in save.", label, (int) *array_size);
         return 0;
     }
     return 1;
@@ -57,14 +57,14 @@ static int load_dynamic_array_header(buffer *buf, const char *label, size_t *arr
 static int load_dynamic_payload_header(buffer *buf, const char *label)
 {
     if (!buf || !buf->data || buf->size < sizeof(uint32_t)) {
-        log_error("Malformed dynamic scenario payload in save.", label, 0);
+        Logger::error("Malformed dynamic scenario payload in save.", label, 0);
         return 0;
     }
 
     buffer_set(buf, 0);
     uint32_t stored_size = buffer_read_u32(buf);
     if (buf->overflow || stored_size < sizeof(uint32_t) || stored_size > buf->size) {
-        log_error("Malformed dynamic scenario payload header in save.", label, (int) stored_size);
+        Logger::error("Malformed dynamic scenario payload header in save.", label, (int) stored_size);
         return 0;
     }
     return 1;
@@ -121,7 +121,7 @@ unsigned int scenario_formula_add(const uint8_t *formatted_calculation, int min_
     scenario_formula_t *calculation = add_formula_slot();
 
     if (!calculation) {
-        log_error("Unable to allocate memory for a new formula. The game will now crash.", 0, 0);
+        Logger::error("Unable to allocate memory for a new formula. The game will now crash.", 0, 0);
         return 0;
     }
     calculation->min_evaluation = min_limit;
@@ -136,7 +136,7 @@ unsigned int scenario_formula_add(const uint8_t *formatted_calculation, int min_
 void scenario_formula_change(unsigned int id, const uint8_t *formatted_calculation, int min_eval, int max_eval)
 {
     if (id == 0 || id >= scenario_formulas.size()) {
-        log_error("Invalid formula ID.", 0, 0);
+        Logger::error("Invalid formula ID.", 0, 0);
         return;
     }
     scenario_formula_t *formula = &scenario_formulas[id];
@@ -154,7 +154,7 @@ void scenario_formula_change(unsigned int id, const uint8_t *formatted_calculati
 const uint8_t *scenario_formula_get_string(unsigned int id)
 {
     if (id == 0 || id >= scenario_formulas.size()) {
-        log_error("Invalid formula index.", 0, 0);
+        Logger::error("Invalid formula index.", 0, 0);
         return NULL;
     }
     scenario_formula_t *formula = &scenario_formulas[id];
@@ -171,7 +171,7 @@ const uint8_t *scenario_formula_get_string(unsigned int id)
 scenario_formula_t *scenario_formula_get(unsigned int id)
 {
     if (id == 0 || id >= scenario_formulas.size()) {
-        log_error("Invalid formula index.", 0, 0);
+        Logger::error("Invalid formula index.", 0, 0);
         return NULL;
     }
     return &scenario_formulas[id];
@@ -180,7 +180,7 @@ scenario_formula_t *scenario_formula_get(unsigned int id)
 int scenario_formula_evaluate_formula(unsigned int id)
 {
     if (id == 0 || id >= scenario_formulas.size()) {
-        log_error("Invalid formula index.", 0, 0);
+        Logger::error("Invalid formula index.", 0, 0);
         return 0;
     }
     int evaluation = scenario_event_formula_evaluate(&scenario_formulas[id]);
@@ -212,16 +212,16 @@ scenario_event_t *scenario_event_get(int event_id)
 scenario_event_t *scenario_event_create(int repeat_min, int repeat_max, int max_repeats)
 {
     if (repeat_min < 0) {
-        log_error("Event minimum repeat is less than 0.", 0, 0);
+        Logger::error("Event minimum repeat is less than 0.", 0, 0);
         return 0;
     }
     if (repeat_max < 0) {
-        log_error("Event maximum repeat is less than 0.", 0, 0);
+        Logger::error("Event maximum repeat is less than 0.", 0, 0);
         return 0;
     }
 
     if (repeat_max < repeat_min) {
-        log_info("Event maximum repeat is less than its minimum. Swapping the two values.", 0, 0);
+        Logger::info("Event maximum repeat is less than its minimum. Swapping the two values.", 0, 0);
         int temp = repeat_min;
         repeat_min = repeat_max;
         repeat_max = temp;
@@ -307,7 +307,9 @@ static void actions_save_state(buffer *buf)
         array_size += scenario_event_action_count(current_event);
     }
 
-    int struct_size = (2 * sizeof(int16_t)) + (6 * sizeof(int32_t));
+    size_t extra_size = 0;
+    for (const auto &event : scenario_events) for (const auto &action : event.actions) extra_size = std::max(extra_size, 4 * action.value_domain.size() + 8 * action.model_targets.size());
+    const size_t struct_size = SCENARIO_ACTION_STRUCT_SIZE + 12 + extra_size;
     buffer_init_dynamic_array(buf, array_size, struct_size);
 
     for (unsigned int i = 0; i < scenario_events.size(); i++) {
@@ -315,7 +317,9 @@ static void actions_save_state(buffer *buf)
 
         for (unsigned int j = 0; j < scenario_event_action_count(current_event); j++) {
             scenario_action_t *current_action = scenario_event_action_get(current_event, j);
+            const auto end = buf->index + struct_size;
             scenario_action_type_save_state(buf, current_action, LINK_TYPE_SCENARIO_EVENT, current_event->id);
+            while (buf->index < end) buffer_write_u8(buf, 0);
         }
     }
 
@@ -340,18 +344,18 @@ static void info_load_state(buffer *buf, int scenario_version)
     for (size_t i = 0; i < array_size; i++) {
         scenario_event_t *event = scenario_event_create(0, 0, 0);
         if (!event) {
-            log_error("Unable to create scenario event during load.", 0, (int) i);
+            Logger::error("Unable to create scenario event during load.", 0, (int) i);
             return;
         }
         scenario_event_load_state(buf, event, scenario_version);
         if (buf->overflow) {
-            log_error("Malformed scenario event data in save.", 0, (int) i);
+            Logger::error("Malformed scenario event data in save.", 0, (int) i);
             return;
         }
     }
 }
 
-static void conditions_load_state_old_version(buffer *buf)
+static void conditions_load_state_old_version(buffer *buf, ScenarioParameterArchive format)
 {
     size_t total_conditions = 0;
     size_t element_size = 0;
@@ -364,19 +368,19 @@ static void conditions_load_state_old_version(buffer *buf)
         int event_id = buffer_read_i32(buf);
         scenario_event_t *event = scenario_event_get(event_id);
         if (!event || !scenario_event_condition_group_count(event)) {
-            log_error("Ignoring scenario condition linked to invalid event.", 0, event_id);
+            Logger::error("Ignoring scenario condition linked to invalid event.", 0, event_id);
             buffer_skip(buf, CONDITION_STRUCT_SIZE);
             continue;
         }
         scenario_condition_group_t *group = scenario_event_condition_group_get(event, 0);
         scenario_condition_t *condition = scenario_condition_group_condition_add(group);
         if (!condition) {
-            log_error("Unable to create legacy scenario condition during load.", 0, (int) i);
+            Logger::error("Unable to create legacy scenario condition during load.", 0, (int) i);
             return;
         }
-        scenario_condition_load_state(buf, group, condition);
+        scenario_condition_load_state(buf, group, condition, format);
         if (buf->overflow) {
-            log_error("Malformed legacy scenario condition data in save.", 0, (int) i);
+            Logger::error("Malformed legacy scenario condition data in save.", 0, (int) i);
             return;
         }
     }
@@ -389,13 +393,13 @@ static void load_link_condition_group(scenario_condition_group_t *condition_grou
             scenario_event_link_condition_group_by_id(link_id, condition_group);
             break;
         default:
-            log_error("Ignoring scenario condition group with invalid link type.", 0, link_type);
+            Logger::error("Ignoring scenario condition group with invalid link type.", 0, link_type);
             scenario_condition_group_conditions_clear(condition_group);
             break;
     }
 }
 
-static void conditions_load_state(buffer *buf)
+static void conditions_load_state(buffer *buf, ScenarioParameterArchive format)
 {
     if (!load_dynamic_payload_header(buf, "scenario_conditions")) {
         return;
@@ -409,7 +413,7 @@ static void conditions_load_state(buffer *buf)
     // this should work. Regardless, this is not a good practice.
     while (!buffer_at_end(buf)) {
         scenario_condition_group_t condition_group = { 0 };
-        if (!scenario_condition_group_load_state(buf, &condition_group, &link_type, &link_id)) {
+        if (!scenario_condition_group_load_state(buf, &condition_group, &link_type, &link_id, format)) {
             scenario_condition_group_conditions_clear(&condition_group);
             return;
         }
@@ -424,12 +428,12 @@ static void load_link_action(scenario_action_t *action, int link_type, int32_t l
             scenario_event_link_action_by_id(link_id, action);
             break;
         default:
-            log_error("Ignoring scenario action with invalid link type.", 0, link_type);
+            Logger::error("Ignoring scenario action with invalid link type.", 0, link_type);
             break;
     }
 }
 
-static void actions_load_state(buffer *buf, int is_new_version)
+static void actions_load_state(buffer *buf, int is_new_version, ScenarioParameterArchive format)
 {
     size_t array_size = 0;
     size_t element_size = 0;
@@ -437,7 +441,7 @@ static void actions_load_state(buffer *buf, int is_new_version)
         return;
     }
     if (element_size < SCENARIO_ACTION_STRUCT_SIZE) {
-        log_error("Malformed scenario action element size in save.", 0, (int) element_size);
+        Logger::error("Malformed scenario action element size in save.", 0, (int) element_size);
         return;
     }
 
@@ -447,13 +451,13 @@ static void actions_load_state(buffer *buf, int is_new_version)
         size_t record_start = buf->index;
         size_t record_end = record_start + element_size;
         if (record_end > buf->size) {
-            log_error("Malformed scenario action record bounds in save.", 0, (int) i);
+            Logger::error("Malformed scenario action record bounds in save.", 0, (int) i);
             return;
         }
         scenario_action_t action = { 0 };
-        int original_id = scenario_action_type_load_state(buf, &action, &link_type, &link_id, is_new_version);
-        if (buf->overflow) {
-            log_error("Malformed scenario action data in save.", 0, (int) i);
+        int original_id = scenario_action_type_load_state(buf, &action, &link_type, &link_id, is_new_version, format);
+        if (buf->overflow || buf->index > record_end) {
+            Logger::error("Malformed scenario action data in save.", 0, (int) i);
             return;
         }
         load_link_action(&action, link_type, link_id);
@@ -501,11 +505,11 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
         return;
     }
     if (element_size < SCENARIO_FORMULA_STRUCT_SIZE) {
-        log_error("Malformed scenario formula element size in save.", 0, (int) element_size);
+        Logger::error("Malformed scenario formula element size in save.", 0, (int) element_size);
         return;
     }
     if (array_size > UINT_MAX) {
-        log_error("Scenario formula array is too large to load.", 0, 0);
+        Logger::error("Scenario formula array is too large to load.", 0, 0);
         return;
     }
 
@@ -519,7 +523,7 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
         size_t record_start = buf->index;
         size_t record_end = record_start + element_size;
         if (record_end > buf->size) {
-            log_error("Malformed scenario formula record bounds in save.", 0, (int) i);
+            Logger::error("Malformed scenario formula record bounds in save.", 0, (int) i);
             return;
         }
 
@@ -529,17 +533,17 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
             char detail[128];
             snprintf(detail, sizeof(detail), "record=%u saved_id=%u expected_id=%u", static_cast<unsigned int>(i), id, expected_id);
             if (!allow_legacy_id_repair) {
-                log_error("Formula ID mismatch during loading", detail, 0);
+                Logger::error("Formula ID mismatch during loading", detail, 0);
                 return;
             }
-            log_warning("Repairing legacy scenario formula ID layout", detail, 0);
+            Logger::warning("Repairing legacy scenario formula ID layout", detail, 0);
             // Formula references historically addressed the record's stable
             // array position. Some old writers persisted an uninitialized id
             // field, so the position is authoritative during this bridge.
             id = expected_id;
         }
         if (id > 1000000) {
-            log_error("Scenario formula ID is too large to load", 0, static_cast<int>(id));
+            Logger::error("Scenario formula ID is too large to load", 0, static_cast<int>(id));
             return;
         }
         while (scenario_formulas.size() <= id) {
@@ -550,12 +554,12 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
         }
         if (loaded_ids[id]) {
             if (!allow_legacy_id_repair) {
-                log_error("Duplicate scenario formula ID during loading", 0, static_cast<int>(id));
+                Logger::error("Duplicate scenario formula ID during loading", 0, static_cast<int>(id));
                 return;
             }
             char detail[96];
             snprintf(detail, sizeof(detail), "record=%u duplicate_id=%u", static_cast<unsigned int>(i), id);
-            log_warning("Discarding duplicate legacy scenario formula record", detail, 0);
+            Logger::warning("Discarding duplicate legacy scenario formula record", detail, 0);
             buffer_set(buf, record_end);
             continue;
         }
@@ -578,16 +582,18 @@ static void formulas_load_state(buffer *buf, int allow_legacy_id_repair)
 }
 
 void scenario_events_load_state(buffer *buf_events, buffer *buf_conditions, buffer *buf_actions, buffer *buf_formulas,
-     int scenario_version)
+     int scenario_version, bool native_runtime_ids)
 {
     scenario_events_clear();
+    const auto format = scenario_version > SCENARIO_LAST_NO_PARAMETER_LEDGERS ? ScenarioParameterArchive::Keyed :
+        native_runtime_ids ? ScenarioParameterArchive::NativeRuntimeIds : ScenarioParameterArchive::Legacy;
     info_load_state(buf_events, scenario_version);
     if (scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        conditions_load_state(buf_conditions);
+        conditions_load_state(buf_conditions, format);
     } else {
-        conditions_load_state_old_version(buf_conditions);
+        conditions_load_state_old_version(buf_conditions, format);
     }
-    actions_load_state(buf_actions, scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA);
+    actions_load_state(buf_actions, scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA, format);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         formulas_load_state(buf_formulas, scenario_version < SCENARIO_CURRENT_VERSION);
     }

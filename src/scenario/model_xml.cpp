@@ -10,7 +10,7 @@
 #include "building/properties.h"
 #include "core/buffer.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_exporter.h"
 #include "core/xml_parser.h"
@@ -114,7 +114,7 @@ int scenario_model_export_to_xml(const char *filename)
     int buf_size = XML_EXPORT_MAX_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to allocate buffer to export model data XML", 0, 0);
+        Logger::error("Unable to allocate buffer to export model data XML", 0, 0);
         free(buf_data);
         return 0;
     }
@@ -141,8 +141,8 @@ static void xml_import_log_error(const char *msg)
     data.success = 0;
     data.error_line_number = xml_parser_get_current_line_number();
     snprintf(data.error_message, ERROR_MESSAGE_LENGTH, "%s", msg);
-    log_error("Error while import scenario events from XML. ", data.error_message, 0);
-    log_error("Line:", 0, data.error_line_number);
+    Logger::error("Error while import scenario events from XML. ", data.error_message, 0);
+    Logger::error("Line:", 0, data.error_line_number);
 
     window_plain_message_dialog_show_with_extra(
         "TR_EDITOR_UNABLE_TO_LOAD_MODEL_DATA_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
@@ -206,7 +206,7 @@ static char *file_to_buffer(const char *filename, int *output_length)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
-        log_error("Error opening model data file", filename, 0);
+        Logger::error("Error opening model data file", filename, 0);
         return 0;
     }
     fseek(file, 0, SEEK_END);
@@ -215,20 +215,20 @@ static char *file_to_buffer(const char *filename, int *output_length)
 
     char *buf = static_cast<char *>(malloc(size));
     if (!buf) {
-        log_error("Error allocating memory to buffer", filename, 0);
+        Logger::error("Error allocating memory to buffer", filename, 0);
         file_close(file);
         return 0;
     }
     memset(buf, 0, size);
     if (!buf) {
-        log_error("Error initialising memory of buffer", filename, 0);
+        Logger::error("Error initialising memory of buffer", filename, 0);
         free(buf);
         file_close(file);
         return 0;
     }
     *output_length = (int) fread(buf, 1, size, file);
     if (*output_length > size) {
-        log_error("Unable to read file into buffer", filename, 0);
+        Logger::error("Unable to read file into buffer", filename, 0);
         free(buf);
         file_close(file);
         *output_length = 0;
@@ -248,7 +248,7 @@ int scenario_model_xml_parse_file(const char *filename)
     int success = parse_xml(xml_contents, output_length);
     free(xml_contents);
     if (!success) {
-        log_error("Error parsing file", filename, 0);
+        Logger::error("Error parsing file", filename, 0);
         model_reset();
         building_type_startup_bridge_apply_model_overrides();
     }
