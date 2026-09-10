@@ -67,7 +67,6 @@ void city_resource_toggle_stockpiled(resource_type resource);
 int city_resource_is_mothballed(resource_type resource);
 void city_resource_toggle_mothballed(resource_type resource);
 
-void city_resource_add_produced_to_granary(int amount);
 void city_resource_add_to_granary(resource_type food, int amount);
 void city_resource_remove_from_granary(resource_type food, int amount);
 

@@ -171,7 +171,7 @@ void check_roster_and_recruitment(std::vector<formation *> &legions, const std::
         Figure::get(second.first_figure_id())->remove();
         formation_calculate_figures();
     }
-    for (Building *source : barracks) source->set_resource_amount(resource_weapons(), MAX_WEAPONS_BARRACKS);
+    for (Building *source : barracks) source->set_resource_amount(resource_weapons(), 4 * resource_units_per_load());
     const int initial = first.num_figures + second.num_figures;
     const auto recruit = [](Building &source) {
         map_point road;

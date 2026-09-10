@@ -73,6 +73,7 @@ int parse_root()
 
     g_parse.definition = std::make_unique<HousingProfileDef>(std::move(path));
     g_parse.definition->compatibility_level = level;
+    if (xml_parser_has_attribute("variant_of")) g_parse.definition->variant_of = xml_definition::normalize_path(xml_parser_get_attribute_string("variant_of"));
     g_parse.disabled = disabled != 0;
     g_parse.saw_root = true;
     return 1;
@@ -169,10 +170,6 @@ int parse_requirements()
         { "bathhouse", &HousingRequirements::bathhouse },
         { "health", &HousingRequirements::health },
         { "food_types", &HousingRequirements::food_types },
-        { "pottery", &HousingRequirements::pottery },
-        { "oil", &HousingRequirements::oil },
-        { "furniture", &HousingRequirements::furniture },
-        { "wine", &HousingRequirements::wine },
     };
     for (const NumericField &field : fields) {
         if (!parse_nonnegative("requirements", field.attribute, requirements.*field.member)) {
@@ -181,6 +178,25 @@ int parse_requirements()
         }
     }
 
+    struct GoodsField { const char *attribute; HousingGoodsRate HousingRequirements::*member; };
+    for (const GoodsField &field : { GoodsField{"pottery", &HousingRequirements::pottery}, {"oil", &HousingRequirements::oil},
+            {"furniture", &HousingRequirements::furniture}, {"wine", &HousingRequirements::wine} }) {
+        if (!xml_parser_has_attribute(field.attribute) || !HousingGoodsRate::parse(xml_parser_get_attribute_string(field.attribute), requirements.*field.member)) {
+            Logger::error("Invalid HousingProfile annual per-person goods rate", field.attribute, 0);
+            g_parse.error = true;
+            return 0;
+        }
+    }
+    requirements.wine_sources = requirements.wine ? 1 : 0;
+    if (xml_parser_has_attribute("wine_sources") && !parse_nonnegative("requirements", "wine_sources", requirements.wine_sources)) {
+        g_parse.error = true;
+        return 0;
+    }
+    if (requirements.wine_sources > 2 || (requirements.wine_sources > 0) != static_cast<bool>(requirements.wine)) {
+        Logger::error("HousingProfile wine_sources must match declared wine and be 0, 1, or 2", 0, 0);
+        g_parse.error = true;
+        return 0;
+    }
     g_parse.saw_requirements = true;
     return 1;
 }
@@ -317,6 +333,17 @@ bool build_layered_registry(
             continue;
         }
         const int level = winner.parsed.definition->compatibility_level;
+        const std::string &variant = winner.parsed.definition->variant_of;
+        if (!variant.empty()) {
+            const auto base = winners.find(variant);
+            if (base == winners.end() || base->second.parsed.disabled || !base->second.parsed.definition->variant_of.empty() ||
+                base->second.parsed.definition->compatibility_level != level) {
+                Logger::error("HousingProfile variant requires an active canonical profile at the same level", variant.c_str(), level);
+                if (failure_reason) *failure_reason = "Invalid HousingProfile variant: " + entry.first;
+                return false;
+            }
+            continue;
+        }
         const auto existing = levels.find(level);
         if (existing != levels.end()) {
             const std::string detail = "HousingProfile compatibility level " + std::to_string(level) +
@@ -339,8 +366,10 @@ bool build_layered_registry(
         }
         const int level = winner.parsed.definition->compatibility_level;
         HousingProfileDef *definition = winner.parsed.definition.get();
-        staged.profiles_by_level.emplace(level, definition);
-        staged.compatibility_levels.push_back(level);
+        if (definition->variant_of.empty()) {
+            staged.profiles_by_level.emplace(level, definition);
+            staged.compatibility_levels.push_back(level);
+        }
         staged.profiles.emplace(entry.first, std::move(winner.parsed.definition));
     }
     std::sort(staged.compatibility_levels.begin(), staged.compatibility_levels.end());

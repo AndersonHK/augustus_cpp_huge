@@ -73,7 +73,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     // Set sensible defaults
     *output_args = {};
     output_args->data_directory = 0;
-    output_args->mod_name = "Vespasian";
+    output_args->mod_name = "";
     output_args->display_scale_percentage = 0;
     output_args->cursor_scale_percentage = 0;
     output_args->force_windowed = 0;
@@ -300,7 +300,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log("--save-soak-ticks NUMBER");
         print_log("          Advances and renders a loaded save for NUMBER headless frames; warnings and errors fail the test");
         print_log("--mod NAME");
-        print_log("          Loads data from Mods/NAME, relative to the active Caesar 3 directory");
+        print_log("          Selects NAME from the saved mod list; without this option the entire saved list is loaded");
         print_log("--asset-previewer");
         print_log("          Runs the extra asset previewer instead of the game");
         print_log("--enable-joysticks");

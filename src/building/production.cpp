@@ -308,14 +308,14 @@ void Production::start_new_production()
     if (raw_materials_available) {
         if (method_->input_source() == ResourceConsumptionSource::GlobalStockpile) {
             std::vector<ResourceConsumptionAmount> requirements;
-            for (const auto &input : method_->inputs()) requirements.push_back({input.resource, method_->scaled_input_amount(input)});
+            for (const auto &input : method_->inputs()) requirements.push_back({input.resource, input.amount});
             if (!resource_stockpile_consume(requirements)) { legacy->data.industry.has_raw_materials = 0; return; }
         } else {
             for (const building_type_registry_impl::ProductionResourceAmount &input : method_->inputs()) {
                 const int resource_slot_index = get_resource_slot_index(input.resource);
                 if (resource_slot_index >= 0) {
                     const int before = context_building().storage_resource_amount(input.resource, building_type_registry_impl::StorageRole::Input);
-                    context_building().add_storage_resource(input.resource, -method_->scaled_input_amount(input), building_type_registry_impl::StorageRole::Input);
+                    context_building().add_storage_resource(input.resource, -input.amount, building_type_registry_impl::StorageRole::Input);
                     const int after = context_building().storage_resource_amount(input.resource, building_type_registry_impl::StorageRole::Input);
                     city_trade_ledger_consumed(input.resource, before - after);
                 }
@@ -405,7 +405,7 @@ void Production::bless_industry(int batches)
             continue;
         }
         const int resource_slot = building_.resource_amount(input.resource);
-        const int blessed_amount = batches * method_->scaled_input_amount(input);
+        const int blessed_amount = batches * input.amount;
         if (resource_slot > 0 && resource_slot < blessed_amount) {
             building_.add_resource(input.resource, blessed_amount - resource_slot);
         }

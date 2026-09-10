@@ -1160,6 +1160,7 @@ static int savegame_load_from_state(savegame_state *state, savegame_version_t ve
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         building_resource_state_load(state->building_resource_state);
     }
+    building_migrate_recruitment_supplies(version);
     // Complete the one-time legacy-record bridge before any figure or other
     // runtime subsystem traverses a composed building. Warehouse recounting
     // must also happen after keyed resources have restored each bay by id.

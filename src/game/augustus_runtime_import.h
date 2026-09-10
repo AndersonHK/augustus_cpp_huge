@@ -111,6 +111,10 @@ struct AugustusImport {
             const int value = augustus_save::read_u16(bytes, slot * 2);
             const int baseline = slot == 22 && archive.origin.save_version < 184 ? 0 : defaults[slot];
             if (value == baseline) continue;
+            if (slot == 22) {
+                if (!production_method_registry_import_recruitment_delay(value)) return false;
+                continue;
+            }
             const auto resource = resource_type_from_text_id(names[slot]);
             if (resource == RESOURCE_NONE || !production_method_registry_set_production_per_month_for_resource(resource, value)) return false;
         }

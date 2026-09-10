@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<housing_profile type="house_medium_villa">
+    <requirements entertainment="40" water="fountain" religion="2" education="2" barber="1" bathhouse="1" health="2" food_types="2" pottery="0.6" oil="0.6" furniture="0.6" wine_sources="1" wine="0.3" />
+</housing_profile>

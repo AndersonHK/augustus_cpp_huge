@@ -10,7 +10,7 @@ Validation: `out/closure-final-ui-{Augustus,Vespasian,Julius}.log/.err` passes e
 
 ## D19: recruitment delay
 
-`ProductionMethodKind::DelayFactor` is a generic rate unit, declared with `<kind value="delay_factor"/>` and `<output resource="troops" delay_percent="100"/>`. The barracks binds the definition at startup. After staffing and food-stress penalties, its existing delay is multiplied by that percentage before conversion to calendar ticks. A delay factor does not manufacture inventory, start production cycles or assign an industrial labor category. Percentage parsing rejects malformed/negative/overflowing values and throughput-rate references. Runtime multiplication saturates safely.
+The initial September 8 implementation used `ProductionMethodKind::DelayFactor` for recruitment. It was superseded on September 10 by [ordinary troop production, output storage, and a recruitment spawn policy](barracks_recruitment.md). Legacy saved delay overrides are translated at the save bridge.
 
 Julius declares the neutral 100% method; Augustus and Vespasian inherit it. Scenario production set/add actions target the existing special resource identity and store only an explicit method override in the native string ledger. At 50%, eight legacy delay units become four; at 200%, they become sixteen. Zero retains instant timing, while an unstaffed negative sentinel remains unstaffed. Resetting the scenario restores mod defaults.
 

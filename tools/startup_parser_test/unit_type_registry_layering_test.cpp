@@ -9,12 +9,12 @@ namespace {
 constexpr const char *LOWER_XML =
     "<unit key=\"archer\"><figure type=\"fort_archer\"/><combat><health value=\"70\"/>"
     "<attack value=\"6\"/><defense value=\"3\"/><morale value=\"60\"/><armor value=\"1\"/>"
-    "</combat><movement pathing=\"soldier_land\"/><recruit type=\"archer\" requires_weapon=\"false\"/>"
+    "</combat><movement pathing=\"soldier_land\"/><recruit type=\"archer\"/>"
     "<abilities><melee/></abilities><graphics figure_type=\"archer\"/></unit>";
 constexpr const char *UPPER_XML =
     "<unit key=\"archer\"><figure type=\"fort_archer\"/><combat><health value=\"90\"/>"
     "<attack value=\"8\"/><defense value=\"4\"/><morale value=\"70\"/><armor value=\"2\"/>"
-    "</combat><movement pathing=\"soldier_land\"/><recruit type=\"archer\" requires_weapon=\"true\"/>"
+    "</combat><movement pathing=\"soldier_land\"/><recruit type=\"archer\"><requirement resource=\"weapons\" amount=\"100\"/></recruit>"
     "<abilities><melee engages_adjacent=\"false\" exposed_back_bonus=\"4\"/>"
     "<ranged range=\"12\" cooldown=\"50\" damage=\"10\" launch_frame=\"1\" "
     "projectile=\"friendly_arrow\" requires_double_line=\"true\"/></abilities>"
@@ -39,6 +39,25 @@ bool valid(
 
 bool validate_unit_type_registry_layering_contract(std::ostream &errors)
 {
+    const std::string base = LOWER_XML;
+    const std::string recruit = "<recruit type=\"archer\"/>";
+    const auto make_cost_fixture = [&](const std::string &requirements) {
+        std::string xml = base;
+        xml.replace(xml.find(recruit), recruit.size(), "<recruit type=\"archer\">" + requirements + "</recruit>");
+        return xml;
+    };
+    const std::string multi_cost = make_cost_fixture("<requirement resource=\"weapons\" amount=\"100\"/><requirement resource=\"timber\" amount=\"50\"/>");
+    const auto multi = input(multi_cost.c_str(), 0, "Julius", "Julius/UnitType/archer.xml");
+    unit_type_layer_test_result cost_result{};
+    if (!valid(&multi, 1, "archer", &cost_result) || cost_result.queried_recruitment_cost_count != 2) {
+        errors << "UnitType did not retain multiple resource requirements.\n";
+        return false;
+    }
+    for (const char *requirements : {"<requirement resource=\"missing_resource\" amount=\"100\"/>", "<requirement resource=\"weapons\" amount=\"-1\"/>", "<requirement resource=\"weapons\" amount=\"0\"/>", "<requirement resource=\"weapons\" amount=\"100\"/><requirement resource=\"weapons\" amount=\"100\"/>"}) {
+        const std::string xml = make_cost_fixture(requirements);
+        const auto fixture = input(xml.c_str(), 0, "Julius", "Julius/UnitType/archer.xml");
+        if (valid(&fixture, 1, "archer")) { errors << "Invalid recruitment requirements were accepted.\n"; return false; }
+    }
     const unit_type_layer_test_input replacement[] = {
         input(LOWER_XML, 0, "Julius", "Julius/UnitType/archer.xml"),
         input(UPPER_XML, 1, "Pharaoh", "Pharaoh/UnitType/archer.xml")
@@ -46,7 +65,7 @@ bool validate_unit_type_registry_layering_contract(std::ostream &errors)
     unit_type_layer_test_result result;
     if (!valid(replacement, 2, "archer", &result) ||
         result.active_count != 1 || result.suppressed_count != 0 || result.queried_disabled ||
-        !result.queried_requires_weapon || result.queried_source_layer != 1 ||
+        !result.queried_recruitment_cost_count || result.queried_source_layer != 1 ||
         result.queried_health != 90 || result.queried_attack != 8 ||
         result.queried_defense != 4 || result.queried_morale != 70 ||
         !result.queried_has_morale || result.queried_armor != 2 || !result.queried_has_melee ||
@@ -75,7 +94,7 @@ bool validate_unit_type_registry_layering_contract(std::ostream &errors)
         input(NON_RECRUIT_XML, 0, "Julius", "Julius/UnitType/prefect.xml")
     };
     if (!valid(non_recruit, 1, "prefect", &result) ||
-        result.queried_recruit_type != LEGION_RECRUIT_NONE || result.queried_requires_weapon ||
+        result.queried_recruit_type != LEGION_RECRUIT_NONE || result.queried_recruitment_cost_count ||
         result.queried_has_morale || result.queried_health != 50 ||
         result.queried_attack != 5 || !result.queried_has_melee) {
         errors << "UnitType rejected a valid non-recruitable city combat actor.\n";
@@ -120,7 +139,7 @@ bool validate_unit_type_registry_layering_contract(std::ostream &errors)
         input(INVALID_LOWER_FIGURE_XML, 0, "Julius", "Julius/UnitType/archer.xml"),
         input(UPPER_XML, 1, "Pharaoh", "Pharaoh/UnitType/archer.xml")
     };
-    if (!valid(deferred_reference, 2, "archer", &result) || !result.queried_requires_weapon) {
+    if (!valid(deferred_reference, 2, "archer", &result) || !result.queried_recruitment_cost_count) {
         errors << "UnitType figure references were resolved before final winners were collected.\n";
         return false;
     }
@@ -320,7 +339,7 @@ bool validate_unit_type_registry_layering_contract(std::ostream &errors)
         const UnitMeleeAbility *melee = unit ? unit->melee_ability() : nullptr;
         const UnitRangedAbility *ranged = unit ? unit->ranged_ability() : nullptr;
         if (!unit || unit->figure_type_id() != expected.figure || !stats ||
-            unit->recruit_type() != LEGION_RECRUIT_NONE || unit->requires_weapon() ||
+            unit->recruit_type() != LEGION_RECRUIT_NONE || !unit->recruitment_costs().empty() ||
             unit->has_morale() ||
             stats->health != expected.stats.health || stats->attack != expected.stats.attack ||
             stats->defense != expected.stats.defense || stats->morale != expected.stats.morale ||

@@ -563,7 +563,7 @@ static void draw_grand_temple_mars_military(building_info_context *c, Temple &te
     int y = 60;
     data.building = c->building;
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 25, c->y_offset + y - 5);
-    int weapon_amount = temple.resource_amount(resource_weapons());
+    int weapon_amount = temple.resource_amount(resource_weapons()) / resource_units_per_load();
     if (weapon_amount < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {

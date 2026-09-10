@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="workshop" />
+    <output resource="troops" production_per_month="200" cart_loads="1" />
+    <work_modifier source="military_food_stress" threshold="20" percent_per_point="12.5" />
+</production_method>

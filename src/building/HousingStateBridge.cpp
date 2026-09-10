@@ -3,6 +3,7 @@
 HousingState housing_state_from_legacy_save(const building_save_bridge::LegacyBuildingSaveDto &legacy)
 {
     HousingState state;
+    state.goods_consumption_remainder = legacy.housing_goods_consumption_remainder;
     state.population = legacy.housing_population;
     state.population_room = legacy.housing_population_room;
     state.highest_population = legacy.housing_highest_population;
@@ -57,6 +58,7 @@ void housing_state_to_legacy_save(
     building_save_bridge::LegacyBuildingSaveDto &legacy)
 {
     legacy.housing_population = state.population;
+    legacy.housing_goods_consumption_remainder = state.goods_consumption_remainder;
     legacy.housing_population_room = state.population_room;
     legacy.housing_highest_population = state.highest_population;
     legacy.housing_unreachable_ticks = state.unreachable_ticks;

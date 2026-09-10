@@ -198,9 +198,35 @@ int city_resource_food_types_eaten(void)
     return city_data.resource.food_types_eaten;
 }
 
+static int food_available_to_citizens(int *food_types = nullptr)
+{
+    int amounts[RESOURCE_SLOT_COUNT] = {};
+    for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
+        if (resource_is_food(resource)) amounts[resource] = city_data.resource.granary_food_stored[resource];
+    }
+    // Markets can buy food directly from warehouses. Use the same source restrictions
+    // as distribution, without restricting a city-wide total to one road network.
+    Building::for_each(BuildingRuntimeList::Warehouses, [&](Building *warehouse) {
+        if (!warehouse->is_in_use() || !warehouse->has_cached_road_access() || warehouse->distance_from_entry() <= 0 ||
+            !building_storage_get_permission(BUILDING_STORAGE_PERMISSION_MARKET, *warehouse)) return;
+        for (resource_type resource = RESOURCE_NONE + 1; resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
+            if (resource_is_food(resource) && !city_resource_is_stockpiled(resource)) {
+                amounts[resource] += building_warehouse_get_available_amount(*warehouse, resource) * resource_units_per_load();
+            }
+        }
+    });
+    int stored = 0;
+    if (food_types) *food_types = 0;
+    for (int amount : amounts) {
+        stored += amount;
+        if (food_types && amount > 0) ++*food_types;
+    }
+    return stored;
+}
+
 int city_resource_food_stored(void)
 {
-    return city_data.resource.granary_total_stored;
+    return food_available_to_citizens();
 }
 
 int city_resource_food_needed(void)
@@ -302,12 +328,6 @@ int city_resource_is_mothballed(resource_type resource)
 void city_resource_toggle_mothballed(resource_type resource)
 {
     city_data.resource.mothballed[resource] = city_data.resource.mothballed[resource] ? 0 : 1;
-}
-
-void city_resource_add_produced_to_granary(int amount)
-{
-    city_data.resource.food_produced_this_month += amount * resource_units_per_load();
-    //food produced is counted in units, so convert from cartloads
 }
 
 void city_resource_add_to_granary(resource_type food, int amount)
@@ -518,12 +538,13 @@ static void calculate_available_food(void)
     }
     city_data.resource.food_needed_per_month =
         calc_adjust_with_percentage(city_data.population.population, 50);
+    const int available_food = food_available_to_citizens(&city_data.resource.food_types_available);
     if (city_data.resource.food_needed_per_month > 0) {
         city_data.resource.food_supply_months =
-            city_data.resource.granary_total_stored / city_data.resource.food_needed_per_month;
+            available_food / city_data.resource.food_needed_per_month;
     } else {
         city_data.resource.food_supply_months =
-            city_data.resource.granary_total_stored > 0 ? 1 : 0;
+            available_food > 0 ? 1 : 0;
     }
     if (scenario_property_rome_supplies_wheat()) {
         city_data.resource.food_types_available = 1;

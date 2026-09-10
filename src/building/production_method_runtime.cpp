@@ -5,10 +5,14 @@
 #include "building/building_type.h"
 #include "city/finance.h"
 #include "city/resource.h"
+#include "city/data_private.h"
 #include "core/calc.h"
 #include "game/time.h"
 #include "map/water.h"
 #include "scenario/property.h"
+#include <algorithm>
+#include <climits>
+#include <cmath>
 
 namespace building_type_registry_impl {
 
@@ -46,6 +50,19 @@ int ProductionMethod::effective_monthly_production() const
     return monthly_production;
 }
 
+int ProductionMethod::apply_work_modifiers(int work) const
+{
+    double scaled_work = work;
+    for (const auto &modifier : work_modifiers()) {
+        int value = 0;
+        switch (modifier.source) {
+            case ProductionModifierSource::MilitaryFoodStress: value = city_data.mess_hall.food_stress_cumulative; break;
+        }
+        scaled_work *= 1.0 + std::max(0, value - modifier.threshold) * modifier.percent_per_point / 100.0;
+    }
+    return static_cast<int>(std::clamp(std::ceil(scaled_work), 0.0, static_cast<double>(INT_MAX)));
+}
+
 int ProductionMethod::max_progress_for(const Building &building) const
 {
     if (is_figure_delivery_output() || (!has_resource_output() && !has_effect_output())) {
@@ -57,23 +74,23 @@ int ProductionMethod::max_progress_for(const Building &building) const
         return 0;
     }
 
-    return calc_percentage(
+    return apply_work_modifiers(scale_cycle_work(calc_percentage(
         GAME_TIME_DAYS_PER_MONTH * 2 * building.employment_required_workers(),
-        monthly_production);
+        monthly_production)));
 }
 
 int ProductionMethod::has_required_inputs(const Building &building) const
 {
     if (input_source() == ResourceConsumptionSource::GlobalStockpile) {
         std::vector<ResourceConsumptionAmount> requirements;
-        for (const auto &input : inputs()) requirements.push_back({input.resource, scaled_input_amount(input)});
+        for (const auto &input : inputs()) requirements.push_back({input.resource, input.amount});
         return resource_stockpile_has(requirements);
     }
     for (const ProductionResourceAmount &input : inputs()) {
         if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_SLOT_COUNT) {
             return 0;
         }
-        if (building.storage_resource_amount(input.resource, StorageRole::Input) < scaled_input_amount(input)) {
+        if (building.storage_resource_amount(input.resource, StorageRole::Input) < input.amount) {
             return 0;
         }
     }

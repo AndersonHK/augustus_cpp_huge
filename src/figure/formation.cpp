@@ -482,10 +482,10 @@ int formation::modified_combat_value(FormationCombatStat stat, int base_value) c
     return formation_type_definition->modified_combat_value(stat, base_value);
 }
 
-bool formation::recruit_requires_weapon() const
+const std::vector<UnitRecruitmentCost> &formation::recruitment_costs() const
 {
-    require_definition("recruit_requires_weapon");
-    return formation_type_definition->primary_unit()->requires_weapon();
+    require_definition("recruitment_costs");
+    return formation_type_definition->primary_unit()->recruitment_costs();
 }
 
 int formation::base_morale_limit() const

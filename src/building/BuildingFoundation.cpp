@@ -453,6 +453,22 @@ const FoundationTerrainDelta *BuildingFoundation::terrain_delta_at(int grid_offs
     return nullptr;
 }
 
+std::vector<Building *> BuildingFoundation::unbound_owners_at(int grid_offset)
+{
+    std::vector<Building *> owners;
+    const auto found = g_unbound_foundations.find(grid_offset);
+    if (found != g_unbound_foundations.end()) {
+        for (auto it = found->second.rbegin(); it != found->second.rend(); ++it) {
+            BuildingFoundation *foundation = *it;
+            if (foundation && foundation->owner_ && foundation->state_ && foundation->state_->is_published() &&
+                foundation->contains_grid_offset(grid_offset)) {
+                owners.push_back(foundation->owner_);
+            }
+        }
+    }
+    return owners;
+}
+
 Building *BuildingFoundation::unbound_owner_at(int grid_offset, const BuildingType *type)
 {
     const auto found = g_unbound_foundations.find(grid_offset);

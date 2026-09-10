@@ -140,7 +140,7 @@ int building_get_raw_materials_for_workshop(
         for (size_t i = 0; i < inputs.size(); i++) {
             chain[i].good = method->output_resource();
             chain[i].raw_material = inputs[i].resource;
-            chain[i].raw_amount = method->scaled_input_amount(inputs[i]);
+            chain[i].raw_amount = inputs[i].amount;
         }
     }
     return static_cast<int>(inputs.size());
@@ -298,7 +298,7 @@ int building_get_required_raw_amount_for_production(
         }
         for (const building_type_registry_impl::ProductionResourceAmount &input : method->inputs()) {
             if (input.resource == static_cast<resource_type>(raw_material)) {
-                amount = std::max(amount, method->scaled_input_amount(input));
+                amount = std::max(amount, input.amount);
             }
         }
     }

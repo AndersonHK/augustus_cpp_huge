@@ -133,6 +133,7 @@ enum class SpecialSpawnMode {
     TempleMarsMessHallPriest,
     TempleNeptuneChariot,
     GrandTempleMarsRecruit,
+    BarracksRecruit,
     FishingBoat
 };
 

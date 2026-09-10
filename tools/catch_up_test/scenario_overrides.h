@@ -172,25 +172,26 @@ inline void validate_scenario_model_overrides()
     require(scenario_action_type_change_production_rate_execute(&action) == 1 && production_method_registry_production_per_month_for_resource(resource_wheat()) == 0, "Production rate did not clamp at zero");
     production_method_registry_reset_production_overrides();
     {
-        auto *delay = find_production_method_definition("recruitment_delay");
-        require(delay && delay->is_delay_factor() && !delay->has_resource_output() && delay->scale_delay(8) == 8, "Recruitment delay definition is not an independent factor");
+        auto *delay = find_production_method_definition("barracks_recruits");
+        require(delay && delay->is_workshop() && delay->has_resource_output() && delay->base_monthly_production() == 200, "Barracks does not produce troop inventory");
         const auto *barracks = definition_for_type(type_from_attr("barracks"));
         require(std::find(barracks->production_methods().begin(), barracks->production_methods().end(), delay) != barracks->production_methods().end(), "Barracks does not bind its delay factor");
         action.parameter1 = resource_troops(); action.parameter3 = 1;
         action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("50"), INT_MIN, INT_MAX);
-        require(scenario_action_type_change_production_rate_execute(&action) && delay->scale_delay(8) == 4, "50 percent did not halve recruitment delay");
+        require(scenario_action_type_change_production_rate_execute(&action) && delay->base_monthly_production() == 50, "Troop production set action failed");
         action.parameter3 = 0;
-        action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("150"), INT_MIN, INT_MAX);
-        require(scenario_action_type_change_production_rate_execute(&action) && delay->scale_delay(8) == 16, "Add action did not make recruitment delay 200 percent");
+        action.parameter2 = scenario_formula_add(reinterpret_cast<const uint8_t *>("25"), INT_MIN, INT_MAX);
+        require(scenario_action_type_change_production_rate_execute(&action) && delay->base_monthly_production() == 75, "Troop production add action failed");
         buffer rates{}; production_rates_save(&rates);
         production_method_registry_reset_production_overrides();
-        require(delay->scale_delay(8) == 8, "Scenario reset retained recruitment delay override");
+        require(delay->base_monthly_production() == 200, "Scenario reset retained troop production override");
         production_rates_load(&rates, true); std::free(rates.data);
-        require(delay->scale_delay(8) == 16, "Delay multiplier did not survive sparse save/reload");
+        require(delay->base_monthly_production() == 75, "Troop production did not survive sparse save/reload");
         production_method_registry_set_production_per_month_for_resource(resource_troops(), 0);
-        require(delay->scale_delay(8) == 0 && delay->scale_delay(-1) == -1, "Zero delay lost instant or unstaffed semantics");
+        require(delay->base_monthly_production() == 0, "Zero troop production did not stop training");
         production_method_registry_set_production_per_month_for_resource(resource_troops(), INT_MAX);
-        require(delay->scale_delay(INT_MAX) == INT_MAX, "Delay scaling overflowed");
+        require(delay->base_monthly_production() == INT_MAX, "Troop production overflowed");
+        require(production_method_registry_import_recruitment_delay(50) && delay->base_monthly_production() == 400, "Legacy recruitment delay did not migrate to throughput");
         production_method_registry_reset_production_overrides();
     }
     if (auto *mint = find_production_method_definition("city_mint_basic")) {

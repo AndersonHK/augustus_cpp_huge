@@ -439,6 +439,7 @@ static void enable_tutorial2_after_450(int *enabled, building_type type)
 static void disable_resources(int *enabled, building_type type)
 {
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(static_cast<int>(r) + 1)) {
+        if (!resource_is_tradeable(r)) continue;
         if (resource_is_food(r) || resource_is_raw_material(r)) {
             disable_raw(enabled, type, building_producer_for_resource(r), r);
         } else {

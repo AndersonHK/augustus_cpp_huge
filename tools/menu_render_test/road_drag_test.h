@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/construction.h"
+#include "building/construction_plan.h"
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "city/finance.h"
@@ -24,6 +25,9 @@ inline bool run_city_road_drag_render_test()
     window_draw(1);
     static CityDrawTileCommand endpoint;
     endpoint = {};
+    static const building_type_registry_impl::BuildingType *road = nullptr;
+    road = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("road"));
+    if (!road) return false;
     CityViewRenderCommandBuffer commands;
     commands.build();
     const CityViewRenderPhase phases[] = { { [](const CityDrawTileCommand &command) {
@@ -33,6 +37,8 @@ inline bool run_city_road_drag_render_test()
         for (int dx = -2; dx <= 0; dx++) {
             const int offset = map_grid_add_delta(command.grid_offset, dx, 0);
             if (offset < 0 || terrain_map().contains(offset, terrain_types().not_clear)) return;
+            const int tile_x = map_grid_offset_to_x(offset), tile_y = map_grid_offset_to_y(offset);
+            if (!map_grid_is_inside(tile_x, tile_y, 1) || !building_construction::ConstructionPlacementPlan(*road, tile_x, tile_y, 1, 0).can_place()) return;
         }
         int x, y, width, height;
         city_view_get_viewport(&x, &y, &width, &height);
@@ -46,8 +52,6 @@ inline bool run_city_road_drag_render_test()
         std::fprintf(stdout, "Road drag render test skipped: no visible clear three-tile route.\n");
         return true;
     }
-    const auto *road = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("road"));
-    if (!road) return false;
     const map_tile end = { map_grid_offset_to_x(endpoint.grid_offset), map_grid_offset_to_y(endpoint.grid_offset), endpoint.grid_offset };
     const map_tile no_tile = {};
     view_tile selected_view;

@@ -1,5 +1,7 @@
 # Research Index
 
+Latest implementation: [Annual housing consumption and Augustus/Vespasian budgets](housing_annual_consumption_2026_09_09.md), with 0.3/0.6 Vespasian rates, import/export-value comparisons, a patrician density proposal, and a [reproducible report generator](write_housing_consumption_report.ps1).
+
 Snapshot: 2026-05-10
 
 This folder holds historical tuning research that is too wide-ranging for the
@@ -38,6 +40,12 @@ mandate an exact adjustment that damages the design intent.
 - [Vespasian Housing Progression Design Notes](vespasian_housing_progression_design_notes.md) -
   forward-looking design proposals for classed labor, city-size expectations,
   road access, demand-gated housing, service capacity, and market revenue.
+- [Vespasian Housing Demand Rebalance](vespasian_housing_demand_rebalance_2026_09_09.md) -
+  September 2026 planning slice on early pottery/oil, delayed water/education,
+  earlier two-god coverage, community evidence, and quantitative cost limits.
+- [Housing Service Costs and Fractional Taxes](vespasian_housing_service_cost_tables_2026_09_09.md) -
+  equal-area density, workforce, recurring service/resource budgets, and a smoother
+  plebeian tax curve with a reproducible PowerShell planning calculator.
 - [Roman City Facility Ratios](roman_city_facility_ratios.md) - ratios for
   baths, fountains, bakeries, food counters, fulleries, warehouses, temples,
   public safety, and entertainment buildings by population and city type.

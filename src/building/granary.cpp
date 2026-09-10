@@ -162,9 +162,8 @@ int building_granary_try_add_resource(
     } else {
         amount_added = amount;
     }
-    if (is_produced) {
-        city_resource_add_produced_to_granary(amount_added); // add to city production
-    }
+    // Production is recorded when harvested or landed, not when transported into storage.
+    (void)is_produced;
     city_resource_add_to_granary(resource, amount_added); // add to city stored food data
     if (granary.resource_amount(RESOURCE_NONE) <= amount_added) {
         granary.add_resource(resource, granary.resource_amount(RESOURCE_NONE));

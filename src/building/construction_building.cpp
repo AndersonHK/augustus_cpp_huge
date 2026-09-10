@@ -556,7 +556,6 @@ static bool add_to_map(
                 map_tiles_update_area_roads(b->x, b->y, road_update_radius);
             }
             if (definition.is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
-                b->accepted_goods[resource_weapons()] = 1;
                 b->accepted_goods[RESOURCE_NONE] = 1;
             }
             set_monument_phase_for_parts(b, MONUMENT_START);
@@ -576,7 +575,6 @@ static bool add_to_map(
             map_tiles_update_area_roads(b->x, b->y, road_update_radius);
         }
         if (definition.is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
-            b->accepted_goods[resource_weapons()] = 1;
             b->accepted_goods[RESOURCE_NONE] = 1;
         }
         building_monument_set_phase(b, MONUMENT_START);
@@ -624,7 +622,6 @@ static bool add_to_map(
         b->subtype.orientation = static_cast<short>(placement.rotation());
         add_building(b);
     } else if (definition.attr_is("barracks")) {
-        b->accepted_goods[resource_weapons()] = 1;
         b->accepted_goods[RESOURCE_NONE] = 1;
         add_building(b);
     } else {

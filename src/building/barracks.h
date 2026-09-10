@@ -2,7 +2,6 @@
 
 #include "building/building.h"
 
-#define MAX_WEAPONS_BARRACKS 4
 
 struct formation;
 
@@ -21,14 +20,15 @@ public:
     using Building::Building;
     explicit Barracks(Building building) : Building(building) {}
 
-    static Building *for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst);
+    static Building *for_supplies(int x, int y, resource_type resource, int road_network_id, map_point *dst);
 
     int priority() const;
     void set_priority(int priority);
     int create_soldier(int x, int y);
+    bool has_recruitment_resources(const formation &legion) const;
     Building *unmanned_tower(map_point *road) const;
     int create_tower_sentry(int x, int y);
-    void spawn_recruitment();
+    int spawn_recruitment(const map_point &road);
 
 private:
     int closest_legion_needing_soldiers() const;

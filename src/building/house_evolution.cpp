@@ -180,16 +180,16 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         return 0;
     }
     // goods
-    if (house->resources[resource_pottery()] < requirements.pottery) {
+    if (requirements.pottery && house->resources[resource_pottery()] <= 0) {
         return 0;
     }
-    if (house->resources[resource_oil()] < requirements.oil) {
+    if (requirements.oil && house->resources[resource_oil()] <= 0) {
         return 0;
     }
-    if (house->resources[resource_furniture()] < requirements.furniture) {
+    if (requirements.furniture && house->resources[resource_furniture()] <= 0) {
         return 0;
     }
-    int wine = requirements.wine;
+    int wine = requirements.wine_sources;
     if (wine && house->resources[resource_wine()] <= 0) {
         return 0;
     }
@@ -353,14 +353,16 @@ static void consume_resources(Building &house_object, building *b)
         }
         if (building_house_consumes_goods_this_month(game_time_total_months(), consumption_reduction[r])) {
             int amount = 0;
+            HousingState &state = house_object.Housing->state();
+            const int events = house_object.Housing->definition().goods_consumption_events_per_month;
             if (r == resource_wine()) {
-                amount = requirements.wine;
+                amount = requirements.wine.consume(state.population, events, state.goods_consumption_remainder[3]);
             } else if (r == resource_oil()) {
-                amount = requirements.oil;
+                amount = requirements.oil.consume(state.population, events, state.goods_consumption_remainder[1]);
             } else if (r == resource_furniture()) {
-                amount = requirements.furniture;
+                amount = requirements.furniture.consume(state.population, events, state.goods_consumption_remainder[2]);
             } else if (r == resource_pottery()) {
-                amount = requirements.pottery;
+                amount = requirements.pottery.consume(state.population, events, state.goods_consumption_remainder[0]);
             }
             consume_resource(b, r, amount);
         }
@@ -511,7 +513,7 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < requirements->pottery) {
+    if (requirements->pottery && house->resources[resource_pottery()] <= 0) {
         state.evolve_text_id = 19;
         return;
     }
@@ -551,17 +553,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < requirements->oil) {
+    if (requirements->oil && house->resources[resource_oil()] <= 0) {
         state.evolve_text_id = 27;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < requirements->furniture) {
+    if (requirements->furniture && house->resources[resource_furniture()] <= 0) {
         state.evolve_text_id = 28;
         return;
     }
     // wine
-    int wine = requirements->wine;
+    int wine = requirements->wine_sources;
     if (house->resources[resource_wine()] < wine) {
         state.evolve_text_id = 29;
         return;
@@ -657,7 +659,7 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < requirements->pottery) {
+    if (requirements->pottery && house->resources[resource_pottery()] <= 0) {
         state.evolve_text_id = 49;
         return;
     }
@@ -697,17 +699,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < requirements->oil) {
+    if (requirements->oil && house->resources[resource_oil()] <= 0) {
         state.evolve_text_id = 57;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < requirements->furniture) {
+    if (requirements->furniture && house->resources[resource_furniture()] <= 0) {
         state.evolve_text_id = 58;
         return;
     }
     // wine
-    wine = requirements->wine;
+    wine = requirements->wine_sources;
     if (house->resources[resource_wine()] < wine) {
         state.evolve_text_id = 59;
         return;

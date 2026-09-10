@@ -428,7 +428,7 @@ static int draw_production_rows_for_type(
                     consumed_height += draw_production_resource_row(c, nullptr, input.resource,
                         c->building->storage_resource_amount(input.resource,
                             building_type_registry_impl::StorageRole::Input),
-                        method->scaled_input_amount(input),
+                        input.amount,
                         y_offset + consumed_height, 0);
                 }
             }

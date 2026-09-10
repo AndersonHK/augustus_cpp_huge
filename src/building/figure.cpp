@@ -600,8 +600,6 @@ void BuildingFigureGenerator::generate()
         } else if (building_is_fort(b->type)) {
             formation_legion_update_recruit_status(building_object);
             MessHall::spawn_supplier_for_fort(building_object);
-        } else if (b && building_type_registry_impl::type_attr_is(b->type, "barracks")) {
-            Barracks(building_object).spawn_recruitment();
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "military_academy")) {
             building_military_run_academy(building_object);
         } else if (building_object.type->is_mess_hall()) {

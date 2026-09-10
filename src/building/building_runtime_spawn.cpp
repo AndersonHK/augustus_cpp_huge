@@ -1210,6 +1210,8 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
             return spawn_temple_neptune_chariot(road);
         case building_type_registry_impl::SpecialSpawnMode::GrandTempleMarsRecruit:
             return spawn_grand_temple_mars_recruit(road);
+        case building_type_registry_impl::SpecialSpawnMode::BarracksRecruit:
+            return Barracks(building).spawn_recruitment(road);
         case building_type_registry_impl::SpecialSpawnMode::FishingBoat:
             return policy.spawn_source == building_type_registry_impl::SpawnSource::Self ?
                 map_water_spawn_fishing_boat_from_wharf(building) : 0;

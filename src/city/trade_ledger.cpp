@@ -140,6 +140,7 @@ void city_trade_ledger_exchange(resource_type resource, int loads, int price, bo
 void city_trade_ledger_produced(resource_type resource, int units)
 {
     if (resource != RESOURCE_NONE && !resource_is_special(resource) && units > 0) current().resources[identity(resource)].produced += units;
+    if (resource_is_food(resource) && units > 0) city_data.resource.food_produced_this_month += units;
 }
 void city_trade_ledger_consumed(resource_type resource, int units)
 {

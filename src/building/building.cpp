@@ -1825,6 +1825,7 @@ int Building::reserve_output_storage_loads(resource_type *out_resource, int *out
             continue;
         }
         for (resource_type resource : storage->type()->resources()) {
+            if (!resource_is_tradeable(resource)) continue;
             const int capacity = output_cart_capacity(resource);
             const int loads = storage->remove_loads(resource, capacity);
             if (loads > 0) {
@@ -2749,6 +2750,9 @@ building *building_create(building_type type, int x, int y)
             b->accepted_goods[r] = 1;
         }
     }
+    for (const auto *storage : definition->storage_types()) {
+        if (storage->respect_orders()) for (resource_type resource : storage->resources()) b->accepted_goods[resource] = 1;
+    }
 
     // Exception for Venus temples which should never accept wine by default to prevent unwanted evolutions
     if (building_obj->type && building_obj->type->is_temple(GOD_VENUS)) {
@@ -3538,7 +3542,7 @@ static int building_resource_save_value(resource_type resource, int value)
     if (resource == RESOURCE_NONE) {
         return 1;
     }
-    return resource_is_tradeable(resource);
+    return resource_is_declared(resource);
 }
 
 static resource_type building_resource_save_ref(resource_type resource)
@@ -3546,7 +3550,7 @@ static resource_type building_resource_save_ref(resource_type resource)
     if (resource == RESOURCE_NONE) {
         return RESOURCE_NONE;
     }
-    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && resource_is_tradeable(resource) ?
+    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && resource_is_declared(resource) ?
         resource :
         RESOURCE_NONE;
 }
@@ -3740,6 +3744,17 @@ static void restore_omitted_native_storage_resources(
             b->resources[resource] = flat_resources[resource];
         }
     }
+}
+
+void building_migrate_recruitment_supplies(int version)
+{
+    if (version > SAVE_GAME_LAST_RECRUITMENT_SUPPLIES_IN_LOADS) return;
+    building_for_each_loaded_record([](building *b) {
+        const auto *type = definition_for_record(b);
+        if (!type || (!type->attr_is("barracks") && !type->is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand))) return;
+        b->resources[resource_weapons()] = static_cast<short>(std::clamp<int>(b->resources[resource_weapons()] * resource_units_per_load(), 0, SHRT_MAX));
+        if (type->attr_is("barracks")) b->data.industry.progress = 0;
+    });
 }
 
 void building_resource_state_save(buffer *buf)

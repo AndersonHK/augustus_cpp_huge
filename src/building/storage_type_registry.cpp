@@ -74,7 +74,7 @@ int parse_root()
     }
     g_parse_state.disabled = disabled;
     if (disabled) {
-        if (xml_parser_has_attribute("role")) {
+        if (xml_parser_has_attribute("role") || xml_parser_has_attribute("respect_orders")) {
             Logger::error("Disabled StorageType definition must not declare role", 0, 0);
             g_parse_state.error = 1;
             return 0;
@@ -99,6 +99,15 @@ int parse_root()
         return 0;
     }
     g_parse_state.saw_role = 1;
+    if (xml_parser_has_attribute("respect_orders")) {
+        int respect_orders = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("respect_orders"), &respect_orders)) {
+            Logger::error("StorageType respect_orders must be a Boolean", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_respect_orders(respect_orders != 0);
+    }
     return 1;
 }
 

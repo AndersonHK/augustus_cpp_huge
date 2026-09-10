@@ -908,11 +908,9 @@ static void determine_armoury_supplier_destination(Figure *f, Building &armoury)
 
     // Has weapons, deliver to barracks
     if (f->resource_id) {
-        destination = Barracks::for_weapon(armoury.x(), armoury.y(), resource_weapons(),
+        destination = Barracks::for_supplies(armoury.x(), armoury.y(), resource_weapons(),
             armoury.road_network_id(), &dst);
-        if (destination) {
-            set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
-                armoury, destination, dst.x, dst.y);
+        if (destination && set_input_storage_destination(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE, armoury, destination, dst.x, dst.y)) {
             return;
         }
     } else {
@@ -973,14 +971,13 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
         return;
     }
     // delivering resource
-    // priority 1: weapons to barracks
-    destination = Barracks::for_weapon(
+    // priority 1: declared recruitment supplies
+    destination = Barracks::for_supplies(
         f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, &dst);
-    if (destination) {
-        set_destination_to_building(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
-            warehouse, destination, dst.x, dst.y);
+    if (destination && set_input_storage_destination(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE, warehouse, destination, dst.x, dst.y)) {
         if (remove_resources) {
             if (!remove_resource_from_warehouse(f, warehouse, 1)) {
+                f->release_destination_reservations();
                 f->state = FIGURE_STATE_DEAD;
                 f->is_ghost = 1;
             }
@@ -1175,11 +1172,6 @@ void figure_warehouseman_action(Figure *f)
                         f->loads_sold_or_carrying =
                             static_cast<unsigned char>(f->loads_sold_or_carrying - delivered);
                     }
-                } else if (destination.matches("barracks") ||
-                    (destination.type &&
-                        destination.type->is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand))) {
-                    destination.add_resource(resource_weapons(), 1);
-                    f->loads_sold_or_carrying = 0; // should change to be dependant on the above call in the future
                 } else { // workshop
                     delivered = building_workshop_add_raw_material(
                         &destination, f->resource_id, f->loads_sold_or_carrying, *f);

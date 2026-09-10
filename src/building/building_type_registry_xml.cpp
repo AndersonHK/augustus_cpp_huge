@@ -3992,6 +3992,8 @@ static int parse_spawn()
         policy.special_mode = SpecialSpawnMode::TempleNeptuneChariot;
     } else if (mode_text && compare_text(mode_text, "grand_temple_mars_recruit") == 0) {
         policy.special_mode = SpecialSpawnMode::GrandTempleMarsRecruit;
+    } else if (mode_text && compare_text(mode_text, "barracks_recruit") == 0) {
+        policy.special_mode = SpecialSpawnMode::BarracksRecruit;
     } else if (mode_text && compare_text(mode_text, "fishing_boat") == 0) {
         policy.special_mode = SpecialSpawnMode::FishingBoat;
     } else {

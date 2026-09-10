@@ -68,6 +68,7 @@ public:
     RoadblockState &roadblock_state() const;
     int contains_grid_offset(int grid_offset) const;
     const FoundationTerrainDelta *terrain_delta_at(int grid_offset) const;
+    static std::vector<Building *> unbound_owners_at(int grid_offset);
     static Building *unbound_owner_at(
         int grid_offset,
         const BuildingType *type);

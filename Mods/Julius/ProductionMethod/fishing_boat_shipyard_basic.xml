@@ -2,5 +2,4 @@
 <production_method>
     <kind value="workshop" />
     <output effect="spawn_fishing_boat" production_per_month="350" />
-    <batch_size value="1" />
 </production_method>

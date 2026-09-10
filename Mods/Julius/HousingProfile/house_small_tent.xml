@@ -4,7 +4,7 @@
     <evolution devolve_desirability="-99" evolve_desirability="-10" />
     <requirements entertainment="0" water="none" religion="0" education="0"
         barber="0" bathhouse="0" health="0" food_types="0"
-        pottery="0" oil="0" furniture="0" wine="0" />
+        pottery="0" oil="0" furniture="0" wine_sources="0" wine="0" />
     <prosperity value="5" />
     <tax multiplier="1" />
 </housing_profile>

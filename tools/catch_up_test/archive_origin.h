@@ -375,8 +375,9 @@ inline bool validate_foreign_archive_file(const char *filename, bool compare_run
     if (compare_runtime && archive.origin.save_version >= 184) {
         const auto &rates = archive.pieces.at("production_rates");
         const int percent = augustus_save::read_u16(rates, 44);
-        const auto *method = building_type_registry_impl::find_production_method_definition("recruitment_delay");
-        if (!method || !method->is_delay_factor() || method->scale_delay(100) != percent) {
+        const auto *method = building_type_registry_impl::find_production_method_definition("barracks_recruits");
+        const int expected = percent ? std::max(1, 20000 / percent) : INT_MAX;
+        if (!method || method->base_monthly_production() != expected) {
             std::fprintf(stderr, "Foreign recruitment delay factor was not preserved: expected=%d\n", percent);
             return false;
         }

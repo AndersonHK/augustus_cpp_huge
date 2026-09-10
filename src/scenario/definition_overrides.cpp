@@ -7,6 +7,7 @@
 #include <array>
 #include <map>
 #include <tuple>
+#include <cmath>
 
 namespace {
 using namespace building_type_registry_impl;
@@ -30,14 +31,58 @@ int *housing_field(HousingProfileDef &profile, int field)
         case 7: return &r.bathhouse;
         case 8: return &r.health;
         case 9: return &r.food_types;
-        case 10: return &r.pottery;
-        case 11: return &r.oil;
-        case 12: return &r.furniture;
-        case 13: return &r.wine;
         case 14: return &profile.prosperity;
         case 16: return &profile.tax_multiplier;
         default: return nullptr;
     }
+}
+
+HousingGoodsRate *housing_goods_field(HousingProfileDef &profile, int field)
+{
+    switch (field) {
+        case 10: return &profile.requirements.pottery;
+        case 11: return &profile.requirements.oil;
+        case 12: return &profile.requirements.furniture;
+        case 13: return &profile.requirements.wine;
+        default: return nullptr;
+    }
+}
+
+// The legacy scenario model API still expresses goods in units per consumption event.
+// Translate that wire/editor contract at the boundary; runtime profiles use annual per-resident rates.
+const HousingDef *housing_for_profile(const HousingProfileDef &profile)
+{
+    for (const auto &building : g_building_types) {
+        if (building && building->housing_def().profile == &profile) return &building->housing_def();
+    }
+    return nullptr;
+}
+
+int housing_model_value(HousingProfileDef &profile, int field)
+{
+    if (field == 3) return static_cast<int>(profile.requirements.water);
+    if (auto *rate = housing_goods_field(profile, field)) {
+        const auto *housing = housing_for_profile(profile);
+        return housing && housing->goods_consumption_events_per_month > 0 ? static_cast<int>(std::lround(rate->annual_amount(housing->capacity) / (12 * housing->goods_consumption_events_per_month))) : 0;
+    }
+    return *housing_field(profile, field);
+}
+
+bool apply_housing_field(HousingProfileDef &profile, int field, int value)
+{
+    if (field == 3) profile.requirements.water = static_cast<HousingWaterRequirement>(value);
+    else if (auto *rate = housing_goods_field(profile, field)) {
+        const auto *housing = housing_for_profile(profile);
+        if (!housing || housing->capacity <= 0) return false;
+        rate->numerator = value * 12 * housing->goods_consumption_events_per_month;
+        rate->denominator = housing->capacity;
+        if (field == 13) profile.requirements.wine_sources = value;
+    } else {
+        int *target = housing_field(profile, field);
+        if (!target) return false;
+        *target = value;
+    }
+    return true;
 }
 
 BuildingType *building_for(const std::string &id)
@@ -51,13 +96,12 @@ bool apply(const ScenarioDefinitionOverride &entry)
     if (entry.kind == ScenarioOverrideKind::Housing) {
         auto *profile = find_mutable_housing_profile_definition(entry.target.c_str());
         if (!profile || entry.field < 0 || entry.field > 16 || entry.value < (entry.field < 2 ? -1000 : 0) || entry.value > housing_maximum[entry.field]) return false;
-        if (entry.field == 3) {
-            if (entry.value < 0 || entry.value > 3) return false;
-            profile->requirements.water = static_cast<HousingWaterRequirement>(entry.value);
-        } else {
-            int *field = housing_field(*profile, entry.field);
-            if (!field) return false;
-            *field = entry.value;
+        if (!apply_housing_field(*profile, entry.field, entry.value)) return false;
+        for (const auto &[id, baseline] : profile_defaults) {
+            if (baseline.variant_of == profile->path_id) {
+                auto *variant = find_mutable_housing_profile_definition(id.c_str());
+                if (variant && !apply_housing_field(*variant, entry.field, entry.value)) return false;
+            }
         }
     } else if (entry.kind == ScenarioOverrideKind::Capacity) {
         auto *building = building_for(entry.target);
@@ -144,7 +188,7 @@ bool scenario_house_model_change(building_type type, int field, int amount, bool
     const auto &housing = building->housing_def();
     auto *profile = find_mutable_housing_profile_definition(housing.profile_path.c_str());
     if (!profile) return false;
-    int current = field == 15 ? housing.capacity : field == 3 ? static_cast<int>(profile->requirements.water) : *housing_field(*profile, field);
+    int current = field == 15 ? housing.capacity : housing_model_value(*profile, field);
     // Native capacities are per building; the event selector names that building definition.
     int value = static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(amount) + (absolute ? 0 : current), field < 2 ? -1000 : 0, housing_maximum[field]));
     return scenario_definition_override_set({field == 15 ? ScenarioOverrideKind::Capacity : ScenarioOverrideKind::Housing, field == 15 ? building->attr() : profile->path_id, field, {}, value});
@@ -157,7 +201,7 @@ int scenario_house_model_value(building_type type, int field)
     const auto &housing = building->housing_def();
     auto *profile = building_type_registry_impl::find_mutable_housing_profile_definition(housing.profile_path.c_str());
     if (!profile) return 0;
-    return field == 15 ? housing.capacity : field == 3 ? static_cast<int>(profile->requirements.water) : *housing_field(*profile, field);
+    return field == 15 ? housing.capacity : housing_model_value(*profile, field);
 }
 
 int scenario_house_model_maximum(int field) { return field >= 0 && field < 17 ? housing_maximum[field] : 0; }

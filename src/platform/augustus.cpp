@@ -6,6 +6,8 @@
 #include "../../tools/menu_render_test/menu_render_test.h"
 #include "../../tools/menu_render_test/water_hover_test.h"
 #include "../../tools/menu_render_test/road_drag_test.h"
+#include "../../tools/menu_render_test/food_stock_test.h"
+#include "../../tools/menu_render_test/barracks_test.h"
 #include "city/victory.h"
 #include "core/Logger.h"
 #include "translation/translation.h"
@@ -63,6 +65,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <array>
+#include <map>
 
 #ifdef _MSC_VER
 #include <crtdbg.h>
@@ -537,6 +541,9 @@ static int run_single_save_validation(const augustus_args &args, int index)
         }
     }
 
+    if (!run_barracks_test() || data.warning_count || data.error_count) return 21;
+    if (game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS || data.warning_count || data.error_count) return 21;
+    if (!run_food_stock_test()) return 20;
     if (args.catch_up_test && !run_catch_up_runtime_test()) return 10;
     if (args.religion_test) {
         try { validate_religion_callbacks_in_city(); }
@@ -597,6 +604,14 @@ static int run_single_save_validation(const augustus_args &args, int index)
         return 5;
     }
     if (roundtrip) {
+        std::map<unsigned int, std::array<double, 4>> consumption_fractions;
+        Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+            if (house->record()->state != BUILDING_STATE_IN_USE || !house->Housing) return;
+            auto &fractions = house->Housing->state().goods_consumption_remainder;
+            // Exercise every serialized slot even in cities without goods-consuming houses.
+            if (consumption_fractions.empty()) fractions = {0.125, 1.0 / 3, 0.75, 7.0 / 19};
+            consumption_fractions.emplace(house->id, fractions);
+        });
         const bool roundtrip_written = game_file_write_saved_game(roundtrip);
         if (!roundtrip_written || data.error_count || data.warning_count) {
             fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, input, roundtrip);
@@ -610,6 +625,14 @@ static int run_single_save_validation(const augustus_args &args, int index)
             fflush(stderr);
             return 7;
         }
+        for (const auto &[id, fractions] : consumption_fractions) {
+            const Building *house = Building::get(id);
+            if (!house || !house->Housing || house->Housing->state().goods_consumption_remainder != fractions) {
+                fprintf(stderr, "Housing consumption fractions changed on save/reload: building=%u file=%s\n", id, roundtrip);
+                return 7;
+            }
+        }
+        fprintf(stdout, "Housing consumption fraction roundtrip passed: houses=%zu\n", consumption_fractions.size());
         fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, roundtrip);
         fflush(stdout);
     }

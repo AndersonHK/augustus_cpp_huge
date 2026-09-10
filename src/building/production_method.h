@@ -44,6 +44,14 @@ struct ClimateProductionBonus {
     int percent_delta = 0;
 };
 
+enum class ProductionModifierSource { MilitaryFoodStress };
+
+struct ProductionWorkModifier {
+    ProductionModifierSource source = ProductionModifierSource::MilitaryFoodStress;
+    int threshold = 0;
+    double percent_per_point = 0;
+};
+
 class ProductionMethod {
 public:
     explicit ProductionMethod(std::string path);
@@ -83,8 +91,6 @@ public:
     void resolve_rate_source(const ProductionMethod &source) { rate_source_ = &source; }
     const ProductionMethod *rate_source() const { return rate_source_; }
 
-    void set_batch_size(int batch_size);
-    int batch_size() const;
     void set_cart_loads(int numerator, int denominator);
     int cart_load_numerator() const;
     int cart_load_denominator() const;
@@ -103,6 +109,9 @@ public:
     int add_climate_bonus(ClimateProductionBonus bonus);
     const std::vector<ClimateProductionBonus> &climate_bonuses() const;
     int climate_bonus_percent(scenario_climate climate) const;
+    bool add_work_modifier(ProductionWorkModifier modifier);
+    const std::vector<ProductionWorkModifier> &work_modifiers() const { return work_modifiers_; }
+    int apply_work_modifiers(int work) const;
 
     int is_farm() const;
     int is_workshop() const;
@@ -112,9 +121,9 @@ public:
     int effective_monthly_production() const;
     bool is_delay_factor() const { return kind_ == ProductionMethodKind::DelayFactor; }
     int scale_delay(int delay) const;
+    int scale_cycle_work(int work) const;
     int max_progress_for(const Building &building) const;
     int has_required_inputs(const Building &building) const;
-    int scaled_input_amount(const ProductionResourceAmount &input) const;
     int labor_access_for(const Building &building) const;
     int can_start_cycle(const Building &building) const;
 
@@ -132,13 +141,13 @@ private:
     bool has_production_override_ = false;
     std::string rate_source_path_;
     const ProductionMethod *rate_source_ = nullptr;
-    int batch_size_ = 1;
-    int cart_load_numerator_ = 0;
+    int cart_load_numerator_ = 1;
     int cart_load_denominator_ = 1;
     int cart_capacity_ = 0;
     int treasury_cost_per_cycle_ = 0;
     std::vector<ProductionResourceAmount> inputs_;
     std::vector<ClimateProductionBonus> climate_bonuses_;
+    std::vector<ProductionWorkModifier> work_modifiers_;
 };
 
 } // namespace building_type_registry_impl

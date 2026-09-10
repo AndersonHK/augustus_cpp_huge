@@ -18,6 +18,7 @@
 #include "map/tiles.h"
 
 #include <cstring>
+#include <set>
 
 constexpr int MAX_QUEUE = GRID_SIZE * GRID_SIZE;
 constexpr int GUARD = 50000;
@@ -545,11 +546,14 @@ int map_routing_calculate_distances_for_building(routed_building_type type, int 
     return 1;
 }
 
+static std::set<int> wall_aqueduct_clearance_offsets;
+
 static int callback_delete_wall_aqueduct(int next_offset, int dist, int direction)
 {
     (void) direction;
     if (terrain_land_citizen.items[next_offset] < CITIZEN_0_ROAD) {
         if (terrain_map().contains(next_offset, terrain_types().aqueduct | terrain_types().wall)) {
+            wall_aqueduct_clearance_offsets.insert(next_offset);
             terrain_map().remove(next_offset, terrain_types().clearable);
             return UNTIL_STOP;
         }
@@ -562,7 +566,35 @@ static int callback_delete_wall_aqueduct(int next_offset, int dist, int directio
 void map_routing_delete_first_wall_or_aqueduct(int x, int y)
 {
     ++stats.total_routes_calculated;
+    auto &cleared_offsets = wall_aqueduct_clearance_offsets;
+    cleared_offsets.clear();
     route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_delete_wall_aqueduct);
+    if (cleared_offsets.empty()) {
+        return;
+    }
+    // Destruction refreshes routing, so retire owners after the traversal completes.
+    // Include road/plaza layers removed by the same clearable-terrain operation.
+    std::vector<Building *> owners;
+    Building::for_each([&](Building *owner) {
+        if (!owner->Foundation || !owner->Foundation->state().is_published()) {
+            return;
+        }
+        for (const auto &delta : owner->Foundation->state().terrain_deltas()) {
+            if (cleared_offsets.count(delta.grid_offset) && delta.added_terrain.intersects(terrain_types().clearable)) {
+                owners.push_back(owner);
+                break;
+            }
+        }
+    });
+    for (Building *owner : owners) {
+        if (owner->Foundation->state().is_published()) owner->destroy_without_rubble();
+    }
+    // Foundation rollback may restore an older surface layer on a cleared tile.
+    for (int offset : cleared_offsets) {
+        terrain_map().remove(offset, terrain_types().clearable);
+    }
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
 }
 
 static int is_fighting_friendly(Figure *f)

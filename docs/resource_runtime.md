@@ -50,7 +50,7 @@ Production throughput belongs to `Mods/<Mod>/ProductionMethod/*.xml`:
 <production_method>
     <kind value="workshop" />
     <output resource="gold" production_per_month="20" />
-    <batch_size value="1" />
+    <cart_loads value="1" />
 </production_method>
 ```
 

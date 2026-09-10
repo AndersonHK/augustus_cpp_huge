@@ -2,7 +2,9 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, runtime structs, module state, and compatibility records. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
-Current working live-save version is **211 (`0xd3`)**, and scenario version is **28**. See the current schema section in `save_data_organization.md` for its exact extensions.
+Current working live-save version is **212 (`0xd4`)**, and scenario version is **28**. See the current schema section in `save_data_organization.md` for its exact extensions.
+
+SVV 212 preserves each house's four manufactured-goods consumption fractions through `HousingState`, `LegacyBuildingSaveDto`, and the building record tail. Older saves start these fractions at zero. Merges sum the carry and splits apportion it, so housing transitions do not erase or multiply accrued fractional consumption.
 
 Native 0xc8 appends named monument-gift awards; 0xc9 appends trade/resource/finance history to dynamic city data. Older saves initialize missing history as partial/unknown. These are fork gates, not Augustus SVX schema numbers. Post-fork SVX versions 175–189 use the immutable producer dispatch and separate converter audited in `augustus_sync_2026_09_05_ledger.md`. File, buffer and preview boundaries identify schemas from bytes; unsupported families or unavailable owning mods fail preflight. The runtime path is implemented, with remaining feature cases explicitly open in SB04–SB09.
 

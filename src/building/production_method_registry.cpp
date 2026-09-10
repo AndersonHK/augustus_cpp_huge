@@ -12,6 +12,9 @@
 #include <cstdio>
 #include <cstring>
 #include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -40,7 +43,6 @@ struct ParseState {
     int saw_root = 0;
     int saw_kind = 0;
     int saw_output = 0;
-    int saw_batch_size = 0;
     int saw_cart_loads = 0;
     int saw_cart_capacity = 0;
     int saw_treasury_cost = 0;
@@ -120,19 +122,6 @@ int validate_definition(const ProductionMethod &definition, const char *filename
         }
         return 1;
     }
-    if (definition.batch_size() <= 0) {
-        Logger::error("ProductionMethod batch_size must be positive", definition.path(), 0);
-        Logger::error("ProductionMethod batch_size must be positive.", filename);
-        return 0;
-    }
-    if (definition.batch_size() > UCHAR_MAX) {
-        char detail[512];
-        snprintf(detail, sizeof(detail), "file=%s path=%s batch_size=%d", filename, definition_path ? definition_path : "",
-            definition.batch_size());
-        Logger::error("ProductionMethod batch_size exceeds current cart load field", definition.path(), 0);
-        Logger::error("ProductionMethod batch_size exceeds current cart load field.", detail);
-        return 0;
-    }
     if (definition.cart_load_numerator() <= 0 || definition.cart_load_denominator() <= 0) {
         Logger::error("ProductionMethod cart_loads must be positive", definition.path(), 0);
         Logger::error("ProductionMethod cart_loads must be positive.", filename);
@@ -154,6 +143,14 @@ int validate_definition(const ProductionMethod &definition, const char *filename
         Logger::error("ProductionMethod cart_capacity exceeds current cart load field", definition.path(), 0);
         Logger::error("ProductionMethod cart_capacity exceeds current cart load field.", detail);
         return 0;
+    }
+    if (definition.has_resource_output()) {
+        const int64_t numerator = definition.cart_load_numerator();
+        const int64_t denominator = definition.cart_load_denominator();
+        if ((resource_units_per_load() * numerator) % denominator != 0) {
+            Logger::error("ProductionMethod output per cycle must be whole inventory units", filename, 0);
+            return 0;
+        }
     }
     if (definition.treasury_cost_per_cycle() < 0) {
         Logger::error("ProductionMethod treasury_cost must be non-negative", definition.path(), 0);
@@ -358,39 +355,6 @@ int parse_output()
     return 1;
 }
 
-int parse_batch_size()
-{
-    if (reject_tombstone_content("batch_size")) {
-        return 0;
-    }
-    if (!g_parse_state.definition) {
-        Logger::error("Encountered ProductionMethod batch_size before root", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (g_parse_state.saw_batch_size) {
-        Logger::error("ProductionMethod xml contains duplicate batch_size nodes", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("value")) {
-        Logger::error("ProductionMethod batch_size is missing required attribute 'value'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    const int batch_size = xml_parser_get_attribute_int("value");
-    if (batch_size <= 0) {
-        Logger::error("Unsupported ProductionMethod batch_size", xml_parser_get_attribute_string("value"), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_batch_size(batch_size);
-    g_parse_state.saw_batch_size = 1;
-    return 1;
-}
-
 int parse_cart_loads()
 {
     if (reject_tombstone_content("cart_loads")) {
@@ -503,6 +467,22 @@ int parse_treasury_cost()
     return 1;
 }
 
+int parse_work_modifier()
+{
+    if (reject_tombstone_content("work_modifier") || !g_parse_state.definition) return 0;
+    ProductionWorkModifier modifier;
+    const char *source = xml_parser_get_attribute_string("source");
+    const char *percent = xml_parser_get_attribute_string("percent_per_point");
+    char *end = nullptr;
+    modifier.percent_per_point = percent ? std::strtod(percent, &end) : -1;
+    if (!source || std::strcmp(source, "military_food_stress") || !xml_parser_has_attribute("threshold") || !xml_value::parse_int_strict(xml_parser_get_attribute_string("threshold"), &modifier.threshold) || modifier.threshold < 0 || !percent || end == percent || *end || !std::isfinite(modifier.percent_per_point) || modifier.percent_per_point < 0 || !g_parse_state.definition->add_work_modifier(modifier)) {
+        Logger::error("Invalid or duplicate ProductionMethod work modifier", source, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    return 1;
+}
+
 int parse_climate_bonuses()
 {
     if (reject_tombstone_content("climate_bonuses")) {
@@ -601,11 +581,11 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "production_method", parse_root, nullptr, nullptr, nullptr },
     { "kind", parse_kind, nullptr, "production_method", nullptr },
     { "output", parse_output, nullptr, "production_method", nullptr },
-    { "batch_size", parse_batch_size, nullptr, "production_method", nullptr },
     { "cart_loads", parse_cart_loads, nullptr, "production_method", nullptr },
     { "cart_capacity", parse_cart_capacity, nullptr, "production_method", nullptr },
     { "treasury_cost", parse_treasury_cost, nullptr, "production_method", nullptr },
     { "climate_bonuses", parse_climate_bonuses, nullptr, "production_method", nullptr },
+    { "work_modifier", parse_work_modifier, nullptr, "production_method", nullptr },
     { "bonus", parse_climate_bonus, nullptr, "climate_bonuses", nullptr },
     { "input", parse_input, nullptr, "production_method", nullptr }
 };
@@ -952,6 +932,9 @@ void fill_layer_test_result(
     if (found != staged.definitions.end() && found->second) {
         result->queried_production_per_month = found->second->base_monthly_production();
         result->queried_input_count = static_cast<int>(found->second->inputs().size());
+        result->queried_input_amount = found->second->inputs().empty() ? 0 : found->second->inputs().front().amount;
+        result->queried_cart_numerator = found->second->cart_load_numerator();
+        result->queried_cart_denominator = found->second->cart_load_denominator();
     }
 }
 
@@ -1063,6 +1046,15 @@ void production_method_registry_save_overrides(buffer *buf)
     }
 }
 
+int production_method_registry_import_recruitment_delay(int percent)
+{
+    auto *method = building_type_registry_impl::find_production_method_definition("barracks_recruits");
+    if (!method || percent < 0) return 0;
+    const int rate = percent ? static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(method->default_base_monthly_production()) * 100 / percent, 1, INT_MAX)) : INT_MAX;
+    method->override_base_monthly_production(rate);
+    return 1;
+}
+
 int production_method_registry_load_overrides(buffer *buf)
 {
     using namespace building_type_registry_impl;
@@ -1083,6 +1075,11 @@ int production_method_registry_load_overrides(buffer *buf)
     if (source.overflow || source.index != source.size) return 0;
     reset_production_overrides();
     for (const auto &entry : overrides) {
+        if (entry.first == "recruitment_delay" && !overrides.count("barracks_recruits")) {
+            if (!production_method_registry_import_recruitment_delay(entry.second)) return 0;
+            Logger::warning("Migrated recruitment delay override to troop production", entry.first.c_str(), entry.second);
+            continue;
+        }
         auto *method = find_production_method_definition(entry.first.c_str());
         if (method) method->override_base_monthly_production(entry.second);
         else Logger::warning("Scenario production override references an unavailable method", entry.first.c_str(), 0);

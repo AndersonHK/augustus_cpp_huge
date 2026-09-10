@@ -47,6 +47,7 @@ struct ModMetadataParseState {
 };
 
 std::string g_mod_name = "Vespasian";
+std::string g_requested_mod_name;
 std::string g_mod_path = "Mods/Vespasian/";
 std::string g_graphics_path = "Mods/Vespasian/Graphics/";
 std::string g_augustus_graphics_path = "Mods/Augustus/Graphics/";
@@ -448,6 +449,7 @@ static bool names_equal_case_insensitive(std::string_view left, std::string_view
 
 static bool select_mod_stack(std::vector<std::string> &mods, std::string_view selected_mod)
 {
+    if (selected_mod.empty()) return !mods.empty();
     const auto selected = std::find_if(mods.begin(), mods.end(), [selected_mod](const std::string &mod) {
         return names_equal_case_insensitive(mod, selected_mod);
     });
@@ -466,6 +468,7 @@ namespace mod_manager {
 
 void set_mod_name(std::string_view mod_name)
 {
+    g_requested_mod_name = mod_name;
     if (!mod_name.empty()) {
         g_mod_name = mod_name;
     } else {
@@ -494,7 +497,7 @@ bool load_mod_list()
         return false;
     }
 
-    if (!select_mod_stack(loaded_mods, g_mod_name) || !validate_loaded_mod_names(loaded_mods)) {
+    if (!select_mod_stack(loaded_mods, g_requested_mod_name) || !validate_loaded_mod_names(loaded_mods)) {
         return false;
     }
 
@@ -600,6 +603,11 @@ bool validate_graphics_path()
 }
 
 #ifdef STARTUP_PARSER_TEST
+bool select_mod_stack_for_test(std::vector<std::string> &mods, std::string_view selected_mod)
+{
+    return select_mod_stack(mods, selected_mod);
+}
+
 bool parse_metadata_source_for_test(const char *source, ModMetadata &metadata_out)
 {
     g_metadata_parse_state = {};

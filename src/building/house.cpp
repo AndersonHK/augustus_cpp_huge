@@ -62,6 +62,17 @@ static void add_house_tiles(Building &house_object)
     if (!runtime_house) {
         return;
     }
+    // Expansion replaces garden terrain and its runtime owner together.
+    if (runtime_house->Foundation) {
+        for (const auto &cell : runtime_house->Foundation->cells(runtime_house->orientation())) {
+            const int offset = map_grid_offset(runtime_house->x() + cell.x, runtime_house->y() + cell.y);
+            for (Building *surface : building_type_registry_impl::BuildingFoundation::unbound_owners_at(offset)) {
+                if (surface->id != runtime_house->id && surface->is_surface_terrain_tile()) {
+                    surface->destroy_without_rubble();
+                }
+            }
+        }
+    }
     // House evolution redraws often. Clamp the existing stable option here instead
     // of reseeding so a valid visual choice survives normal evolve/devolve cycles.
     if (building_runtime *runtime = building_runtime_impl::get_or_create_instance(house)) {
@@ -265,6 +276,7 @@ static int tile_can_expand_into(Building source, int tile_offset, HouseExpandMod
     }
     return mode == HouseExpandMode::Gardens &&
         !config_get(CONFIG_GP_CH_HOUSES_DONT_EXPAND_INTO_GARDENS) &&
+        !terrain_map().contains(tile_offset, terrain_types().not_clear - terrain_types().garden) &&
         terrain_map().contains(tile_offset, terrain_types().garden);
 }
 
@@ -468,6 +480,14 @@ static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
         return 0;
     }
     HousingState &replacement_state = replacement.Housing->state();
+    replacement_state.goods_consumption_remainder.fill(0);
+    for (const Building *participant : plan.participants) {
+        if (participant && participant->Housing) {
+            for (size_t i = 0; i < replacement_state.goods_consumption_remainder.size(); ++i) {
+                replacement_state.goods_consumption_remainder[i] += participant->Housing->state().goods_consumption_remainder[i];
+            }
+        }
+    }
     replacement_state.population = static_cast<int16_t>(plan.population);
     replacement_state.happiness = static_cast<int8_t>(
         plan.population ? plan.happiness_weight / plan.population : source.Housing->state().happiness);
@@ -609,6 +629,8 @@ static void split_house_into_cells(building *house, building_type split_type)
     if (!source->configure_house_replacement(split_type, first_x, first_y)) {
         return;
     }
+    // Every split child copies the source state below; divide pending fractions before copying it.
+    for (double &remainder : source->Housing->state().goods_consumption_remainder) remainder /= shares;
     source->Housing->state().population =
         static_cast<int16_t>(population_per_cell + population_remainder);
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -838,6 +860,7 @@ static void shrink_house_to_type(Building &source, building_type type)
     if (!source.configure_house_replacement(type, target_x, target_y)) {
         return;
     }
+    for (double &remainder : source.Housing->state().goods_consumption_remainder) remainder /= shares;
     source.Housing->state().population =
         static_cast<int16_t>(population_per_result + population_remainder);
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {

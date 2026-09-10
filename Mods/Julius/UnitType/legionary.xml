@@ -9,7 +9,9 @@
         <armor value="0" />
     </combat>
     <movement pathing="soldier_land" />
-    <recruit type="legionary" requires_weapon="true" />
+    <recruit type="legionary">
+        <requirement resource="weapons" amount="100" />
+    </recruit>
     <abilities>
         <melee halted_attack_bonus="4" exposed_defense_penalty="4"
                column_defense_bonus="5" double_line_defense_bonus="2"

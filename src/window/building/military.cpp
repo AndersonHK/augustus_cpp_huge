@@ -224,10 +224,11 @@ void window_building_draw_barracks(building_info_context *c)
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 32, c->y_offset + 60);
 
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
-    if (b->resources[resource_weapons()] < 1) {
+    const int weapon_loads = b->resources[resource_weapons()] / resource_units_per_load();
+    if (weapon_loads < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount(current_string_amount_key(8, 10, b->resources[resource_weapons()]), b->resources[resource_weapons()], c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(current_string_amount_key(8, 10, weapon_loads), weapon_loads, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     if (!c->has_road_access) {

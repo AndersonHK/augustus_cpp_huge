@@ -234,11 +234,21 @@ int parse_recruit()
         return 0;
     }
     if (xml_parser_has_attribute("requires_weapon")) {
-        const char *requires_weapon = xml_parser_get_attribute_string("requires_weapon");
-        g_parse_state.definition->set_requires_weapon(
-            xml_value::equals(requires_weapon, "true") ||
-            xml_value::equals(requires_weapon, "1") ||
-            xml_value::equals(requires_weapon, "yes"));
+        Logger::error("UnitType recruit requires_weapon was replaced by requirement resource/amount declarations", recruit_type, 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    return 1;
+}
+
+int parse_recruitment_requirement()
+{
+    std::string resource;
+    int amount = 0;
+    if (!xml_definition::parse_required_nonempty_string_attribute("resource", &resource) || !xml_parser_has_attribute("amount") || !xml_value::parse_int_strict(xml_parser_get_attribute_string("amount"), &amount) || amount <= 0 || !g_parse_state.definition->add_recruitment_cost(resource, amount)) {
+        Logger::error("Invalid or duplicate UnitType recruitment requirement", resource.c_str(), amount);
+        g_parse_state.error = true;
+        return 0;
     }
     return 1;
 }
@@ -386,6 +396,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "armor", parse_armor, nullptr, "combat", nullptr },
     { "movement", parse_movement, nullptr, "unit", nullptr },
     { "recruit", parse_recruit, nullptr, "unit", nullptr },
+    { "requirement", parse_recruitment_requirement, nullptr, "recruit", nullptr },
     { "abilities", parse_abilities, nullptr, "unit", nullptr },
     { "melee", parse_melee, nullptr, "abilities", nullptr },
     { "ranged", parse_ranged, nullptr, "abilities", nullptr },
@@ -480,7 +491,7 @@ int resolve_and_validate_winners(StagedUnitTypes &staged)
                 " references unsupported or suppressed FigureType '" + winner.figure_reference + "'.";
             return 0;
         }
-        if (!validate_definition(*winner.definition, winner.source.full_path.c_str())) {
+        if (!winner.definition->resolve_recruitment_costs() || !validate_definition(*winner.definition, winner.source.full_path.c_str())) {
             staged.failure_reason = "Invalid UnitType definition: " + winner.source.full_path;
             return 0;
         }
@@ -644,14 +655,20 @@ int UnitType::recruit_type() const
     return recruit_type_;
 }
 
-void UnitType::set_requires_weapon(bool value)
+bool UnitType::add_recruitment_cost(std::string resource, int amount)
 {
-    requires_weapon_ = value;
+    for (const auto &cost : recruitment_costs_) if (cost.resource_key == resource) return false;
+    recruitment_costs_.push_back({std::move(resource), RESOURCE_NONE, amount});
+    return true;
 }
 
-bool UnitType::requires_weapon() const
+bool UnitType::resolve_recruitment_costs()
 {
-    return requires_weapon_;
+    for (auto &cost : recruitment_costs_) {
+        cost.resource = resource_type_from_text_id(cost.resource_key.c_str());
+        if (cost.resource == RESOURCE_NONE) return false;
+    }
+    return true;
 }
 
 void UnitType::set_melee_ability(const UnitMeleeAbility &ability)
@@ -883,7 +900,7 @@ int unit_type_layered_definition_buffers_are_valid_for_test(
                 const UnitMeleeAbility *melee = definition.melee_ability();
                 const UnitRangedAbility *ranged = definition.ranged_ability();
                 result->queried_recruit_type = definition.recruit_type();
-                result->queried_requires_weapon = definition.requires_weapon() ? 1 : 0;
+                result->queried_recruitment_cost_count = static_cast<int>(definition.recruitment_costs().size());
                 result->queried_health = stats.health;
                 result->queried_attack = stats.attack;
                 result->queried_defense = stats.defense;

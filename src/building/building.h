@@ -402,3 +402,4 @@ int building_hydrate_loaded_compositions(int save_version);
 void building_resource_state_save(buffer *buf);
 
 void building_resource_state_load(buffer *buf);
+void building_migrate_recruitment_supplies(int version);

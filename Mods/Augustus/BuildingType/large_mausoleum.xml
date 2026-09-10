@@ -21,6 +21,25 @@
             <image value="Mausoleum L" />
         </default>
     </graphics>
+    <construction mode="phased" road_update_radius="5">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Mausoleum L Cons" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="8" />
+            <requirement type="concrete" amount="4" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Mausoleum_Large_Construction_02" />
+                <image value="Mausoleum_Large_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="marble" amount="4" />
+        </phase>
+    </construction>
     <labor>
         <employees count="0" />
     </labor>
