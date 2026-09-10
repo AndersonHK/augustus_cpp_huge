@@ -96,7 +96,7 @@ function install_sdl_ios {
 }
 
 mkdir -p deps
-if [ "$BUILD_TARGET" == "appimage" ] || [ "$BUILD_TARGET" == "codeql-cpp" ]
+if [ "$BUILD_TARGET" == "appimage" ]
 then
   sudo add-apt-repository universe && sudo apt-get update && sudo apt-get -y install libgl1-mesa-dev libsdl2-dev libsdl2-mixer-dev libfuse2
 elif [ "$BUILD_TARGET" == "flatpak" ]
