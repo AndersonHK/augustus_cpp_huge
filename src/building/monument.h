@@ -68,3 +68,5 @@ int building_monument_is_construction_halted(building *b);
 int building_monument_toggle_construction_halted(building *b);
 int building_monument_is_unfinished_monument(const building *b);
 
+
+int building_monument_has_delivery_for_building(unsigned int building_id);

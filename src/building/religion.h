@@ -28,6 +28,9 @@ public:
     void set_quote_key(translation_key value);
     void set_banner_group(std::string value);
     void set_banner_image(std::string value);
+    void set_portrait(std::string group, std::string image, std::string selected) { portrait_group_ = std::move(group); portrait_image_ = std::move(image); selected_portrait_image_ = std::move(selected); }
+    const char *portrait_group() const { return portrait_group_.c_str(); }
+    const char *portrait_image(bool selected) const { return selected && !selected_portrait_image_.empty() ? selected_portrait_image_.c_str() : portrait_image_.c_str(); }
     void set_content_y_offset(int value);
     void set_height_blocks(int value);
     void set_module_index(int value);
@@ -66,14 +69,25 @@ private:
     translation_key quote_key_;
     std::string banner_group_;
     std::string banner_image_;
+    std::string portrait_group_, portrait_image_, selected_portrait_image_;
     int content_y_offset_ = 0;
     int height_blocks_ = 0;
     int module_index_ = -1;
 };
 
+struct ReligionEpithet {
+    translation_key name_key;
+    translation_key description_key;
+    std::string image;
+    std::string required_building;
+    bool requires_any_fort = false;
+};
+
 class Religion {
 public:
     explicit Religion(std::string path);
+    std::vector<ReligionEpithet> &epithets() { return epithets_; }
+    const std::vector<ReligionEpithet> &epithets() const { return epithets_; }
 
     const char *path() const;
     void add_god(const ::God *god);
@@ -91,6 +105,7 @@ public:
     const ReligionPresentation &presentation() const;
 
 private:
+    std::vector<ReligionEpithet> epithets_;
     std::string path_;
     std::vector<const ::God *> gods_;
     int all_gods_ = 0;

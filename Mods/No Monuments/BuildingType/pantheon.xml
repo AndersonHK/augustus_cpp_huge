@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="pantheon">
+    <construction road_update_radius="9" max_count="1">
+        <requirement type="gold" amount="16" />
+        <requirement type="marble" amount="32" />
+        <requirement type="stone" amount="40" />
+        <requirement type="timber" amount="40" />
+    </construction>
+</building>

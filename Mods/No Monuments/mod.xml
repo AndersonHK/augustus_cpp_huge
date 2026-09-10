@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mod>
+    <name value="No Monuments" />
+    <description value="Build monuments instantly and hide dedicated monument construction suppliers." />
+    <version value="1.0.0" />
+    <dependencies>
+        <mod name="Augustus" />
+    </dependencies>
+</mod>

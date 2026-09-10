@@ -1,6 +1,6 @@
 #include "core/zip.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -318,7 +318,7 @@ static void zip_output_func(uint8_t *buffer, int length, struct pk_token *token)
         return;
     }
     if (token->output_ptr >= token->output_length) {
-        log_error("COMP2 Out of buffer space.", 0, 0);
+        Logger::error("COMP2 Out of buffer space.", 0, 0);
         token->stop = 1;
         return;
     }
@@ -327,13 +327,12 @@ static void zip_output_func(uint8_t *buffer, int length, struct pk_token *token)
         memcpy(&token->output_data[token->output_ptr], buffer, (size_t) length);
         token->output_ptr += length;
     } else {
-        log_error("COMP1 Corrupt.", 0, 0);
+        Logger::error("COMP1 Corrupt.", 0, 0);
         token->stop = 1;
     }
 }
 
-int zip_decompress(const void *input_buffer, int input_length,
-                   void *output_buffer, int output_length)
+static int decompress(const void *input_buffer, int input_length, void *output_buffer, int output_length, bool report_errors)
 {
     struct pk_token token;
     struct pk_decomp_buffer *buf = (struct pk_decomp_buffer *) malloc(sizeof(struct pk_decomp_buffer));
@@ -350,9 +349,19 @@ int zip_decompress(const void *input_buffer, int input_length,
     int ok = 1;
     int pk_error = pk_explode(zip_input_func, zip_output_func, buf, &token);
     if (pk_error || token.stop) {
-        log_error("COMP Error uncompressing.", 0, 0);
+        if (report_errors) Logger::error("COMP Error uncompressing.", 0, 0);
         ok = 0;
     }
     free(buf);
     return ok;
+}
+
+int zip_decompress(const void *input_buffer, int input_length, void *output_buffer, int output_length)
+{
+    return decompress(input_buffer, input_length, output_buffer, output_length, true);
+}
+
+int zip_decompress_quiet(const void *input_buffer, int input_length, void *output_buffer, int output_length)
+{
+    return decompress(input_buffer, input_length, output_buffer, output_length, false);
 }

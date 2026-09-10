@@ -4,7 +4,7 @@
     <evolution devolve_desirability="70" evolve_desirability="80" />
     <requirements entertainment="60" water="fountain" religion="4" education="3"
         barber="1" bathhouse="1" health="2" food_types="3"
-        pottery="1" oil="1" furniture="1" wine="2" />
+        pottery="24/112" oil="24/112" furniture="24/112" wine_sources="2" wine="48/112" />
     <prosperity value="900" />
     <tax multiplier="12" />
 </housing_profile>

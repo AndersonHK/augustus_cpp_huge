@@ -1,28 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="architect_guild">
-    <identity name_key="TR_BUILDING_ARCHITECT_GUILD" />
-    <model cost="200" />
-    <desirability>
-        <value value="-8" />
-        <step value="1" />
-        <step_size value="2" />
-        <range value="4" />
-    </desirability>
-    <foundation path="land_2x2" />
-    <button group="engineering" order="30" icon="Admin_Logistics\Architects_Guild_On_01" text_key="TR_BUILDING_ARCHITECT_GUILD" />
-    <sound id="engineers_post" />
-    <flags fire_proof="1" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Architects_Guild_On_01" />
-            <image value="Arch Guild OFF" />
-        </default>
-        <variant>
-            <condition type="has_workers" />
-            <path value="Admin_Logistics\Architects_Guild_On_01" />
-            <image value="Arch Guild ON" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="12" />
         <labor_seeker>

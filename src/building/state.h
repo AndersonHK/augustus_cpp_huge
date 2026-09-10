@@ -17,9 +17,12 @@
 #define BUILDING_STATE_DYNAMIC_RESOURCES (BUILDING_STATE_WITHOUT_RESOURCES + BUILDING_STATE_NONSTATIC_RESOURCE_SIZE)
 #define BUILDING_STATE_LATRINES (BUILDING_STATE_DYNAMIC_RESOURCES + 9)
 #define BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS (BUILDING_STATE_LATRINES + 513)
-#define BUILDING_STATE_CURRENT_BUFFER_SIZE  (BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS)
+#define BUILDING_STATE_HOUSING_CONSUMPTION (BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS + 32)
+#define BUILDING_STATE_CURRENT_BUFFER_SIZE (BUILDING_STATE_HOUSING_CONSUMPTION)
 
 void building_state_save_to_buffer(buffer *buf, const building *b);
 
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview);
 
+void building_state_begin_import();
+bool building_state_import_removed_owner(unsigned int id);

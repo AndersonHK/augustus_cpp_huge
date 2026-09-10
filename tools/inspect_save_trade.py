@@ -380,7 +380,7 @@ class SaveParser:
             ("random_grid", GRID_U8, False),
             ("desirability_grid", GRID_U8, True),
             ("elevation_grid", GRID_U8, True),
-            ("building_damage_grid", GRID_U8, True),
+            ("building_damage_grid", GRID_U8 if save_version <= 0xCD else GRID_U32, True),
             ("aqueduct_backup_grid", GRID_U8, True),
             ("sprite_backup_grid", GRID_U8, True),
             ("figures", None, True),

@@ -1,8 +1,7 @@
 #include "figure/unit_type.h"
 #include "figure/figure_type_registry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -54,7 +53,7 @@ ParseState g_parse_state;
 int parse_enabled_content(const char *element)
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled) {
-        log_error("Disabled UnitType definition must contain only its root identity", element, 0);
+        Logger::error("Disabled UnitType definition must contain only its root identity", element, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -64,13 +63,13 @@ int parse_enabled_content(const char *element)
 int parse_root()
 {
     if (g_parse_state.saw_root) {
-        log_error("UnitType contains duplicate root nodes", 0, 0);
+        Logger::error("UnitType contains duplicate root nodes", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     std::string key;
     if (!xml_definition::parse_required_nonempty_string_attribute("key", &key)) {
-        log_error("UnitType xml requires a non-empty key", 0, 0);
+        Logger::error("UnitType xml requires a non-empty key", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -78,7 +77,7 @@ int parse_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("UnitType has invalid Boolean attribute 'disabled'", key.c_str(), 0);
+        Logger::error("UnitType has invalid Boolean attribute 'disabled'", key.c_str(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -92,14 +91,14 @@ int parse_root()
 int parse_figure()
 {
     if (!parse_enabled_content("figure") || !g_parse_state.definition || !xml_parser_has_attribute("type")) {
-        log_error("UnitType figure node is missing required type", 0, 0);
+        Logger::error("UnitType figure node is missing required type", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     g_parse_state.figure_reference = xml_value::trim_copy(xml_parser_get_attribute_string("type"));
     if (g_parse_state.figure_reference.empty()) {
-        log_error("UnitType figure type is empty", 0, 0);
+        Logger::error("UnitType figure type is empty", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -114,6 +113,15 @@ int parse_combat()
         return 0;
     }
     g_parse_state.saw_combat = true;
+    if (xml_parser_has_attribute("targetable")) {
+        int value = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("targetable"), &value)) {
+            Logger::error("UnitType combat has invalid targetable", 0, 0);
+            g_parse_state.error = true;
+            return 0;
+        }
+        g_parse_state.definition->set_targetable(value != 0);
+    }
     return 1;
 }
 
@@ -125,7 +133,7 @@ int parse_combat_stat(UnitCombatStat stat)
     }
     int value = 0;
     if (!xml_definition::parse_required_nonnegative_int_attribute("value", &value)) {
-        log_error("UnitType combat value must be non-negative", "value", 0);
+        Logger::error("UnitType combat value must be non-negative", "value", 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -168,7 +176,7 @@ int parse_difficulty_attack()
 {
     if (!parse_enabled_content("difficulty attack") || !g_parse_state.definition ||
         !xml_parser_has_attribute("level")) {
-        log_error("UnitType difficulty attack requires level", 0, 0);
+        Logger::error("UnitType difficulty attack requires level", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -178,7 +186,7 @@ int parse_difficulty_attack()
         static_cast<int>(difficulty) < DIFFICULTY_VERY_EASY ||
         static_cast<int>(difficulty) > DIFFICULTY_VERY_HARD ||
         !g_parse_state.definition->set_attack_for_difficulty(difficulty, value)) {
-        log_error("UnitType difficulty attack is invalid or duplicated", 0, 0);
+        Logger::error("UnitType difficulty attack is invalid or duplicated", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -203,7 +211,7 @@ int parse_armor()
 int parse_movement()
 {
     if (!parse_enabled_content("movement") || !g_parse_state.definition || !xml_parser_has_attribute("pathing")) {
-        log_error("UnitType movement node is missing required pathing", 0, 0);
+        Logger::error("UnitType movement node is missing required pathing", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -214,23 +222,33 @@ int parse_movement()
 int parse_recruit()
 {
     if (!parse_enabled_content("recruit") || !g_parse_state.definition || !xml_parser_has_attribute("type")) {
-        log_error("UnitType recruit node is missing required type", 0, 0);
+        Logger::error("UnitType recruit node is missing required type", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     const char *recruit_type = xml_parser_get_attribute_string("type");
     if (!g_parse_state.definition->set_recruit_type_from_key(recruit_type)) {
-        log_error("Unsupported UnitType recruit type", recruit_type, 0);
+        Logger::error("Unsupported UnitType recruit type", recruit_type, 0);
         g_parse_state.error = true;
         return 0;
     }
     if (xml_parser_has_attribute("requires_weapon")) {
-        const char *requires_weapon = xml_parser_get_attribute_string("requires_weapon");
-        g_parse_state.definition->set_requires_weapon(
-            xml_value::equals(requires_weapon, "true") ||
-            xml_value::equals(requires_weapon, "1") ||
-            xml_value::equals(requires_weapon, "yes"));
+        Logger::error("UnitType recruit requires_weapon was replaced by requirement resource/amount declarations", recruit_type, 0);
+        g_parse_state.error = true;
+        return 0;
+    }
+    return 1;
+}
+
+int parse_recruitment_requirement()
+{
+    std::string resource;
+    int amount = 0;
+    if (!xml_definition::parse_required_nonempty_string_attribute("resource", &resource) || !xml_parser_has_attribute("amount") || !xml_value::parse_int_strict(xml_parser_get_attribute_string("amount"), &amount) || amount <= 0 || !g_parse_state.definition->add_recruitment_cost(resource, amount)) {
+        Logger::error("Invalid or duplicate UnitType recruitment requirement", resource.c_str(), amount);
+        g_parse_state.error = true;
+        return 0;
     }
     return 1;
 }
@@ -245,7 +263,7 @@ int parse_melee()
     if (xml_parser_has_attribute("engages_adjacent")) {
         int value = 0;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("engages_adjacent"), &value)) {
-            log_error("UnitType melee ability has invalid engages_adjacent", 0, 0);
+            Logger::error("UnitType melee ability has invalid engages_adjacent", 0, 0);
             g_parse_state.error = true;
             return 0;
         }
@@ -267,7 +285,7 @@ int parse_melee()
             "single_line_missile_defense_bonus", &ability.single_line_missile_defense_bonus) ||
         !xml_definition::parse_optional_nonnegative_int_attribute(
             "column_missile_damage", &ability.column_missile_damage)) {
-        log_error("UnitType melee ability has an invalid modifier", 0, 0);
+        Logger::error("UnitType melee ability has an invalid modifier", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -289,7 +307,7 @@ int parse_ranged()
         !xml_definition::parse_required_nonnegative_int_attribute("damage", &ability.damage) ||
         !xml_definition::parse_required_nonnegative_int_attribute("launch_frame", &ability.launch_frame) ||
         !xml_parser_has_attribute("projectile")) {
-        log_error("UnitType ranged ability requires range, cooldown, damage, launch_frame, and projectile", 0, 0);
+        Logger::error("UnitType ranged ability requires range, cooldown, damage, launch_frame, and projectile", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -297,14 +315,14 @@ int parse_ranged()
     if (xml_parser_has_attribute("requires_double_line")) {
         int value = 0;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("requires_double_line"), &value)) {
-            log_error("UnitType ranged ability has invalid requires_double_line", 0, 0);
+            Logger::error("UnitType ranged ability has invalid requires_double_line", 0, 0);
             g_parse_state.error = true;
             return 0;
         }
         ability.requires_double_line = value != 0;
     }
     if (!g_parse_state.definition->set_ranged_ability(ability, projectile.c_str())) {
-        log_error("UnitType ranged ability has invalid projectile or non-positive parameters", 0, 0);
+        Logger::error("UnitType ranged ability has invalid projectile or non-positive parameters", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -330,13 +348,13 @@ int parse_ranged_projectile()
 {
     if (!parse_enabled_content("ranged projectile") || !g_parse_state.definition ||
         !xml_parser_has_attribute("enemy") || !xml_parser_has_attribute("type")) {
-        log_error("UnitType ranged projectile override requires enemy and type", 0, 0);
+        Logger::error("UnitType ranged projectile override requires enemy and type", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     int damage = 0;
     if (!xml_definition::parse_required_positive_int_attribute("damage", &damage)) {
-        log_error("UnitType ranged projectile override requires positive damage", 0, 0);
+        Logger::error("UnitType ranged projectile override requires positive damage", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -344,7 +362,7 @@ int parse_ranged_projectile()
     if (enemy_type == ENEMY_UNDEFINED ||
         !g_parse_state.definition->set_ranged_projectile_for_enemy(
             enemy_type, xml_parser_get_attribute_string("type"), damage)) {
-        log_error("UnitType ranged projectile override is invalid", 0, 0);
+        Logger::error("UnitType ranged projectile override is invalid", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -354,7 +372,7 @@ int parse_ranged_projectile()
 int parse_legacy_graphics()
 {
     if (!parse_enabled_content("graphics") || !g_parse_state.definition || !xml_parser_has_attribute("figure_type")) {
-        log_error("Legacy UnitType graphics node is missing required figure_type", 0, 0);
+        Logger::error("Legacy UnitType graphics node is missing required figure_type", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -378,6 +396,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "armor", parse_armor, nullptr, "combat", nullptr },
     { "movement", parse_movement, nullptr, "unit", nullptr },
     { "recruit", parse_recruit, nullptr, "unit", nullptr },
+    { "requirement", parse_recruitment_requirement, nullptr, "recruit", nullptr },
     { "abilities", parse_abilities, nullptr, "unit", nullptr },
     { "melee", parse_melee, nullptr, "abilities", nullptr },
     { "ranged", parse_ranged, nullptr, "abilities", nullptr },
@@ -388,18 +407,18 @@ const xml_parser_element XML_ELEMENTS[] = {
 bool validate_definition(const UnitType &definition, const char *filename)
 {
     if (!definition.has_figure_type()) {
-        log_error("UnitType is missing required figure type", definition.key(), 0);
-        error_context_report_error("UnitType is missing required figure type.", filename);
+        Logger::error("UnitType is missing required figure type", definition.key(), 0);
+        Logger::error("UnitType is missing required figure type.", filename);
         return false;
     }
     if (!definition.has_valid_combat_stats()) {
-        log_error("UnitType combat stats are invalid", definition.key(), 0);
-        error_context_report_error("UnitType combat stats are invalid.", filename);
+        Logger::error("UnitType combat stats are invalid", definition.key(), 0);
+        Logger::error("UnitType combat stats are invalid.", filename);
         return false;
     }
     if (!definition.has_any_ability()) {
-        log_error("UnitType requires at least one ability", definition.key(), 0);
-        error_context_report_error("UnitType requires at least one ability.", filename);
+        Logger::error("UnitType requires at least one ability", definition.key(), 0);
+        Logger::error("UnitType requires at least one ability.", filename);
         return false;
     }
     return true;
@@ -410,7 +429,7 @@ int parse_definition_buffer(
     const std::vector<char> &buffer,
     StagedUnitType *out_definition)
 {
-    ErrorContextScope error_scope("unit_type_registry.parse_definition", filename);
+    Logger::Scope error_scope("unit_type_registry.parse_definition", filename);
 
     g_parse_state = {};
     const int parsed = xml_definition::parse_buffer(
@@ -422,7 +441,7 @@ int parse_definition_buffer(
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root || !g_parse_state.definition ||
         (!g_parse_state.disabled &&
             (!g_parse_state.saw_figure || !g_parse_state.saw_combat || !g_parse_state.saw_ability))) {
-        log_error("Unable to parse UnitType xml", filename, 0);
+        Logger::error("Unable to parse UnitType xml", filename, 0);
         return 0;
     }
 
@@ -472,7 +491,7 @@ int resolve_and_validate_winners(StagedUnitTypes &staged)
                 " references unsupported or suppressed FigureType '" + winner.figure_reference + "'.";
             return 0;
         }
-        if (!validate_definition(*winner.definition, winner.source.full_path.c_str())) {
+        if (!winner.definition->resolve_recruitment_costs() || !validate_definition(*winner.definition, winner.source.full_path.c_str())) {
             staged.failure_reason = "Invalid UnitType definition: " + winner.source.full_path;
             return 0;
         }
@@ -636,14 +655,20 @@ int UnitType::recruit_type() const
     return recruit_type_;
 }
 
-void UnitType::set_requires_weapon(bool value)
+bool UnitType::add_recruitment_cost(std::string resource, int amount)
 {
-    requires_weapon_ = value;
+    for (const auto &cost : recruitment_costs_) if (cost.resource_key == resource) return false;
+    recruitment_costs_.push_back({std::move(resource), RESOURCE_NONE, amount});
+    return true;
 }
 
-bool UnitType::requires_weapon() const
+bool UnitType::resolve_recruitment_costs()
 {
-    return requires_weapon_;
+    for (auto &cost : recruitment_costs_) {
+        cost.resource = resource_type_from_text_id(cost.resource_key.c_str());
+        if (cost.resource == RESOURCE_NONE) return false;
+    }
+    return true;
 }
 
 void UnitType::set_melee_ability(const UnitMeleeAbility &ability)
@@ -875,7 +900,7 @@ int unit_type_layered_definition_buffers_are_valid_for_test(
                 const UnitMeleeAbility *melee = definition.melee_ability();
                 const UnitRangedAbility *ranged = definition.ranged_ability();
                 result->queried_recruit_type = definition.recruit_type();
-                result->queried_requires_weapon = definition.requires_weapon() ? 1 : 0;
+                result->queried_recruitment_cost_count = static_cast<int>(definition.recruitment_costs().size());
                 result->queried_health = stats.health;
                 result->queried_attack = stats.attack;
                 result->queried_defense = stats.defense;

@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/building_type.h"
 #include "city/warning.h"
@@ -16,6 +17,9 @@ int building_construction_type_num_cycles(building_type type);
 
 int building_construction_type_cycle_steps(building_type type);
 
+void building_construction_reset_cycle_steps(void);
+int building_construction_type_cycle_position(building_type type);
+
 void building_construction_set_cost(int cost);
 void building_construction_set_force_place_clear_cost(int cost);
 
@@ -24,6 +28,8 @@ void building_construction_set_type(const building_type_registry_impl::BuildingT
 void building_construction_clear_type(void);
 
 int building_construction_is_auto_cycling(void);
+int building_construction_is_auto_cycling_for_type(building_type type);
+void building_construction_toggle_auto_cycle_for_type(building_type type);
 
 void building_construction_toggle_auto_cycle(void);
 
@@ -59,7 +65,6 @@ void building_construction_offset_start_from_orientation(int *x, int *y, int siz
 void building_construction_place(void);
 void building_construction_set_can_place(int can_place);
 
-int building_construction_can_place_on_terrain(int x, int y, warning_type *warning, translation_key *text_key);
 
 void building_construction_record_view_position(int view_x, int view_y, int grid_offset);
 void building_construction_get_view_position(int *view_x, int *view_y);

@@ -2,6 +2,7 @@
 
 #include "figure/type.h"
 #include "game/settings.h"
+#include "game/resource.h"
 
 #include <array>
 #include <memory>
@@ -67,6 +68,12 @@ struct UnitRangedAbility {
     Projectile projectile_for_enemy(int enemy_type) const;
 };
 
+struct UnitRecruitmentCost {
+    std::string resource_key;
+    resource_type resource = RESOURCE_NONE;
+    int amount = 0;
+};
+
 class UnitType {
 public:
     explicit UnitType(std::string key);
@@ -82,6 +89,8 @@ public:
     bool set_attack_for_difficulty(set_difficulty difficulty, int value);
     bool has_valid_combat_stats() const;
     const UnitCombatStats &combat_stats() const;
+    void set_targetable(bool value) { targetable_ = value; }
+    bool targetable() const { return targetable_; }
     bool has_morale() const;
 
     void set_pathing_key(std::string key);
@@ -90,8 +99,9 @@ public:
     bool set_recruit_type_from_key(const char *key);
     int recruit_type() const;
 
-    void set_requires_weapon(bool value);
-    bool requires_weapon() const;
+    bool add_recruitment_cost(std::string resource, int amount);
+    bool resolve_recruitment_costs();
+    const std::vector<UnitRecruitmentCost> &recruitment_costs() const { return recruitment_costs_; }
 
     void set_melee_ability(const UnitMeleeAbility &ability);
     const UnitMeleeAbility *melee_ability() const;
@@ -107,10 +117,11 @@ private:
     std::string key_;
     figure_type figure_type_ = FIGURE_NONE;
     UnitCombatStats combat_stats_;
+    bool targetable_ = true;
     bool has_morale_ = false;
     std::string pathing_key_;
     int recruit_type_ = LEGION_RECRUIT_NONE;
-    bool requires_weapon_ = false;
+    std::vector<UnitRecruitmentCost> recruitment_costs_;
     bool has_melee_ = false;
     bool has_ranged_ = false;
     UnitMeleeAbility melee_ability_;
@@ -144,7 +155,7 @@ typedef struct {
     int suppressed_count;
     int queried_disabled;
     int queried_recruit_type;
-    int queried_requires_weapon;
+    int queried_recruitment_cost_count;
     int queried_health;
     int queried_attack;
     int queried_defense;

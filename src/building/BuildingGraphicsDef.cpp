@@ -26,10 +26,10 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 #endif
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include <algorithm>
 #include <array>
@@ -105,7 +105,7 @@ void report_invalid_resource_storage_graphic(const char *message, resource_type 
 {
     char detail[128];
     snprintf(detail, sizeof(detail), "%s resource=%d value=%d", resource_name(resource), resource, value);
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 int valid_resource_storage_graphics_index(resource_type resource)
@@ -169,7 +169,7 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             break;
         }
         case GraphicsConditionType::Terrain:
-            matches = map_terrain_is(state.grid_offset(), condition.terrain_mask);
+            matches = terrain_map().contains(state.grid_offset(), condition.terrains);
             break;
         case GraphicsConditionType::Climate:
             matches = scenario_property_climate() == condition.climate;
@@ -724,11 +724,10 @@ int production_progress_options_in_target(const GraphicsTarget &target)
         snprintf(detail, sizeof(detail), "building=null stage=%s", stage ? stage : "");
     }
 
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "Native building draw stage had no drawable slice.",
         detail);
-    std::terminate();
 }
 
 }

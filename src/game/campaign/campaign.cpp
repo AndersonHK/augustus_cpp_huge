@@ -1,8 +1,9 @@
+#include "city/emperor.h"
 #include "translation/translation.h"
 #include "game/campaign.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/campaign/file.h"
 #include "game/campaign/mission.h"
 #include "game/campaign/original.h"
@@ -32,7 +33,7 @@ static void get_original_campaign_data(void)
     data.campaign.description = lang_get_string("TR_WINDOW_ORIGINAL_CAMPAIGN_DESC");
 
     if (!campaign_original_setup()) {
-        log_error("Error setting up original campaign data", 0, 0);
+        Logger::error("Error setting up original campaign data", 0, 0);
         game_campaign_clear();
         return;
     }
@@ -42,16 +43,16 @@ static void get_original_campaign_data(void)
 static void get_custom_campaign_data(const char *filename)
 {
     if (!campaign_file_open_zip()) {
-        log_error("Error opening campaign file", 0, 0);
+        Logger::error("Error opening campaign file", 0, 0);
         game_campaign_clear();
         return;
     }
-    log_info("Opening campaign settings file", 0, 0);
+    Logger::info("Opening campaign settings file", 0, 0);
 
     size_t xml_size;
     char *xml_text = static_cast<char *>(campaign_file_load("settings.xml", &xml_size));
     if (!xml_text) {
-        log_error("Error loading campaign settings file", 0, 0);
+        Logger::error("Error loading campaign settings file", 0, 0);
         game_campaign_clear();
         return;
     }
@@ -147,7 +148,7 @@ uint8_t *game_campaign_load_file(const char *filename, size_t *length)
     return static_cast<uint8_t *>(campaign_file_load(filename, length));
 }
 
-static int fill_mission_info(const campaign_mission *mission)
+static int fill_mission_info(const campaign_mission *mission, int inherited_rank = -1)
 {
     if (!mission) {
         data.mission_info.title = 0;
@@ -165,16 +166,16 @@ static int fill_mission_info(const campaign_mission *mission)
         data.mission_info.background_image.id = mission->background_image.id;
         data.mission_info.background_image.path = mission->background_image.path;
         data.mission_info.max_personal_savings = mission->max_personal_savings;
-        data.mission_info.next_rank = mission->next_rank;
+        data.mission_info.next_rank = mission->next_rank == -1 ? (inherited_rank >= 0 ? inherited_rank : city_emperor_rank()) : mission->next_rank;
         data.mission_info.first_scenario = mission->first_scenario;
         data.mission_info.total_scenarios = mission->last_scenario - mission->first_scenario + 1;
         return 1;
     }
 }
 
-const campaign_mission_info *game_campaign_get_current_mission(int scenario_id)
+const campaign_mission_info *game_campaign_get_current_mission(int scenario_id, int inherited_rank)
 {
-    if (!data.active || !fill_mission_info(campaign_mission_current(scenario_id))) {
+    if (!data.active || !fill_mission_info(campaign_mission_current(scenario_id), inherited_rank)) {
         return 0;
     }
     return &data.mission_info;
@@ -212,10 +213,10 @@ int game_campaign_load_scenario(int scenario_id)
     uint8_t *scenario_data;
     if (game_campaign_is_original()) {
         scenario_data = campaign_original_load_scenario(scenario_id, &length);
-        log_info("Loading original campaign scenario", 0, camp_scenario->id);
+        Logger::info("Loading original campaign scenario", 0, camp_scenario->id);
     } else {
         scenario_data = game_campaign_load_file(camp_scenario->path, &length);
-        log_info("Loading custom campaign scenario", file_remove_path(camp_scenario->path), camp_scenario->id);
+        Logger::info("Loading custom campaign scenario", file_remove_path(camp_scenario->path), camp_scenario->id);
     }
     int is_save_game = game_campaign_is_original() ||
         file_has_extension(camp_scenario->path, "sav") || file_has_extension(camp_scenario->path, "svx")

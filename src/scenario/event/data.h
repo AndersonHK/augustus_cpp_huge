@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include <stdint.h>
 
@@ -52,6 +53,13 @@ typedef enum {
     CONDITION_TYPE_BUILDING_COUNT_AREA = 24,
     CONDITION_TYPE_CHECK_FORMULA = 25,
     CONDITION_TYPE_TERRAIN_IN_AREA = 26,
+    CONDITION_TYPE_ENEMIES_IN_CITY = 27,
+    CONDITION_TYPE_LAND_TRADE_PROBLEMS = 28,
+    CONDITION_TYPE_SEA_TRADE_PROBLEMS = 29,
+    CONDITION_TYPE_MONTHS_SINCE_FESTIVAL = 30,
+    CONDITION_TYPE_DESIRABILITY_IN_AREA = 31,
+    CONDITION_TYPE_POPULATION_IN_AREA = 32,
+    CONDITION_TYPE_FIGURES_IN_AREA = 33,
     CONDITION_TYPE_MAX,
     // helper constants
     CONDITION_TYPE_MIN = CONDITION_TYPE_TIME_PASSED,
@@ -103,6 +111,18 @@ typedef enum {
     ACTION_TYPE_CHANGE_MODEL_DATA = 42,
     ACTION_TYPE_CHANGE_PRODUCTION_RATE = 43,
     ACTION_TYPE_LOCK_TRADE_ROUTE = 44,
+    ACTION_TYPE_CHANGE_GOAL = 46,
+    ACTION_TYPE_MOVE_CAMERA = 47,
+    ACTION_TYPE_CHANGE_WEATHER = 48,
+    ACTION_TYPE_CHANGE_VARIABLE_COLOR = 50,
+    ACTION_TYPE_KILL_WALKERS_IN_AREA = 55,
+    ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA = 45,
+    ACTION_TYPE_HIDE_TRADE_ROUTE = 49,
+    ACTION_TYPE_IMMIGRATION_PERCENTAGE = 51,
+    ACTION_TYPE_CHANGE_MONUMENT_RESOURCES = 52,
+    ACTION_TYPE_RENAME_CITY = 53,
+    ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST = 54,
+    ACTION_TYPE_SEND_CITY_WARNING = 56,
     ACTION_TYPE_MAX,
     // helper constants
     ACTION_TYPE_MIN = ACTION_TYPE_ADJUST_FAVOR,
@@ -140,6 +160,7 @@ typedef struct {
     int parameter4;
     int parameter5;
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
+    TerrainSet terrain; // bound at load/edit; parameter3 is unused for terrain-bearing records
 } scenario_condition_t;
 
 using scenario_condition_array_t = std::vector<scenario_condition_t>;
@@ -149,7 +170,12 @@ typedef struct {
     scenario_condition_array_t conditions;
 } scenario_condition_group_t;
 
-typedef struct {
+struct ScenarioModelTarget {
+    int building;
+    int value_scale = 1;
+};
+
+struct scenario_action_t {
     action_types type;
     int parameter1;
     int parameter2;
@@ -157,7 +183,11 @@ typedef struct {
     int parameter4;
     int parameter5;
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
-} scenario_action_t;
+    TerrainSet terrain; // bound at load/edit; parameter3 is unused for terrain-bearing records
+    std::vector<int> value_domain; // optional mapping from authored ordinal to definition value
+    int value_scale = 1; // authored units per definition unit
+    std::vector<ScenarioModelTarget> model_targets; // additional definitions sharing one evaluated formula
+};
 
 using scenario_condition_group_array_t = std::vector<scenario_condition_group_t>;
 
@@ -187,3 +217,5 @@ typedef struct {
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
 
+
+bool scenario_action_uses_terrain(const scenario_action_t &action);

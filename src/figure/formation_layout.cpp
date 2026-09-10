@@ -1,6 +1,6 @@
 #include "formation_layout.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_value.h"
 
 #include <exception>
@@ -109,12 +109,12 @@ FormationLayoutPosition FormationLayoutDef::army_offset(int orientation, int for
 {
     const FormationLayoutDef *source = army_offsets_definition_ ? army_offsets_definition_ : this;
     if (orientation < 0 || orientation >= static_cast<int>(source->army_offsets_.size()) || formation_index < 0) {
-        log_error("FormationLayout received an invalid army offset request", key_.c_str(), formation_index);
+        Logger::error("FormationLayout received an invalid army offset request", key_.c_str(), formation_index);
         std::terminate();
     }
     const std::vector<FormationLayoutPosition> &offsets = source->army_offsets_[static_cast<size_t>(orientation)];
     if (formation_index >= static_cast<int>(offsets.size())) {
-        log_error("FormationLayout lacks a required army offset", key_.c_str(), formation_index);
+        Logger::error("FormationLayout lacks a required army offset", key_.c_str(), formation_index);
         std::terminate();
     }
     return offsets[static_cast<size_t>(formation_index)];

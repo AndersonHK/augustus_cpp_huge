@@ -3,7 +3,7 @@
     <grid width="4" height="4" station_alignment="tile_anchor" />
     <spawn role="herd" climate="central" count="10" />
     <herd roam_distance="8" roam_delay="20" reproduction_delay="0" aggressive="false"
-        allow_negative_desirability="false" movement_sound="none" />
+        allow_negative_desirability="false" movement_sound="none" building_clearance="4" />
     <herd_member rest_delay="400" move_speed="1" animation_frames="6" alternate_rest_animation="true" combat_animation="move" />
     <slot fill="all" unit="sheep" />
 </formation>

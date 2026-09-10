@@ -1,16 +1,22 @@
+#include "../../tools/catch_up_test/runtime.h"
+#include "../../tools/catch_up_test/combat.h"
+#include "../../tools/catch_up_test/editor.h"
 #include "building/building_type_startup_bridge.h"
 #include "../../tools/formation_runtime_test/formation_runtime_test.h"
 #include "../../tools/menu_render_test/menu_render_test.h"
 #include "../../tools/menu_render_test/water_hover_test.h"
 #include "../../tools/menu_render_test/road_drag_test.h"
+#include "../../tools/menu_render_test/food_stock_test.h"
+#include "../../tools/menu_render_test/barracks_test.h"
 #include "city/victory.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "translation/translation.h"
 #include "game/game.h"
 #include "game/file.h"
 #include "game/Animation.h"
 #include "game/tick.h"
 #include "game/mod_manager.h"
+#include "game/mod_settings_runtime.h"
 #include "game/performance_tracker.h"
 #include "figure/figure_runtime_native.h"
 #include "platform/cursor.h"
@@ -21,6 +27,7 @@
 #include "core/file.h"
 #include "game/settings.h"
 #include "platform/platform.h"
+#include "platform/hardware_requirements.h"
 #include "platform/file_manager_cache.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
@@ -32,9 +39,13 @@
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
+#include "input/joystick.h"
 #include "input/touch.h"
 #include "platform/android/android.h"
 #include "platform/arguments.h"
+#include "platform/loading_screen.h"
+#include "game/mod_content.h"
+#include "core/loading_progress.h"
 #include "platform/emscripten/emscripten.h"
 #include "platform/file_manager.h"
 #include "platform/ios/ios.h"
@@ -43,7 +54,6 @@
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
-#include "platform/vita/vita.h"
 #include "sound/system.h"
 
 #include "SDL.h"
@@ -55,6 +65,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <array>
+#include <map>
 
 #ifdef _MSC_VER
 #include <crtdbg.h>
@@ -88,6 +100,9 @@ static struct {
     int warning_count;
     int error_count;
 } data = { 1 };
+
+static std::vector<std::string> pending_log_messages;
+static bool log_setup_pending = true;
 
 static void show_startup_error(const char *title, const char *message)
 {
@@ -243,7 +258,7 @@ static void log_graphics_copy_path_error(const char *message, const char *src, c
 {
     char details[FILE_NAME_MAX * 2];
     snprintf(details, sizeof(details), "src=%s dst=%s", src ? src : "(null)", dst ? dst : "(null)");
-    log_error(message, details, 0);
+    Logger::error(message, details, 0);
 }
 
 static int copy_graphics_file_entry(const char *name, long modified_time)
@@ -381,27 +396,34 @@ static augustus_args args;
 static void setup(const augustus_args *args);
 #endif
 
-static void write_log(void *userdata, int category, SDL_LogPriority priority, const char *message)
+static void write_log(void *userdata, Logger::Severity severity, const char *message)
 {
     (void) userdata;
-    (void) category;
-    char log_text[300] = { 0 };
-    const char *prefix = priority >= SDL_LOG_PRIORITY_ERROR ? "ERROR: " : priority == SDL_LOG_PRIORITY_WARN ? "WARNING: " : "INFO: ";
-    if (priority >= SDL_LOG_PRIORITY_ERROR) {
+    const std::string log_text = std::string(Logger::label(severity)) + ": " + message + "\n";
+    if (severity >= Logger::Severity::Error) {
         data.error_count++;
-    } else if (priority == SDL_LOG_PRIORITY_WARN) {
+    } else if (severity == Logger::Severity::Warning) {
         data.warning_count++;
     }
-    snprintf(log_text, 300, "%s %s\n", prefix, message);
     if (data.log_file) {
-        write_to_output(data.log_file, log_text);
+        write_to_output(data.log_file, log_text.c_str());
+    } else if (log_setup_pending) {
+        pending_log_messages.emplace_back(log_text);
     }
     // On Windows MSVC, we can at least get output to the debug window
 #if defined(_MSC_VER) && !defined(NDEBUG)
-    OutputDebugStringA(log_text);
-#else
-    write_to_output(data.startup_test && priority >= SDL_LOG_PRIORITY_WARN ? stderr : stdout, log_text);
+    OutputDebugStringA(log_text.c_str());
 #endif
+    write_to_output(severity >= Logger::Severity::Warning ? stderr : stdout, log_text.c_str());
+}
+
+// SDL's own diagnostics enter the same logger as application reports.
+static void receive_sdl_log(void *, int, SDL_LogPriority priority, const char *message)
+{
+    const auto severity = priority >= SDL_LOG_PRIORITY_CRITICAL ? Logger::Severity::Fatal :
+        priority >= SDL_LOG_PRIORITY_ERROR ? Logger::Severity::Error :
+        priority == SDL_LOG_PRIORITY_WARN ? Logger::Severity::Warning : Logger::Severity::Info;
+    Logger::report(severity, message);
 }
 
 static void reset_test_diagnostics(void)
@@ -519,11 +541,62 @@ static int run_single_save_validation(const augustus_args &args, int index)
         }
     }
 
+    if (!run_barracks_test() || data.warning_count || data.error_count) return 21;
+    if (game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS || data.warning_count || data.error_count) return 21;
+    if (!run_food_stock_test()) return 20;
+    if (args.catch_up_test && !run_catch_up_runtime_test()) return 10;
+    if (args.religion_test) {
+        try { validate_religion_callbacks_in_city(); }
+        catch (const std::exception &error) { fprintf(stderr, "Religion contract failed: %s\n", error.what()); return 19; }
+        if (data.warning_count || data.error_count) return 19;
+    }
+    if (args.religion_repair_test) {
+        if (data.warning_count || data.error_count) return 19;
+        try { validate_religion_payload_repair(); }
+        catch (const std::exception &error) { fprintf(stderr, "Religion repair contract failed: %s\n", error.what()); return 19; }
+        // Exactly the three deliberately damaged fields must warn once. A re-save,
+        // canonical reload and the restored city's soak must remain clean.
+        if (data.warning_count != 3 || data.error_count) return 19;
+        reset_test_diagnostics();
+    }
+    if (args.foreign_archive_test && !validate_foreign_archive_file(args.foreign_archive_test, SDL_strcmp(input, args.foreign_archive_test) == 0)) return 17;
+    if (args.load_transaction_test) {
+        reset_test_diagnostics();
+        try {
+            if (!validate_load_transaction() || data.error_count != 2 || data.warning_count) return 18;
+        } catch (const std::exception &e) { fprintf(stderr, "Load transaction test failed: %s\n", e.what()); return 18; }
+        // The warm and cold fixtures require exactly two rejection errors; subsequent rendering
+        // and the canonical reload remain subject to the normal zero-error gate.
+        reset_test_diagnostics();
+    }
+    if (args.placement_test) {
+        try { validate_placement_supports(); }
+        catch (const std::exception &error) { fprintf(stderr, "Placement test failed: %s\n", error.what()); return 12; }
+        if (data.warning_count || data.error_count || game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS) return 12;
+    }
+    if (args.combat_test) {
+        if (!run_combat_runtime_test() || data.warning_count || data.error_count) return 11;
+        if (game_file_load_saved_game(roundtrip ? roundtrip : input) != FILE_LOAD_SUCCESS) return 11;
+    }
+
+    if (args.empire_ui_test) {
+        try { window_empire_validate_ui_for_test(); }
+        catch (const std::exception &error) { fprintf(stderr, "Empire UI test failed: %s\n", error.what()); return 9; }
+        if (data.warning_count || data.error_count) return 9;
+    }
+    if (args.mod_settings_test) {
+        try { mod_settings_validate_live_changes(); }
+        catch (const std::exception &error) { fprintf(stderr, "Live mod settings test failed: %s\n", error.what()); return 9; }
+        if (data.warning_count || data.error_count) { fprintf(stderr, "Live mod settings test emitted warnings or errors\n"); return 9; }
+        fprintf(stdout, "Live mod settings changed and restored without population or treasury changes\n");
+    }
     bool soak_passed = true;
+    const auto combat_encounter = args.combat_test ? observe_wall_attackers() : std::vector<CombatEncounterObservation>{};
     if (args.save_soak_ticks) {
         soak_passed = run_save_soak_ticks(args.save_soak_ticks);
-        log_repeated_messages();
+        Logger::flush();
     }
+    if (args.combat_test && args.save_soak_ticks >= 3000 && !validate_combat_encounter(combat_encounter)) return 11;
     if (!soak_passed || data.warning_count || data.error_count) {
         fprintf(stderr, "Vespasian executable migrated-save soak failed: migration_warnings=%d warnings=%d errors=%d ticks=%d file=%s\n",
             migration_warnings, data.warning_count, data.error_count, args.save_soak_ticks, input);
@@ -531,6 +604,14 @@ static int run_single_save_validation(const augustus_args &args, int index)
         return 5;
     }
     if (roundtrip) {
+        std::map<unsigned int, std::array<double, 4>> consumption_fractions;
+        Building::for_each(BuildingRuntimeList::Housing, [&](Building *house) {
+            if (house->record()->state != BUILDING_STATE_IN_USE || !house->Housing) return;
+            auto &fractions = house->Housing->state().goods_consumption_remainder;
+            // Exercise every serialized slot even in cities without goods-consuming houses.
+            if (consumption_fractions.empty()) fractions = {0.125, 1.0 / 3, 0.75, 7.0 / 19};
+            consumption_fractions.emplace(house->id, fractions);
+        });
         const bool roundtrip_written = game_file_write_saved_game(roundtrip);
         if (!roundtrip_written || data.error_count || data.warning_count) {
             fprintf(stderr, "Vespasian executable save roundtrip failed: warnings=%d errors=%d input=%s output=%s\n", data.warning_count, data.error_count, input, roundtrip);
@@ -544,6 +625,14 @@ static int run_single_save_validation(const augustus_args &args, int index)
             fflush(stderr);
             return 7;
         }
+        for (const auto &[id, fractions] : consumption_fractions) {
+            const Building *house = Building::get(id);
+            if (!house || !house->Housing || house->Housing->state().goods_consumption_remainder != fractions) {
+                fprintf(stderr, "Housing consumption fractions changed on save/reload: building=%u file=%s\n", id, roundtrip);
+                return 7;
+            }
+        }
+        fprintf(stdout, "Housing consumption fraction roundtrip passed: houses=%zu\n", consumption_fractions.size());
         fprintf(stdout, "Vespasian executable save migration roundtrip passed: migration_warnings=%d output=%s\n", migration_warnings, roundtrip);
         fflush(stdout);
     }
@@ -585,7 +674,7 @@ static void setup_logging(void)
     SDL_free(pref_dir);
     backup_log(log_file, log_file_old);
 
-#if defined(__vita__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     file_remove(log_file);
 #endif
     data.log_file = file_open(log_file, "wt");
@@ -593,16 +682,24 @@ static void setup_logging(void)
         fprintf(stderr, "Unable to open Vespasian log file for writing: %s\n", log_file);
         fflush(stderr);
     }
-    SDL_LogSetOutputFunction(write_log, NULL);
+    SDL_LogSetOutputFunction(receive_sdl_log, nullptr);
+    if (data.log_file) {
+        for (const auto &message : pending_log_messages) write_to_output(data.log_file, message.c_str());
+        pending_log_messages.clear();
+        log_setup_pending = false;
+    }
 }
 
 static void teardown_logging(void)
 {
-    log_repeated_messages();
+    Logger::flush();
 
     if (data.log_file) {
         file_close(data.log_file);
+        data.log_file = nullptr;
     }
+    pending_log_messages.clear();
+    log_setup_pending = false;
 }
 
 static void post_event(int code)
@@ -719,7 +816,9 @@ static void run_and_draw(void)
 static void handle_mouse_button(SDL_MouseButtonEvent *event, int is_down)
 {
     if (!SDL_GetRelativeMouseMode()) {
-        mouse_set_position(event->x, event->y);
+        int x = event->x, y = event->y;
+        platform_screen_window_to_pixels(&x, &y);
+        mouse_set_position(x, y);
     }
     if (event->button == SDL_BUTTON_LEFT) {
         mouse_set_left_down(is_down);
@@ -758,31 +857,31 @@ static void handle_window_event(SDL_WindowEvent *event, int *window_active)
             mouse_set_window_focus(1);
             break;
         case SDL_WINDOWEVENT_SIZE_CHANGED:
-            SDL_Log("Window resized to %d x %d", (int) event->data1, (int) event->data2);
+            Logger::infof("Window resized to %d x %d", (int) event->data1, (int) event->data2);
             platform_screen_resize(0, 0, 1);
             break;
         case SDL_WINDOWEVENT_RESIZED:
-            SDL_Log("System resize to %d x %d", (int) event->data1, (int) event->data2);
+            Logger::infof("System resize to %d x %d", (int) event->data1, (int) event->data2);
             break;
         case SDL_WINDOWEVENT_MOVED:
-            SDL_Log("Window move to coordinates x: %d y: %d\n", (int) event->data1, (int) event->data2);
+            Logger::infof("Window move to coordinates x: %d y: %d\n", (int) event->data1, (int) event->data2);
             platform_screen_move(event->data1, event->data2);
             break;
 
         case SDL_WINDOWEVENT_SHOWN:
-            SDL_Log("Window %u shown", (unsigned int) event->windowID);
+            Logger::infof("Window %u shown", (unsigned int) event->windowID);
 #ifdef USE_FILE_CACHE
             platform_file_manager_cache_invalidate();
 #endif
             *window_active = 1;
             break;
         case SDL_WINDOWEVENT_HIDDEN:
-            SDL_Log("Window %u hidden", (unsigned int) event->windowID);
+            Logger::infof("Window %u hidden", (unsigned int) event->windowID);
             *window_active = 0;
             break;
 
         case SDL_WINDOWEVENT_EXPOSED:
-            SDL_Log("Window %u exposed", (unsigned int) event->windowID);
+            Logger::infof("Window %u exposed", (unsigned int) event->windowID);
             window_invalidate();
             break;
 
@@ -844,7 +943,9 @@ static void handle_event(SDL_Event *event)
             break;
         case SDL_MOUSEMOTION:
             if (event->motion.which != SDL_TOUCH_MOUSEID && !SDL_GetRelativeMouseMode()) {
-                mouse_set_position(event->motion.x, event->motion.y);
+                int x = event->motion.x, y = event->motion.y;
+                platform_screen_window_to_pixels(&x, &y);
+                mouse_set_position(x, y);
             }
             break;
         case SDL_MOUSEBUTTONDOWN:
@@ -920,16 +1021,25 @@ static void handle_event(SDL_Event *event)
 
 static void teardown(void)
 {
-    log_repeated_messages();
-    SDL_Log("Exiting game");
-    game_exit();
+    Logger::flush();
+    Logger::infof("Exiting game");
+    game_exit(!data.startup_test);
     platform_screen_destroy();
     SDL_Quit();
     teardown_logging();
 
 #ifdef __IPHONEOS__
     // iOS apps are not allowed to self-terminate. To avoid being stuck on a blank screen here, we start the game again.
-    setup(&args);
+    try { setup(&args); }
+    catch (const std::exception &error) {
+        const bool cancelled = platform_loading_screen_cancelled();
+        if (!cancelled) Logger::errorf("Startup failed: %s", error.what());
+        platform_loading_screen_end();
+        platform_screen_destroy();
+        SDL_Quit();
+        teardown_logging();
+        return cancelled ? 0 : 1;
+    }
 #endif
 }
 
@@ -964,7 +1074,7 @@ static void main_loop(void)
 
 static int init_sdl(int enable_joysticks, int disable_audio)
 {
-    SDL_Log("Initializing SDL");
+    Logger::infof("Initializing SDL");
 
     // This hint must be set before initializing SDL, otherwise it won't work
 #if SDL_VERSION_ATLEAST(2, 0, 2)
@@ -975,14 +1085,17 @@ static int init_sdl(int enable_joysticks, int disable_audio)
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "0");
 #endif
 
+#ifdef __ANDROID__
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+#endif
     const Uint32 audio_flags = disable_audio ? 0 : SDL_INIT_AUDIO;
-    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0) {
+    if (SDL_Init(audio_flags | SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         // Try starting SDL without joystick support
         if (SDL_Init(audio_flags | SDL_INIT_VIDEO) != 0) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not initialize SDL: %s", SDL_GetError());
+            Logger::errorf("Could not initialize SDL: %s", SDL_GetError());
             return 0;
         } else {
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Could not enable joystick support");
+            Logger::infof("Could not enable joystick support");
         }
     } else {
         platform_joystick_init(enable_joysticks);
@@ -994,12 +1107,9 @@ static int init_sdl(int enable_joysticks, int disable_audio)
 #elif SDL_VERSION_ATLEAST(2, 0, 4)
     SDL_SetHint(SDL_HINT_ANDROID_SEPARATE_MOUSE_AND_TOUCH, "1");
 #endif
-#ifdef __ANDROID__
-    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
-#endif
     SDL_version version;
     SDL_GetVersion(&version);
-    SDL_Log("SDL initialized, version %u.%u.%u", version.major, version.minor, version.patch);
+    Logger::infof("SDL initialized, version %u.%u.%u", version.major, version.minor, version.patch);
     return 1;
 }
 
@@ -1056,16 +1166,16 @@ static const char *ask_for_data_dir(int again)
 static int pre_init(const char *custom_data_dir)
 {
     if (custom_data_dir) {
-        SDL_Log("Loading game from %s", custom_data_dir);
+        Logger::infof("Loading game from %s", custom_data_dir);
         if (!platform_file_manager_set_base_path(custom_data_dir)) {
-            SDL_Log("%s: directory not found", custom_data_dir);
+            Logger::infof("%s: directory not found", custom_data_dir);
             show_startup_error("Error", "Vespasian requires the original files from Caesar 3.\n\nPlease enter the proper directory or copy the files to the selected directory.");
             return 0;
         }
         return pre_init_with_current_base_path();
     }
 
-    SDL_Log("Loading game from working directory");
+    Logger::infof("Loading game from working directory");
     if (pre_init_with_current_base_path()) {
         return 1;
     }
@@ -1079,7 +1189,7 @@ static int pre_init(const char *custom_data_dir)
 #endif
         if (base_path) {
             if (platform_file_manager_set_base_path(base_path)) {
-                SDL_Log("Loading game from base path %s", base_path);
+                Logger::infof("Loading game from base path %s", base_path);
                 if (pre_init_with_current_base_path()) {
 #ifndef __IPHONEOS__
                     SDL_free(base_path);
@@ -1097,7 +1207,7 @@ static int pre_init(const char *custom_data_dir)
 #ifdef SHOW_FOLDER_SELECT_DIALOG
     const char *user_dir = pref_data_dir();
     if (*user_dir) {
-        SDL_Log("Loading game from user pref %s", user_dir);
+        Logger::infof("Loading game from user pref %s", user_dir);
         if (platform_file_manager_set_base_path(user_dir) && pre_init_with_current_base_path()) {
             return 1;
         }
@@ -1105,7 +1215,7 @@ static int pre_init(const char *custom_data_dir)
 
     user_dir = ask_for_data_dir(0);
     while (user_dir) {
-        SDL_Log("Loading game from user-selected dir %s", user_dir);
+        Logger::infof("Loading game from user-selected dir %s", user_dir);
         if (platform_file_manager_set_base_path(user_dir) && pre_init_with_current_base_path()) {
             pref_save_data_dir(user_dir);
 #ifdef __ANDROID__
@@ -1125,6 +1235,7 @@ static int pre_init(const char *custom_data_dir)
 static void setup(const augustus_args *args)
 {
     data.startup_test = args->startup_test || args->load_save_test_count;
+    platform_screen_set_headless_errors(data.startup_test != 0);
     if (data.startup_test && !platform::use_temporary_logging_directory()) {
         fprintf(stderr, "Unable to create a temporary directory for validation logs.\n");
         exit_with_status(1);
@@ -1132,64 +1243,50 @@ static void setup(const augustus_args *args)
     system_setup_crash_handler();
     setup_logging();
 
-    if (data.log_file) {
-        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
-        SDL_Log("Running on: %s", system_OS());
-    }
+    Logger::infof("Vespasian version %s, %s build", system_version(), system_architecture());
+    Logger::infof("Running on: %s", system_OS());
 
     if (!init_sdl(args->enable_joysticks, args->disable_audio)) {
-        SDL_Log("Exiting: SDL init failed");
+        Logger::infof("Exiting: SDL init failed");
         exit_with_status(-1);
+    }
+
+    std::string hardware_failure;
+    if (!platform_meets_hardware_requirements(hardware_failure)) {
+        show_startup_error("Unsupported hardware", hardware_failure.c_str());
+        Logger::errorf("%s", hardware_failure.c_str());
+        exit_with_status(1);
     }
 
     // SDL_GetPrefPath can be unavailable before SDL initialization. Retry here so
     // startup and configuration failures are captured in the normal log.
     if (!data.log_file) {
         setup_logging();
-        SDL_Log("Vespasian version %s, %s build", system_version(), system_architecture());
-        SDL_Log("Running on: %s", system_OS());
+        log_setup_pending = false;
+        pending_log_messages.clear();
     }
 
-#ifdef __vita__
-    const char *base_dir = VITA_PATH_PREFIX;
-#else
     const char *base_dir = args->data_directory;
-#endif
+    if (args->validation_config) {
+        const auto path = mod_content::utf8_path(args->validation_config);
+        if (!path.is_absolute() || !std::filesystem::is_directory(path)) throw std::runtime_error("Validation configuration must name an existing absolute directory");
+        platform_file_manager_set_validation_config(args->validation_config);
+    }
 
     if (!pre_init(base_dir)) {
-        SDL_Log("Exiting: game pre-init failed");
+        Logger::infof("Exiting: game pre-init failed");
         exit_with_status(1);
-    }
-
-    mod_manager::set_mod_name(args->mod_name);
-    if (!config_must_configure_user_directory() && platform_file_manager_is_directory_writeable(pref_user_dir())) {
-        platform_user_path_create_subdirectories();
-        if (!mod_manager::load_mod_list()) {
-            const char *failure_reason = mod_manager::failure_reason().c_str();
-            show_startup_error("Startup error", failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.");
-            SDL_Log("Failed to load mod list");
-            exit_with_status(3);
-        }
-    }
-    if (!building_type_startup_bridge_validate_mod()) {
-        char message[512];
-        snprintf(message, sizeof(message),
-            "Unable to find the selected mod data.\n\nExpected folder:\n%s",
-            building_type_startup_bridge_get_building_type_path());
-        show_startup_error("Missing mod", message);
-        SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
-        exit_with_status(4);
     }
 
     if (args->force_windowed && setting_fullscreen()) {
         int w, h;
         setting_window(&w, &h);
         setting_set_display(0, w, h);
-        SDL_Log("Forcing windowed mode with size %d x %d", w, h);
+        Logger::infof("Forcing windowed mode with size %d x %d", w, h);
     }
     if (args->force_fullscreen && !setting_fullscreen()) {
         setting_set_display(1, 0, 0);
-        SDL_Log("Forcing fullscreen mode");
+        Logger::infof("Forcing fullscreen mode");
     }
 
     // handle arguments
@@ -1201,55 +1298,93 @@ static void setup(const augustus_args *args)
     }
     if (args->disable_audio) {
         sound_system_disable();
-        SDL_Log("Audio disabled for this process");
+        Logger::infof("Audio disabled for this process");
     }
 
     char title[100];
     encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
     if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id, args->startup_test || args->load_save_test_count)) {
-        SDL_Log("Exiting: SDL create window failed");
+        Logger::infof("Exiting: SDL create window failed");
         exit_with_status(-2);
     }
+
+    platform_loading_screen_begin();
+    mod_manager::set_mod_name(args->mod_name);
+    if (!config_must_configure_user_directory() && platform_file_manager_is_directory_writeable(pref_user_dir())) {
+        platform_user_path_create_subdirectories();
+        if (!mod_manager::load_mod_list()) {
+            if (platform_loading_screen_cancelled()) throw std::runtime_error("Loading cancelled");
+            const char *failure_reason = mod_manager::failure_reason().c_str();
+            show_startup_error("Startup error", failure_reason && *failure_reason ? failure_reason : "Failed to load mod list.");
+            Logger::infof("Failed to load mod list");
+            exit_with_status(3);
+        }
+    }
+    if (!building_type_startup_bridge_validate_mod()) {
+        char message[512];
+        snprintf(message, sizeof(message),
+            "Unable to find the selected mod data.\n\nExpected folder:\n%s",
+            building_type_startup_bridge_get_building_type_path());
+        show_startup_error("Missing mod", message);
+        Logger::infof("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
+        exit_with_status(4);
+    }
+
+    loading_progress::report("Preparing graphics", 0, 1);
 
 #ifdef PLATFORM_ENABLE_INIT_CALLBACK
     platform_init_callback();
 #endif
 
-    if (args->use_software_cursor) {
+    bool use_software_cursor = args->use_software_cursor != 0;
+#ifdef __ANDROID__
+    // SDL2 cannot reliably detect Android mice; gamepad navigation needs a visible cursor.
+    use_software_cursor = use_software_cursor || joysticks_are_connected();
+#endif
+    if (use_software_cursor) {
         platform_cursor_force_software_mode();
     }
 
     // This has to come after platform_screen_create, otherwise it fails on Nintendo Switch
     system_init_cursors(config_get(CONFIG_SCREEN_CURSOR_SCALE));
+    if (!platform_cursor_has_hardware_cursor() && !joysticks_are_connected()) system_hide_cursor();
 
     time_set_millis(system_get_ticks());
 
-    int result = args->launch_asset_previewer ? window_asset_previewer_show() : game_init();
+    int result = game_init();
+    if (result && args->launch_asset_previewer) result = window_asset_previewer_show();
 
     if (!result) {
+        if (platform_loading_screen_cancelled()) throw std::runtime_error("Loading cancelled");
         const char *failure_message = game_get_init_failure_message();
         if (failure_message && *failure_message) {
             show_startup_error("Startup error", failure_message);
         }
-        SDL_Log("Exiting: game init failed");
+        Logger::infof("Exiting: game init failed");
         exit_with_status(2);
     }
 
+    if (args->loading_screen_test) platform_loading_screen_validate(args->loading_screen_test);
+    platform_loading_screen_end();
     data.quit = 0;
     data.active = 1;
 }
 
 int main(int argc, char **argv)
 {
+    Logger::set_output(write_log);
+    Logger::set_dialog(platform_screen_show_error_message_box);
+    SDL_LogSetOutputFunction(receive_sdl_log, nullptr);
     augustus_args args;
     if (!platform_parse_arguments(argc, argv, &args)) {
-#if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && !defined(__APPLE__)
+        if (args.startup_test || args.load_save_test_count || args.save_roundtrip_test_count || args.validation_config) return 1;
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(__ANDROID__) && !defined(__APPLE__)
         // Only exit on Linux platforms where we know the system will not throw any weird arguments our way
         exit_with_status(1);
 #endif
     }
 
-    log_set_debug_enabled(args.debug);
+    Logger::set_debug_enabled(args.debug);
 
 #ifdef _MSC_VER
     if (args.startup_test || args.load_save_test_count) {
@@ -1260,6 +1395,13 @@ int main(int argc, char **argv)
 
     setup(&args);
 
+    if (args.editor_test) {
+        const bool passed = run_editor_compatibility_test();
+        const int result = passed && !data.warning_count && !data.error_count ? 0 : 11;
+        teardown();
+        return result;
+    }
+
     if (args.load_save_test_count) {
         const int result = run_save_validation(args);
         teardown();
@@ -1267,7 +1409,8 @@ int main(int argc, char **argv)
     }
 
     if (args.startup_test) {
-        if (!run_water_hover_render_test() || !run_menu_render_test() || data.warning_count || data.error_count) {
+        const bool rendered = args.launch_asset_previewer ? window_asset_previewer_validate_for_test() : (run_water_hover_render_test() && run_menu_render_test());
+        if (!rendered || data.warning_count || data.error_count) {
             teardown();
             return 8;
         }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barracks">
+    <presentation overlay="enemy"/>
     <identity name_key="main_strings.28.95" />
     <model cost="150" />
     <desirability>
@@ -9,7 +10,7 @@
         <range value="3" />
     </desirability>
     <foundation path="land_3x3" />
-    <construction max_count="1" max_count_unless_config="multiple_barracks" />
+    <construction $!MULTIPLE_BARRACKS{max_count="1"} />
   <button group="security" order="90" text_key="main_strings.28.95" />
     <flags draw_desirability_range="1" />
     <graphics>

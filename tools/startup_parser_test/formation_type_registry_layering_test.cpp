@@ -96,14 +96,16 @@ bool validate_formation_member_assignment_contract(std::ostream &errors)
     const auto reachable = [](int, const FigureMovementDestination &candidate) {
         const int tile_x = figure_movement_cross_country_to_tile(candidate.x);
         const int tile_y = figure_movement_cross_country_to_tile(candidate.y);
-        if (tile_x < 0 || tile_y < 0 || tile_x >= 4 || tile_y >= 4) return 0;
+        if (tile_x < 0 || tile_y < 0 || tile_x >= 6 || tile_y >= 6) return 0;
         if (tile_x == 1 && tile_y == 1) return 0;
         return 1 + tile_x + tile_y;
     };
 
     FormationMemberMovementPlan forward;
     FormationMemberMovementPlan reverse;
-    const FormationMovementBounds four_by_four_bounds = {0, 0, 511, 511};
+    // A blocked formation footprint must spill into free space, rather than
+    // squeeze its full roster into the remaining fraction of that footprint.
+    const FormationMovementBounds four_by_four_bounds = {0, 0, 767, 767};
     if (!forward.configure(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, four_by_four_bounds, ideals) ||
         !reverse.configure(FormationMemberDestination::Standard, layout, 0, 0, 4, 4, four_by_four_bounds, ideals) ||
         !forward.assign_members(ascending, reachable) || !reverse.assign_members(descending, reachable)) {
@@ -129,9 +131,9 @@ bool validate_formation_member_assignment_contract(std::ostream &errors)
         const bool ideal_is_blocked = ideal_tile_x == 1 && ideal_tile_y == 1;
         if ((ideal_is_blocked && forward_state != FormationStationState::Fallback) ||
             (!ideal_is_blocked && forward_state != FormationStationState::Ideal) ||
-            forward_destination.x < 0 || forward_destination.x > 480 ||
-            forward_destination.y < 0 || forward_destination.y > 480) {
-            errors << "Formation station planner did not keep internal-obstacle fallbacks inside the formation footprint.\n";
+            forward_destination.x < 0 || forward_destination.x > 767 ||
+            forward_destination.y < 0 || forward_destination.y > 767) {
+            errors << "Formation station planner failed to place obstacle fallbacks within reachable map bounds.\n";
             return false;
         }
         for (int other_slot = 0; other_slot < 64; other_slot++) {
@@ -141,8 +143,9 @@ bool validate_formation_member_assignment_contract(std::ostream &errors)
             }
         }
         for (const FigureMovementDestination &other : resolved) {
-            if (same_destination(forward_destination, other)) {
-                errors << "Formation station planner stacked two members on one exact endpoint.\n";
+            const int dx = forward_destination.x - other.x, dy = forward_destination.y - other.y;
+            if (dx * dx + dy * dy < 64 * 64) {
+                errors << "Formation station planner crowded members closer than their authored spacing.\n";
                 return false;
             }
         }

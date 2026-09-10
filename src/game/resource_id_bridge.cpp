@@ -2,7 +2,7 @@
 
 #include "game/resource_id_bridge.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "scenario/allowed_building.h"
 #include "scenario/map.h"
 
@@ -276,8 +276,9 @@ void load_legacy_save_table(resource_version_t version)
     g_bridge.total_food_resources = mapping.total_food_resources;
     g_bridge.joined_meat_and_fish = mapping.joined_meat_and_fish;
 
-    for (uint16_t save_id = 0; save_id < RESOURCE_SLOT_COUNT && save_id < mapping.total_resources; ++save_id) {
+    for (uint16_t save_id = 0; save_id < RESOURCE_SLOT_COUNT; ++save_id) {
         const char *text_id = mapping.resources ? (*mapping.resources)[save_id] : nullptr;
+        if (!text_id) continue;
         append_save_id_mapping(save_id, runtime_from_text_id(text_id), text_id);
     }
 
@@ -292,9 +293,6 @@ void load_current_runtime_save_table()
     for (int i = 0; i < resource_loaded_count(); ++i) {
         resource_type runtime_id = resource_get_loaded(i);
         if (runtime_id < RESOURCE_NONE || runtime_id >= RESOURCE_SLOT_COUNT) {
-            continue;
-        }
-        if (runtime_id != RESOURCE_NONE && resource_is_special(runtime_id)) {
             continue;
         }
         append_save_id_mapping(static_cast<uint16_t>(runtime_id), runtime_id, resource_text_id(runtime_id));
@@ -372,7 +370,7 @@ void resource_id_bridge_save_table_save_state(buffer *buf)
         const std::string &text_id = g_bridge.save_to_text[save_id];
         if (text_id.size() > std::numeric_limits<uint16_t>::max() ||
             save_id > std::numeric_limits<uint16_t>::max()) {
-            log_error("Resource text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
+            Logger::error("Resource text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
             continue;
         }
         buffer_write_u16(buf, static_cast<uint16_t>(save_id));
@@ -393,7 +391,7 @@ void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 
     buffer table = *buf;
     if (buffer_load_dynamic(&table) < sizeof(uint32_t) * 2) {
-        log_error("Resource save table is invalid; falling back to legacy ids", 0, 0);
+        Logger::error("Resource save table is invalid; falling back to legacy ids", 0, 0);
         load_legacy_save_table(g_bridge.version);
         return;
     }
@@ -401,7 +399,7 @@ void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
     uint32_t version = buffer_read_u32(&table);
     uint32_t count = buffer_read_u32(&table);
     if (version != SAVE_TABLE_VERSION) {
-        log_error("Unsupported resource save table version", 0, static_cast<int>(version));
+        Logger::error("Unsupported resource save table version", 0, static_cast<int>(version));
         load_legacy_save_table(g_bridge.version);
         return;
     }
@@ -416,7 +414,7 @@ void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 
         resource_type runtime_id = runtime_from_text_id(text_id.c_str());
         if (runtime_id == RESOURCE_NONE && text_id != "none") {
-            log_error("Resource referenced by save is not available in active mod", text_id.c_str(), save_id);
+            Logger::warning("Mapping unavailable imported resource to none; its quantities cannot be retained in this mod stack", text_id.c_str(), save_id);
         }
         append_save_id_mapping(save_id, runtime_id, text_id.c_str());
     }
@@ -509,7 +507,7 @@ uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id)
         }
     }
 
-    log_error("Resource runtime id has no save mapping", resource_text_id(runtime_id), runtime_id);
+    Logger::error("Resource runtime id has no save mapping", resource_text_id(runtime_id), runtime_id);
     return 0;
 }
 
@@ -523,4 +521,17 @@ int resource_total_food_mapped(void)
 {
     ensure_save_table();
     return g_bridge.total_food_resources;
+}
+
+std::vector<resource_type> resource_id_bridge_production_order()
+{
+    ensure_save_table();
+    std::vector<resource_type> resources;
+    for (size_t id = 0; id < g_bridge.save_to_runtime.size(); ++id) {
+        if (!g_bridge.save_id_has_mapping[id]) continue;
+        const auto resource = g_bridge.save_to_runtime[id];
+        if (resource == RESOURCE_NONE || (resource_get_data(resource)->flags & RESOURCE_FLAG_SPECIAL) == RESOURCE_FLAG_SPECIAL) continue;
+        resources.push_back(resource);
+    }
+    return resources;
 }

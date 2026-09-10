@@ -47,8 +47,23 @@ bool FormationMemberMovementPlan::configure(
     }
     fallback_step_x_ = calculate_fallback_step(true);
     fallback_step_y_ = calculate_fallback_step(false);
+    minimum_spacing_squared_ = std::numeric_limits<long long>::max();
+    for (size_t first = 0; first < ideals.size(); ++first) for (size_t second = first + 1; second < ideals.size(); ++second) {
+        const long long dx = static_cast<long long>(ideals[first].x) - ideals[second].x;
+        const long long dy = static_cast<long long>(ideals[first].y) - ideals[second].y;
+        const long long distance = dx * dx + dy * dy;
+        if (distance > 0) minimum_spacing_squared_ = std::min(minimum_spacing_squared_, distance);
+    }
+    if (minimum_spacing_squared_ == std::numeric_limits<long long>::max()) minimum_spacing_squared_ = static_cast<long long>(FIGURE_CROSS_COUNTRY_TILE_UNITS) * FIGURE_CROSS_COUNTRY_TILE_UNITS;
     valid_ = true;
     return true;
+}
+
+bool FormationMemberMovementPlan::points_overlap(const FigureMovementDestination &left, const FigureMovementDestination &right) const
+{
+    const long long dx = static_cast<long long>(left.x) - right.x;
+    const long long dy = static_cast<long long>(left.y) - right.y;
+    return left.plane == right.plane && dx * dx + dy * dy < minimum_spacing_squared_;
 }
 
 bool FormationMemberMovementPlan::point_is_reserved(int slot, const FigureMovementDestination &candidate) const
@@ -56,12 +71,12 @@ bool FormationMemberMovementPlan::point_is_reserved(int slot, const FigureMoveme
     const bool candidate_is_own_ideal = same_point(candidate, stations_[static_cast<size_t>(slot)].ideal);
     for (int candidate_slot = 0; candidate_slot < static_cast<int>(stations_.size()); candidate_slot++) {
         const Station &station = stations_[static_cast<size_t>(candidate_slot)];
-        if (candidate_slot != slot && same_point(candidate, station.ideal) &&
+        if (candidate_slot != slot && points_overlap(candidate, station.ideal) &&
             (!candidate_is_own_ideal || candidate_slot < slot)) {
             return true;
         }
         if (candidate_slot != slot && station.occupant && station.state != FormationStationState::Unplaced &&
-            same_point(candidate, station.destination)) {
+            points_overlap(candidate, station.destination)) {
             return true;
         }
     }

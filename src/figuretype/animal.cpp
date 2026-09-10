@@ -6,7 +6,7 @@
 #include "city/race_bet.h"
 #include "core/calc.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/formation.h"
 #include "figure/image.h"
@@ -19,7 +19,7 @@
 #include "map/grid.h"
 #include "map/point.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
 #include "window/building/common.h"
@@ -134,7 +134,7 @@ void figuretype::Animal::action()
 {
     formation *owner = formation_get(formation_id);
     if (!owner) {
-        log_error("Herd member references an unknown formation", 0, static_cast<int>(formation_id));
+        Logger::error("Herd member references an unknown formation", 0, static_cast<int>(formation_id));
         std::terminate();
     }
     owner->update_herd_member(*this);
@@ -144,7 +144,7 @@ void figuretype::Animal::update_graphics()
 {
     formation *owner = formation_get(formation_id);
     if (!owner) {
-        log_error("Herd member graphics reference an unknown formation", 0, static_cast<int>(formation_id));
+        Logger::error("Herd member graphics reference an unknown formation", 0, static_cast<int>(formation_id));
         std::terminate();
     }
     owner->update_herd_member_graphics(*this);
@@ -152,8 +152,8 @@ void figuretype::Animal::update_graphics()
 
 static int terrain_blocked_for_animals(int grid_offset)
 {
-    return map_terrain_is(grid_offset, TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER |
-        TERRAIN_BUILDING | TERRAIN_SHRUB );
+    return terrain_map().contains(grid_offset, terrain_types().tree | terrain_types().rock | terrain_types().water |
+        terrain_types().building | terrain_types().shrub );
 }
 
 void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal_tile_offset, int building_size)

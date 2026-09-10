@@ -1,3 +1,5 @@
+#include <limits>
+#include "map/tile_runtime_graphics.h"
 #include "building/building.h"
 #include "building/building_type.h"
 #include "figure/figure.h"
@@ -26,7 +28,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/map.h"
 
 #include "map/tile_runtime_api.h"
@@ -35,17 +37,17 @@
 
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
-#define FORBIDDEN_TERRAIN_MEADOW (TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |\
-            TERRAIN_RUBBLE | TERRAIN_ROAD | TERRAIN_BUILDING | TERRAIN_GARDEN | TERRAIN_WALL)
+#define FORBIDDEN_TERRAIN_MEADOW (terrain_types().aqueduct | terrain_types().elevation | terrain_types().access_ramp |\
+            terrain_types().rubble | terrain_types().road | terrain_types().building | terrain_types().garden | terrain_types().wall)
 
-#define FORBIDDEN_TERRAIN_RUBBLE (TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |\
-            TERRAIN_ROAD | TERRAIN_BUILDING | TERRAIN_GARDEN)
+#define FORBIDDEN_TERRAIN_RUBBLE (terrain_types().aqueduct | terrain_types().elevation | terrain_types().access_ramp |\
+            terrain_types().road | terrain_types().building | terrain_types().garden)
 
 static int aqueduct_include_construction = 0;
 static int highway_top_tile_offsets[4] = { 0, -GRID_SIZE, -1, -GRID_SIZE - 1 };
 static int elevation_recalculate_trees = 0;
 
-static int is_clear(int x, int y, int size, int disallowed_terrain, int terrain_exception,
+static int is_clear(int x, int y, int size, TerrainSet disallowed_terrain, TerrainSet terrain_exception,
     int check_figure, int check_image)
 {
     if (!map_grid_is_inside(x, y, size)) {
@@ -54,8 +56,8 @@ static int is_clear(int x, int y, int size, int disallowed_terrain, int terrain_
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
-            if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR & disallowed_terrain) &&
-                !map_terrain_is(grid_offset, terrain_exception)) {
+            if (terrain_map().contains(grid_offset, terrain_types().not_clear & disallowed_terrain) &&
+                !terrain_map().contains(grid_offset, terrain_exception)) {
                 return 0;
             } else if (check_figure && map_has_figure_at(grid_offset)) {
                 return 0;
@@ -67,13 +69,13 @@ static int is_clear(int x, int y, int size, int disallowed_terrain, int terrain_
     return 1;
 }
 
-int map_tiles_are_clear(int x, int y, int size, int disallowed_terrain, int check_figure)
+int map_tiles_are_clear(int x, int y, int size, TerrainSet disallowed_terrain, int check_figure)
 {
-    return is_clear(x, y, size, disallowed_terrain, TERRAIN_CLEAR, check_figure, 0);
+    return is_clear(x, y, size, disallowed_terrain, terrain_types().clear, check_figure, 0);
 }
 
-int map_tiles_are_clear_with_terrain_exception(int x, int y, int size, int disallowed_terrain,
-    int terrain_exception, int check_figure)
+int map_tiles_are_clear_with_terrain_exception(int x, int y, int size, TerrainSet disallowed_terrain,
+    TerrainSet terrain_exception, int check_figure)
 {
     return is_clear(x, y, size, disallowed_terrain, terrain_exception, check_figure, 0);
 }
@@ -102,7 +104,7 @@ static void foreach_region_tile(int x_min, int y_min, int x_max, int y_max,
     }
 }
 
-static int is_all_terrain_in_area(int x, int y, int size, int terrain)
+static int is_all_terrain_in_area(int x, int y, int size, TerrainSet terrain)
 {
     if (!map_grid_is_inside(x, y, size)) {
         return 0;
@@ -110,7 +112,7 @@ static int is_all_terrain_in_area(int x, int y, int size, int terrain)
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
-            if ((map_terrain_get(grid_offset) & TERRAIN_NOT_CLEAR) != terrain) {
+            if ((terrain_map().at(grid_offset) & terrain_types().not_clear) != terrain) {
                 return 0;
             }
             if (map_image_at(grid_offset) != 0) {
@@ -123,9 +125,9 @@ static int is_all_terrain_in_area(int x, int y, int size, int terrain)
 
 static int is_updatable_rock(int grid_offset)
 {
-    return map_terrain_is(grid_offset, TERRAIN_ROCK) &&
+    return terrain_map().contains(grid_offset, terrain_types().rock) &&
         !map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP);
+        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp);
 }
 
 static void clear_rock_image(int x, int y, int grid_offset)
@@ -143,31 +145,31 @@ static void set_rock_image(int x, int y, int grid_offset)
 {
     if (is_updatable_rock(grid_offset)) {
         if (!map_image_at(grid_offset)) {
-            if (is_all_terrain_in_area(x, y, 3, TERRAIN_ROCK)) {
+            if (is_all_terrain_in_area(x, y, 3, terrain_types().rock)) {
                 int image_id = 12 + (map_random_get(grid_offset) & 1);
-                if (map_terrain_exists_tile_in_radius_with_type(x, y, 3, 4, TERRAIN_ELEVATION)) {
+                if (terrain_map().exists_tile_in_radius_with_type(x, y, 3, 4, terrain_types().elevation)) {
                     image_id += image_group(GROUP_TERRAIN_ELEVATION_ROCK);
                 } else {
                     image_id += image_group(GROUP_TERRAIN_ROCK);
                 }
-                map_terrain_tiles_add(x, y, 3, image_id, TERRAIN_ROCK);
-            } else if (is_all_terrain_in_area(x, y, 2, TERRAIN_ROCK)) {
+                map_terrain_tiles_add(x, y, 3, image_id, terrain_types().rock);
+            } else if (is_all_terrain_in_area(x, y, 2, terrain_types().rock)) {
                 int image_id = 8 + (map_random_get(grid_offset) & 3);
-                if (map_terrain_exists_tile_in_radius_with_type(x, y, 2, 4, TERRAIN_ELEVATION)) {
+                if (terrain_map().exists_tile_in_radius_with_type(x, y, 2, 4, terrain_types().elevation)) {
                     image_id += image_group(GROUP_TERRAIN_ELEVATION_ROCK);
                 } else {
                     image_id += image_group(GROUP_TERRAIN_ROCK);
                 }
-                map_terrain_tiles_add(x, y, 2, image_id, TERRAIN_ROCK);
+                map_terrain_tiles_add(x, y, 2, image_id, terrain_types().rock);
             } else {
                 int image_id = map_random_get(grid_offset) & 7;
-                if (map_terrain_exists_tile_in_radius_with_type(x, y, 1, 4, TERRAIN_ELEVATION)) {
+                if (terrain_map().exists_tile_in_radius_with_type(x, y, 1, 4, terrain_types().elevation)) {
                     image_id += image_group(GROUP_TERRAIN_ELEVATION_ROCK);
                 } else {
                     image_id += image_group(GROUP_TERRAIN_ROCK);
                 }
                 map_image_set(grid_offset, image_id);
-                map_terrain_tiles_add(x, y, 1, image_id, TERRAIN_ROCK);
+                map_terrain_tiles_add(x, y, 1, image_id, terrain_types().rock);
             }
         }
     }
@@ -181,14 +183,14 @@ void map_tiles_update_all_rocks(void)
 
 static void update_tree_image(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_TREE) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().tree) &&
+        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp)) {
         int image_id = image_group(GROUP_TERRAIN_TREE) + (map_random_get(grid_offset) & 7);
-        if (map_terrain_has_only_rocks_trees_in_ring(x, y, 3)) {
+        if (terrain_map().has_only_rocks_trees_in_ring(x, y, 3)) {
             map_image_set(grid_offset, image_id + 24);
-        } else if (map_terrain_has_only_rocks_trees_in_ring(x, y, 2)) {
+        } else if (terrain_map().has_only_rocks_trees_in_ring(x, y, 2)) {
             map_image_set(grid_offset, image_id + 16);
-        } else if (map_terrain_has_only_rocks_trees_in_ring(x, y, 1)) {
+        } else if (terrain_map().has_only_rocks_trees_in_ring(x, y, 1)) {
             map_image_set(grid_offset, image_id + 8);
         } else {
             map_image_set(grid_offset, image_id);
@@ -201,8 +203,8 @@ static void update_tree_image(int x, int y, int grid_offset)
 
 static void set_tree_image(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_TREE) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().tree) &&
+        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp)) {
         foreach_region_tile(x - 1, y - 1, x + 1, y + 1, update_tree_image);
     }
 }
@@ -216,8 +218,8 @@ static void set_shrub_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_SHRUB) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().shrub) &&
+        !terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().access_ramp)) {
         map_image_set(grid_offset, image_group(GROUP_TERRAIN_SHRUB) + (map_random_get(grid_offset) & 7));
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_mark_draw_tile(grid_offset);
@@ -233,15 +235,15 @@ static void clear_garden_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_GARDEN) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().garden) &&
+        !terrain_map().contains(grid_offset, terrain_types().road | terrain_types().elevation | terrain_types().access_ramp)) {
         map_image_set(grid_offset, 0);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_clear_multi_tile_xy(grid_offset);
         map_property_mark_draw_tile(grid_offset);
         tile_runtime_clear(grid_offset);
     }
-    if (!map_terrain_is(grid_offset, TERRAIN_GARDEN | TERRAIN_ROAD | TERRAIN_ROCK)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().garden | terrain_types().road | terrain_types().rock)) {
         map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
     }
 }
@@ -275,7 +277,7 @@ static int is_large_garden(
             if (!offset_is_in_list(allowed_grid_offsets, allowed_grid_offset_count, grid_offset)) {
                 return 0;
             }
-            if ((map_terrain_get(grid_offset) & TERRAIN_NOT_CLEAR) != TERRAIN_GARDEN) {
+            if ((terrain_map().at(grid_offset) & terrain_types().not_clear) != terrain_types().garden) {
                 return 0;
             }
             int grid_is_overgrown_garden = map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) != 0;
@@ -313,7 +315,7 @@ static int multi_tile_draw_grid_offset(int x, int y, int size)
     return map_grid_offset(x + dx, y + dy);
 }
 
-static void add_surface_tile_visuals_preserving_buildings(int x, int y, int size, int image_id, int terrain)
+static void add_surface_tile_visuals_preserving_buildings(int x, int y, int size, int image_id, TerrainSet terrain)
 {
     std::vector<Building *> surface_buildings(static_cast<size_t>(size * size), nullptr);
     for (int dy = 0; dy < size; dy++) {
@@ -344,8 +346,8 @@ static void set_garden_image_with_boundary(
     const int *allowed_grid_offsets,
     int allowed_grid_offset_count)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_GARDEN) &&
-        !map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().garden) &&
+        !terrain_map().contains(grid_offset, terrain_types().road | terrain_types().elevation | terrain_types().access_ramp)) {
         if (!map_image_at(grid_offset)) {
             int is_overgrown_garden = map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) != 0;
             int is_large = is_large_garden(
@@ -369,7 +371,7 @@ static void set_garden_image_with_boundary(
             }
 
             if (is_large) {
-                add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, TERRAIN_GARDEN);
+                add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, terrain_types().garden);
             } else {
                 map_image_set(grid_offset, image_id);
             }
@@ -386,9 +388,9 @@ static void remove_plaza_below_building(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+    if (terrain_map().contains(grid_offset, terrain_types().road) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-        if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        if (terrain_map().contains(grid_offset, terrain_types().building)) {
             map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
             tile_runtime_clear(grid_offset);
         }
@@ -399,7 +401,7 @@ static void clear_plaza_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+    if (terrain_map().contains(grid_offset, terrain_types().road) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
         map_image_set(grid_offset, 0);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
@@ -410,9 +412,9 @@ static void clear_plaza_image(int x, int y, int grid_offset)
 
 static int is_tile_plaza(int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+    if (terrain_map().contains(grid_offset, terrain_types().road) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) &&
-        !map_terrain_is(grid_offset, TERRAIN_WATER | TERRAIN_BUILDING) &&
+        !terrain_map().contains(grid_offset, terrain_types().water | terrain_types().building) &&
         !map_image_at(grid_offset)) {
         return 1;
     }
@@ -429,14 +431,14 @@ static int is_two_tile_square_plaza(int grid_offset)
 
 static void set_plaza_image(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+    if (terrain_map().contains(grid_offset, terrain_types().road) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) &&
         !map_image_at(grid_offset)) {
         if (is_two_tile_square_plaza(grid_offset)) {
             int option_count = tile_runtime_plaza_large_option_count();
             int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
             int image_id = tile_runtime_plaza_large_map_image_id(option_index);
-            add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, TERRAIN_ROAD);
+            add_surface_tile_visuals_preserving_buildings(x, y, 2, image_id, terrain_types().road);
             tile_runtime_set_plaza_image_id(
                 multi_tile_draw_grid_offset(x, y, 2),
                 tile_runtime_plaza_large_image_id(option_index));
@@ -593,7 +595,7 @@ void map_tiles_update_area_placement_tile(
 
 static unsigned int get_gatehouse_building_id(int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE) && map_building_exists_at(grid_offset)) {
+    if (terrain_map().contains(grid_offset, terrain_types().gatehouse) && map_building_exists_at(grid_offset)) {
         return map_building_at(grid_offset).id;
     }
     return 0;
@@ -610,128 +612,128 @@ static int get_gatehouse_position(int grid_offset, int direction, unsigned int b
     if (direction == DIR_0_TOP) {
         if (gatehouse_matches_building(grid_offset + map_grid_delta(1, -1), building_id)) {
             result = 1;
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(-1, 1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(-1, 1), terrain_types().wall)) {
                 result = 2;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         } else if (gatehouse_matches_building(grid_offset + map_grid_delta(-1, -1), building_id)) {
             result = 3;
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(1, 1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(1, 1), terrain_types().wall)) {
                 result = 4;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         }
     } else if (direction == DIR_6_LEFT) {
         if (gatehouse_matches_building(grid_offset + map_grid_delta(-1, 1), building_id)) {
             result = 1;
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(1, -1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(1, -1), terrain_types().wall)) {
                 result = 2;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         } else if (gatehouse_matches_building(grid_offset + map_grid_delta(-1, -1), building_id)) {
             result = 3;
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(1, 1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(1, 1), terrain_types().wall)) {
                 result = 4;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         }
     } else if (direction == DIR_4_BOTTOM) {
         if (gatehouse_matches_building(grid_offset + map_grid_delta(1, 1), building_id)) {
             result = 1;
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(-1, -1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(-1, -1), terrain_types().wall)) {
                 result = 2;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(1, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(1, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         } else if (gatehouse_matches_building(grid_offset + map_grid_delta(-1, 1), building_id)) {
             result = 3;
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(1, -1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(1, -1), terrain_types().wall)) {
                 result = 4;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         }
     } else if (direction == DIR_2_RIGHT) {
         if (gatehouse_matches_building(grid_offset + map_grid_delta(1, 1), building_id)) {
             result = 1;
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(-1, -1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(-1, -1), terrain_types().wall)) {
                 result = 2;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         } else if (gatehouse_matches_building(grid_offset + map_grid_delta(1, -1), building_id)) {
             result = 3;
-            if (!map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WALL)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().wall)) {
                 result = 0;
             }
-            if (map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WALL) &&
-                map_terrain_is(grid_offset + map_grid_delta(-1, 1), TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().wall) &&
+                terrain_map().contains(grid_offset + map_grid_delta(-1, 1), terrain_types().wall)) {
                 result = 4;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
-            if (!map_terrain_is(grid_offset + map_grid_delta(-1, -1), TERRAIN_WALL_OR_GATEHOUSE)) {
+            if (!terrain_map().contains(grid_offset + map_grid_delta(-1, -1), terrain_types().wall_or_gatehouse)) {
                 result = 0;
             }
         }
@@ -851,7 +853,7 @@ int map_tiles_wall_image_offset(int grid_offset)
 {
     const terrain_image *img = map_image_context_get_wall(grid_offset);
     int image_offset = img->group_offset + img->item_offset;
-    if (map_terrain_count_directly_adjacent_with_type(grid_offset, TERRAIN_GATEHOUSE) > 0) {
+    if (terrain_map().count_directly_adjacent_with_type(grid_offset, terrain_types().gatehouse) > 0) {
         img = map_image_context_get_wall_gatehouse(grid_offset);
         if (img->is_valid) {
             image_offset = img->group_offset + img->item_offset;
@@ -869,12 +871,17 @@ static void set_wall_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (!map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().wall)) {
         return;
     }
     if (map_building_exists_at(grid_offset)) {
         Building wall = map_building_at(grid_offset);
-        if (wall.matches("wall") && wall.type && wall.type->has_graphic()) {
+        // Supporting wall terrain belongs to the consuming building's foundation.
+        // Refreshing it as a standalone wall would give every footprint cell a draw anchor.
+        if (!wall.matches("wall")) {
+            return;
+        }
+        if (wall.type && wall.type->has_graphic()) {
             wall.refresh_graphic();
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
@@ -900,10 +907,10 @@ int map_tiles_set_wall(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
     int tile_set = 0;
-    if (!map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().wall)) {
         tile_set = 1;
     }
-    map_terrain_add(grid_offset, TERRAIN_WALL);
+    terrain_map().add(grid_offset, terrain_types().wall);
     map_property_clear_constructing(grid_offset);
 
     foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_wall_image);
@@ -926,7 +933,7 @@ int map_tiles_is_adjacent_to_building_type(int grid_offset, int building_type, i
         if (!diagonals_included && i >= 4) {
             break; // skip checking diagonal tiles if not included
         }
-        if (map_terrain_is(tiles[i], TERRAIN_BUILDING) &&
+        if (terrain_map().contains(tiles[i], terrain_types().building) &&
             map_building_exists_at(tiles[i]) &&
             map_building_at(tiles[i]).type &&
             map_building_at(tiles[i]).type->type() == building_type) {
@@ -951,7 +958,7 @@ static int map_tiles_is_adjacent_to_granary(int grid_offset, int diagonals_inclu
         if (!diagonals_included && i >= 4) {
             break;
         }
-        if (map_terrain_is(tiles[i], TERRAIN_BUILDING) && map_building_exists_at(tiles[i])) {
+        if (terrain_map().contains(tiles[i], terrain_types().building) && map_building_exists_at(tiles[i])) {
             Building &current = map_building_at(tiles[i]);
             if (current.type && current.type->is_granary()) {
                 return 1;
@@ -967,7 +974,7 @@ int map_tiles_is_paved_road(int grid_offset)
     if (desirability > 4) {
         return 1;
     }
-    if (desirability > 0 && map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {
+    if (desirability > 0 && terrain_map().contains(grid_offset, terrain_types().fountain_range)) {
         return 1;
     }
     if (map_tiles_is_adjacent_to_granary(grid_offset, 1) &&
@@ -976,7 +983,7 @@ int map_tiles_is_paved_road(int grid_offset)
     }
     int x = map_grid_offset_to_x(grid_offset);
     int y = map_grid_offset_to_y(grid_offset);
-    if (map_terrain_exists_tile_in_radius_with_type(x, y, 1, 3, TERRAIN_HIGHWAY)) {
+    if (terrain_map().exists_tile_in_radius_with_type(x, y, 1, 3, terrain_types().highway)) {
         return 1;
     }
     return 0;
@@ -986,7 +993,7 @@ int map_tiles_highway_get_aqueduct_image(int grid_offset)
 {
     int aqueduct_image_id = assets_lookup_image_id(ASSET_AQUEDUCT_WITH_WATER);
     int image_offset = 0;
-    if (map_terrain_is(grid_offset - 1, TERRAIN_AQUEDUCT) || map_terrain_is(grid_offset + 1, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset - 1, terrain_types().aqueduct) || terrain_map().contains(grid_offset + 1, terrain_types().aqueduct)) {
         image_offset++;
     }
     if (city_view_orientation() == DIR_6_LEFT || city_view_orientation() == DIR_2_RIGHT) {
@@ -1001,13 +1008,13 @@ int map_tiles_highway_get_aqueduct_image(int grid_offset)
 static void set_aqueduct_image(int grid_offset, int is_road, const terrain_image *img)
 {
     int new_image_id = 0;
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         new_image_id = map_tiles_highway_get_aqueduct_image(grid_offset);
     } else {
         int group_offset = img->group_offset;
         if (is_road) {
             if (!img->aqueduct_offset || (group_offset != 2 && group_offset != 3)) {
-                if (map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_ROAD)) {
+                if (terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().road)) {
                     group_offset = 3;
                 } else {
                     group_offset = 2;
@@ -1066,7 +1073,7 @@ int map_tiles_access_ramp_allows_road_edge(int source_grid_offset, int target_gr
         return 0;
     }
     const auto ramp_orientation = [](int grid_offset) {
-        return map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)
+        return terrain_map().contains(grid_offset, terrain_types().access_ramp)
             ? map_image_at(grid_offset) - image_group(GROUP_TERRAIN_ACCESS_RAMP)
             : -1;
     };
@@ -1081,19 +1088,19 @@ static void set_road_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().access_ramp)) {
         return;
     }
     const int building_uses_terrain_foundation =
         map_building_exists_at(grid_offset) &&
         map_building_at(grid_offset).Graphics().uses_terrain_foundation();
-    if (!map_terrain_is(grid_offset, TERRAIN_ROAD) ||
-        ((map_terrain_is(grid_offset, TERRAIN_WATER) ||
-            (map_terrain_is(grid_offset, TERRAIN_BUILDING) && !building_uses_terrain_foundation)) &&
-            !map_terrain_is(grid_offset, TERRAIN_AQUEDUCT))) {
+    if (!terrain_map().contains(grid_offset, terrain_types().road) ||
+        ((terrain_map().contains(grid_offset, terrain_types().water) ||
+            (terrain_map().contains(grid_offset, terrain_types().building) && !building_uses_terrain_foundation)) &&
+            !terrain_map().contains(grid_offset, terrain_types().aqueduct))) {
         return;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         set_road_with_aqueduct_image(grid_offset);
         return;
     }
@@ -1109,13 +1116,13 @@ static void set_highway_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (!map_terrain_is(grid_offset, TERRAIN_HIGHWAY) || map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().highway) || terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
         return;
     }
     int option_count = tile_runtime_role_option_count("highway", "tile_base");
     int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
     int base_image_id = tile_runtime_set_role_image_id(grid_offset, "highway", "tile_base", option_index);
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         const terrain_image *img = map_image_context_get_aqueduct(grid_offset, 0);
         set_aqueduct_image(grid_offset, 0, img);
     } else {
@@ -1153,14 +1160,14 @@ static void update_internal_passage_roads(int x, int y)
 int map_tiles_set_road(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway | terrain_types().access_ramp)) {
         return 0;
     }
     int tile_set = 0;
-    if (!map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().road)) {
         tile_set = 1;
     }
-    map_terrain_add(grid_offset, TERRAIN_ROAD);
+    terrain_map().add(grid_offset, terrain_types().road);
     map_property_clear_constructing(grid_offset);
     update_internal_passage_roads(x, y);
 
@@ -1190,17 +1197,15 @@ static void clear_highway_image(int grid_offset)
 int map_tiles_set_highway(int x, int y)
 {
     int items = 0;
-    int terrain = TERRAIN_HIGHWAY_TOP_LEFT;
     for (int xx = x; xx <= x + 1; xx++) {
         for (int yy = y; yy <= y + 1; yy++) {
             int grid_offset = map_grid_offset(xx, yy);
-            if (!map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+            if (!terrain_map().contains(grid_offset, terrain_types().highway)) {
                 items++;
             }
-            map_terrain_remove(grid_offset, TERRAIN_ROAD);
-            map_terrain_add(grid_offset, terrain);
+            terrain_map().remove(grid_offset, terrain_types().road);
+            terrain_map().add(grid_offset, terrain_types().highway_quadrants[(xx - x) * 2 + yy - y]);
             map_property_clear_constructing(grid_offset);
-            terrain <<= 1;
         }
     }
     foreach_region_tile(x - 1, y - 1, x + 2, y + 2, set_highway_image);
@@ -1213,21 +1218,19 @@ static int clear_highway_from_top(int grid_offset, int measure_only)
     int cleared = 0;
     int x = map_grid_offset_to_x(grid_offset);
     int y = map_grid_offset_to_y(grid_offset);
-    int terrain = TERRAIN_HIGHWAY_TOP_LEFT;
     for (int xx = x; xx <= x + 1; xx++) {
         for (int yy = y; yy <= y + 1; yy++) {
             int highway_offset = map_grid_offset(xx, yy);
-            if (!map_terrain_is(highway_offset, TERRAIN_HIGHWAY)) {
+            if (!terrain_map().contains(highway_offset, terrain_types().highway)) {
                 continue;
             }
             map_property_mark_deleted(highway_offset);
             if (!measure_only) {
-                map_terrain_remove(highway_offset, terrain);
-                if (!map_terrain_is(highway_offset, TERRAIN_HIGHWAY)) {
+                terrain_map().remove(highway_offset, terrain_types().highway_quadrants[(xx - x) * 2 + yy - y]);
+                if (!terrain_map().contains(highway_offset, terrain_types().highway)) {
                     clear_highway_image(highway_offset);
                 }
             }
-            terrain <<= 1;
             cleared = 1;
         }
     }
@@ -1240,14 +1243,12 @@ static int clear_highway_from_top(int grid_offset, int measure_only)
 int map_tiles_clear_highway(int grid_offset, int measure_only)
 {
     int items_cleared = 0;
-    int terrain = map_terrain_get(grid_offset);
-    int highway_terrain = TERRAIN_HIGHWAY_TOP_LEFT;
+    TerrainSet terrain = terrain_map().at(grid_offset);
     for (int i = 0; i < 4; i++) {
-        if (terrain & highway_terrain) {
+        if (terrain.intersects(terrain_types().highway_quadrants[i])) {
             int highway_top_tile = grid_offset + highway_top_tile_offsets[i];
             items_cleared += clear_highway_from_top(highway_top_tile, measure_only);
         }
-        highway_terrain <<= 1;
     }
     return items_cleared;
 }
@@ -1256,7 +1257,7 @@ static void clear_empty_land_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().not_clear)) {
         map_image_set(grid_offset, 0);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_mark_draw_tile(grid_offset);
@@ -1272,7 +1273,7 @@ static void set_empty_land_image(int x, int y, int size, int image_id)
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
-            map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+            terrain_map().remove(grid_offset, terrain_types().clearable);
             map_building_clear_at(grid_offset);
             map_property_clear_constructing(grid_offset);
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
@@ -1285,7 +1286,7 @@ static void set_empty_land_image(int x, int y, int size, int image_id)
 
 static void set_empty_land_pass1(int x, int y, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_image_at(grid_offset) &&
+    if (!terrain_map().contains(grid_offset, terrain_types().not_clear) && !map_image_at(grid_offset) &&
         !(map_random_get(grid_offset) & 0xf0)) {
         int image_id;
         if (map_property_is_alternate_terrain(grid_offset)) {
@@ -1299,18 +1300,18 @@ static void set_empty_land_pass1(int x, int y, int grid_offset)
 
 static void set_empty_land_pass2(int x, int y, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_image_at(grid_offset)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().not_clear) && !map_image_at(grid_offset)) {
         int image_id;
         if (map_property_is_alternate_terrain(grid_offset)) {
             image_id = image_group(GROUP_TERRAIN_GRASS_2);
         } else {
             image_id = image_group(GROUP_TERRAIN_GRASS_1);
         }
-        if (is_clear(x, y, 4, TERRAIN_ALL, TERRAIN_CLEAR, 1, 1)) {
+        if (is_clear(x, y, 4, terrain_types().all, terrain_types().clear, 1, 1)) {
             set_empty_land_image(x, y, 4, image_id + 42);
-        } else if (is_clear(x, y, 3, TERRAIN_ALL, TERRAIN_CLEAR, 1, 1)) {
+        } else if (is_clear(x, y, 3, terrain_types().all, terrain_types().clear, 1, 1)) {
             set_empty_land_image(x, y, 3, image_id + 24 + 9 * (map_random_get(grid_offset) & 1));
-        } else if (is_clear(x, y, 2, TERRAIN_ALL, TERRAIN_CLEAR, 1, 1)) {
+        } else if (is_clear(x, y, 2, terrain_types().all, terrain_types().clear, 1, 1)) {
             set_empty_land_image(x, y, 2, image_id + 8 + 4 * (map_random_get(grid_offset) & 3));
         } else {
             set_empty_land_image(x, y, 1, image_id + (map_random_get(grid_offset) & 7));
@@ -1334,12 +1335,12 @@ void map_tiles_update_region_empty_land(int x_min, int y_min, int x_max, int y_m
 
 static void set_meadow_image(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_MEADOW) && !map_terrain_is(grid_offset, FORBIDDEN_TERRAIN_MEADOW)) {
+    if (terrain_map().contains(grid_offset, terrain_types().meadow) && !terrain_map().contains(grid_offset, FORBIDDEN_TERRAIN_MEADOW)) {
         int random = map_random_get(grid_offset) & 3;
         int image_id = image_group(GROUP_TERRAIN_MEADOW);
-        if (map_terrain_has_only_meadow_in_ring(x, y, 2)) {
+        if (terrain_map().has_only_meadow_in_ring(x, y, 2)) {
             map_image_set(grid_offset, image_id + random + 8);
-        } else if (map_terrain_has_only_meadow_in_ring(x, y, 1)) {
+        } else if (terrain_map().has_only_meadow_in_ring(x, y, 1)) {
             map_image_set(grid_offset, image_id + random + 4);
         } else {
             map_image_set(grid_offset, image_id + random);
@@ -1352,7 +1353,7 @@ static void set_meadow_image(int x, int y, int grid_offset)
 
 static void update_meadow_tile(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_MEADOW) && !map_terrain_is(grid_offset, FORBIDDEN_TERRAIN_MEADOW)) {
+    if (terrain_map().contains(grid_offset, terrain_types().meadow) && !terrain_map().contains(grid_offset, FORBIDDEN_TERRAIN_MEADOW)) {
         foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_meadow_image);
     }
 }
@@ -1369,10 +1370,19 @@ void map_tiles_update_region_meadow(int x_min, int y_min, int x_max, int y_max)
 
 static void set_water_image(int x, int y, int grid_offset)
 {
-    if (((map_terrain_get(grid_offset) & (TERRAIN_WATER | TERRAIN_BUILDING)) == TERRAIN_WATER) || map_is_bridge(grid_offset)) {
+    if (((terrain_map().at(grid_offset) & (terrain_types().water | terrain_types().building)) == terrain_types().water) || map_is_bridge(grid_offset)) {
         const terrain_image *img = map_image_context_get_shore(grid_offset);
         int image_id = image_group(GROUP_TERRAIN_WATER) + img->group_offset + img->item_offset;
-        if (map_terrain_exists_tile_in_radius_with_type(x, y, 1, 2, TERRAIN_BUILDING)) {
+        const ImageGroupEntry *terrain_image = nullptr;
+        int terrain_image_priority = std::numeric_limits<int>::min();
+        for (const auto *terrain : terrain_map().at(grid_offset).entries()) {
+            if (const auto *replacement = terrain->water_image(water_shore_shape(*img), map_random_get(grid_offset)); replacement && (!terrain_image || terrain->graphics_priority() > terrain_image_priority)) {
+                terrain_image = replacement;
+                terrain_image_priority = terrain->graphics_priority();
+            }
+        }
+        const int original_water_image = image_id;
+        if (terrain_map().exists_tile_in_radius_with_type(x, y, 1, 2, terrain_types().building)) {
             // fortified shore
             if (!map_is_bridge(grid_offset)) { //no fortification right under the bridge
                 int base = image_group(GROUP_TERRAIN_WATER_SHORE);
@@ -1393,6 +1403,7 @@ static void set_water_image(int x, int y, int grid_offset)
             }
 
         }
+        tile_runtime_set_terrain_image(grid_offset, image_id == original_water_image ? terrain_image : nullptr);
         map_image_set(grid_offset, image_id);
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_mark_draw_tile(grid_offset);
@@ -1401,7 +1412,7 @@ static void set_water_image(int x, int y, int grid_offset)
 
 static void update_water_tile(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_WATER) && (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_is_bridge(grid_offset))) {
+    if (terrain_map().contains(grid_offset, terrain_types().water) && (!terrain_map().contains(grid_offset, terrain_types().building) || map_is_bridge(grid_offset))) {
         foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_water_image);
     }
 }
@@ -1418,14 +1429,14 @@ void map_tiles_update_region_water(int x_min, int y_min, int x_max, int y_max)
 
 void map_tiles_set_water(int x, int y)
 {
-    map_terrain_add(map_grid_offset(x, y), TERRAIN_WATER);
+    terrain_map().add(map_grid_offset(x, y), terrain_types().water);
     foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_water_image);
 }
 
 static void set_aqueduct(int grid_offset)
 {
     const terrain_image *img = map_image_context_get_aqueduct(grid_offset, aqueduct_include_construction);
-    int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY);
+    int is_road = terrain_map().contains(grid_offset, terrain_types().road | terrain_types().highway);
     if (is_road) {
         map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
     }
@@ -1437,7 +1448,7 @@ static void update_aqueduct_tile(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) && map_aqueduct_image_at(grid_offset) <= 15) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct) && map_aqueduct_image_at(grid_offset) <= 15) {
         set_aqueduct(grid_offset);
     }
 }
@@ -1458,7 +1469,7 @@ static void set_earthquake_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_ROCK) &&
+    if (terrain_map().contains(grid_offset, terrain_types().rock) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
         const terrain_image *img = map_image_context_get_earthquake(grid_offset);
         if (img->is_valid) {
@@ -1474,9 +1485,9 @@ static void set_earthquake_image(int x, int y, int grid_offset)
 
 static void update_earthquake_tile(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_ROCK) &&
+    if (terrain_map().contains(grid_offset, terrain_types().rock) &&
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-        map_terrain_add(grid_offset, TERRAIN_ROCK);
+        terrain_map().add(grid_offset, terrain_types().rock);
         map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
         foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_earthquake_image);
     }
@@ -1491,7 +1502,7 @@ void map_tiles_set_earthquake(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
     // earthquake: terrain = rock && bitfields = plaza
-    map_terrain_add(grid_offset, TERRAIN_ROCK);
+    terrain_map().add(grid_offset, terrain_types().rock);
     map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
 
     foreach_region_tile(x - 1, y - 1, x + 1, y + 1, set_earthquake_image);
@@ -1501,7 +1512,7 @@ static void set_rubble_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_RUBBLE) && !map_terrain_is(grid_offset, FORBIDDEN_TERRAIN_RUBBLE)) {
+    if (terrain_map().contains(grid_offset, terrain_types().rubble) && !terrain_map().contains(grid_offset, FORBIDDEN_TERRAIN_RUBBLE)) {
         map_image_set(grid_offset, image_group(GROUP_TERRAIN_RUBBLE) + (map_random_get(grid_offset) & 7));
         map_property_set_legacy_multi_tile_size(grid_offset, 1);
         map_property_mark_draw_tile(grid_offset);
@@ -1523,7 +1534,7 @@ static void clear_access_ramp_image(int x, int y, int grid_offset)
 {
     (void) x;
     (void) y;
-    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+    if (terrain_map().contains(grid_offset, terrain_types().access_ramp)) {
         map_image_set(grid_offset, 0);
     }
 }
@@ -1547,17 +1558,17 @@ static int get_access_ramp_image_offset(int x, int y)
         for (int i = 0; i < 6; i++) {
             int grid_offset = base_offset + offsets[dir][i];
             if (i < 2) { // 2nd row
-                if (map_terrain_is(grid_offset, TERRAIN_ELEVATION)) {
+                if (terrain_map().contains(grid_offset, terrain_types().elevation)) {
                     right_tiles++;
                 }
                 height = map_elevation_at(grid_offset);
             } else if (i < 4) { // 1st row
-                if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) &&
+                if (terrain_map().contains(grid_offset, terrain_types().access_ramp) &&
                     map_elevation_at(grid_offset) < height) {
                     right_tiles++;
                 }
             } else { // higher row beyond access ramp
-                if (map_terrain_is(grid_offset, TERRAIN_ELEVATION)) {
+                if (terrain_map().contains(grid_offset, terrain_types().elevation)) {
                     if (map_elevation_at(grid_offset) != height) {
                         right_tiles++;
                     }
@@ -1588,50 +1599,50 @@ static int get_access_ramp_image_offset(int x, int y)
 
 static void set_elevation_aqueduct_image(int grid_offset)
 {
-    if (map_aqueduct_image_at(grid_offset) <= 15 && !map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (map_aqueduct_image_at(grid_offset) <= 15 && !terrain_map().contains(grid_offset, terrain_types().building)) {
         set_aqueduct(grid_offset);
     }
 }
 
 static void set_elevation_image(int x, int y, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) && !map_image_at(grid_offset)) {
+    if (terrain_map().contains(grid_offset, terrain_types().access_ramp) && !map_image_at(grid_offset)) {
         int image_offset = get_access_ramp_image_offset(x, y);
         if (image_offset < 0) {
             // invalid map: remove access ramp
-            map_terrain_remove(grid_offset, TERRAIN_ACCESS_RAMP);
+            terrain_map().remove(grid_offset, terrain_types().access_ramp);
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
             if (map_elevation_at(grid_offset)) {
-                map_terrain_add(grid_offset, TERRAIN_ELEVATION);
+                terrain_map().add(grid_offset, terrain_types().elevation);
             } else {
-                map_terrain_remove(grid_offset, TERRAIN_ELEVATION);
+                terrain_map().remove(grid_offset, terrain_types().elevation);
                 map_image_set(grid_offset,
                     image_group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7));
             }
         } else {
             map_terrain_tiles_add(x, y, 2,
-                image_group(GROUP_TERRAIN_ACCESS_RAMP) + image_offset, TERRAIN_ACCESS_RAMP);
+                image_group(GROUP_TERRAIN_ACCESS_RAMP) + image_offset, terrain_types().access_ramp);
         }
     }
-    if (map_elevation_at(grid_offset) && !map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP)) {
+    if (map_elevation_at(grid_offset) && !terrain_map().contains(grid_offset, terrain_types().access_ramp)) {
         const terrain_image *img = map_image_context_get_elevation(grid_offset, map_elevation_at(grid_offset));
         if (img->group_offset == 44) {
-            map_terrain_remove(grid_offset, TERRAIN_ELEVATION);
-            int terrain = map_terrain_get(grid_offset);
-            if (!(terrain & TERRAIN_BUILDING)) {
+            terrain_map().remove(grid_offset, terrain_types().elevation);
+            TerrainSet terrain = terrain_map().at(grid_offset);
+            if (!(terrain & terrain_types().building)) {
                 map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
-                if (terrain & TERRAIN_SHRUB) {
+                if (terrain & terrain_types().shrub) {
                     map_image_set(grid_offset, image_group(GROUP_TERRAIN_SHRUB) + (map_random_get(grid_offset) & 7));
-                } else if (terrain & TERRAIN_TREE) {
+                } else if (terrain & terrain_types().tree) {
                     if (elevation_recalculate_trees) {
                         update_tree_image(x, y, grid_offset);
                     }
-                } else if (terrain & TERRAIN_ROAD) {
+                } else if (terrain & terrain_types().road) {
                     map_tiles_set_road(x, y);
-                } else if (terrain & TERRAIN_AQUEDUCT) {
+                } else if (terrain & terrain_types().aqueduct) {
                     set_elevation_aqueduct_image(grid_offset);
-                } else if (terrain & TERRAIN_MEADOW) {
+                } else if (terrain & terrain_types().meadow) {
                     map_image_set(grid_offset, image_group(GROUP_TERRAIN_MEADOW) + (map_random_get(grid_offset) & 3));
                 } else {
                     map_image_set(grid_offset, image_group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7));
@@ -1639,7 +1650,7 @@ static void set_elevation_image(int x, int y, int grid_offset)
             }
         } else {
             map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
-            map_terrain_add(grid_offset, TERRAIN_ELEVATION);
+            terrain_map().add(grid_offset, terrain_types().elevation);
             map_image_set(grid_offset, image_group(GROUP_TERRAIN_ELEVATION) + img->group_offset + img->item_offset);
         }
     }
@@ -1667,7 +1678,7 @@ void map_tiles_update_all_elevation_editor(void)
 static void remove_entry_exit_flag(const map_tile *tile)
 {
     // re-calculate grid_offset because the stored offset might be invalid
-    map_terrain_remove(map_grid_offset(tile->x, tile->y), TERRAIN_ROCK);
+    terrain_map().remove(map_grid_offset(tile->x, tile->y), terrain_types().rock);
 }
 
 void map_tiles_remove_entry_exit_flags(void)
@@ -1713,15 +1724,15 @@ void map_tiles_add_entry_exit_flags(void)
             int grid_offset = map_grid_offset(entry_point.x, entry_point.y);
             int x_tile, y_tile;
             for (int i = 1; i < 10; i++) {
-                if (map_terrain_exists_clear_tile_in_radius(entry_point.x, entry_point.y,
+                if (terrain_map().exists_clear_tile_in_radius(entry_point.x, entry_point.y,
                     1, i, grid_offset, &x_tile, &y_tile)) {
                     break;
                 }
             }
             grid_offset_flag = city_map_set_entry_flag(x_tile, y_tile);
         }
-        map_terrain_remove(grid_offset_flag, TERRAIN_MEADOW);
-        map_terrain_add(grid_offset_flag, TERRAIN_ROCK);
+        terrain_map().remove(grid_offset_flag, terrain_types().meadow);
+        terrain_map().add(grid_offset_flag, terrain_types().rock);
         int orientation = (city_view_orientation() + entry_orientation) % 8;
         map_image_set(grid_offset_flag, image_group(GROUP_TERRAIN_ENTRY_EXIT_FLAGS) + orientation / 2);
     }
@@ -1735,15 +1746,15 @@ void map_tiles_add_entry_exit_flags(void)
             int grid_offset = map_grid_offset(exit_point.x, exit_point.y);
             int x_tile, y_tile;
             for (int i = 1; i < 10; i++) {
-                if (map_terrain_exists_clear_tile_in_radius(exit_point.x, exit_point.y,
+                if (terrain_map().exists_clear_tile_in_radius(exit_point.x, exit_point.y,
                     1, i, grid_offset, &x_tile, &y_tile)) {
                     break;
                 }
             }
             grid_offset_flag = city_map_set_exit_flag(x_tile, y_tile);
         }
-        map_terrain_remove(grid_offset_flag, TERRAIN_MEADOW);
-        map_terrain_add(grid_offset_flag, TERRAIN_ROCK);
+        terrain_map().remove(grid_offset_flag, terrain_types().meadow);
+        terrain_map().add(grid_offset_flag, terrain_types().rock);
         int orientation = (city_view_orientation() + exit_orientation) % 8;
         map_image_set(grid_offset_flag, image_group(GROUP_TERRAIN_ENTRY_EXIT_FLAGS) + 4 + orientation / 2);
     }

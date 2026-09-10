@@ -1,7 +1,7 @@
 #include "smacker.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -207,18 +207,18 @@ static hufftree8 *create_tree8(bitstream *bs)
     if (read_bit(bs)) {
         hufftree8 *tree = (hufftree8 *) clear_malloc(sizeof(hufftree8));
         if (!tree) {
-            log_error("SMK: no memory for 8-bit tree", 0, 0);
+            Logger::error("SMK: no memory for 8-bit tree", 0, 0);
             return NULL;
         }
         build_tree8_nodes(bs, tree);
         if (read_bit(bs) != 0) {
-            log_error("SMK: 8-bit tree not closed", 0, 0);
+            Logger::error("SMK: 8-bit tree not closed", 0, 0);
             free(tree);
             return NULL;
         }
         return tree;
     } else {
-        log_info("SMK: WARN: no 8-bit tree found", 0, 0);
+        Logger::info("SMK: WARN: no 8-bit tree found", 0, 0);
         return NULL;
     }
 }
@@ -272,7 +272,7 @@ static huffnode16 *build_tree16_nodes(bitstream *bs, hufftree16 *tree)
 {
     huffnode16 *node = (huffnode16 *) clear_malloc(sizeof(huffnode16));
     if (!node) {
-        log_error("SMK: no memory for 16-bit tree node", 0, 0);
+        Logger::error("SMK: no memory for 16-bit tree node", 0, 0);
         return NULL;
     }
     if (read_bit(bs)) {
@@ -308,7 +308,7 @@ static hufftree16 *create_tree16(bitstream *bs, hufftree8 *low, hufftree8 *high)
 {
     hufftree16 *tree = (hufftree16 *) clear_malloc(sizeof(hufftree16));
     if (!tree) {
-        log_error("SMK: no memory for 16-bit tree", 0, 0);
+        Logger::error("SMK: no memory for 16-bit tree", 0, 0);
         return NULL;
     }
     tree->low = low;
@@ -324,7 +324,7 @@ static hufftree16 *create_tree16(bitstream *bs, hufftree8 *low, hufftree8 *high)
         return NULL;
     }
     if (read_bit(bs) != 0) {
-        log_error("SMK: 16-bit tree not closed", 0, 0);
+        Logger::error("SMK: 16-bit tree not closed", 0, 0);
         free_tree16(tree);
         return NULL;
     }
@@ -400,12 +400,12 @@ static int read_header(smacker s)
 {
     uint8_t header[HEADER_SIZE];
     if (fread(header, 1, HEADER_SIZE, s->fp) != HEADER_SIZE) {
-        log_error("SMK: unable to read header", 0, 0);
+        Logger::error("SMK: unable to read header", 0, 0);
         return 0;
     }
     // check signature
     if (header[0] != 'S' || header[1] != 'M' || header[2] != 'K' || header[3] != '2') {
-        log_error("SMK: file is not an SMK2 video", 0, 0);
+        Logger::error("SMK: file is not an SMK2 video", 0, 0);
         return 0;
     }
     s->width = read_i32(&header[4]);
@@ -454,14 +454,14 @@ static int read_frame_info(smacker s)
     s->frame_types = (uint8_t *) clear_malloc(types_length);
 
     if (!s->frame_sizes || !s->frame_offsets || !s->frame_types) {
-        log_error("SMK: no memory for frame info", 0, 0);
+        Logger::error("SMK: no memory for frame info", 0, 0);
         free_frame_info(s);
         return 0;
     }
 
     if (fread(s->frame_sizes, 1, sizes_length, s->fp) != sizes_length ||
         fread(s->frame_types, 1, types_length, s->fp) != types_length) {
-        log_error("SMK: unable to read frame info from file", 0, 0);
+        Logger::error("SMK: unable to read frame info from file", 0, 0);
         free_frame_info(s);
         return 0;
     }
@@ -481,11 +481,11 @@ static int read_trees_data(smacker s)
 {
     uint8_t *trees_data = (uint8_t *) clear_malloc(s->trees_size);
     if (!trees_data) {
-        log_error("SMK: no memory for tree input data", 0, 0);
+        Logger::error("SMK: no memory for tree input data", 0, 0);
         return 0;
     }
     if (fread(trees_data, 1, s->trees_size, s->fp) != s->trees_size) {
-        log_error("SMK: unable to read tree data from file", 0, 0);
+        Logger::error("SMK: unable to read tree data from file", 0, 0);
         free(trees_data);
         return 0;
     }
@@ -498,14 +498,14 @@ static int allocate_frame_memory(smacker s)
 {
     s->frame_data.video = static_cast<uint8_t *>(clear_malloc(sizeof(uint8_t) * s->width * s->height));
     if (!s->frame_data.video) {
-        log_error("SMK: no memory for video frame", 0, 0);
+        Logger::error("SMK: no memory for video frame", 0, 0);
         return 0;
     }
     for (int i = 0; i < MAX_TRACKS; i++) {
         if (s->audio_rate[i] & AUDIO_FLAG_HAS_TRACK) {
             s->frame_data.audio[i] = static_cast<uint8_t *>(clear_malloc(s->audio_size[i]));
             if (!s->frame_data.audio[i]) {
-                log_error("SMK: no memory for audio track", 0, i);
+                Logger::error("SMK: no memory for audio track", 0, i);
                 return 0;
             }
         }
@@ -516,7 +516,7 @@ static int allocate_frame_memory(smacker s)
 smacker smacker_open(FILE *fp)
 {
     if (!fp) {
-        log_error("SMK: file does not exist", 0, 0);
+        Logger::error("SMK: file does not exist", 0, 0);
         return NULL;
     }
     smacker s = (struct smacker_t *) clear_malloc(sizeof(struct smacker_t));
@@ -653,11 +653,11 @@ static int decode_audio_track(smacker s, int track, uint8_t *data, int length)
     int header_is_stereo = (s->audio_rate[track] & AUDIO_FLAG_STEREO) ? 1 : 0;
     int header_is_16bit = (s->audio_rate[track] & AUDIO_FLAG_16BIT) ? 1 : 0;
     if (is_stereo != header_is_stereo) {
-        log_error("SMK: stereo flag in frame does not match header", 0, 0);
+        Logger::error("SMK: stereo flag in frame does not match header", 0, 0);
         return 0;
     }
     if (is_16bit != header_is_16bit) {
-        log_error("SMK: 16-bit flag in frame does not match header", 0, 0);
+        Logger::error("SMK: 16-bit flag in frame does not match header", 0, 0);
         return 0;
     }
 
@@ -666,7 +666,7 @@ static int decode_audio_track(smacker s, int track, uint8_t *data, int length)
     int num_trees = channels * rate_bytes;
     hufftree8 *trees[4];
     if (!read_audio_frame_trees(bs, trees, num_trees)) {
-        log_error("SMK: unable to read audio huffman trees", 0, 0);
+        Logger::error("SMK: unable to read audio huffman trees", 0, 0);
         return 0;
     }
 
@@ -719,7 +719,7 @@ static int decode_palette(smacker s, uint8_t *data, int length)
             // Copy from same position in previous palette
             int num_entries = 1 + (data[index] & 0x7f);
             if (num_entries + color_index > MAX_PALETTE) {
-                log_error("SMK: invalid palette data", 0, 0);
+                Logger::error("SMK: invalid palette data", 0, 0);
                 return 0;
             }
             memcpy(&new_palette[color_index], &s->frame_data.palette[color_index], sizeof(int32_t) * num_entries);
@@ -730,7 +730,7 @@ static int decode_palette(smacker s, uint8_t *data, int length)
             int num_entries = 1 + (data[index] & 0x3f);
             int offset = data[index + 1];
             if (num_entries + color_index > MAX_PALETTE || num_entries + offset > MAX_PALETTE) {
-                log_error("SMK: invalid palette data", 0, 0);
+                Logger::error("SMK: invalid palette data", 0, 0);
                 return 0;
             }
             memcpy(&new_palette[color_index], &s->frame_data.palette[offset], sizeof(int32_t) * num_entries);
@@ -811,17 +811,17 @@ static int decode_video(smacker s, uint8_t *frame_data, size_t length)
 static uint8_t *read_frame_data(smacker s, int frame_id)
 {
     if (fseek(s->fp, s->frame_data_offset_in_file + s->frame_offsets[frame_id], SEEK_SET) != 0) {
-        log_error("SMK: unable to seek to frame data", 0, frame_id);
+        Logger::error("SMK: unable to seek to frame data", 0, frame_id);
         return NULL;
     }
     size_t frame_size = s->frame_sizes[frame_id];
     uint8_t *frame_data = (uint8_t *) clear_malloc(frame_size);
     if (!frame_data) {
-        log_error("SMK: no memory for frame data", 0, frame_id);
+        Logger::error("SMK: no memory for frame data", 0, frame_id);
         return NULL;
     }
     if (fread(frame_data, 1, frame_size, s->fp) != frame_size) {
-        log_error("SMK: unable to read data for frame", 0, frame_id);
+        Logger::error("SMK: unable to read data for frame", 0, frame_id);
         free(frame_data);
         return NULL;
     }

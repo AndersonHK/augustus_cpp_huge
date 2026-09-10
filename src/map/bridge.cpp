@@ -1,5 +1,6 @@
 #include "building/building_record.h"
 #include "bridge.h"
+#include "city/figures.h"
 
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
@@ -8,7 +9,7 @@
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "game/undo.h"
 #include "map/building.h"
@@ -19,7 +20,7 @@
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 #include "map/tiles.h"
 
@@ -89,25 +90,25 @@ int map_bridge_calculate_length_direction(int x, int y, int *length, int *direct
     bridge.length = *length = 0;
     bridge.direction = *direction = 0;
 
-    if (!map_terrain_is(grid_offset, TERRAIN_WATER)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().water)) {
         return 0;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_types().road | terrain_types().building)) {
         return 0;
     }
-    if (map_terrain_count_directly_adjacent_with_type(grid_offset, TERRAIN_WATER) != 3) {
+    if (terrain_map().count_directly_adjacent_with_type(grid_offset, terrain_types().water) != 3) {
         return 0;
     }
-    if (!map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WATER)) {
+    if (!terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().water)) {
         bridge.direction_grid_delta = map_grid_delta(0, 1);
         bridge.direction = DIR_4_BOTTOM;
-    } else if (!map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WATER)) {
+    } else if (!terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().water)) {
         bridge.direction_grid_delta = map_grid_delta(-1, 0);
         bridge.direction = DIR_6_LEFT;
-    } else if (!map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WATER)) {
+    } else if (!terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().water)) {
         bridge.direction_grid_delta = map_grid_delta(0, -1);
         bridge.direction = DIR_0_TOP;
-    } else if (!map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WATER)) {
+    } else if (!terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().water)) {
         bridge.direction_grid_delta = map_grid_delta(1, 0);
         bridge.direction = DIR_2_RIGHT;
     } else {
@@ -121,20 +122,20 @@ int map_bridge_calculate_length_direction(int x, int y, int *length, int *direct
         if (i == 0) {
             //check for an inaccessible tile before the bridge starts
             int previous_offset = grid_offset - 2 * bridge.direction_grid_delta;
-            if (map_terrain_is(previous_offset, TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_SHRUB | TERRAIN_BUILDING)) {
+            if (terrain_map().contains(previous_offset, terrain_types().tree | terrain_types().rock | terrain_types().shrub | terrain_types().building)) {
                 blocking_tiles->grid_offsets[blocking_tiles->size++] = previous_offset;
                 bridge.end_grid_offset = 0;
             }
         }
         int next_offset = grid_offset + bridge.direction_grid_delta;
-        if (map_terrain_is(next_offset, TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_SHRUB | TERRAIN_BUILDING)) {
+        if (terrain_map().contains(next_offset, terrain_types().tree | terrain_types().rock | terrain_types().shrub | terrain_types().building)) {
             blocking_tiles->grid_offsets[blocking_tiles->size++] = next_offset;
             bridge.end_grid_offset = 0;
             break;
         }
-        if (!map_terrain_is(next_offset, TERRAIN_WATER)) {
+        if (!terrain_map().contains(next_offset, terrain_types().water)) {
             bridge.end_grid_offset = grid_offset;
-            if (map_terrain_count_directly_adjacent_with_type(grid_offset, TERRAIN_WATER) != 3) {
+            if (terrain_map().count_directly_adjacent_with_type(grid_offset, terrain_types().water) != 3) {
                 blocking_tiles->grid_offsets[blocking_tiles->size++] = grid_offset;
                 bridge.end_grid_offset = 0;
             }
@@ -146,7 +147,7 @@ int map_bridge_calculate_length_direction(int x, int y, int *length, int *direct
             bridge.end_grid_offset = 0;
             break;
         }
-        if (map_terrain_count_diagonally_adjacent_with_type(grid_offset, TERRAIN_WATER) != 4) {
+        if (terrain_map().count_diagonally_adjacent_with_type(grid_offset, terrain_types().water) != 4) {
             blocking_tiles->grid_offsets[blocking_tiles->size++] = grid_offset;
             bridge.end_grid_offset = 0;
             break;
@@ -444,7 +445,7 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
 
 int map_is_bridge(int grid_offset)
 {
-    return map_terrain_is(grid_offset, TERRAIN_WATER) && map_terrain_is(grid_offset, TERRAIN_ROAD) && map_terrain_is(grid_offset, TERRAIN_BUILDING);
+    return terrain_map().contains(grid_offset, terrain_types().water) && terrain_map().contains(grid_offset, terrain_types().road) && terrain_map().contains(grid_offset, terrain_types().building);
 }
 
 int map_bridge_is_ramp_sprite(int sprite)
@@ -544,8 +545,8 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
             record->prev_part_building_id = 0;
             record->next_part_building_id = 0;
             map_sprite_clear_tile(current);
-            map_terrain_remove(current, TERRAIN_ROAD);
-            map_terrain_remove(current, TERRAIN_BUILDING);
+            terrain_map().remove(current, terrain_types().road);
+            terrain_map().remove(current, terrain_types().building);
             map_building_clear_at(current);
         }
         bridge_x_end = map_grid_offset_to_x(current);
@@ -576,19 +577,32 @@ int map_bridge_has_figures(int grid_offset)
     }
 
     Building &main = map_building_at(grid_offset).dynamic_bridge_owner();
+    int occupancy = 0;
     for (Building *piece = &main; piece; piece = piece->dynamic_bridge_next()) {
         const building *record = piece->record();
         if (!record) {
             break;
         }
+        if (map_has_figure_category_at(record->grid_offset, FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_AGGRESSIVE_ANIMAL)) {
+            return 2;
+        }
         if (map_has_figure_category_at(record->grid_offset, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE)) {
-            return 1;
+            occupancy = 1;
         }
         if (!piece->has_dynamic_bridge_next()) {
             break;
         }
     }
-    return 0;
+    return occupancy;
+}
+
+warning_type map_bridge_demolition_warning(int grid_offset)
+{
+    if (!map_is_bridge(grid_offset)) return WARNING_NONE;
+    if (city_figures_total_invading_enemies() > 0) return WARNING_ENEMIES_PREVENT_BRIDGE_DESTRUCTION;
+    const int occupancy = map_bridge_has_figures(grid_offset);
+    if (occupancy == 2 || (occupancy && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) return WARNING_PEOPLE_ON_BRIDGE;
+    return WARNING_NONE;
 }
 
 void map_bridge_update_after_rotate(int)
@@ -730,7 +744,7 @@ static int report_loaded_bridge_validation_failure(const char *reason, int grid_
 {
     char detail[192];
     snprintf(detail, sizeof(detail), "grid_offset=%d building_id=%u reason=%s", grid_offset, building_id, reason ? reason : "<none>");
-    log_error("Current save contains an invalid native bridge chain", detail, 0);
+    Logger::error("Current save contains an invalid native bridge chain", detail, 0);
     return 0;
 }
 

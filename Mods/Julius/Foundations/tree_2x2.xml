@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<foundation type="tree_2x2" width="2" height="2" rotates="false" site_requires="tree">
+<foundation type="tree_2x2" width="2" height="2" rotates="false">
+    <proximity terrain="tree|shrub" max_distance="1" warning_key="TR_CITY_WARNING_TREE_NEEDED" match="any" />
     <profile symbol="L" requires="land" adds="building" />
     <rows><row cells="LL" /><row cells="LL" /></rows>
 </foundation>

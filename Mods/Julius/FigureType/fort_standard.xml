@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="fort_standard">
+    <behavior visible_on_enemy_overlay="true" />
     <profiles default="legacy">
         <profile id="legacy">
             <native class="legacy_action" />

@@ -31,6 +31,7 @@ typedef enum {
     SOUND_AMBIENT_EMPTY_TERRAIN02,
     SOUND_AMBIENT_EMPTY_LAND,
     SOUND_AMBIENT_WHEAT,
+    SOUND_AMBIENT_HAWK,
     SOUND_AMBIENT_MAX
 } sound_ambient_type;
 
@@ -164,6 +165,7 @@ static void ensure_sound_filenames_loaded(void)
     register_ambient_sound(SOUND_AMBIENT_EMPTY_TERRAIN02, {ASSETS_DIRECTORY "/Sounds/Terrain02.ogg"});
     register_ambient_sound(SOUND_AMBIENT_EMPTY_LAND, {"wavs/empty_land.wav"});
     register_ambient_sound(SOUND_AMBIENT_WHEAT, {"wavs/wheat.wav"});
+    register_ambient_sound(SOUND_AMBIENT_HAWK, {ASSETS_DIRECTORY "/Sounds/Hawk.ogg"});
 
     sound_filenames_loaded = 1;
 }

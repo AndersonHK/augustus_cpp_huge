@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="sidebar_ratings" base_width="160" base_height="192">
+    <widget id="culture_label" type="label" translation="main_strings.53.1" x="11" y="16" width="138" height="16" font="normal_white" />
+    <widget id="culture_met" type="label" binding="culture" visible_binding="culture.met" x="11" y="32" width="138" height="16" font="normal_green" />
+    <widget id="culture_unmet" type="label" binding="culture" visible_binding="culture.unmet" x="11" y="32" width="138" height="16" font="normal_red" />
+    <widget id="culture_tooltip" type="panel" x="2" y="16" width="156" height="32" tooltip_binding="culture" />
+    <widget id="prosperity_label" type="label" translation="main_strings.53.2" x="11" y="48" width="138" height="16" font="normal_white" />
+    <widget id="prosperity_met" type="label" binding="prosperity" visible_binding="prosperity.met" x="11" y="64" width="138" height="16" font="normal_green" />
+    <widget id="prosperity_unmet" type="label" binding="prosperity" visible_binding="prosperity.unmet" x="11" y="64" width="138" height="16" font="normal_red" />
+    <widget id="prosperity_tooltip" type="panel" x="2" y="48" width="156" height="32" tooltip_binding="prosperity" />
+    <widget id="peace_label" type="label" translation="main_strings.53.3" x="11" y="80" width="138" height="16" font="normal_white" />
+    <widget id="peace_met" type="label" binding="peace" visible_binding="peace.met" x="11" y="96" width="138" height="16" font="normal_green" />
+    <widget id="peace_unmet" type="label" binding="peace" visible_binding="peace.unmet" x="11" y="96" width="138" height="16" font="normal_red" />
+    <widget id="peace_tooltip" type="panel" x="2" y="80" width="156" height="32" tooltip_binding="peace" />
+    <widget id="favor_label" type="label" translation="main_strings.53.4" x="11" y="112" width="138" height="16" font="normal_white" />
+    <widget id="favor_met" type="label" binding="favor" visible_binding="favor.met" x="11" y="128" width="138" height="16" font="normal_green" />
+    <widget id="favor_unmet" type="label" binding="favor" visible_binding="favor.unmet" x="11" y="128" width="138" height="16" font="normal_red" />
+    <widget id="favor_tooltip" type="panel" x="2" y="112" width="156" height="32" tooltip_binding="favor" />
+    <widget id="population_label" type="label" binding="population.label" x="11" y="144" width="138" height="16" font="normal_white" />
+    <widget id="population_met" type="label" binding="population" visible_binding="population.met" x="11" y="160" width="138" height="16" font="normal_green" />
+    <widget id="population_unmet" type="label" binding="population" visible_binding="population.unmet" x="11" y="160" width="138" height="16" font="normal_red" />
+</window>

@@ -2,7 +2,7 @@
 
 #include "graphics/image.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
 
@@ -53,7 +53,7 @@ int upload_overlay(const color_t *pixels, int width, int height)
 
     g_footprint_image = image_manager().load_pixels(kFootprintPayloadKey, metadata, pixels, width, height);
     if (!g_footprint_image) {
-        log_error("Runtime overlay image upload failed", kFootprintPayloadKey, 0);
+        Logger::error("Runtime overlay image upload failed", kFootprintPayloadKey, 0);
         return 0;
     }
     return 1;

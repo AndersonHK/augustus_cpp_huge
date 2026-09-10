@@ -1,3 +1,7 @@
+#include "scenario/definition_overrides.h"
+#include "window/select_list.h"
+#include <vector>
+#include <string>
 #include "empire/editor.h"
 #include "translation/translation.h"
 #include "empire/empire.h"
@@ -462,7 +466,12 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
         if (obj->type != EMPIRE_OBJECT_CITY) {
             return 0;
         }
-        image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
+        const auto icon = empire_city_icon(obj->empire_city_icon);
+        const int icon_x = x + (center - icon.width()) / 2;
+        const int icon_y = y + (center - icon.height()) / 2;
+        icon.draw(icon_x, icon_y, color_mask);
+        if (draw_borders) graphics_draw_rect(icon_x, icon_y, icon.width(), icon.height(), COLOR_BLACK);
+        return 1;
     } else {
         if (empire_editor_get_moving_ornament_id() < 0) {
             image_id = Image::group(preview_image_group);
@@ -546,7 +555,8 @@ static void draw_empire_object(const empire_object *obj)
         window_empire_draw_border(obj, data.x_draw_offset, data.y_draw_offset);
     }
     if (obj->type == EMPIRE_OBJECT_CITY) {
-        image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
+        empire_city_icon(obj->empire_city_icon).draw(data.x_draw_offset + x, data.y_draw_offset + y);
+        return;
     } else if (obj->type == EMPIRE_OBJECT_BATTLE_ICON) {
         draw_shadowed_number(obj->invasion_path_id,
             data.x_draw_offset + x - 9, data.y_draw_offset + y - 9, COLOR_WHITE);
@@ -863,15 +873,9 @@ static void draw_city_info(const empire_city *city)
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[2].x, data.y_max - 93,
                     24, 24, data.focus_city_button_id == 3);
                 const empire_object *obj = empire_object_get(city->empire_object_id);
-                int image_id = empire_city_get_icon_image_id(obj->future_trade_after_icon);
-                if (image_id > 0) {
-                    float scale = obj->width > obj->height ? obj->width : obj->height / 24.0f;
-                    Image::from_id(image_id).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
-                    const image *img = image_get(image_id);
-                    if (img->animation && img->animation->speed_id) {
-                        Image::from_id(image_id + obj->animation_index).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale), (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
-                    }
-                }
+                const auto icon = empire_city_icon(obj->future_trade_after_icon);
+                const float scale = std::max(icon.width(), icon.height()) / 24.0f;
+                if (scale > 0) icon.draw(static_cast<int>((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), static_cast<int>((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
             }
             if (!trade_city_buttons[1].parameter1) {
                 // if the change trade route cost button isn't hidden draw it
@@ -1597,13 +1601,40 @@ static void set_opening_cost(int value)
     empire_city_set_trade_route_cost(empire_city_get(data.selected_city)->route_id, value);
 }
 
+static std::vector<resource_type> route_cost_resources;
+static std::vector<std::string> route_cost_labels;
+static std::vector<const uint8_t *> route_cost_label_pointers;
+static resource_type route_cost_resource = RESOURCE_NONE;
+static generic_button route_cost_anchor = {0, 0, 420, 24};
+
+static void set_resource_opening_cost(int value)
+{
+    if (route_cost_resource == RESOURCE_NONE) set_opening_cost(value);
+    else scenario_definition_override_set({ScenarioOverrideKind::RouteResource, std::to_string(empire_city_get(data.selected_city)->route_id), 0, resource_text_id(route_cost_resource), value});
+    window_invalidate();
+}
+
+static void select_route_cost(int index)
+{
+    route_cost_resource = route_cost_resources.at(index);
+    window_numeric_input_bound_show(100, 100, nullptr, 9, 0, 1000000000, set_resource_opening_cost);
+}
+
 static void button_route_cost(const generic_button *button)
 {
-    if (button->parameter1) {
-        return;
+    if (button->parameter1) return;
+    const auto *city = empire_city_get(data.selected_city);
+    if (!city) return;
+    route_cost_resources = {RESOURCE_NONE};
+    route_cost_labels = {std::string(reinterpret_cast<const char *>(lang_get_string("main_strings.6.0"))) + ": " + std::to_string(city->cost_to_open)};
+    for (int index = 0; index < resource_production_count(); ++index) {
+        const auto resource = resource_get_production(index);
+        route_cost_resources.push_back(resource);
+        route_cost_labels.push_back(std::string(reinterpret_cast<const char *>(resource_get_data(resource)->text)) + ": " + std::to_string(empire_city_trade_resource_cost(city->route_id, resource)));
     }
-    window_numeric_input_bound_show((data.x_min + data.x_max) / 2 - 4 * BLOCK_SIZE - screen_dialog_offset_x(),
-        ((data.y_min + data.y_max) - 15 * BLOCK_SIZE) / 2 - screen_dialog_offset_y(), NULL, 6, 1, 999999, set_opening_cost);
+    route_cost_label_pointers.clear();
+    for (const auto &label : route_cost_labels) route_cost_label_pointers.push_back(reinterpret_cast<const uint8_t *>(label.c_str()));
+    window_select_list_show_text(screen_dialog_offset_x() + 100, screen_dialog_offset_y() + 30, &route_cost_anchor, route_cost_label_pointers.data(), static_cast<int>(route_cost_label_pointers.size()), select_route_cost);
 }
 
 static void set_tool(int value)

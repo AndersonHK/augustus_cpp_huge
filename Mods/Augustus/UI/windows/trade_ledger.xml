@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="trade_ledger" base_width="960" base_height="560">
+    <widget y="0" x="0" type="panel" id="panel" style="outer_panel" phase="background" width="960" height="560" />
+    <widget type="label" id="title" translation="TR_TRADE_LEDGER" x="24" y="12" width="300" font="large_black" />
+    <widget type="label" id="period" binding="period" x="335" y="17" width="420" />
+    <widget type="text_button" id="older" text="-" action="period.older" enabled_binding="period.older" x="755" y="10" width="32" height="26" text_offset_y="5" />
+    <widget type="text_button" id="newer" text="+" action="period.newer" enabled_binding="period.newer" x="797" y="10" width="32" height="26" text_offset_y="5" />
+    <widget type="text_button" id="close" text="X" action="close" x="902" y="10" width="32" height="26" text_offset_y="5" />
+    <widget type="text_button" id="tab_resources" translation="main_strings.44.35" action="tab.resources" selected_binding="tab.resources" x="24" y="49" width="220" height="28" text_offset_y="5" />
+    <widget type="text_button" id="tab_transactions" translation="TR_LEDGER_TRANSACTIONS" action="tab.transactions" selected_binding="tab.transactions" x="252" y="49" width="220" height="28" text_offset_y="5" />
+    <widget type="text_button" id="tab_finance" translation="main_strings.60.0" action="tab.finance" selected_binding="tab.finance" x="480" y="49" width="220" height="28" text_offset_y="5" />
+    <widget type="text_button" id="filter_resource" binding="filter.resource" action="filter.resource" visible_binding="tab.transactions" x="24" y="90" width="256" height="26" text_offset_y="5" />
+    <widget type="text_button" id="filter_city" binding="filter.city" action="filter.city" visible_binding="tab.transactions" x="290" y="90" width="256" height="26" text_offset_y="5" />
+    <widget type="text_button" id="filter_direction" binding="filter.direction" action="filter.direction" visible_binding="tab.transactions" x="556" y="90" width="184" height="26" text_offset_y="5" />
+    <widget type="text_button" id="filter_month" binding="filter.month" action="filter.month" visible_binding="tab.transactions" x="24" y="124" width="180" height="26" text_offset_y="5" />
+    <widget type="text_button" id="filter_storage" binding="filter.storage" action="filter.storage" visible_binding="tab.transactions" x="214" y="124" width="220" height="26" text_offset_y="5" />
+    <widget type="text_button" id="filter_visit" binding="filter.visit" action="filter.visit" visible_binding="tab.transactions" x="444" y="124" width="220" height="26" text_offset_y="5" />
+    <widget type="text_button" id="clear_filters" translation="TR_LEDGER_CLEAR_FILTERS" action="filter.clear" visible_binding="tab.transactions" x="754" y="90" width="180" height="26" text_offset_y="5" />
+    <widget type="label" id="stock_note" translation="TR_LEDGER_STOCK_NOTE" visible_binding="tab.resources" x="24" y="94" width="902" />
+    <widget type="label" id="unknown_note" translation="TR_LEDGER_UNKNOWN_NOTE" visible_binding="tab.finance" x="24" y="94" width="902" />
+    <widget type="panel" id="table" style="inner_panel" phase="background" x="16" y="196" width="928" height="288" />
+    <widget type="text_button" id="resource_header_resource" translation="TR_LEDGER_RESOURCE" action="sort.resource" visible_binding="tab.resources" x="24" y="162" width="150" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_rows" binding="row.resource" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="24" y="204" width="150" height="280" font="normal_white" text_alignment="left" />
+    <widget type="text_button" id="resource_header_produced" translation="TR_LEDGER_PRODUCED" action="sort.produced" visible_binding="tab.resources" x="184" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_produced" binding="row.produced" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="184" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_consumed" translation="TR_LEDGER_CONSUMED" action="sort.consumed" visible_binding="tab.resources" x="276" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_consumed" binding="row.consumed" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="276" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_imported" translation="TR_LEDGER_IMPORTED" action="sort.imported" visible_binding="tab.resources" x="368" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_imported" binding="row.imported" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="368" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_exported" translation="TR_LEDGER_EXPORTED" action="sort.exported" visible_binding="tab.resources" x="460" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_exported" binding="row.exported" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="460" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_stock" translation="TR_LEDGER_STOCK" action="sort.stock" visible_binding="tab.resources" x="552" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_stock" binding="row.stock" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="552" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_income" translation="main_strings.60.10" action="sort.income" visible_binding="tab.resources" x="644" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_income" binding="row.income" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="644" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_expense" translation="TR_LEDGER_EXPENSE" action="sort.expense" visible_binding="tab.resources" x="736" y="162" width="87" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_expense" binding="row.expense" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="736" y="204" width="87" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="resource_header_balance" translation="main_strings.60.19" action="sort.balance" visible_binding="tab.resources" x="828" y="162" width="105" height="28" text_offset_y="6" />
+    <widget type="label" id="resource_balance" binding="row.balance" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.resources" x="828" y="204" width="105" height="18" font="normal_white" text_alignment="right" />
+    <widget type="text_button" id="transaction_header_resource" translation="TR_LEDGER_RESOURCE" action="sort.resource" visible_binding="tab.transactions" x="24" y="162" width="122" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_resource" binding="row.resource" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="24" y="204" width="122" font="normal_white" />
+    <widget type="text_button" id="transaction_header_city" translation="main_strings.44.9" action="sort.city" visible_binding="tab.transactions" x="153" y="162" width="166" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_city" binding="row.city" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="153" y="204" width="166" font="normal_white" />
+    <widget type="text_button" id="transaction_header_month" translation="main_strings.8.4" action="sort.month" visible_binding="tab.transactions" x="326" y="162" width="58" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_month" binding="row.month" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="326" y="204" width="58" font="normal_white" />
+    <widget type="text_button" id="transaction_header_direction" translation="TR_LEDGER_DIRECTION" action="sort.direction" visible_binding="tab.transactions" x="391" y="162" width="84" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_direction" binding="row.direction" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="391" y="204" width="84" font="normal_white" />
+    <widget type="text_button" id="transaction_header_storage" translation="TR_LEDGER_STORAGE" action="sort.storage" visible_binding="tab.transactions" x="482" y="162" width="72" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_storage" binding="row.storage" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="482" y="204" width="72" font="normal_white" />
+    <widget type="text_button" id="transaction_header_visit" translation="TR_LEDGER_VISIT" action="sort.visit" visible_binding="tab.transactions" x="561" y="162" width="82" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_visit" binding="row.visit" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="561" y="204" width="82" font="normal_white" />
+    <widget type="text_button" id="transaction_header_units" translation="TR_LEDGER_UNITS" action="sort.units" visible_binding="tab.transactions" x="650" y="162" width="90" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_units" binding="row.units" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="650" y="204" width="90" font="normal_white" />
+    <widget type="text_button" id="transaction_header_price" translation="TR_LEDGER_PRICE" action="sort.price" visible_binding="tab.transactions" x="747" y="162" width="78" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_price" binding="row.price" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="747" y="204" width="78" font="normal_white" />
+    <widget type="text_button" id="transaction_header_value" translation="TR_LEDGER_VALUE" action="sort.value" visible_binding="tab.transactions" x="832" y="162" width="102" height="28" text_offset_y="6" />
+    <widget type="label" id="transaction_value" binding="row.value" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.transactions" x="832" y="204" width="102" font="normal_white" />
+    <widget type="label" id="finance_names" binding="row.finance_name" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.finance" x="40" y="204" width="560" font="normal_white" />
+    <widget type="label" id="finance_values" binding="row.finance_value" repeat_source="ledger.rows" repeat_spacing_y="20" visible_binding="tab.finance" x="620" y="204" width="270" font="normal_white" text_alignment="right" />
+    <widget type="label" id="empty" translation="TR_LEDGER_EMPTY" visible_binding="empty" x="40" y="226" width="850" font="normal_white" />
+    <widget type="text_button" id="previous" text="-" action="page.previous" enabled_binding="page.previous" x="375" y="504" width="40" height="28" text_offset_y="5" />
+    <widget type="label" id="page" binding="page" x="430" y="512" width="100" text_alignment="center" />
+    <widget type="text_button" id="next" text="+" action="page.next" enabled_binding="page.next" x="546" y="504" width="40" height="28" text_offset_y="5" />
+</window>

@@ -1,9 +1,8 @@
 #include "assets/image_group_payload_internal.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "core/file.h"
-#include "core/log.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
 
@@ -71,20 +70,20 @@ int read_file_to_buffer(const char *filename, std::vector<char> &buffer)
 {
     FILE *file = file_open(filename, "rb");
     if (!file) {
-        log_error("Unable to open image group xml", filename, 0);
+        Logger::error("Unable to open image group xml", filename, 0);
         return 0;
     }
 
     if (fseek(file, 0, SEEK_END) != 0) {
         file_close(file);
-        log_error("Unable to seek image group xml", filename, 0);
+        Logger::error("Unable to seek image group xml", filename, 0);
         return 0;
     }
 
     long size = ftell(file);
     if (size < 0) {
         file_close(file);
-        log_error("Unable to size image group xml", filename, 0);
+        Logger::error("Unable to size image group xml", filename, 0);
         return 0;
     }
     rewind(file);
@@ -94,7 +93,7 @@ int read_file_to_buffer(const char *filename, std::vector<char> &buffer)
         const size_t bytes_read = fread(buffer.data(), 1, buffer.size(), file);
         if (bytes_read != buffer.size()) {
             file_close(file);
-            log_error("Unable to read image group xml", filename, 0);
+            Logger::error("Unable to read image group xml", filename, 0);
             return 0;
         }
     }
@@ -110,7 +109,7 @@ int xml_start_assetlist(void)
     const char *name = xml_parser_get_attribute_string("name");
     const std::string normalized_name = normalize_path_key(name);
     if (normalized_name.empty() || normalized_name != g_parse_state.requested_key) {
-        crash_context_report_error("ImageGroup assetlist name does not match requested key", name ? name : "");
+        Logger::error("ImageGroup assetlist name does not match requested key", name ? name : "");
         g_parse_state.error = 1;
         return 0;
     }
@@ -123,14 +122,14 @@ int xml_start_assetlist(void)
     const int has_inherited_group = xml_parser_has_attribute("inherits");
     const int has_logical_scale = xml_parser_has_attribute("logical_units_per_source_pixel");
     if (has_inherited_group && !has_logical_scale) {
-        crash_context_report_error("Inherited ImageGroup requires logical_units_per_source_pixel", normalized_name.c_str());
+        Logger::error("Inherited ImageGroup requires logical_units_per_source_pixel", normalized_name.c_str());
         g_parse_state.error = 1;
         return 0;
     }
     if (has_logical_scale && !parse_positive_logical_unit(
             xml_parser_get_attribute_string("logical_units_per_source_pixel"),
             g_parse_state.doc->logical_units_per_source_pixel)) {
-        crash_context_report_error("ImageGroup scale must be a positive decimal logical-units-per-source-pixel value", normalized_name.c_str());
+        Logger::error("ImageGroup scale must be a positive decimal logical-units-per-source-pixel value", normalized_name.c_str());
         g_parse_state.error = 1;
         return 0;
     }
@@ -139,12 +138,12 @@ int xml_start_assetlist(void)
             xml_parser_get_attribute_string("inherits"),
             normalized_name);
         if (g_parse_state.doc->inherited_group_key.empty()) {
-            crash_context_report_error("Inherited ImageGroup target must be a nonempty normalized key", normalized_name.c_str());
+            Logger::error("Inherited ImageGroup target must be a nonempty normalized key", normalized_name.c_str());
             g_parse_state.error = 1;
             return 0;
         }
         if (normalized_keys_equal(g_parse_state.doc->inherited_group_key, normalized_name)) {
-            crash_context_report_error("ImageGroup cannot inherit itself", normalized_name.c_str());
+            Logger::error("ImageGroup cannot inherit itself", normalized_name.c_str());
             g_parse_state.error = 1;
             return 0;
         }
@@ -157,9 +156,17 @@ int xml_start_assetlist(void)
 RawLayerDef parse_raw_layer(layer_isometric_part default_part, layer_mask default_mask)
 {
     RawLayerDef layer;
+    if (xml_parser_has_attribute("frame") && !parse_positive_logical_unit(xml_parser_get_attribute_string("frame"), layer.reference.frame)) {
+        Logger::error("ImageGroup frame reference must be positive", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+    }
     const char *path = xml_parser_get_attribute_string("src");
     const char *group = xml_parser_get_attribute_string("group");
     const char *image_id = xml_parser_get_attribute_string("image");
+    if (layer.reference.frame > 0 && ((!group || !*group) || (path && *path))) {
+        Logger::error("ImageGroup frame selector requires a group/image reference", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+    }
 
     if (path && *path) {
         layer.reference.type = RawReferenceType::PNG_PATH;
@@ -202,14 +209,14 @@ int xml_start_image(void)
         return 0;
     }
     if (g_parse_state.doc->inherits_group()) {
-        crash_context_report_error("Inherited ImageGroup cannot declare local image entries", g_parse_state.requested_key.c_str());
+        Logger::error("Inherited ImageGroup cannot declare local image entries", g_parse_state.requested_key.c_str());
         g_parse_state.error = 1;
         return 0;
     }
 
     const char *id = xml_parser_get_attribute_string("id");
     if (!id || !*id) {
-        crash_context_report_error("ImageGroup image is missing id", g_parse_state.requested_key.c_str());
+        Logger::error("ImageGroup image is missing id", g_parse_state.requested_key.c_str());
         g_parse_state.error = 1;
         return 0;
     }
@@ -221,46 +228,51 @@ int xml_start_image(void)
     const int has_width = xml_parser_has_attribute("width");
     const int has_height = xml_parser_has_attribute("height");
     if (has_width != has_height) {
-        crash_context_report_error("ImageGroup source size requires both width and height", entry.id.c_str());
+        Logger::error("ImageGroup source size requires both width and height", entry.id.c_str());
         g_parse_state.error = 1;
         return 0;
     }
     entry.width = xml_parser_get_attribute_int("width");
     entry.height = xml_parser_get_attribute_int("height");
     if (has_width && (entry.width <= 0 || entry.height <= 0)) {
-        crash_context_report_error("ImageGroup source size requires positive pixel dimensions", entry.id.c_str());
+        Logger::error("ImageGroup source size requires positive pixel dimensions", entry.id.c_str());
         g_parse_state.error = 1;
         return 0;
     }
     const int has_logical_width = xml_parser_has_attribute("logical_width");
     const int has_logical_height = xml_parser_has_attribute("logical_height");
     if (has_logical_width != has_logical_height) {
-        crash_context_report_error("ImageGroup logical size requires both logical_width and logical_height", entry.id.c_str());
+        Logger::error("ImageGroup logical size requires both logical_width and logical_height", entry.id.c_str());
         g_parse_state.error = 1;
         return 0;
     }
     if (has_logical_width) {
         if (!has_width) {
-            crash_context_report_error("ImageGroup logical size requires explicit source width and height", entry.id.c_str());
+            Logger::error("ImageGroup logical size requires explicit source width and height", entry.id.c_str());
             g_parse_state.error = 1;
             return 0;
         }
         entry.fixed_logical_size.width = xml_parser_get_attribute_int("logical_width");
         entry.fixed_logical_size.height = xml_parser_get_attribute_int("logical_height");
         if (entry.fixed_logical_size.width <= 0 || entry.fixed_logical_size.height <= 0) {
-            crash_context_report_error("ImageGroup logical size requires positive fixed-point logical units", entry.id.c_str());
+            Logger::error("ImageGroup logical size requires positive fixed-point logical units", entry.id.c_str());
             g_parse_state.error = 1;
             return 0;
         }
     }
     entry.draw_offset_x = xml_parser_get_attribute_int("x");
     entry.draw_offset_y = xml_parser_get_attribute_int("y");
+    entry.has_sprite_offset = xml_parser_has_attribute("sprite_offset_x") || xml_parser_has_attribute("sprite_offset_y");
+    entry.sprite_offset_x = xml_parser_get_attribute_int("sprite_offset_x");
+    entry.sprite_offset_y = xml_parser_get_attribute_int("sprite_offset_y");
     entry.is_isometric = xml_parser_get_attribute_bool("isometric");
 
     const char *path = xml_parser_get_attribute_string("src");
     const char *group = xml_parser_get_attribute_string("group");
     const char *image_id = xml_parser_get_attribute_string("image");
-    if (group && *group) {
+    if (xml_parser_has_attribute("frame")) {
+        entry.layers.push_back(parse_raw_layer(PART_BOTH, LAYER_MASK_NONE));
+    } else if (group && *group) {
         entry.has_full_image_ref = 1;
         entry.full_image_ref.type = RawReferenceType::GROUP_IMAGE;
         entry.full_image_ref.group_key = normalize_group_reference_key(group, g_parse_state.requested_key);
@@ -300,12 +312,15 @@ int xml_start_animation(void)
     }
     RawAnimationDef &animation = g_parse_state.current_entry->animation;
     animation.present = 1;
-    animation.metadata.num_sprites = xml_parser_get_attribute_int("frames");
+    if (xml_parser_has_attribute("frames") && !parse_positive_logical_unit(xml_parser_get_attribute_string("frames"), animation.declared_frame_count)) {
+        Logger::error("ImageGroup animation frame count must be positive", g_parse_state.requested_key.c_str());
+        g_parse_state.error = 1;
+        return 0;
+    }
     animation.metadata.speed_id = xml_parser_get_attribute_int("speed");
     animation.metadata.can_reverse = xml_parser_get_attribute_bool("reversible");
     animation.metadata.sprite_offset_x = xml_parser_get_attribute_int("x");
     animation.metadata.sprite_offset_y = xml_parser_get_attribute_int("y");
-    animation.implicit_frame_count = animation.metadata.num_sprites;
     return 1;
 }
 
@@ -323,6 +338,7 @@ int xml_start_frame(void)
 
 static const xml_parser_element kXmlElements[] = {
     { "assetlist", xml_start_assetlist, nullptr },
+    { "legacy", nullptr, nullptr, "assetlist" },
     { "image", xml_start_image, nullptr, "assetlist" },
     { "layer", xml_start_layer, nullptr, "image" },
     { "animation", xml_start_animation, nullptr, "image" },
@@ -333,7 +349,7 @@ static const xml_parser_element kXmlElements[] = {
 // Output: a fully parsed source-local document or null when the XML is malformed or mismatched.
 std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::string &path_key, const GraphicsLayerSource &source)
 {
-    CrashContextScope crash_scope("image_group.parse_group_doc", xml_path);
+    Logger::Scope crash_scope("image_group.parse_group_doc", xml_path);
     std::vector<char> buffer;
     if (!read_file_to_buffer(xml_path, buffer)) {
         return nullptr;
@@ -345,7 +361,7 @@ std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::
     g_parse_state.source = source;
 
     if (!xml_parser_init(kXmlElements, static_cast<int>(sizeof(kXmlElements) / sizeof(kXmlElements[0])), 1)) {
-        crash_context_report_error("Unable to initialize image group parser", xml_path);
+        Logger::error("Unable to initialize image group parser", xml_path);
         return nullptr;
     }
 
@@ -354,6 +370,15 @@ std::unique_ptr<ImageGroupDoc> parse_group_doc(const char *xml_path, const std::
 
     if (!parsed || g_parse_state.error || !g_parse_state.doc) {
         return nullptr;
+    }
+    for (const auto &[id, entry] : g_parse_state.doc->entries) {
+        const auto &animation = entry.animation;
+        if ((!animation.explicit_frames.empty() && animation.declared_frame_count > 0 &&
+                animation.declared_frame_count != static_cast<int>(animation.explicit_frames.size())) ||
+            (animation.declared_frame_count > 0 && animation.explicit_frames.empty())) {
+            Logger::error("ImageGroup animation requires its complete declared frame list", id.c_str());
+            return nullptr;
+        }
     }
     return std::move(g_parse_state.doc);
 }

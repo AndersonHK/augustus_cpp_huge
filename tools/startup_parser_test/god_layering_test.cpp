@@ -13,9 +13,9 @@
 namespace {
 
 constexpr const char *LOWER_XML =
-    "<god legacy=\"neptune\"><blessing type=\"neptune_trade_bonus\" months=\"4\"/></god>";
+    "<god legacy=\"neptune\"><blessings><effect><action callback=\"trade_bonus\" months=\"4\" percent=\"50\"/></effect></blessings></god>";
 constexpr const char *UPPER_XML =
-    "<god legacy=\"neptune\"><blessing type=\"neptune_trade_bonus\" months=\"12\"/></god>";
+    "<god legacy=\"neptune\"><blessings><effect><action callback=\"trade_bonus\" months=\"12\" percent=\"50\"/></effect></blessings></god>";
 constexpr const char *TOMBSTONE_XML =
     "<god legacy=\"neptune\" disabled=\"true\"></god>";
 
@@ -80,6 +80,32 @@ bool write_file(const std::filesystem::path &path, const char *contents)
 
 bool validate_god_layering_contract(std::ostream &errors)
 {
+    try {
+        const auto effect = religion::parse_effect(mod_content::parse("<effect><condition metric='health' min='60' max='79'/><action callback='trade_bonus' months='7' percent='75'/></effect>"), religion::Trigger::Blessing);
+        religion::Context context;
+        for (int health = 0; health <= 100; ++health) {
+            context.values[static_cast<size_t>(religion::Metric::Health)] = health;
+            if (effect.matches(context) != (health >= 60 && health <= 79)) throw std::runtime_error("Religion condition boundary mismatch");
+        }
+        std::array<religion::EffectCallback, static_cast<size_t>(religion::Callback::Count)> callbacks{};
+        callbacks[static_cast<size_t>(religion::Callback::TradeBonus)] = [](religion::Context &context, const religion::Action &args) {
+            context.values[static_cast<size_t>(religion::Metric::Favor)] = args[0] * args[1]; return true;
+        };
+        religion::execute(effect.actions, context, callbacks);
+        if (context.values[static_cast<size_t>(religion::Metric::Favor)] != 525) throw std::runtime_error("Parameterized callback dispatch mismatch");
+        for (const char *xml : {
+            "<effect><action callback='unknown'/></effect>",
+            "<effect><action callback='rejuvenate' years='25' minimum_age='74'/></effect>",
+            "<effect><action callback='farm_drought' days='256'/></effect>",
+            "<effect><condition metric='health' min='80' max='60'/><action callback='health' amount='-10'/></effect>",
+            "<effect><action callback='employment' months='3' months_per_point='0' base_bonus='1'/></effect>",
+            "<effect><action callback='trade_bonus' months='12' percent='50' typo='1'/></effect>"}) {
+            bool rejected = false;
+            try { religion::parse_effect(mod_content::parse(xml), religion::Trigger::Blessing); } catch (const std::exception &) { rejected = true; }
+            if (!rejected) throw std::runtime_error("Malformed religion definition was accepted");
+        }
+    } catch (const std::exception &error) { errors << error.what() << '\n'; return false; }
+
     const god_layer_test_input replacement[] = {
         input(LOWER_XML, 0, "Julius", "Julius/Gods/neptune.xml", "neptune"),
         input(UPPER_XML, 1, "Vespasian", "Vespasian/Gods/neptune.xml", "neptune"),
@@ -88,7 +114,7 @@ bool validate_god_layering_contract(std::ostream &errors)
     if (!valid(replacement, 2, "neptune", &result) ||
         result.active_count != 1 || result.suppressed_count != 0 || result.queried_disabled ||
         result.queried_source_layer != 1 || result.queried_legacy_type != GOD_NEPTUNE ||
-        result.queried_runtime_id != 0 || result.queried_neptune_blessing_months != 12 ||
+        result.queried_runtime_id != 0 || result.queried_trade_bonus_months != 12 ||
         result.runtime_count != 1) {
         errors << "God upper-layer winner was not a complete authoritative replacement.\n";
         return false;
@@ -117,7 +143,7 @@ bool validate_god_layering_contract(std::ostream &errors)
 
     constexpr const char *MALFORMED_TOMBSTONE_XML =
         "<god legacy=\"neptune\" disabled=\"true\">"
-        "<blessing type=\"neptune_trade_bonus\" months=\"1\"/>"
+        "<blessings><effect><action callback=\"trade_bonus\" months=\"1\" percent=\"50\"/></effect></blessings>"
         "</god>";
     const god_layer_test_input malformed_tombstone[] = {
         input(MALFORMED_TOMBSTONE_XML, 0, "Julius", "Julius/Gods/neptune.xml", "neptune"),
@@ -174,7 +200,7 @@ bool validate_god_layering_contract(std::ostream &errors)
     if (!god_layered_definition_files_are_valid_for_test(
             layers, "neptune", &result, &failure) ||
         result.active_count != 1 || result.queried_source_layer != 0 ||
-        result.queried_neptune_blessing_months != 4 || result.runtime_count != 1) {
+        result.queried_trade_bonus_months != 4 || result.runtime_count != 1) {
         errors << "God missing upper directory did not preserve inheritance: " << failure << '\n';
         return false;
     }

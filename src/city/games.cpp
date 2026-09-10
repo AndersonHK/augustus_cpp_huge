@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "games.h"
 
 #include "building/building_type_registry_internal.h"
@@ -175,10 +176,12 @@ void city_games_schedule(int game_id)
         resource_type resource = static_cast<resource_type>(resource_id);
         int resource_cost = city_games_resource_cost(game_id, resource);
         if (resource_cost) {
+            const int requested = resource_cost;
             resource_cost = building_warehouses_remove_resource(resource, resource_cost);
             if (resource_cost > 0 && resource_is_food(resource)) {
-                building_granaries_remove_resource(resource, resource_cost);
+                resource_cost = building_granaries_remove_resource(resource, resource_cost);
             }
+            city_trade_ledger_consumed(resource, (requested - resource_cost) * resource_units_per_load());
         }
     }
 

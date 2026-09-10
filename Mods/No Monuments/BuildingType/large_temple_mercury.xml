@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="large_temple_mercury">
+    <construction road_update_radius="5">
+        <requirement type="marble" amount="2" />
+        <requirement type="stone" amount="4" />
+    </construction>
+</building>

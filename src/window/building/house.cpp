@@ -1,5 +1,6 @@
 #include "building/building.h"
 #include "building/HousingProfileDef.h"
+#include "building/house_evolution.h"
 #include "building/local_workforce.h"
 #include "city/sentiment.h"
 #include "game/ResourceGraphics.h"
@@ -282,7 +283,9 @@ void window_building_draw_house(building_info_context *c)
         lang_text_draw_multiline("TR_BUILDING_LATRINES_MISSING_EVOLVE",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_multiline(current_string_key(127, 40 + c->building->Housing->state().evolve_text_id), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        const int warning = c->building->Housing->state().evolve_text_id;
+        const char *extended = building_house_extended_evolution_translation(warning);
+        lang_text_draw_multiline(extended ? std::string(extended) : current_string_key(127, 40 + warning), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 }
 

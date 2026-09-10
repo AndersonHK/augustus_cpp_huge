@@ -1,8 +1,7 @@
 #include "building/distribution.h"
 
 #include "building/storage_type_registry.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -56,7 +55,7 @@ ParseState g_parse_state;
 int parse_root()
 {
     if (!g_parse_state.definition || g_parse_state.saw_root) {
-        log_error("Distribution has an invalid or duplicate root", 0, 0);
+        Logger::error("Distribution has an invalid or duplicate root", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -64,7 +63,7 @@ int parse_root()
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("Distribution has invalid Boolean attribute 'disabled'", 0, 0);
+        Logger::error("Distribution has invalid Boolean attribute 'disabled'", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -76,12 +75,12 @@ int parse_root()
 int parse_takes()
 {
     if (!g_parse_state.definition || !g_parse_state.saw_root) {
-        log_error("Encountered Distribution takes before root", 0, 0);
+        Logger::error("Encountered Distribution takes before root", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     if (g_parse_state.disabled) {
-        log_error("Disabled Distribution tombstone contains definition data", "takes", 0);
+        Logger::error("Disabled Distribution tombstone contains definition data", "takes", 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -89,7 +88,7 @@ int parse_takes()
     const bool has_resource = xml_parser_has_attribute("resource") != 0;
     const bool has_storage = xml_parser_has_attribute("storage") != 0;
     if (has_resource == has_storage) {
-        log_error("Distribution takes must reference exactly one resource or storage", g_parse_state.definition->path(), 0);
+        Logger::error("Distribution takes must reference exactly one resource or storage", g_parse_state.definition->path(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -98,7 +97,7 @@ int parse_takes()
     if (!xml_definition::parse_optional_nonnegative_int_attribute("priority", &rule.priority) ||
         !xml_definition::parse_optional_nonnegative_int_attribute("baseline_stock", &rule.baseline_stock) ||
         !xml_definition::parse_optional_nonnegative_int_attribute("max_stock", &rule.max_stock)) {
-        log_error("Distribution rule has invalid non-negative integer attribute", g_parse_state.definition->path(), 0);
+        Logger::error("Distribution rule has invalid non-negative integer attribute", g_parse_state.definition->path(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -110,7 +109,7 @@ int parse_takes()
         rule.reference = xml_definition::normalize_path(rule.reference.c_str());
     }
     if (rule.reference.empty()) {
-        log_error("Distribution takes reference must not be empty", g_parse_state.definition->path(), 0);
+        Logger::error("Distribution takes reference must not be empty", g_parse_state.definition->path(), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -132,7 +131,7 @@ int parse_definition_buffer(
     StagedDistribution &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("distribution_registry.parse_definition", filename);
+    Logger::Scope error_scope("distribution_registry.parse_definition", filename);
 
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<Distribution>(definition_path ? definition_path : "");
@@ -146,8 +145,8 @@ int parse_definition_buffer(
         (!g_parse_state.disabled && !g_parse_state.saw_rule)) {
         const std::string detail = std::string("file=") + (filename ? filename : "") +
             " path=" + (definition_path ? definition_path : "");
-        log_error("Unable to parse Distribution xml", detail.c_str(), 0);
-        error_context_report_error("Unable to parse Distribution xml.", detail.c_str());
+        Logger::error("Unable to parse Distribution xml", detail.c_str(), 0);
+        Logger::error("Unable to parse Distribution xml.", detail.c_str());
         if (failure_reason) {
             *failure_reason = xml_definition::format_failure_reason("Unable to parse Distribution xml.", detail.c_str());
         }
@@ -185,7 +184,7 @@ int stage_definition(StagedDistributions &staged, StagedDistribution definition)
     }
     if (!staged.overlays.apply(key, definition.disabled, definition.source)) {
         staged.failure_reason = staged.overlays.failure_reason();
-        log_error("Unable to layer Distribution definition", staged.failure_reason.c_str(), 0);
+        Logger::error("Unable to layer Distribution definition", staged.failure_reason.c_str(), 0);
         return 0;
     }
     staged.winners.insert_or_assign(key, std::move(definition));
@@ -200,7 +199,7 @@ int fail_reference(
 {
     staged.failure_reason = "Distribution '" + path + "' from " + winner.source.describe() +
         " has an unknown " + (rule.storage ? "storage" : "resource") + " reference '" + rule.reference + "'.";
-    log_error("Unable to resolve Distribution reference", staged.failure_reason.c_str(), 0);
+    Logger::error("Unable to resolve Distribution reference", staged.failure_reason.c_str(), 0);
     return 0;
 }
 
@@ -229,7 +228,7 @@ int resolve_winners(StagedDistributions &staged)
         if (winner.definition->resources().empty()) {
             staged.failure_reason = "Distribution '" + entry.first + "' from " + winner.source.describe() +
                 " does not resolve to any resources.";
-            log_error("Distribution has no effective resources", staged.failure_reason.c_str(), 0);
+            Logger::error("Distribution has no effective resources", staged.failure_reason.c_str(), 0);
             return 0;
         }
     }
@@ -366,7 +365,7 @@ int distribution_registry_load(void)
     if (!mod_definition::configured_layers(layers, &failure_reason) ||
         !distribution_registry_load_layers(layers, &failure_reason)) {
         building_type_registry_impl::g_failure_reason = failure_reason;
-        error_context_report_error("Unable to load layered Distribution definitions.", failure_reason.c_str());
+        Logger::error("Unable to load layered Distribution definitions.", failure_reason.c_str());
         return 0;
     }
     return 1;

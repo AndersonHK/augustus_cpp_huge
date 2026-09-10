@@ -1,3 +1,5 @@
+#include "core/config.h"
+#include "scenario/property.h"
 #include "widget/city_draw.h"
 
 #include "assets/assets.h"
@@ -14,7 +16,7 @@
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tile_runtime_graphics.h"
 #include "map/tiles.h"
 
@@ -65,7 +67,15 @@ void city_draw_grid_overlay(int x, int y, float scale)
         grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
     }
     performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_GRID_OVERLAYS, 1);
-    Image::from_id(grid_id).draw(x, y, COLOR_GRID, scale);
+    color_t color = COLOR_GRID;
+    if (config_get(CONFIG_UI_CLIMATE_GRID_COLORS)) {
+        switch (scenario_property_climate()) {
+            case CLIMATE_DESERT: color = 0xff464646; break;
+            case CLIMATE_NORTHERN: color = 0xff131b1f; break;
+            default: color = 0xff162d39; break;
+        }
+    }
+    Image::from_id(grid_id).draw(x, y, color, scale);
 }
 
 void city_draw_prepare_render_tile_rows(CityViewRenderCommandBuffer &commands)
@@ -115,7 +125,7 @@ int city_draw_terrain_foundation_footprint(
 {
     // Bridge tiles deliberately carry both water and road terrain bits. Draw
     // the water below the bridge here, not the traversable road deck above it.
-    if (map_terrain_is(grid_offset, TERRAIN_WATER) && map_is_bridge(grid_offset)) {
+    if (terrain_map().contains(grid_offset, terrain_types().water) && map_is_bridge(grid_offset)) {
         const int image_id = map_image_at(grid_offset);
         if (image_id) {
             Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
@@ -123,7 +133,7 @@ int city_draw_terrain_foundation_footprint(
         }
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+    if (terrain_map().contains(grid_offset, terrain_types().road)) {
         Image::from_id(map_tiles_road_surface_image_id(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale, RENDER_DESTINATION_GEOMETRY_SHARED_CITY_TILE);
         return 1;
     }

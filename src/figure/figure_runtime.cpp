@@ -6,14 +6,14 @@
 #include "city/festival.h"
 #include "figure/action.h"
 #include "figure/figure.h"
+#include "building/state.h"
 #include "map/building.h"
 #include "map/road_access.h"
 
 #include "figure/figure_runtime_api.h"
 
 #include "building/building_type_registry_internal.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
@@ -32,7 +32,7 @@
 #include "figure/route.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 
@@ -276,7 +276,7 @@ void log_loaded_owner_error(const char *message, const Figure &figure, const fig
     const building *record = owner ? owner->record() : nullptr;
     char detail[384];
     snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u owner_type=%d owner_state=%d owner_primary=%u owner_secondary=%u owner_quaternary=%u", figure.id(), static_cast<unsigned int>(figure.type), profile ? profile->id() : "<none>", saved_owner_id, record ? record->type : 0, record ? record->state : 0, record ? record->figure_id : 0, record ? record->figure_id2 : 0, record ? record->figure_id4 : 0);
-    log_error(message, detail, 0);
+    Logger::error(message, detail, 0);
 }
 
 static void write_debug_json_string(FILE *file, const char *text)
@@ -373,7 +373,7 @@ void figure_runtime_reset()
     g_runtime_entries.clear();
 }
 
-bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, Building **resolved_owner)
+bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id, bool allow_legacy_profile_translation, bool allow_legacy_owner_reference_repair, bool allow_delayed_owner_binding_bridge, bool allow_land_trade_profile_bridge, Building **resolved_owner)
 {
     if (resolved_owner) {
         *resolved_owner = nullptr;
@@ -382,24 +382,46 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
         return false;
     }
 
+    if (!f->state) return true;
+
+    const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    // Original figures can still have legacy controllers/graphics without a
+    // FigureType declaration. Only later mod figures require that declaration.
+    if (f->type >= FIGURE_WORK_CAMP_WORKER && !definition && !figure_type_registry_impl::graphics_for(static_cast<figure_type>(f->type))) {
+        char detail[256];
+        snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
+        Logger::warning("Discarding imported transient figure absent from the active mod definitions", detail, 0);
+        f->remove();
+        return true;
+    }
+
     Building *owner = saved_owner_id ? Building::get(saved_owner_id) : nullptr;
     if (saved_owner_id && (!owner || !owner->id)) {
+        if (building_state_import_removed_owner(saved_owner_id)) {
+            char detail[160];
+            snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u removed_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
+            Logger::warning("Removing imported worker whose owning building is unavailable in the active mods", detail, 0);
+            f->remove();
+            return true;
+        }
         if (!allow_legacy_owner_reference_repair && !allow_delayed_owner_binding_bridge) {
             log_loaded_owner_error("Figure has an invalid serialized owner reference", *f, nullptr, saved_owner_id);
             return false;
         }
         char detail[256];
         snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), saved_owner_id);
-        log_warning("Repairing invalid serialized figure owner reference", detail, 0);
+        Logger::warning("Repairing invalid serialized figure owner reference", detail, 0);
         owner = nullptr;
         saved_owner_id = 0;
     }
 
-    const figure_type_registry_impl::FigureTypeDefinition *definition = figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
     const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
     const char *profile_id = f->runtime_profile_id();
     if (definition && !definition->profiles().empty()) {
-        if ((!profile_id || !*profile_id) && allow_legacy_profile_translation) {
+        const auto *default_profile = definition->default_profile();
+        const bool bridge_trade = allow_land_trade_profile_bridge && default_profile && (default_profile->native_class() == figure_type_registry_impl::NativeClassId::LandTrade || default_profile->native_class() == figure_type_registry_impl::NativeClassId::TradeFollower);
+        if ((!profile_id || !*profile_id) && (allow_legacy_profile_translation || bridge_trade)) {
+            if (bridge_trade) Logger::warning("Migrating pre-native land trade figure to its explicit XML profile", definition->attr(), f->id());
             const char *translated_id = translate_legacy_profile_id(f, owner);
             profile = translated_id ? definition->profile(translated_id) : definition->default_profile();
             if (!profile || !f->set_runtime_profile_id(profile->id())) {
@@ -437,7 +459,7 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
             saved_owner_id = static_cast<unsigned int>(slot_owner->id);
             char detail[256];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
-            log_warning("Migrating delayed figure owner binding from its exact building slot", detail, 0);
+            Logger::warning("Migrating delayed figure owner binding from its exact building slot", detail, 0);
         }
     }
 
@@ -454,7 +476,7 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
         if (allow_legacy_owner_reference_repair) {
             char detail[256];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
-            log_warning("Discarding invalid optional owner reference from legacy figure profile", detail, 0);
+            Logger::warning("Discarding invalid optional owner reference from legacy figure profile", detail, 0);
             return true;
         }
         log_loaded_owner_error("Optional figure owner reference failed save validation", *f, profile, saved_owner_id);
@@ -474,7 +496,7 @@ bool figure_runtime_resolve_loaded_owner(Figure *f, unsigned int saved_owner_id,
         if (allow_legacy_owner_reference_repair || allow_delayed_owner_binding_bridge) {
             char detail[320];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u profile=%s saved_owner_id=%u", f->id(), static_cast<unsigned int>(f->type), profile->id(), saved_owner_id);
-            log_warning("Discarding legacy transient figure whose required owner cannot be recovered", detail, 0);
+            Logger::warning("Discarding legacy transient figure whose required owner cannot be recovered", detail, 0);
             f->remove();
             return true;
         }
@@ -610,16 +632,17 @@ int figure_runtime_apply_profile_movement(Figure *f)
 {
     RuntimeEntry *entry = bind_entry(f);
     if (!entry || !entry->profile) {
-        ErrorContextScope scope("FigureType profile movement");
-        error_context_report_fatal_error_dialog(
+        Logger::Scope scope("FigureType profile movement");
+        Logger::fatal(
             "Figure runtime error",
             "Figure has no XML movement profile.",
             "A legacy action walker attempted to read profile-owned movement data, but no FigureType profile was bound.");
-        std::terminate();
     }
 
     const figure_type_registry_impl::MovementProfile &movement = entry->profile->movement_profile();
-    f->terrain_usage = static_cast<unsigned char>(entry->profile->pathing_policy().terrain.legacy_usage);
+    const int terrain_usage = entry->profile->pathing_policy().activeTerrain().legacy_usage;
+    if (f->terrain_usage != terrain_usage && entry->profile->pathing_policy().terrain_setting != CONFIG_MAX_ENTRIES) Route::remove(f);
+    f->terrain_usage = static_cast<unsigned char>(terrain_usage);
     f->use_cross_country = 0;
     f->max_roam_length = static_cast<short>(movement.max_roam_length);
     return 1;

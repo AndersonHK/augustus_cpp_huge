@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Brick_Carts" logical_units_per_source_pixel="96">
+    <image id="Brick_Cart_E" group="Industry\Brick_Cart_E" image="Brick_Cart_E" />
+    <image id="Brick_Cart_Getting_E" group="Industry\Brick_Cart_Getting_E" image="Brick_Cart_Getting_E" />
+    <image id="Brick_Cart_Getting_N" group="Industry\Brick_Cart_Getting_N" image="Brick_Cart_Getting_N" />
+    <image id="Brick_Cart_Getting_NE" group="Industry\Brick_Cart_Getting_NE" image="Brick_Cart_Getting_NE" />
+    <image id="Brick_Cart_Getting_NW" group="Industry\Brick_Cart_Getting_NW" image="Brick_Cart_Getting_NW" />
+    <image id="Brick_Cart_Getting_S" group="Industry\Brick_Cart_Getting_S" image="Brick_Cart_Getting_S" />
+    <image id="Brick_Cart_Getting_SE" group="Industry\Brick_Cart_Getting_SE" image="Brick_Cart_Getting_SE" />
+    <image id="Brick_Cart_Getting_SW" group="Industry\Brick_Cart_Getting_SW" image="Brick_Cart_Getting_SW" />
+    <image id="Brick_Cart_Getting_W" group="Industry\Brick_Cart_Getting_W" image="Brick_Cart_Getting_W" />
+    <image id="Brick_Cart_N" group="Industry\Brick_Cart_N" image="Brick_Cart_N" />
+    <image id="Brick_Cart_NE" group="Industry\Brick_Cart_NE" image="Brick_Cart_NE" />
+    <image id="Brick_Cart_NW" group="Industry\Brick_Cart_NW" image="Brick_Cart_NW" />
+    <image id="Brick_Cart_S" group="Industry\Brick_Cart_S" image="Brick_Cart_S" />
+    <image id="Brick_Cart_SE" group="Industry\Brick_Cart_SE" image="Brick_Cart_SE" />
+    <image id="Brick_Cart_SW" group="Industry\Brick_Cart_SW" image="Brick_Cart_SW" />
+    <image id="Brick_Cart_W" group="Industry\Brick_Cart_W" image="Brick_Cart_W" />
+</assetlist>

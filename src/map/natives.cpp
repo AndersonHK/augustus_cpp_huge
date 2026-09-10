@@ -18,7 +18,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/data.h" // TODO remove this dependency
 #include "scenario/property.h"
 
@@ -46,6 +46,37 @@ static native_types resolve_native_types()
         building_type_registry_impl::type_from_attr("native_meeting"),
         building_type_registry_impl::type_from_attr("native_crops"),
     };
+}
+
+void map_natives_prepare_scenario_tokens(void)
+{
+    scenario.native_images.hut = 0xff00;
+    scenario.native_images.alt_hut = 0xff02;
+    scenario.native_images.decoration = 0xff04;
+    scenario.native_images.monument = 0xff05;
+    scenario.native_images.watchtower = 0xff06;
+    scenario.native_images.meeting = 0xff07;
+    scenario.native_images.crops = 0xff08;
+}
+
+void map_natives_save_scenario_image_grid(buffer *buf)
+{
+    const auto types = resolve_native_types();
+    for (int offset = 0; offset < GRID_SIZE * GRID_SIZE; ++offset) {
+        uint16_t token = static_cast<uint16_t>(map_image_at(offset));
+        if (map_building_exists_at(offset)) {
+            const Building &building = map_building_at(offset);
+            const auto type = building.type ? building.type->type() : BUILDING_NONE;
+            if (type == types.hut) token = static_cast<uint16_t>(scenario.native_images.hut + (building.Graphics().variant() & 1));
+            else if (type == types.alt_hut) token = static_cast<uint16_t>(scenario.native_images.alt_hut + (building.Graphics().variant() & 1));
+            else if (type == types.decor) token = static_cast<uint16_t>(scenario.native_images.decoration);
+            else if (type == types.monument) token = static_cast<uint16_t>(scenario.native_images.monument);
+            else if (type == types.watchtower) token = static_cast<uint16_t>(scenario.native_images.watchtower);
+            else if (type == types.meeting) token = static_cast<uint16_t>(scenario.native_images.meeting);
+            else if (type == types.crops) token = static_cast<uint16_t>(scenario.native_images.crops);
+        }
+        buffer_write_u16(buf, token);
+    }
 }
 
 static void mark_native_land(int x, int y, int size, int radius)
@@ -93,7 +124,7 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
                         is_storage)) {
                     return 1;
                 }
-            } else if (map_terrain_is(map_grid_offset(xx, yy), TERRAIN_AQUEDUCT | TERRAIN_WALL | TERRAIN_GARDEN)) {
+            } else if (terrain_map().contains(map_grid_offset(xx, yy), terrain_types().aqueduct | terrain_types().wall | terrain_types().garden)) {
                 return 1;
             }
         }
@@ -191,7 +222,7 @@ void map_natives_init(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_exists_at(grid_offset)) {
+            if (!terrain_map().contains(grid_offset, terrain_types().building) || map_building_exists_at(grid_offset)) {
                 continue;
             }
 
@@ -241,7 +272,7 @@ void map_natives_init_editor(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_exists_at(grid_offset)) {
+            if (!terrain_map().contains(grid_offset, terrain_types().building) || map_building_exists_at(grid_offset)) {
                 continue;
             }
 

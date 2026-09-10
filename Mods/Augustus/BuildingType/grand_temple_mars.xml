@@ -84,6 +84,9 @@
             <amount value="100" />
         </labor_seeker>
     </labor>
+    <storages>
+        <storage path="weapons_input_recruitment" />
+    </storages>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="grand_temple_mars_recruit" />
     </spawn_group>

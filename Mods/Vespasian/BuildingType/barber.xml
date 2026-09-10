@@ -1,29 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barber">
-    <identity name_key="main_strings.28.49" />
-    <model cost="25" />
-    <desirability>
-        <value value="2" />
-        <step value="1" />
-        <step_size value="-1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_1x1" />
-  <button group="health" order="10" icon="Health_Culture\Barber" icon_image="Image_0000" text_key="main_strings.28.49" />
-    <sound id="barber" />
-    <graphics>
-        <default>
-            <path value="Health_Culture\Barber" />
-            <image value="Image_0000" />
-        </default>
-    </graphics>
     <labor>
         <employees count="2" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="barber">
-        <spawn spawn_figure="barber" direction="top" figure_slot="primary" profile="service" />
-    </spawn_group>
 </building>

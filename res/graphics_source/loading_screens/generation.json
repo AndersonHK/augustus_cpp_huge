@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Julius",
+    "set": "loading-image-",
+    "prompt": "Use case: historical-scene. Asset type: Julius game loading-screen background. Generate a standalone original raster painting at exactly 3840x2160 pixels, landscape 16:9, 4K. A restrained provincial Roman city at the end of the Republic, terracotta roofed insulae, a modest forum, white limestone colonnades and a working aqueduct, green Italian hills beyond. Warm midday light, ochre and ivory, the human scale and clear architectural forms of a classic Caesar III era strategy game. Style: polished hand-painted historical strategy game key art, finely detailed architecture, subtle painterly texture, no photographic lens effects. Composition: panoramic city, principal architecture in upper two-thirds; keep lower central fifth quiet and relatively dark for a separately rendered loading label and progress bar. No lettering, title, logo, watermark, border, user interface or progress bar painted into the image. No modern buildings or fantasy elements.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-ddab29b4-ffed-405a-83ae-20e60756db6e.png"
+  },
+  {
+    "name": "Augustus",
+    "set": "loading-image-",
+    "prompt": "Use case: historical-scene. Asset type: Augustus game loading-screen background. Generate a standalone original raster painting at exactly 3840x2160 pixels, landscape 16:9, 4K. Rome at the height of Augustan prosperity, a sweeping marble forum, monumental temples and colonnades, ceremonial avenues with tiny citizens, a distant aqueduct and Mediterranean hills. Luminous golden late-afternoon light, ivory marble and imperial red accents, expansive and magnificent but historically grounded. Style: polished hand-painted historical strategy game key art, finely detailed architecture, subtle painterly texture, no photographic lens effects. Composition: panoramic city, principal architecture in upper two-thirds; keep lower central fifth quiet and relatively dark for a separately rendered loading label and progress bar. No lettering, title, logo, watermark, border, user interface or progress bar painted into the image. No modern buildings or fantasy elements.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-0e3e8ab3-6304-44d6-ae0e-f10772bccb81.png"
+  },
+  {
+    "name": "Vespasian",
+    "set": "loading-image-",
+    "prompt": "Use case: historical-scene. Asset type: Vespasian game loading-screen background. Generate a standalone original raster painting at exactly 3840x2160 pixels, landscape 16:9, 4K. A thriving Flavian Roman city viewed from a terrace, the Colosseum rising above dense brick and terracotta neighborhoods, active construction yards and workshops, a practical living city rather than a parade. Rich bronze, deep burgundy and sun-warmed stone, dramatic yet calm evening light and detailed believable architecture. Style: polished hand-painted historical strategy game key art, finely detailed architecture, subtle painterly texture, no photographic lens effects. Composition: panoramic city, principal architecture in upper two-thirds; keep lower central fifth quiet and relatively dark for a separately rendered loading label and progress bar. No lettering, title, logo, watermark, border, user interface or progress bar painted into the image. No modern buildings or fantasy elements.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-9cb4f1cb-d180-45d6-b080-42ccf2bccf18.png"
+  },
+  {
+    "name": "Julius",
+    "set": "construction-image-",
+    "prompt": "Use case: historical-scene. Create an original in-game loading-screen background, Julius theme. The primary theme MUST be UNDER CONSTRUCTION, building up and work in progress. A small Roman provincial town being founded in the late Republic: an excavated grid of foundations in the foreground, surveyors with a groma, stone masons laying a forum colonnade, timber scaffolding and a wooden treadwheel crane, with modest terracotta-roof houses and green Italian hills behind. Clear ochre and ivory palette, gentle morning light. The city visibly grows from foundations to finished buildings across the panorama. Polished hand-painted historical city-building strategy-game art, finely detailed but legible architectural forms. Panoramic 16:9, requested native output 3840 by 2160 pixels (4K), not merely 4K style. Lower central fifth calm and relatively dark for a separately drawn progress bar and status text. No painted text, logos, watermarks, UI, borders or progress bars. No modern equipment, no fantasy architecture, no heroic portrait. Emphasize unfinished structures, scaffolding and real Roman construction methods.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-b277a16d-e98b-4b0c-ab46-9a3493a9a9e6.png"
+  },
+  {
+    "name": "Augustus",
+    "set": "construction-image-",
+    "prompt": "Use case: historical-scene. Create an original in-game loading-screen background, Augustus theme. The primary theme MUST be UNDER CONSTRUCTION, building up and work in progress. A monumental Augustan forum midway through construction: enormous pale marble columns partly raised, carved capitals and squared blocks waiting on sledges, timber scaffolds around an unfinished temple, several believable Roman lifting cranes and tiny busy builders. A finished marble district behind establishes what is being built. Grand imperial scale, luminous warm gold and ivory with restrained red fabric. Polished hand-painted historical city-building strategy-game art, finely detailed but legible architectural forms. Panoramic 16:9, requested native output 3840 by 2160 pixels (4K), not merely 4K style. Lower central fifth calm and relatively dark for a separately drawn progress bar and status text. No painted text, logos, watermarks, UI, borders or progress bars. No modern equipment, no fantasy architecture, no heroic portrait. Emphasize unfinished structures, scaffolding and real Roman construction methods.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-cdc15655-f3d2-4997-b84d-01217cf00223.png"
+  },
+  {
+    "name": "Vespasian",
+    "set": "construction-image-",
+    "prompt": "Use case: historical-scene. Create an original in-game loading-screen background, Vespasian theme. The primary theme MUST be UNDER CONSTRUCTION, building up and work in progress. The Flavian amphitheatre under active construction in ancient Rome: successive rings of arches visibly incomplete, exposed brick structural work, timber cranes and dense scaffolding, stone cutting and supply carts below, builders raising the next tier. Busy practical reconstruction of a living city, rich bronze, warm stone, deep red fabrics and long evening shadows. Strong feeling of patient engineering and tangible progress. Polished hand-painted historical city-building strategy-game art, finely detailed but legible architectural forms. Panoramic 16:9, requested native output 3840 by 2160 pixels (4K), not merely 4K style. Lower central fifth calm and relatively dark for a separately drawn progress bar and status text. No painted text, logos, watermarks, UI, borders or progress bars. No modern equipment, no fantasy architecture, no heroic portrait. Emphasize unfinished structures, scaffolding and real Roman construction methods.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-284ee0d4-8f94-4960-bf28-49b22c27b72d.png"
+  },
+  {
+    "name": "Julius",
+    "set": "extraction-image-",
+    "prompt": "Original historical city-building game loading background for Julius. Stage: extracting graphics, visually represented by collecting raw materials, excavation, surveying and preparing foundations BEFORE building up. A modest Roman provincial town at its very earliest stage: surveyors setting out a street grid with a groma, shallow foundation trenches, local stone being quarried and squared, ox carts delivering timber, a few low masonry footings. Most of the site is open ground. Italian hills, morning light, ochre, ivory and green. Polished detailed hand-painted historical strategy game illustration, believable Roman tools and architecture. 16:9 wide landscape. Output requested at 3840x2160 pixels. Keep the lower central fifth visually quiet and dark enough for separate UI text and a progress bar. No text, letters, logos, watermarks, border or painted UI. No modern machinery. Distinct from the later construction-stage artwork, with obvious early-stage preparations.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-9623c59c-40f6-4b1a-99d8-c859697586f6.png"
+  },
+  {
+    "name": "Augustus",
+    "set": "extraction-image-",
+    "prompt": "Original historical city-building game loading background for Augustus. Stage: extracting graphics, visually represented by collecting raw materials, excavation, surveying and preparing foundations BEFORE building up. The future monumental Forum of Augustus at its earliest construction stage: a vast excavation and laid-out foundations, quarry blocks and marble drums sorted in ordered rows, stone cutters and ox carts, modest timber lifting equipment. Almost no new building rises above foundation height; the finished city is distant. Pale marble, warm imperial gold, clear daylight. Polished detailed hand-painted historical strategy game illustration, believable Roman tools and architecture. 16:9 wide landscape. Output requested at 3840x2160 pixels. Keep the lower central fifth visually quiet and dark enough for separate UI text and a progress bar. No text, letters, logos, watermarks, border or painted UI. No modern machinery. Distinct from the later construction-stage artwork, with obvious early-stage preparations.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-ec125ebf-9817-4918-81f3-ac59b578082b.png"
+  },
+  {
+    "name": "Vespasian",
+    "set": "extraction-image-",
+    "prompt": "Original historical city-building game loading background for Vespasian. Stage: extracting graphics, visually represented by collecting raw materials, excavation, surveying and preparing foundations BEFORE building up. The future Flavian amphitheatre site in Rome at an early engineering stage: a great oval excavation, concentric foundation trenches and low brick footing rings, workers draining and preparing the ground, timber piles, ropes, carts and stone deliveries. No completed amphitheatre. Rich bronze, earth and restrained red, dramatic early morning sky. Polished detailed hand-painted historical strategy game illustration, believable Roman tools and architecture. 16:9 wide landscape. Output requested at 3840x2160 pixels. Keep the lower central fifth visually quiet and dark enough for separate UI text and a progress bar. No text, letters, logos, watermarks, border or painted UI. No modern machinery. Distinct from the later construction-stage artwork, with obvious early-stage preparations.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-c99f476a-6a58-49f6-900d-63cda0b25b01.png"
+  },
+  {
+    "name": "Vespasian",
+    "set": "extraction-correction",
+    "prompt": "Edit this loading-screen background. Preserve the entire composition, early Roman excavation, oval foundations, builders, palette, quiet dark foreground and painting style. Remove the completed Colosseum/amphitheatre visible in the far background at the upper right. Replace just that structure with ordinary first-century Roman rooftops and gardens, matching the existing distant city. The amphitheatre is the unfinished excavation in front, so there must not be another finished version behind it. No text or UI. Deliver at 3840 x 2160 pixels if supported; preserve landscape proportions.",
+    "source": "C:\\Users\\imper\\AppData\\Local\\OpenAI\\Codex\\state\\generated_images\\01a072d2-63a8-70b0-a0d9-0d679e9784b4\\exec-50c752b3-8dc5-4b2a-8506-25e213558e4c.png"
+  }
+]

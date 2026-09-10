@@ -22,7 +22,7 @@
 #include "scenario_event_details.h"
 #include "graphics/image.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"
@@ -84,6 +84,10 @@ static void button_repeat_times(const generic_button *button);
 static void button_repeat_between(const generic_button *button);
 static void button_set_selected_to_group(const generic_button *button);
 static void button_ok(const generic_button *button);
+static void button_copy(const generic_button *button);
+static void button_paste(const generic_button *button);
+static void button_duplicate(const generic_button *button);
+static ScenarioEventClipboard clipboard;
 
 static void draw_condition_button(const grid_box_item *item);
 static void draw_action_button(const grid_box_item *item);
@@ -169,6 +173,9 @@ static generic_button bottom_buttons[] = {
     {432, 409, 192, 25, button_add_new_action},
     {16, 439, 200, 25, button_delete_event},
     {524, 439, 100, 25, button_ok},
+    {220, 439, 96, 25, button_copy},
+    {320, 439, 96, 25, button_paste},
+    {420, 439, 96, 25, button_duplicate},
 };
 
 static grid_box_type make_conditions_grid_box(void)
@@ -229,7 +236,7 @@ static void update_visible_conditions_and_actions(void)
         data.conditions.selected = static_cast<uint8_t *>(std::calloc(max_needed_items, sizeof(uint8_t)));
 
         if (!data.conditions.list) {
-            log_error("Unable to create conditions list - out of memory. The game will probably crash.", 0, 0);
+            Logger::error("Unable to create conditions list - out of memory. The game will probably crash.", 0, 0);
             data.conditions.available = 0;
         } else {
             data.conditions.available = max_needed_items;
@@ -280,7 +287,7 @@ static void update_visible_conditions_and_actions(void)
         data.actions.selected = static_cast<uint8_t *>(std::calloc(action_count, sizeof(uint8_t)));
 
         if (!data.actions.list) {
-            log_error("Unable to create actions list - out of memory. The game will probably crash.", 0, 0);
+            Logger::error("Unable to create actions list - out of memory. The game will probably crash.", 0, 0);
             data.actions.available = 0;
         } else {
             data.actions.available = action_count;
@@ -308,7 +315,7 @@ static void update_groups(void)
     unsigned int group_count = scenario_event_condition_group_count(data.event);
     data.conditions.groups.names = static_cast<uint8_t **>(std::calloc(group_count + 1, sizeof(uint8_t *)));
     if (!data.conditions.groups.names) {
-        log_error("Unable to create groups list - out of memory. The game will probably crash.", 0, 0);
+        Logger::error("Unable to create groups list - out of memory. The game will probably crash.", 0, 0);
         data.conditions.groups.available = 0;
         return;
     }
@@ -584,6 +591,8 @@ static void draw_background(void)
         bottom_buttons[3].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_RED);
     lang_text_draw_centered("main_strings.18.3", bottom_buttons[4].x, bottom_buttons[4].y + 6, bottom_buttons[4].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
+    const char *copy_labels[] = {"TR_EDITOR_COPY", "TR_EDITOR_PASTE", "TR_EDITOR_DUPLICATE"};
+    for (int i = 0; i < 3; ++i) lang_text_draw_centered(copy_labels[i], bottom_buttons[i + 5].x, bottom_buttons[i + 5].y + 6, bottom_buttons[i + 5].width, i == 1 && !scenario_event_clipboard_is_current(clipboard) ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     graphics_reset_dialog();
 }
 
@@ -878,7 +887,7 @@ static void set_selected_to_group(int group_id)
     if ((unsigned int) group_id >= scenario_event_condition_group_count(data.event)) {
         group = scenario_event_condition_group_add(data.event);
         if (!group) {
-            log_error("Unable to create new group - memory full. The game will probably crash", 0, 0);
+            Logger::error("Unable to create new group - memory full. The game will probably crash", 0, 0);
             return;
         }
     } else {
@@ -894,7 +903,7 @@ static void set_selected_to_group(int group_id)
         }
         scenario_condition_t *condition = scenario_condition_group_condition_add(group);
         if (!condition) {
-            log_error("Unable to add condition to group - memory full. The game will probably crash", 0, 0);
+            Logger::error("Unable to add condition to group - memory full. The game will probably crash", 0, 0);
             return;
         }
         *condition = *data.conditions.list[i].condition;
@@ -1171,4 +1180,40 @@ void window_editor_scenario_event_details_show(int event_id)
     };
     init(event_id);
     window_show(&window);
+}
+
+static void button_copy(const generic_button *)
+{
+    scenario_event_t selected{};
+    for (unsigned int i = 0; i < data.actions.active; ++i) if (data.actions.selected[i]) selected.actions.push_back(*data.actions.list[i]);
+    for (int group_id = 0; group_id < static_cast<int>(data.event->condition_groups.size()); ++group_id) {
+        scenario_condition_group_t group{};
+        group.type = data.event->condition_groups[group_id].type;
+        for (unsigned int i = 0; i < data.conditions.active; ++i) if (data.conditions.selected[i] && data.conditions.list[i].condition && data.conditions.list[i].group_id == group_id) group.conditions.push_back(*data.conditions.list[i].condition);
+        if (!group.conditions.empty()) selected.condition_groups.push_back(std::move(group));
+    }
+    clipboard = scenario_event_copy(selected);
+}
+
+static void button_paste(const generic_button *)
+{
+    stop_input();
+    const int id = data.event->id;
+    scenario_event_paste(clipboard, *data.event);
+    init(id);
+    scenario_events_fetch_event_tiles_to_editor();
+    window_invalidate();
+}
+
+static void button_duplicate(const generic_button *)
+{
+    stop_input();
+    auto copy = scenario_event_copy(*data.event);
+    auto *duplicate = scenario_event_create(copy.event.repeat_days_min, copy.event.repeat_days_max, copy.event.max_number_of_repeats);
+    duplicate->repeat_interval = copy.event.repeat_interval;
+    string_copy(copy.event.name, duplicate->name, EVENT_NAME_LENGTH);
+    scenario_event_paste(copy, *duplicate);
+    init(duplicate->id);
+    scenario_events_fetch_event_tiles_to_editor();
+    window_invalidate();
 }

@@ -3,8 +3,9 @@
 #include "assets/image_group_entry.h"
 #include "assets/image_group_payload.h"
 #include "assets/assets.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/runtime_texture.h"
+#include "graphics/graphics.h"
 
 #include <stdio.h>
 #include <string>
@@ -53,7 +54,7 @@ void report_widget_group_error(const char *message, std::string_view group_key, 
             static_cast<int>(group_key.size()), group_key.data(),
             graphics_renderer()->get_render_domain());
     }
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 } // namespace
@@ -76,7 +77,7 @@ const image *UiPrimitives::resolve_image(int image_id) const
             "image_id=%d domain=%d",
             image_id,
             graphics_renderer()->get_render_domain());
-        error_context_report_error("Widget image id could not be resolved", detail);
+        Logger::error("Widget image id could not be resolved", detail);
         return 0;
     }
 
@@ -210,7 +211,7 @@ int UiPrimitives::image_id_from_asset_names(std::string_view assetlist_name, std
             static_cast<int>(assetlist_name.size()), assetlist_name.data(),
             static_cast<int>(image_name.size()), image_name.data(),
             graphics_renderer()->get_render_domain());
-        error_context_report_error("Widget asset image could not be resolved", detail);
+        Logger::error("Widget asset image could not be resolved", detail);
     }
     return image_id;
 }
@@ -239,4 +240,15 @@ void UiPrimitives::pop_renderer_state() const
 void UiPrimitives::set_clip_rectangle(int x, int y, int width, int height) const
 {
     graphics_renderer()->set_clip_rectangle(x, y, width, height);
+}
+
+void UiPrimitives::draw_tiled_slice(const RuntimeDrawSlice &slice, int x, int y, int width, int height) const
+{
+    if (!slice.is_valid() || slice.width <= 0 || slice.height <= 0 || width <= 0 || height <= 0) return;
+    push_renderer_state();
+    graphics_set_clip_rectangle(x, y, width, height);
+    for (int yy = 0; yy < height; yy += slice.height) {
+        for (int xx = 0; xx < width; xx += slice.width) draw_runtime_slice(slice, static_cast<float>(x + xx), static_cast<float>(y + yy), slice.width, slice.height, COLOR_MASK_NONE);
+    }
+    pop_renderer_state();
 }

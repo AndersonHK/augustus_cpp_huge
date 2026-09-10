@@ -1,24 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pig_farm_field">
-    <identity name_key="main_strings.28.105" />
     <foundation path="meadow_1x1" />
-    <flags fire_proof="1" />
-    <labor>
-        <employees count="1" />
-    </labor>
-    <graphics>
-        <default>
-            <path value="Industry\Farm_Crops" />
-            <options selection="production_progress">
-                <option image="Image_0025" />
-                <option image="Image_0026" />
-                <option image="Image_0027" />
-                <option image="Image_0028" />
-                <option image="Image_0029" />
-            </options>
-        </default>
-    </graphics>
-    <production_methods>
-        <production_method path="pig_farm_field_basic" />
-    </production_methods>
 </building>

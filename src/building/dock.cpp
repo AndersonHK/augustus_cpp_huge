@@ -16,7 +16,7 @@
 #include "game/resource.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/water_navigation.h"
 
 #include <vector>

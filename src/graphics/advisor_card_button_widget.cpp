@@ -1,6 +1,6 @@
 #include "graphics/advisor_card_button_widget.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/bordered_button_widget.h"
 
 AdvisorCardButtonWidget::AdvisorCardButtonWidget(
@@ -25,7 +25,7 @@ AdvisorCardButtonWidget::AdvisorCardButtonWidget(
 
 void AdvisorCardButtonWidget::draw() const
 {
-    ErrorContextScope error_scope("ui.advisor_card_button");
+    Logger::Scope error_scope("ui.advisor_card_button");
     BorderedButtonWidget(
         primitives_,
         x_,

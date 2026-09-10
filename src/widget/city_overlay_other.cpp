@@ -1,4 +1,5 @@
 #include "building/BuildingGraphics.h"
+#include "building/BuildingComposition.h"
 #include "translation/translation.h"
 #include "building/building.h"
 #include "building/HousingProfileDef.h"
@@ -33,7 +34,7 @@
 #include "map/desirability.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #include <exception>
@@ -170,7 +171,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return 0;
     }
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return 0;
     }
     Building &building = map_building_at(grid_offset);
@@ -184,7 +185,9 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
 
 static int show_building_mothball(const building *b)
 {
-    return b->state == BUILDING_STATE_MOTHBALLED;
+    const Building value = building_from_record(b);
+    const Building *owner = value.Composition ? value.Composition->owner() : &value;
+    return owner && owner->state_id() == BUILDING_STATE_MOTHBALLED;
 }
 
 static int show_building_logistics(const building *b)
@@ -359,6 +362,7 @@ static int get_column_height_tax_income(const building *b)
 static int get_column_height_employment(const building *b)
 {
     const Building building = building_from_record(b);
+    if (building.Composition && building.Composition->is_child()) return NO_COLUMN;
     int full_staff = building.type ? building.type->required_workers() : 0;
     int pct_staff = calc_percentage(b->num_workers, full_staff);
 
@@ -501,6 +505,7 @@ static int get_tooltip_tax_income(tooltip_context *c, const building *b)
 static int get_tooltip_employment(tooltip_context *c, const building *b)
 {
     const Building building = building_from_record(b);
+    if (building.Composition && building.Composition->is_child()) return 0;
     int full = building.type ? building.type->required_workers() : 0;
     int missing = full - b->num_workers;
 
@@ -546,17 +551,29 @@ static int get_tooltip_water(tooltip_context *c, int grid_offset)
     return 0;
 }
 
+static int terrain_overlay_desirability(int grid_offset, bool include_all = false)
+{
+    int value = map_desirability_get(grid_offset);
+    if (include_all || config_get(CONFIG_UI_SHOW_SHORELINE_DESIRABILITY)) value += building_shoreline_desirability(grid_offset);
+    if (include_all || config_get(CONFIG_UI_SHOW_ELEVATION_DESIRABILITY)) value += building_elevation_desirability(grid_offset);
+    return calc_bound(value, -100, 100);
+}
+
 static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
 {
+    if (terrain_map().contains(grid_offset, terrain_types().impassable_earthquake)) {
+        c->precomposed_text = lang_get_string("main_strings.66.91");
+        return 1;
+    }
     int desirability;
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building)) {
         building *b = building_record_at(grid_offset);
         if (!b) {
             return 0;
         }
         desirability = b->desirability;
     } else {
-        desirability = map_desirability_get(grid_offset);
+        desirability = terrain_overlay_desirability(grid_offset, true);
     }
     const uint8_t *text;
     if (desirability < 0) {
@@ -644,10 +661,10 @@ static int get_tooltip_levy(tooltip_context *c, const building *b)
 
 static int get_offset_tooltip_levy(tooltip_context *c, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building)) {
         return get_tooltip_levy(c, building_record_at(grid_offset));
     }
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = 1;
         c->translation_key = "TR_TOOLTIP_OVERLAY_LEVY_PER_TILE";
@@ -658,7 +675,7 @@ static int get_offset_tooltip_levy(tooltip_context *c, int grid_offset)
 
 static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return 0;
     }
     building *b = building_record_at(grid_offset);
@@ -760,12 +777,12 @@ const city_overlay *city_overlay_for_employment(void)
     return &overlay;
 }
 
-static int terrain_on_water_overlay(void)
+static TerrainSet terrain_on_water_overlay(void)
 {
     return
-        TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_SHRUB | TERRAIN_MEADOW |
-        TERRAIN_GARDEN | TERRAIN_ROAD | TERRAIN_AQUEDUCT | TERRAIN_ELEVATION |
-        TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE | TERRAIN_HIGHWAY;
+        terrain_types().tree | terrain_types().rock | terrain_types().water | terrain_types().shrub | terrain_types().meadow |
+        terrain_types().garden | terrain_types().road | terrain_types().aqueduct | terrain_types().elevation |
+        terrain_types().access_ramp | terrain_types().rubble | terrain_types().highway;
 }
 
 static int is_native_water_overlay_surface(const Building *building)
@@ -797,12 +814,12 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
         }
         Image::from_id(water_image).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
-    int is_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    int is_building = terrain_map().contains(grid_offset, terrain_types().building);
+    if (terrain_map().contains(grid_offset, terrain_types().highway) && !terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
         city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
-    } else if (map_terrain_is(grid_offset, terrain_on_water_overlay()) && !is_building) {
+    } else if (terrain_map().contains(grid_offset, terrain_on_water_overlay()) && !is_building) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
-    } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         // display grass
         int image_id = Image::group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
         Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
@@ -826,8 +843,9 @@ static color_t water_overlay_runtime_color(int grid_offset)
     if (water_access_runtime_tile_has_access(grid_offset, "well")) {
         return COLOR_MASK_DARK_BLUE;
     }
+    if (water_access_runtime_tile_has_inactive_access(grid_offset, "fountain")) return COLOR_MASK_GRAY;
     if (water_access_runtime_tile_has_access(grid_offset, "reservoir")) {
-        return map_terrain_is(grid_offset, TERRAIN_ROAD) ? ALPHA_MASK_SEMI_TRANSPARENT : COLOR_MASK_RESERVOIR_RANGE;
+        return terrain_map().contains(grid_offset, terrain_types().road) ? ALPHA_MASK_SEMI_TRANSPARENT : COLOR_MASK_RESERVOIR_RANGE;
     }
     return ALPHA_TRANSPARENT;
 }
@@ -858,8 +876,8 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
         }
     } else if (building) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
-    } else if (map_terrain_is(grid_offset, terrain_on_water_overlay())) {
-        if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    } else if (terrain_map().contains(grid_offset, terrain_on_water_overlay())) {
+        if (!terrain_map().contains(grid_offset, terrain_types().building)) {
             color_t color_mask = 0;
             const bool is_deleted = map_building_exists_at(grid_offset) ?
                 city_draw_building_as_deleted(map_building_at(grid_offset)) :
@@ -913,7 +931,7 @@ static void blend_color_to_footprint(int x, int y, const Building &building, col
 
 static int draw_sentiment_footprint(int x, int y, float scale, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return 0;
     }
     building *b = building_record_at(grid_offset);
@@ -937,7 +955,7 @@ static int draw_sentiment_footprint(int x, int y, float scale, int grid_offset)
 
 static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return 0;
     }
     building *b = building_record_at(grid_offset);
@@ -1002,13 +1020,13 @@ static int get_desirability_image_offset(int desirability)
 
 static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
 {
-    if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_WATER | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP) ||
-        (!map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN) &&
+    if (terrain_map().contains(grid_offset, terrain_types().rock | terrain_types().water | terrain_types().elevation | terrain_types().access_ramp) ||
+        (!terrain_map().contains(grid_offset, terrain_types().road | terrain_types().garden) &&
             map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset))) {
         return;
     }
     building *building_record = building_record_at(grid_offset);
-    Building *runtime_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) && building_record
+    Building *runtime_building = terrain_map().contains(grid_offset, terrain_types().building) && building_record
         ? &building_from_record(building_record) : nullptr;
     if (runtime_building && runtime_building->Housing && runtime_building->Housing->state().population > 0 &&
         !building_record->is_deleted &&
@@ -1019,7 +1037,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             runtime_building->draw_top({ x, y, grid_offset, desirability_color, scale });
         }
     } else {
-        int desirability = building_record ? building_record->desirability : map_desirability_get(grid_offset);
+        int desirability = building_record ? building_record->desirability : terrain_overlay_desirability(grid_offset);
         if (desirability) {
             int offset = get_desirability_image_offset(desirability);
             Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);
@@ -1112,7 +1130,7 @@ const city_overlay *city_overlay_for_logistics(void)
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().building)) {
         return;
     }
     building *b = building_record_at(grid_offset);

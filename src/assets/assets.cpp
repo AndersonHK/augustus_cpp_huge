@@ -6,7 +6,7 @@
 
 #include "core/file.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
 
@@ -47,7 +47,7 @@ int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
     data.roadblock_image = nullptr;
 
     if (!group_create_all(0) || !asset_image_init_array()) {
-        log_error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
+        Logger::error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
         set_failure_reason("Not enough memory to initialize extra assets.", 0);
         return 0;
     }
@@ -65,7 +65,7 @@ int assets_load_single_group(const char *file_name, color_t **main_images, int *
 {
     data.failure_reason[0] = '\0';
     if (!group_create_all(1) || !asset_image_init_array()) {
-        log_error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
+        Logger::error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
         set_failure_reason("Not enough memory to initialize extra assets.", 0);
         return 0;
     }
@@ -90,7 +90,7 @@ int assets_get_group_id(const char *assetlist_name)
     if (group) {
         return group->first_image_index + IMAGE_MAIN_ENTRIES;
     }
-    log_info("Asset group not found: ", assetlist_name, 0);
+    Logger::info("Asset group not found: ", assetlist_name, 0);
     return data.roadblock_image_id;
 }
 
@@ -120,7 +120,7 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name)
     if (!group) {
         char detail[256];
         snprintf(detail, sizeof(detail), "%s image=%s", assetlist_name ? assetlist_name : "", image_name);
-        log_info("Asset group not found: ", detail, 0);
+        Logger::info("Asset group not found: ", detail, 0);
         return data.roadblock_image_id;
     }
     int image_id = image_id_from_group(group, image_name);
@@ -129,7 +129,7 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name)
     }
     char detail[256];
     snprintf(detail, sizeof(detail), "%s image=%s", assetlist_name ? assetlist_name : "", image_name);
-    log_info("Asset image not found: ", detail, 0);
+    Logger::info("Asset image not found: ", detail, 0);
     return data.roadblock_image_id;
 }
 

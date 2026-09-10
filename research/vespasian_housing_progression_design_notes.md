@@ -2,6 +2,16 @@
 
 Snapshot: 2026-05-10
 
+Implemented follow-up: [Annual housing consumption and Augustus/Vespasian budgets](housing_annual_consumption_2026_09_09.md). Manufactured goods now scale per resident, with Vespasian revised to 0.3/0.6 rates. The report compares import and export resource values and proposes increasing patrician density; capacities, earlier unlock moves, and fractional-tax changes remain planning items.
+
+Latest focused planning slice: [Housing demand rebalance, 2026-09-09](vespasian_housing_demand_rebalance_2026_09_09.md).
+It evaluates early pottery/oil, delayed water/education, and earlier two-god
+coverage against community discussion and the current runtime's costs. These
+are proposals, not implemented rules.
+
+Follow-up: [Whole service-cost tables and fractional taxes](vespasian_housing_service_cost_tables_2026_09_09.md)
+compares every tier and an illustrative smooth plebeian tax curve.
+
 ## Purpose
 
 This document is explicitly forward-looking. It is not a description of vanilla

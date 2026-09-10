@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="wheat">
+  <graphics>
+    <cart load="single" path="Walkers\Resource_Carts_Single" image="Image_0008" />
+    <cart load="multiple" path="Walkers\Food_Carts_Loaded" image="Image_0000" />
+    <cart load="eight" path="Walkers\Food_Carts_Loaded" image="Image_0040" />
+    <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0000" />
+    <storage load="2" path="Industry\Warehouse_Storage_Filled" image="Image_0001" />
+    <storage load="3" path="Industry\Warehouse_Storage_Filled" image="Image_0002" />
+    <storage load="4" path="Industry\Warehouse_Storage_Filled" image="Image_0003" />
+    <panel_icon path="UI\Resource_Icons" image="Image_0001" />
+    <empire_icon path="PaperMap\Empire_Resources" image="Image_0001" />
+    <editor_icon path="UI\Resource_Icons" image="Image_0001" />
+    <editor_empire_icon path="PaperMap\Empire_Resources" image="Image_0001" />
+  </graphics>
+</resource>

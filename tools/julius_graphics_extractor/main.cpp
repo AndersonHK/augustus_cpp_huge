@@ -2,6 +2,7 @@
 #include "assets/graphics_extractor_shims.h"
 #include "scenario/property.h"
 #include "../graphics_extraction_output_policy.h"
+#include "../graphics_extraction_cli.h"
 
 #include <array>
 #include <filesystem>
@@ -128,6 +129,7 @@ bool extract_climate(int climate_id, const char *label, const std::filesystem::p
 
 int main(int argc, char **argv)
 {
+    configure_graphics_extraction_cli();
     HarnessCli cli;
     if (!cli.parse(argc, argv)) {
         return 2;

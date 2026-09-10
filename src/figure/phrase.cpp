@@ -14,12 +14,14 @@
 #include "core/calc.h"
 #include "core/file.h"
 #include "figure/figure.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/trader.h"
 #include "figuretype/trader.h"
 #include "sound/speech.h"
 #include "sound/effect.h"
 
 #include <stdio.h>
+#include <cstring>
 
 #define SOUND_FILENAME_MAX 64
 
@@ -54,8 +56,8 @@ static const char FIGURE_SOUNDS[33][20][SOUND_FILENAME_MAX] = {
     },
     { // 4
         "wavs/market_starv1.wav", "wavs/market_nojob1.wav", "wavs/market_needjob1.wav", "wavs/market_nofun1.wav",
-        "wavs/market_relig1.wav", "wavs/market_great1.wav", "wavs/market_great2.wav", "wavs/market_exact2.wav",
-        "wavs/market_exact1.wav", "wavs/market_exact3.wav", "wavs/market_exact4.wav", "wavs/market_exact5.wav",
+        "wavs/market_relig1.wav", "wavs/market_great1.wav", "wavs/market_great2.wav", "wavs/market_exact1.wav",
+        "wavs/market_exact2.wav", "wavs/market_exact3.wav", "wavs/market_exact4.wav", "wavs/market_exact5.wav",
         "wavs/market_exact6.wav", "wavs/market_exact7.wav", "wavs/market_exact8.wav", "wavs/market_exact9.wav",
         "wavs/market_exact0.wav", "wavs/market_free1.wav", "wavs/market_free2.wav", "wavs/market_free3.wav"
     },
@@ -75,8 +77,8 @@ static const char FIGURE_SOUNDS[33][20][SOUND_FILENAME_MAX] = {
     },
     { // 7
         "wavs/boats_starv1.wav", "wavs/boats_nojob1.wav", "wavs/boats_needjob1.wav", "wavs/boats_nofun1.wav",
-        "wavs/boats_relig1.wav", "wavs/boats_great1.wav", "wavs/boats_great2.wav", "wavs/boats_exact2.wav",
-        "wavs/boats_exact1.wav", "wavs/boats_exact3.wav", "wavs/boats_exact4.wav", "wavs/boats_exact5.wav",
+        "wavs/boats_relig1.wav", "wavs/boats_great1.wav", "wavs/boats_great2.wav", "wavs/boats_exact1.wav",
+        "wavs/boats_exact2.wav", "wavs/boats_exact3.wav", "wavs/boats_exact4.wav", "wavs/boats_exact5.wav",
         "wavs/boats_exact6.wav", "wavs/boats_exact7.wav", "wavs/boats_exact8.wav", "wavs/boats_exact9.wav",
         "wavs/boats_exact0.wav", "wavs/boats_free1.wav", "wavs/boats_free2.wav", "wavs/boats_free3.wav"
     },
@@ -276,19 +278,26 @@ enum {
     GOD_STATE_ANGRY = 2
 };
 
-static void play_sound_file(int sound_id, int phrase_id)
+int figure_phrase_sound_id(const Figure &figure)
 {
-    if (sound_id >= 0 && phrase_id >= 0) {
-        sound_speech_play_file(FIGURE_SOUNDS[sound_id][phrase_id]);
-    }
+    if (const auto *definition = figure_type_registry_impl::presentation_for(static_cast<figure_type>(figure.type)); definition && definition->speech.declared) return definition->speech.voice;
+    const auto base = static_cast<unsigned int>(figure_type_base(static_cast<figure_type>(figure.type)));
+    return base < sizeof(FIGURE_TYPE_TO_SOUND_TYPE) / sizeof(*FIGURE_TYPE_TO_SOUND_TYPE) ? FIGURE_TYPE_TO_SOUND_TYPE[base] : -1;
+}
+
+const char *figure_phrase_sound_file(const Figure &figure)
+{
+    if (const auto *definition = figure_type_registry_impl::presentation_for(static_cast<figure_type>(figure.type)); definition && definition->speech.declared && !definition->speech.sound.empty()) return definition->speech.sound.c_str();
+    const int sound = figure_phrase_sound_id(figure), phrase = figure.phrase_id;
+    if (sound < 0 || sound >= 33 || phrase < 0 || phrase >= 20) return nullptr;
+    const char *filename = FIGURE_SOUNDS[sound][phrase];
+    return *filename ? filename : nullptr;
 }
 
 int figure_phrase_play(Figure *f)
 {
-    if (f->id() <= 0) {
-        return 0;
-    }
-    int sound_id = FIGURE_TYPE_TO_SOUND_TYPE[f->type];
+    if (!f || f->id() <= 0) return -1;
+    int sound_id = figure_phrase_sound_id(*f);
     if (f->type == FIGURE_ZEBRA) {
         sound_effect_play(SOUND_EFFECT_ZEBRA_DIE);
         return -1; //default behaviour
@@ -299,7 +308,7 @@ int figure_phrase_play(Figure *f)
         sound_effect_play(SOUND_EFFECT_WOLF_HOWL);
         return -1; //default behaviour
     }
-    play_sound_file(sound_id, f->phrase_id);
+    sound_speech_play_file(figure_phrase_sound_file(*f));
     return sound_id;
 }
 
@@ -562,9 +571,9 @@ static int trade_ship_phrase(Figure *f)
     } else if (f->action_state == FIGURE_ACTION_112_TRADE_SHIP_MOORED) {
         int state = figure_trade_ship_is_trading(f);
         if (state == TRADE_SHIP_BUYING) {
-            return 8; // buying goods
+            return 7; // City imports goods; the ship is selling.
         } else if (state == TRADE_SHIP_SELLING) {
-            return 7; // selling goods
+            return 8; // City exports goods; the ship is buying.
         } else {
             if (!trader_has_traded(f->trader_id)) {
                 return 9; // no trade
@@ -753,10 +762,15 @@ static int phrase_based_on_city_state(Figure *f)
 
 void figure_phrase_determine(Figure *f)
 {
-    if (f->id() <= 0) {
+    if (!f || f->id() <= 0) {
         return;
     }
     f->phrase_id = 0;
+
+    if (const auto *definition = figure_type_registry_impl::presentation_for(static_cast<figure_type>(f->type)); definition && definition->speech.declared && definition->speech.voice < 0) {
+        f->phrase_id = -1; // A sound-only animal has no spoken caption.
+        return;
+    }
 
     if (f->is_enemy() || f->type == FIGURE_INDIGENOUS_NATIVE || f->type == FIGURE_NATIVE_TRADER) {
         f->phrase_id = -1;

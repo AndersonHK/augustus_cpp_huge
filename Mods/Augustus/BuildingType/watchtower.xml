@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="watchtower">
+    <presentation show_durability="true" preview_figure="watchman" overlay="enemy" enemy_roamer="true" />
     <identity name_key="TR_BUILDING_WATCHTOWER" />
     <model cost="100" />
     <desirability>
@@ -14,14 +15,63 @@
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>
         <default>
-            <path value="Military\Watchtower_ON_01" />
-            <image value="Watchtower C OFF" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower C OFF" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower C OFF R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_C_OFF" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_C_OFF_R" />
+            </options>
         </default>
         <variant>
+            <condition type="climate" value="northern" />
             <condition type="has_workers" />
             <condition type="figure_slot_occupied" slot="quaternary" />
-            <path value="Military\Watchtower_ON_01" />
-            <image value="Watchtower C ON" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower N ON" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower N ON R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_N_ON" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_N_ON_R" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <condition type="has_workers" />
+            <condition type="figure_slot_occupied" slot="quaternary" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower S ON" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower S ON R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_S_ON" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_S_ON_R" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="central" />
+            <condition type="has_workers" />
+            <condition type="figure_slot_occupied" slot="quaternary" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower C ON" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower C ON R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_C_ON" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_C_ON_R" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower N OFF" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower N OFF R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_N_OFF" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_N_OFF_R" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <options selection="paired_orientation">
+                <option path="Military\Watchtower_ON_01" image="Watchtower S OFF" />
+                <option path="Military\Watchtower_ON_01_r" image="Watchtower S OFF R" />
+                <option path="Military\WT_W_ON_01" image="Watchtower_W_S_OFF" />
+                <option path="Military\WT_W_ON_01_r" image="Watchtower_W_S_OFF_R" />
+            </options>
         </variant>
     </graphics>
 

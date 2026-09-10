@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
+#include "scenario/event/parameter_archive.h"
 
 
 void scenario_condition_group_new(scenario_condition_group_t *group, unsigned int id);
@@ -13,8 +14,8 @@ int scenario_condition_type_is_met(scenario_condition_t *condition);
 void scenario_condition_type_delete(scenario_condition_t *condition);
 void scenario_condition_group_save_state(buffer *buf, const scenario_condition_group_t *condition_group, int link_type,
     int32_t link_id);
-void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *group, scenario_condition_t *condition);
+void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *group, scenario_condition_t *condition, ScenarioParameterArchive format = ScenarioParameterArchive::Keyed);
 int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t *condition_group,
-    int *link_type, int32_t *link_id);
+    int *link_type, int32_t *link_id, ScenarioParameterArchive format = ScenarioParameterArchive::Keyed);
 int scenario_condition_uses_custom_variable(const scenario_condition_t *condition, int custom_variable_id);
 

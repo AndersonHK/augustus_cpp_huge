@@ -108,7 +108,7 @@ resource_type resource_bricks(void);
 resource_type resource_denarii(void);
 resource_type resource_troops(void);
 
-void production_rates_load(buffer *buf);
+int production_rates_load(buffer *buf, bool keyed = false);
 void production_rates_save(buffer *buf);
 
 #ifdef STARTUP_PARSER_TEST

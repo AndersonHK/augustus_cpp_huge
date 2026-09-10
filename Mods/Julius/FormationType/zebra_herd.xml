@@ -3,7 +3,7 @@
     <grid width="4" height="4" station_alignment="tile_anchor" />
     <spawn role="herd" climate="desert" count="12" />
     <herd roam_distance="20" roam_delay="4" reproduction_delay="0" aggressive="false"
-        allow_negative_desirability="false" movement_sound="none" />
+        allow_negative_desirability="false" movement_sound="none" building_clearance="4" />
     <herd_member rest_delay="200" move_speed="2" animation_frames="12" alternate_rest_animation="true" combat_animation="move" />
     <slot fill="all" unit="zebra" />
 </formation>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="asset_previewer" base_width="640" base_height="480">
+    <widget id="panel" type="panel" x="0" y="0" width="640" height="154" style="outer_panel" stretch_width="true" phase="background" />
+    <widget id="title" type="label" x="16" y="12" width="500" text="Asset previewer" font="large_black" />
+    <widget id="group" type="dropdown" text_offset_y="6" x="16" y="44" width="608" height="24" binding="group" action="group" stretch_width="true" />
+    <widget id="entry" type="dropdown" text_offset_y="6" x="16" y="76" width="408" height="24" binding="entry" action="entry" stretch_width="true" />
+    <widget id="previous" type="text_button" text_offset_y="6" x="432" y="76" width="48" height="24" text="Prev" action="previous" anchor_x="far" />
+    <widget id="next" type="text_button" text_offset_y="6" x="484" y="76" width="48" height="24" text="Next" action="next" anchor_x="far" />
+    <widget id="refresh" type="text_button" text_offset_y="6" x="540" y="76" width="84" height="24" text="Refresh" action="refresh" anchor_x="far" />
+    <widget id="size_label" type="label" x="16" y="112" width="42" text="Size" />
+    <widget id="size" type="label" x="60" y="112" width="96" binding="size" />
+    <widget id="frames_label" type="label" x="168" y="112" width="50" text="Anim" />
+    <widget id="frames" type="label" x="220" y="112" width="48" binding="frames" />
+    <widget id="layers" type="label" x="280" y="112" width="152" binding="layers" />
+    <widget id="quit" type="text_button" text_offset_y="6" x="540" y="12" width="84" height="24" text="Quit" action="quit" anchor_x="far" />
+    <widget id="toolbar" type="panel" x="0" y="154" width="640" height="42" style="outer_panel" stretch_width="true" phase="background" />
+    <widget id="background" type="dropdown" text_offset_y="6" x="16" y="164" width="120" height="24" binding="background" action="background" />
+    <widget id="zoom" type="dropdown" text_offset_y="6" x="148" y="164" width="80" height="24" binding="zoom" action="zoom" />
+    <widget id="playing" type="text_button" text_offset_y="6" x="240" y="164" width="220" height="24" text="Play animations" action="playing" selected_binding="playing" />
+    <widget id="bounds" type="text_button" text_offset_y="6" x="476" y="164" width="148" height="24" text="Draw bounds" action="bounds" selected_binding="bounds" />
+    <widget id="preview" type="custom" x="8" y="200" width="624" height="240" stretch_width="true" stretch_height="true" phase="background" />
+    <widget id="source" type="label" font="normal_white" ellipsize="true" x="16" y="452" width="608" binding="source" stretch_width="true" anchor_y="far" />
+</window>

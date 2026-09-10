@@ -1,3 +1,5 @@
+#include "core/Logger.h"
+#include <cstdio>
 #include "platform/screen.h"
 
 #include "city/view.h"
@@ -11,9 +13,10 @@
 #include "graphics/screen.h"
 #include "platform/android/android.h"
 #include "platform/icon.h"
+#include "platform/cursor.h"
+#include "input/mouse.h"
 #include "platform/renderer.h"
 #include "platform/switch/switch.h"
-#include "platform/vita/vita.h"
 
 #include "SDL.h"
 
@@ -58,11 +61,35 @@ static void get_window_pixel_size(int *width, int *height)
 #endif
 }
 
+void platform_screen_window_to_pixels(int *x, int *y)
+{
+    int width, height, pixels_x, pixels_y;
+    if (!SDL.window || !x || !y) return;
+    SDL_GetWindowSize(SDL.window, &width, &height);
+    get_window_pixel_size(&pixels_x, &pixels_y);
+    if (width > 0 && height > 0) {
+        *x = static_cast<int>(static_cast<int64_t>(*x) * pixels_x / width);
+        *y = static_cast<int>(static_cast<int64_t>(*y) * pixels_y / height);
+    }
+}
+
+void platform_screen_pixels_to_window(int *x, int *y)
+{
+    int width, height, pixels_x, pixels_y;
+    if (!SDL.window || !x || !y) return;
+    SDL_GetWindowSize(SDL.window, &width, &height);
+    get_window_pixel_size(&pixels_x, &pixels_y);
+    if (pixels_x > 0 && pixels_y > 0) {
+        *x = static_cast<int>(static_cast<int64_t>(*x) * width / pixels_x);
+        *y = static_cast<int>(static_cast<int64_t>(*y) * height / pixels_y);
+    }
+}
+
 static int normalize_display_id(int display_id)
 {
     int num_displays = SDL_GetNumVideoDisplays();
     if (display_id < 0 || display_id >= num_displays) {
-        SDL_Log("Defaulting to display 0 instead of %d (num displays: %d)", display_id, num_displays);
+        Logger::infof("Defaulting to display 0 instead of %d (num displays: %d)", display_id, num_displays);
         return 0;
     }
     return display_id;
@@ -98,17 +125,13 @@ static void apply_max_scale(int pixel_width, int pixel_height)
     int max_scale = get_max_scale_percentage(pixel_width, pixel_height);
     if (scale.percentage > max_scale) {
         scale.percentage = max_scale;
-        SDL_Log("Maximum scale of %i applied (requested: %d)", scale.percentage, scale.requested_percentage);
+        Logger::infof("Maximum scale of %i applied (requested: %d)", scale.percentage, scale.requested_percentage);
     }
 }
 
 static void set_scale_percentage(int new_scale, int pixel_width, int pixel_height)
 {
-#ifdef __vita__
-    scale.requested_percentage = 100;
-#else
     scale.requested_percentage = calc_bound(new_scale, 50, 500);
-#endif
 
     if (!pixel_width || !pixel_height) {
         scale.percentage = scale.requested_percentage;
@@ -126,7 +149,7 @@ static void set_window_icon(void)
     SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(platform_icon_get_pixels(), 16, 16, 32, 16 * 4,
         0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
     if (!surface) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create surface for icon. Reason: %s", SDL_GetError());
+        Logger::errorf("Unable to create surface for icon. Reason: %s", SDL_GetError());
     }
     SDL_SetWindowIcon(SDL.window, surface);
     SDL_FreeSurface(surface);
@@ -142,7 +165,7 @@ int platform_screen_create(const char *title, int display_scale_percentage, int 
     display_id = normalize_display_id(display_id);
 
     int width, height;
-    int fullscreen = system_is_fullscreen_only() ? 1 : setting_fullscreen();
+    int fullscreen = !hidden && (system_is_fullscreen_only() || setting_fullscreen());
     if (fullscreen) {
         SDL_DisplayMode mode;
         SDL_GetDesktopDisplayMode(display_id, &mode);
@@ -161,9 +184,10 @@ int platform_screen_create(const char *title, int display_scale_percentage, int 
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 #endif
 
-    SDL_Log("Creating screen %d x %d on display %d, %s, driver: %s", width, height, display_id,
+    Logger::infof("Creating screen %d x %d on display %d, %s, driver: %s", width, height, display_id,
         fullscreen ? "fullscreen" : "windowed", SDL_GetCurrentVideoDriver());
     Uint32 flags = SDL_WINDOW_RESIZABLE;
+    if (hidden) flags |= SDL_WINDOW_HIDDEN;
 
 #if defined(__APPLE__) && SDL_VERSION_ATLEAST(2, 0, 1)
     flags |= SDL_WINDOW_ALLOW_HIGHDPI;
@@ -178,7 +202,7 @@ int platform_screen_create(const char *title, int display_scale_percentage, int 
         width, height, flags);
 
     if (!SDL.window) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create window: %s", SDL_GetError());
+        Logger::errorf("Unable to create window: %s", SDL_GetError());
         return 0;
     }
 
@@ -223,6 +247,7 @@ int platform_screen_resize(int pixel_width, int pixel_height, int save)
 
     if (platform_renderer_create_render_texture(pixel_width, pixel_height)) {
         screen_set_resolution(pixel_width, pixel_height, scale.percentage);
+        if (!platform_cursor_has_hardware_cursor()) mouse_set_position(pixel_width / 2, pixel_height / 2);
         return 1;
     } else {
         return 0;
@@ -251,7 +276,7 @@ int system_can_scale_display(int *min_scale, int *max_scale)
     int max_scale_current_orientation = get_max_scale_percentage(width, height);
     int max_scale_alternative_orientation = get_max_scale_percentage(height, width);
     if (max_scale_current_orientation < 100 && max_scale_alternative_orientation < 100) {
-        SDL_Log("Not allowing scale on Android: %d x %d = max scale %d or %d",
+        Logger::infof("Not allowing scale on Android: %d x %d = max scale %d or %d",
             width, height, max_scale_current_orientation, max_scale_alternative_orientation);
         return 0;
     }
@@ -285,9 +310,9 @@ void platform_screen_set_fullscreen(void)
     int display = SDL_GetWindowDisplayIndex(SDL.window);
     SDL_DisplayMode mode;
     SDL_GetDesktopDisplayMode(display, &mode);
-    SDL_Log("User to fullscreen %d x %d on display %d", mode.w, mode.h, display);
+    Logger::infof("User to fullscreen %d x %d on display %d", mode.w, mode.h, display);
     if (0 != SDL_SetWindowFullscreen(SDL.window, SDL_WINDOW_FULLSCREEN_DESKTOP)) {
-        SDL_Log("Unable to enter fullscreen: %s", SDL_GetError());
+        Logger::infof("Unable to enter fullscreen: %s", SDL_GetError());
         return;
     }
     SDL_SetWindowDisplayMode(SDL.window, &mode);
@@ -305,7 +330,7 @@ void platform_screen_set_windowed(void)
     int pixel_width, pixel_height;
     setting_window(&pixel_width, &pixel_height);
     int display = SDL_GetWindowDisplayIndex(SDL.window);
-    SDL_Log("User to windowed %d x %d on display %d", pixel_width, pixel_height, display);
+    Logger::infof("User to windowed %d x %d on display %d", pixel_width, pixel_height, display);
     SDL_SetWindowFullscreen(SDL.window, 0);
     SDL_SetWindowSize(SDL.window, pixel_width, pixel_height);
     if (window_pos.centered) {
@@ -334,7 +359,7 @@ void platform_screen_set_window_size(int pixel_width, int pixel_height)
     if (window_pos.centered) {
         platform_screen_center_window();
     }
-    SDL_Log("User resize to %d x %d on display %d", pixel_width, pixel_height, display);
+    Logger::infof("User resize to %d x %d on display %d", pixel_width, pixel_height, display);
     if (SDL_GetWindowGrab(SDL.window) == SDL_TRUE) {
         SDL_SetWindowGrab(SDL.window, SDL_FALSE);
     }
@@ -362,8 +387,12 @@ void platform_screen_recreate_texture(void)
 }
 #endif
 
+static bool headless_errors = false;
+void platform_screen_set_headless_errors(bool headless) { headless_errors = headless; }
+
 void platform_screen_show_error_message_box(const char *title, const char *message)
 {
+    if (headless_errors) { std::fprintf(stderr, "%s: %s\n", title ? title : "Vespasian Error", message ? message : ""); return; }
     enum {
         BUTTON_OK = 0,
         BUTTON_COPY = 1
@@ -409,7 +438,9 @@ void system_set_mouse_position(int *x, int *y)
 {
     *x = calc_bound(*x, 0, screen_width() - 1);
     *y = calc_bound(*y, 0, screen_height() - 1);
-    SDL_WarpMouseInWindow(SDL.window, screen_ui_to_pixel(*x), screen_ui_to_pixel(*y));
+    int window_x = screen_ui_to_pixel(*x), window_y = screen_ui_to_pixel(*y);
+    platform_screen_pixels_to_window(&window_x, &window_y);
+    SDL_WarpMouseInWindow(SDL.window, window_x, window_y);
 }
 
 void system_change_window_title(const char *title)
@@ -419,7 +450,7 @@ void system_change_window_title(const char *title)
 
 int system_is_fullscreen_only(void)
 {
-#if defined(__ANDROID__) || defined(__SWITCH__) || defined(__vita__)
+#if defined(__ANDROID__) || defined(__SWITCH__)
     return 1;
 #else
     return 0;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 
 struct HousingServiceState {
     uint8_t theater = 0;
@@ -29,6 +30,8 @@ struct HousingServiceState {
 };
 
 struct HousingState {
+    // Pending fractions of pottery, oil, furniture, wine; preserved through saves and transitions.
+    std::array<double, 4> goods_consumption_remainder{};
     int16_t population = 0;
     int16_t population_room = 0;
     int16_t highest_population = 0;

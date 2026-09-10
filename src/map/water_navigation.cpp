@@ -7,7 +7,7 @@
 #include "map/bridge.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/map.h"
 
 #include <algorithm>
@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
@@ -106,12 +107,16 @@ void classify_topology()
     for (int y = 0; y < map_data.height; ++y, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; ++x, ++grid_offset) {
             const bool surrounded =
-                map_terrain_is(grid_offset, TERRAIN_WATER) &&
-                map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WATER) &&
-                map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WATER) &&
-                map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WATER) &&
-                map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WATER);
+                terrain_map().contains(grid_offset, terrain_types().water) &&
+                terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().water) &&
+                terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().water) &&
+                terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().water) &&
+                terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().water);
             if (!surrounded) {
+                continue;
+            }
+            if (std::any_of(terrain_map().at(grid_offset).entries().begin(), terrain_map().at(grid_offset).entries().end(), [](const Terrain *terrain) { return !terrain->allows_sea(); })) {
+                state.topology[grid_offset] = WaterTile::Blocked;
                 continue;
             }
             if (x == 0 || x == map_data.width - 1 || y == 0 || y == map_data.height - 1) {
@@ -340,11 +345,11 @@ void validate_cache_invariants()
             if (classification == WaterTile::Blocked) {
                 continue;
             }
-            assert(map_terrain_is(grid_offset, TERRAIN_WATER));
-            assert(map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_WATER));
-            assert(map_terrain_is(grid_offset + map_grid_delta(-1, 0), TERRAIN_WATER));
-            assert(map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_WATER));
-            assert(map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WATER));
+            assert(terrain_map().contains(grid_offset, terrain_types().water));
+            assert(terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().water));
+            assert(terrain_map().contains(grid_offset + map_grid_delta(-1, 0), terrain_types().water));
+            assert(terrain_map().contains(grid_offset + map_grid_delta(1, 0), terrain_types().water));
+            assert(terrain_map().contains(grid_offset + map_grid_delta(0, 1), terrain_types().water));
             if (classification == WaterTile::LowBridge) {
                 assert(!raw_passable(grid_offset, WaterNavigationProfile::Boat));
                 assert(raw_passable(grid_offset, WaterNavigationProfile::Flotsam));
@@ -636,6 +641,14 @@ void invalidate_dock_endpoints()
 void invalidate_river_anchors()
 {
     state.river_anchors_dirty = true;
+}
+
+void reset_world()
+{
+    // Construct the large grid cache on the heap; clear stale destinations and
+    // abandoned load scopes together when replacing or rolling back a world.
+    auto clean = std::make_unique<NavigationState>();
+    state = std::move(*clean);
 }
 
 void begin_world_load()

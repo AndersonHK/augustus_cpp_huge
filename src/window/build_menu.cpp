@@ -294,6 +294,16 @@ static int is_auto_cycle_button(build_menu_group submenu, building_type type)
         (building_type_registry_impl::type_attr_is(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
 }
 
+static building_type cycle_type_in_menu(build_menu_group group)
+{
+    for (int i = 0; i < building_menu_count_items(group); ++i) {
+        const auto type = building_menu_type(group, i);
+        const auto *definition = building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->has_cycle()) return type;
+    }
+    return BUILDING_NONE;
+}
+
 // Costs share the right-side status column with auto-cycle text, so center the composed money string there.
 static void draw_menu_money_centered(int value, int x, int y, int box_width, font_t font, int pixel_size)
 {
@@ -371,7 +381,7 @@ const ImageGroupEntryRef &BuildMenuButton::menu_icon() const
 
 int BuildMenuButton::cost() const
 {
-    return model_get_building(building)->cost;
+    return model_get_construction_cost(building);
 }
 
 int BuildMenuButton::has_rotation_icon() const
@@ -409,7 +419,7 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
                 item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
-        lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling()), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling_for_type(cycle_type_in_menu(submenu))), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         return;
     }
 
@@ -548,7 +558,7 @@ void BuildMenuButton::activate() const
     widget_city_clear_current_tile();
 
     if (is_auto_cycle()) {
-        building_construction_toggle_auto_cycle();
+        building_construction_toggle_auto_cycle_for_type(cycle_type_in_menu(submenu));
         window_invalidate();
         return;
     }

@@ -1,42 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_large_shack">
-    <identity name_key="TR_BUILDING_HOUSE_LARGE_SHACK" />
-    <model cost="0" />
-    <desirability>
-        <value value="-2" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_1x1" />
-    <sound id="house_slum" />
-    <graphics>
-        <default>
-            <path value="Aesthetics\House_Shack" />
-            <options selection="stable_variant">
-                <option image="Image_0002" />
-                <option image="Image_0003" />
-            </options>
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Aesthetics\House_Shack_Northern" />
-            <options selection="stable_variant">
-                <option image="Image_0002" />
-                <option image="Image_0003" />
-            </options>
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Aesthetics\House_Shack_Desert" />
-            <options selection="stable_variant">
-                <option image="Image_0002" />
-                <option image="Image_0003" />
-            </options>
-        </variant>
-    </graphics>
-    <housing path="house_large_shack" capacity="11" evolve_to="house_small_hovel" devolve_to="house_small_shack" merge_to="house_large_shack_2x2" goods_consumption_events_per_month="1" mars_offering_amount="1" />
     <spawn_group road_access="normal" delay_bands="100:0">
         <spawn spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="116" />
+    </spawn_group>
+    <spawn_group road_access="normal" delay_bands="100:16" id="ambient_citizens">
+        <spawn spawn_figure="wandering_citizen" profile="ambient" direction="bottom" figure_slot="none" require_population="true" chance_source="city_unemployment_percent" chance_per_million_bands="$[Augustus:WANDERING_CITIZENS]{30:120000,29:120000,28:120000,27:110000,26:110000,25:110000,24:110000,23:100000,22:100000,21:100000,20:100000,19:90000,18:90000,17:90000,16:90000,15:80000,14:80000,13:80000,12:80000,11:70000,10:70000,9:70000,8:70000,7:60000,6:60000,5:60000,4:60000,3:60000,2:60000,1:60000,0:60000}$![Augustus:WANDERING_CITIZENS]{0:0}" />
     </spawn_group>
 </building>

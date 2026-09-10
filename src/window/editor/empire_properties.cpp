@@ -191,10 +191,9 @@ static void add_city(const default_city *city)
     full->obj.y = city->y;
     full->obj.empire_city_icon = EMPIRE_CITY_ICON_ROMAN_CITY;
     full->empire_city_icon = EMPIRE_CITY_ICON_ROMAN_CITY;
-    full->obj.image_id = empire_city_get_icon_image_id(EMPIRE_CITY_ICON_ROMAN_CITY);
-    const image *img = image_get(full->obj.image_id);
-    full->obj.width = img->width;
-    full->obj.height = img->height;
+    const auto icon = empire_city_icon(EMPIRE_CITY_ICON_ROMAN_CITY);
+    full->obj.width = icon.width();
+    full->obj.height = icon.height();
     full->city_name_id = city->name_id;
     empire_object_add_to_cities(full);
 }
@@ -224,8 +223,8 @@ static void draw_foreground(void)
 {
     graphics_in_dialog();
     static const translation_key button_texts[] = {
-        "TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE",
-        "TR_EDITOR_EMPIRE_PROPERTIES_DEFAULT_IAMGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IMAGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_DEFAULT_IMAGE",
         "TR_EDITOR_EMPIRE_PROPERTIES_BORDER_DENSITY",
         "TR_EDITOR_EMPIRE_PROPERTIES_NEW_PATH",
         "TR_EDITOR_EMPIRE_PROPERTIES_ADD_ORNAMENT",

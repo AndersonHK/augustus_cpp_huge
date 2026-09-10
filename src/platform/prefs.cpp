@@ -1,6 +1,6 @@
 #include "platform/prefs.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/file.h"
 #include "platform/platform.h"
 
@@ -31,7 +31,7 @@ static FILE *open_pref_file(const char *filename, const char *mode)
     const char *base_dir = pref_dir ? pref_dir : "";
     const char *pref_name = filename ? filename : "";
     if (!prefs.location_printed) {
-        log_info("Pref dir location:", *base_dir ? base_dir : ".", 0);
+        Logger::info("Pref dir location:", *base_dir ? base_dir : ".", 0);
         prefs.location_printed = 1;
     }
     size_t file_len = strlen(pref_name) + strlen(base_dir) + 1;

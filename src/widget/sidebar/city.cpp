@@ -1,3 +1,5 @@
+#include "game/defines.h"
+#include "window/mission_briefing.h"
 #include "building/construction.h"
 #include "building/building_type_registry_internal.h"
 #include "translation/translation.h"
@@ -201,6 +203,11 @@ static void draw_buttons_expanded(int x_offset)
     buttons_build_expanded[12].enabled = static_cast<char>(game_can_undo());
     image_buttons_draw(x_offset, 24, buttons_overlays_collapse_sidebar, 2);
     image_buttons_draw(x_offset, 24, buttons_build_expanded, 15);
+    auto &context_button = buttons_top_expanded[2];
+    const bool grid_button = game_defines_ui_feature("sidebar_grid_button");
+    context_button.assetlist_name = grid_button ? "UI\\Toggle_Grid_Button" : nullptr;
+    context_button.image_name = grid_button ? "Toggle Grid Button" : nullptr;
+    context_button.image_collection = grid_button ? 0 : GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS;
     image_buttons_draw(x_offset, 24, buttons_top_expanded, 6);
 }
 
@@ -346,7 +353,7 @@ int widget_sidebar_city_handle_mouse_build_menu(const mouse *m)
 int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
 {
     if (data.focus_button_for_tooltip) {
-        if (data.focus_button_for_tooltip == 42) {
+        if (data.focus_button_for_tooltip == 42 && game_defines_ui_feature("sidebar_grid_button")) {
             c->translation_key = "TR_TOGGLE_GRID";
             return 0;
         }
@@ -487,7 +494,8 @@ static void button_toggle_grid(int param1, int param2)
     (void)param1;
     (void)param2;
 
-    config_set(CONFIG_UI_SHOW_GRID, config_get(CONFIG_UI_SHOW_GRID) ^ 1);
+    if (game_defines_ui_feature("sidebar_grid_button")) config_set(CONFIG_UI_SHOW_GRID, config_get(CONFIG_UI_SHOW_GRID) ^ 1);
+    else if (!scenario_is_custom()) window_mission_briefing_show_review();
 }
 
 static void button_rotate_north(int param1, int param2)

@@ -153,7 +153,7 @@ static const char *value_to_utf8(const uint8_t *value)
 #ifndef BUILDING_ASSET_PACKER
     static int length;
     static char *value_utf8;
-    int value_size = string_length(value) + 1;
+    int value_size = 4 * string_length(value) + 1; // A legacy byte can expand to several UTF-8 bytes.
     if (value_size > length) {
         char *new_temp_value = static_cast<char *>(realloc(value_utf8, value_size));
         if (new_temp_value) {

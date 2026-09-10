@@ -21,4 +21,7 @@ int scenario_allowed_building(const building_type_registry_impl::BuildingType *t
     return 0;
 }
 
+// The parser process has no city or operational services; the executable gate tests dynamic pricing.
+int city_service_construction_cost(building_type, int base_cost) { return base_cost; }
+
 #endif // STARTUP_PARSER_TEST

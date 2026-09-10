@@ -13,7 +13,7 @@ ScrollbarWidget::ScrollbarWidget(UiPrimitives &primitives, const scrollbar_type 
 
 void ScrollbarWidget::draw() const
 {
-    if (!(scrollbar_.max_scroll_position > 0 || scrollbar_.always_visible)) {
+    if (scrollbar_.max_scroll_position <= 0) {
         return;
     }
 

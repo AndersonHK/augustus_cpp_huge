@@ -30,12 +30,15 @@ public:
     StorageRole role() const;
     int is_input() const;
     int is_output() const;
+    void set_respect_orders(bool value) { respect_orders_ = value; }
+    bool respect_orders() const { return respect_orders_; }
 
 private:
     std::string path_;
     std::vector<resource_type> resources_;
     int capacity_ = 0;
     StorageRole role_ = StorageRole::None;
+    bool respect_orders_ = false;
 };
 
 } // namespace building_type_registry_impl

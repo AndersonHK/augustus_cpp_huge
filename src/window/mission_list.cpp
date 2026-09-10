@@ -21,7 +21,7 @@
 
 #include "assets/assets.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -205,7 +205,7 @@ static void generate_list(void)
 
     data.items = static_cast<campaign_item *>(malloc(sizeof(campaign_item) * data.total_items));
     if (!data.items) {
-        log_error("Error creating mission items. The game will probably crash.", 0, 0);
+        Logger::error("Error creating mission items. The game will probably crash.", 0, 0);
     }
     memset(data.items, 0, sizeof(campaign_item) * data.total_items);
     int mission_id = 1;
@@ -214,7 +214,7 @@ static void generate_list(void)
     for (unsigned int item = 0, mission = 0; mission < missions_to_show; mission++, item++) {
         int scenarios_on_last_mission = mission_info ? mission_info->total_scenarios : 0;
 
-        mission_info = game_campaign_get_current_mission(current_scenario_id);
+        mission_info = game_campaign_get_current_mission(current_scenario_id, rank);
 
         if (scenarios_on_last_mission && (scenarios_on_last_mission > 1 || mission_info->total_scenarios > 1)) {
             data.items[item].index = item;
@@ -252,7 +252,7 @@ static void generate_list(void)
         }
 
         if (mission_info->next_rank != CAMPAIGN_NO_RANK) {
-            rank = mission_info->next_rank;
+            if (mission_info->next_rank >= 0) rank = mission_info->next_rank;
         }
     }
 }

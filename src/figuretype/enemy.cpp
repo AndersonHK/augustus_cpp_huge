@@ -1,4 +1,5 @@
 #include "enemy.h"
+#include "game/defines.h"
 
 #include "building/building.h"
 #include "building/building_record.h"
@@ -6,7 +7,7 @@
 #include "city/sound.h"
 #include "core/calc.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/combat.h"
 #include "figure/FigureGraphics.h"
 #include "figure/formation.h"
@@ -238,7 +239,7 @@ static void enemy_action(Figure *f, formation *m)
         case FIGURE_ACTION_148_FLEEING:
             f->destination_x = f->source_x;
             f->destination_y = f->source_y;
-            figure_movement_move_ticks(f, f->speed_multiplier);
+            figure_movement_move_ticks(f, f->speed_multiplier * game_defines_enemy_retreat_speed_multiplier());
             if (f->direction == DIR_FIGURE_AT_DESTINATION ||
                 f->direction == DIR_FIGURE_REROUTE ||
                 f->direction == DIR_FIGURE_LOST) {

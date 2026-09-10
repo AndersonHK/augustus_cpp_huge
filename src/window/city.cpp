@@ -55,7 +55,7 @@
 #include "map/bookmark.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_variable.h"
@@ -413,6 +413,11 @@ static void show_roamers_for_overlay(int overlay)
             create_roamer_preview_for_building_attr("doctor");
             create_roamer_preview_for_building_attr("hospital");
             break;
+        case OVERLAY_ENEMY:
+            for (const auto &definition : building_type_registry_impl::g_building_types) {
+                if (definition && definition->presentation().enemy_roamer) figure_roamer_preview_create_all_for_building_type(definition->type());
+            }
+            break;
         case OVERLAY_NONE:
         default:
             break;
@@ -434,6 +439,13 @@ static void show_overlay(int overlay)
 
 static int get_overlay_for_building_type(const building_type_registry_impl::BuildingType &type)
 {
+    using Overlay = building_type_registry_impl::BuildingType::InspectionOverlay;
+    switch (type.presentation().overlay) {
+        case Overlay::Enemy: return OVERLAY_ENEMY;
+        case Overlay::Native: return OVERLAY_NATIVE;
+        case Overlay::Desirability: return OVERLAY_DESIRABILITY;
+        case Overlay::Automatic: break;
+    }
     const int is_dock = type.attr_is( "dock");
     int overlay = OVERLAY_NONE;
 
@@ -511,21 +523,21 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     return overlay;
 }
 
-static int get_overlay_for_terrain(int terrain)
+static int get_overlay_for_terrain(TerrainSet terrain)
 {
-    if (terrain & TERRAIN_RUBBLE) {
+    if (terrain & terrain_types().rubble) {
         return OVERLAY_DAMAGE;
     }
-    if (terrain & TERRAIN_AQUEDUCT) {
+    if (terrain & terrain_types().aqueduct) {
         return OVERLAY_WATER;
     }
-    if (terrain & TERRAIN_GARDEN) {
+    if (terrain & terrain_types().garden) {
         return OVERLAY_DESIRABILITY;
     }
-    if (terrain & TERRAIN_ROAD) {
+    if (terrain & terrain_types().road) {
         return OVERLAY_ROADS;
     }
-    if (terrain & TERRAIN_HIGHWAY) {
+    if (terrain & terrain_types().highway) {
         return OVERLAY_ROADS;
     }
     return OVERLAY_NONE;
@@ -534,7 +546,7 @@ static int get_overlay_for_terrain(int terrain)
 static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
-    const int terrain = map_terrain_get(grid_offset);
+    const TerrainSet &terrain = terrain_map().at(grid_offset);
     Building &selected = map_building_at(grid_offset);
     Building *owner = selected.type && selected.type->bridge().is_bridge() ?
         &selected.dynamic_bridge_owner() :

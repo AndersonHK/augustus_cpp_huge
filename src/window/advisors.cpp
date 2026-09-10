@@ -1,3 +1,5 @@
+#include "graphics/screen.h"
+#include "graphics/declarative_window.h"
 #include "translation/translation.h"
 #include "advisors.h"
 
@@ -16,6 +18,7 @@
 #include "core/image_group.h"
 #include "figure/formation.h"
 #include "game/settings.h"
+#include "game/defines.h"
 #include "game/tutorial.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -39,6 +42,7 @@
 #include "window/advisor/trade.h"
 #include "window/advisor/housing.h"
 #include "graphics/image.h"
+#include <cstring>
 
 static void button_change_advisor(const generic_button *button);
 static void button_help(int param1, int param2);
@@ -149,6 +153,7 @@ static void set_advisor_window(void)
 
 void window_advisors_set_advisor(advisor_type advisor)
 {
+    if (advisor == ADVISOR_HOUSING && !game_defines_ui_feature("housing_advisor")) advisor = ADVISOR_POPULATION;
     current_advisor = advisor;
     setting_set_last_advisor(advisor);
     set_advisor_window();
@@ -174,6 +179,15 @@ static void init(void)
 
     city_ratings_update_explanations();
 
+    int visible = 0;
+    const bool housing = game_defines_ui_feature("housing_advisor");
+    for (int i = 0; i < ADVISOR_MAX; ++i) {
+        auto &button = advisor_buttons[i];
+        const bool enabled = housing || i != ADVISOR_HOUSING - 1;
+        button.x = enabled ? static_cast<short>(9 + visible++ * (housing ? 45 : 49)) : -1000;
+        button.width = button.height = enabled ? 40 : 0;
+    }
+    std::memset(advisor_image_ids, 0, sizeof(advisor_image_ids));
     set_advisor_window();
 }
 
@@ -207,6 +221,10 @@ static void draw_advisor_button(int index, int selected, int x, int y)
 void window_advisors_draw_dialog_background(void)
 {
     Image::from_id(Image::group(GROUP_ADVISOR_BACKGROUND)).draw_fullscreen_background();
+    if (const auto *frame = declarative_window_definition("advisor_frame")) {
+        class FrameController final : public DeclarativeWindowController { void action(std::string_view, int) override {} } controller;
+        DeclarativeWindowRuntime(*frame, controller).draw(DeclarativeDrawPhase::Foreground, screen_width(), screen_height());
+    }
     graphics_in_dialog();
     Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 13).draw(0, 432);
 
@@ -214,7 +232,7 @@ void window_advisors_draw_dialog_background(void)
 
     for (int i = 0; i < ADVISOR_MAX; i++) {
         int selected = current_advisor && i == (current_advisor % ADVISOR_MAX) - 1;
-        draw_advisor_button(i, selected, 45 * i + 8, 441);
+        if (advisor_buttons[i].width) draw_advisor_button(i, selected, advisor_buttons[i].x - 1, 441);
     }
     graphics_reset_dialog();
 }

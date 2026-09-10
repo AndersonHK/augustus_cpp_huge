@@ -64,85 +64,33 @@ static struct {
     int module_choices[2];
 } data;
 
-static struct {
+struct TempleModuleOption {
     option_menu_item option;
-    int requires_any_fort;
-    const char *required_building_text_id;
-    const char *image_id;
-} temple_module_options[12] = {
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_1", "TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_1_DESC" },
-        0,
-        nullptr,
-        "Ceres M Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_2", "TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Ceres M2 Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC_MODULE_1", "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_MODULE_1_DESC" },
-        0,
-        "hippodrome",
-        "Nept M2 Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC_MODULE_2", "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Nept M Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_1", "TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_1_DESC" },
-        1,
-        nullptr,
-        "Merc M Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_2", "TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Merc M2 Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_MARS_DESC_MODULE_1", "TR_BUILDING_GRAND_TEMPLE_MARS_MODULE_1_DESC" },
-        1,
-        nullptr,
-        "Mars M2 Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_MARS_DESC_MODULE_2", "TR_BUILDING_GRAND_TEMPLE_MARS_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Mars M Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_VENUS_DESC_MODULE_1", "TR_BUILDING_GRAND_TEMPLE_VENUS_MODULE_1_DESC" },
-        0,
-        nullptr,
-        "Venus M Icon"
-    },
-    {
-        { "TR_BUILDING_GRAND_TEMPLE_VENUS_DESC_MODULE_2", "TR_BUILDING_GRAND_TEMPLE_VENUS_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Venus M2 Icon"
-    },
-    {
-        { "TR_BUILDING_PANTHEON_DESC_MODULE_1", "TR_BUILDING_PANTHEON_MODULE_1_DESC" },
-        0,
-        nullptr,
-        "Panth M Icon"
-    },
-    {
-        { "TR_BUILDING_PANTHEON_DESC_MODULE_2", "TR_BUILDING_PANTHEON_MODULE_2_DESC" },
-        0,
-        nullptr,
-        "Panth M2 Icon"
-    }
+    int requires_any_fort = 0;
+    const char *required_building_text_id = nullptr;
+    const char *image_id = nullptr;
 };
+
+static TempleModuleOption &temple_module_option(int index)
+{
+    static std::map<int, TempleModuleOption> options;
+    TempleModuleOption &result = options[index];
+    for (const auto &type : building_type_registry_impl::g_building_types) {
+        const auto *religion = type ? type->religion() : nullptr;
+        if (!religion || religion->presentation().module_index() != index / 2 || index % 2 >= religion->epithets().size()) continue;
+        const auto &epithet = religion->epithets()[index % 2];
+        result.option.header = epithet.name_key;
+        result.option.desc = epithet.description_key;
+        result.requires_any_fort = epithet.requires_any_fort;
+        result.required_building_text_id = epithet.required_building.empty() ? nullptr : epithet.required_building.c_str();
+        result.image_id = epithet.image.c_str();
+        // Image ids are bound to the current graphics generation, including live mod changes.
+        result.option.image_id = epithet.image.empty() ? 0 : assets_get_image_id("UI", epithet.image.c_str());
+        return result;
+    }
+    result = {};
+    return result;
+}
 
 static int scenario_allows_any_fort(void)
 {
@@ -158,11 +106,12 @@ static int scenario_allows_any_fort(void)
 
 static int temple_module_option_is_allowed(int index)
 {
-    if (temple_module_options[index].requires_any_fort) {
+    if (!temple_module_option(index).option.header) return 0;
+    if (temple_module_option(index).requires_any_fort) {
         return scenario_allows_any_fort();
     }
 
-    const char *required_building_text_id = temple_module_options[index].required_building_text_id;
+    const char *required_building_text_id = temple_module_option(index).required_building_text_id;
     if (!required_building_text_id) {
         return 1;
     }
@@ -614,7 +563,7 @@ static void draw_grand_temple_mars_military(building_info_context *c, Temple &te
     int y = 60;
     data.building = c->building;
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 25, c->y_offset + y - 5);
-    int weapon_amount = temple.resource_amount(resource_weapons());
+    int weapon_amount = temple.resource_amount(resource_weapons()) / resource_units_per_load();
     if (weapon_amount < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
@@ -783,7 +732,7 @@ void window_building_draw_grand_temple(building_info_context *c, Temple &temple)
         window_building_draw_monument_temple_construction_process(c);
     }
     if (upgrade_level) {
-        const translation_key module_name = temple_module_options[data.module_index * 2 + (upgrade_level - 1)].option.header;
+        const translation_key module_name = temple_module_option(data.module_index * 2 + (upgrade_level - 1)).option.header;
         text_draw_centered(translation_for(module_name),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     } else {
@@ -799,7 +748,7 @@ void window_building_draw_grand_temple(building_info_context *c, Temple &temple)
             height = text_draw_multiline(translation_for(presentation.bonus_key()),
                 c->x_offset + 22, c->y_offset + 56 + presentation.content_y_offset(), 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (upgrade_level) {
-                const translation_key module_desc = temple_module_options[data.module_index * 2 + (upgrade_level - 1)].option.desc;
+                const translation_key module_desc = temple_module_option(data.module_index * 2 + (upgrade_level - 1)).option.desc;
                 height += text_draw_multiline(translation_for(module_desc),
                     c->x_offset + 22, c->y_offset + 66 + height + presentation.content_y_offset(), 15 * c->width_blocks,
                     0, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
@@ -1227,6 +1176,7 @@ void window_building_draw_hippodrome_background(building_info_context *c)
                 c->x_offset + 125, c->y_offset + y_offset + 240, 320,
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
+        if (!city_data.games.chosen_horse) window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 160, 73, 1);
         if (race && race->betting.enabled) {
             text_draw_centered(translation_for(city_data.games.chosen_horse ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
                 "TR_WINDOW_RACE_BET_TITLE"), c->x_offset + 88, c->y_offset + y_offset + 351, 300,
@@ -1330,12 +1280,12 @@ static void add_module(int selection)
 
 static void generate_module_image_id(int index)
 {
-    option_menu_item *option = &temple_module_options[index].option;
+    option_menu_item *option = &temple_module_option(index).option;
     if (option->image_id) {
         return;
     }
-    option->image_id = assets_get_image_id("UI",
-        temple_module_options[index].image_id);
+    const char *image = temple_module_option(index).image_id;
+    if (image && *image) option->image_id = assets_get_image_id("UI", image);
 }
 
 static void button_add_module_prompt(const generic_button *button)
@@ -1349,12 +1299,12 @@ static void button_add_module_prompt(const generic_button *button)
     if (temple_module_option_is_allowed(option_id)) {
         generate_module_image_id(option_id);
         data.module_choices[num_options] = 1;
-        options[num_options++] = temple_module_options[option_id].option;
+        options[num_options++] = temple_module_option(option_id).option;
     }
     if (temple_module_option_is_allowed(option_id + 1)) {
         generate_module_image_id(option_id + 1);
         data.module_choices[num_options] = 2;
-        options[num_options++] = temple_module_options[option_id + 1].option;
+        options[num_options++] = temple_module_option(option_id + 1).option;
     }
 
     if (num_options) {

@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/count.h"
 #include "building/list.h"
 #include "city/warning.h"
@@ -139,7 +140,7 @@ int building_get_raw_materials_for_workshop(
         for (size_t i = 0; i < inputs.size(); i++) {
             chain[i].good = method->output_resource();
             chain[i].raw_material = inputs[i].resource;
-            chain[i].raw_amount = method->scaled_input_amount(inputs[i]);
+            chain[i].raw_amount = inputs[i].amount;
         }
     }
     return static_cast<int>(inputs.size());
@@ -227,6 +228,7 @@ static void update_venus_gt_production(void)
     if (record->monument.progress > MAX_PROGRESS_VENUS_GT) {
         if (venus_gt->resource_amount(resource_wine()) < MAX_STORAGE) {
             venus_gt->add_resource(resource_wine(), 1);
+            city_trade_ledger_produced(resource_wine(), resource_units_per_load());
         }
         record->monument.progress = record->monument.progress - MAX_PROGRESS_VENUS_GT;
     }
@@ -255,32 +257,32 @@ void building_industry_update_production(int new_day)
     }
 }
 
-void building_bless_farms(void)
+void building_bless_farms(int days)
 {
-    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [days] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
-            building->bless_native_farm();
+            building->bless_native_farm(days);
         }
     });
 }
 
-void building_bless_industry(void)
+void building_bless_industry(int batches)
 {
-    Building::for_each(BuildingRuntimeList::Production, [] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [batches] (Building *building)
     {
         if (building->is_in_use()) {
-            building->bless_native_industry();
+            building->bless_native_industry(batches);
         }
     });
 }
 
-void building_curse_farms(int big_curse)
+void building_curse_farms(int days)
 {
-    Building::for_each(BuildingRuntimeList::Production, [big_curse] (Building *building)
+    Building::for_each(BuildingRuntimeList::Production, [days] (Building *building)
     {
         if (building->type->is_farm() && building->is_in_use()) {
-            building->curse_native_farm(big_curse);
+            building->curse_native_farm(days);
         }
     });
 }
@@ -296,7 +298,7 @@ int building_get_required_raw_amount_for_production(
         }
         for (const building_type_registry_impl::ProductionResourceAmount &input : method->inputs()) {
             if (input.resource == static_cast<resource_type>(raw_material)) {
-                amount = std::max(amount, method->scaled_input_amount(input));
+                amount = std::max(amount, input.amount);
             }
         }
     }

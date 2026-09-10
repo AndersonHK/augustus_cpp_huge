@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="stone">
+  <graphics>
+    <cart load="single" path="Industry\Stone_Carts" image="Stone_Cart_NE" />
+    <cart load="multiple" path="Industry\Stone_Carts" image="Stone_Cart_Getting_NE" />
+    <cart load="eight" path="Industry\Stone_Carts" image="Stone_Cart_Getting_NE" />
+    <storage load="1" path="Industry\Warehouse_Stone_01" image="Warehouse_Stone_01" />
+    <storage load="2" path="Industry\Warehouse_Stone_02" image="Warehouse_Stone_02" />
+    <storage load="3" path="Industry\Warehouse_Stone_03" image="Warehouse_Stone_03" />
+    <storage load="4" path="Industry\Warehouse_Stone_04" image="Warehouse_Stone_04" />
+    <panel_icon path="UI\Panelling_Stone_01" image="Panelling_Stone_01" />
+    <empire_icon path="UI\Panelling_Stone_02" image="Panelling_Stone_02" />
+    <editor_icon path="UI\Panelling_Stone_01" image="Panelling_Stone_01" />
+    <editor_empire_icon path="UI\Panelling_Stone_02" image="Panelling_Stone_02" />
+  </graphics>
+</resource>

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <array>
 
 namespace building_save_bridge {
 
@@ -18,6 +19,7 @@ struct LegacyBuildingDefinitionView {
 };
 
 struct LegacyBuildingSaveDto {
+    std::array<double, 4> housing_goods_consumption_remainder{};
     uint8_t size = 0;
     uint8_t house_is_merged = 0;
     uint8_t house_size = 0;

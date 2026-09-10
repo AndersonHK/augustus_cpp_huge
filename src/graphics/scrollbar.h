@@ -1,11 +1,17 @@
 #pragma once
 
 #include "graphics/color.h"
+#include "graphics/image.h"
 #include "graphics/font.h"
 #include "input/mouse.h"
 
 
-typedef struct {
+struct ScrollbarAppearance {
+    ImageGroupEntryRef up, down, middle, top, bottom, grip;
+    bool is_bound() const { return up.is_bound() && down.is_bound() && middle.is_bound() && top.is_bound() && bottom.is_bound(); }
+};
+
+struct scrollbar_type {
     int x;
     int y;
     int height;
@@ -21,7 +27,9 @@ typedef struct {
     int scrollbar_dot_drag_offset;
     int touch_drag_state;
     int position_on_touch;
-} scrollbar_type;
+    int scrollbar_dot_mouse_offset;
+    const ScrollbarAppearance *appearance = nullptr;
+};
 
 /**
  * Initializes the scrollbar

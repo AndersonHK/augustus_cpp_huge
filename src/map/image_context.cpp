@@ -12,7 +12,7 @@
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 #define MAX_TILES 8
@@ -360,7 +360,7 @@ const terrain_image *map_image_context_get_elevation(int grid_offset, int elevat
     int tiles[MAX_TILES];
     for (int i = 0; i < MAX_TILES; i++) {
         int target_offset = grid_offset + map_grid_direction_delta(i);
-        if (map_terrain_get(target_offset) == TERRAIN_MAP_EDGE) {
+        if (terrain_map().at(target_offset) == terrain_types().map_edge) {
             tiles[i] = 1;
         } else {
             tiles[i] = map_elevation_at(grid_offset + map_grid_direction_delta(i)) >= elevation ? 1 : 0;
@@ -374,7 +374,7 @@ const terrain_image *map_image_context_get_earthquake(int grid_offset)
     int tiles[MAX_TILES];
     for (int i = 0; i < MAX_TILES; i++) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        tiles[i] = (map_terrain_is(offset, TERRAIN_ROCK) &&
+        tiles[i] = (terrain_map().contains(offset, terrain_types().rock) &&
             map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) ? 1 : 0;
     }
     return get_image(CONTEXT_EARTHQUAKE, tiles);
@@ -390,24 +390,24 @@ const terrain_image *map_image_context_get_future_earthquake(int grid_offset)
     return get_image(CONTEXT_EARTHQUAKE, tiles);
 }
 
-static void fill_matches(int grid_offset, int terrain, int match_value, int no_match_value, int tiles[MAX_TILES])
+static void fill_matches(int grid_offset, TerrainSet terrain, int match_value, int no_match_value, int tiles[MAX_TILES])
 {
     for (int i = 0; i < MAX_TILES; i++) {
-        tiles[i] = map_terrain_is(grid_offset + map_grid_direction_delta(i), terrain) ? match_value : no_match_value;
+        tiles[i] = terrain_map().contains(grid_offset + map_grid_direction_delta(i), terrain) ? match_value : no_match_value;
     }
 }
 
 const terrain_image *map_image_context_get_shore(int grid_offset)
 {
     int tiles[MAX_TILES];
-    fill_matches(grid_offset, TERRAIN_WATER, 0, 1, tiles);
+    fill_matches(grid_offset, terrain_types().water, 0, 1, tiles);
     return get_image(CONTEXT_WATER, tiles);
 }
 
 const terrain_image *map_image_context_get_wall(int grid_offset)
 {
     int tiles[MAX_TILES];
-    fill_matches(grid_offset, TERRAIN_WALL, 0, 1, tiles);
+    fill_matches(grid_offset, terrain_types().wall, 0, 1, tiles);
     return get_image(CONTEXT_WALL, tiles);
 }
 
@@ -415,17 +415,17 @@ const terrain_image *map_image_context_get_wall_gatehouse(int grid_offset)
 {
     int tiles[MAX_TILES] = { 0,0,0,0,0,0,0,0 };
     for (int i = 0; i < MAX_TILES; i += 2) {
-        tiles[i] = map_terrain_is(grid_offset + map_grid_direction_delta(i), TERRAIN_WALL_OR_GATEHOUSE) ? 1 : 0;
+        tiles[i] = terrain_map().contains(grid_offset + map_grid_direction_delta(i), terrain_types().wall_or_gatehouse) ? 1 : 0;
     }
     return get_image(CONTEXT_WALL_GATEHOUSE, tiles);
 }
 
 static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
 {
-    fill_matches(grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY, 1, 0, tiles);
+    fill_matches(grid_offset, terrain_types().road | terrain_types().highway, 1, 0, tiles);
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (map_terrain_is(offset, TERRAIN_GATEHOUSE)) {
+        if (terrain_map().contains(offset, terrain_types().gatehouse)) {
             if (map_building_exists_at(offset)) {
                 Building current = map_building_at(offset);
                 if (current.Foundation &&
@@ -433,9 +433,9 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
                     tiles[i] = 1;
                 }
             }
-        } else if (map_terrain_is(offset, TERRAIN_ACCESS_RAMP)) {
+        } else if (terrain_map().contains(offset, terrain_types().access_ramp)) {
             tiles[i] = map_tiles_access_ramp_allows_road_edge(grid_offset, offset);
-        } else if (map_terrain_is(offset, TERRAIN_BUILDING)) {
+        } else if (terrain_map().contains(offset, terrain_types().building)) {
             // The below part is responsible for connecting buildings to roads, without making them passable or roads
             // Any buildings that should visually connect to the road due to passability or other interactions should 
             // receive relevant treatment in the section below
@@ -521,7 +521,7 @@ static void set_terrain_reservoir(
     int grid_offset, int direction, int multi_tile_mask, int tiles[MAX_TILES], int include_construction)
 {
     int offset = grid_offset + map_grid_direction_delta(direction);
-    if (map_terrain_is(offset, TERRAIN_BUILDING)) {
+    if (terrain_map().contains(offset, terrain_types().building)) {
         if (map_building_exists_at(offset) &&
             map_building_at(offset).matches("reservoir") &&
             map_property_multi_tile_xy(offset) == multi_tile_mask) {
@@ -537,12 +537,12 @@ static void set_terrain_reservoir(
 const terrain_image *map_image_context_get_aqueduct(int grid_offset, int include_construction)
 {
     int tiles[MAX_TILES] = { 0,0,0,0,0,0,0,0 };
-    int has_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
+    int has_road = terrain_map().contains(grid_offset, terrain_types().road) ? 1 : 0;
     for (int i = 0; i < MAX_TILES; i += 2) {
         int offset = grid_offset + map_grid_direction_delta(i);
-        if (map_terrain_is(offset, TERRAIN_AQUEDUCT)) {
+        if (terrain_map().contains(offset, terrain_types().aqueduct)) {
             if (has_road) {
-                if (!map_terrain_is(offset, TERRAIN_ROAD)) {
+                if (!terrain_map().contains(offset, terrain_types().road)) {
                     tiles[i] = 1;
                 }
             } else {
@@ -555,4 +555,18 @@ const terrain_image *map_image_context_get_aqueduct(int grid_offset, int include
     set_terrain_reservoir(grid_offset, 4, EDGE_X1Y0, tiles, include_construction);
     set_terrain_reservoir(grid_offset, 6, EDGE_X2Y1, tiles, include_construction);
     return get_image(CONTEXT_AQUEDUCT, tiles);
+}
+
+// Translate the legacy shore-context table at its boundary. Terrain definitions
+// select images by the resulting geometric shape, never by table offsets.
+WaterShoreShape water_shore_shape(const terrain_image &image)
+{
+    switch (image.group_offset) {
+        case 0: return WaterShoreShape::Open;
+        case 8: return WaterShoreShape::North;
+        case 12: return WaterShoreShape::East;
+        case 16: return WaterShoreShape::South;
+        case 20: return WaterShoreShape::West;
+        default: return WaterShoreShape::Other;
+    }
 }

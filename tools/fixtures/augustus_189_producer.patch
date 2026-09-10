@@ -1,0 +1,148 @@
+--- a/src/platform/SDL2/augustus.c
++++ b/src/platform/SDL2/augustus.c
+@@ -7,6 +7,7 @@
+ #include "core/log.h"
+ #include "core/time.h"
+ #include "game/game.h"
++#include "game/file.h"
+ #include "game/settings.h"
+ #include "game/system.h"
+ #include "graphics/screen.h"
+@@ -694,8 +695,124 @@
+     data.active = 1;
+ }
+ 
++#include "scenario/event/controller.h"
++#include "scenario/event/event.h"
++#include "building/properties.h"
++#include "building/monument.h"
++#include "building/highway_station.h"
++#include "map/grid.h"
++#include "figure/figure.h"
++#include "figure/action.h"
++#include "map/building_tiles.h"
++#include "map/terrain.h"
++#include "city/finance.h"
++#include "building/construction_building.h"
++#include "building/rotation.h"
++#include "building/construction.h"
++#include "map/road_access.h"
++#include "figure/movement.h"
+ int main(int argc, char **argv)
+ {
++#ifdef _MSC_VER
++    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
++    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
++#endif
++    if ((argc == 5 || argc == 6) && strcmp(argv[1], "--produce-save") == 0) {
++        SDL_setenv("AUGUSTUS_FIXTURE_HIDDEN", "1", 1);
++        SDL_setenv("SDL_AUDIODRIVER", "dummy", 1);
++        augustus_args fixture_args = {0};
++        fixture_args.data_directory = argv[2];
++        fixture_args.force_windowed = 1;
++        setup(&fixture_args);
++        int loaded = game_file_load_saved_game(argv[3]);
++        if (loaded == 1 && argc == 6 && strncmp(argv[5], "delay=", 6) == 0) {
++            resource_get_data(RESOURCE_TROOPS)->production_per_month = atoi(argv[5] + 6);
++        } else if (loaded == 1 && argc == 6 && strncmp(argv[5], "fort=", 5) == 0) {
++            int placed = 0;
++            building_construction_set_type(BUILDING_MESS_HALL, 0);
++            for (int y = 10; y < 140 && !placed; ++y) for (int x = 10; x < 140 && !placed; ++x) {
++                if (map_building_tiles_are_clear(x, y, 3, TERRAIN_NOT_CLEAR)) placed = building_construction_place_building(BUILDING_MESS_HALL, x, y, 1);
++            }
++            building_update_state();
++            placed = 0;
++            building_construction_set_type(BUILDING_FORT_LEGIONARIES, 0);
++            building_rotation_setup_rotation(atoi(argv[5] + 5));
++            for (int y = 10; y < 140 && !placed; ++y) for (int x = 10; x < 140 && !placed; ++x) {
++                if (!map_building_tiles_are_clear(x - 4, y - 4, 9, TERRAIN_NOT_CLEAR)) continue;
++                placed = building_construction_place_building(BUILDING_FORT_LEGIONARIES, x, y, 1);
++            }
++            fprintf(stderr, "Upstream fort fixture orientation=%s placed=%d\n", argv[5] + 5, placed);
++            if (!placed) _Exit(13);
++        } else if (loaded == 1 && argc == 6) {
++            model_get_building(BUILDING_THEATER)->laborers = 3;
++            model_get_house(0)->water = 2;
++            model_get_house(0)->max_people = 7;
++            building_monument_stage_resource_set(BUILDING_ORACLE, 1, RESOURCE_MARBLE, 13);
++            scenario_event_t *event = scenario_event_create(1, 1, 1);
++            event->state = EVENT_STATE_DISABLED;
++            scenario_action_t *action = scenario_event_action_create(event, ACTION_TYPE_LOCK_TRADE_ROUTE);
++            action->parameter1 = 1; action->parameter2 = 1;
++            unsigned int formula = scenario_formula_add((const uint8_t *)"73", 0, 1000);
++            action = scenario_event_action_create(event, ACTION_TYPE_CHANGE_PRODUCTION_RATE);
++            action->parameter1 = RESOURCE_DENARII; action->parameter2 = formula; action->parameter3 = 1;
++            action = scenario_event_action_create(event, ACTION_TYPE_CHANGE_MODEL_DATA);
++            action->parameter1 = BUILDING_THEATER; action->parameter2 = 5; action->parameter3 = formula; action->parameter4 = 1;
++            action = scenario_event_action_create(event, ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA);
++            action->parameter1 = BUILDING_HOUSE_SMALL_TENT; action->parameter2 = 3;
++            action->parameter3 = scenario_formula_add((const uint8_t *)"2", 0, 3); action->parameter4 = 1;
++            action = scenario_event_action_create(event, ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA);
++            action->parameter1 = BUILDING_HOUSE_SMALL_TENT; action->parameter2 = 15;
++            action->parameter3 = scenario_formula_add((const uint8_t *)"7", 0, 1000); action->parameter4 = 1;
++            scenario_text_get_new((const uint8_t *)"Authored upstream fixture text");
++            city_finance_trade_ledger_add_produced(RESOURCE_WHEAT);
++            city_finance_trade_ledger_add_consumed(RESOURCE_WHEAT, 7);
++            city_finance_trade_ledger_add_balance(RESOURCE_WHEAT, -317);
++            city_finance_record_trade_into_ledger(300, 30, 1, 255, 2, RESOURCE_WHEAT, 1);
++            int placed = 0;
++            for (int y = 25; y < 60 && !placed; ++y) for (int x = 25; x < 60 && !placed; ++x) {
++                if (!map_building_tiles_are_clear(x - 1, y, 3, TERRAIN_NOT_CLEAR)) continue;
++                building *station = building_create(BUILDING_HIGHWAY_STATION, x, y);
++                station->state = BUILDING_STATE_IN_USE;
++                station->num_workers = 10;
++                station->resources[RESOURCE_STONE] = 300; station->resources[RESOURCE_SAND] = 300;
++                building_highway_station_refresh_graphic(station);
++                map_terrain_add(map_grid_offset(x - 1, y), TERRAIN_ROAD);
++                figure *carrier = figure_create(FIGURE_HIGHWAY_STATION_SUPPLIER, x - 1, y, 0);
++                carrier->building_id = station->id; station->figure_id = carrier->id;
++                carrier->destination_building_id = station->id;
++                carrier->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
++                carrier->collecting_item_id = RESOURCE_SAND; carrier->loads_sold_or_carrying = 2;
++                carrier->destination_x = carrier->x; carrier->destination_y = carrier->y;
++                if (strcmp(argv[5], "station-going") == 0) {
++                    carrier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
++                    carrier->loads_sold_or_carrying = 0;
++                } else if (strcmp(argv[5], "station-combat") == 0) {
++                    carrier->action_state_before_attack = carrier->action_state;
++                    carrier->action_state = FIGURE_ACTION_150_ATTACK;
++                }
++                placed = 1;
++            }
++            fprintf(stderr, "Authored fixture station=%d\n", placed);
++            int walkers = 0;
++            for (int id = 1; id < building_count() && !walkers; ++id) {
++                building *home = building_get(id);
++                map_point access;
++                if (!building_is_house(home->type) || home->state != BUILDING_STATE_IN_USE || !map_has_road_access(home->x, home->y, home->size, &access)) continue;
++                for (int kind = 0; kind < 2; ++kind) {
++                    figure *walker = figure_create(kind ? FIGURE_DOG : FIGURE_PLEBIAN, access.x, access.y, DIR_4_BOTTOM);
++                    walker->building_id = id;
++                    walker->action_state = FIGURE_ACTION_125_ROAMING;
++                    figure_movement_init_roaming(walker);
++                    ++walkers;
++                }
++            }
++            fprintf(stderr, "Authored source walkers=%d\n", walkers);
++        }
++        int written = loaded == 1 && game_file_write_saved_game(argv[4]);
++        fprintf(stderr, "Upstream fixture load=%d write=%d\n", loaded, written);
++        fflush(NULL);
++        _Exit(written ? 0 : 12);
++    }
+     augustus_args args;
+     if (!platform_parse_arguments(argc, argv, &args)) {
+ #if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && !defined(__APPLE__)
+--- a/src/platform/SDL2/screen.c
++++ b/src/platform/SDL2/screen.c
+@@ -153,6 +153,10 @@
+     SDL_Log("Creating screen %d x %d on display %d, %s, driver: %s", width, height, display_id,
+         fullscreen ? "fullscreen" : "windowed", SDL_GetCurrentVideoDriver());
+     Uint32 flags = SDL_WINDOW_RESIZABLE;
++    if (SDL_getenv("AUGUSTUS_FIXTURE_HIDDEN")) {
++        flags |= SDL_WINDOW_HIDDEN;
++        fullscreen = 0;
++    }
+ 
+ #if SDL_VERSION_ATLEAST(2, 0, 1)
+     flags |= SDL_WINDOW_ALLOW_HIGHDPI;

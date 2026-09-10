@@ -10,6 +10,7 @@
 #include "figure/sound.h"
 #include "figure/unit_type.h"
 #include "game/settings.h"
+#include "game/defines.h"
 #include "map/figure.h"
 #include "sound/effect.h"
 
@@ -26,6 +27,12 @@ static const figure_properties *properties_for(const Figure &f)
 static const UnitType *unit_type_for(const Figure &f)
 {
     return unit_type_registry_impl::find_unit_type(type_of(f));
+}
+
+bool figure_combat_is_targetable(const Figure &figure)
+{
+    const auto *unit = unit_type_for(figure);
+    return !unit || unit->targetable();
 }
 
 static figure_category_mask category_for(const Figure &f)
@@ -179,6 +186,14 @@ static void hit_opponent(Figure *f)
         }
     }
 
+    const int low_morale_divisor = game_defines_enemy_low_morale_combat_divisor();
+    if (attacker_has_formation && (category_for(*f) & FIGURE_CATEGORY_HOSTILE) && m->has_low_morale()) {
+        figure_attack /= low_morale_divisor;
+    }
+    if (defender_has_formation && (cat & FIGURE_CATEGORY_HOSTILE) && opponent_formation->has_low_morale()) {
+        opponent_defense /= low_morale_divisor;
+    }
+
     int max_damage = figure_damage_limit_for_type(type_of(*opponent));
     int net_attack = figure_attack - opponent_defense;
     if (net_attack < 0) {
@@ -238,7 +253,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || f->is_ghost) {
+        if (f->is_dead() || f->is_ghost || !figure_combat_is_targetable(*f)) {
             // Do not allow to target dead and enemies located outside of the map
             continue;
         }
@@ -260,7 +275,7 @@ int figure_combat_get_target_for_soldier(int x, int y, int max_distance)
     }
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_enemy() || f->type == FIGURE_RIOTER || is_attacking_native(f)) {
@@ -276,7 +291,7 @@ int figure_combat_get_target_for_aggressive_herd(int x, int y, int max_distance)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || !f->type) {
+        if (f->is_dead() || !f->type || !figure_combat_is_targetable(*f)) {
             continue;
         }
         switch (f->type) {
@@ -326,7 +341,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
     int min_distance = 10000;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (!f->targeted_by_figure.save_id() && f->is_legion()) {
@@ -343,7 +358,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
     // no 'free' soldier found, take first one
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead()) {
+        if (f->is_dead() || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_legion()) {
@@ -355,6 +370,7 @@ int figure_combat_get_target_for_enemy(int x, int y)
 
 static int is_valid_missile_target(Figure *f, formation *l)
 {
+    if (!figure_combat_is_targetable(*f)) return 0;
     if (f->is_enemy() || is_attacking_native(f)) {
         return 1;
     }
@@ -380,7 +396,7 @@ int figure_combat_get_missile_target_for_soldier(Figure *shooter, int max_distan
     formation *l = formation_get(shooter->formation_id);
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || f->is_ghost) {
+        if (f->is_dead() || f->is_ghost || !figure_combat_is_targetable(*f)) {
             // Do not allow to target dead and enemies located outside of the map
             continue;
         }
@@ -413,7 +429,7 @@ int figure_combat_get_missile_target_for_enemy(Figure *enemy, int max_distance, 
     int min_distance = max_distance;
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->is_dead() || !f->type) {
+        if (f->is_dead() || !f->type || !figure_combat_is_targetable(*f)) {
             continue;
         }
         if (f->is_herd()) {
@@ -492,7 +508,7 @@ void figure_combat_attack_figure_at(Figure *f, int grid_offset)
             break;
         }
         Figure *opponent = Figure::get(opponent_id);
-        if (opponent_id == f->id() || opponent->is_ghost) {
+        if (opponent_id == f->id() || opponent->is_ghost || !figure_combat_is_targetable(*opponent)) {
             // Do not allow troops to attack themselves or enemies located outside of the map
             opponent_id = opponent->next_figure_id_on_same_tile;
             continue;
@@ -508,17 +524,17 @@ void figure_combat_attack_figure_at(Figure *f, int grid_offset)
             if (opponent->action_state == FIGURE_ACTION_159_NATIVE_ATTACKING) {
                 attack = 1;
             }
-        } else if (category & FIGURE_CATEGORY_ARMED && opponent_category & FIGURE_CATEGORY_HOSTILE) {
+        } else if (category & FIGURE_CATEGORY_ARMED && opponent_category & FIGURE_CATEGORY_HOSTILE && !(opponent_category & FIGURE_CATEGORY_NATIVE)) {
             attack = 1;
         } else if (category & FIGURE_CATEGORY_HOSTILE && opponent_category & FIGURE_CATEGORY_CITIZEN) {
             attack = 1;
-        } else if (category & FIGURE_CATEGORY_HOSTILE && opponent_category & FIGURE_CATEGORY_CRIMINAL) {
+        } else if (category & FIGURE_CATEGORY_HOSTILE && !(category & FIGURE_CATEGORY_CRIMINAL) && opponent_category & FIGURE_CATEGORY_CRIMINAL) {
             attack = 1;
         } else if (category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL && opponent_category & FIGURE_CATEGORY_CITIZEN) {
             attack = 1;
         } else if (category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL && opponent_category & FIGURE_CATEGORY_ARMED) {
             attack = 1;
-        } else if (category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL && opponent_category & FIGURE_CATEGORY_HOSTILE) {
+        } else if (category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL && opponent_category & FIGURE_CATEGORY_HOSTILE && !(opponent_category & FIGURE_CATEGORY_NATIVE)) {
             attack = 1;
         } else if (can_attack_animal(category, opponent_category, l, opponent)) {
             attack = 1;

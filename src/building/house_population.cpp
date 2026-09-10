@@ -207,7 +207,7 @@ int house_population_create_emigrants(int num_people)
     return num_people - to_emigrate;
 }
 
-static void calculate_working_population(void)
+void house_population_calculate_workers(void)
 {
     int num_plebs = 0;
     int num_patricians = 0;
@@ -230,7 +230,7 @@ void house_population_update_migration(void)
     city_migration_update();
 
     city_population_yearly_update();
-    calculate_working_population();
+    house_population_calculate_workers();
     // population messages
     int population = city_population();
     if (population >= 500 && city_message_mark_population_shown(500)) {

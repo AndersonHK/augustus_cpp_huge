@@ -23,6 +23,9 @@
             </options>
         </default>
     </graphics>
+    <construction>
+        <gift event="distant_battle_victory" />
+    </construction>
     <labor>
         <employees count="0" />
     </labor>

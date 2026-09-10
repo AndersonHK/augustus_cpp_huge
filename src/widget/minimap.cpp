@@ -19,7 +19,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 
 #include <string.h>
@@ -74,7 +74,7 @@ static minimap_functions default_functions = {
     {map_grid_width, map_grid_height},
     {
         map_figure_foreach_until,
-        map_terrain_get,
+        [](int offset) { return terrain_map().at(offset); },
         runtime_building_id_at,
         runtime_is_draw_tile,
         runtime_tile_size,
@@ -583,31 +583,31 @@ static void draw_minimap_tile(int x_view, int y_view, int grid_offset)
     }
     const minimap_functions *functions = active_render_context->functions;
     const tile_color_climate_variants *climate = active_render_context->climate;
-    int terrain = functions->offset.terrain(grid_offset);
+    TerrainSet terrain = functions->offset.terrain(grid_offset);
 
-    if (terrain & TERRAIN_BUILDING && !(terrain & (TERRAIN_AQUEDUCT | TERRAIN_WALL))) {
+    if (terrain & terrain_types().building && !(terrain & (terrain_types().aqueduct | terrain_types().wall))) {
         draw_building(x_view, y_view, grid_offset);
         return;
     }
     int rand = functions->offset.random(grid_offset);
     const tile_color *colors;
-    if (terrain & TERRAIN_AQUEDUCT) {
+    if (terrain & terrain_types().aqueduct) {
         colors = &minimap_colors.aqueduct;
-    } else if (terrain & TERRAIN_ROAD) {
+    } else if (terrain & terrain_types().road) {
         colors = &climate->road;
-    } else if (terrain & TERRAIN_HIGHWAY) {
+    } else if (terrain & terrain_types().highway) {
         colors = &climate->highway;
-    } else if (terrain & TERRAIN_WATER) {
+    } else if (terrain & terrain_types().water) {
         colors = &climate->water[rand & 3];
-    } else if (terrain & (TERRAIN_SHRUB | TERRAIN_TREE)) {
+    } else if (terrain & (terrain_types().shrub | terrain_types().tree)) {
         colors = &climate->tree[rand & 3];
-    } else if (terrain & (TERRAIN_ROCK | TERRAIN_ELEVATION)) {
+    } else if (terrain & (terrain_types().rock | terrain_types().elevation)) {
         colors = &climate->rock[rand & 3];
-    } else if (terrain & TERRAIN_WALL) {
+    } else if (terrain & terrain_types().wall) {
         colors = &minimap_colors.wall;
-    } else if (terrain & TERRAIN_MEADOW) {
+    } else if (terrain & terrain_types().meadow) {
         colors = &climate->meadow[rand & 3];
-    } else if (terrain & TERRAIN_GARDEN) {
+    } else if (terrain & terrain_types().garden) {
         colors = &minimap_colors.aesthetics.edges;
     } else {
         colors = &climate->grass[rand & 7];

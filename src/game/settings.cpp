@@ -364,15 +364,7 @@ void setting_toggle_monthly_autosave(void)
     data.monthly_autosave = data.monthly_autosave ? 0 : 1;
 }
 
-int setting_gods_enabled(void)
-{
-    return data.gods_enabled;
-}
 
-void setting_toggle_gods_enabled(void)
-{
-    data.gods_enabled = data.gods_enabled ? 0 : 1;
-}
 
 set_difficulty setting_difficulty(void)
 {

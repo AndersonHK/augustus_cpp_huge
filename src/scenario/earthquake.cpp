@@ -15,7 +15,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "scenario/data.h"
 #include "sound/effect.h"
@@ -72,7 +72,7 @@ void scenario_earthquake_init(void)
 
 static int can_advance_earthquake_to_tile(int x, int y)
 {
-    if (map_terrain_is(map_grid_offset(x, y), TERRAIN_IMPASSABLE_EARTHQUAKE)) {
+    if (terrain_map().contains(map_grid_offset(x, y), terrain_types().impassable_earthquake)) {
         return 0;
     } else {
         return 1;
@@ -98,13 +98,16 @@ static void advance_earthquake_to_tile(int x, int y)
         }
     }
     map_tiles_clear_highway(grid_offset, 0);
-    map_terrain_set(grid_offset, 0);
+    terrain_map().set(grid_offset, {});
     map_tiles_set_earthquake(x, y);
     map_tiles_update_all_empty_land();
     map_tiles_update_all_gardens();
     map_tiles_update_all_roads();
     map_tiles_update_all_highways();
     map_tiles_update_all_plazas();
+    map_tiles_update_all_meadow();
+    map_tiles_update_all_walls();
+    map_tiles_update_all_aqueducts(0);
 
     Route::updateLandTerrain();
     Route::updateWallTerrain();

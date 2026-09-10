@@ -28,6 +28,7 @@ int sound_device_pause_music(void);
 int sound_device_resume_music(void);
 void sound_device_stop_music(void);
 void sound_device_stop_type(sound_type type);
+void sound_device_stop_file(const char *filename, sound_type type);
 
 void sound_device_on_audio_finished(void (*callback)(sound_type));
 void sound_device_fadeout_music(int milisseconds);

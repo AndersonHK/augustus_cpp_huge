@@ -13,7 +13,7 @@
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/road_aqueduct_rules.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 static road_aqueduct_axis straight_road_axis_for_aqueduct(int grid_offset);
 
@@ -45,8 +45,8 @@ static int axis_has_existing_road_conflict(int grid_offset, road_aqueduct_axis a
     if (!dx && !dy) {
         return 1;
     }
-    return map_terrain_is(grid_offset + map_grid_delta(-dx, -dy), TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ||
-        map_terrain_is(grid_offset + map_grid_delta(dx, dy), TERRAIN_ROAD | TERRAIN_ACCESS_RAMP);
+    return terrain_map().contains(grid_offset + map_grid_delta(-dx, -dy), terrain_types().road | terrain_types().access_ramp) ||
+        terrain_map().contains(grid_offset + map_grid_delta(dx, dy), terrain_types().road | terrain_types().access_ramp);
 }
 
 static int axis_has_construction_conflict(int grid_offset, road_aqueduct_axis axis, int include_existing_roads)
@@ -60,7 +60,7 @@ static int axis_has_construction_conflict(int grid_offset, road_aqueduct_axis ax
     const int before = grid_offset + map_grid_delta(-dx, -dy);
     const int after = grid_offset + map_grid_delta(dx, dy);
     return (include_existing_roads &&
-            (map_terrain_is(before, TERRAIN_ROAD) || map_terrain_is(after, TERRAIN_ROAD))) ||
+            (terrain_map().contains(before, terrain_types().road) || terrain_map().contains(after, terrain_types().road))) ||
         Route::constructionDistanceTo(before) > 0 ||
         Route::constructionDistanceTo(after) > 0;
 }
@@ -87,7 +87,7 @@ int map_can_route_road_under_aqueduct(int grid_offset, int adjacent_grid_offset)
 road_preview_graphic map_road_preview_graphic_at(int grid_offset)
 {
     road_preview_graphic preview;
-    if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         preview.image_id = image_group(GROUP_BUILDING_AQUEDUCT);
         if (map_can_place_road_under_aqueduct(grid_offset)) {
             preview.image_id += map_get_aqueduct_with_road_image(grid_offset);
@@ -97,21 +97,21 @@ road_preview_graphic map_road_preview_graphic_at(int grid_offset)
         return preview;
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
+    if (terrain_map().contains(grid_offset, terrain_types().building) &&
         figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
         const building_type source_type = map_building_type_at(grid_offset);
         preview.building = static_cast<building_type>(building_connectable_gate_type(source_type));
         return preview;
     }
 
-    if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+    if (terrain_map().contains(grid_offset, terrain_types().not_clear)) {
         preview.blocked = 1;
         return preview;
     }
 
     preview.image_id = image_group(GROUP_TERRAIN_ROAD);
-    if (!map_terrain_has_adjacent_x_with_type(grid_offset, TERRAIN_ROAD) &&
-        map_terrain_has_adjacent_y_with_type(grid_offset, TERRAIN_ROAD)) {
+    if (!terrain_map().has_adjacent_x_with_type(grid_offset, terrain_types().road) &&
+        terrain_map().has_adjacent_y_with_type(grid_offset, terrain_types().road)) {
         preview.image_id++;
     }
     return preview;
@@ -123,7 +123,7 @@ int map_can_place_aqueduct_on_road(int grid_offset)
     if (road_axis == road_aqueduct_axis::none) {
         return 0;
     }
-    if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
+    if (terrain_map().count_directly_adjacent_with_types(grid_offset, terrain_types().road | terrain_types().aqueduct)) {
         return 0;
     }
 
@@ -160,12 +160,12 @@ int map_get_aqueduct_with_road_image(int grid_offset)
 
 static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
 {
-    int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_building_exists_at(grid_offset)) {
+    int is_road = terrain_map().contains(grid_offset, terrain_types().road) ? 1 : 0;
+    if (terrain_map().contains(grid_offset, terrain_types().building) && map_building_exists_at(grid_offset)) {
         Building &current = map_building_at(grid_offset);
         if (current.Foundation &&
             current.Foundation->passage_at(grid_offset) != building_type_registry_impl::FoundationPassage::None) {
-            if (!map_terrain_is(grid_offset, TERRAIN_GATEHOUSE) ||
+            if (!terrain_map().contains(grid_offset, terrain_types().gatehouse) ||
                 current.Foundation->passage_axis() == gate_orientation) {
                 is_road = 1;
             }
@@ -196,7 +196,7 @@ static int is_highway(int x, int y, int check_routing)
     int grid_offset = map_grid_offset(x, y);
     if (!map_grid_is_valid_offset(grid_offset)) {
         return 0;
-    } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().highway)) {
         return 1;
     } else if (check_routing) {
         for (int xx = x - 1; xx <= x; xx++) {
@@ -216,7 +216,7 @@ static int is_aqueduct(int x, int y, int check_routing)
     int grid_offset = map_grid_offset(x, y);
     if (!map_grid_is_valid_offset(grid_offset)) {
         return 0;
-    } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         return 1;
     }
     if (map_building_exists_at(grid_offset) && map_building_at(grid_offset).matches("reservoir")) {
@@ -302,7 +302,7 @@ int map_can_place_aqueduct_on_highway(int grid_offset, int check_aqueduct_routin
         return 0;
     }
 
-    if (!map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().highway)) {
         return 1;
     }
 
@@ -319,7 +319,7 @@ int map_can_place_aqueduct_on_highway(int grid_offset, int check_aqueduct_routin
 
 int map_can_place_highway_under_aqueduct(int grid_offset, int check_highway_routing)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    if (!terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         return 1;
     }
 

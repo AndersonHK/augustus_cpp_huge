@@ -56,8 +56,6 @@ void setting_toggle_warnings(void);
 int setting_monthly_autosave(void);
 void setting_toggle_monthly_autosave(void);
 
-int setting_gods_enabled(void);
-void setting_toggle_gods_enabled(void);
 
 set_difficulty setting_difficulty(void);
 void setting_increase_difficulty(void);

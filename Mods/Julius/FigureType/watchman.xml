@@ -3,9 +3,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Warriors\Group_194" />
+            <image value="move_{dir}" />
         </default>
-        <corpse base_image_offset="136">
+        <corpse>
             <path value="Warriors\Group_194" />
+            <image value="corpse" />
         </corpse>
         <missile_launcher cursor="missile_wait_ticks" frame_divisor="2" frames="0,1,2,3,4,4,4,4,4,4,4,4,4,4,4,4" after_frame="0" />
     </graphics>

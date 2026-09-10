@@ -3,7 +3,7 @@
 #include "city/figures.h"
 #include "city/sound.h"
 #include "core/config.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/combat.h"
 #include "figure/figure.h"
@@ -16,16 +16,16 @@
 #include "map/desirability.h"
 #include "map/grid.h"
 #include "map/soldier_strength.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "sound/effect.h"
 
 #include <exception>
 
 #define FREE_TILE_SEARCH_RADIUS 4
 // Look for a free tile, in the neighborhood of (x,y)
-static int get_free_tile(int x, int y, int allow_negative_desirability, int *x_tile, int *y_tile)
+static int get_free_tile(int x, int y, int allow_negative_desirability, int building_clearance, int *x_tile, int *y_tile)
 {
-    int disallowed_terrain = ~(TERRAIN_ACCESS_RAMP | TERRAIN_MEADOW);
+    const TerrainSet allowed_terrain = terrain_types().access_ramp | terrain_types().meadow;
     int tile_found = 0;
     int x_found = 0, y_found = 0;
 
@@ -35,7 +35,8 @@ static int get_free_tile(int x, int y, int allow_negative_desirability, int *x_t
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
             int grid_offset = map_grid_offset(xx, yy);
-            if (!map_terrain_is(grid_offset, disallowed_terrain)) {
+            if (terrain_map().distance_to_nearest(grid_offset, terrain_types().building, building_clearance) <= building_clearance) continue;
+            if (!(terrain_map().at(grid_offset) - allowed_terrain)) {
                 if (map_soldier_strength_get(grid_offset)) {
                     return 0;
                 }
@@ -116,7 +117,7 @@ bool formation::find_herd_roaming_destination(const FormationHerdBehavior &behav
             y_target = map_grid_height() - 2;
         }
         // If we can find a free tile in this direction, return 1
-        if (get_free_tile(x_target, y_target, allow_negative_desirability, x_tile, y_tile)) {
+        if (get_free_tile(x_target, y_target, allow_negative_desirability, behavior.building_clearance, x_tile, y_tile)) {
             return 1;
         }
         // ...otherwise turn right and try again
@@ -129,7 +130,7 @@ bool formation::is_aggressive_herd() const
 {
     require_definition("is_aggressive_herd");
     if (!in_use || !is_herd || formation_type_definition->spawn.role != FormationSpawnRole::Herd) {
-        log_error("Formation is not a data-defined herd", formation_type_definition->key(), static_cast<int>(id));
+        Logger::error("Formation is not a data-defined herd", formation_type_definition->key(), static_cast<int>(id));
         std::terminate();
     }
     return formation_type_definition->spawn.herd.aggressive;
@@ -138,7 +139,7 @@ bool formation::is_aggressive_herd() const
 void formation::update_herd_member(Figure &member) const
 {
     if (!owns_figure(member) || !is_herd) {
-        log_error("Figure is not owned by its data-defined herd", 0, static_cast<int>(member.id()));
+        Logger::error("Figure is not owned by its data-defined herd", 0, static_cast<int>(member.id()));
         std::terminate();
     }
     const FormationHerdBehavior &behavior = formation_type_definition->spawn.herd;
@@ -185,7 +186,7 @@ void formation::update_herd_member(Figure &member) const
             break;
         case FIGURE_ACTION_199_WOLF_ATTACKING:
             if (!behavior.aggressive) {
-                log_error("Passive herd member entered the aggressive movement state", formation_type_definition->key(), static_cast<int>(member.id()));
+                Logger::error("Passive herd member entered the aggressive movement state", formation_type_definition->key(), static_cast<int>(member.id()));
                 std::terminate();
             }
             figure_movement_move_ticks(&member, behavior.member_move_speed);
@@ -215,7 +216,7 @@ void formation::update_herd_member(Figure &member) const
 void formation::update_herd_member_graphics(Figure &member) const
 {
     if (!owns_figure(member) || !is_herd) {
-        log_error("Figure graphics are not owned by a data-defined herd", 0, static_cast<int>(member.id()));
+        Logger::error("Figure graphics are not owned by a data-defined herd", 0, static_cast<int>(member.id()));
         std::terminate();
     }
     const FormationHerdBehavior &behavior = formation_type_definition->spawn.herd;
@@ -229,7 +230,7 @@ void formation::update_herd_member_graphics(Figure &member) const
             case FormationHerdCombatAnimation::Attack: entry = "attack"; break;
             case FormationHerdCombatAnimation::Rest: entry = "rest"; break;
             default:
-                log_error("Herd member has no data-defined combat animation", formation_type_definition->key(), static_cast<int>(member.id()));
+                Logger::error("Herd member has no data-defined combat animation", formation_type_definition->key(), static_cast<int>(member.id()));
                 std::terminate();
         }
         figure_runtime_graphics_select_directional_entry_frame(&member, entry, graphics_direction, member.attack_image_offset / 4 + 1);
@@ -259,7 +260,7 @@ void formation::update_herd(bool reproduction_allowed)
 
     if (reproduction_enabled && has_open_slot() && ++herd_spawn_delay > behavior.reproduction_delay) {
         herd_spawn_delay = 0;
-        if (!map_terrain_is(map_grid_offset(x, y), TERRAIN_IMPASSABLE_HERD)) {
+        if (!terrain_map().contains(map_grid_offset(x, y), terrain_types().impassable_herd)) {
             Figure *animal = Figure::create(figure_type_id(), x, y, DIR_0_TOP);
             animal->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
             animal->formation_id = id;
@@ -277,7 +278,13 @@ void formation::update_herd(bool reproduction_allowed)
         if (missile_attack_timeout) attacking_animals = 1;
     }
     wait_ticks++;
-    if (wait_ticks > behavior.roam_delay || attacking_animals) {
+    bool displaced_by_building = false;
+    if (behavior.building_clearance > 0) {
+        for_each_alive_figure([&](Figure &member, int) {
+            if (terrain_map().distance_to_nearest(member.grid_offset, terrain_types().building, behavior.building_clearance) <= behavior.building_clearance) displaced_by_building = true;
+        });
+    }
+    if (wait_ticks > behavior.roam_delay || attacking_animals || displaced_by_building) {
         wait_ticks = 0;
         if (attacking_animals) {
             set_destination(x_home, y_home);

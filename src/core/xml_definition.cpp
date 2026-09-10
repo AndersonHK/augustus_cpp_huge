@@ -1,11 +1,11 @@
 #include "core/xml_definition.h"
+#include "game/mod_content.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/xml_value.h"
 
 #include "core/file.h"
 #include "core/dir.h"
-#include "core/log.h"
 #include "core/xml_parser.h"
 #include "platform/file_manager.h"
 
@@ -150,7 +150,7 @@ bool for_each_definition_file(
     if (files.empty()) {
         if (require_files) {
             const std::string message = std::string("No ") + (label ? label : "definition") + " xml files found in";
-            log_error(message.c_str(), directory.c_str(), 0);
+            Logger::error(message.c_str(), directory.c_str(), 0);
         }
         return !require_files;
     }
@@ -159,7 +159,7 @@ bool for_each_definition_file(
         const std::string normalized_path = normalize_path(file.name.c_str());
         if (normalized_path.empty()) {
             const std::string message = std::string("Unsupported ") + (label ? label : "definition") + " file name";
-            log_error(message.c_str(), file.name.c_str(), 0);
+            Logger::error(message.c_str(), file.name.c_str(), 0);
             return false;
         }
         if (visitor && !visitor(file, normalized_path)) {
@@ -171,22 +171,26 @@ bool for_each_definition_file(
 
 int load_file_to_buffer(const char *filename, std::vector<char> &buffer, const char *label)
 {
+    if (const auto *resolved = mod_content::resolved_file(filename)) {
+        buffer.assign(resolved->begin(), resolved->end());
+        return 1;
+    }
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
-        log_error("Unable to open xml definition", label ? label : filename, 0);
+        Logger::error("Unable to open xml definition", label ? label : filename, 0);
         return 0;
     }
 
     if (std::fseek(fp, 0, SEEK_END) != 0) {
         file_close(fp);
-        log_error("Unable to seek xml definition", label ? label : filename, 0);
+        Logger::error("Unable to seek xml definition", label ? label : filename, 0);
         return 0;
     }
 
     long size = std::ftell(fp);
     if (size < 0) {
         file_close(fp);
-        log_error("Unable to size xml definition", label ? label : filename, 0);
+        Logger::error("Unable to size xml definition", label ? label : filename, 0);
         return 0;
     }
     std::rewind(fp);
@@ -195,7 +199,7 @@ int load_file_to_buffer(const char *filename, std::vector<char> &buffer, const c
     const size_t read = std::fread(buffer.data(), 1, buffer.size(), fp);
     file_close(fp);
     if (read != buffer.size()) {
-        log_error("Unable to read xml definition", label ? label : filename, 0);
+        Logger::error("Unable to read xml definition", label ? label : filename, 0);
         return 0;
     }
     return 1;
@@ -211,7 +215,7 @@ bool parse_file(
     std::vector<char> buffer;
     if (!load_file_to_buffer(filename, buffer, label)) {
         const std::string message = std::string("Failed to load ") + (label ? label : "xml") + " definition.";
-        error_context_report_error(message.c_str(), filename);
+        Logger::error(message.c_str(), filename);
         return false;
     }
 
@@ -228,15 +232,15 @@ bool parse_buffer(
 {
     if (buffer.size() > std::numeric_limits<unsigned int>::max()) {
         const std::string message = std::string(label ? label : "xml") + " definition is too large to parse.";
-        log_error(message.c_str(), filename, 0);
-        error_context_report_error(message.c_str(), filename);
+        Logger::error(message.c_str(), filename, 0);
+        Logger::error(message.c_str(), filename);
         return false;
     }
 
     if (!xml_parser_init(elements, element_count, stop_on_invalid_xml ? 1 : 0)) {
         const std::string message = std::string("Unable to initialize ") + (label ? label : "xml") + " xml parser.";
-        log_error(message.c_str(), filename, 0);
-        error_context_report_error(message.c_str(), filename);
+        Logger::error(message.c_str(), filename, 0);
+        Logger::error(message.c_str(), filename);
         return false;
     }
 

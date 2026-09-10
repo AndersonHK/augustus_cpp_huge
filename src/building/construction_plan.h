@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/building_type.h"
 #include "building/CompositionPlacementAccounting.h"
@@ -21,6 +22,7 @@ enum class PlacementFailureReason {
     OutOfBounds,
     Figure,
     OpenWater,
+    Proximity,
     Terrain
 };
 
@@ -32,9 +34,10 @@ struct ConstructionPlacementTile {
     int grid_offset = 0;
     PlacementTileState state = PlacementTileState::Allowed;
     int force_cleared = 0;
+    const building_type_registry_impl::BuildingType *support = nullptr;
     const building_type_registry_impl::FoundationCellDefinition *foundation_cell = nullptr;
-    unsigned int added_terrain = 0;
-    unsigned int removed_terrain = 0;
+    TerrainSet added_terrain;
+    TerrainSet removed_terrain;
     int binds_building = 1;
     RepairRubbleOccupancy rubble = RepairRubbleOccupancy::None;
 };
@@ -43,8 +46,8 @@ struct ConstructionPlacementSupersession {
     int grid_offset = 0;
     unsigned int building_id = 0;
     const building_type_registry_impl::BuildingType *existing_definition = nullptr;
-    unsigned int generated_terrain = 0;
-    unsigned int replacement_terrain = 0;
+    TerrainSet generated_terrain;
+    TerrainSet replacement_terrain;
 };
 
 struct ConstructionPlacementPart {
@@ -85,6 +88,8 @@ public:
         bool fixed_rotation = false);
 
     int can_place() const;
+    int support_cost() const;
+    int support_resource_amount(resource_type resource) const;
     building_type type() const;
     const building_type_registry_impl::BuildingType &definition() const;
     int has_open_water_failure() const;
@@ -98,6 +103,7 @@ public:
     int placement_height() const;
     int rotation() const;
     PlacementFailureReason failure_reason() const;
+    const char *proximity_warning() const;
     const std::vector<int> &clear_offsets() const;
     const std::vector<ConstructionPlacementSupersession> &supersessions() const;
     int replaceable_rubble_tiles() const;
@@ -123,11 +129,11 @@ private:
         ConstructionPlacementTile &tile,
         int check_figures);
     void add_force_clear_offset(int grid_offset);
-    unsigned int add_supersession(
+    TerrainSet add_supersession(
         const building_type_registry_impl::BuildingType &definition,
         int grid_offset,
-        unsigned int terrain,
-        unsigned int replacement_terrain);
+        TerrainSet terrain,
+        TerrainSet replacement_terrain);
     void finalize_cell_accounting();
 
     building_type type_ = BUILDING_NONE;
@@ -152,6 +158,7 @@ private:
     int placement_width_ = 0;
     int placement_height_ = 0;
     int blocked_ = 0;
+    const building_type_registry_impl::FoundationProximityRequirement *failed_proximity_ = nullptr;
     PlacementFailureReason failure_reason_ = PlacementFailureReason::None;
     int forbidden_tiles_ = 0;
     int clear_cost_ = 0;

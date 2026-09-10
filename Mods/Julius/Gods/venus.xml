@@ -1,4 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <god legacy="venus">
-    <blessing type="venus_employment" months="35" />
+    <wrath neutral="50" threshold="40" mild_threshold="20" severe_threshold="10" mild_amount="1" moderate_amount="2" severe_amount="5" maximum="50" favor_decay="0" />
+    <favor />
+    <blessings>
+        $!DISABLE_GOD_BLESSINGS{
+        <effect>
+            <condition metric="happiness" min="100" />
+            <condition metric="blessing_done" max="0" />
+            <on_trigger>
+                <action callback="blessing_done" value="1" />
+            </on_trigger>
+            <action callback="message" id="100" />
+            <action callback="happiness_change" amount="25" />
+        </effect>
+    }
+    </blessings>
+    <minor_curses>
+        $!DISABLE_GOD_CURSES{
+        <effect>
+            <condition metric="wrath" min="20" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="minor_curse_done" min="0" max="0" />
+            <on_trigger>
+                <action callback="minor_curse_done" value="1" />
+                <action callback="wrath" amount="0" />
+                <action callback="god_happiness" amount="12" />
+            </on_trigger>
+            <action callback="message" id="95" />
+            <action callback="happiness_cap" amount="50" />
+            <action callback="happiness_change" amount="-5" />
+            <action callback="health" amount="-10" />
+            <action callback="refresh_sentiment" />
+        </effect>
+    }
+    </minor_curses>
+    <major_curses>
+        $!DISABLE_GOD_CURSES{
+        <effect automatic_only="true" stop_update="true">
+            <condition metric="wrath" min="50" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="campaign_rank" max="3" />
+            <action callback="minor_curse_done" value="0" />
+        </effect>
+        <effect>
+            <condition metric="wrath" min="50" />
+            <condition metric="festival_months" min="4" />
+            <condition metric="campaign_rank" min="4" />
+            <on_trigger>
+                <action callback="wrath" amount="0" />
+                <action callback="god_happiness" amount="30" />
+            </on_trigger>
+            <action callback="message" id="45" />
+            <action callback="happiness_cap" amount="40" />
+            <action callback="happiness_change" amount="-10" />
+            <action callback="health" amount="-50">
+                <condition metric="health" min="80" />
+            </action>
+            <action callback="health" amount="-40">
+                <condition metric="health" min="60" max="79" />
+            </action>
+            <action callback="health" amount="-20">
+                <condition metric="health" max="59" />
+            </action>
+            <action callback="disease" active="1" />
+            <action callback="refresh_sentiment" />
+        </effect>
+    }
+    </major_curses>
 </god>

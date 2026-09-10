@@ -1,2 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<figure type="zebra" graphics_only="true"><graphics><default><path value="Environment\Zebra_Herd" /></default><corpse><path value="Environment\Zebra_Herd" /></corpse></graphics></figure>
+<figure type="zebra">
+    <graphics>
+        <default>
+            <path value="Environment\Zebra_Herd" />
+            <image value="move_{dir}" />
+        </default>
+        <corpse>
+            <path value="Environment\Zebra_Herd" />
+            <image value="corpse" />
+        </corpse>
+    </graphics>
+</figure>

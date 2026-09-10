@@ -1,7 +1,7 @@
 #pragma once
 
 #include "building/FoundationDef.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -303,7 +303,7 @@ inline BuildingGeometry BuildingGeometry::from_foundation(
             nullptr,
             cell.definition,
             cell.definition->passage,
-            (cell.definition->required_terrain & TERRAIN_WATER) != 0
+            cell.definition->required_terrain.intersects(terrain_types().water)
         });
     }
     return from_world_cells(std::move(world_cells));

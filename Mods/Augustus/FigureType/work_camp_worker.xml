@@ -12,9 +12,11 @@
     <graphics>
         <default max_image_offset="12">
             <path value="Walkers\overseer" />
+            <image value="move_{dir}" />
         </default>
         <corpse frame_count="4">
             <path value="Walkers\overseer" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

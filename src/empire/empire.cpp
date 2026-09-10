@@ -13,7 +13,7 @@
 #include "core/image_group.h"
 #include "core/image_group_editor.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "empire/city.h"
 #include "empire/object.h"
 #include "empire/trade_route.h"
@@ -78,7 +78,7 @@ static void set_image_id(const char *path)
             return;
         }
     }
-    log_error("Unable to find map image file", path, 0);
+    Logger::error("Unable to find map image file", path, 0);
     data.image.id = image_group(editor_is_active() ? GROUP_EDITOR_EMPIRE_MAP : GROUP_EMPIRE_MAP);
     data.image.path[0] = 0;
 }
@@ -97,7 +97,7 @@ void empire_set_custom_map(const char *path, int offset_x, int offset_y, int wid
         char log_message[196];
         snprintf(log_message, 196, "Loading empire background image %s with x: %i, y: %i, width: %i, height: %i",
             image_path, offset_x, offset_y, width, height);
-        log_info(log_message, NULL, 0);
+        Logger::info(log_message, NULL, 0);
     }
     set_image_id(path);
     if (offset_x < 0) {
@@ -168,7 +168,7 @@ void empire_load(int is_custom_scenario, int empire_id)
     int read_size = io_read_file_part_into_buffer(filename, NOT_LOCALIZED, raw_data, EMPIRE_DATA_SIZE, offset);
     if (read_size != EMPIRE_DATA_SIZE) {
         // load empty empire when loading fails
-        log_error("Unable to load empire data from file", filename, 0);
+        Logger::error("Unable to load empire data from file", filename, 0);
         memset(raw_data, 0, EMPIRE_DATA_SIZE);
     }
     buffer_init(&buf, raw_data, EMPIRE_DATA_SIZE);

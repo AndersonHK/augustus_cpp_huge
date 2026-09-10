@@ -29,7 +29,7 @@ public:
     int selection_is_drag_tool() const;
     void set_raw_start(int x, int y, int grid_offset);
     void set_raw_end(int x, int y, int grid_offset);
-    void force_type(building_type new_type);
+    void select_cycle_type(building_type new_type);
 
 private:
     static void set_tile(map_tile *tile, int x, int y);

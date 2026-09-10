@@ -2,6 +2,7 @@
 <building type="highway">
     <identity name_key="TR_BUILDING_HIGHWAY" />
     <model cost="100" />
+    <infrastructure terrain="highway" tiles_per_unit="4" monthly_levy="1" />
     <desirability>
         <value value="-4" />
         <step value="1" />

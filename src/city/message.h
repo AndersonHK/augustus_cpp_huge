@@ -191,6 +191,7 @@ typedef enum {
     MESSAGE_ROUTE_PRICE_CHANGE = 161,
     MESSAGE_CARAVANSERAI_COMPLETE = 162,
     MESSAGE_GOVERNOR_RANK_CHANGE = 163,
+    MESSAGE_TRIUMPHAL_ARCH_COMPLETE = 164,
 } city_message_type;
 
 typedef struct {
@@ -242,6 +243,7 @@ int city_message_set_current(int message_id);
 void city_message_mark_read(int message_id);
 
 void city_message_delete(int message_id);
+void city_message_clear_old_messages();
 
 int city_message_count(void);
 

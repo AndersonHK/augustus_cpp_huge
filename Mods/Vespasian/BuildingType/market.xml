@@ -1,29 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="market">
-    <identity name_key="main_strings.28.70" />
-    <model cost="40" />
-    <desirability>
-        <value value="-2" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="6" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="industry" order="300" icon="Admin_Logistics\Market" text_key="main_strings.28.70" />
-    <sound id="market" />
-    <market max_distance="40" max_food_stock="600" />
-    <distribution path="market" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Market" />
-            <image value="Image_0000" />
-        </default>
-        <variant>
-            <condition type="desirability" operator="gt" threshold="30" />
-            <path value="Admin_Logistics\Market_Fancy" />
-            <image value="Image_0000" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="5" />
         <labor_seeker>

@@ -49,6 +49,7 @@ public:
         return image_id_.c_str();
     }
 
+    void set_bound_terrain_image(const ImageGroupEntry &entry) { cached_entry_ = &entry; }
     const ImageGroupEntry *cached_graphic_entry() const;
     const ImageGroupEntry *resolve_graphic_entry() const;
     const RuntimeDrawSlice *resolve_graphic_slice() const;

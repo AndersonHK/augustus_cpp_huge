@@ -473,22 +473,22 @@ static void distribute_market_resources(building *b, building *market)
         return;
     }
     const auto &requirements = profile->requirements;
-    if (requirements.pottery && market->accepted_goods[resource_pottery()]) {
-        building_set_distribution_demand(market, resource_pottery(), 10);
-        distribute_good(b, market, goods_no * requirements.pottery, resource_pottery());
-    }
-    if (requirements.furniture && market->accepted_goods[resource_furniture()]) {
-        building_set_distribution_demand(market, resource_furniture(), 10);
-        distribute_good(b, market, goods_no * requirements.furniture, resource_furniture());
-    }
-    if (requirements.oil && market->accepted_goods[resource_oil()]) {
-        building_set_distribution_demand(market, resource_oil(), 10);
-        distribute_good(b, market, goods_no * requirements.oil, resource_oil());
-    }
-    if (requirements.wine && market->accepted_goods[resource_wine()]) {
-        building_set_distribution_demand(market, resource_wine(), 10);
-        distribute_good(b, market, goods_no * requirements.wine, resource_wine());
-    }
+    const auto &housing = house->Housing->definition();
+    const int population = house->Housing->state().population;
+    using namespace building_type_registry_impl;
+    const auto distribute = [&](resource_type resource, HousingGoodsRate HousingRequirements::*good) {
+        int stock = (requirements.*good).stock_target(population, housing.goods_consumption_events_per_month, goods_no);
+        // A larger evolution target can have a lower per-person rate. Keep enough for today's residents too.
+        if (housing.profile) stock = std::max(stock, (housing.profile->requirements.*good).stock_target(population, housing.goods_consumption_events_per_month, goods_no));
+        if (stock && market->accepted_goods[resource]) {
+            building_set_distribution_demand(market, resource, 10);
+            distribute_good(b, market, stock, resource);
+        }
+    };
+    distribute(resource_pottery(), &HousingRequirements::pottery);
+    distribute(resource_furniture(), &HousingRequirements::furniture);
+    distribute(resource_oil(), &HousingRequirements::oil);
+    distribute(resource_wine(), &HousingRequirements::wine);
 }
 
 static int provide_market_goods(building *market, int x, int y)

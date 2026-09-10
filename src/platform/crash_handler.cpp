@@ -1,17 +1,16 @@
 #include "game/system.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/runtime_diagnostics.h"
 #include "platform/platform.h"
 #include "platform/screen.h"
-#include "core/log.h"
 
 #include "SDL.h"
 
 #include <exception>
 
 #if (defined(__GNUC__) && !defined(__MINGW32__) && !defined(__OpenBSD__) && \
-   !defined(__vita__) && !defined(__SWITCH__) && !defined(__ANDROID__) && \
+   !defined(__SWITCH__) && !defined(__ANDROID__) && \
    !defined(__HAIKU__) && !defined(__EMSCRIPTEN__)) || \
     (defined(_WIN32) && (defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM64)))
 #define HAS_STACK_TRACE
@@ -39,8 +38,8 @@ static void display_crash_message(void)
 
 static void runtime_terminate_handler() noexcept
 {
-    log_error("Unrecoverable runtime invariant violation", 0, 0);
-    crash_context_log_current();
+    Logger::error("Unrecoverable runtime invariant violation", 0, 0);
+    Logger::log_context();
     runtime_diagnostics_write_crash_dump("Runtime invariant violation");
     display_crash_message();
     exit_with_status(1);
@@ -62,13 +61,13 @@ static void backtrace_print(void)
     char **stack = backtrace_symbols(array, size);
 
     for (int i = 0; i < size; i++) {
-        log_info("", stack[i], 0);
+        Logger::info("", stack[i], 0);
     }
 }
 #else
 static void backtrace_print(void)
 {
-    log_info("No stack trace available", 0, 0);
+    Logger::info("No stack trace available", 0, 0);
 }
 #endif
 
@@ -96,9 +95,9 @@ static const char *fetch_signal_name(int sig)
 
 static void crash_handler(int sig)
 {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Oops, crashed :(");
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Signal %d: %s", sig, fetch_signal_name(sig));
-    crash_context_log_current();
+    Logger::errorf("Oops, crashed :(");
+    Logger::errorf("Signal %d: %s", sig, fetch_signal_name(sig));
+    Logger::log_context();
     runtime_diagnostics_write_crash_dump(fetch_signal_name(sig));
     backtrace_print();
     display_crash_message();
@@ -127,7 +126,7 @@ void system_setup_crash_handler(void)
 
 #define log_info_sprintf(...) \
     snprintf(crash_info, 256, __VA_ARGS__); \
-    log_info(crash_info, 0, 0)
+    Logger::info(crash_info, 0, 0)
 
 
 static const char *print_exception_name(DWORD exception_code)
@@ -280,8 +279,8 @@ static void print_stacktrace(LPEXCEPTION_POINTERS e)
 static LONG CALLBACK exception_handler(LPEXCEPTION_POINTERS e)
 {
     // Prologue.
-    log_error("Oops, crashed :(", 0, 0);
-    crash_context_log_current();
+    Logger::error("Oops, crashed :(", 0, 0);
+    Logger::log_context();
     runtime_diagnostics_write_crash_dump(print_exception_name(e->ExceptionRecord->ExceptionCode));
 
     wchar_t path[MAX_PATH];
@@ -310,7 +309,7 @@ void system_setup_crash_handler(void)
     SetUnhandledExceptionFilter(exception_handler);
 }
 
-#else // fallback
+#else
 
 void system_setup_crash_handler(void)
 {

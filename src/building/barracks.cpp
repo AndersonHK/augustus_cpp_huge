@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "barracks.h"
 
 #include "building/building.h"
@@ -28,7 +29,7 @@ static Building *first_building_with_attr(const char *attr)
     return type == BUILDING_NONE ? nullptr : Building::first_of_type(type);
 }
 
-static int is_valid_destination(const Building &b, int road_network_id)
+static int is_valid_destination(const Building &b, resource_type resource, int road_network_id)
 {
     if (!b.is_in_use()) {
         return 0;
@@ -42,28 +43,25 @@ static int is_valid_destination(const Building &b, int road_network_id)
     if (b.road_network_id() != road_network_id) {
         return 0;
     }
-    if (b.resource_amount(resource_weapons()) >= MAX_WEAPONS_BARRACKS) {
+    if (b.input_storage_available_space(resource) < resource_units_per_load()) {
         return 0;
     }
-    return b.accepts_good(resource_weapons());
+    return b.accepts_good(resource);
 }
 
-Building *Barracks::for_weapon(int x, int y, resource_type resource, int road_network_id, map_point *dst)
+Building *Barracks::for_supplies(int x, int y, resource_type resource, int road_network_id, map_point *dst)
 {
-    if (resource != resource_weapons()) {
-        return nullptr;
-    }
     if (city_resource_is_stockpiled(resource)) {
         return nullptr;
     }
     int min_dist = INFINITE;
     Building *min_building = nullptr;
     for (Building *b = first_building_with_attr("barracks"); b; b = b->next_of_type()) {
-        if (!is_valid_destination(*b, road_network_id)) {
+        if (!is_valid_destination(*b, resource, road_network_id)) {
             continue;
         }
         int dist = b->max_distance_to(x, y);
-        dist += 8 * b->resource_amount(resource_weapons());
+        dist += 8 * b->resource_amount(resource) / resource_units_per_load();
         if (dist < min_dist) {
             min_dist = dist;
             min_building = b;
@@ -71,9 +69,9 @@ Building *Barracks::for_weapon(int x, int y, resource_type resource, int road_ne
     }
     if (Building *monument = grand_temple_for_god(GOD_MARS, false)) {
         if (monument->monument_phase() == MONUMENT_FINISHED &&
-            is_valid_destination(*monument, road_network_id)) {
+            is_valid_destination(*monument, resource, road_network_id)) {
             int dist = monument->max_distance_to(x, y);
-            dist += 8 * monument->resource_amount(resource_weapons());
+            dist += 8 * monument->resource_amount(resource) / resource_units_per_load();
             if (dist < min_dist) {
                 min_dist = dist;
                 min_building = monument;
@@ -107,16 +105,15 @@ static int has_recruitment_priority(int current_type, int legion_type, int prior
     return dist < min_distance;
 }
 
+bool Barracks::has_recruitment_resources(const formation &legion) const
+{
+    for (const auto &cost : legion.recruitment_costs()) if (storage_resource_amount(cost.resource, building_type_registry_impl::StorageRole::Input) < cost.amount) return false;
+    return true;
+}
+
 int Barracks::can_recruit_soldier_for(const formation &legion) const
 {
-    if (!legion.can_receive_recruit()) {
-        return 0;
-    }
-    if (legion.recruit_requires_weapon() &&
-        resource_amount(resource_weapons()) <= 0) {
-        return 0;
-    }
-    return 1;
+    return legion.can_receive_recruit() && has_recruitment_resources(legion);
 }
 
 int Barracks::closest_legion_needing_soldiers() const
@@ -208,10 +205,9 @@ int Barracks::create_soldier(int x, int y)
         f->formation_id = static_cast<short>(formation_id);
         f->formation_at_rest = 0;
         m->publish_figure(*f);
-        if (m->recruit_requires_weapon()) {
-            if (resource_amount(resource_weapons()) > 0) {
-                add_resource(resource_weapons(), -1);
-            }
+        for (const auto &cost : m->recruitment_costs()) {
+            add_storage_resource(cost.resource, -cost.amount, building_type_registry_impl::StorageRole::Input);
+            city_trade_ledger_consumed(cost.resource, cost.amount);
         }
         Building *academy = get_closest_military_academy(m->x, m->y);
         if (academy) {
@@ -292,70 +288,28 @@ int Barracks::create_tower_sentry(int x, int y)
     return 1;
 }
 
-static int barracks_recruitment_delay(const Building &building)
+int Barracks::spawn_recruitment(const map_point &road)
 {
-    const int percentage = calc_percentage(
-        building.employment_worker_count(), building.employment_required_workers());
-    int delay_days = -1;
-    if (percentage >= 100) {
-        delay_days = 8;
-    } else if (percentage >= 75) {
-        delay_days = 12;
-    } else if (percentage >= 50) {
-        delay_days = 16;
-    } else if (percentage >= 25) {
-        delay_days = 32;
-    } else if (percentage >= 1) {
-        delay_days = 48;
-    }
-    if (delay_days < 0) {
-        return -1;
-    }
-    if (city_data.mess_hall.food_stress_cumulative > 20) {
-        delay_days += city_data.mess_hall.food_stress_cumulative - 20;
-    }
-    return game_time_scale_legacy_day_ticks(delay_days);
-}
-
-void Barracks::spawn_recruitment()
-{
-    building *b = const_cast<building *>(record());
-    building_runtime *runtime = runtime_instance();
-    if (!b || !runtime) {
-        return;
-    }
-    runtime->check_labor_problem();
-    map_point road;
-    if (!map_has_road_access_building(b->x, b->y, &road)) {
-        return;
-    }
-    runtime->run_labor_phase_if_defined(road);
-    const int spawn_delay = barracks_recruitment_delay(*this);
-    if (spawn_delay < 0) {
-        return;
-    }
-    b->figure_spawn_delay++;
-    if (b->figure_spawn_delay <= spawn_delay) {
-        return;
-    }
-    b->figure_spawn_delay = 0;
-    map_has_road_access_building(b->x, b->y, &road);
+    const int load = resource_units_per_load();
+    if (storage_resource_amount(resource_troops(), building_type_registry_impl::StorageRole::Output) < load) return 0;
+    int spawned = 0;
     switch (priority()) {
         case PRIORITY_FORT:
         case PRIORITY_FORT_JAVELIN:
         case PRIORITY_FORT_MOUNTED:
         case PRIORITY_FORT_AUXILIA_INFANTRY:
         case PRIORITY_FORT_AUXILIA_ARCHERY:
-            if (!create_soldier(road.x, road.y)) {
-                create_tower_sentry(road.x, road.y);
-            }
+            spawned = create_soldier(road.x, road.y) || create_tower_sentry(road.x, road.y);
             break;
         default:
-            if (!create_tower_sentry(road.x, road.y)) {
-                create_soldier(road.x, road.y);
-            }
+            spawned = create_tower_sentry(road.x, road.y) || create_soldier(road.x, road.y);
             break;
     }
+    if (spawned) {
+        add_storage_resource(resource_troops(), -load, building_type_registry_impl::StorageRole::Output);
+        city_trade_ledger_consumed(resource_troops(), load);
+    }
+    return spawned;
 }
 
 void building_military_spawn_tower(Building &tower)

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE assetlist>
+<assetlist name="Industry\Concrete_Carts" logical_units_per_source_pixel="96">
+    <image id="Concrete_Cart_E" group="Industry\Concrete_Cart_E" image="Concrete_Cart_E" />
+    <image id="Concrete_Cart_Getting_E" group="Industry\Concrete_Cart_Getting_E" image="Concrete_Cart_Getting_E" />
+    <image id="Concrete_Cart_Getting_N" group="Industry\Concrete_Cart_Getting_N" image="Concrete_Cart_Getting_N" />
+    <image id="Concrete_Cart_Getting_NE" group="Industry\Concrete_Cart_Getting_NE" image="Concrete_Cart_Getting_NE" />
+    <image id="Concrete_Cart_Getting_NW" group="Industry\Concrete_Cart_Getting_NW" image="Concrete_Cart_Getting_NW" />
+    <image id="Concrete_Cart_Getting_S" group="Industry\Concrete_Cart_Getting_S" image="Concrete_Cart_Getting_S" />
+    <image id="Concrete_Cart_Getting_SE" group="Industry\Concrete_Cart_Getting_SE" image="Concrete_Cart_Getting_SE" />
+    <image id="Concrete_Cart_Getting_SW" group="Industry\Concrete_Cart_Getting_SW" image="Concrete_Cart_Getting_SW" />
+    <image id="Concrete_Cart_Getting_W" group="Industry\Concrete_Cart_Getting_W" image="Concrete_Cart_Getting_W" />
+    <image id="Concrete_Cart_N" group="Industry\Concrete_Cart_N" image="Concrete_Cart_N" />
+    <image id="Concrete_Cart_NE" group="Industry\Concrete_Cart_NE" image="Concrete_Cart_NE" />
+    <image id="Concrete_Cart_NW" group="Industry\Concrete_Cart_NW" image="Concrete_Cart_NW" />
+    <image id="Concrete_Cart_S" group="Industry\Concrete_Cart_S" image="Concrete_Cart_S" />
+    <image id="Concrete_Cart_SE" group="Industry\Concrete_Cart_SE" image="Concrete_Cart_SE" />
+    <image id="Concrete_Cart_SW" group="Industry\Concrete_Cart_SW" image="Concrete_Cart_SW" />
+    <image id="Concrete_Cart_W" group="Industry\Concrete_Cart_W" image="Concrete_Cart_W" />
+</assetlist>

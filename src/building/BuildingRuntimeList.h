@@ -8,4 +8,5 @@ enum class BuildingRuntimeList {
     Warehouses,
     Storage,
     PlagueTargets,
+    CityServices,
 };

@@ -1,31 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gladiator_school">
-    <identity name_key="main_strings.28.34" />
-    <model cost="75" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_3x3" />
-  <button group="entertainment" order="80" icon="Health_Culture\Gladiator_School" icon_image="Image_0000" text_key="main_strings.28.34" />
-    <sound id="gladiator_school" mute_on_enemies="true" />
-    <graphics>
-        <default>
-            <path value="Health_Culture\Gladiator_School" />
-            <image value="Image_0000" />
-        </default>
-    </graphics>
-    <labor>
-        <employees count="8" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="50" />
-        </labor_seeker>
-    </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44">
-        <spawn spawn_figure="gladiator"
-            direction="top" figure_slot="primary" profile="venue_seeker" />
-    </spawn_group>
+    <button group="entertainment" order="80" icon="Health_Culture\Gladiator_School" icon_image="Image_0000" text_key="main_strings.28.34" />
 </building>

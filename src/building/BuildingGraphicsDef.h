@@ -1,5 +1,7 @@
 #pragma once
 
+#include "map/TerrainSet.h"
+
 #include "game/resource.h"
 #include "graphics/color.h"
 #include "graphics/GraphicsDefinition.h"
@@ -49,6 +51,7 @@ enum class GraphicsConditionType {
 enum class GraphicsOptionSelection {
     StableVariant,
     BuildRotation,
+    PairedOrientation,
     Connectable,
     Orientation,
     ProductionProgress,
@@ -82,7 +85,7 @@ struct GraphicsCondition {
     FigureSlot figure_slot = FigureSlot::None;
     int threshold = 0;
     resource_type resource = RESOURCE_NONE;
-    int terrain_mask = 0;
+    TerrainSet terrains;
     int climate = 0;
     int monument_upgrade = 0;
     int orientation = 0;

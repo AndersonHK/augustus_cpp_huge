@@ -71,6 +71,8 @@ int font_can_display(const uint8_t *character);
  * @return Letter ID to feed into image_letter(), or -1 if c is no letter
  */
 int font_letter_id(const font_definition *def, const uint8_t *str, int *num_bytes);
+int font_original_letter_id(const font_definition *def, const uint8_t *str, int *num_bytes);
+const font_definition *font_original_definition_for(font_t font);
 int font_image_width_for_letter(const font_definition *def, int letter_id);
 int font_image_height_for_letter(const font_definition *def, int letter_id);
 

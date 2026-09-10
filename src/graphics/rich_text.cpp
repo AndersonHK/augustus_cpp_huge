@@ -941,3 +941,5 @@ int rich_text_scroll_position(void)
 {
     return scrollbar.scroll_position;
 }
+
+void rich_text_set_scrollbar_appearance(const ScrollbarAppearance *appearance, bool always_visible) { scrollbar.appearance = appearance; scrollbar.always_visible = always_visible; }

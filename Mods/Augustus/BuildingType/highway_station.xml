@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="highway_station">
+    <identity name_key="TR_BUILDING_HIGHWAY_STATION" />
+    <model cost="200" />
+    <desirability>
+        <value value="-2" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation path="land_3x3" />
+    <button group="engineering" order="25" icon="Admin_Logistics\Highway_Station_OFF" icon_image="Highway_Station_OFF" text_key="TR_BUILDING_HIGHWAY_STATION" />
+    <flags fire_proof="1" />
+    <construction max_count="1" />
+    <city_service infrastructure="highway" input_source="global_stockpile" units_per_input="50" construction_percent="50" levy_percent="50">
+        <input resource="stone" loads="1" />
+        <input resource="sand" loads="1" />
+    </city_service>
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Highway_Station_OFF" />
+            <image value="Highway_Station_OFF" />
+            <layer stage="top" path="Admin_Logistics\Highway_Station_Sand" image="Highway_Station_Sand" x="78" y="28">
+                <condition type="resource_amount" resource="sand" operator="greater_than" threshold="0" />
+            </layer>
+            <layer stage="top" path="Admin_Logistics\Highway_Station_Stone" image="Highway_Station_Stone" x="103" y="18">
+                <condition type="resource_amount" resource="stone" operator="greater_than" threshold="0" />
+            </layer>
+        </default>
+        <variant>
+            <condition type="working" />
+            <path value="Admin_Logistics\Highway_Station_OFF" />
+            <image value="Highway_Station_ON" />
+            <layer stage="top" path="Admin_Logistics\Highway_Station_Sand" image="Highway_Station_Sand" x="78" y="28">
+                <condition type="resource_amount" resource="sand" operator="greater_than" threshold="0" />
+            </layer>
+            <layer stage="top" path="Admin_Logistics\Highway_Station_Stone" image="Highway_Station_Stone" x="103" y="18">
+                <condition type="resource_amount" resource="stone" operator="greater_than" threshold="0" />
+            </layer>
+        </variant>
+    </graphics>
+    <labor category="engineering">
+        <employees count="12" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
+    </labor>
+</building>

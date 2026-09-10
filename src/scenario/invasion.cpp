@@ -4,7 +4,7 @@
 #include "city/emperor.h"
 #include "city/message.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/object.h"
 #include "figure/enemy_army.h"
@@ -16,7 +16,7 @@
 #include "game/difficulty.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/data.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
@@ -57,9 +57,7 @@ static const enemy_type_t ENEMY_ID_TO_ENEMY_TYPE[20] = {
     ENEMY_6_SELEUCID
 };
 
-static const int LOCAL_UPRISING_NUM_ENEMIES[20] = {
-    0, 0, 0, 0, 0, 3, 3, 3, 0, 6, 6, 6, 6, 6, 9, 9, 9, 9, 9, 9
-};
+
 
 static const struct {
     int pct_type1;
@@ -479,15 +477,15 @@ static int start_invasion(enemy_type_t enemy_type, int amount, int invasion_poin
     }
     // check terrain
     int grid_offset = map_grid_offset(x, y);
-    if (map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ROCK | TERRAIN_TREE)) {
+    if (terrain_map().contains(grid_offset, terrain_types().elevation | terrain_types().rock | terrain_types().tree)) {
         return -1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
-        if (!map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+    if (terrain_map().contains(grid_offset, terrain_types().water)) {
+        if (!terrain_map().contains(grid_offset, terrain_types().road)) {
             // bridge - any changes to bridge behaviour will need to ensure that invasion doesnt target it 
             return -1;
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_BUILDING | TERRAIN_AQUEDUCT | TERRAIN_GATEHOUSE | TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().building | terrain_types().aqueduct | terrain_types().gatehouse | terrain_types().wall)) {
         building_destroy_by_enemy(grid_offset);
     }
     // spawn the lot!
@@ -702,23 +700,14 @@ void scenario_invasion_process(void)
 
 }
 
-int scenario_invasion_start_from_mars(void)
+int scenario_invasion_start_local(int amount, int message)
 {
-    int mission = scenario_campaign_mission();
-    int amount;
-    if (game_campaign_is_original() && 0 <= mission && mission <= 19) {
-        amount = LOCAL_UPRISING_NUM_ENEMIES[mission];
-    } else if (scenario_invasion_count_total() > 0) {
-        amount = random_between_from_stdlib(3, 9);
-    } else {
-        amount = 0;
-    }
     if (amount <= 0) {
         return 0;
     }
     int grid_offset = start_invasion(ENEMY_0_BARBARIAN, amount, 8, FORMATION_ATTACK_FOOD_CHAIN, CHEATED_ARMY_ID);
     if (grid_offset) {
-        city_message_post(1, MESSAGE_LOCAL_UPRISING_MARS, data.last_internal_invasion_id, grid_offset);
+        city_message_post(1, message, data.last_internal_invasion_id, grid_offset);
     }
     return 1;
 }

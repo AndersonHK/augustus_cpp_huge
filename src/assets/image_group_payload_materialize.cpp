@@ -1,6 +1,6 @@
 #include "assets/image_group_payload_internal.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/image.h"
 
 #include "core/file.h"
@@ -75,71 +75,25 @@ int merged_group_has_entry(const std::string &group_key, const GraphicsLayerSour
     return merged && find_merged_entry_selector(*merged, preferred_source, image_id);
 }
 
-// Input: one extracted construction-layer reference whose shadow entry was not emitted explicitly.
-// Output: a prepared shadow layer derived from the matching extracted base image, or false when the pattern does not apply.
-int prepare_derived_construction_shadow_layer(
-    const std::string &target_group,
-    const GraphicsLayerSource &source,
-    const RawLayerDef &raw_layer,
-    PreparedLayer &out_layer)
-{
-    static const char shadow_suffix[] = "_Shadow";
-    const std::string &image_id = raw_layer.reference.image_id;
-    if (raw_layer.part != PART_TOP ||
-        image_id.size() <= sizeof(shadow_suffix) - 1 ||
-        image_id.compare(image_id.size() - (sizeof(shadow_suffix) - 1), sizeof(shadow_suffix) - 1, shadow_suffix) != 0) {
-        return 0;
-    }
-
-    const std::string base_image_id = image_id.substr(0, image_id.size() - (sizeof(shadow_suffix) - 1));
-    if (!merged_group_has_entry(target_group, source, base_image_id)) {
-        return 0;
-    }
-
-    const ResolvedImageEntry *base_entry = materialize_merged_entry(target_group, source, base_image_id);
-    if (!base_entry) {
-        return 0;
-    }
-
-    RasterSurface base_surface = surface_from_resolved_entry_part(*base_entry, PART_BOTH);
-    if (!raster_has_pixels(base_surface)) {
-        return 0;
-    }
-
-    const int shadow_size = std::min(base_surface.width, base_surface.height);
-    if (shadow_size <= 0) {
-        return 0;
-    }
-    out_layer.surface = crop_surface(base_surface, base_surface.width - shadow_size, 0, shadow_size, shadow_size);
-    if (!raster_has_pixels(out_layer.surface)) {
-        return 0;
-    }
-    if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
-        convert_to_grayscale(out_layer.surface);
-    }
-    copy_prepared_layer_metadata(raw_layer, out_layer);
-    return 1;
-}
-
 // Input: one source-local document and one raw PNG layer reference.
 // Output: a prepared layer containing a cropped raster plus transform metadata.
 int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, PreparedLayer &out_layer)
 {
     char full_path[FILE_NAME_MAX] = { 0 };
     if (!xml_resolve_image_path(full_path, doc.key.c_str(), raw_layer.reference.path.c_str(), doc.source)) {
-        crash_context_report_error("Unable to resolve image group png", raw_layer.reference.path.c_str());
+        Logger::error("Unable to resolve image group png", raw_layer.reference.path.c_str());
         return 0;
     }
 
     RasterSurface source_surface;
     if (!load_png_raster_from_path(full_path, source_surface)) {
-        crash_context_report_error("Unable to load image group png", full_path);
+        Logger::error("Unable to load image group png", full_path);
         return 0;
     }
 
     out_layer.surface = crop_surface(source_surface, raw_layer.src_x, raw_layer.src_y, raw_layer.width, raw_layer.height);
     if (!raster_has_pixels(out_layer.surface)) {
-        crash_context_report_error("Unable to crop image group png", raw_layer.reference.path.c_str());
+        Logger::error("Unable to crop image group png", raw_layer.reference.path.c_str());
         return 0;
     }
     if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
@@ -164,15 +118,25 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id) :
         nullptr;
     if (!resolved) {
-        if (!has_declared_entry &&
-            prepare_derived_construction_shadow_layer(target_group, doc.source, raw_layer, out_layer)) {
-            return 1;
-        }
-        crash_context_report_error("Unable to resolve referenced image entry", raw_layer.reference.image_id.c_str());
+        Logger::error("Unable to resolve referenced image entry", raw_layer.reference.image_id.c_str());
         return 0;
     }
 
-    out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
+    if (raw_layer.reference.frame > 0) {
+        const size_t frame = static_cast<size_t>(raw_layer.reference.frame - 1);
+        if (frame >= resolved->animation_frame_keys.size()) {
+            Logger::error("ImageGroup animation frame reference is out of range", raw_layer.reference.image_id.c_str());
+            return 0;
+        }
+        const auto raster = g_png_rasters.find(resolved->animation_frame_keys[frame]);
+        if (raster == g_png_rasters.end()) {
+            Logger::error("ImageGroup animation frame has no raster backing", raw_layer.reference.image_id.c_str());
+            return 0;
+        }
+        out_layer.surface = *raster->second;
+    } else {
+        out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
+    }
     if (!raster_has_pixels(out_layer.surface)) {
         if (raw_layer.part == PART_TOP && !resolved->has_top) {
             RasterSurface full_surface = surface_from_resolved_entry_part(*resolved, PART_BOTH);
@@ -194,7 +158,7 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
             copy_prepared_layer_metadata(raw_layer, out_layer);
             return 1;
         }
-        crash_context_report_error("Unable to reconstruct referenced image layer", raw_layer.reference.image_id.c_str());
+        Logger::error("Unable to reconstruct referenced image layer", raw_layer.reference.image_id.c_str());
         return 0;
     }
     if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
@@ -239,20 +203,20 @@ int prepare_full_image_reference_surface(
     }
 
     if (entry.full_image_ref.type != RawReferenceType::GROUP_IMAGE || entry.full_image_ref.image_id.empty()) {
-        crash_context_report_error("Invalid full image reference", entry.id.c_str());
+        Logger::error("Invalid full image reference", entry.id.c_str());
         return 0;
     }
 
     const std::string target_group = normalize_group_reference_key(entry.full_image_ref.group_key.c_str(), doc.key);
     const ResolvedImageEntry *resolved = materialize_merged_entry(target_group, doc.source, entry.full_image_ref.image_id);
     if (!resolved) {
-        crash_context_report_error("Unable to resolve referenced image entry", entry.full_image_ref.image_id.c_str());
+        Logger::error("Unable to resolve referenced image entry", entry.full_image_ref.image_id.c_str());
         return 0;
     }
 
     out_surface = surface_from_resolved_entry_part(*resolved, PART_BOTH);
     if (!raster_has_pixels(out_surface)) {
-        crash_context_report_error("Unable to reconstruct referenced full image", entry.full_image_ref.image_id.c_str());
+        Logger::error("Unable to reconstruct referenced full image", entry.full_image_ref.image_id.c_str());
         return 0;
     }
     *out_referenced_entry = resolved;
@@ -297,7 +261,7 @@ int finalize_surface_to_resolved_entry(
 
     const std::string payload_key = make_entry_payload_key(doc.key, doc.source, entry.id);
     if (!upload_split_surface(payload_key, split_surface, top_height, entry.is_isometric, out_entry.footprint, out_entry.top)) {
-        crash_context_report_error("Unable to upload resolved image group entry", entry.id.c_str());
+        Logger::error("Unable to upload resolved image group entry", entry.id.c_str());
         return 0;
     }
 
@@ -361,11 +325,13 @@ int materialize_animation_frame_surface(
         return 0;
     }
     if (!populate_slice_from_image(image, 0, out_frame_slice)) {
-        crash_context_report_error("Animation frame materialized with an invalid runtime slice", out_frame_key.c_str());
+        Logger::error("Animation frame materialized with an invalid runtime slice", out_frame_key.c_str());
         image_manager().release(out_frame_key);
         out_frame_key.clear();
         return 0;
     }
+    // Keep CPU pixels for data references to an animation frame, just as base entries retain theirs.
+    g_png_rasters[out_frame_key] = std::make_unique<RasterSurface>(std::move(frame_surface));
     return 1;
 }
 
@@ -411,14 +377,14 @@ int materialize_explicit_frame(
 
     PreparedLayer frame_layer;
     if (!prepare_layer(doc, frame_def, frame_layer)) {
-        crash_context_report_error("Unable to prepare explicit image group animation frame", entry.id.c_str());
+        Logger::error("Unable to prepare explicit image group animation frame", entry.id.c_str());
         return 0;
     }
 
     const int frame_width = transformed_layer_width(frame_layer) + std::max(0, frame_layer.x_offset);
     const int frame_height = transformed_layer_height(frame_layer) + std::max(0, frame_layer.y_offset);
     if (frame_width <= 0 || frame_height <= 0) {
-        crash_context_report_error("Explicit image group animation frame has invalid dimensions", entry.id.c_str());
+        Logger::error("Explicit image group animation frame has invalid dimensions", entry.id.c_str());
         return 0;
     }
 
@@ -437,7 +403,7 @@ int materialize_explicit_frame(
         "frame",
         out_frame_key,
         out_frame_slice);
-    if (!materialized) crash_context_report_error("Unable to upload explicit image group animation frame", entry.id.c_str());
+    if (!materialized) Logger::error("Unable to upload explicit image group animation frame", entry.id.c_str());
     if (materialized) {
         const int source_width = entry.width > 0 ? entry.width : out_frame_slice.width;
         const int source_height = entry.height > 0 ? entry.height : out_frame_slice.height;
@@ -497,34 +463,6 @@ int resolve_animation(
             }
             out_entry.animation.add_frame(frame_slice);
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
-        }
-    } else if (entry.animation.implicit_frame_count > 0) {
-        for (int i = 1; i <= entry.animation.implicit_frame_count; i++) {
-            const size_t next_index = static_cast<size_t>(entry.local_order + i);
-            if (next_index >= doc.ordered_ids.size()) {
-                break;
-            }
-            const std::string &frame_id = doc.ordered_ids[next_index];
-            const ResolvedImageEntry *frame_entry = materialize_source_entry(doc.key, doc.source, frame_id);
-            if (!frame_entry) {
-                return 0;
-            }
-
-            RasterSurface full_frame = surface_from_resolved_entry_part(*frame_entry, PART_BOTH);
-            std::string frame_key;
-            RuntimeDrawSlice frame_slice;
-            if (!materialize_animation_frame_surface(
-                    doc,
-                    entry,
-                    i - 1,
-                    std::move(full_frame),
-                    "implicit_frame",
-                    frame_key,
-                    frame_slice)) {
-                return 0;
-            }
-            out_entry.animation_frame_keys.push_back(std::move(frame_key));
-            out_entry.animation.add_frame(frame_slice);
         }
     }
 
@@ -888,6 +826,7 @@ void compose_prepared_layer(RasterSurface &target, const PreparedLayer &layer, i
 int is_bare_group_reference(const RawLayerDef &layer)
 {
     return layer.reference.type == RawReferenceType::GROUP_IMAGE &&
+        layer.reference.frame == 0 &&
         layer.src_x == 0 &&
         layer.src_y == 0 &&
         layer.x_offset == 0 &&
@@ -1024,7 +963,7 @@ int upload_split_surface(
 
         out_footprint.texture_key = base_key;
         if (!populate_slice_from_image(footprint_image, is_isometric, out_footprint.slice)) {
-            crash_context_report_error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
+            Logger::error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
             image_manager().release(base_key + "\\top");
             image_manager().release(base_key);
             return 0;
@@ -1032,7 +971,7 @@ int upload_split_surface(
 
         out_top.texture_key = base_key + "\\top";
         if (!populate_slice_from_image(top_image, 0, out_top.slice)) {
-            crash_context_report_error("Resolved image group top materialized with an invalid runtime slice", (base_key + "\\top").c_str());
+            Logger::error("Resolved image group top materialized with an invalid runtime slice", (base_key + "\\top").c_str());
             image_manager().release(base_key + "\\top");
             image_manager().release(base_key);
             return 0;
@@ -1058,7 +997,7 @@ int upload_split_surface(
 
     out_footprint.texture_key = base_key;
     if (!populate_slice_from_image(footprint_image, is_isometric, out_footprint.slice)) {
-        crash_context_report_error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
+        Logger::error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
         image_manager().release(base_key);
         return 0;
     }
@@ -1079,7 +1018,7 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
         return nullptr;
     }
     if (g_loading_resolved_entries.find(selector_key) != g_loading_resolved_entries.end()) {
-        crash_context_report_error("Detected recursive image entry resolution", selector_key.c_str());
+        Logger::error("Detected recursive image entry resolution", selector_key.c_str());
         g_failed_resolved_entries.insert(selector_key);
         return nullptr;
     }
@@ -1091,7 +1030,7 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
     }
     auto entry_it = doc->entries.find(image_id);
     if (entry_it == doc->entries.end()) {
-        crash_context_report_error("Unable to resolve source image id", selector_key.c_str());
+        Logger::error("Unable to resolve source image id", selector_key.c_str());
         g_failed_resolved_entries.insert(selector_key);
         return nullptr;
     }
@@ -1140,7 +1079,7 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
     }
 
     if (ok && (canvas_width <= 0 || canvas_height <= 0)) {
-        crash_context_report_error("Resolved image group entry has invalid canvas size", selector_key.c_str());
+        Logger::error("Resolved image group entry has invalid canvas size", selector_key.c_str());
         ok = 0;
     }
 
@@ -1177,13 +1116,19 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
 
     if (ok) {
         ok = resolve_animation(*doc, entry, referenced_entry, resolved_entry);
-        if (!ok) crash_context_report_error("Unable to materialize image group animation", selector_key.c_str());
+        if (!ok) Logger::error("Unable to materialize image group animation", selector_key.c_str());
+    }
+    if (ok && entry.has_sprite_offset) {
+        resolved_entry.has_sprite_offset = 1;
+        resolved_entry.sprite_offset_x = entry.sprite_offset_x;
+        resolved_entry.sprite_offset_y = entry.sprite_offset_y;
+        resolved_entry.animation.set_sprite_offset(entry.sprite_offset_x, entry.sprite_offset_y);
     }
     if (ok && doc->logical_units_per_source_pixel > 0) {
         ok = apply_absolute_logical_scale(resolved_entry.footprint.slice, doc->logical_units_per_source_pixel) &&
             apply_absolute_logical_scale(resolved_entry.top.slice, doc->logical_units_per_source_pixel) &&
             apply_absolute_logical_scale(resolved_entry.animation, doc->logical_units_per_source_pixel);
-        if (!ok) crash_context_report_error("ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
+        if (!ok) Logger::error("ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
     }
 
     g_loading_resolved_entries.erase(selector_key);
@@ -1207,7 +1152,7 @@ const ResolvedImageEntry *materialize_scaled_alias_entry(
     render_logical_unit logical_units_per_source_pixel)
 {
     if (logical_units_per_source_pixel <= 0) {
-        crash_context_report_error("Inherited ImageGroup scale must be positive", alias_group_key.c_str());
+        Logger::error("Inherited ImageGroup scale must be positive", alias_group_key.c_str());
         return nullptr;
     }
     if (const ResolvedImageEntry *existing = find_resolved_entry(alias_group_key, source_selector.source, source_selector.image_id)) {
@@ -1219,7 +1164,7 @@ const ResolvedImageEntry *materialize_scaled_alias_entry(
         return nullptr;
     }
     if (g_loading_resolved_entries.find(selector_key) != g_loading_resolved_entries.end()) {
-        crash_context_report_error("Detected recursive inherited image entry resolution", selector_key.c_str());
+        Logger::error("Detected recursive inherited image entry resolution", selector_key.c_str());
         g_failed_resolved_entries.insert(selector_key);
         return nullptr;
     }
@@ -1242,7 +1187,7 @@ const ResolvedImageEntry *materialize_scaled_alias_entry(
         apply_absolute_logical_scale(resolved_entry.top.slice, logical_units_per_source_pixel) &&
         apply_absolute_logical_scale(resolved_entry.animation, logical_units_per_source_pixel);
     if (!ok) {
-        crash_context_report_error("Inherited ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
+        Logger::error("Inherited ImageGroup scale exceeds fixed logical dimension range", selector_key.c_str());
         g_loading_resolved_entries.erase(selector_key);
         g_failed_resolved_entries.insert(selector_key);
         return nullptr;

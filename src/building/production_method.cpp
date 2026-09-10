@@ -1,6 +1,9 @@
 #include "building/production_method.h"
 
 #include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <climits>
 
 namespace building_type_registry_impl {
 
@@ -34,9 +37,16 @@ resource_type ProductionMethod::output_resource() const
     return output_resource_;
 }
 
+bool ProductionMethod::add_work_modifier(ProductionWorkModifier modifier)
+{
+    for (const auto &existing : work_modifiers_) if (existing.source == modifier.source) return false;
+    work_modifiers_.push_back(modifier);
+    return true;
+}
+
 int ProductionMethod::has_resource_output() const
 {
-    return output_resource_ != RESOURCE_NONE;
+    return !is_delay_factor() && output_resource_ != RESOURCE_NONE;
 }
 
 void ProductionMethod::set_output_destination(ProductionOutputDestination destination)
@@ -93,36 +103,44 @@ void ProductionMethod::set_base_monthly_production(int production)
 {
     base_monthly_production_ = production;
     default_base_monthly_production_ = production;
+    has_production_override_ = false;
 }
 
 void ProductionMethod::override_base_monthly_production(int production)
 {
     base_monthly_production_ = production < 0 ? 0 : production;
+    has_production_override_ = true;
 }
 
 void ProductionMethod::reset_base_monthly_production_override()
 {
     base_monthly_production_ = default_base_monthly_production_;
+    has_production_override_ = false;
 }
 
 int ProductionMethod::base_monthly_production() const
 {
+    if (rate_source_ && !has_production_override_) return rate_source_->base_monthly_production();
     return base_monthly_production_;
 }
 
 int ProductionMethod::default_base_monthly_production() const
 {
+    if (rate_source_) return rate_source_->default_base_monthly_production();
     return default_base_monthly_production_;
 }
 
-void ProductionMethod::set_batch_size(int batch_size)
+int ProductionMethod::scale_delay(int delay) const
 {
-    batch_size_ = batch_size;
+    if (!is_delay_factor() || delay < 0) return delay;
+    return static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(delay) * base_monthly_production() / 100, 0, INT_MAX));
 }
 
-int ProductionMethod::batch_size() const
+int ProductionMethod::scale_cycle_work(int work) const
 {
-    return batch_size_;
+    if (work <= 0 || !has_resource_output()) return work;
+    // Monthly throughput stays constant: larger outputs require proportionally longer cycles.
+    return static_cast<int>(std::clamp<int64_t>(static_cast<int64_t>(work) * cart_load_numerator() / cart_load_denominator(), 1, INT_MAX));
 }
 
 void ProductionMethod::set_cart_loads(int numerator, int denominator)
@@ -133,12 +151,12 @@ void ProductionMethod::set_cart_loads(int numerator, int denominator)
 
 int ProductionMethod::cart_load_numerator() const
 {
-    return cart_load_numerator_ > 0 ? cart_load_numerator_ : batch_size_;
+    return cart_load_numerator_;
 }
 
 int ProductionMethod::cart_load_denominator() const
 {
-    return cart_load_numerator_ > 0 ? cart_load_denominator_ : 1;
+    return cart_load_denominator_;
 }
 
 int ProductionMethod::cart_loads_per_cycle() const
@@ -217,11 +235,6 @@ int ProductionMethod::is_workshop() const
 int ProductionMethod::uses_blessing_multiplier() const
 {
     return is_farm();
-}
-
-int ProductionMethod::scaled_input_amount(const ProductionResourceAmount &input) const
-{
-    return input.amount * batch_size_;
 }
 
 } // namespace building_type_registry_impl

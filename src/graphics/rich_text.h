@@ -117,3 +117,6 @@ int rich_text_scroll_position(void);
 */
 int rich_text_get_line_height(void);
 
+
+struct ScrollbarAppearance;
+void rich_text_set_scrollbar_appearance(const ScrollbarAppearance *appearance, bool always_visible = false);

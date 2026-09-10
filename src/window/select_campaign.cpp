@@ -21,7 +21,7 @@
 
 #include "core/dir.h"
 #include "core/direction.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"

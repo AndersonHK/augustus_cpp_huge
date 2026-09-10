@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="city_mint">
+    <construction road_update_radius="5" max_count="1" requires_building="senate">
+        <requirement type="bricks" amount="4" />
+        <requirement type="iron" amount="4" />
+        <requirement type="stone" amount="8" />
+        <requirement type="timber" amount="4" />
+    </construction>
+</building>

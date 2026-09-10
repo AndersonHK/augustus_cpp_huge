@@ -1,3 +1,7 @@
+#include "graphics/declarative_window.h"
+#include "scenario/definition_overrides.h"
+#include "building/resource_consumption.h"
+#include "city/warning.h"
 #include "editor/editor.h"
 #include "translation/translation.h"
 #include "city.h"
@@ -6,7 +10,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "city/buildings.h"
 #include "city/finance.h"
@@ -242,7 +246,7 @@ int empire_city_get_for_trade_route(int route_id)
             return city_id;
         }
     }
-    return -1; //should this be 0 for consitency? I think -1 can cause overflow?
+    return -1; // Native callers use -1; city_at bounds-checks before indexing.
 }
 
 int empire_city_buys_resource(int city_id, int resource)
@@ -288,7 +292,7 @@ int empire_city_is_trade_route_sea(int route_id)
 {
     int city_id = empire_city_get_for_trade_route(route_id);
     if (city_id <= 0) {
-        return -1;
+        return 0;
     }
     empire_city *city = empire_city_get(city_id);
     return city->is_sea_trade;
@@ -464,6 +468,32 @@ static int generate_trader(int city_id, empire_city *city)
     return 0;
 }
 
+int empire_city_trade_resource_cost(int route_id, resource_type resource)
+{
+    const char *key = resource_text_id(resource);
+    return key ? scenario_definition_override_value(ScenarioOverrideKind::RouteResource, std::to_string(route_id), 0, key, 0) : 0;
+}
+
+static bool trade_resource_costs(int route_id, std::vector<ResourceConsumptionAmount> &inputs)
+{
+    for (int i = 1; i < RESOURCE_SLOT_COUNT; ++i) {
+        auto resource = static_cast<resource_type>(i);
+        if (!resource_is_declared(resource)) continue;
+        int loads = empire_city_trade_resource_cost(route_id, resource);
+        const int64_t amount = static_cast<int64_t>(loads) * resource_units_per_load();
+        if (amount < 0 || amount > INT_MAX) return false;
+        if (amount) inputs.push_back({resource, static_cast<int>(amount)});
+    }
+    return true;
+}
+
+int empire_city_can_pay_trade_resources(int city_id)
+{
+    const auto *city = city_at(city_id);
+    std::vector<ResourceConsumptionAmount> inputs;
+    return city && trade_resource_costs(city->route_id, inputs) && resource_stockpile_has(inputs, true);
+}
+
 void empire_city_open_trade(int city_id, int apply_cost)
 {
     empire_city *city = city_at(city_id);
@@ -471,7 +501,10 @@ void empire_city_open_trade(int city_id, int apply_cost)
         return;
     }
     const int was_open = city->is_open;
+    if (was_open) return;
     if (apply_cost) {
+        std::vector<ResourceConsumptionAmount> inputs;
+        if (!trade_resource_costs(city->route_id, inputs) || !resource_stockpile_consume(inputs, true)) { city_warning_show_translated(WARNING_RESOURCES_NOT_AVAILABLE); return; }
         city_finance_process_sundry(city->cost_to_open);
     }
     city->is_open = 1;
@@ -571,8 +604,10 @@ int empire_city_change_own_resource_availability(resource_type resource, int is_
 
 const uint8_t *empire_city_get_name(const empire_city *city)
 {
+    if (!city) return reinterpret_cast<const uint8_t *>("");
+    if (const char *name = scenario_definition_override_text(ScenarioOverrideKind::CityName, std::to_string(city->empire_object_id))) return reinterpret_cast<const uint8_t *>(name);
     full_empire_object *full = empire_object_get_full(city->empire_object_id);
-    if (string_length(full->city_custom_name)) {
+    if (full && string_length(full->city_custom_name)) {
         return full->city_custom_name;
     }
     return lang_get_string(current_string_key(21, city->name_id));
@@ -685,7 +720,7 @@ void empire_city_migrate_legacy_fishing_production(void)
         if (city.type != EMPIRE_CITY_OURS) continue;
         if (!city.sells_resource[fish]) {
             city.sells_resource[fish] = 1;
-            log_info("Migrated legacy scenario fishing production for the player city", 0, 0);
+            Logger::info("Migrated legacy scenario fishing production for the player city", 0, 0);
         }
         return;
     }
@@ -788,55 +823,16 @@ int empire_city_get_array_size(void)
     return city_count();
 }
 
-int empire_city_get_icon_image_id(empire_city_icon_type type)
+ImageGroupEntryRef empire_city_icon(empire_city_icon_type type)
 {
-    switch (type) {
-        case EMPIRE_CITY_ICON_TRADE_TOWN:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_1);  // tr_town
-        case EMPIRE_CITY_ICON_ROMAN_TOWN:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_2);  // ro_town
-        case EMPIRE_CITY_ICON_TRADE_VILLAGE:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_3);  // tr_village
-        case EMPIRE_CITY_ICON_ROMAN_VILLAGE:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_4);  // ro_village
-        case EMPIRE_CITY_ICON_ROMAN_CAPITAL:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_5);  // ro_capital
-
-        case EMPIRE_CITY_ICON_DISTANT_TOWN:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_6);  // dis_town
-        case EMPIRE_CITY_ICON_DISTANT_VILLAGE:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_7);  // dis_village
-
-        case EMPIRE_CITY_ICON_CONSTRUCTION:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_8);  // construction
-
-        case EMPIRE_CITY_ICON_RESOURCE_FOOD:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_9);  // res_food
-        case EMPIRE_CITY_ICON_RESOURCE_GOODS:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_10); // res_goods
-        case EMPIRE_CITY_ICON_RESOURCE_SEA:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_11); // res_sea
-
-        case EMPIRE_CITY_ICON_TRADE_SEA:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_12); // tr_sea
-        case EMPIRE_CITY_ICON_TRADE_LAND:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_13); // tr_land
-
-        case EMPIRE_CITY_ICON_OUR_CITY:
-            return image_group(GROUP_EMPIRE_CITY);
-        case EMPIRE_CITY_ICON_TRADE_CITY:
-            return image_group(GROUP_EMPIRE_CITY_TRADE);
-        case EMPIRE_CITY_ICON_ROMAN_CITY:
-            return image_group(GROUP_EMPIRE_CITY_DISTANT_ROMAN);
-        case EMPIRE_CITY_ICON_DISTANT_CITY:
-            return image_group(GROUP_EMPIRE_FOREIGN_CITY);
-        case EMPIRE_CITY_ICON_TOWER:
-            return assets_lookup_image_id(ASSET_UI_EMP_ICON_OLD_WATCHTOWER); // old_watchtower
-        default:
-            return -1;
+    const auto *definition = declarative_window_definition("empire_map");
+    const auto *icon = definition ? definition->widget("icon_" + std::to_string(type)) : nullptr;
+    if (!icon) {
+        Logger::errorf("Empire map has no graphic definition for city icon %d", type);
+        return {};
     }
+    return ImageGroupEntryRef::from_group(icon->assetlist_name, icon->image_name);
 }
-
 int empire_city_get_at(int x, int y, const uint8_t *name)
 {
     for (int city_id = 0; city_id < city_count(); city_id++) {

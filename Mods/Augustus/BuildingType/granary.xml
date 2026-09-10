@@ -1,40 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="granary">
-    <identity name_key="main_strings.28.71" />
-    <model cost="100" />
-    <desirability>
-        <value value="-4" />
-        <step value="1" />
-        <step_size value="2" />
-        <range value="2" />
-    </desirability>
-    <foundation path="granary_3x3" />
-  <button group="industry" order="400" text_key="main_strings.28.71" />
-
-    <labor>
-        <employees count="6" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="100" />
-        </labor_seeker>
-    </labor>
     <graphics>
         <status_icon x="83" y="-120" />
         <default animation="0">
             <path value="Industry\Granary" />
             <image value="Image_0000" />
             <layer stage="top" image="Image_0001" x="28" y="-94" />
-            <layer stage="top" image="Image_0002" x="33" y="-60">
+            <layer stage="top" image="Granary_4_food" x="33" y="-35">
                 <condition type="resource_amount" resource="none" operator="less_than" threshold="32" />
             </layer>
-            <layer stage="top" image="Image_0003" x="56" y="-50">
+            <layer stage="top" image="Granary_8_food" x="33" y="-60">
+                <condition type="resource_amount" resource="none" operator="less_than" threshold="28" />
+            </layer>
+            <layer stage="top" image="Granary_12_food" x="56" y="-25">
                 <condition type="resource_amount" resource="none" operator="less_than" threshold="24" />
             </layer>
-            <layer stage="top" image="Image_0004" x="91" y="-50">
+            <layer stage="top" image="Granary_16_food" x="56" y="-50">
+                <condition type="resource_amount" resource="none" operator="less_than" threshold="20" />
+            </layer>
+            <layer stage="top" image="Granary_20_food" x="92" y="-27">
                 <condition type="resource_amount" resource="none" operator="less_than" threshold="16" />
             </layer>
-            <layer stage="top" image="Image_0005" x="117" y="-62">
+            <layer stage="top" image="Granary_24_food" x="92" y="-50">
+                <condition type="resource_amount" resource="none" operator="less_than" threshold="12" />
+            </layer>
+            <layer stage="top" image="Granary_28_food" x="118" y="-37">
                 <condition type="resource_amount" resource="none" operator="less_than" threshold="8" />
+            </layer>
+            <layer stage="top" image="Granary_32_food" x="119" y="-60">
+                <condition type="resource_amount" resource="none" operator="equal" threshold="0" />
             </layer>
             <layer stage="top" animation="1" x="81" y="-101">
                 <options selection="storage_permission">

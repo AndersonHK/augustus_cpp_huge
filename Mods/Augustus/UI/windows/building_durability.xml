@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="building_durability" base_width="640" base_height="432">
+    <widget type="label" id="durability" binding="durability" x="32" y="36" width="576" stretch_width="true" text_alignment="center" font="normal_green" />
+</window>

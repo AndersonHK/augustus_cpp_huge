@@ -1,4 +1,6 @@
 #include "assets/graphics_extraction_abi.h"
+#include "core/loading_progress.h"
+#include "core/Logger.h"
 
 #include "assets/augustus_asset_extractor.h"
 #include "assets/graphics_extractor_shims.h"
@@ -12,6 +14,19 @@ namespace {
 
 constexpr uint32_t known_flags = GRAPHICS_EXTRACTION_FORCE | GRAPHICS_EXTRACTION_WRITE_STAMP;
 constexpr size_t climate_request_v1_base_size = offsetof(graphics_extraction_climate_request_v1, mode);
+
+struct ProgressScope {
+    explicit ProgressScope(graphics_extraction_progress_v1 progress) { loading_progress::observer = progress; }
+    ~ProgressScope() { loading_progress::observer = nullptr; }
+};
+
+struct LogScope {
+    graphics_extraction_log_v1 callback;
+    Logger::Destination previous;
+    explicit LogScope(graphics_extraction_log_v1 output) : callback(output), previous(Logger::set_output(output ? forward : nullptr, this)) {}
+    ~LogScope() { Logger::set_output(previous.output, previous.userdata); }
+    static void forward(void *data, Logger::Severity severity, const char *message) { static_cast<LogScope *>(data)->callback(static_cast<int32_t>(severity), message); }
+};
 
 bool initialize_result(graphics_extraction_result_v1 *result)
 {
@@ -39,7 +54,7 @@ extraction::ExtractorOptions options_from_flags(uint32_t flags)
 
 bool has_climate_paths(const graphics_extraction_climate_request_v1 &request)
 {
-    return request.struct_size >= sizeof(request);
+    return request.struct_size >= offsetof(graphics_extraction_climate_request_v1, progress);
 }
 
 void configure_extractor_shims(const char *game_root, const char *augustus_graphics, const char *julius_graphics)
@@ -77,11 +92,13 @@ extern "C" graphics_extraction_status_v1 graphics_extraction_run_augustus_v1(
     graphics_extraction_result_v1 *result)
 {
     if (!initialize_result(result) || !request ||
-        !valid_common_request(request->struct_size, sizeof(*request), request->abi_version, request->flags, request->reserved)) {
+        !valid_common_request(request->struct_size, offsetof(graphics_extraction_augustus_request_v1, progress), request->abi_version, request->flags, request->reserved)) {
         return GRAPHICS_EXTRACTION_STATUS_INVALID_ABI;
     }
 
     try {
+        LogScope log(request->struct_size >= sizeof(*request) ? request->log : nullptr);
+        ProgressScope progress(request->struct_size >= offsetof(graphics_extraction_augustus_request_v1, log) ? request->progress : nullptr);
         configure_extractor_shims(request->game_root, request->output_graphics, request->julius_graphics);
         const extraction::ExtractorPaths paths(
             request->game_root ? request->game_root : "",
@@ -118,6 +135,8 @@ extern "C" graphics_extraction_status_v1 graphics_extraction_bootstrap_climate_v
     }
 
     try {
+        LogScope log(request->struct_size >= sizeof(*request) ? request->log : nullptr);
+        ProgressScope progress(request->struct_size >= offsetof(graphics_extraction_climate_request_v1, log) ? request->progress : nullptr);
         if (has_paths) {
             configure_extractor_shims(request->game_root, request->augustus_graphics, request->julius_graphics);
         }

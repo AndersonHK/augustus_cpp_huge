@@ -2,7 +2,7 @@
 
 #include "core/encoding.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "game/campaign.h"
 
@@ -155,7 +155,7 @@ void custom_messages_save_state(buffer *buf)
 static void link_media(custom_media_t *media, custom_media_link_type link_type, int link_id)
 {
     if (link_id <= 0) {
-        log_error("Unlinked custom media entry found. The game will probably crash.", 0, 0);
+        Logger::error("Unlinked custom media entry found. The game will probably crash.", 0, 0);
     }
 
     switch (link_type) {
@@ -172,7 +172,7 @@ static void link_media(custom_media_t *media, custom_media_link_type link_type, 
             }
             break;
         default:
-            log_error("Unhandled custom media link type. The game will probably crash.", 0, 0);
+            Logger::error("Unhandled custom media link type. The game will probably crash.", 0, 0);
             break;
     }
 }
@@ -249,7 +249,7 @@ static const char *check_for_file_in_dir(const char *filename, const char *direc
         location = PATH_LOCATION_COMMUNITY;
     }
     if (snprintf(filepath, FILE_NAME_MAX, "%s/%s", directory, filename) > FILE_NAME_MAX) {
-        log_error("Filename too long. The file will not be loaded.", filename, 0);
+        Logger::error("Filename too long. The file will not be loaded.", filename, 0);
     }
     if (game_campaign_has_file(filepath)) {
         return filepath;

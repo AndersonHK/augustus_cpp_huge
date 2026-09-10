@@ -1,90 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="warehouse">
-    <identity name_key="main_strings.28.72" />
-    <model cost="70" />
-    <desirability>
-        <value value="-5" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="warehouse_1x1" />
-  <button group="industry" order="500" text_key="main_strings.28.72" />
-
-    <flags fire_proof="1" />
     <labor>
         <employees count="6" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <graphics>
-        <status_icon x="21" y="-60" />
-        <default>
-            <path value="Industry\Warehouse" />
-            <image value="Image_0000" />
-            <layer path="Industry\Warehouse" image="Image_0017" stage="top" x="-4" y="-42" />
-            <layer stage="top" animation="1" x="19" y="-56">
-                <options selection="storage_permission">
-                    <option path="UI\Warehouse_Flag_Market_1" image="Warehouse_Flag_Market" />
-                    <option path="UI\Warehouse_Flag_Land_1" image="Warehouse_Flag_Land" />
-                    <option path="UI\Warehouse_Flag_Market_Land_1" image="Warehouse_Flag_Market_Land" />
-                    <option path="UI\Warehouse_Flag_Sea_1" image="Warehouse_Flag_Sea" />
-                    <option path="UI\Warehouse_Flag_Market_Sea_1" image="Warehouse_Flag_Market_Sea" />
-                    <option path="UI\Warehouse_Flag_Land_Sea_1" image="Warehouse_Flag_Land_Sea" />
-                    <option path="UI\Warehouse_Flag_All_1" image="Warehouse_Flag_All" />
-                </options>
-            </layer>
-        </default>
-    </graphics>
-    <composition>
-        <child type="warehouse_space" role="space_1" x="0" y="1">
-            <offset rotation="0" x="0" y="1" />
-            <offset rotation="1" x="0" y="-2" />
-            <offset rotation="2" x="-2" y="-2" />
-            <offset rotation="3" x="-2" y="0" />
-        </child>
-        <child type="warehouse_space" role="space_2" x="1" y="0">
-            <offset rotation="0" x="1" y="0" />
-            <offset rotation="1" x="0" y="-1" />
-            <offset rotation="2" x="-2" y="-1" />
-            <offset rotation="3" x="-2" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_3" x="1" y="1">
-            <offset rotation="0" x="1" y="1" />
-            <offset rotation="1" x="1" y="-2" />
-            <offset rotation="2" x="-1" y="-2" />
-            <offset rotation="3" x="-1" y="0" />
-        </child>
-        <child type="warehouse_space" role="space_4" x="0" y="2">
-            <offset rotation="0" x="0" y="2" />
-            <offset rotation="1" x="1" y="-1" />
-            <offset rotation="2" x="-1" y="-1" />
-            <offset rotation="3" x="-1" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_5" x="2" y="0">
-            <offset rotation="0" x="2" y="0" />
-            <offset rotation="1" x="2" y="-2" />
-            <offset rotation="2" x="-2" y="0" />
-            <offset rotation="3" x="-2" y="2" />
-        </child>
-        <child type="warehouse_space" role="space_6" x="1" y="2">
-            <offset rotation="0" x="1" y="2" />
-            <offset rotation="1" x="1" y="0" />
-            <offset rotation="2" x="0" y="-2" />
-            <offset rotation="3" x="-1" y="2" />
-        </child>
-        <child type="warehouse_space" role="space_7" x="2" y="1">
-            <offset rotation="0" x="2" y="1" />
-            <offset rotation="1" x="2" y="-1" />
-            <offset rotation="2" x="-1" y="0" />
-            <offset rotation="3" x="0" y="1" />
-        </child>
-        <child type="warehouse_space" role="space_8" x="2" y="2">
-            <offset rotation="0" x="2" y="2" />
-            <offset rotation="1" x="2" y="0" />
-            <offset rotation="2" x="0" y="-1" />
-            <offset rotation="3" x="0" y="2" />
-        </child>
-    </composition>
 </building>

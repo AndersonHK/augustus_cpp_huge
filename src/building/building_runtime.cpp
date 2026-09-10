@@ -23,7 +23,7 @@
 #include "building/storage_runtime.h"
 #include "building/temple.h"
 #include "city/culture.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/formation.h"
@@ -42,8 +42,7 @@
 #include "game/time.h"
 #include "map/sprite.h"
 #include "map/grid.h"
-#include "map/terrain.h"
-#include "core/log.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -137,7 +136,7 @@ void building_runtime::bind_native_modules()
             failure = nullptr;
         }
         if (failure) {
-            log_error("Unable to bind fort runtime to saved formation", failure, static_cast<int>(record_->id));
+            Logger::error("Unable to bind fort runtime to saved formation", failure, static_cast<int>(record_->id));
         }
     }
 }
@@ -201,7 +200,7 @@ void building_runtime::restore_graphics_state(const BuildingGraphicsState &state
     snprintf(detail, sizeof(detail), "type=%s record_id=%u",
         type.attr(),
         record ? record->id : 0);
-    log_error("BuildingRuntime failed to create a runtime-owned building", detail, 0);
+    Logger::error("BuildingRuntime failed to create a runtime-owned building", detail, 0);
     std::terminate();
 }
 
@@ -234,9 +233,11 @@ constexpr BuildingRuntimeList INDEXED_BUILDING_LISTS[] = {
     BuildingRuntimeList::Warehouses,
     BuildingRuntimeList::Storage,
     BuildingRuntimeList::PlagueTargets,
+    BuildingRuntimeList::CityServices,
 };
 
 struct RuntimeBuildingIndex {
+    std::vector<Building *> city_services;
     std::vector<Building *> housing;
     std::vector<Building *> labor;
     std::vector<Building *> production;
@@ -255,6 +256,7 @@ struct RuntimeBuildingIndex {
             case BuildingRuntimeList::Housing: return definition->has_housing();
             case BuildingRuntimeList::Labor: return definition->has_labor();
             case BuildingRuntimeList::Production: return definition->has_native_production();
+            case BuildingRuntimeList::CityServices: return definition->city_service().enabled();
             case BuildingRuntimeList::Granaries: return definition->is_granary();
             case BuildingRuntimeList::Warehouses: return definition->is_warehouse();
             case BuildingRuntimeList::Storage: return definition->is_storage();
@@ -269,6 +271,7 @@ struct RuntimeBuildingIndex {
             case BuildingRuntimeList::Housing: return housing;
             case BuildingRuntimeList::Labor: return labor;
             case BuildingRuntimeList::Production: return production;
+            case BuildingRuntimeList::CityServices: return city_services;
             case BuildingRuntimeList::Granaries: return granaries;
             case BuildingRuntimeList::Warehouses: return warehouses;
             case BuildingRuntimeList::Storage: return storage;
@@ -358,7 +361,7 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
         BuildingComposition *composition = owner_runtime->building.Composition;
         if (!composition) {
             complete = false;
-            log_error("Unable to create ephemeral building composition", "owner composition module is missing", owner_runtime->runtime_id());
+            Logger::error("Unable to create ephemeral building composition", "owner composition module is missing", owner_runtime->runtime_id());
             continue;
         }
         composition->bind_owner(&owner_runtime->building, &owner_runtime->definition()->composition());
@@ -375,12 +378,12 @@ ScopedEphemeralBuildingRuntime::ScopedEphemeralBuildingRuntime(
         std::string error;
         if (!composition->attach_children(children, &error)) {
             complete = false;
-            log_error("Unable to bind ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
+            Logger::error("Unable to bind ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
             continue;
         }
         if (!composition->complete(&error)) {
             complete = false;
-            log_error("Unable to validate ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
+            Logger::error("Unable to validate ephemeral building composition", error.c_str(), owner_runtime->runtime_id());
         }
     }
 
@@ -582,7 +585,7 @@ building_runtime *get_or_create_instance(::building *building_data)
         // Runtime indexes and owner modules publish stable pointers. Loading a
         // different record array must reset the runtime first, never replace a
         // live wrapper behind those pointers.
-        log_error("Building runtime id is already bound to a different record", 0, building_data->id);
+        Logger::error("Building runtime id is already bound to a different record", 0, building_data->id);
         std::terminate();
     } else if (slot->definition() != definition || !has_expected_rubble_module) {
         slot->rebind_definition(definition);
@@ -602,7 +605,7 @@ void discard_instance_for_reused_record(::building *building_data)
         return;
     }
     if (&slot->data != building_data) {
-        log_error("Building runtime id is already bound to a different record", 0, building_data->id);
+        Logger::error("Building runtime id is already bound to a different record", 0, building_data->id);
         std::terminate();
     }
 
@@ -1152,7 +1155,7 @@ int building_runtime_hydrate_loaded_modules(void)
         const building_runtime_impl::LoadedBuildingRuntimeState *loaded =
             building_runtime_impl::loaded_runtime_state_for(b->id);
         if (!instance) {
-            log_error("Unable to materialize loaded Building object", 0, b->id);
+            Logger::error("Unable to materialize loaded Building object", 0, b->id);
             valid = false;
             return;
         }
@@ -1174,7 +1177,7 @@ int building_runtime_hydrate_loaded_modules(void)
         }
         if (loaded->housing_state_valid) {
             if (!instance->building.Housing) {
-                log_error("Loaded HousingState has no owning Housing module", 0, b->id);
+                Logger::error("Loaded HousingState has no owning Housing module", 0, b->id);
                 valid = false;
             } else {
                 instance->building.Housing->state() = loaded->housing_state;
@@ -1185,7 +1188,7 @@ int building_runtime_hydrate_loaded_modules(void)
             // Foundation before module hydration reaches this record.
             if (instance->building.Foundation &&
                 !restore_loaded_foundation_state(instance->building, loaded->foundation_state)) {
-                log_error("Unable to restore loaded FoundationState", 0, b->id);
+                Logger::error("Unable to restore loaded FoundationState", 0, b->id);
                 valid = false;
             } else if (!instance->building.Foundation) {
                 ++discarded_foundation_states;
@@ -1193,10 +1196,10 @@ int building_runtime_hydrate_loaded_modules(void)
         }
     });
     if (discarded_rubble_states) {
-        log_warning("Discarding staged RubbleState payloads removed by load normalization", 0, discarded_rubble_states);
+        Logger::warning("Discarding staged RubbleState payloads removed by load normalization", 0, discarded_rubble_states);
     }
     if (discarded_foundation_states) {
-        log_warning("Discarding staged FoundationState payloads removed by load normalization", 0, discarded_foundation_states);
+        Logger::warning("Discarding staged FoundationState payloads removed by load normalization", 0, discarded_foundation_states);
     }
     building_runtime_impl::clear_loaded_runtime_state();
     return valid ? 1 : 0;
@@ -1213,7 +1216,7 @@ void building_runtime_initialize_city_graphics_cache(void)
     map_building_rebind_runtime_references();
     building_local_workforce_initialize_city();
     if (!building_runtime_impl::g_loaded_building_runtime_state.empty()) {
-        log_error("Building runtime initialization began before the load bridge finished", 0, 0);
+        Logger::error("Building runtime initialization began before the load bridge finished", 0, 0);
         std::terminate();
     }
 

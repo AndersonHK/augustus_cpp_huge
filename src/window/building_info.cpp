@@ -43,7 +43,7 @@
 #include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "window/city.h"
 #include "window/message_dialog.h"
 #include "window/building/depot.h"
@@ -239,6 +239,7 @@ static int get_height_id(void)
         }
         const BuildingType &type_definition = *current_building.type;
         const building_type type = static_cast<building_type>(b->type);
+        if (type_definition.presentation().panel == BuildingType::InformationPanel::Garden) return HEIGHT_1_16_BLOCKS;
         const int is_dock = type_definition.attr_is("dock");
         if (type_definition.is_well()) {
             return HEIGHT_4_14_BLOCKS;
@@ -371,6 +372,7 @@ static int center_in_city(int element_width_pixels)
 
 static void init(int grid_offset)
 {
+    context.grid_offset = grid_offset;
     original_overlay = game_state_overlay();
     context.can_play_sound = 1;
     context.show_special_orders = 0;
@@ -378,7 +380,7 @@ static void init(int grid_offset)
     context.advisor_button = ADVISOR_NONE;
     context.building = nullptr;
     context.rubble_building_id = map_building_rubble_building_id(grid_offset);
-    context.has_reservoir_pipes = map_terrain_is(grid_offset, TERRAIN_RESERVOIR_RANGE);
+    context.has_reservoir_pipes = terrain_map().contains(grid_offset, terrain_types().reservoir_range);
     context.aqueduct_has_water = map_aqueduct_has_water_access_at(grid_offset);
     context.has_road_access = 0;
     context.worker_percentage = 0;
@@ -396,26 +398,28 @@ static void init(int grid_offset)
     building *selected_building = selected_runtime_building ?
         const_cast<::building *>(selected_runtime_building->record()) : nullptr;
 
+    if (selected_runtime_building) context.building = selected_runtime_building;
+
     if (map_is_bridge(grid_offset)) {
         if (selected_building) {
             context.building = selected_runtime_building;
         }
-        if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        if (terrain_map().contains(grid_offset, terrain_types().water)) {
             context.terrain_type = TERRAIN_INFO_BRIDGE;
         } else {
             context.terrain_type = TERRAIN_INFO_EMPTY;
         }
     } else if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-        if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        if (terrain_map().contains(grid_offset, terrain_types().road)) {
             context.terrain_type = TERRAIN_INFO_PLAZA;
-        } else if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().rock)) {
             context.terrain_type = TERRAIN_INFO_EARTHQUAKE;
-        } else if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().garden)) {
             context.terrain_type = TERRAIN_INFO_GARDEN;
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_TREE)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().tree)) {
         context.terrain_type = TERRAIN_INFO_TREE;
-    } else if (map_terrain_is(grid_offset, TERRAIN_ROCK)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().rock)) {
         if (grid_offset == city_map_entry_flag()->grid_offset) {
             context.terrain_type = TERRAIN_INFO_ENTRY_FLAG;
         } else if (grid_offset == city_map_exit_flag()->grid_offset) {
@@ -423,21 +427,21 @@ static void init(int grid_offset)
         } else {
             context.terrain_type = TERRAIN_INFO_ROCK;
         }
-    } else if ((map_terrain_get(grid_offset) & (TERRAIN_WATER | TERRAIN_BUILDING)) == TERRAIN_WATER) {
+    } else if ((terrain_map().at(grid_offset) & (terrain_types().water | terrain_types().building)) == terrain_types().water) {
         context.terrain_type = TERRAIN_INFO_WATER;
-    } else if (map_terrain_is(grid_offset, TERRAIN_SHRUB)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().shrub)) {
         context.terrain_type = TERRAIN_INFO_SHRUB;
-    } else if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().garden)) {
         context.terrain_type = TERRAIN_INFO_GARDEN;
-    } else if ((map_terrain_get(grid_offset) & (TERRAIN_ROAD | TERRAIN_BUILDING)) == TERRAIN_ROAD) {
+    } else if ((terrain_map().at(grid_offset) & (terrain_types().road | terrain_types().building)) == terrain_types().road) {
         context.terrain_type = TERRAIN_INFO_ROAD;
-    } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
         context.terrain_type = TERRAIN_INFO_AQUEDUCT;
-    } else if (map_terrain_is(grid_offset, TERRAIN_RUBBLE)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().rubble)) {
         context.terrain_type = TERRAIN_INFO_RUBBLE;
-    } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().wall)) {
         context.terrain_type = TERRAIN_INFO_WALL;
-    } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    } else if (terrain_map().contains(grid_offset, terrain_types().highway) && !selected_building) {
         context.terrain_type = TERRAIN_INFO_HIGHWAY;
     } else if (!selected_building) {
         context.terrain_type = TERRAIN_INFO_EMPTY;
@@ -617,7 +621,13 @@ static void draw_background(void)
             BuildingInfoScreenSelection::resolve(current_building, context.show_special_orders);
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = type_definition.attr_is("dock");
-        if (current_building.Housing) {
+        if (window_building_draw_construction_panel(&context)) {
+            // The construction definition owns this phase's layout and text.
+        } else if (type_definition.presentation().panel == BuildingType::InformationPanel::Garden) {
+            window_building_draw_garden(&context);
+        } else if (type_definition.city_service().enabled()) {
+            window_building_draw_city_service(&context);
+        } else if (current_building.Housing) {
             window_building_draw_house(&context);
         } else if (type_definition.has_farm_panel()) {
             window_building_draw_farm(&context, farm_panel_output_resource(type_definition));
@@ -800,7 +810,7 @@ static void draw_background(void)
             window_building_draw_prefect(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "obelisk")) {
             window_building_draw_obelisk(&context);
-        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE && context.show_special_orders) {
+        } else if (!building_monument_is_unfinished_monument(b) && Roadblock(*context.building).kind() != ROADBLOCK_NONE && context.show_special_orders) {
             window_building_draw_roadblock_orders(&context);
         } else if (building_type_registry_impl::type_attr_is(btype, "roadblock")) {
             window_building_draw_roadblock(&context);
@@ -941,7 +951,7 @@ static void draw_foreground(void)
             } else {
                 window_building_distributor_draw_foreground(&context);
             }
-        } else if (Roadblock(*context.building).kind() != ROADBLOCK_NONE) {
+        } else if (!building_monument_is_unfinished_monument(b) && Roadblock(*context.building).kind() != ROADBLOCK_NONE) {
             if (context.show_special_orders) {
                 window_building_draw_roadblock_orders_foreground(&context);
             } else {
@@ -988,6 +998,8 @@ static void draw_foreground(void)
             window_building_draw_roadblock_button(&context);
         }
     }
+
+    if (!context.show_special_orders && context.depot_selection == 0) window_building_draw_durability(&context);
 
     // general buttons
     if (context.show_special_orders ||
@@ -1201,8 +1213,9 @@ static void get_tooltip(tooltip_context *c)
                     window_building_roadblock_get_tooltip_walker_permissions(&translation);
                 } else {
                     window_building_get_tooltip_storage_orders(&group_id, &text_id, &translation);
+                    if (!group_id && !text_id && !translation) precomposed_text = window_building_storage_resource_hover_tooltip(&context);
                 }
-            } else if (current_building && Roadblock(*current_building).kind() != ROADBLOCK_NONE) {
+            } else if (current_building && !building_monument_is_unfinished_monument(current_building->record()) && Roadblock(*current_building).kind() != ROADBLOCK_NONE) {
                 window_building_roadblock_get_tooltip_walker_permissions(&translation);
             } else if (type_definition->has_distribution()) {
                 window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
@@ -1369,6 +1382,7 @@ void window_building_info_reset_previous_context(void)
 
 void window_building_info_show_roadblock_orders(void)
 {
+    if (context.building && building_monument_is_unfinished_monument(context.building->record())) return;
     context.show_special_orders = SPECIAL_ORDERS_ROADBLOCK;
     window_invalidate();
 }

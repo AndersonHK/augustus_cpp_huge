@@ -2,7 +2,7 @@
 
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "graphics/color.h"
 
 #include "spng/spng.h"
@@ -40,17 +40,17 @@ int png_load_from_file(const char *path, int is_asset)
     png_unload();
     data.fp = is_asset ? file_open_asset(path, "rb") : file_open(path, "rb");
     if (!data.fp) {
-        log_error("Unable to open png file", path, 0);
+        Logger::error("Unable to open png file", path, 0);
         return 0;
     }
     data.ctx = spng_ctx_new(0);
     if (!data.ctx) {
-        log_error("Unable to create a png handle context", 0, 0);
+        Logger::error("Unable to create a png handle context", 0, 0);
         png_unload();
         return 0;
     }
     if (spng_set_png_file(data.ctx, data.fp)) {
-        log_error("Unable to set png file stream", 0, 0);
+        Logger::error("Unable to set png file stream", 0, 0);
         png_unload();
         return 0;
     }
@@ -66,17 +66,17 @@ int png_load_from_buffer(const uint8_t *buffer, size_t length)
     }
     png_unload();
     if (!buffer) {
-        log_error("Unable to open png file - no buffer provided", 0, 0);
+        Logger::error("Unable to open png file - no buffer provided", 0, 0);
         return 0;
     }
     data.ctx = spng_ctx_new(0);
     if (!data.ctx) {
-        log_error("Unable to create a png handle context", 0, 0);
+        Logger::error("Unable to create a png handle context", 0, 0);
         png_unload();
         return 0;
     }
     if (spng_set_png_buffer(data.ctx, buffer, length)) {
-        log_error("Unable to set png buffer", 0, 0);
+        Logger::error("Unable to set png buffer", 0, 0);
         png_unload();
         return 0;
     }
@@ -135,19 +135,19 @@ static int load_image(void)
 {
     size_t image_size;
     if (spng_decoded_image_size(data.ctx, SPNG_FMT_RGBA8, &image_size)) {
-        log_error("Unable to retrieve png image size", 0, 0);
+        Logger::error("Unable to retrieve png image size", 0, 0);
         png_unload();
         return 0;
     }
     int total_pixels = data.cache.width * data.cache.height;
     data.cache.pixels = static_cast<color_t *>(malloc(image_size));
     if (!data.cache.pixels) {
-        log_error("Unable to load png file. Out of memory", 0, 0);
+        Logger::error("Unable to load png file. Out of memory", 0, 0);
         png_unload();
         return 0;
     }
     if (spng_decode_image(data.ctx, data.cache.pixels, image_size, SPNG_FMT_RGBA8, SPNG_DECODE_TRNS)) {
-        log_error("Unable to start decoding png file", 0, 0);
+        Logger::error("Unable to start decoding png file", 0, 0);
         png_unload();
         return 0;
     }

@@ -10,7 +10,7 @@
 #include "city/message.h"
 #include "city/military.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
@@ -20,7 +20,7 @@
 #include "map/grid.h"
 #include "map/point.h"
 #include "map/soldier_strength.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <optional>
 #include <exception>
@@ -341,7 +341,7 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
             map_grid_get_area(candidate->x(), candidate->y(), size, radius, &x_min, &y_min, &x_max, &y_max);
             for (int yy = y_min; yy <= y_max; yy++) {
                 for (int xx = x_min; xx <= x_max; xx++) {
-                    if (map_terrain_is(map_grid_offset(xx, yy), TERRAIN_AQUEDUCT | TERRAIN_WALL | TERRAIN_GARDEN)) {
+                    if (terrain_map().contains(map_grid_offset(xx, yy), terrain_types().aqueduct | terrain_types().wall | terrain_types().garden)) {
                         int distance = calc_maximum_distance(meeting_x, meeting_y, xx, yy);
                         if (distance < min_distance) {
                             min_distance = distance;
@@ -418,7 +418,14 @@ static void set_native_target_building(formation *m)
 
 int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_tile, int *y_tile)
 {
-    const std::vector<int> figure_offsets = m->layout_grid_offsets();
+    std::vector<int> figure_offsets = m->layout_grid_offsets();
+    if (m->is_herd) {
+        figure_offsets.clear();
+        m->for_each_alive_figure([&](Figure &, int slot) {
+            const FormationLayoutPosition position = m->layout_position(slot);
+            figure_offsets.push_back(map_grid_offset(position.x, position.y) - map_grid_offset(0, 0));
+        });
+    }
     const int figure_count = static_cast<int>(figure_offsets.size());
     if (figure_count <= 0) {
         return 0;
@@ -436,7 +443,12 @@ int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_t
                         can_move = 0;
                         break;
                     }
-                    if (map_terrain_is(grid_offset, TERRAIN_IMPASSABLE_ENEMY)) {
+                    if (terrain_map().contains(grid_offset, m->is_herd ? terrain_types().impassable_herd : terrain_types().impassable_enemy)) {
+                        can_move = 0;
+                        break;
+                    }
+                    if (m->is_herd && terrain_map().distance_to_nearest(grid_offset, terrain_types().building,
+                        m->formation_type_definition->spawn.herd.building_clearance) <= m->formation_type_definition->spawn.herd.building_clearance) {
                         can_move = 0;
                         break;
                     }
@@ -488,7 +500,7 @@ static void mars_kill_enemies(void)
 static void get_layout_orientation_offset(const enemy_army *army, const formation *m, int *x_offset, int *y_offset)
 {
     if (!army->layout_definition) {
-        log_error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
+        Logger::error("Enemy army has no FormationLayout", "formation", static_cast<int>(m->id));
         std::terminate();
     }
     const FormationLayoutPosition offset = army->layout_definition->army_offset(m->orientation / 2, m->enemy_legion_index);

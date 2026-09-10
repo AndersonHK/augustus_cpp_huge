@@ -1,6 +1,25 @@
 #include "houses.h"
 
 #include "city/data_private.h"
+#include <algorithm>
+#include <array>
+
+static std::array<int *, 5> missing_religions()
+{
+    auto &missing = city_data.houses.missing;
+    return {&missing.religion, &missing.second_religion, &missing.third_religion, &missing.fourth_religion, &missing.fifth_religion};
+}
+
+bool city_houses_check_religion_requirement(int required, int available)
+{
+    if (available < required) {
+        const auto counters = missing_religions();
+        ++*counters[std::clamp(required, 1, static_cast<int>(counters.size())) - 1];
+        return false;
+    }
+    if (required > 0) ++city_data.houses.requiring.religion;
+    return true;
+}
 
 void city_houses_reset_demands(void)
 {
@@ -10,9 +29,7 @@ void city_houses_reset_demands(void)
     city_data.houses.missing.more_entertainment = 0;
     city_data.houses.missing.education = 0;
     city_data.houses.missing.more_education = 0;
-    city_data.houses.missing.religion = 0;
-    city_data.houses.missing.second_religion = 0;
-    city_data.houses.missing.third_religion = 0;
+    for (auto *count : missing_religions()) *count = 0;
     city_data.houses.missing.barber = 0;
     city_data.houses.missing.bathhouse = 0;
     city_data.houses.missing.clinic = 0;
@@ -72,15 +89,11 @@ void city_houses_calculate_culture_demands(void)
     // religion
     city_data.houses.religion = 0;
     max = 0;
-    if (city_data.houses.missing.religion > max) {
-        city_data.houses.religion = 1;
-        max = city_data.houses.missing.religion;
-    }
-    if (city_data.houses.missing.second_religion > max) {
-        city_data.houses.religion = 2;
-        max = city_data.houses.missing.second_religion;
-    }
-    if (city_data.houses.missing.third_religion > max) {
-        city_data.houses.religion = 3;
+    const auto counts = missing_religions();
+    for (size_t i = 0; i < counts.size(); ++i) {
+        if (*counts[i] > max) {
+            max = *counts[i];
+            city_data.houses.religion = static_cast<int>(i + 1);
+        }
     }
 }

@@ -7,6 +7,8 @@
 #include "window/numeric_input.h"
 
 #include "select_special_attribute_mapping.h"
+#include "map/TerrainRegistry.h"
+#include "window/select_list.h"
 
 #include "window/editor/map.h"
 
@@ -225,4 +227,37 @@ void window_editor_select_special_attribute_mapping_show(parameter_type type, vo
     };
     init(type, callback, current_value);
     window_show(&window);
+}
+
+namespace {
+std::vector<const Terrain *> terrain_choices;
+std::vector<const uint8_t *> terrain_choice_labels;
+void (*terrain_choice_callback)(const Terrain &) = nullptr;
+void select_terrain_choice(int index)
+{
+    if (index >= 0 && index < static_cast<int>(terrain_choices.size()) && terrain_choice_callback) terrain_choice_callback(*terrain_choices[index]);
+    terrain_choices.clear();
+    terrain_choice_labels.clear();
+    terrain_choice_callback = nullptr;
+    window_invalidate();
+}
+}
+
+void window_editor_select_terrain_show(const generic_button *button, void (*callback)(const Terrain &))
+{
+    terrain_choices.clear();
+    terrain_choice_labels.clear();
+    for (const auto &[name, terrain] : terrain_registry().definitions()) if (terrain->paintable()) {
+        terrain_choices.push_back(terrain.get());
+        terrain_choice_labels.push_back(string_from_ascii(terrain->name().c_str()));
+    }
+    terrain_choice_callback = callback;
+    window_select_list_show_text(screen_dialog_offset_x(), screen_dialog_offset_y(), button, terrain_choice_labels.data(), static_cast<int>(terrain_choices.size()), select_terrain_choice);
+}
+
+void window_editor_reset_terrain_selection()
+{
+    terrain_choices.clear();
+    terrain_choice_labels.clear();
+    terrain_choice_callback = nullptr;
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="triumphal_arch">
+    <!-- Rome's earned gift remains free to the city and is built instantly. -->
+    <construction>
+        <gift event="distant_battle_victory" />
+    </construction>
+</building>

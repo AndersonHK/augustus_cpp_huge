@@ -1,6 +1,6 @@
 #include "message_media_text_blob.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/encoding.h"
 #include "core/string.h"
 #include "scenario/custom_messages.h"
@@ -44,7 +44,7 @@ static void resize_text_blob(size_t needed_space)
             message_media_text_blob.text_blob = new_blob;
             message_media_text_blob.max_size_text_blob = size;
         } else {
-            log_error("Failed to realloc the message_media_text_blob.text_blob, the game will now probably crash.", 0, 0);
+            Logger::error("Failed to realloc the message_media_text_blob.text_blob, the game will now probably crash.", 0, 0);
         }
     }
 }
@@ -63,7 +63,7 @@ static void resize_text_entries(size_t needed_entries)
             message_media_text_blob.text_entries = new_blob;
             message_media_text_blob.max_size_text_entries = size;
         } else {
-            log_error("Failed to realloc the message_media_text_blob.text_entries, the game will now probably crash.", 0, 0);
+            Logger::error("Failed to realloc the message_media_text_blob.text_entries, the game will now probably crash.", 0, 0);
         }
     }
 }
@@ -134,7 +134,7 @@ static text_blob_string_t *create_text_blob(size_t length)
 
     if (offset + length >= message_media_text_blob.max_size_text_blob ||
         index >= message_media_text_blob.max_size_text_entries) {
-        log_error("This will overfill the message_media_text_blob. The game will now crash.", 0, 0);
+        Logger::error("This will overfill the message_media_text_blob. The game will now crash.", 0, 0);
     }
 
     message_media_text_blob.text_entries[index].id = ++message_media_text_blob.highest_id;
@@ -229,7 +229,7 @@ static void update_text_blob_link(size_t text_id, text_blob_string_t *new_text_l
     } else if (custom_media_relink_text_blob(text_id, new_text_link)) {
         return;
     } else {
-        log_error("update_text_blob_link -> Failed to find old link to update, the game will now probably crash.", 0, 0);
+        Logger::error("update_text_blob_link -> Failed to find old link to update, the game will now probably crash.", 0, 0);
     }
 }
 

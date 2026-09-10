@@ -1,8 +1,7 @@
 #include "building/BuildingComposition.h"
 
 #include "building/building.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <cstdio>
 #include <exception>
@@ -167,12 +166,11 @@ void BuildingComposition::require_complete(const char *operation) const
         owner ? static_cast<unsigned int>(owner->id) : 0,
         owner && owner->type ? owner->type->attr() : "<none>",
         error.c_str());
-    log_error("BuildingComposition invariant violation", detail, owner ? owner->id : 0);
-    error_context_report_fatal_error_dialog(
+    Logger::error("BuildingComposition invariant violation", detail, owner ? owner->id : 0);
+    Logger::fatal(
         "Building composition error",
         "A live building composition is incomplete. The game has stopped to prevent corrupted state from continuing.",
         detail);
-    std::terminate();
 }
 
 bool BuildingComposition::is_composed() const
@@ -234,7 +232,7 @@ Building &BuildingComposition::require_child_for_role(const char *role, const ch
     const BuildingComposition *composition = owner_ ? owner_ : this;
     composition->require_complete(operation);
     if (!role || !*role) {
-        log_error("BuildingComposition requires a non-empty child role", operation ? operation : "<unknown>", 0);
+        Logger::error("BuildingComposition requires a non-empty child role", operation ? operation : "<unknown>", 0);
         std::terminate();
     }
     for (BuildingComposition *child : composition->children_) {
@@ -253,12 +251,11 @@ Building &BuildingComposition::require_child_for_role(const char *role, const ch
         owner ? static_cast<unsigned int>(owner->id) : 0,
         owner && owner->type ? owner->type->attr() : "<none>",
         role ? role : "<none>");
-    log_error("BuildingComposition required child role is missing", detail, owner ? owner->id : 0);
-    error_context_report_fatal_error_dialog(
+    Logger::error("BuildingComposition required child role is missing", detail, owner ? owner->id : 0);
+    Logger::fatal(
         "Building composition error",
         "A live building composition lacks a required child role. The game has stopped to prevent corrupted state from continuing.",
         detail);
-    std::terminate();
 }
 
 void BuildingComposition::for_each_member(const std::function<void(Building &)> &visitor) const

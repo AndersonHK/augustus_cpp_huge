@@ -50,7 +50,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -117,9 +117,8 @@ static void prepare_ghost_water_access_state(
     building &ghost)
 {
     if (definition.water_access().has_requirements() || definition.has_water_access_provider()) {
-        BuildingGraphicsState graphics_state;
-        Building ghost_building(ghost, graphics_state);
-        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost_building));
+        ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_type_has_required_access_at(
+            &definition, ghost.x, ghost.y, ghost.subtype.orientation));
     }
 }
 
@@ -446,13 +445,35 @@ static void initialize_plan_ghost_records(std::vector<building> &records, int ma
 
 }
 
+static std::vector<building_construction::ConstructionPlacementPart> plan_support_parts(const building_construction::ConstructionPlacementPlan &plan)
+{
+    std::vector<building_construction::ConstructionPlacementPart> supports;
+    for (const auto &part : plan.parts()) {
+        for (const auto &tile : part.tiles) {
+            if (!tile.support) continue;
+            building_construction::ConstructionPlacementPart support;
+            support.definition = tile.support;
+            support.type = tile.support->type();
+            support.x = tile.x;
+            support.y = tile.y;
+            support.grid_offset = tile.grid_offset;
+            support.size = support.width = support.height = 1;
+            support.foundation_rotation = support.building_orientation = 0;
+            supports.push_back(support);
+        }
+    }
+    return supports;
+}
+
 static void build_plan_ghost_runtime(
     const building_construction::ConstructionPlacementPlan &plan,
     const building_type_registry_impl::BuildingType &root_definition,
     std::vector<building> &records,
     std::vector<building_runtime_impl::EphemeralBuildingRuntimeBinding> &bindings)
 {
-    const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    std::vector<building_construction::ConstructionPlacementPart> parts = plan.parts();
+    const auto supports = plan_support_parts(plan);
+    parts.insert(parts.end(), supports.begin(), supports.end());
     records.clear();
     bindings.clear();
     records.reserve(parts.size());
@@ -552,6 +573,9 @@ static void draw_default(
     building_construction_assessment assessment =
         building_construction_assess_placement(definition, tile->x, tile->y, exact_coordinates, force_place_active);
     const building_construction::ConstructionPlacementPlan &plan = assessment.placement;
+    if (update_can_place && !building_construction_in_progress()) {
+        building_construction_set_cost(model_get_construction_cost(type) + plan.support_cost());
+    }
     if (force_place_active && assessment.can_place) {
         building_construction_set_force_place_clear_cost(assessment.clear_cost);
     }
@@ -576,6 +600,12 @@ static void draw_default(
         return;
     }
     const std::vector<building_construction::ConstructionPlacementPart> &parts = plan.parts();
+    const auto supports = plan_support_parts(plan);
+    for (size_t i = 0; i < supports.size(); ++i) {
+        if (auto *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[parts.size() + i])) {
+            draw_plan_part(plan, supports[i], runtime->building, x_view, y_view, color, 0);
+        }
+    }
     for (size_t i = 0; i < parts.size() && i < ghost_records.size(); i++) {
         building_runtime *runtime = building_runtime_impl::get_ephemeral_instance(&ghost_records[i]);
         if (!runtime) {
@@ -930,7 +960,7 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
     for (int i = 0; i < blocked_tiles.size; i++) {
         city_view_foreach_tile_in_range(blocked_tiles.grid_offsets[i], 0, 0, draw_blocked_tile);
     }
-    building_construction_set_cost(model_get_building(type)->cost * length);
+    building_construction_set_cost(model_get_construction_cost(type) * length);
 }
 
 static void draw_road(const map_tile *tile, int x, int y)
@@ -984,7 +1014,7 @@ int city_building_ghost_mark_deleting(const map_tile *tile)
     }
     map_building_tiles_mark_deleting(tile->grid_offset);
 
-    if (map_terrain_is(tile->grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(tile->grid_offset, TERRAIN_AQUEDUCT)) {
+    if (terrain_map().contains(tile->grid_offset, terrain_types().highway) && !terrain_map().contains(tile->grid_offset, terrain_types().aqueduct)) {
         map_tiles_clear_highway(tile->grid_offset, 1);
     }
     return 1;
@@ -1001,9 +1031,9 @@ static void draw_grid_tile(int x, int y, int grid_offset)
     const int water_allowed = definition &&
         (definition->bridge().is_bridge() ||
             (definition->foundation_def() && definition->foundation_def()->has_water_requirement()));
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_ROCK) ||
-        map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) || map_terrain_is(grid_offset, TERRAIN_ELEVATION) ||
-        (map_terrain_is(grid_offset, TERRAIN_WATER) && !water_allowed)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building) || terrain_map().contains(grid_offset, terrain_types().rock) ||
+        terrain_map().contains(grid_offset, terrain_types().access_ramp) || terrain_map().contains(grid_offset, terrain_types().elevation) ||
+        (terrain_map().contains(grid_offset, terrain_types().water) && !water_allowed)) {
         return;
     }
     Image::from_id(image_id).draw(x, y, COLOR_GRID, data.scale);

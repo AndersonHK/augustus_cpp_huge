@@ -2,7 +2,7 @@
 
 #include "building/water_access_type.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <array>
 #include <cstdint>
@@ -190,7 +190,7 @@ void water_access_type_id_bridge_save_table_save_state(buffer *buf)
     for (size_t save_id = 1; save_id < g_bridge.save_to_runtime.size(); save_id++) {
         const std::string &text_id = g_bridge.save_to_text[save_id];
         if (text_id.size() > std::numeric_limits<uint16_t>::max()) {
-            log_error("Water access type text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
+            Logger::error("Water access type text id too long for save table", text_id.c_str(), static_cast<int>(text_id.size()));
             continue;
         }
         buffer_write_u8(buf, static_cast<uint8_t>(save_id));
@@ -211,7 +211,7 @@ void water_access_type_id_bridge_save_table_load_state(buffer *buf, int has_save
 
     buffer table = *buf;
     if (buffer_load_dynamic(&table) < sizeof(uint32_t) * 2) {
-        log_error("Water access type save table is invalid; falling back to legacy ids", 0, 0);
+        Logger::error("Water access type save table is invalid; falling back to legacy ids", 0, 0);
         load_legacy_save_table();
         return;
     }
@@ -219,7 +219,7 @@ void water_access_type_id_bridge_save_table_load_state(buffer *buf, int has_save
     uint32_t version = buffer_read_u32(&table);
     uint32_t count = buffer_read_u32(&table);
     if (version != SAVE_TABLE_VERSION) {
-        log_error("Unsupported water access type save table version", 0, static_cast<int>(version));
+        Logger::error("Unsupported water access type save table version", 0, static_cast<int>(version));
         load_legacy_save_table();
         return;
     }
@@ -238,7 +238,7 @@ void water_access_type_id_bridge_save_table_load_state(buffer *buf, int has_save
         }
         int runtime_id = water_access_type_id_bridge_runtime_from_text(text_id.c_str());
         if (runtime_id < 0 && !text_id.empty()) {
-            log_error("Water access type referenced by save is not available in active mod", text_id.c_str(), save_id);
+            Logger::warning("Removing imported water-access type absent from the active mod stack", text_id.c_str(), save_id);
         }
         g_bridge.save_to_runtime[save_id] = runtime_id;
         g_bridge.save_to_text[save_id] = text_id;

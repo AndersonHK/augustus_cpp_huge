@@ -2,7 +2,7 @@
 #include "text_input.h"
 
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "graphics/graphics.h"
 #include "graphics/image_button.h"

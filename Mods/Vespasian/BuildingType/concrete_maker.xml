@@ -1,50 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="concrete_maker">
-    <identity name_key="TR_BUILDING_CONCRETE_MAKER" />
-    <model cost="60" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_2x2" />
-    <button group="workshops" order="80" icon="Industry\Concrete_Maker_C_OFF" text_key="TR_RESOURCE_CONCRETE" />
-    <sound id="concrete_maker" />
-    <water_access>
-        <requires mode="any">
-            <access type="reservoir" />
-            <access type="fountain" />
-            <access type="well" />
-        </requires>
-    </water_access>
-    <graphics>
-        <default>
-            <path value="Industry\Concrete_Maker_C_OFF" />
-            <image value="Concrete_Maker_C_ON" />
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Industry\Concrete_Maker_C_OFF" />
-            <image value="Concrete_Maker_N_ON" />
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Industry\Concrete_Maker_C_OFF" />
-            <image value="Concrete_Maker_S_ON" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <storages>
-        <storage path="sand_input_concrete_maker" />
-        <storage path="concrete_output_concrete_maker" />
-    </storages>
-    <production_methods>
-        <production_method path="concrete_maker_basic" />
-    </production_methods>
 </building>

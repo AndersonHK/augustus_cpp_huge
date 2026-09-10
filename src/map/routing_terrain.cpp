@@ -7,6 +7,7 @@
 #include "core/direction.h"
 #include "core/image.h"
 #include "figure/route.h"
+#include "figure/movement.h"
 #include "map/building.h"
 #include "map/data.h"
 #include "map/image.h"
@@ -14,19 +15,48 @@
 #include "map/random.h"
 #include "map/routing.h"
 #include "map/routing_data.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 static void update_land_terrain_noncitizen(void);
 static int get_land_type_citizen_aqueduct(int grid_offset);
 
-static int is_road_surface(int terrain)
+bool Route::groundPositionIsPassable(int cross_country_x, int cross_country_y)
 {
-    return terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP);
+    // Cross-country zero is drawn at the tile center, not its top corner.
+    // Check the actual occupied tile and the local segment from the routing anchor.
+    const int x = figure_movement_cross_country_to_tile(cross_country_x);
+    const int y = figure_movement_cross_country_to_tile(cross_country_y);
+    const int occupied_x = figure_movement_cross_country_to_tile(cross_country_x + FIGURE_CROSS_COUNTRY_TILE_UNITS / 2);
+    const int occupied_y = figure_movement_cross_country_to_tile(cross_country_y + FIGURE_CROSS_COUNTRY_TILE_UNITS / 2);
+    for (int yy = y; yy <= occupied_y; ++yy) for (int xx = x; xx <= occupied_x; ++xx) {
+        if (!map_grid_is_inside(xx, yy, 1) || terrain_land_citizen.items[map_grid_offset(xx, yy)] < CITIZEN_0_ROAD) return false;
+    }
+    return true;
 }
 
-static int is_noncitizen_clearable_surface(int terrain)
+bool Route::herdCanEnter(int from_offset, int to_offset, int building_clearance)
 {
-    return terrain & (TERRAIN_GARDEN | TERRAIN_RUBBLE | TERRAIN_AQUEDUCT);
+    const int x = map_grid_offset_to_x(to_offset), y = map_grid_offset_to_y(to_offset);
+    if (!map_grid_is_inside(x, y, 1) || terrain_map().contains(to_offset, terrain_types().impassable_herd)) return false;
+    const int from_x = map_grid_offset_to_x(from_offset), from_y = map_grid_offset_to_y(from_offset);
+    if (x != from_x && y != from_y &&
+        (terrain_map().contains(map_grid_offset(x, from_y), terrain_types().impassable_herd) ||
+         terrain_map().contains(map_grid_offset(from_x, y), terrain_types().impassable_herd))) return false;
+    if (building_clearance <= 0) return true;
+    const int next_distance = terrain_map().distance_to_nearest(to_offset, terrain_types().building, building_clearance);
+    // Construction can surround an existing herd: allow it to leave the buffer,
+    // but never let it move closer to buildings while escaping.
+    return next_distance > building_clearance || next_distance >= terrain_map().distance_to_nearest(from_offset, terrain_types().building, building_clearance);
+}
+
+static int is_road_surface(const TerrainSet &terrain)
+{
+    return terrain.intersects(terrain_types().road) || terrain.intersects(terrain_types().access_ramp);
+}
+
+static int is_noncitizen_clearable_surface(const TerrainSet &terrain)
+{
+    return terrain.intersects(terrain_types().garden) || terrain.intersects(terrain_types().rubble) || terrain.intersects(terrain_types().aqueduct);
 }
 
 static int is_reservoir_connector_tile(int grid_offset)
@@ -87,22 +117,22 @@ static int get_land_type_citizen_building(int grid_offset)
     }
     Building current = map_building_at(grid_offset);
     building *b = const_cast<::building *>(current.record());
-    int terrain = map_terrain_get(grid_offset);
+    TerrainSet terrain = terrain_map().at(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
-    if ((terrain & TERRAIN_AQUEDUCT) && (terrain & TERRAIN_HIGHWAY)) {
+    if ((terrain & terrain_types().aqueduct) && (terrain & terrain_types().highway)) {
         // The road/highway surface below an aqueduct remains traversable.
         type = CITIZEN_1_HIGHWAY;
-    } else if ((terrain & TERRAIN_AQUEDUCT) && is_road_surface(terrain)) {
+    } else if ((terrain & terrain_types().aqueduct) && is_road_surface(terrain)) {
         type = CITIZEN_0_ROAD;
-    } else if (terrain & TERRAIN_AQUEDUCT) {
+    } else if (terrain & terrain_types().aqueduct) {
         type = get_land_type_citizen_aqueduct(grid_offset);
-    } else if ((terrain & TERRAIN_RUBBLE) && current.Rubble && current.Rubble->is_rubble()) {
-        // Runtime-backed rubble also carries TERRAIN_BUILDING so that each piece can
+    } else if ((terrain & terrain_types().rubble) && current.Rubble && current.Rubble->is_rubble()) {
+        // Runtime-backed rubble also carries terrain_types().building so that each piece can
         // retain its origin and burning state. It remains citizen-passable terrain.
         type = CITIZEN_2_PASSABLE_TERRAIN;
     } else if (current.Foundation && current.Foundation->passage_at(grid_offset) !=
             building_type_registry_impl::FoundationPassage::None) {
-        if (terrain & TERRAIN_HIGHWAY) {
+        if (terrain & terrain_types().highway) {
             type = CITIZEN_1_HIGHWAY;
         } else {
             type = CITIZEN_0_ROAD;
@@ -148,12 +178,12 @@ void Route::updateCitizenLandTerrain(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            int terrain = map_terrain_get(grid_offset);
-            if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
+            TerrainSet terrain = terrain_map().at(grid_offset);
+            if (terrain & (terrain_types().building | terrain_types().gatehouse)) {
                 if (!map_building_exists_at(grid_offset)) {
                     // shouldn't happen
                     terrain_land_noncitizen.items[grid_offset] = CITIZEN_4_CLEAR_TERRAIN; // BUG: should be citizen?
-                    map_terrain_remove(grid_offset, TERRAIN_BUILDING);
+                    terrain_map().remove(grid_offset, terrain_types().building);
                     map_image_set(grid_offset, (map_random_get(grid_offset) & 7) + image_group(GROUP_TERRAIN_GRASS_1));
                     map_property_mark_draw_tile(grid_offset);
                     map_property_set_legacy_multi_tile_size(grid_offset, 1);
@@ -165,13 +195,13 @@ void Route::updateCitizenLandTerrain(void)
                 terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_building(grid_offset));
             } else if (is_road_surface(terrain)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
-            } else if (terrain & TERRAIN_HIGHWAY) {
+            } else if (terrain & terrain_types().highway) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
-            } else if (terrain & TERRAIN_AQUEDUCT) {
+            } else if (terrain & terrain_types().aqueduct) {
                 terrain_land_citizen.items[grid_offset] = static_cast<int8_t>(get_land_type_citizen_aqueduct(grid_offset));
-            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
+            } else if (terrain & (terrain_types().rubble | terrain_types().garden)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
-            } else if (terrain & TERRAIN_NOT_CLEAR) {
+            } else if (terrain.intersects(terrain_types().impassable)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_N1_BLOCKED;
             } else {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_4_CLEAR_TERRAIN;
@@ -188,9 +218,9 @@ static int get_land_type_noncitizen(int grid_offset)
     int type = NONCITIZEN_1_BUILDING;
     Building current = map_building_at(grid_offset);
     building *b = const_cast<::building *>(current.record());
-    const int terrain = map_terrain_get(grid_offset);
-    if (((terrain & TERRAIN_AQUEDUCT) &&
-            (is_road_surface(terrain) || (terrain & TERRAIN_HIGHWAY))) ||
+    const TerrainSet &terrain = terrain_map().at(grid_offset);
+    if (((terrain & terrain_types().aqueduct) &&
+            (is_road_surface(terrain) || (terrain & terrain_types().highway))) ||
         (current.Foundation && current.Foundation->passage_at(grid_offset) !=
             building_type_registry_impl::FoundationPassage::None) ||
         building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
@@ -214,20 +244,20 @@ static void update_land_terrain_noncitizen(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            int terrain = map_terrain_get(grid_offset);
-            if (terrain & TERRAIN_GATEHOUSE) {
+            TerrainSet terrain = terrain_map().at(grid_offset);
+            if (terrain & terrain_types().gatehouse) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_4_GATEHOUSE;
-            } else if (terrain & TERRAIN_BUILDING) {
+            } else if (terrain & terrain_types().building) {
                 terrain_land_noncitizen.items[grid_offset] = static_cast<int8_t>(get_land_type_noncitizen(grid_offset));
             } else if (is_road_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
-            } else if (terrain & TERRAIN_HIGHWAY) {
+            } else if (terrain & terrain_types().highway) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
             } else if (is_noncitizen_clearable_surface(terrain)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_2_CLEARABLE;
-            } else if (terrain & TERRAIN_WALL) {
+            } else if (terrain & terrain_types().wall) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_3_WALL;
-            } else if (terrain & TERRAIN_NOT_CLEAR) {
+            } else if (terrain.intersects(terrain_types().impassable_enemy)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_N1_BLOCKED;
             } else {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
@@ -238,7 +268,7 @@ static void update_land_terrain_noncitizen(void)
 
 static int is_wall_tile(int grid_offset)
 {
-    return map_terrain_is(grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ? 1 : 0;
+    return terrain_map().contains(grid_offset, terrain_types().wall_or_gatehouse) ? 1 : 0;
 }
 
 static int count_adjacent_wall_tiles(int grid_offset)
@@ -275,13 +305,13 @@ void Route::updateWallTerrain(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
+            if (terrain_map().contains(grid_offset, terrain_types().wall)) {
                 if (count_adjacent_wall_tiles(grid_offset) == 3) {
                     terrain_walls.items[grid_offset] = WALL_0_PASSABLE;
                 } else {
                     terrain_walls.items[grid_offset] = WALL_N1_BLOCKED;
                 }
-            } else if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+            } else if (terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
                 terrain_walls.items[grid_offset] = WALL_0_PASSABLE;
             } else {
                 terrain_walls.items[grid_offset] = WALL_N1_BLOCKED;

@@ -1,12 +1,24 @@
+#include "scenario/criteria.h"
+#include "scenario/definition_overrides.h"
+#include "city/warning.h"
+#include "sound/effect.h"
+#include <algorithm>
+#include <cstdint>
+#include <climits>
+#include "map/figure.h"
+#include "graphics/weather.h"
+#include "city/view.h"
 #include <array>
 
 #include "action_types.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/dock.h"
 #include "building/granary.h"
 #include "building/menu.h"
+#include "building/dock.h"
 #include "building/production_method_registry.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
@@ -32,7 +44,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 #include "scenario/allowed_building.h"
 #include "scenario/custom_variable.h"
@@ -58,19 +70,19 @@ static int collapse_type_is_terrain(int type)
         type == SCENARIO_BUILDING_RUBBLE;
 }
 
-static int terrain_for_collapse_type(int type)
+static TerrainSet terrain_for_collapse_type(int type)
 {
     switch (type) {
         case SCENARIO_BUILDING_GARDENS:
         case SCENARIO_BUILDING_OVERGROWN_GARDENS:
-            return TERRAIN_GARDEN;
+            return terrain_types().garden;
         case SCENARIO_BUILDING_HIGHWAY:
-            return TERRAIN_HIGHWAY;
+            return terrain_types().highway;
         case SCENARIO_BUILDING_RUBBLE:
-            return TERRAIN_RUBBLE;
+            return terrain_types().rubble;
         case SCENARIO_BUILDING_ROAD:
         default:
-            return TERRAIN_ROAD;
+            return terrain_types().road;
     }
 }
 
@@ -385,21 +397,21 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         if (!map_grid_is_valid_offset(current_grid_offset)) {
             continue;
         }
-        if (map_terrain_is(current_grid_offset, (TERRAIN_IMPASSABLE_ENEMY ^ TERRAIN_GARDEN ^ TERRAIN_RUBBLE) | TERRAIN_ACCESS_RAMP)) {
+        if (terrain_map().contains(current_grid_offset, (terrain_types().impassable_enemy ^ terrain_types().garden ^ terrain_types().rubble) | terrain_types().access_ramp)) {
             continue;
         }
         if (type == SCENARIO_BUILDING_OVERGROWN_GARDENS || type == SCENARIO_BUILDING_PLAZA || destroy_all) {
             map_property_clear_plaza_earthquake_or_overgrown_garden(current_grid_offset);
         }
-        if ((collapse_type_is_terrain(type) && !map_terrain_is(current_grid_offset, TERRAIN_BUILDING)) || destroy_all) {
-            int terrain = terrain_for_collapse_type(type);
+        if ((collapse_type_is_terrain(type) && !terrain_map().contains(current_grid_offset, terrain_types().building)) || destroy_all) {
+            TerrainSet terrain = terrain_for_collapse_type(type);
             if (type == SCENARIO_BUILDING_HIGHWAY || destroy_all) {
                 map_tiles_clear_highway(current_grid_offset, 0);
             }
             if (destroy_all) {
-                terrain = TERRAIN_ROAD | TERRAIN_GARDEN | TERRAIN_HIGHWAY | TERRAIN_RUBBLE;
+                terrain = terrain_types().road | terrain_types().garden | terrain_types().highway | terrain_types().rubble;
             }
-            map_terrain_remove(current_grid_offset, terrain);
+            terrain_map().remove(current_grid_offset, terrain);
         }
         if (!map_building_exists_at(current_grid_offset)) {
             continue;
@@ -656,15 +668,14 @@ int scenario_action_type_trade_route_amount_execute(scenario_action_t *action)
     if (!trade_route_is_valid(route_id)) {
         return 0;
     }
-    if (resource < (RESOURCE_NONE + 1) || resource > RESOURCE_SLOT_COUNT) {
+    if (!resource_is_declared(resource)) {
         return 0;
     }
 
+    const int city_id = empire_city_get_for_trade_route(route_id);
+    if (city_id < 0) return 0;
+    amount = std::max(0, amount);
     if (show_message && empire_city_is_trade_route_open(route_id)) {
-        int city_id = empire_city_get_for_trade_route(route_id);
-        if (city_id < 0) {
-            city_id = 0;
-        }
         int last_amount = trade_route_limit(route_id, resource, buys);
 
         int change = amount - last_amount;
@@ -676,8 +687,10 @@ int scenario_action_type_trade_route_amount_execute(scenario_action_t *action)
             city_message_post(1, MESSAGE_TRADE_STOPPED, city_id, resource);
         }
     }
-    trade_route_set_limit(route_id, resource, amount, buys);
-    building_menu_update();
+    auto *city = empire_city_get(city_id);
+    if (buys) empire_city_change_buying_of_resource(city, resource, amount);
+    else { empire_city_change_selling_of_resource(city, resource, amount); building_menu_update(); }
+    building_dock_enable_resource_in_all_docks(resource);
 
     return 1;
 }
@@ -748,17 +761,18 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
 {
     int grid_offset1 = action->parameter1;
     int grid_offset2 = action->parameter2;
-    int terrain = action->parameter3;
+    const TerrainSet &terrain = action->terrain;
     int add = action->parameter4;
     grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
 
+    if (!slice) return 0;
     for (int i = 0; i < slice->size; i++) {
         int current_grid_offset = slice->grid_offsets[i];
         if (!map_grid_is_valid_offset(current_grid_offset)) {
             continue;
         }
         if (add) {
-            if (terrain & TERRAIN_NOT_CLEAR) {
+            if (terrain & terrain_types().not_clear) {
                 // Destroy buildings if the new terrains doesn't allow for buildings
                 if (map_building_exists_at(current_grid_offset)) {
                     Building &selected = map_building_at(current_grid_offset);
@@ -767,13 +781,12 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                         (selected.Composition ? selected.Composition->owner() : &selected);
                     owner->destroy_without_rubble();
                 }
-                // Since the engine only supports one blocking terrain per tile, 
-                // remove all others before adding a new one
-                map_terrain_remove(current_grid_offset, TERRAIN_NOT_CLEAR);
+                // Painting a blocking terrain replaces the previous blocking surface.
+                terrain_map().remove(current_grid_offset, terrain_types().not_clear);
             }
-            map_terrain_add(current_grid_offset, terrain);
+            terrain_map().add(current_grid_offset, terrain);
         } else {
-            if (terrain == TERRAIN_WATER && map_terrain_get(current_grid_offset) & TERRAIN_WATER) {
+            if (terrain.intersects(terrain_types().water) && terrain_map().contains(current_grid_offset, terrain_types().water)) {
                 // Destroy water buildings when removing water
                 if (map_building_exists_at(current_grid_offset)) {
                     Building &selected = map_building_at(current_grid_offset);
@@ -784,10 +797,11 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 }
 
             }
-            map_terrain_remove(current_grid_offset, terrain);
+            terrain_map().remove(current_grid_offset, terrain);
         }
     }
 
+    // The grid slice is borrowed from the map's ring pool.
     map_tiles_update_all();
     Route::updateAllTerrain();
 
@@ -801,6 +815,8 @@ int scenario_action_type_change_model_data_execute(scenario_action_t *action)
     int amount = scenario_formula_evaluate_formula(action->parameter3);
     int set_to_value = action->parameter4;
 
+    if (model <= BUILDING_NONE || model >= BUILDING_TYPE_MAX || data_type < MODEL_COST || data_type > MODEL_LABORERS) return 0;
+    model_mark_scenario_override(static_cast<building_type>(model), data_type);
     model_building *model_ptr = model_get_building(static_cast<building_type>(model));
 
     switch (data_type) {
@@ -882,6 +898,7 @@ int scenario_action_type_change_rank_execute(scenario_action_t *action)
 int scenario_action_type_change_production_rate_execute(scenario_action_t *action)
 {
     resource_type resource = static_cast<resource_type>(action->parameter1);
+    if (!resource_is_declared(resource)) return 0;
     int rate = scenario_formula_evaluate_formula(action->parameter2);
     int set_to_value = action->parameter3;
 
@@ -922,4 +939,123 @@ int scenario_action_type_lock_trade_route_execute(scenario_action_t *action)
     building_menu_update();
     
     return 1;
+}
+
+int scenario_action_type_move_camera_execute(scenario_action_t *action)
+{
+    int grid_offset = action->parameter1;
+
+    if (!map_grid_is_valid_offset(grid_offset)) return 0;
+    city_view_go_to_grid_offset(grid_offset);
+
+    return 1;
+}
+
+int scenario_action_type_change_weather_execute(scenario_action_t *action)
+{
+    int weather_type = action->parameter1;
+    int intensity = scenario_formula_evaluate_formula(action->parameter2);
+
+    if (weather_type < WEATHER_NONE || weather_type > WEATHER_SAND) return 0;
+    set_weather(1, intensity, static_cast<::weather_type>(weather_type));
+
+    return 1;
+}
+
+int scenario_action_type_change_custom_variable_color_execute(scenario_action_t *action)
+{
+    int variable_id = action->parameter1;
+    int color_id = action->parameter2;
+
+    if (!scenario_custom_variable_exists(variable_id) || color_id < 0 || color_id > 10) return 0;
+    scenario_custom_variable_set_color_group(variable_id, color_id);
+
+    return 1;
+}
+
+int scenario_action_type_kill_walkers_in_area_execute(scenario_action_t *action)
+{
+    int grid_offset1 = action->parameter1;
+    int grid_offset2 = action->parameter2;
+    auto category = static_cast<figure_category_mask>(action->parameter3);
+    grid_slice *slice = map_grid_get_grid_slice_from_corner_offsets(grid_offset1, grid_offset2);
+
+    map_kill_figures_category_in_area(slice, category);
+
+    return 1;
+}
+
+int scenario_action_type_change_goal_execute(scenario_action_t *action)
+{
+    auto &criteria = scenario.win_criteria;
+    int *goal = nullptr;
+    int enabled = 0, maximum = 100;
+    switch (action->parameter1) {
+        case 0: goal = &criteria.culture.goal; enabled = criteria.culture.enabled; break;
+        case 1: goal = &criteria.prosperity.goal; enabled = criteria.prosperity.enabled; break;
+        case 2: goal = &criteria.peace.goal; enabled = criteria.peace.enabled; break;
+        case 3: goal = &criteria.favor.goal; enabled = criteria.favor.enabled; break;
+        case 4: goal = &criteria.time_limit.years; enabled = criteria.time_limit.enabled; maximum = 1000; break;
+        case 5: goal = &criteria.survival_time.years; enabled = criteria.survival_time.enabled; maximum = 1000; break;
+        case 6: goal = &criteria.population.goal; enabled = criteria.population.enabled; maximum = 1000000; break;
+        default: return 0;
+    }
+    if (enabled) {
+        const int64_t value = scenario_formula_evaluate_formula(action->parameter2);
+        *goal = static_cast<int>(std::clamp<int64_t>(value + (action->parameter3 ? 0 : *goal), 0, maximum));
+        scenario_criteria_init_max_year();
+    }
+    return 1;
+}
+
+int scenario_action_type_definition_execute(scenario_action_t *action)
+{
+    switch (action->type) {
+        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA: {
+            const int evaluated = scenario_formula_evaluate_formula(action->parameter3);
+            auto apply = [&](int building, int scale) -> int {
+                const auto type = static_cast<building_type>(building);
+                int64_t amount = int64_t(evaluated) * scale;
+                if (!action->value_domain.empty()) {
+                    if (!action->parameter4) {
+                        const int current = scenario_house_model_value(type, action->parameter2);
+                        const auto found = std::find(action->value_domain.begin(), action->value_domain.end(), current);
+                        if (found == action->value_domain.end()) return 0;
+                        amount += found - action->value_domain.begin();
+                    }
+                    const auto ordinal = static_cast<size_t>(std::clamp<int64_t>(amount, 0, action->value_domain.size() - 1));
+                    return scenario_house_model_change(type, action->parameter2, action->value_domain[ordinal], true);
+                }
+                return scenario_house_model_change(type, action->parameter2, static_cast<int>(std::clamp<int64_t>(amount, INT_MIN, INT_MAX)), action->parameter4 != 0);
+                };
+            int success = apply(action->parameter1, action->value_scale);
+            for (const auto &target : action->model_targets) success &= apply(target.building, target.value_scale);
+            return success;
+        }
+        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES: {
+            const auto type = static_cast<building_type>(action->parameter1);
+            const auto *definition = building_type_registry_impl::definition_for_type(type);
+            if (!definition) return 0;
+            const int phase = definition->has_phased_construction() ? action->parameter2 : action->parameter2 == 1 ? 0 : action->parameter2;
+            return scenario_construction_requirement_change(type, phase, static_cast<resource_type>(action->parameter3), scenario_formula_evaluate_formula(action->parameter4));
+        }
+        case ACTION_TYPE_IMMIGRATION_PERCENTAGE:
+            return scenario_definition_override_set({ScenarioOverrideKind::Migration, {}, action->parameter2 != 0, {}, std::clamp(scenario_formula_evaluate_formula(action->parameter1), 0, 1000000)});
+        case ACTION_TYPE_HIDE_TRADE_ROUTE:
+            if (!trade_route_is_valid(action->parameter1)) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::HiddenRoute, std::to_string(action->parameter1), 0, {}, action->parameter2 != 0});
+        case ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST: {
+            auto resource = static_cast<resource_type>(action->parameter2);
+            if (!trade_route_is_valid(action->parameter1) || !resource_is_declared(resource)) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::RouteResource, std::to_string(action->parameter1), 0, resource_text_id(resource), std::max(0, scenario_formula_evaluate_formula(action->parameter3))});
+        }
+        case ACTION_TYPE_RENAME_CITY:
+            if (!empire_city_get(action->parameter1) || !empire_city_get(action->parameter1)->in_use) return 0;
+            return scenario_definition_override_set({ScenarioOverrideKind::CityName, std::to_string(empire_city_get(action->parameter1)->empire_object_id), 0, {}, 0, reinterpret_cast<const char *>(scenario_text_get(action->parameter2))});
+        case ACTION_TYPE_SEND_CITY_WARNING:
+            city_warning_show({nullptr}, scenario_text_get(action->parameter1));
+            if (action->parameter2) sound_effect_play(SOUND_EFFECT_FANFARE_URGENT);
+            return 1;
+        default: return 0;
+    }
 }

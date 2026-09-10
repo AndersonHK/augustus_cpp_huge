@@ -1,6 +1,7 @@
 #include "image_packer.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -315,20 +316,20 @@ static int pack_rect(internal_data *data, image_packer_rect *rect, int allow_rot
     return 0;
 }
 
-static int create_last_image(image_packer *packer, unsigned int remaining_area)
+static unsigned int create_last_image(image_packer *packer, uint64_t remaining_area)
 {
     internal_data *data = static_cast<internal_data *>(packer->internal_data);
 
     double image_ratio = data->image_width / (double) data->image_height;
-    unsigned int needed_width = (unsigned int) sqrt(image_ratio * remaining_area) + 1;
-    unsigned int needed_height = (unsigned int) sqrt(remaining_area / image_ratio) + 1;
+    unsigned int needed_width = (unsigned int) sqrt(image_ratio * static_cast<double>(remaining_area)) + 1;
+    unsigned int needed_height = (unsigned int) sqrt(static_cast<double>(remaining_area) / image_ratio) + 1;
     unsigned int width_increase_step = needed_width / 64 + 1;
     unsigned int height_increase_step = needed_height / 64 + 1;
     packer->result.last_image_width = needed_width;
     packer->result.last_image_height = needed_height;
 
     int must_increase_size = 1;
-    int total_images_packed = 0;
+    unsigned int total_images_packed = 0;
 
     while (must_increase_size) {
         packer->result.last_image_width += width_increase_step;
@@ -341,8 +342,8 @@ static int create_last_image(image_packer *packer, unsigned int remaining_area)
             packer->result.last_image_height = data->image_height;
         }
 
-        int images_packed_in_loop = 0;
-        int area_packed_in_loop = 0;
+        unsigned int images_packed_in_loop = 0;
+        uint64_t area_packed_in_loop = 0;
 
         reset_empty_areas(data, packer->result.last_image_width, packer->result.last_image_height);
 
@@ -364,7 +365,7 @@ static int create_last_image(image_packer *packer, unsigned int remaining_area)
                 rect->output.packed = 1;
                 rect->output.image_index = packer->result.images_needed;
                 images_packed_in_loop++;
-                area_packed_in_loop += rect->input.width * rect->input.height;
+                area_packed_in_loop += static_cast<uint64_t>(rect->input.width) * rect->input.height;
             }
         }
 
@@ -377,8 +378,8 @@ static int create_last_image(image_packer *packer, unsigned int remaining_area)
             packer->result.images_needed++;
             total_images_packed += images_packed_in_loop;
             remaining_area -= area_packed_in_loop;
-            needed_width = (unsigned int) sqrt(image_ratio * remaining_area) + 1;
-            needed_height = (unsigned int) sqrt(remaining_area / image_ratio) + 1;
+            needed_width = (unsigned int) sqrt(image_ratio * static_cast<double>(remaining_area)) + 1;
+            needed_height = (unsigned int) sqrt(static_cast<double>(remaining_area) / image_ratio) + 1;
             width_increase_step = needed_width / 64 + 1;
             height_increase_step = needed_height / 64 + 1;
             packer->result.last_image_width = needed_width;
@@ -441,14 +442,14 @@ int image_packer_pack(image_packer *packer)
         }
     }
     unsigned int packed_rects = 0;
-    unsigned int area_used_in_last_image = 0;
-    unsigned int remaining_area = 0;
+    uint64_t area_used_in_last_image = 0;
+    uint64_t remaining_area = 0;
 
     for (unsigned int i = 0; i < data->num_rects; i++) {
-        remaining_area += data->sorted_rects[i]->input.width * data->sorted_rects[i]->input.height;
+        remaining_area += static_cast<uint64_t>(data->sorted_rects[i]->input.width) * data->sorted_rects[i]->input.height;
     }
 
-    unsigned int available_area = packer->options.reduce_image_size == 1 ? data->image_width * data->image_height : 0;
+    uint64_t available_area = packer->options.reduce_image_size == 1 ? static_cast<uint64_t>(data->image_width) * data->image_height : 0;
 
     while (remaining_area > available_area) {
         reset_empty_areas(data, data->image_width, data->image_height);
@@ -464,14 +465,14 @@ int image_packer_pack(image_packer *packer)
             rect->output.packed = 0;
             if (!pack_rect(data, rect, packer->options.allow_rotation)) {
                 if (packer->options.fail_policy == IMAGE_PACKER_CONTINUE) {
-                    remaining_area -= rect->input.width * rect->input.height;
+                    remaining_area -= static_cast<uint64_t>(rect->input.width) * rect->input.height;
                     continue;
                 } else if (packer->options.fail_policy == IMAGE_PACKER_STOP) {
                     packer->result.last_image_width = data->image_width;
                     packer->result.last_image_height = data->image_height;
                     return i;
                 }
-                if (data->empty_areas.first->width == data->image_width &&
+                if (data->empty_areas.first && data->empty_areas.first->width == data->image_width &&
                     data->empty_areas.first->height == data->image_height) {
                     packer->result.images_needed--;
                     packer->result.last_image_width = data->image_width;
@@ -481,7 +482,7 @@ int image_packer_pack(image_packer *packer)
             } else {
                 rect->output.image_index = packer->result.images_needed;
                 rect->output.packed = 1;
-                area_used_in_last_image += rect->input.width * rect->input.height;
+                area_used_in_last_image += static_cast<uint64_t>(rect->input.width) * rect->input.height;
                 packed_rects++;
             }
         }

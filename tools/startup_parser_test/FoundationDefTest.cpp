@@ -1,3 +1,5 @@
+#include "map/TerrainSaveBridge.h"
+#include <cstdlib>
 #include "FoundationDefTest.h"
 
 #include "building/FoundationDef.h"
@@ -13,7 +15,7 @@
 #include "building/construction_session.h"
 #include "building/tool_mode.h"
 #include "game/save_version.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <array>
@@ -142,7 +144,7 @@ bool validate_foundation_rotation_contract()
     FoundationCellDefinition planned_water_cell;
     planned_water_cell.x = 0;
     planned_water_cell.y = 0;
-    planned_water_cell.required_terrain = TERRAIN_WATER;
+    planned_water_cell.required_terrain = terrain_types().water;
     planned_water.add_cell(planned_water_cell);
     FoundationCellDefinition planned_land_cell;
     planned_land_cell.x = 1;
@@ -325,9 +327,9 @@ bool validate_foundation_rotation_contract()
     passage.symbol = 'P';
     passage.x = 0;
     passage.y = 0;
-    passage.required_terrain = 0x10;
-    passage.added_terrain = 0x20;
-    passage.removed_terrain = 0x40;
+    passage.required_terrain = terrain_types().shrub;
+    passage.added_terrain = terrain_types().garden;
+    passage.removed_terrain = terrain_types().road;
     passage.binds_building = 0;
     passage.passage = FoundationPassage::OwnerControlled;
     sparse.add_cell(passage);
@@ -343,9 +345,9 @@ bool validate_foundation_rotation_contract()
         const std::vector<RotatedFoundationCell> cells = sparse.rotated_cells(rotation);
         if (cells.size() != 2 || cells[0].x != expected_passage[rotation].first ||
             cells[0].y != expected_passage[rotation].second || !cells[0].definition ||
-            cells[0].definition->required_terrain != 0x10 ||
-            cells[0].definition->added_terrain != 0x20 ||
-            cells[0].definition->removed_terrain != 0x40 ||
+            cells[0].definition->required_terrain != terrain_types().shrub ||
+            cells[0].definition->added_terrain != terrain_types().garden ||
+            cells[0].definition->removed_terrain != terrain_types().road ||
             cells[0].definition->binds_building ||
             cells[0].definition->passage != FoundationPassage::OwnerControlled) {
             std::cerr << "Foundation rotation contract failed: sparse cell data did not rotate intact.\n";
@@ -403,13 +405,13 @@ bool validate_foundation_rotation_contract()
     FoundationTerrainDelta delta;
     delta.cell_index = 2;
     delta.grid_offset = 1234;
-    delta.added_terrain = 0x40;
-    delta.removed_terrain = 0x100;
+    delta.added_terrain = terrain_types().road;
+    delta.removed_terrain = terrain_types().aqueduct;
     state.record_delta(delta);
     if (!state.is_published() || state.origin_x() != 11 || state.origin_y() != 12 || state.rotation() != 1 ||
         state.terrain_deltas().size() != 1 || state.terrain_deltas().front().grid_offset != 1234 ||
-        state.terrain_deltas().front().added_terrain != 0x40 ||
-        state.terrain_deltas().front().removed_terrain != 0x100) {
+        state.terrain_deltas().front().added_terrain != terrain_types().road ||
+        state.terrain_deltas().front().removed_terrain != terrain_types().aqueduct) {
         std::cerr << "Foundation state contract failed: exact publication deltas were not retained.\n";
         return false;
     }
@@ -418,35 +420,42 @@ bool validate_foundation_rotation_contract()
     save_definition.set_dimensions(2, 1);
     FoundationCellDefinition save_cell_a;
     save_cell_a.x = 0;
-    save_cell_a.added_terrain = TERRAIN_BUILDING | TERRAIN_ROAD;
+    save_cell_a.added_terrain = terrain_types().building | terrain_types().road;
     save_cell_a.binds_building = 0;
     save_definition.add_cell(save_cell_a);
     FoundationCellDefinition save_cell_b;
     save_cell_b.x = 1;
-    save_cell_b.added_terrain = TERRAIN_BUILDING;
-    save_cell_b.removed_terrain = TERRAIN_MEADOW | TERRAIN_SHRUB;
+    save_cell_b.added_terrain = terrain_types().building;
+    save_cell_b.removed_terrain = terrain_types().meadow | terrain_types().shrub;
     save_cell_b.binds_building = 0;
     save_definition.add_cell(save_cell_b);
     FoundationState save_state;
     save_state.begin_publication(20, 30, 0);
     FoundationTerrainDelta save_delta_a;
     save_delta_a.cell_index = 0;
-    save_delta_a.added_terrain = TERRAIN_BUILDING;
+    save_delta_a.added_terrain = terrain_types().building;
     save_state.record_delta(save_delta_a);
     FoundationTerrainDelta save_delta_b;
     save_delta_b.cell_index = 1;
-    save_delta_b.added_terrain = TERRAIN_BUILDING;
-    save_delta_b.removed_terrain = TERRAIN_MEADOW;
+    save_delta_b.added_terrain = terrain_types().building;
+    save_delta_b.removed_terrain = terrain_types().meadow;
     save_state.record_delta(save_delta_b);
+    terrain_save::prepare();
+    const uint32_t invalid_added = terrain_save::encode(terrain_types().aqueduct | terrain_types().building);
     const FoundationTerrainSaveState saved =
         foundation_terrain_state_for_save(save_definition, save_state);
+    buffer ledger{};
+    terrain_save::write_ledger(&ledger);
+    const bool ledger_loaded = terrain_save::load_ledger(&ledger, true);
+    free(ledger.data);
+    if (!ledger_loaded) return false;
     std::vector<FoundationTerrainDelta> loaded_deltas;
     if (!saved.published ||
         !foundation_terrain_deltas_from_save(save_definition, saved, &loaded_deltas) ||
         loaded_deltas.size() != 2 ||
-        loaded_deltas[0].added_terrain != TERRAIN_BUILDING || loaded_deltas[0].removed_terrain ||
-        loaded_deltas[1].added_terrain != TERRAIN_BUILDING ||
-        loaded_deltas[1].removed_terrain != TERRAIN_MEADOW ||
+        loaded_deltas[0].added_terrain != terrain_types().building || loaded_deltas[0].removed_terrain ||
+        loaded_deltas[1].added_terrain != terrain_types().building ||
+        loaded_deltas[1].removed_terrain != terrain_types().meadow ||
         loaded_deltas[0].bound_building || loaded_deltas[1].bound_building) {
         std::cerr << "Foundation save bridge contract failed: exact unbound per-cell terrain deltas changed.\n";
         return false;
@@ -457,30 +466,30 @@ bool validate_foundation_rotation_contract()
         return false;
     }
     FoundationTerrainSaveState invalid_saved = saved;
-    invalid_saved.added[0] |= TERRAIN_AQUEDUCT;
+    invalid_saved.added[0] = invalid_added;
     if (foundation_terrain_deltas_from_save(save_definition, invalid_saved, &loaded_deltas)) {
         std::cerr << "Foundation save bridge contract failed: unauthored terrain delta was accepted.\n";
         return false;
     }
 
-    const uint32_t highway_bits[] = {
-        TERRAIN_HIGHWAY_TOP_LEFT,
-        TERRAIN_HIGHWAY_TOP_RIGHT,
-        TERRAIN_HIGHWAY_BOTTOM_LEFT,
-        TERRAIN_HIGHWAY_BOTTOM_RIGHT
+    const TerrainSet highway_bits[] = {
+        terrain_types().highway_top_left,
+        terrain_types().highway_top_right,
+        terrain_types().highway_bottom_left,
+        terrain_types().highway_bottom_right
     };
-    std::array<uint32_t, 6> original_terrain = {
-        TERRAIN_ROAD | TERRAIN_MEADOW, TERRAIN_ROAD, TERRAIN_ROAD,
-        TERRAIN_ROAD, TERRAIN_ROAD | TERRAIN_MEADOW, TERRAIN_ROAD
+    std::array<TerrainSet, 6> original_terrain = {
+        terrain_types().road | terrain_types().meadow, terrain_types().road, terrain_types().road,
+        terrain_types().road, terrain_types().road | terrain_types().meadow, terrain_types().road
     };
-    std::array<uint32_t, 6> terrain = original_terrain;
+    std::array<TerrainSet, 6> terrain = original_terrain;
     std::array<std::vector<FoundationTerrainDelta>, 2> batch_deltas;
-    std::array<uint32_t, 6> after_first = {};
+    std::array<TerrainSet, 6> after_first = {};
     for (int placement = 0; placement < 2; ++placement) {
         for (int cell_index = 0; cell_index < 4; ++cell_index) {
             FoundationCellDefinition cell;
             cell.added_terrain = highway_bits[cell_index];
-            cell.removed_terrain = TERRAIN_ROAD;
+            cell.removed_terrain = terrain_types().road;
             cell.binds_building = 0;
             const int local_x = cell_index & 1;
             const int local_y = cell_index >> 1;
@@ -498,7 +507,7 @@ bool validate_foundation_rotation_contract()
         for (auto it = batch_deltas[placement].rbegin(); it != batch_deltas[placement].rend(); ++it) {
             terrain[it->grid_offset] = foundation_restore_terrain_cell(terrain[it->grid_offset], *it);
         }
-        const std::array<uint32_t, 6> &expected = placement == 1 ? after_first : original_terrain;
+        const std::array<TerrainSet, 6> &expected = placement == 1 ? after_first : original_terrain;
         if (terrain != expected) {
             std::cerr << "Foundation terrain transaction failed: overlapping multi-cell rollback was not exact.\n";
             return false;
@@ -655,14 +664,14 @@ bool validate_foundation_rotation_contract()
         !roadblock_foundation->cells()[0].binds_building ||
         roadblock_foundation->default_permissions() != 0 ||
         roadblock_foundation->configurable_permissions() == 0 ||
-        !(roadblock_foundation->cells()[0].required_terrain & TERRAIN_ROAD) ||
-        !(roadblock_foundation->cells()[0].permitted_blocking_terrain & TERRAIN_ROAD) ||
+        !(roadblock_foundation->cells()[0].required_terrain & terrain_types().road) ||
+        !(roadblock_foundation->cells()[0].permitted_blocking_terrain & terrain_types().road) ||
         !road_foundation || road_foundation->cells().size() != 1 ||
         road_foundation->cells()[0].binds_building ||
         !highway_foundation || highway_foundation->cells().size() != 4 ||
         std::any_of(highway_foundation->cells().begin(), highway_foundation->cells().end(),
             [](const FoundationCellDefinition &cell) {
-                return cell.binds_building || !(cell.removed_terrain & TERRAIN_ROAD);
+                return cell.binds_building || !(cell.removed_terrain & terrain_types().road);
             })) {
         std::cerr << "Roadblock publication contract failed: a new bound blocker must close every configurable permission without replacing the road surface.\n";
         return false;
@@ -671,10 +680,10 @@ bool validate_foundation_rotation_contract()
         warehouse_foundation->cells()[0].passage != FoundationPassage::OwnerControlled ||
         warehouse_foundation->default_permissions() != 0 ||
         warehouse_foundation->configurable_permissions() == 0 ||
-        !(warehouse_foundation->cells()[0].added_terrain & TERRAIN_ROAD) ||
+        !(warehouse_foundation->cells()[0].added_terrain & terrain_types().road) ||
         !warehouse_space_foundation || warehouse_space_foundation->cells().size() != 1 ||
         warehouse_space_foundation->cells()[0].passage != FoundationPassage::None ||
-        (warehouse_space_foundation->cells()[0].added_terrain & TERRAIN_ROAD)) {
+        (warehouse_space_foundation->cells()[0].added_terrain & terrain_types().road)) {
         std::cerr << "Warehouse foundation contract failed: only the freight-gated entrance may publish a road passage.\n";
         return false;
     }
@@ -790,7 +799,7 @@ bool validate_foundation_rotation_contract()
             if (!cell.definition) {
                 return false;
             }
-            if (cell.definition->required_terrain & TERRAIN_WATER) {
+            if (cell.definition->required_terrain & terrain_types().water) {
                 water_cells.emplace(cell.x, cell.y);
             } else {
                 ++land_cells;
@@ -809,7 +818,7 @@ bool validate_foundation_rotation_contract()
         std::string(farm->foundation_def()->path()) != "land_2x2" ||
         std::string(field->foundation_def()->path()) != "meadow_1x1" ||
         field->foundation_def()->cells().size() != 1 ||
-        field->foundation_def()->cells().front().required_terrain != TERRAIN_MEADOW ||
+        field->foundation_def()->cells().front().required_terrain != terrain_types().meadow ||
         !field->foundation_def()->cells().front().binds_building) {
         std::cerr << "Foundation registry contract failed: Vespasian farm meadow ownership changed.\n";
         return false;

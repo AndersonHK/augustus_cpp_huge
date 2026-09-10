@@ -1,3 +1,4 @@
+#include "core/Logger.h"
 #include "translation/localization_internal.h"
 
 #include <algorithm>
@@ -145,7 +146,7 @@ void report_missing_project_key(const char *key)
         return;
     }
     g_missing_project_key_reported[key] = true;
-    log_error("Missing localized project string", key, 0);
+    Logger::error("Missing localized project string", key, 0);
 }
 
 void report_missing_legacy_string(int is_editor, int group, int index)
@@ -160,7 +161,7 @@ void report_missing_legacy_string(int is_editor, int group, int index)
 
     char details[64];
     snprintf(details, sizeof(details), "mode=%s group=%d index=%d", is_editor ? "editor" : "main", group, index);
-    log_error("Missing localized legacy string", details, 0);
+    Logger::error("Missing localized legacy string", details, 0);
 }
 
 const char *language_code_for(language_type language)

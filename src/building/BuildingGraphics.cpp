@@ -4,7 +4,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime.h"
 #include "building/building_type.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include <cstdio>
 #include <exception>
@@ -48,11 +48,10 @@ const char *safe_text(const char *text)
         foundation_height,
         foundation_cells);
 
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building runtime error",
         "BuildingGraphics was used without its owner, definition, or instance state.",
         detail);
-    std::terminate();
 }
 
 }

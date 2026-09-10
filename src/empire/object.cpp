@@ -5,10 +5,12 @@
 #include "core/calc.h"
 #include "core/image.h"
 #include "translation/translation.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "core/string.h"
 #include "empire/city.h"
+#include "scenario/demand_change.h"
+#include "scenario/event/controller.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
 #include "game/Animation.h"
@@ -208,14 +210,14 @@ void empire_object_load(buffer *buf, int version)
                 RESOURCE_SLOT_COUNT : resource_total_mapped();
             for (int r = (RESOURCE_NONE + 1); r < resources_to_load; r++) {
                 resource_type resource = resource_remap(r);
-                int sells = buffer_read_i16(buf);
+                int sells = version > SCENARIO_LAST_NO_WIDE_EMPIRE_QUOTAS ? buffer_read_i32(buf) : buffer_read_i16(buf);
                 if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
                     full->city_sells_resource[resource] = sells;
                 }
             }
             for (int r = (RESOURCE_NONE + 1); r < resources_to_load; r++) {
                 resource_type resource = resource_remap(r);
-                int buys = buffer_read_i16(buf);
+                int buys = version > SCENARIO_LAST_NO_WIDE_EMPIRE_QUOTAS ? buffer_read_i32(buf) : buffer_read_i16(buf);
                 if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
                     full->city_buys_resource[resource] = buys;
                 }
@@ -286,7 +288,7 @@ void empire_object_load(buffer *buf, int version)
     }
     objects.resize(highest_id_in_use + 1);
     fix_image_ids();
-    resource_set_mapping(resource_version);
+    if (version <= SCENARIO_LAST_UNVERSIONED) resource_set_mapping(resource_version);
 }
 
 void empire_object_save(buffer *buf)
@@ -299,7 +301,7 @@ void empire_object_save(buffer *buf)
         return;
     }
     int size_per_obj = 87;
-    int size_per_city = size_per_obj + 4 * (RESOURCE_SLOT_COUNT - (RESOURCE_NONE + 1));
+    int size_per_city = size_per_obj + 8 * (RESOURCE_SLOT_COUNT - (RESOURCE_NONE + 1));
     int total_size = 0;
 
     for (const full_empire_object &full : objects) {
@@ -341,10 +343,10 @@ void empire_object_save(buffer *buf)
         buffer_write_u32(buf, full.trade_route_cost);
         if (obj->type == EMPIRE_OBJECT_CITY) {
             for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-                buffer_write_i16(buf, static_cast<int16_t>(full.city_sells_resource[r]));
+                buffer_write_i32(buf, full.city_sells_resource[r]);
             }
             for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-                buffer_write_i16(buf, static_cast<int16_t>(full.city_buys_resource[r]));
+                buffer_write_i32(buf, full.city_buys_resource[r]);
             }
         }
         buffer_write_u8(buf, static_cast<uint8_t>(obj->invasion_path_id));
@@ -365,7 +367,7 @@ void empire_object_add_to_cities(full_empire_object *full)
     }
     empire_city *city = empire_city_get_new();
     if (!city) {
-        log_error("Unable to allocate enough memory for the empire cities. The game will now crash.", 0, 0);
+        Logger::error("Unable to allocate enough memory for the empire cities. The game will now crash.", 0, 0);
         return;
     }
     
@@ -444,7 +446,7 @@ void empire_object_init_cities(int empire_id)
         }
         empire_city *city = empire_city_get_new();
         if (!city) {
-            log_error("Unable to allocate enough memory for the empire cities. The game will now crash.", 0, 0);
+            Logger::error("Unable to allocate enough memory for the empire cities. The game will now crash.", 0, 0);
             return;
         }
         city->in_use = 1;
@@ -517,6 +519,8 @@ void empire_object_init_cities(int empire_id)
         empire_city_migrate_legacy_fishing_production();
     }
     empire_city_update_trading_data(empire_id);
+    scenario_demand_change_resolve_legacy_directions();
+    scenario_events_resolve_legacy_trade_directions();
 }
 
 int empire_object_init_distant_battle_travel_months(empire_object_type object_type)
@@ -897,7 +901,7 @@ int empire_object_add_ornament(int ornament_id)
     }
     full_empire_object *obj = empire_object_get_new();
     if (!obj) {
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     obj->in_use = 1;

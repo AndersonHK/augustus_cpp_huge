@@ -9,7 +9,7 @@
         </profile>
     </profiles>
     <graphics>
-        <default>
+        <default payload_frame_count="8">
             <path value="Walkers\hippodrome_horses" />
         </default>
     </graphics>

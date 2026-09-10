@@ -32,9 +32,15 @@ enum {
  * Resets model data from properties
  */
 void model_reset(void);
+void model_capture_mod_defaults(void);
+const model_building *model_get_mod_defaults(building_type type);
+void model_mark_scenario_override(building_type type, int field);
+uint32_t model_scenario_override_fields(building_type type);
 
 void model_save_model_data(buffer *buf);
-void model_load_model_data(buffer *buf);
+enum class ModelDataFormat { ExplicitOverrides, LegacyNativeSnapshot, LegacyNativeOverlay };
+int model_load_model_data(buffer *buf, ModelDataFormat format = ModelDataFormat::ExplicitOverrides, int source_save_version = 0);
+int model_import_legacy_source_data(buffer *buf, int save_version);
 
 /**
  * Gets the model for a building
@@ -42,6 +48,7 @@ void model_load_model_data(buffer *buf);
  * @return Read-only model
  */
 model_building *model_get_building(building_type type);
+int model_get_construction_cost(building_type type);
 
 // PROPERTIES
 

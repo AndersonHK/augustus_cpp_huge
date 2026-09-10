@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<loading_screen title="Augustus" font="game" accent="#d9ba72" initial_stage="mod_data">
+    <stage id="graphics" title="Preparing graphics" background="loading/extraction.png"/>
+    <stage id="mod_data" title="Building the world" background="loading/construction.png"/>
+</loading_screen>

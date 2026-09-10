@@ -17,21 +17,16 @@
 #include "window/city.h"
 #include "graphics/image.h"
 
-#include <stdlib.h>
+#include <algorithm>
+#include <array>
+#include <memory>
+#include "graphics/declarative_window.h"
 
-#define MENU_X_OFFSET 170
-#define SUBMENU_X_OFFSET 348
-#define MENU_Y_OFFSET 72
-#define MENU_ITEM_HEIGHT 24
-#define MENU_CLICK_MARGIN 20
-#define MENU_ITEM_WIDTH 160
 #define TOP_MARGIN 74
-#define LABEL_WIDTH_BLOCKS 10
 #define SIDEBAR_MARGIN_X 10
-#define MAX_BUTTONS 20
 #define OVERLAY_MENU_END { -1, {}, JULIUS, NULL, NULL }
 
-static void button_menu_item(const generic_button *button);
+
 
 typedef enum
 {
@@ -75,8 +70,6 @@ struct overlay_menu_entry {
     {
     }
 };
-
-static const overlay_menu_entry OVERLAY_MENU_SENTINEL = OVERLAY_MENU_END;
 
 static const overlay_menu_entry submenu_risks[] = {
     { OVERLAY_FIRE, 0, JULIUS, NULL },
@@ -180,193 +173,199 @@ static const overlay_menu_entry overlay_menu[] = {
     OVERLAY_MENU_END
 };
 
-static struct {
-    int selected_overlay_id;
-    int selected_overlay_clicked;
-    int show_menu;
-    unsigned int menu_focus_button_index;
-    generic_button buttons[MAX_BUTTONS];
-} data;
 
-static void show_menu(void)
+namespace {
+constexpr int kMenuLevels = 3;
+constexpr time_millis kHoverTimeout = 900;
+int selected_overlay_id;
+int sticky_level = -1;
+time_millis last_hover;
+int clicked_level = -1, clicked_item = -1;
+const DeclarativeWindowDefinition *menu_definition;
+
+const uint8_t *entry_text(const overlay_menu_entry &entry)
 {
-    data.show_menu = 1;
+    if (entry.translation_kind == AUGUSTUS) return translation_for(entry.translation);
+    if (entry.translation_kind == XML_BUILDING_NAME) return lang_get_building_type_string(building_type_registry_impl::type_from_attr(entry.building_text_id));
+    return lang_get_string(current_string_key(14, entry.overlay));
 }
 
-static void hide_menu(void)
-{
-    data.show_menu = 0;
-}
+struct MenuColumn final : DeclarativeWindowController {
+    const overlay_menu_entry *entries = nullptr;
+    int level = 0, count = 0, first = 0, capacity = 0, selected = -1;
+    int x = 0, y = 0, width = 0, height = 0;
+    std::unique_ptr<DeclarativeWindowRuntime> runtime;
 
-static void draw_background(void)
-{
-    window_city_draw_panels();
-}
-
-static int get_sidebar_x_offset(void)
-{
-    int view_x, view_y, view_width, view_height;
-    city_view_get_viewport(&view_x, &view_y, &view_width, &view_height);
-    return screen_pixel_to_ui(view_x + view_width);
-}
-
-static int is_mouse_hovering(const overlay_menu_entry *entry)
-{
-    const int index = (int) data.menu_focus_button_index - 1;
-
-    if (index < 0) {
+    void reset(const overlay_menu_entry *value)
+    {
+        entries = value;
+        first = 0;
+        selected = -1;
+        count = 0;
+        if (entries) while (entries[count].overlay != -1) ++count;
+    }
+    int repeat_count(std::string_view source) const override { return source == "entries" ? std::min(capacity, count - first) : 0; }
+    std::string text(std::string_view binding, int item) const override
+    {
+        if (binding != "entry.name" || item < 0 || first + item >= count) return {};
+        const auto &entry = entries[first + item];
+        return std::string(entry.submenu ? "< " : "") + reinterpret_cast<const char *>(entry_text(entry));
+    }
+    int condition(std::string_view binding, int item) const override
+    {
+        if (binding == "entry.selected") return selected == first + item;
+        if (binding == "page.previous") return first > 0;
+        if (binding == "page.next") return first + capacity < count;
         return 0;
     }
+    void action(std::string_view action, int item) override
+    {
+        if (action == "entry.select") { clicked_level = level; clicked_item = first + item; }
+        if (action == "page.previous") first = std::max(0, first - capacity);
+        if (action == "page.next") first = std::min(std::max(0, count - capacity), first + capacity);
+    }
+};
+std::array<MenuColumn, kMenuLevels> columns;
 
-    return data.buttons[index].parameter1 == entry->overlay;
-}
-
-static const uint8_t *get_overlay_text(const overlay_menu_entry *entry)
+void clear_after(int level)
 {
-    if (entry->translation_kind == AUGUSTUS) {
-        return translation_for(entry->translation);
-    }
-
-    if (entry->translation_kind == XML_BUILDING_NAME) {
-        building_type type = building_type_registry_impl::type_from_attr(entry->building_text_id);
-        return lang_get_building_type_string(type);
-    }
-
-    return lang_get_string(current_string_key(14, entry->overlay));
+    for (int i = level + 1; i < kMenuLevels; ++i) columns[i].reset(nullptr);
 }
 
-static void draw_menu_item(const overlay_menu_entry *entry, const int i, const int x_offset, const int button_index)
+void select_parent(int level, int item)
 {
-    const int x = x_offset - MENU_ITEM_WIDTH;
-    const int y = TOP_MARGIN + MENU_ITEM_HEIGHT * i;
-
-    generic_button &button = data.buttons[button_index];
-    button.reset();
-    button.set_bounds(static_cast<short>(x), static_cast<short>(y), MENU_ITEM_WIDTH, MENU_ITEM_HEIGHT);
-    button.set_handlers(button_menu_item, nullptr);
-    button.set_parameters(entry->overlay, 0);
-
-    label_draw(x, y, LABEL_WIDTH_BLOCKS, is_mouse_hovering(entry) ? LABEL_TYPE_NORMAL : LABEL_TYPE_HOVER);
-
-    text_draw_centered(get_overlay_text(entry),
-        x_offset - MENU_ITEM_WIDTH,
-        y + 4,
-        MENU_ITEM_WIDTH,
-        FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height),
-        COLOR_MASK_NONE);
-
-    if (entry->submenu != NULL) {
-        ImageGroupEntryRef::from_group("UI\\Expand_Menu_Icon", "Expand Menu Icon").draw(x + MENU_ITEM_WIDTH - 16, y + 3);
-    }
+    auto &column = columns[level];
+    if (column.selected == item) return;
+    column.selected = item;
+    clear_after(level);
+    if (level + 1 < kMenuLevels && item >= 0 && item < column.count) columns[level + 1].reset(column.entries[item].submenu);
 }
 
-static overlay_menu_entry find_overlay(const overlay_menu_entry *entries, const int overlay_id)
+void layout_columns()
 {
-    for (unsigned i = 0; entries[i].overlay != -1; i++) {
-        if (entries[i].overlay == overlay_id) {
-            return entries[i];
-        }
-
-        if (entries[i].submenu != NULL) {
-            const overlay_menu_entry found_sub_item = find_overlay(entries[i].submenu, overlay_id);
-            if (found_sub_item.overlay != OVERLAY_MENU_SENTINEL.overlay) {
-                return found_sub_item;
-            }
-        }
-    }
-
-    return OVERLAY_MENU_SENTINEL;
-}
-
-static void draw_menu(const overlay_menu_entry *entries)
-{
-    const int x_offset = get_sidebar_x_offset() - SIDEBAR_MARGIN_X;
-    int button_index = 0;
-
-    for (int i = 0; entries[i].overlay != -1; i++) {
-        draw_menu_item(&entries[i], i, x_offset, button_index++);
+    int vx, vy, vw, vh;
+    city_view_get_viewport(&vx, &vy, &vw, &vh);
+    const auto *rows = menu_definition->widget("entries");
+    const int spacing = std::max(1, rows->repeat_spacing_y);
+    const int available = std::max(spacing + 48, screen_height() - TOP_MARGIN - 8);
+    int right = screen_pixel_to_ui(vx + vw) - SIDEBAR_MARGIN_X;
+    for (int i = 0; i < kMenuLevels; ++i) {
+        auto &column = columns[i];
+        if (!column.entries) break;
+        column.width = menu_definition->base_width();
+        column.capacity = std::max(1, (available - 48) / spacing);
+        column.first = std::clamp(column.first, 0, std::max(0, column.count - column.capacity));
+        column.height = std::min(column.capacity, column.count) * spacing + 48;
+        column.x = std::max(0, right - column.width);
+        int parent_y = i ? columns[i - 1].y + rows->y + (columns[i - 1].selected - columns[i - 1].first) * spacing : TOP_MARGIN;
+        column.y = std::clamp(parent_y, TOP_MARGIN, std::max(TOP_MARGIN, screen_height() - column.height - 8));
+        right = column.x - 4;
     }
 }
 
-static void draw_foreground(void)
+void draw_background() { window_city_draw_panels(); }
+void draw_foreground()
 {
     window_city_draw();
+    if (!menu_definition) return;
+    layout_columns();
+    for (auto &column : columns) {
+        if (!column.entries) break;
+        column.runtime->draw(DeclarativeDrawPhase::Background, column.width, column.height, column.x, column.y);
+        column.runtime->draw(DeclarativeDrawPhase::Foreground, column.width, column.height, column.x, column.y);
+    }
+}
 
-    if (data.show_menu == 1) {
-        const overlay_menu_entry menu_item = find_overlay(overlay_menu, data.selected_overlay_clicked);
-        if (menu_item.submenu != NULL) {
-            draw_menu(menu_item.submenu);
+void handle_input(const mouse *m, const hotkeys *keys)
+{
+    if (!menu_definition) return;
+    if (input_go_back_requested(m, keys)) { window_city_show(); return; }
+    layout_columns();
+    clicked_level = clicked_item = -1;
+    bool inside = false;
+    int hovered_level = -1, hovered_item = -1;
+    for (int i = kMenuLevels - 1; i >= 0; --i) {
+        auto &column = columns[i];
+        if (!column.entries) continue;
+        mouse local = *m;
+        local.x -= column.x;
+        local.y -= column.y;
+        const bool in_column = !inside && local.x >= 0 && local.x < column.width && local.y >= 0 && local.y < column.height;
+        if (in_column) {
+            inside = true;
+            if (m->scrolled) column.first = std::clamp(column.first + static_cast<int>(m->scrolled), 0, std::max(0, column.count - column.capacity));
         } else {
-            draw_menu(overlay_menu);;
+            local.x = local.y = -1;
+            local.left = {};
+        }
+        column.runtime->handle_mouse(local, column.width, column.height);
+        if (in_column && column.runtime->focused_item() >= 0) {
+            hovered_level = i;
+            hovered_item = column.first + column.runtime->focused_item();
         }
     }
-}
-
-static int click_outside_menu(const mouse *m, const int x_offset)
-{
-    return m->left.went_up &&
-        (m->x < x_offset - MENU_CLICK_MARGIN - MENU_X_OFFSET ||
-        m->x > x_offset + MENU_CLICK_MARGIN ||
-        m->y < MENU_Y_OFFSET - MENU_CLICK_MARGIN ||
-        m->y > MENU_Y_OFFSET + MENU_CLICK_MARGIN + MENU_ITEM_HEIGHT * MAX_BUTTONS);
-}
-
-static void handle_input(const mouse *m, const hotkeys *h)
-{
-    (void)h;
-
-    const int x_offset = get_sidebar_x_offset();
-    int handled = 0;
-
-    handled |= GenericButtonList(data.buttons, MAX_BUTTONS).handle_mouse(
-        *m,
-        0,
-        0,
-        &data.menu_focus_button_index
-    );
-
-    if (!handled && click_outside_menu(m, x_offset)) {
-        data.selected_overlay_clicked = 0;
-        hide_menu();
-        window_city_show();
+    if (clicked_level >= 0) {
+        auto &column = columns[clicked_level];
+        const auto &entry = column.entries[clicked_item];
+        if (!entry.submenu) {
+            selected_overlay_id = entry.overlay;
+            game_state_set_overlay(entry.overlay);
+            window_city_show();
+            return;
+        }
+        if (column.selected == clicked_item && sticky_level == clicked_level) {
+            column.selected = -1;
+            clear_after(clicked_level);
+            sticky_level = -1;
+        } else {
+            select_parent(clicked_level, clicked_item);
+            sticky_level = clicked_level;
+        }
+    } else if (hovered_level >= 0 && (sticky_level < 0 || hovered_level > sticky_level)) {
+        select_parent(hovered_level, hovered_item);
     }
-
-    show_menu();
-}
-
-static void button_menu_item(const generic_button *button)
-{
-    const overlay_menu_entry selected_overlay = find_overlay(overlay_menu, button->parameter1);
-    data.selected_overlay_clicked = selected_overlay.overlay;
-
-    if (selected_overlay.submenu != NULL) {
-        show_menu();
-    } else {
-        data.selected_overlay_id = selected_overlay.overlay;
-        hide_menu();
-        game_state_set_overlay(selected_overlay.overlay);
-        window_city_show();
+    if (inside) last_hover = time_get_millis();
+    else if (m->left.went_up) { window_city_show(); return; }
+    else if (sticky_level < 0 && time_get_millis() - last_hover > kHoverTimeout) {
+        columns[0].selected = -1;
+        clear_after(0);
     }
 }
 
-void window_overlay_menu_show(void)
+void get_tooltip(tooltip_context *context)
 {
-    const window_type window = {
-        WINDOW_OVERLAY_MENU,
-        draw_background,
-        draw_foreground,
-        handle_input
-    };
+    for (auto &column : columns) if (column.entries) column.runtime->tooltip(*context);
+}
+
+const overlay_menu_entry *find_leaf(const overlay_menu_entry *entries, int overlay)
+{
+    for (int i = 0; entries[i].overlay != -1; ++i) {
+        if (!entries[i].submenu && entries[i].overlay == overlay) return &entries[i];
+        if (entries[i].submenu) if (const auto *found = find_leaf(entries[i].submenu, overlay)) return found;
+    }
+    return nullptr;
+}
+}
+
+void window_overlay_menu_show()
+{
+    menu_definition = declarative_window_definition("overlay_menu");
+    if (!menu_definition || !menu_definition->widget("entries")) return;
+    for (int i = 0; i < kMenuLevels; ++i) {
+        columns[i].level = i;
+        columns[i].reset(i ? nullptr : overlay_menu);
+        columns[i].runtime = std::make_unique<DeclarativeWindowRuntime>(*menu_definition, columns[i]);
+    }
+    sticky_level = -1;
+    last_hover = time_get_millis();
+    const window_type window = {WINDOW_OVERLAY_MENU, draw_background, draw_foreground, handle_input, get_tooltip};
     window_show(&window);
 }
 
-void window_overlay_menu_update(void)
-{
-    data.selected_overlay_id = game_state_overlay();
-}
+void window_overlay_menu_update() { selected_overlay_id = game_state_overlay(); }
 
-const uint8_t *get_current_overlay_text(void)
+const uint8_t *get_current_overlay_text()
 {
-    const overlay_menu_entry overlay_item = find_overlay(overlay_menu, data.selected_overlay_id);
-    return get_overlay_text(&overlay_item);
+    const auto *entry = find_leaf(overlay_menu, selected_overlay_id);
+    return entry ? entry_text(*entry) : lang_get_string(current_string_key(14, selected_overlay_id));
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "building/CityServiceDef.h"
 
 #include <stdint.h>
 
@@ -10,14 +11,7 @@ enum {
     BUILDING_TYPE_MAX = 512
 };
 
-enum {
-    BUILDING_TYPE_TERRAIN_MEADOW = 1 << 0,
-    BUILDING_TYPE_TERRAIN_ROCK = 1 << 1,
-    BUILDING_TYPE_TERRAIN_TREE = 1 << 2,
-    BUILDING_TYPE_TERRAIN_WATER = 1 << 3,
-    BUILDING_TYPE_TERRAIN_WALL = 1 << 4,
-    BUILDING_TYPE_TERRAIN_DISTANT_WATER = 1 << 5
-};
+
 
 /**
  * House levels
@@ -129,8 +123,7 @@ enum class WaterAccessRequirementWhere {
 
 enum class WaterAccessRequirementTermKind {
     Access,
-    WaterSourceAny,
-    WaterSourceFreshOnly
+    FoundationRequirement
 };
 
 enum class SpecialSpawnMode {
@@ -140,6 +133,7 @@ enum class SpecialSpawnMode {
     TempleMarsMessHallPriest,
     TempleNeptuneChariot,
     GrandTempleMarsRecruit,
+    BarracksRecruit,
     FishingBoat
 };
 
@@ -287,6 +281,8 @@ struct DelayBand {
 };
 
 struct SpawnPolicy {
+    int require_population = 0;
+    std::string requires_config;
     SpecialSpawnMode special_mode = SpecialSpawnMode::None;
     GraphicTiming graphic_timing = GraphicTiming::None;
     FigureSlot figure_slot = FigureSlot::Primary;
@@ -317,6 +313,8 @@ struct SpawnDelayGroup {
 class IdentityDefinition {
 public:
     void set_name_key(std::string key);
+    void set_plural_name_key(std::string key) { plural_name_key_ = std::move(key); }
+    const char *plural_name_key() const { return plural_name_key_.c_str(); }
     bool add_alias(std::string alias);
 
     int has_name_key() const;
@@ -326,6 +324,7 @@ public:
 
 private:
     std::string name_key_;
+    std::string plural_name_key_;
     std::vector<std::string> aliases_;
 };
 
@@ -613,10 +612,15 @@ struct WaterAccessProvideRule {
     WaterAccessOrigin origin = WaterAccessOrigin::Footprint;
 };
 
+struct FoundationProximityRequirement;
+
 struct WaterAccessRequirementTerm {
     WaterAccessRequirementTermKind kind = WaterAccessRequirementTermKind::Access;
     uint8_t mask = 0;
     WaterAccessRequirementWhere where = WaterAccessRequirementWhere::Footprint;
+    std::string foundation_requirement_name;
+    const FoundationDef *foundation = nullptr;
+    const FoundationProximityRequirement *foundation_requirement = nullptr;
 };
 
 struct WaterAccessRequirementRule {
@@ -627,6 +631,7 @@ struct WaterAccessRequirementRule {
 class WaterAccessDefinition {
 public:
     void set_requires_open_water(int required);
+    bool bind_foundation_requirements(const FoundationDef &foundation);
     void add_provide_rule(WaterAccessProvideRule rule);
     void add_requirement_rule(WaterAccessRequirementRule rule);
     void add_node(WaterAccessNode node);
@@ -676,6 +681,8 @@ struct ConstructionRequirement {
 
 struct ConstructionPhase {
     int index = 0;
+    std::string name_key;
+    std::string description_key;
     std::vector<ConstructionRequirement> requirements;
 };
 
@@ -729,8 +736,21 @@ struct RaceDefinition {
     int lane_render_distance(int lane) const { return track_margin + lane * lane_spacing; }
 };
 
+struct ConstructionGift {
+    std::string event;
+    bool materials = false;
+    bool workers = false;
+    int loads_per_delivery = 4;
+};
+
 class ConstructionDefinition {
 public:
+    ConstructionGift gift;
+    std::string window;
+    std::string description_key;
+    int completion_message = 0;
+    int access_x = -1;
+    int access_y = -1;
     void set_mode(ConstructionMode mode);
     void set_road_update_radius(int radius);
     void set_free_when_broke_limit(int limit);
@@ -741,6 +761,7 @@ public:
     ConstructionPhase &add_phase(int index);
     ConstructionPhase *last_phase();
     const ConstructionPhase *phase(int index) const;
+    bool set_scenario_requirement(int phase, resource_type resource, int amount);
     void add_instant_requirement(resource_type resource, int amount);
     void add_requirement(resource_type resource, int amount);
 
@@ -771,12 +792,17 @@ private:
 
 class BuildingType {
 public:
+    InfrastructureDefinition &infrastructure() { return infrastructure_; }
+    const InfrastructureDefinition &infrastructure() const { return infrastructure_; }
+    CityServiceDefinition &city_service() { return city_service_; }
+    const CityServiceDefinition &city_service() const { return city_service_; }
     BuildingType(building_type type, std::string attr);
     // Startup registries parse identity before assigning the deterministic
     // effective-stack runtime id.
     void assign_runtime_type(building_type type);
 
     void set_identity_name_key(std::string key);
+    void set_identity_plural_name_key(std::string key) { identity_.set_plural_name_key(std::move(key)); }
     bool add_identity_alias(std::string alias);
     void set_model_cost(int value);
     void set_model_hit_points(int value);
@@ -826,6 +852,7 @@ public:
     void add_water_access_provide_rule(WaterAccessProvideRule rule);
     void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
     void set_water_access_requires_open_water(int required);
+    bool bind_water_foundation_requirements(const FoundationDef &foundation) { return water_access_.bind_foundation_requirements(foundation); }
     void add_water_access_node(WaterAccessNode node);
     void add_water_access_provider_node(WaterAccessNode node);
     void add_water_access_requirement_node(WaterAccessNode node);
@@ -855,6 +882,7 @@ public:
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
     void inherit_labor_category(LaborCategory category);
+    void set_labor_category(LaborCategory category) { labor_category_ = category; }
     void set_distribution(const Distribution *distribution);
     void set_temple_religion(const Religion *religion);
     void set_race(RaceDefinition race);
@@ -886,12 +914,28 @@ public:
     const WaterAccessDefinition &water_access() const;
     const BuildingGraphicsDef &graphics() const;
     const ConstructionDefinition &construction() const;
+    ConstructionDefinition &construction() { return construction_; }
     CompositionDef &composition();
     const CompositionDef &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
     int placement_width(int orientation) const;
     int placement_height(int orientation) const;
+    enum class InformationPanel { Automatic, Garden };
+    enum class InspectionOverlay { Automatic, Enemy, Native, Desirability };
+    struct Presentation {
+        bool declared = false;
+        InformationPanel panel = InformationPanel::Automatic;
+        InspectionOverlay overlay = InspectionOverlay::Automatic;
+        figure_type preview_figure = FIGURE_NONE;
+        bool enemy_roamer = false;
+        bool inactive_water_range = false;
+        bool rejected_distribution_problem = false;
+        bool show_durability = false;
+        bool overlay_always_visible = false;
+    };
+    const Presentation &presentation() const { return presentation_; }
+    void set_presentation(Presentation value) { presentation_ = value; }
     figure_type preview_figure_type() const;
     int required_workers() const;
     int is_temple(
@@ -961,6 +1005,9 @@ public:
 
 private:
     building_type type_;
+    Presentation presentation_;
+    InfrastructureDefinition infrastructure_;
+    CityServiceDefinition city_service_;
     std::string attr_;
     IdentityDefinition identity_;
     BuildModelDefinition model_;

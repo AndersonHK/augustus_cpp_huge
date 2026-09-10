@@ -68,10 +68,10 @@ const char *system_architecture(void)
     return "MIPS";
 #elif defined(__sh__)
     return "SUPERH";
-#elif defined(__powerpc) || defined(__powerpc__) || defined(__powerpc64__) || defined(__POWERPC__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
-    return "POWERPC";
-#elif defined(__PPC64__) || defined(__ppc64__) || defined(_ARCH_PPC64)
+#elif defined(__powerpc64__) || defined(__PPC64__) || defined(__ppc64__) || defined(_ARCH_PPC64)
     return "POWERPC64";
+#elif defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__) || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC)
+    return "POWERPC";
 #elif defined(__sparc__) || defined(__sparc)
     return "SPARC";
 #elif defined(__m68k__)
@@ -137,8 +137,6 @@ const char *system_OS(void)
     return "NetBSD";
 #elif defined(__OpenBSD__)
     return "OpenBSD";
-#elif defined(__vita__)
-    return "PlayStation Vita";
 #elif defined(__SWITCH__)
     return "Nintendo Switch";
 #elif defined(__ANDROID__)

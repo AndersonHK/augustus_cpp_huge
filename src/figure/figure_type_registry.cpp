@@ -5,14 +5,15 @@
 
 #include "assets/image_group_payload.h"
 #include "building/building_type_registry_internal.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/direction.h"
 #include "core/xml_value.h"
 #include "figure/action.h"
+#include "figure/phrase.h"
+#include "figure/unit_type.h"
 #include "figure/runtime_profile_identity.h"
 #include "game/mod_definition_loader.h"
 
-#include "core/log.h"
 #include "building/properties.h"
 #include "core/image.h"
 #include "core/xml_definition.h"
@@ -26,6 +27,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -69,7 +71,7 @@ static int resolve_building_reference(
     detail += "building=";
     detail += reference;
     set_failure_reason("FigureType building reference is unknown.", detail.c_str());
-    log_error("FigureType building reference is unknown", detail.c_str(), 0);
+    Logger::error("FigureType building reference is unknown", detail.c_str(), 0);
     return 0;
 }
 
@@ -201,6 +203,9 @@ ProfileSpawnBehavior FigureTypeProfile::spawn_behavior() const
             return { FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE, true, false };
         case NativeClassId::DepotCartPusher:
             return { FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL, true, false };
+        case NativeClassId::LandTrade:
+        case NativeClassId::TradeFollower:
+            return { FIGURE_ACTION_100_TRADE_CARAVAN_CREATED, true, false };
         case NativeClassId::FishingBoat:
             return { FIGURE_ACTION_190_FISHING_BOAT_CREATED, true, false };
         case NativeClassId::TransientWanderer:
@@ -230,6 +235,9 @@ int FigureTypeProfile::resolve_building_references(const char *figure_attr)
         context.c_str(),
         1)) {
         return 0;
+    }
+    if (!movement_profile_.speed_bonus_building.empty()) {
+        if (!resolve_building_reference(movement_profile_.speed_bonus_building, movement_profile_.speed_bonus_type, context.c_str(), 0)) return 0;
     }
     for (EntertainmentVenueTarget &target : venue_targets_) {
         if (!resolve_building_reference(target.building_reference, target.building, context.c_str(), 0)) {
@@ -298,6 +306,11 @@ const FigureGraphics &FigureTypeDefinition::graphics() const
 
 int FigureTypeDefinition::cache_graphics_bindings()
 {
+    if (!portrait_.group_path().empty() && (!portrait_.is_bound() || !portrait_.runtime_slice().is_valid())) {
+        set_failure_reason("FigureType portrait is unresolved", attr());
+        Logger::error("FigureType portrait is unresolved", attr(), 0);
+        return 0;
+    }
     FigureGraphics cached_graphics = graphics();
     if (!cached_graphics.cache_native_payload_bindings(*this)) return 0;
     graphics_ = std::make_shared<const FigureGraphics>(std::move(cached_graphics));
@@ -406,6 +419,12 @@ const FigureGraphics *graphics_for(figure_type type)
     return definition ? &definition->graphics() : nullptr;
 }
 
+const FigureTypeDefinition *presentation_for(figure_type type)
+{
+    if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) return nullptr;
+    return g_figure_graphics_only[type] ? g_figure_graphics_only[type].get() : definition_for(type);
+}
+
 const FigureTypeProfile *profile_for(figure_type type, const char *profile_id)
 {
     const FigureTypeDefinition *definition = definition_for(type);
@@ -459,6 +478,9 @@ static NativeClassId parse_native_class_name(const char *name)
     if (xml_value::equals(name, "depot_cart_pusher")) {
         return NativeClassId::DepotCartPusher;
     }
+    if (xml_value::equals(name, "land_trade")) return NativeClassId::LandTrade;
+    if (xml_value::equals(name, "trade_follower")) return NativeClassId::TradeFollower;
+    if (xml_value::equals(name, "resource_delivery")) return NativeClassId::ResourceDelivery;
     if (xml_value::equals(name, "fishing_boat")) {
         return NativeClassId::FishingBoat;
     }
@@ -554,6 +576,8 @@ static int parse_terrain_usage_name(const char *name)
 
 int action_state_from_xml_name(const char *name)
 {
+    if (xml_value::equals(name, "watchman_patrol_initiate")) return FIGURE_ACTION_220_WATCHMAN_PATROL_INITIATE;
+    if (xml_value::equals(name, "attack")) return FIGURE_ACTION_150_ATTACK;
     if (xml_value::equals(name, "corpse")) {
         return FIGURE_ACTION_149_CORPSE;
     }
@@ -657,7 +681,7 @@ static int validate_depot_cart_graphics(
         set_failure_reason(
             "Depot cart pusher graphics requires complete base/corpse sources and cart_mode resource_load.",
             detail.c_str());
-        log_error("Depot cart pusher graphics requires complete base/corpse sources and cart_mode resource_load",
+        Logger::error("Depot cart pusher graphics requires complete base/corpse sources and cart_mode resource_load",
             detail.c_str(), 0);
         return 0;
     }
@@ -894,7 +918,7 @@ static int parse_enabled_content(const char *element)
 {
     if (!g_parse_state.saw_root || g_parse_state.disabled) {
         g_parse_state.error = true;
-        log_error("Disabled FigureType definition must contain only its root identity", element, 0);
+        Logger::error("Disabled FigureType definition must contain only its root identity", element, 0);
         return 0;
     }
     return 1;
@@ -904,7 +928,7 @@ static FigureTypeProfile *current_profile_or_error(const char *node_name)
 {
     if (!g_parse_state.definition || !g_parse_state.current_profile) {
         g_parse_state.error = true;
-        log_error("FigureType profile child appears outside a profile", node_name, 0);
+        Logger::error("FigureType profile child appears outside a profile", node_name, 0);
         return nullptr;
     }
     return g_parse_state.current_profile;
@@ -914,20 +938,21 @@ static int parse_definition_root()
 {
     if (g_parse_state.saw_root) {
         g_parse_state.error = true;
-        log_error("Duplicate FigureType root node", 0, 0);
+        Logger::error("Duplicate FigureType root node", 0, 0);
         return 0;
     }
     if (!xml_parser_has_attribute("type")) {
         g_parse_state.error = true;
-        log_error("FigureType root is missing required attribute 'type'", 0, 0);
+        Logger::error("FigureType root is missing required attribute 'type'", 0, 0);
         return 0;
     }
 
     const char *type_attr = xml_parser_get_attribute_string("type");
     figure_type type = figure_type_from_xml_name(type_attr);
+    if (xml_parser_has_attribute("base_type")) type = figure_type_register(type_attr, xml_parser_get_attribute_string("base_type"));
     if (type == FIGURE_NONE) {
         g_parse_state.error = true;
-        log_error("FigureType root has an unknown figure type", type_attr, 0);
+        Logger::error("FigureType root has an unknown figure type", type_attr, 0);
         return 0;
     }
 
@@ -935,19 +960,19 @@ static int parse_definition_root()
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
         g_parse_state.error = true;
-        log_error("FigureType root has invalid Boolean attribute 'disabled'", type_attr, 0);
+        Logger::error("FigureType root has invalid Boolean attribute 'disabled'", type_attr, 0);
         return 0;
     }
     int graphics_only = 0;
     if (xml_parser_has_attribute("graphics_only") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("graphics_only"), &graphics_only)) {
         g_parse_state.error = true;
-        log_error("FigureType root has invalid Boolean attribute 'graphics_only'", type_attr, 0);
+        Logger::error("FigureType root has invalid Boolean attribute 'graphics_only'", type_attr, 0);
         return 0;
     }
     if (disabled && graphics_only) {
         g_parse_state.error = true;
-        log_error("Disabled FigureType root cannot declare graphics_only", type_attr, 0);
+        Logger::error("Disabled FigureType root cannot declare graphics_only", type_attr, 0);
         return 0;
     }
 
@@ -969,13 +994,69 @@ static int parse_profiles_node()
     }
     if (g_parse_state.saw_profiles) {
         g_parse_state.error = true;
-        log_error("FigureType xml contains duplicate profiles nodes", g_parse_state.definition->attr(), 0);
+        Logger::error("FigureType xml contains duplicate profiles nodes", g_parse_state.definition->attr(), 0);
         return 0;
     }
     if (xml_parser_has_attribute("default")) {
         g_parse_state.definition->set_default_profile_id(xml_parser_get_attribute_string("default"));
     }
     g_parse_state.saw_profiles = true;
+    return 1;
+}
+
+static int parse_behavior_node()
+{
+    if (!parse_enabled_content("behavior") || !g_parse_state.definition) return 0;
+    FigureBehaviorPolicy policy;
+    int recheck = 0, attack = 0, idle_walk = 0, enemy_overlay = 0;
+    if ((xml_parser_has_attribute("recheck_animal_terrain") && !xml_value::parse_bool(xml_parser_get_attribute_string("recheck_animal_terrain"), &recheck)) ||
+        (xml_parser_has_attribute("attack_fireproof_defenses") && !xml_value::parse_bool(xml_parser_get_attribute_string("attack_fireproof_defenses"), &attack)) ||
+        (xml_parser_has_attribute("idle_walk_animation") && !xml_value::parse_bool(xml_parser_get_attribute_string("idle_walk_animation"), &idle_walk)) ||
+        (xml_parser_has_attribute("visible_on_enemy_overlay") && !xml_value::parse_bool(xml_parser_get_attribute_string("visible_on_enemy_overlay"), &enemy_overlay))) {
+        g_parse_state.error = true;
+        Logger::error("FigureType behavior has an invalid Boolean", 0, 0);
+        return 0;
+    }
+    policy.recheck_animal_terrain = recheck != 0;
+    policy.attack_fireproof_defenses = attack != 0;
+    policy.idle_walk_animation = idle_walk != 0;
+    policy.visible_on_enemy_overlay = enemy_overlay != 0;
+    if (xml_parser_has_attribute("fireproof_targets")) {
+        std::istringstream targets(xml_parser_get_attribute_string("fireproof_targets"));
+        std::string target;
+        while (targets >> target) policy.fireproof_targets.push_back(target);
+    }
+    g_parse_state.definition->behavior = policy;
+    return 1;
+}
+
+static int parse_presentation_node()
+{
+    if (!parse_enabled_content("presentation") || !g_parse_state.definition) return 0;
+    const char *name_key = xml_parser_get_attribute_string("name_key");
+    const char *path = xml_parser_get_attribute_string("portrait_path");
+    const char *entry = xml_parser_get_attribute_string("portrait_image");
+    g_parse_state.definition->set_presentation(name_key ? name_key : "", path && *path ? ImageGroupEntryRef::from_group(path, entry ? entry : "") : ImageGroupEntryRef());
+    return 1;
+}
+
+static int parse_speech_node()
+{
+    if (!parse_enabled_content("speech") || !g_parse_state.definition) return 0;
+    FigureTypeDefinition::Speech speech;
+    speech.declared = true;
+    const char *voice = xml_parser_get_attribute_string("voice");
+    const char *sound = xml_parser_get_attribute_string("sound");
+    if (voice && *voice) {
+        speech.voice = figure_phrase_voice_id(voice);
+        if (speech.voice < 0 || (sound && *sound)) {
+            g_parse_state.error = true;
+            Logger::error("FigureType speech requires a known voice or a single sound", voice, 0);
+            return 0;
+        }
+    }
+    speech.sound = sound ? sound : "";
+    g_parse_state.definition->speech = std::move(speech);
     return 1;
 }
 
@@ -986,24 +1067,24 @@ static int parse_profile_node()
     }
     if (!g_parse_state.definition || !g_parse_state.saw_profiles) {
         g_parse_state.error = true;
-        log_error("FigureType profile appears before profiles node", 0, 0);
+        Logger::error("FigureType profile appears before profiles node", 0, 0);
         return 0;
     }
     if (!xml_parser_has_attribute("id")) {
         g_parse_state.error = true;
-        log_error("FigureType profile is missing required attribute 'id'", 0, 0);
+        Logger::error("FigureType profile is missing required attribute 'id'", 0, 0);
         return 0;
     }
 
     const char *profile_id = xml_parser_get_attribute_string("id");
     if (!profile_id || !profile_id[0] || std::strlen(profile_id) >= FIGURE_RUNTIME_PROFILE_ID_CAPACITY) {
         g_parse_state.error = true;
-        log_error("FigureType profile id must fit the exact saved identity field", profile_id, 0);
+        Logger::error("FigureType profile id must fit the exact saved identity field", profile_id, 0);
         return 0;
     }
     if (g_parse_state.definition->profile(profile_id)) {
         g_parse_state.error = true;
-        log_error("FigureType profile id is duplicated", profile_id, 0);
+        Logger::error("FigureType profile id is duplicated", profile_id, 0);
         return 0;
     }
 
@@ -1027,24 +1108,28 @@ static void finish_profile_node()
         !g_parse_state.saw_profile_movement ||
         !g_parse_state.saw_profile_pathing) {
         g_parse_state.error = true;
-        log_error("FigureType profile is missing a required child node", g_parse_state.current_profile->id(), 0);
+        Logger::error("FigureType profile is missing a required child node", g_parse_state.current_profile->id(), 0);
     }
     if (g_parse_state.current_profile->pathing_policy().mode->requires_venue_targets &&
         g_parse_state.current_profile->venue_targets().empty()) {
         g_parse_state.error = true;
-        log_error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
+        Logger::error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
     }
     if ((g_parse_state.current_profile->native_class() == NativeClassId::EntertainmentVenueSeeker) !=
         (g_parse_state.current_profile->pathing_policy().mode == &VenueSeeker)) {
         g_parse_state.error = true;
-        log_error("FigureType venue seeker native class must use venue_seeker pathing",
+        Logger::error("FigureType venue seeker native class must use venue_seeker pathing",
             g_parse_state.current_profile->id(), 0);
     }
     if (g_parse_state.current_profile->has_explicit_spawn_behavior() &&
         g_parse_state.current_profile->native_class() != NativeClassId::LegacyAction) {
         g_parse_state.error = true;
-        log_error("FigureType explicit spawn behavior is valid only for legacy_action profiles",
+        Logger::error("FigureType explicit spawn behavior is valid only for legacy_action profiles",
             g_parse_state.current_profile->id(), 0);
+    }
+    if ((g_parse_state.current_profile->native_class() == NativeClassId::LandTrade) != g_parse_state.current_profile->trade.declared) {
+        g_parse_state.error = true;
+        Logger::error("Land trade profiles require an explicit trade policy; other controllers cannot own one", g_parse_state.current_profile->id(), 0);
     }
     if (g_parse_state.current_profile->native_class() == NativeClassId::DepotCartPusher) {
         const OwnerBinding &owner = g_parse_state.current_profile->owner_binding();
@@ -1053,7 +1138,7 @@ static void finish_profile_node()
             owner.required_owner_state != OwnerStateRequirement::InUse ||
             g_parse_state.current_profile->pathing_policy().mode != &DepotOrderRoute) {
             g_parse_state.error = true;
-            log_error("Depot cart pusher profile must be owned by an in-use cart_depot with depot_order_route pathing",
+            Logger::error("Depot cart pusher profile must be owned by an in-use cart_depot with depot_order_route pathing",
                 g_parse_state.current_profile->id(), 0);
         }
     }
@@ -1071,19 +1156,19 @@ static int parse_native_node()
     }
     if (g_parse_state.saw_profile_native) {
         g_parse_state.error = true;
-        log_error("FigureType profile contains duplicate native nodes", profile->id(), 0);
+        Logger::error("FigureType profile contains duplicate native nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("class")) {
         g_parse_state.error = true;
-        log_error("FigureType native node is missing required attribute 'class'", 0, 0);
+        Logger::error("FigureType native node is missing required attribute 'class'", 0, 0);
         return 0;
     }
 
     NativeClassId native_class_id = parse_native_class_name(xml_parser_get_attribute_string("class"));
     if (native_class_id == NativeClassId::None) {
         g_parse_state.error = true;
-        log_error("FigureType native node has an unknown class", xml_parser_get_attribute_string("class"), 0);
+        Logger::error("FigureType native node has an unknown class", xml_parser_get_attribute_string("class"), 0);
         return 0;
     }
 
@@ -1103,7 +1188,7 @@ static int parse_owner_node()
     }
     if (g_parse_state.saw_profile_owner) {
         g_parse_state.error = true;
-        log_error("FigureType profile contains duplicate owner nodes", profile->id(), 0);
+        Logger::error("FigureType profile contains duplicate owner nodes", profile->id(), 0);
         return 0;
     }
 
@@ -1111,7 +1196,7 @@ static int parse_owner_node()
     if (xml_parser_has_attribute("slot")) {
         if (!is_known_figure_slot_name(xml_parser_get_attribute_string("slot"))) {
             g_parse_state.error = true;
-            log_error("FigureType owner node has an unknown slot", xml_parser_get_attribute_string("slot"), 0);
+            Logger::error("FigureType owner node has an unknown slot", xml_parser_get_attribute_string("slot"), 0);
             return 0;
         }
         owner_binding.slot = parse_figure_slot_name(xml_parser_get_attribute_string("slot"));
@@ -1122,14 +1207,14 @@ static int parse_owner_node()
         if (building_attr && !xml_value::equals(building_attr, "any") &&
             owner_binding.required_building_reference.empty()) {
             g_parse_state.error = true;
-            log_error("FigureType owner node has an empty building type", building_attr, 0);
+            Logger::error("FigureType owner node has an empty building type", building_attr, 0);
             return 0;
         }
     }
     if (xml_parser_has_attribute("state")) {
         if (!is_known_owner_state_name(xml_parser_get_attribute_string("state"))) {
             g_parse_state.error = true;
-            log_error("FigureType owner node has an unknown state", xml_parser_get_attribute_string("state"), 0);
+            Logger::error("FigureType owner node has an unknown state", xml_parser_get_attribute_string("state"), 0);
             return 0;
         }
         owner_binding.required_owner_state = parse_owner_state_name(xml_parser_get_attribute_string("state"));
@@ -1151,13 +1236,13 @@ static int parse_movement_node()
     }
     if (g_parse_state.saw_profile_movement) {
         g_parse_state.error = true;
-        log_error("FigureType profile contains duplicate movement nodes", profile->id(), 0);
+        Logger::error("FigureType profile contains duplicate movement nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("roam_ticks") ||
         !xml_parser_has_attribute("max_roam_length")) {
         g_parse_state.error = true;
-        log_error("FigureType movement node is missing required attributes", 0, 0);
+        Logger::error("FigureType movement node is missing required attributes", 0, 0);
         return 0;
     }
 
@@ -1166,25 +1251,66 @@ static int parse_movement_node()
     movement_profile.max_roam_length = xml_parser_get_attribute_int("max_roam_length");
     if (movement_profile.roam_ticks <= 0 || movement_profile.max_roam_length <= 0) {
         g_parse_state.error = true;
-        log_error("FigureType movement node requires positive roam_ticks and max_roam_length", 0, 0);
+        Logger::error("FigureType movement node requires positive roam_ticks and max_roam_length", 0, 0);
         return 0;
     }
     if (movement_profile.max_roam_length > std::numeric_limits<short>::max()) {
         g_parse_state.error = true;
-        log_error("FigureType movement node max_roam_length exceeds figure storage range", 0, 0);
+        Logger::error("FigureType movement node max_roam_length exceeds figure storage range", 0, 0);
         return 0;
     }
     if (xml_parser_has_attribute("return_mode")) {
         if (!is_known_return_mode_name(xml_parser_get_attribute_string("return_mode"))) {
             g_parse_state.error = true;
-            log_error("FigureType movement node has an unknown return_mode", xml_parser_get_attribute_string("return_mode"), 0);
+            Logger::error("FigureType movement node has an unknown return_mode", xml_parser_get_attribute_string("return_mode"), 0);
             return 0;
         }
         movement_profile.return_mode = parse_return_mode_name(xml_parser_get_attribute_string("return_mode"));
     }
 
+    if (xml_parser_has_attribute("speed_bonus_building") || xml_parser_has_attribute("speed_bonus_percent")) {
+        movement_profile.speed_bonus_building = xml_value::trim_copy(xml_parser_get_attribute_string("speed_bonus_building"));
+        if (movement_profile.speed_bonus_building.empty() ||
+            !parse_int_attribute_strict("speed_bonus_percent", movement_profile.speed_bonus_percent) ||
+            movement_profile.speed_bonus_percent <= 0 || movement_profile.speed_bonus_percent > 100) {
+            g_parse_state.error = true;
+            Logger::error("FigureType movement requires a building and a speed bonus from 1 to 100 percent", profile->id(), 0);
+            return 0;
+        }
+    }
     profile->set_movement_profile(movement_profile);
     g_parse_state.saw_profile_movement = true;
+    return 1;
+}
+
+static int parse_trade_node()
+{
+    FigureTypeProfile *profile = current_profile_or_error("trade");
+    if (!profile) return 0;
+    auto &trade = profile->trade;
+    const char *follower = xml_parser_get_attribute_string("follower_type");
+    trade.follower_type = figure_type_from_xml_name(follower);
+    if (trade.declared || !parse_int_attribute_strict("initial_wait_ticks", trade.initial_wait_ticks) ||
+        !parse_int_attribute_strict("exchange_delay_ticks", trade.exchange_delay_ticks) ||
+        !parse_int_attribute_strict("follower_count", trade.follower_count) ||
+        trade.initial_wait_ticks < 0 || trade.initial_wait_ticks > 1000 ||
+        trade.exchange_delay_ticks <= 0 || trade.exchange_delay_ticks > 1000 ||
+        trade.follower_count < 0 || trade.follower_count > 16 || (trade.follower_count && trade.follower_type == FIGURE_NONE)) {
+        g_parse_state.error = true;
+        Logger::error("FigureType trade policy is incomplete, duplicated or out of range", profile->id(), 0);
+        return 0;
+    }
+    int random_progress = 0;
+    if (!parse_int_attribute_strict("initial_progress_ticks", trade.initial_progress_ticks) ||
+        trade.initial_progress_ticks < 0 || trade.initial_progress_ticks > trade.initial_wait_ticks ||
+        !xml_parser_has_attribute("random_initial_progress") ||
+        !xml_value::parse_bool(xml_parser_get_attribute_string("random_initial_progress"), &random_progress)) {
+        g_parse_state.error = true;
+        Logger::error("FigureType trade requires valid initial progress and randomization data", profile->id(), 0);
+        return 0;
+    }
+    trade.random_initial_progress = random_progress != 0;
+    trade.declared = true;
     return 1;
 }
 
@@ -1199,12 +1325,12 @@ static int parse_spawn_node()
     }
     if (g_parse_state.saw_profile_spawn) {
         g_parse_state.error = true;
-        log_error("FigureType profile contains duplicate spawn nodes", profile->id(), 0);
+        Logger::error("FigureType profile contains duplicate spawn nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("action_state")) {
         g_parse_state.error = true;
-        log_error("FigureType spawn node is missing required action_state", profile->id(), 0);
+        Logger::error("FigureType spawn node is missing required action_state", profile->id(), 0);
         return 0;
     }
 
@@ -1213,7 +1339,7 @@ static int parse_spawn_node()
     spawn_behavior.has_action_state = spawn_behavior.action_state != 0;
     if (!spawn_behavior.has_action_state) {
         g_parse_state.error = true;
-        log_error("FigureType spawn node has an unknown action_state",
+        Logger::error("FigureType spawn node has an unknown action_state",
             xml_parser_get_attribute_string("action_state"), 0);
         return 0;
     }
@@ -1221,7 +1347,7 @@ static int parse_spawn_node()
         int init_roaming = 0;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("init_roaming"), &init_roaming)) {
             g_parse_state.error = true;
-            log_error("FigureType spawn node has an invalid init_roaming",
+            Logger::error("FigureType spawn node has an invalid init_roaming",
                 xml_parser_get_attribute_string("init_roaming"), 0);
             return 0;
         }
@@ -1236,7 +1362,7 @@ static int parse_spawn_node()
 static int graphics_parse_error(const char *message, const char *detail = nullptr)
 {
     g_parse_state.error = true;
-    log_error(message, detail, 0);
+    Logger::error(message, detail, 0);
     return 0;
 }
 
@@ -1457,6 +1583,10 @@ static int parse_graphics_action_node()
     if (!parse_graphics_action_wait_ticks(g_parse_state.graphics_definition, "min_wait_ticks") ||
         !parse_graphics_action_missile_wait_ticks(g_parse_state.graphics_definition, "min_missile_wait_ticks")) {
         return 0;
+    }
+    if (xml_parser_has_attribute("frame_count")) {
+        g_parse_state.graphics_definition.action_frame_count = xml_parser_get_attribute_int("frame_count");
+        if (g_parse_state.graphics_definition.action_frame_count <= 0) return graphics_parse_error("FigureType action frame_count must be positive");
     }
     g_parse_state.saw_graphics_action = true;
     g_parse_state.current_graphics_target = GraphicsTargetKind::Action;
@@ -1737,8 +1867,22 @@ static int parse_graphics_directional_node()
             "FigureType directional graphics is outside graphics or missing required attributes");
     }
 
+    if (xml_parser_has_attribute("frame_count")) {
+        if (!parse_int_attribute_strict("frame_count", g_parse_state.graphics_definition.max_image_offset) || g_parse_state.graphics_definition.max_image_offset <= 0 || g_parse_state.graphics_definition.max_image_offset > 256) return graphics_parse_error("FigureType directional frame_count must be from 1 to 256");
+    }
     FigureDirectionalGraphics directional;
+    if (xml_parser_has_attribute("draw_corpse")) {
+        int draw_corpse = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("draw_corpse"), &draw_corpse)) return graphics_parse_error("FigureType directional draw_corpse must be Boolean");
+        directional.draw_corpse = draw_corpse != 0;
+    }
     directional.path = xml_value::trim_copy(xml_parser_get_attribute_string("path"));
+    const char *climate_attributes[] = {"central_path", "northern_path", "desert_path"};
+    for (size_t climate = 0; climate < directional.climate_paths.size(); ++climate) {
+        if (!xml_parser_has_attribute(climate_attributes[climate])) continue;
+        directional.climate_paths[climate] = xml_value::trim_copy(xml_parser_get_attribute_string(climate_attributes[climate]));
+        if (directional.climate_paths[climate].empty()) return graphics_parse_error("FigureType directional climate path cannot be empty");
+    }
     if (directional.path.empty() ||
         !parse_int_attribute_strict("default_base_offset", directional.default_base_image_offset) ||
         !parse_int_attribute_strict("view_adjustments", directional.view_adjustments) ||
@@ -1938,7 +2082,7 @@ static int parse_graphics_image_node()
     if (!parse_enabled_content("image")) {
         return 0;
     }
-    return graphics_parse_error("FigureType graphics targets address asset XML paths only; image selectors are not supported");
+    return parse_graphics_target_value_node(0);
 }
 
 static int validate_graphics_target_policy()
@@ -2072,18 +2216,18 @@ static int parse_pathing_node()
     }
     if (g_parse_state.saw_profile_pathing) {
         g_parse_state.error = true;
-        log_error("FigureType profile contains duplicate pathing nodes", profile->id(), 0);
+        Logger::error("FigureType profile contains duplicate pathing nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("mode") || !xml_parser_has_attribute("terrain")) {
         g_parse_state.error = true;
-        log_error("FigureType pathing node is missing required attributes", 0, 0);
+        Logger::error("FigureType pathing node is missing required attributes", 0, 0);
         return 0;
     }
     const PathingMode *mode = pathing_mode_from_xml_id(xml_parser_get_attribute_string("mode"));
     if (!mode) {
         g_parse_state.error = true;
-        log_error("FigureType pathing node has an unknown mode", xml_parser_get_attribute_string("mode"), 0);
+        Logger::error("FigureType pathing node has an unknown mode", xml_parser_get_attribute_string("mode"), 0);
         return 0;
     }
     PathingPolicy pathing_policy;
@@ -2091,27 +2235,37 @@ static int parse_pathing_node()
     const int terrain_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("terrain"));
     if (terrain_usage < 0) {
         g_parse_state.error = true;
-        log_error("FigureType pathing node has an invalid terrain", xml_parser_get_attribute_string("terrain"), 0);
+        Logger::error("FigureType pathing node has an invalid terrain", xml_parser_get_attribute_string("terrain"), 0);
         return 0;
     }
     pathing_policy.terrain = PathingMode::terrainFromLegacyUsage(terrain_usage);
+    if (xml_parser_has_attribute("terrain_setting") || xml_parser_has_attribute("enabled_terrain")) {
+        pathing_policy.terrain_setting = config_key_from_name(xml_parser_get_attribute_string("terrain_setting"));
+        const int enabled_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("enabled_terrain"));
+        if (pathing_policy.terrain_setting == CONFIG_MAX_ENTRIES || !xml_parser_has_attribute("enabled_terrain") || enabled_usage < 0) {
+            g_parse_state.error = true;
+            Logger::error("FigureType conditional pathing requires a known setting and enabled terrain", profile->id(), 0);
+            return 0;
+        }
+        pathing_policy.enabled_terrain = PathingMode::terrainFromLegacyUsage(enabled_usage);
+    }
     const char *effect_text = xml_parser_get_attribute_string("effect");
     if (!parse_service_effect_name(effect_text, pathing_policy.effect)) {
         g_parse_state.error = true;
-        log_error("FigureType pathing node has an unknown effect", effect_text, 0);
+        Logger::error("FigureType pathing node has an unknown effect", effect_text, 0);
         return 0;
     }
 
     // Smart service pathing compares road-tile history for one explicit service effect.
     if (!pathing_policy.hasRequiredServiceEffect()) {
         g_parse_state.error = true;
-        error_context_report_error("FigureType smart_service pathing requires a service effect",
+        Logger::error("FigureType smart_service pathing requires a service effect",
             profile->id());
         return 0;
     }
     if (!pathing_policy.hasRequiredTerrainAccess()) {
         g_parse_state.error = true;
-        error_context_report_error(
+        Logger::error(
             "FigureType pathing requires road-capable terrain",
             profile->id());
         return 0;
@@ -2133,7 +2287,7 @@ static int parse_venue_targets_node()
     }
     if (xml_parser_has_attribute("ranking")) {
         g_parse_state.error = true;
-        log_error("FigureType venue_targets ranking is retired; route-weighted venue scoring is used for all profiles",
+        Logger::error("FigureType venue_targets ranking is retired; route-weighted venue scoring is used for all profiles",
             profile->id(), 0);
         return 0;
     }
@@ -2141,7 +2295,7 @@ static int parse_venue_targets_node()
         const int show_duration = xml_parser_get_attribute_int("show_duration");
         if (show_duration <= 0 || show_duration > std::numeric_limits<unsigned char>::max()) {
             g_parse_state.error = true;
-            log_error("FigureType venue_targets has an invalid show_duration", 0, 0);
+            Logger::error("FigureType venue_targets has an invalid show_duration", 0, 0);
             return 0;
         }
         profile->set_show_duration(show_duration);
@@ -2161,7 +2315,7 @@ static int parse_venue_node()
     if (!xml_parser_has_attribute("building") ||
         !xml_parser_has_attribute("show_slot")) {
         g_parse_state.error = true;
-        log_error("FigureType venue is missing required attributes", 0, 0);
+        Logger::error("FigureType venue is missing required attributes", 0, 0);
         return 0;
     }
 
@@ -2171,7 +2325,7 @@ static int parse_venue_node()
     if (target.building_reference.empty() ||
         target.show_slot == EntertainmentShowSlot::None) {
         g_parse_state.error = true;
-        log_error("FigureType venue has an invalid building or show_slot", profile->id(), 0);
+        Logger::error("FigureType venue has an invalid building or show_slot", profile->id(), 0);
         return 0;
     }
 
@@ -2181,12 +2335,16 @@ static int parse_venue_node()
 
 static const xml_parser_element XML_ELEMENTS[] = {
     { "figure", parse_definition_root, nullptr, nullptr, nullptr },
+    { "presentation", parse_presentation_node, nullptr, "figure", nullptr },
+    { "speech", parse_speech_node, nullptr, "figure", nullptr },
+    { "behavior", parse_behavior_node, nullptr, "figure", nullptr },
     { "profiles", parse_profiles_node, nullptr, "figure", nullptr },
     { "profile", parse_profile_node, finish_profile_node, "profiles", nullptr },
     { "native", parse_native_node, nullptr, "profile", nullptr },
     { "spawn", parse_spawn_node, nullptr, "profile", nullptr },
     { "owner", parse_owner_node, nullptr, "profile", nullptr },
     { "movement", parse_movement_node, nullptr, "profile", nullptr },
+    { "trade", parse_trade_node, nullptr, "profile", nullptr },
     { "graphics", parse_graphics_node, finish_graphics_node, "figure", nullptr },
     { "default", parse_graphics_default_node, finish_graphics_target_node, "graphics", nullptr },
     { "action", parse_graphics_action_node, finish_graphics_target_node, "graphics", nullptr },
@@ -2215,7 +2373,7 @@ static int parse_definition_buffer(
     StagedFigureType *out_definition)
 {
     g_parse_state = {};
-    const ErrorContextScope scope("FigureType XML", filename);
+    const Logger::Scope scope("FigureType XML", filename);
     const int parsed = xml_definition::parse_buffer(
         filename,
         "FigureType",
@@ -2229,7 +2387,7 @@ static int parse_definition_buffer(
     if (g_parse_state.error ||
         !g_parse_state.saw_root ||
         !g_parse_state.definition) {
-        error_context_report_error("Invalid FigureType XML", filename);
+        Logger::error("Invalid FigureType XML", filename);
         return 0;
     }
 
@@ -2359,6 +2517,13 @@ static int validate_building_spawn_profile_references()
             continue;
         }
 
+        const auto preview = building_definition->presentation().preview_figure;
+        if (preview != FIGURE_NONE && !default_profile_for(preview)) {
+            set_failure_reason("BuildingType preview requires a complete FigureType profile.", building_definition->attr());
+            Logger::error("BuildingType preview requires a complete FigureType profile", building_definition->attr(), 0);
+            return 0;
+        }
+
         for (const building_type_registry_impl::SpawnDelayGroup &group : building_definition->spawn_groups()) {
             for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
                 if (policy.profile.empty()) {
@@ -2378,7 +2543,7 @@ static int validate_building_spawn_profile_references()
                 detail += " profile=";
                 detail += policy.profile;
                 set_failure_reason("BuildingType spawn FigureType profile is missing or cannot initialize a spawned figure.", detail.c_str());
-                log_error("BuildingType spawn FigureType profile is missing or cannot initialize a spawned figure", detail.c_str(), 0);
+                Logger::error("BuildingType spawn FigureType profile is missing or cannot initialize a spawned figure", detail.c_str(), 0);
                 return 0;
             }
         }
@@ -2415,6 +2580,7 @@ int figure_type_definition_is_suppressed(const char *type_attr)
 
 void figure_type_registry_reset(void)
 {
+    figure_type_identity_reset();
     figure_type_registry_impl::g_failure_reason.clear();
     figure_type_registry_impl::g_figure_type_overlays.clear();
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
@@ -2646,6 +2812,24 @@ int figure_type_registry_resolve_building_references(void)
 {
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
         figure_type_registry_impl::g_figure_types) {
+        if (definition) for (const auto &profile : definition->profiles()) {
+            using figure_type_registry_impl::NativeClassId;
+            if (profile.native_class() != NativeClassId::LandTrade && profile.native_class() != NativeClassId::TradeFollower) continue;
+            const UnitType *unit = unit_type_registry_impl::find_unit_type(definition->type());
+            if (!unit || !unit->has_valid_combat_stats()) {
+                figure_type_registry_impl::set_failure_reason("Trade FigureType requires explicit UnitType combat stats.", definition->attr());
+                Logger::error("Trade FigureType requires explicit UnitType combat stats", definition->attr(), 0);
+                return 0;
+            }
+            if (profile.trade.follower_count) {
+                const auto *follower = figure_type_registry_impl::default_profile_for(profile.trade.follower_type);
+                if (!follower || follower->native_class() != NativeClassId::TradeFollower) {
+                    figure_type_registry_impl::set_failure_reason("Land trade follower must have a trade_follower profile.", definition->attr());
+                    Logger::error("Land trade follower must have a trade_follower profile", definition->attr(), 0);
+                    return 0;
+                }
+            }
+        }
         if (definition && !definition->resolve_building_references()) {
             return 0;
         }

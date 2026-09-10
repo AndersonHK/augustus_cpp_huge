@@ -5,7 +5,7 @@
 #include "core/config.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "input/mouse.h"
 #include "input/hotkey.h"
 #include "input/input.h"
@@ -225,7 +225,7 @@ static int place_object(int mouse_x, int mouse_y)
     full_empire_object *full = empire_object_get_new();
 
     if (!full) {
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
 
@@ -278,7 +278,7 @@ static int place_object(int mouse_x, int mouse_y)
     int y = editor_empire_mouse_to_empire_y(mouse_y) - ((full->obj.height / 2) * !is_edge);
     empire_transform_coordinates(&x, &y);
     // find nearest before assigning coordinates so it doesn't always find itself
-    if (is_edge && config_get(CONFIG_UI_EMPIRE_SMART_BORDER_PLACMENT)) {
+    if (is_edge && config_get(CONFIG_UI_EMPIRE_SMART_BORDER_PLACEMENT)) {
         int nearest_id = empire_object_get_nearest_of_type(x, y, EMPIRE_OBJECT_BORDER_EDGE);
         data.foreach_param1 = empire_object_get(nearest_id)->order_index;
         data.foreach_param2 = 1;
@@ -324,7 +324,7 @@ static int place_object(int mouse_x, int mouse_y)
 static int create_trade_route_default(full_empire_object *full) {
     full_empire_object *route_obj = empire_object_get_new();
     if (!route_obj) {
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     route_obj->in_use = 1;
@@ -394,10 +394,9 @@ static int place_city(full_empire_object *city_obj)
             return 0; 
     }
 
-    city_obj->obj.image_id = empire_city_get_icon_image_id(city_obj->empire_city_icon);
-    const image *img = image_get(city_obj->obj.image_id);
-    city_obj->obj.width = img->width;
-    city_obj->obj.height = img->height;
+    const auto icon = empire_city_icon(city_obj->empire_city_icon);
+    city_obj->obj.width = icon.width();
+    city_obj->obj.height = icon.height();
 
     empire_object_add_to_cities(city_obj);
 
@@ -413,7 +412,7 @@ static int place_border(full_empire_object *edge)
         // create border
         full_empire_object *border = empire_object_get_new();
         if (!border) {
-            log_error("Error creating new object - out of memory", 0, 0);
+            Logger::error("Error creating new object - out of memory", 0, 0);
             return 0;
         }
         border->in_use = 1;

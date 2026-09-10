@@ -1,6 +1,6 @@
 #include "building/FoundationDef.h"
 
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <set>
@@ -77,7 +77,6 @@ int FoundationDef::rotated_height(int rotation) const
 
 uint16_t FoundationDef::default_permissions() const { return default_permissions_; }
 uint16_t FoundationDef::configurable_permissions() const { return configurable_permissions_; }
-uint32_t FoundationDef::site_requirements() const { return site_requirements_; }
 const std::vector<FoundationCellDefinition> &FoundationDef::cells() const { return cells_; }
 
 std::vector<RotatedFoundationCell> FoundationDef::rotated_cells(int rotation) const
@@ -126,7 +125,7 @@ std::vector<FoundationPerimeterCell> FoundationDef::rotated_access_perimeter(int
 std::vector<FoundationPerimeterCell> FoundationDef::rotated_water_perimeter(int rotation) const
 {
     return rotated_perimeter(rotated_cells(rotation), [](const FoundationCellDefinition &cell) {
-        return (cell.required_terrain & TERRAIN_WATER) != 0;
+        return cell.required_terrain.intersects(terrain_types().water);
     });
 }
 
@@ -152,7 +151,6 @@ void FoundationDef::set_permissions(uint16_t default_permissions, uint16_t confi
     configurable_permissions_ = configurable_permissions;
 }
 
-void FoundationDef::set_site_requirements(uint32_t requirements) { site_requirements_ = requirements; }
 
 void FoundationDef::add_cell(FoundationCellDefinition cell) { cells_.push_back(std::move(cell)); }
 
@@ -161,21 +159,21 @@ int FoundationDef::has_cells() const { return !cells_.empty(); }
 int FoundationDef::has_water_requirement() const
 {
     return std::any_of(cells_.begin(), cells_.end(), [](const FoundationCellDefinition &cell) {
-        return (cell.required_terrain & TERRAIN_WATER) != 0;
+        return cell.required_terrain.intersects(terrain_types().water);
     });
 }
 
-int FoundationDef::requires_terrain(uint32_t terrain) const
+int FoundationDef::requires_terrain(TerrainSet terrain) const
 {
     return terrain && std::any_of(cells_.begin(), cells_.end(), [terrain](const FoundationCellDefinition &cell) {
-        return (cell.required_terrain & terrain) != 0;
+        return cell.required_terrain.intersects(terrain);
     });
 }
 
-int FoundationDef::adds_terrain(uint32_t terrain) const
+int FoundationDef::adds_terrain(TerrainSet terrain) const
 {
     return terrain && std::any_of(cells_.begin(), cells_.end(), [terrain](const FoundationCellDefinition &cell) {
-        return (cell.added_terrain & terrain) != 0;
+        return cell.added_terrain.intersects(terrain);
     });
 }
 

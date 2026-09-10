@@ -20,6 +20,10 @@ extern "C" {
 #define GRAPHICS_EXTRACTION_RUN_AUGUSTUS_V1_NAME "graphics_extraction_run_augustus_v1"
 #define GRAPHICS_EXTRACTION_BOOTSTRAP_CLIMATE_V1_NAME "graphics_extraction_bootstrap_climate_v1"
 
+typedef void (*graphics_extraction_progress_v1)(const char *label, size_t completed, size_t total);
+// Same severity vocabulary as Logger: Info=0, Warning=1, Error=2, Fatal=3.
+typedef void (*graphics_extraction_log_v1)(int32_t severity, const char *message);
+
 typedef enum graphics_extraction_status_v1 {
     GRAPHICS_EXTRACTION_STATUS_SUCCEEDED = 0,
     GRAPHICS_EXTRACTION_STATUS_FAILED = 1,
@@ -46,6 +50,8 @@ typedef struct graphics_extraction_augustus_request_v1 {
     const char *source_graphics;
     const char *output_graphics;
     const char *julius_graphics;
+    graphics_extraction_progress_v1 progress;
+    graphics_extraction_log_v1 log;
 } graphics_extraction_augustus_request_v1;
 
 typedef struct graphics_extraction_climate_request_v1 {
@@ -64,6 +70,8 @@ typedef struct graphics_extraction_climate_request_v1 {
     const char *game_root;
     const char *augustus_graphics;
     const char *julius_graphics;
+    graphics_extraction_progress_v1 progress;
+    graphics_extraction_log_v1 log;
 } graphics_extraction_climate_request_v1;
 
 typedef struct graphics_extraction_result_v1 {

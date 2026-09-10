@@ -1,39 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="workcamp">
-    <identity name_key="TR_BUILDING_WORK_CAMP" />
-    <model cost="150" />
-    <desirability>
-        <value value="-10" />
-        <step value="2" />
-        <step_size value="3" />
-        <range value="4" />
-    </desirability>
-    <foundation path="land_3x3" />
-    <button group="engineering" order="20" icon="Admin_Logistics\Workcamp_Central" icon_image="Workcamp Central" text_key="TR_BUILDING_WORK_CAMP" />
-    <sound id="workcamp" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Workcamp_Central" />
-            <image value="Workcamp Central" />
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Admin_Logistics\Workcamp_Central" />
-            <image value="Workcamp North" />
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Admin_Logistics\Workcamp_Central" />
-            <image value="Workcamp South" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="20" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="work_camp_worker" guard_timing="after_labor_seeker">
-        <spawn spawn_figure="work_camp_worker" profile="legacy" direction="bottom" figure_slot="primary" />
-    </spawn_group>
 </building>

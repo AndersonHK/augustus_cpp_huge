@@ -1,7 +1,7 @@
 {
   "metadata": {
     "code": "uk",
-    "display_name": "??????????",
+    "display_name": "Українська",
     "english_name": "Ukrainian",
     "source": "Augustus"
   },
@@ -9,6 +9,8 @@
   "editor_strings": {},
   "messages": {},
   "project_keys": {
+    "TR_CONFIG_FIXED_WORKERS": "Фіксований розмір пулу працівників у 45% від населення",
+    "TR_USER_DIRECTORIES_WINDOW_USER_PATH": "Каталог корист.:",
     "TR_NO_PATCH_TITLE": "Патч 1.0.1.0 не встановлений",
     "TR_NO_PATCH_MESSAGE": "Патч 1.0.1.0 у вашій версії гри Caesar 3 відсутній.Ви можете завантажити патч тут:\nhttps://github.com/bvschaik/julius/wiki/Patches\nПродовжуйте на свій страх і ризик.",
     "TR_MISSING_FONTS_TITLE": "Відсутні шрифти",
@@ -82,7 +84,6 @@
     "TR_CONFIG_GLOBAL_LABOUR": "ВКЛ глобальний пул працівників",
     "TR_CONFIG_SCHOOL_WALKERS": "Збільшити зону покриття шкіл",
     "TR_CONFIG_RETIRE_AT_60": "Змінити вік виходу на пенсію з 50 до 60 років",
-    "TR_CONFIG_FIXED_WORKERS": "Фіксований розмір пулу працівників у 38% від населення",
     "TR_CONFIG_EXTRA_FORTS": "Дозволити будівництво 4-х додаткових фортів",
     "TR_CONFIG_WOLVES_BLOCK": "Заборонити будівництво біля вовків",
     "TR_CONFIG_DYNAMIC_GRANARIES": "Блокувати тупикові виходи з комори",
@@ -1602,7 +1603,6 @@
     "TR_CONFIG_DRAW_ASCLEPIUS": "Замінити стандартну іконку на жезл Асклепія в меню здоров'я",
     "TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT": "Хатина тубільців 2",
     "TR_BUILDING_NATIVE_HUT_ALT": "Хатина тубільців alt",
-    "TR_CONFIG_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT": "Склади та комори можна будувати поверх доріг",
     "TR_CONFIG_HIGHLIGHT_SELECTED_BUILDING": "Підсвітити вибрану будівлю",
     "TR_CHEAT_UNLOCK_LEGIONS": "Доступно легіонів: 20",
     "TR_BUILDING_FORT_STANDARD_ELEPHANTS": "\"Слони\"",

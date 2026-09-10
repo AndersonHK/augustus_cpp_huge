@@ -1,11 +1,13 @@
 #include "building/construction_area_tile.h"
 
 #include "building/building_type_registry_internal.h"
+#include "building/construction_plan.h"
+#include "building/properties.h"
 #include "game/undo.h"
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 using TileDefinition = building_type_registry_impl::TileDefinition;
@@ -118,11 +120,11 @@ int ConstructionAreaTilePlacement::place_garden_area(
     for (int y = region.y_min; y <= region.y_max; y++) {
         for (int x = region.x_min; x <= region.x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
-            if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+            if (terrain_map().contains(grid_offset, terrain_types().not_clear)) {
                 continue;
             }
             placed_tiles.add(grid_offset);
-            map_terrain_add(grid_offset, TERRAIN_GARDEN);
+            terrain_map().add(grid_offset, terrain_types().garden);
             if (tile.overgrown()) {
                 map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
             }
@@ -141,16 +143,17 @@ int ConstructionAreaTilePlacement::place_garden_area(
 int ConstructionAreaTilePlacement::place_plaza_area(const Region &region)
 {
     int items_placed = 0;
+    support_cost_ = 0;
     for (int y = region.y_min; y <= region.y_max; y++) {
         for (int x = region.x_min; x <= region.x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
-            if (!map_terrain_is(grid_offset, TERRAIN_ROAD) ||
-                map_terrain_is(grid_offset, TERRAIN_WATER | TERRAIN_BUILDING | TERRAIN_AQUEDUCT)) {
-                continue;
-            }
+            const building_construction::ConstructionPlacementPlan plan(type_, x, y, 1, 0);
+            if (!plan.can_place() || terrain_map().contains(grid_offset, terrain_types().water | terrain_types().building | terrain_types().aqueduct)) continue;
             if (!map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
                 items_placed++;
+                support_cost_ += plan.support_cost();
             }
+            terrain_map().add(grid_offset, terrain_types().road);
             map_image_set(grid_offset, 0);
             map_property_mark_plaza_earthquake_or_overgrown_garden(grid_offset);
             map_property_set_legacy_multi_tile_size(grid_offset, 1);
@@ -163,7 +166,7 @@ int ConstructionAreaTilePlacement::place_plaza_area(const Region &region)
 bool ConstructionAreaTilePlacement::updates_land_routing(building_type type)
 {
     const TileDefinition *tile = tile_definition_for_type(type);
-    return tile && tile->updates_land_routing();
+    return tile && (tile->updates_land_routing() || tile->placement_behavior() == TilePlacementBehavior::Plaza);
 }
 
 void ConstructionAreaTilePlacement::restore_preview_map(building_type type)

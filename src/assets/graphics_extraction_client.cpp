@@ -1,4 +1,5 @@
 #include "assets/graphics_extraction_client.h"
+#include "core/Logger.h"
 
 #ifdef _WIN32
 
@@ -9,6 +10,11 @@
 #include <filesystem>
 
 namespace {
+
+void receive_extractor_log(int32_t severity, const char *message)
+{
+    Logger::report(severity >= 0 && severity <= 3 ? static_cast<Logger::Severity>(severity) : Logger::Severity::Error, message);
+}
 
 class LoadedGraphicsExtractor {
 public:
@@ -74,7 +80,9 @@ graphics_extraction_status_v1 GraphicsExtractionClient::runAugustus(
     LoadedGraphicsExtractor module;
     const RunAugustusEntry entry = module.entryPoint<RunAugustusEntry>(
         GRAPHICS_EXTRACTION_RUN_AUGUSTUS_V1_NAME);
-    return entry ? entry(&request, &result) : GRAPHICS_EXTRACTION_STATUS_UNAVAILABLE;
+    auto logged_request = request;
+    logged_request.log = receive_extractor_log;
+    return entry ? entry(&logged_request, &result) : GRAPHICS_EXTRACTION_STATUS_UNAVAILABLE;
 }
 
 graphics_extraction_status_v1 GraphicsExtractionClient::bootstrapClimate(
@@ -84,7 +92,9 @@ graphics_extraction_status_v1 GraphicsExtractionClient::bootstrapClimate(
     LoadedGraphicsExtractor module;
     const BootstrapClimateEntry entry = module.entryPoint<BootstrapClimateEntry>(
         GRAPHICS_EXTRACTION_BOOTSTRAP_CLIMATE_V1_NAME);
-    return entry ? entry(&request, &result) : GRAPHICS_EXTRACTION_STATUS_UNAVAILABLE;
+    auto logged_request = request;
+    logged_request.log = receive_extractor_log;
+    return entry ? entry(&logged_request, &result) : GRAPHICS_EXTRACTION_STATUS_UNAVAILABLE;
 }
 
 #ifdef STARTUP_PARSER_TEST

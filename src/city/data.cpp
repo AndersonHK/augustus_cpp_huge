@@ -1,9 +1,11 @@
+#include "city/trade_ledger.h"
 #include "data.h"
 
 #include "city/constants.h"
+#include "city/monument_gifts.h"
 #include "city/data_private.h"
 #include "city/god.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/difficulty.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
@@ -16,6 +18,8 @@
 void city_data_init(void)
 {
     memset(&city_data, 0, sizeof(struct city_data_t));
+    city_monument_gifts_reset();
+    city_trade_ledger_reset();
 
     city_data.sentiment.value = 60;
     city_data.health.target_value = 50;
@@ -134,7 +138,7 @@ static int read_keyed_resource_count(buffer *buf, const char *field_name)
 {
     uint32_t count = buffer_read_u32(buf);
     if (count > 4096) {
-        log_error("Malformed keyed city resource count in save", field_name, static_cast<int>(count));
+        Logger::error("Malformed keyed city resource count in save", field_name, static_cast<int>(count));
         return 0;
     }
     return static_cast<int>(count);
@@ -1258,13 +1262,18 @@ static void save_dynamic_main_data(buffer *main)
         data.assign(capacity, 0);
         buffer_init(&scratch, data.data(), data.size());
         save_main_data(&scratch, 1);
+        city_monument_gifts_save(&scratch);
+        city_trade_ledger_save(&scratch);
+        buffer_write_i32(&scratch, city_data.houses.missing.fourth_religion);
+        buffer_write_i32(&scratch, city_data.houses.missing.fifth_religion);
         if (!scratch.overflow) {
             break;
         }
         capacity *= 2;
-        if (capacity > 2 * 1024 * 1024) {
-            log_error("Unable to save city data: keyed resource payload is too large", 0, static_cast<int>(capacity));
-            break;
+        if (capacity > 64 * 1024 * 1024) {
+            Logger::error("Unable to save city data: keyed resource payload is too large", 0, static_cast<int>(capacity));
+            main->overflow = 1;
+            return;
         }
     }
 
@@ -1276,10 +1285,17 @@ static void load_dynamic_main_data(buffer *main, int version)
 {
     buffer payload = *main;
     if (buffer_load_dynamic(&payload) < sizeof(int32_t)) {
-        log_error("Unable to load city data: keyed resource payload is invalid", 0, 0);
+        Logger::error("Unable to load city data: keyed resource payload is invalid", 0, 0);
         return;
     }
     load_main_data(&payload, version, 1);
+    if (version > SAVE_GAME_LAST_NO_MONUMENT_GIFTS) city_monument_gifts_load(&payload);
+    if (version > SAVE_GAME_LAST_NO_TRADE_LEDGER) city_trade_ledger_load(&payload, version > SAVE_GAME_LAST_NO_ROUTE_HISTORY, version > SAVE_GAME_LAST_NO_ACCOUNTING_BALANCE_ADJUSTMENTS);
+    if (version > SAVE_GAME_LAST_NO_EXTENDED_RELIGION_DEMAND) {
+        city_data.houses.missing.fourth_religion = buffer_read_i32(&payload);
+        city_data.houses.missing.fifth_religion = buffer_read_i32(&payload);
+        if (payload.overflow) Logger::error("Truncated housing religion demand counters", nullptr, version);
+    }
 }
 
 void city_data_save_state(buffer *main, buffer *graph_order,
@@ -1296,12 +1312,15 @@ void city_data_load_state(buffer *main, buffer *graph_order,
     buffer *entry_exit_xy, buffer *entry_exit_grid_offset, int version)
 {
     memset(&city_data, 0, sizeof(city_data));
+    city_monument_gifts_reset();
+    city_trade_ledger_reset(true);
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         load_dynamic_main_data(main, version);
     } else {
         load_main_data(main, version, 0);
     }
 
+    if (version <= SAVE_GAME_LAST_NO_MONUMENT_GIFTS) city_monument_gifts_import_legacy();
     city_data.population.graph_order = buffer_read_i32(graph_order);
 
     load_entry_exit(entry_exit_xy, entry_exit_grid_offset);

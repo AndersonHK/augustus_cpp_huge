@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="hippodrome">
+    <construction max_count="1">
+        <requirement type="bricks" amount="32" />
+        <requirement type="marble" amount="48" />
+        <requirement type="stone" amount="64" />
+        <requirement type="timber" amount="64" />
+    </construction>
+</building>

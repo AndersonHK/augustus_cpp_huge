@@ -1,33 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_archers">
-    <identity name_key="TR_BUILDING_FORT_ARCHERS" />
-    <model cost="1000" />
-    <desirability>
-        <value value="-20" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="8" />
-    </desirability>
-    <foundation path="land_3x3" />
-  <button group="forts" order="140" text_key="TR_BUILDING_FORT_ARCHERS" />
-    <flags fire_proof="1" draw_desirability_range="1" />
     <military>
         <formation key="vespasian_auxiliary_archer_century" />
     </military>
-    <graphics>
-        <default>
-            <options selection="orientation">
-                <option path="Military\Fort_Main_Central" image="Fort_Main_Central" />
-                <option path="Military\Fort_Main_Central" image="Fort_Main_North" />
-                <option path="Military\Fort_Main_Central" image="Fort_Main_Central" />
-                <option path="Military\Fort_Main_Central" image="Fort_Main_North" />
-            </options>
-        </default>
-    </graphics>
-    <labor>
-        <employees count="0" />
-    </labor>
-    <composition>
-        <child type="fort_ground" role="mustering_ground" x="3" y="-1" />
-    </composition>
 </building>

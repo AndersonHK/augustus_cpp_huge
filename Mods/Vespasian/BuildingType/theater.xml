@@ -1,19 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="theater">
-    <identity name_key="main_strings.28.31" />
-    <model cost="50" />
-    <desirability>
-        <value value="2" />
-        <step value="1" />
-        <step_size value="-1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_2x2" />
-    <button group="entertainment" order="10" icon="Health_Culture\Theater" text_key="main_strings.28.31" />
-    <sound id="theater" mute_on_enemies="true" />
-    <culture_modules>
-        <culture_module path="theater" capacity="500" upgrade_bonus="700" count="active" />
-    </culture_modules>
     <graphics>
         <default animation="0">
             <path value="Health_Culture\Theater" />
@@ -45,7 +31,6 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="actor">
-        <spawn spawn_figure="actor" direction="top" figure_slot="primary"
-            graphic_timing="before_successful_spawn" condition="days1_positive" profile="theater_service" />
+        <spawn spawn_figure="actor" direction="top" figure_slot="primary" graphic_timing="before_successful_spawn" condition="days1_positive" profile="theater_service" />
     </spawn_group>
 </building>

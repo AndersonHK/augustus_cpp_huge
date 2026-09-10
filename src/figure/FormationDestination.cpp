@@ -1,6 +1,6 @@
 #include "figure/FormationDestination.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/formation.h"
 #include "figure/FigureGraphics.h"
@@ -19,7 +19,7 @@ const figure_type_registry_impl::FigureGraphics &destination_graphics()
     const figure_type_registry_impl::FigureGraphics *graphics =
         figure_type_registry_impl::FigureGraphics::for_type(FIGURE_FORT_STANDARD);
     if (!graphics || !graphics->standard().enabled) {
-        log_error("Formation destination graphics are not defined", "fort_standard", 0);
+        Logger::error("Formation destination graphics are not defined", "fort_standard", 0);
         std::terminate();
     }
     return *graphics;
@@ -47,7 +47,7 @@ FigureGraphicDrawRequest FormationDestination::graphic_draw_request() const
     }
     if (!request.has_base_slice() || !request.is_semantically_complete()) {
         const char *definition = owner.formation_type_definition ? owner.formation_type_definition->key() : "missing_definition";
-        log_error("Formation destination graphics request is incomplete", definition, static_cast<int>(owner.id));
+        Logger::error("Formation destination graphics request is incomplete", definition, static_cast<int>(owner.id));
         std::terminate();
     }
     return request;
@@ -64,7 +64,7 @@ void FormationDestination::place(int tile_x, int tile_y)
 {
     if (!map_grid_is_inside(tile_x, tile_y, 1)) {
         const char *definition = owner_ && owner_->formation_type_definition ? owner_->formation_type_definition->key() : "unowned";
-        log_error("Formation destination is outside the map", definition, map_grid_offset(tile_x, tile_y));
+        Logger::error("Formation destination is outside the map", definition, map_grid_offset(tile_x, tile_y));
         std::terminate();
     }
     const int grid_offset = map_grid_offset(tile_x, tile_y);

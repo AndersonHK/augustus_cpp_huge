@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/tiles.h"
@@ -22,7 +23,7 @@
 #include "game/time.h"
 #include "map/grid.h"
 #include "figure/route.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #define DEVOLVE_DELAY 2
 #define DEVOLVE_DELAY_WITH_VENUS 20
@@ -101,22 +102,10 @@ static int has_required_goods_and_services(Building &house_object, building *hou
     const HousingServiceState &services = house_object.Housing->state().services;
     // water
     const auto water = requirements.water;
-    if (!house->has_water_access) {
-        if (water == building_type_registry_impl::HousingWaterRequirement::Fountain) {
-            if (level > HOUSE_SMALL_CASA) {
-                ++demands->missing.fountain;
-                return  0;
-            } else if (!house->has_well_access) {
-                ++demands->missing.well;
-                return 0;
-            } else if (level > HOUSE_LARGE_SHACK && !house->has_latrines_access) {
-                return 0;
-            }
-        }
-        if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_well_access) {
-            ++demands->missing.well;
-            return 0;
-        }
+    if (!requirements.has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        if (water == building_type_registry_impl::HousingWaterRequirement::Fountain) ++demands->missing.fountain;
+        if (water == building_type_registry_impl::HousingWaterRequirement::Well) ++demands->missing.well;
+        return 0;
     }
 
     // entertainment
@@ -146,24 +135,7 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         ++demands->requiring.school;
     }
     // religion
-    int religion = requirements.religion;
-    if (religion > 3) {
-        religion = 3;
-    }
-    if (services.num_gods < religion) {
-        if (religion == 1) {
-            ++demands->missing.religion;
-            return 0;
-        } else if (religion == 2) {
-            ++demands->missing.second_religion;
-            return 0;
-        } else if (religion >= 3) {
-            ++demands->missing.third_religion;
-            return 0;
-        }
-    } else if (religion > 0) {
-        ++demands->requiring.religion;
-    }
+    if (!city_houses_check_religion_requirement(requirements.religion, services.num_gods)) return 0;
     // barber
     int barber = requirements.barber;
     if (services.barber < barber) {
@@ -208,16 +180,16 @@ static int has_required_goods_and_services(Building &house_object, building *hou
         return 0;
     }
     // goods
-    if (house->resources[resource_pottery()] < requirements.pottery) {
+    if (requirements.pottery && house->resources[resource_pottery()] <= 0) {
         return 0;
     }
-    if (house->resources[resource_oil()] < requirements.oil) {
+    if (requirements.oil && house->resources[resource_oil()] <= 0) {
         return 0;
     }
-    if (house->resources[resource_furniture()] < requirements.furniture) {
+    if (requirements.furniture && house->resources[resource_furniture()] <= 0) {
         return 0;
     }
-    int wine = requirements.wine;
+    int wine = requirements.wine_sources;
     if (wine && house->resources[resource_wine()] <= 0) {
         return 0;
     }
@@ -332,12 +304,19 @@ static int evolve_xml_housing(Building &house_object, building *house, house_dem
 static void consume_resource(building *b, int inventory, int amount)
 {
     if (amount > 0) {
+        city_trade_ledger_consumed(inventory, std::min<int>(amount, b->resources[inventory]));
         if (amount > b->resources[inventory]) {
             b->resources[inventory] = 0;
         } else {
             b->resources[inventory] = static_cast<short>(b->resources[inventory] - amount);
         }
     }
+}
+
+bool building_house_consumes_goods_this_month(int month, int reduction_percent)
+{
+    const int percent = std::clamp(100 - reduction_percent, 0, 100);
+    return percent == 100 || ((month % 100) * percent) % 100 < percent;
 }
 
 static void consume_resources(Building &house_object, building *b)
@@ -372,17 +351,18 @@ static void consume_resources(Building &house_object, building *b)
         if (!resource_is_inventory_good(r)) {
             continue;
         }
-        if (!consumption_reduction[r] ||
-            (game_time_total_months() % (100 / consumption_reduction[r]))) {
+        if (building_house_consumes_goods_this_month(game_time_total_months(), consumption_reduction[r])) {
             int amount = 0;
+            HousingState &state = house_object.Housing->state();
+            const int events = house_object.Housing->definition().goods_consumption_events_per_month;
             if (r == resource_wine()) {
-                amount = requirements.wine;
+                amount = requirements.wine.consume(state.population, events, state.goods_consumption_remainder[3]);
             } else if (r == resource_oil()) {
-                amount = requirements.oil;
+                amount = requirements.oil.consume(state.population, events, state.goods_consumption_remainder[1]);
             } else if (r == resource_furniture()) {
-                amount = requirements.furniture;
+                amount = requirements.furniture.consume(state.population, events, state.goods_consumption_remainder[2]);
             } else if (r == resource_pottery()) {
-                amount = requirements.pottery;
+                amount = requirements.pottery.consume(state.population, events, state.goods_consumption_remainder[0]);
             }
             consume_resource(b, r, amount);
         }
@@ -426,6 +406,17 @@ void building_house_process_evolve_and_consume_goods(void)
     }
 }
 
+const char *building_house_extended_evolution_translation(int warning)
+{
+    switch (warning) {
+        case HOUSE_EVOLUTION_FOURTH_RELIGION_DEVOLVE: return "TR_BUILDING_FOURTH_GOOD_MISSING_DEVOLVE";
+        case HOUSE_EVOLUTION_FIFTH_RELIGION_DEVOLVE: return "TR_BUILDING_FIFTH_GOOD_MISSING_DEVOLVE";
+        case HOUSE_EVOLUTION_FOURTH_RELIGION_EVOLVE: return "TR_BUILDING_FOURTH_GOOD_MISSING_EVOLVE";
+        case HOUSE_EVOLUTION_FIFTH_RELIGION_EVOLVE: return "TR_BUILDING_FIFTH_GOOD_MISSING_EVOLVE";
+        default: return nullptr;
+    }
+}
+
 void building_house_determine_evolve_text(Building house_object, int worst_desirability_building)
 {
     ::building *house = const_cast<::building *>(house_object.record());
@@ -454,24 +445,9 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // water
     auto water = requirements->water;
-    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
-        if (!house->has_well_access) {
-            state.evolve_text_id = 1;
-            return;
-        } else if (!house->has_latrines_access) {
-            state.evolve_text_id = 68;
-            return;
-        }
-    }
-
-    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
-        if (!house->has_latrines_access) {
-            state.evolve_text_id = 67;
-            return;
-        } else if (level >= HOUSE_LARGE_CASA) {
-            state.evolve_text_id = 2;
-            return;
-        }
+    if (!requirements->has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        state.evolve_text_id = water == building_type_registry_impl::HousingWaterRequirement::Well ? 1 : water == building_type_registry_impl::HousingWaterRequirement::LatrineOrFountain ? 67 : 2;
+        return;
     }
 
     // entertainment
@@ -537,16 +513,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < requirements->pottery) {
+    if (requirements->pottery && house->resources[resource_pottery()] <= 0) {
         state.evolve_text_id = 19;
         return;
     }
     // religion
     int religion = requirements->religion;
-    if (religion > 3) {
-        religion = 3;
-    }
     if (services.num_gods < religion) {
+        if (religion >= 4) {
+            state.evolve_text_id = static_cast<uint8_t>(religion == 4 ? HOUSE_EVOLUTION_FOURTH_RELIGION_DEVOLVE : HOUSE_EVOLUTION_FIFTH_RELIGION_DEVOLVE);
+            return;
+        }
         if (religion == 1) {
             state.evolve_text_id = 20;
             return;
@@ -576,17 +553,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < requirements->oil) {
+    if (requirements->oil && house->resources[resource_oil()] <= 0) {
         state.evolve_text_id = 27;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < requirements->furniture) {
+    if (requirements->furniture && house->resources[resource_furniture()] <= 0) {
         state.evolve_text_id = 28;
         return;
     }
     // wine
-    int wine = requirements->wine;
+    int wine = requirements->wine_sources;
     if (house->resources[resource_wine()] < wine) {
         state.evolve_text_id = 29;
         return;
@@ -619,21 +596,9 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     }
     // water
     water = requirements->water;
-    if (water == building_type_registry_impl::HousingWaterRequirement::Well && !house->has_water_access) {
-        if (!house->has_well_access) {
-            state.evolve_text_id = 31;
-            return;
-        } else if (!house->has_latrines_access) {
-            state.evolve_text_id = 68;
-            return;
-        }
-    }
-
-    if (water == building_type_registry_impl::HousingWaterRequirement::Fountain && !house->has_water_access) {
-        if (level >= HOUSE_LARGE_CASA && house->has_well_access && house->has_latrines_access) {
-            state.evolve_text_id = 32;
-            return;
-        }
+    if (!requirements->has_required_water(house->has_well_access, house->has_water_access, house->has_latrines_access)) {
+        state.evolve_text_id = water == building_type_registry_impl::HousingWaterRequirement::Well ? 31 : water == building_type_registry_impl::HousingWaterRequirement::LatrineOrFountain ? 67 : 32;
+        return;
     }
 
 
@@ -694,16 +659,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // pottery
-    if (house->resources[resource_pottery()] < requirements->pottery) {
+    if (requirements->pottery && house->resources[resource_pottery()] <= 0) {
         state.evolve_text_id = 49;
         return;
     }
     // religion
     religion = requirements->religion;
-    if (religion > 3) {
-        religion = 3;
-    }
     if (services.num_gods < religion) {
+        if (religion >= 4) {
+            state.evolve_text_id = static_cast<uint8_t>(religion == 4 ? HOUSE_EVOLUTION_FOURTH_RELIGION_EVOLVE : HOUSE_EVOLUTION_FIFTH_RELIGION_EVOLVE);
+            return;
+        }
         if (religion == 1) {
             state.evolve_text_id = 50;
             return;
@@ -733,17 +699,17 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         return;
     }
     // oil
-    if (house->resources[resource_oil()] < requirements->oil) {
+    if (requirements->oil && house->resources[resource_oil()] <= 0) {
         state.evolve_text_id = 57;
         return;
     }
     // furniture
-    if (house->resources[resource_furniture()] < requirements->furniture) {
+    if (requirements->furniture && house->resources[resource_furniture()] <= 0) {
         state.evolve_text_id = 58;
         return;
     }
     // wine
-    wine = requirements->wine;
+    wine = requirements->wine_sources;
     if (house->resources[resource_wine()] < wine) {
         state.evolve_text_id = 59;
         return;
@@ -768,9 +734,9 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
     }
     int grid_offset = map_grid_offset(x, y);
     if (!map_building_exists_at(grid_offset)) {
-        if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+        if (terrain_map().contains(grid_offset, terrain_types().highway)) {
             return building_type_registry_impl::type_from_attr("highway");
-        } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
+        } else if (terrain_map().contains(grid_offset, terrain_types().aqueduct)) {
             return building_type_registry_impl::type_from_attr("reservoir");
         } else {
             return BUILDING_NONE;

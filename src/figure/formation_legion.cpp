@@ -7,7 +7,7 @@
 #include "city/military.h"
 #include "city/warning.h"
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
 #include "figure/route.h"
@@ -98,7 +98,7 @@ void formation_legion_restore_layout(formation *m)
 {
     if (m->uses_layout("mop_up")) {
         if (!m->prev.layout_definition) {
-            log_error("Legion lost its pre-mop-up FormationLayout", "formation", m->id);
+            Logger::error("Legion lost its pre-mop-up FormationLayout", "formation", m->id);
             std::terminate();
         }
         formation_legion_change_layout(m, m->prev.layout_definition->key());
@@ -242,7 +242,7 @@ void formation_legions_return_from_distant_battle(void)
     }
 }
 
-int formation_legion_curse(void)
+int formation_legion_curse(int months)
 {
     formation *best_legion = 0;
     int best_legion_weight = 0;
@@ -260,7 +260,7 @@ int formation_legion_curse(void)
         return 0;
     }
     best_legion->set_all_figures_action(FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS);
-    best_legion->cursed_by_mars = 96;
+    best_legion->cursed_by_mars = months;
     formation_calculate_figures();
     return 1;
 }

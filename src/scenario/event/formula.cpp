@@ -24,7 +24,7 @@ double get_var_value(int id)
 
 void skip_spaces(const char **s)
 {
-    while (isspace(**s)) (*s)++;
+    while (isspace(static_cast<unsigned char>(**s))) (*s)++;
 }
 
 double parse_number(const char **s)
@@ -34,7 +34,7 @@ double parse_number(const char **s)
     double divisor = 1.0;
     int has_decimal = 0;
 
-    while (isdigit(**s) || **s == '.') {
+    while (isdigit(static_cast<unsigned char>(**s)) || **s == '.') {
         if (**s == '.') {
             if (has_decimal) break; // stop if second dot
             has_decimal = 1;
@@ -85,7 +85,7 @@ double parse_factor(const char **s)
     } else if (**s == '-') { // unary minus
         (*s)++;
         return -parse_factor(s);
-    } else if (isdigit(**s) || **s == '.') {
+    } else if (isdigit(static_cast<unsigned char>(**s)) || **s == '.') {
         return parse_number(s);
     }
 
@@ -147,12 +147,12 @@ int scenario_event_formula_check(scenario_formula_t *s_formula)
         }
         if (*s == '[') {
             s++; // Move past '['
-            if (!isdigit(*s)) { // Check if there's at least one digit
+            if (!isdigit(static_cast<unsigned char>(*s))) { // Check if there's at least one digit
                 s_formula->is_error = 1;
                 return 0; // Invalid: no number after [
             }
             int variable_id = 0;
-            while (isdigit(*s)) { // Parse the variable ID
+            while (isdigit(static_cast<unsigned char>(*s))) { // Parse the variable ID
                 variable_id = variable_id * 10 + (*s - '0');
                 s++;
             }

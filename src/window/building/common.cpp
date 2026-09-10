@@ -23,11 +23,60 @@
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
+#include "graphics/declarative_window.h"
 #include "sound/speech.h"
 
 
 #include <stdlib.h>
 #include <math.h>
+
+namespace {
+class ConstructionPanelController final : public DeclarativeWindowController {
+public:
+    explicit ConstructionPanelController(Building &building) : building_(building), definition_(building.type->construction()), phase_(definition_.phase(building.record()->monument.phase)) {}
+    int repeat_count(std::string_view source) const override { return source == "construction.resources" && phase_ ? static_cast<int>(phase_->requirements.size()) : 0; }
+    std::string text(std::string_view binding, int index) const override
+    {
+        auto translated = [](const std::string &key) { return key.empty() ? std::string() : std::string(reinterpret_cast<const char *>(translation_for_key(key.c_str()))); };
+        if (binding == "construction.title") return translated(building_.type->identity().name_key());
+        if (binding == "construction.phase") return std::to_string(building_.record()->monument.phase) + "/" + std::to_string(definition_.phase_count()) + "  " + (phase_ ? translated(phase_->name_key) : "");
+        if (binding == "construction.phase_description") return phase_ ? translated(phase_->description_key) : "";
+        if (binding == "construction.description") return translated(definition_.description_key);
+        if (binding == "construction.status") return building_.is_mothballed() ? translated("TR_BUILDING_MONUMENT_CONSTRUCTION_HALTED") : "";
+        if (binding == "construction.resource" && phase_ && index >= 0 && index < phase_->requirements.size()) {
+            const auto &requirement = phase_->requirements[index];
+            const auto *resource = resource_get_data(requirement.resource);
+            const std::string name = requirement.resource == RESOURCE_NONE ? translated("TR_RESOURCE_ARCHITECTS") : reinterpret_cast<const char *>(resource->text);
+            return name + "  " + std::to_string(std::max(0, requirement.amount - building_.resource_amount(requirement.resource))) + "/" + std::to_string(requirement.amount);
+        }
+        return {};
+    }
+    ImageGroupEntryRef image(std::string_view binding, int index) const override
+    {
+        if (binding == "construction.icon" && phase_ && index >= 0 && index < phase_->requirements.size() && phase_->requirements[index].resource != RESOURCE_NONE) return resource_graphics(phase_->requirements[index].resource).panel_icon();
+        return {};
+    }
+    void action(std::string_view, int) override {}
+private:
+    Building &building_;
+    const building_type_registry_impl::ConstructionDefinition &definition_;
+    const building_type_registry_impl::ConstructionPhase *phase_;
+};
+}
+
+bool window_building_draw_construction_panel(building_info_context *c)
+{
+    if (!c->building || !c->building->type || !building_monument_is_unfinished_monument(c->building->record())) return false;
+    const auto &construction = c->building->type->construction();
+    if (construction.window.empty()) return false;
+    const auto *definition = declarative_window_definition(construction.window);
+    if (!definition) return false;
+    ConstructionPanelController controller(*c->building);
+    DeclarativeWindowRuntime runtime(*definition, controller);
+    runtime.draw(DeclarativeDrawPhase::Background, c->width_blocks * BLOCK_SIZE, c->height_blocks * BLOCK_SIZE, c->x_offset, c->y_offset);
+    runtime.draw(DeclarativeDrawPhase::Foreground, c->width_blocks * BLOCK_SIZE, c->height_blocks * BLOCK_SIZE, c->x_offset, c->y_offset);
+    return true;
+}
 
 void window_building_set_possible_position(int *x_offset, int *y_offset, int width_blocks, int height_blocks)
 {
@@ -379,7 +428,7 @@ static int draw_production_rows_for_type(
                     consumed_height += draw_production_resource_row(c, nullptr, input.resource,
                         c->building->storage_resource_amount(input.resource,
                             building_type_registry_impl::StorageRole::Input),
-                        method->scaled_input_amount(input),
+                        input.amount,
                         y_offset + consumed_height, 0);
                 }
             }

@@ -1,32 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="marble_quarry">
-    <identity name_key="main_strings.28.106" />
-    <model cost="50" />
-    <desirability>
-        <value value="-6" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="4" />
-    </desirability>
-    <foundation path="rock_2x2" />
-    <button group="raw_materials" order="20" icon="Industry\Marble_Quarry" text_key="main_strings.28.106" />
-    <sound id="marble_quarry" />
-    <graphics>
-        <default>
-            <path value="Industry\Marble_Quarry" />
-            <image value="Image_0000" />
-        </default>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <storages>
-        <storage path="marble_output_marble_quarry" />
-    </storages>
-    <production_methods>
-        <production_method path="marble_quarry_basic" />
-    </production_methods>
 </building>

@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "figuretype/fishing_boat.h"
 
 #include "building/building.h"
@@ -196,6 +197,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 building->set_figure_spawn_delay(1);
                 building->add_industry_fish(1);
                 building->add_industry_production_current_month(100);
+                city_trade_ledger_produced(resource_fish(), resource_units_per_load());
             } else if (direction == DIR_FIGURE_REROUTE) {
                 Route::remove(this);
             } else if (direction == DIR_FIGURE_LOST) {

@@ -18,7 +18,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/road_access.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "sound/effect.h"
 #include <cstdio>
 
@@ -187,26 +187,20 @@ static void figure_watchtower_archer_spawn(Building &tower)
 
 void figure_tower_sentry_set_image(Figure *f)
 {
-    // Select an entry in the declared sentry payload for each legacy action;
-    // numeric atlas image ids are no longer a renderable fallback.
     int dir = figure_image_direction(f);
-    int entry_index;
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        entry_index = 136 + figure_type_registry_impl::FigureGraphics::corpse_frame_for_wait_ticks(f->wait_ticks);
+        figure_runtime_graphics_select_corpse_entry(f, "corpse");
     } else if (f->action_state == FIGURE_ACTION_172_TOWER_SENTRY_FIRING) {
-        entry_index = 96 + dir + 8 * figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f);
+        figure_runtime_graphics_select_directional_entry_frame(f, "attack", dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f) + 1);
     } else if (f->action_state == FIGURE_ACTION_225_WATCHMAN_SHOOTING) {
         dir = figure_image_normalize_direction(f->attack_direction);
-        entry_index = 96 + dir + 8 * figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f);
+        figure_runtime_graphics_select_directional_entry_frame(f, "attack", dir, figure_type_registry_impl::FigureGraphics::missile_launcher_frame_for(*f) + 1);
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         const int frame_offset = f->attack_image_offset < 16 ? 0 : (f->attack_image_offset - 16) / 2;
-        entry_index = 96 + dir + 8 * frame_offset;
+        figure_runtime_graphics_select_directional_entry_frame(f, "attack", dir, frame_offset + 1);
     } else {
-        entry_index = dir + 8 * f->image_offset;
+        figure_runtime_graphics_select_directional_entry_frame(f, "move", dir, f->image_offset + 1);
     }
-    char entry[32];
-    std::snprintf(entry, sizeof(entry), "Image_%04d", entry_index);
-    figure_runtime_graphics_select_default_entry(f, entry);
 }
 
 void figure_tower_sentry_action(Figure *f)
@@ -326,9 +320,9 @@ void figure_tower_sentry_action(Figure *f)
             }
             break;
     }
-    if (map_terrain_is(f->grid_offset, TERRAIN_WALL)) {
+    if (terrain_map().contains(f->grid_offset, terrain_types().wall)) {
         f->current_height = 18;
-    } else if (map_terrain_is(f->grid_offset, TERRAIN_GATEHOUSE)) {
+    } else if (terrain_map().contains(f->grid_offset, terrain_types().gatehouse)) {
         f->in_building_wait_ticks = 24;
     }
     if (f->in_building_wait_ticks) {

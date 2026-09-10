@@ -1,7 +1,7 @@
 #include "renderer.h"
 
 #include "core/calc.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/time.h"
 #include "game/performance_tracker.h"
 #include "graphics/renderer.h"
@@ -12,7 +12,6 @@
 #include "platform/platform.h"
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
-#include "platform/vita/vita.h"
 
 #include "platform/render_2d_pipeline.h"
 
@@ -61,11 +60,6 @@ static Uint8 color_channel_to_u8(color_t color, color_t mask, int shift)
 #define MAX_TEXTURE_SIZE 1024
 #endif
 
-#ifdef __vita__
-// On Vita, due to the small amount of VRAM, having textures that are too large will cause the game to eventually crash
-// when changing climates, due to lack of contiguous memory space. Creating smaller atlases mitigates the issue
-#define MAX_TEXTURE_SIZE 2048
-#endif
 
 typedef struct buffer_texture {
     SDL_Texture *texture;
@@ -704,13 +698,13 @@ static SDL_Texture *create_texture_from_pixels(const color_t *pixels, int width,
         COLOR_CHANNEL_BLUE,
         COLOR_CHANNEL_ALPHA);
     if (!surface) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create image resource surface. Reason: %s", SDL_GetError());
+        Logger::errorf("Unable to create image resource surface. Reason: %s", SDL_GetError());
         return 0;
     }
     SDL_Texture *texture = SDL_CreateTextureFromSurface(data.renderer, surface);
     SDL_FreeSurface(surface);
     if (!texture) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create image resource texture. Reason: %s", SDL_GetError());
+        Logger::errorf("Unable to create image resource texture. Reason: %s", SDL_GetError());
         return 0;
     }
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -919,16 +913,16 @@ static const image_atlas_data *prepare_texture_atlas(atlas_type type, int num_im
     for (int i = 0; i < num_images; i++) {
         int width = i == num_images - 1 ? last_width : data.max_texture_size.width;
         atlas_data->image_heights[i] = i == num_images - 1 ? last_height : data.max_texture_size.height;
-        SDL_Log("Creating atlas texture with size %dx%d", width, atlas_data->image_heights[i]);
+        Logger::infof("Creating atlas texture with size %dx%d", width, atlas_data->image_heights[i]);
         list[i] = SDL_CreateTexture(data.renderer,
             SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, atlas_data->image_heights[i]);
         if (!list[i]) {
-            SDL_LogError(SDL_LOG_PRIORITY_ERROR, "Unable to create texture. Reason: %s", SDL_GetError());
+            Logger::errorf("Unable to create texture. Reason: %s", SDL_GetError());
             free_texture_atlas(type);
             reset_atlas_data(type);
             continue;
         }
-        SDL_Log("Texture created");
+        Logger::infof("Texture created");
         SDL_LockTexture(list[i], NULL, (void **) &atlas_data->buffers[i], &atlas_data->image_widths[i]);
         atlas_data->image_widths[i] /= sizeof(color_t);
         SDL_SetTextureBlendMode(list[i], SDL_BLENDMODE_BLEND);
@@ -965,19 +959,19 @@ static int create_texture_atlas(const image_atlas_data *atlas_data, int delete_b
         static_cast<SDL_Texture **>(malloc(sizeof(SDL_Texture *) * atlas_data->num_images));
     SDL_Texture **list = data.texture_lists[atlas_data->type];
     if (!list) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create texture lists for atlas %u - out of memory",
+        Logger::errorf("Unable to create texture lists for atlas %u - out of memory",
             atlas_data->type);
         return 0;
     }
     memset(list, 0, sizeof(SDL_Texture *) * atlas_data->num_images);
     for (int i = 0; i < atlas_data->num_images; i++) {
-        SDL_Log("Creating atlas texture with size %dx%d", atlas_data->image_widths[i], atlas_data->image_heights[i]);
+        Logger::infof("Creating atlas texture with size %dx%d", atlas_data->image_widths[i], atlas_data->image_heights[i]);
         SDL_Surface *surface = SDL_CreateRGBSurfaceFrom((void *) atlas_data->buffers[i],
             atlas_data->image_widths[i], atlas_data->image_heights[i],
             32, atlas_data->image_widths[i] * sizeof(color_t),
             COLOR_CHANNEL_RED, COLOR_CHANNEL_GREEN, COLOR_CHANNEL_BLUE, COLOR_CHANNEL_ALPHA);
         if (!surface) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create surface for texture. Reason: %s",
+            Logger::errorf("Unable to create surface for texture. Reason: %s",
                 SDL_GetError());
             free_texture_atlas(atlas_data->type);
             return 0;
@@ -989,7 +983,7 @@ static int create_texture_atlas(const image_atlas_data *atlas_data, int delete_b
             atlas_data->buffers[i] = 0;
         }
         if (!list[i]) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create texture. Reason: %s", SDL_GetError());
+            Logger::errorf("Unable to create texture. Reason: %s", SDL_GetError());
             free_texture_atlas(atlas_data->type);
             return 0;
         }
@@ -1025,9 +1019,7 @@ static void free_all_textures(void)
         if (data.custom_textures[i].texture) {
             SDL_DestroyTexture(data.custom_textures[i].texture);
             data.custom_textures[i].texture = 0;
-#ifndef __vita__
             free(data.custom_textures[i].buffer);
-#endif
             data.custom_textures[i].buffer = 0;
             memset(&data.custom_textures[i].img, 0, sizeof(image));
         }
@@ -1212,7 +1204,7 @@ static void replay_recorded_commands(void)
     renderer_command_snapshot_handle snapshot = acquire_command_snapshot();
     if (!snapshot.ownership) return;
     if (snapshot.snapshot.resource_revision != data.resource_revision) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Renderer command snapshot resource revision is stale (%llu != %llu)", static_cast<unsigned long long>(snapshot.snapshot.resource_revision), static_cast<unsigned long long>(data.resource_revision));
+        Logger::errorf("Renderer command snapshot resource revision is stale (%llu != %llu)", static_cast<unsigned long long>(snapshot.snapshot.resource_revision), static_cast<unsigned long long>(data.resource_revision));
         release_command_snapshot(&snapshot);
         return;
     }
@@ -1301,12 +1293,10 @@ static void create_custom_texture(custom_image_type type, int width, int height,
         data.custom_textures[type].texture = 0;
     }
     memset(&data.custom_textures[type].img, 0, sizeof(data.custom_textures[type].img));
-#ifndef __vita__
     if (data.custom_textures[type].buffer) {
         free(data.custom_textures[type].buffer);
         data.custom_textures[type].buffer = 0;
     }
-#endif
 
     data.custom_textures[type].texture = SDL_CreateTexture(data.renderer,
         is_yuv ? SDL_PIXELFORMAT_YV12 : SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -1324,41 +1314,29 @@ static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_te
         return 0;
     }
 
-#ifdef __vita__
-    int pitch;
-    SDL_LockTexture(data.custom_textures[type].texture, NULL, (void **) &data.custom_textures[type].buffer, &pitch);
-    if (actual_texture_width) {
-        *actual_texture_width = pitch / sizeof(color_t);
-    }
-    SDL_UnlockTexture(data.custom_textures[type].texture);
-#else
     free(data.custom_textures[type].buffer);
     int width, height;
     Uint32 format;
     SDL_QueryTexture(data.custom_textures[type].texture, &format, NULL, &width, &height);
     if (format == SDL_PIXELFORMAT_YV12) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot get buffer to YUV texture");
+        Logger::errorf("Cannot get buffer to YUV texture");
         return 0;
     }
     data.custom_textures[type].buffer = static_cast<color_t *>(malloc(static_cast<size_t>(width) * height * sizeof(color_t)));
     if (actual_texture_width) {
         *actual_texture_width = width;
     }
-#endif
     return data.custom_textures[type].buffer;
 }
 
 static void release_custom_texture_buffer(custom_image_type type)
 {
-#ifndef __vita__
     free(data.custom_textures[type].buffer);
     data.custom_textures[type].buffer = 0;
-#endif
 }
 
 static void update_custom_texture(custom_image_type type)
 {
-#ifndef __vita__
     if (data.paused || !data.custom_textures[type].texture || !data.custom_textures[type].buffer) {
         return;
     }
@@ -1367,7 +1345,6 @@ static void update_custom_texture(custom_image_type type)
     SDL_UpdateTexture(data.custom_textures[type].texture, NULL,
         data.custom_textures[type].buffer, sizeof(color_t) * width);
     advance_resource_revision();
-#endif
 }
 
 static void update_custom_texture_from(custom_image_type type, const color_t *buffer,
@@ -1379,22 +1356,11 @@ static void update_custom_texture_from(custom_image_type type, const color_t *bu
     int texture_width, texture_height;
     SDL_QueryTexture(data.custom_textures[type].texture, NULL, NULL, &texture_width, &texture_height);
     if (x_offset + width > texture_width || y_offset + height > texture_height) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Partial texture copy goes out of bounds");
+        Logger::errorf("Partial texture copy goes out of bounds");
         return;
     }
-#ifdef __vita__
-    int pitch;
-    SDL_LockTexture(data.custom_textures[type].texture, NULL, (void **) &data.custom_textures[type].buffer, &pitch);
-    texture_width = pitch / sizeof(color_t);
-    color_t *offset = &data.custom_textures[type].buffer[y_offset * texture_width + x_offset];
-    for (int y = 0; y < height; y++) {
-        memcpy(&offset[y * texture_width], &buffer[y * width], width * sizeof(color_t));
-    }
-    SDL_UnlockTexture(data.custom_textures[type].texture);
-#else
     SDL_Rect rect = { x_offset, y_offset, width, height };
     SDL_UpdateTexture(data.custom_textures[type].texture, &rect, buffer, sizeof(color_t) * width);
-#endif
     advance_resource_revision();
 }
 
@@ -1409,7 +1375,7 @@ static void update_custom_texture_yuv(custom_image_type type, const uint8_t *y_d
     Uint32 format;
     SDL_QueryTexture(data.custom_textures[type].texture, &format, NULL, &width, &height);
     if (format != SDL_PIXELFORMAT_YV12) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Texture is not YUV format");
+        Logger::errorf("Texture is not YUV format");
         return;
     }
     SDL_UpdateYUVTexture(data.custom_textures[type].texture, NULL,
@@ -1806,17 +1772,17 @@ static void release_image_resource(image *img)
 static void upload_image_resource(image *img, const color_t *pixels, int width, int height)
 {
     if (!img) {
-        log_error("Unable to upload managed image resource", "image metadata unavailable", 0);
+        Logger::error("Unable to upload managed image resource", "image metadata unavailable", 0);
         return;
     }
     release_image_resource(img);
     if (!data.renderer || !pixels || width <= 0 || height <= 0) {
-        log_error("Unable to upload managed image resource", !data.renderer ? "renderer unavailable" : !pixels ? "pixels unavailable" : "invalid dimensions", width * height);
+        Logger::error("Unable to upload managed image resource", !data.renderer ? "renderer unavailable" : !pixels ? "pixels unavailable" : "invalid dimensions", width * height);
         return;
     }
     SDL_Texture *texture = create_texture_from_pixels(pixels, width, height);
     if (!texture) {
-        log_error("Unable to create managed image resource texture", SDL_GetError(), width * height);
+        Logger::error("Unable to create managed image resource texture", SDL_GetError(), width * height);
         return;
     }
     image_handle handle = reserve_managed_image_resource_slot();
@@ -1863,7 +1829,7 @@ static void load_unpacked_image(const image *img, const color_t *pixels)
     SDL_Surface *surface = SDL_CreateRGBSurfaceFrom((void *) pixels, img->width, image_height, 32,
         img->width * sizeof(color_t), COLOR_CHANNEL_RED, COLOR_CHANNEL_GREEN, COLOR_CHANNEL_BLUE, COLOR_CHANNEL_ALPHA);
     if (!surface) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create surface for texture. Reason: %s", SDL_GetError());
+        Logger::errorf("Unable to create surface for texture. Reason: %s", SDL_GetError());
         return;
     }
     data.unpacked_images[index].last_used = time_get_millis();
@@ -1884,7 +1850,7 @@ static void load_unpacked_image(const image *img, const color_t *pixels)
             }
         }
         if (oldest_texture_index == -1) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create surface for texture - %s", SDL_GetError());
+            Logger::errorf("Unable to create surface for texture - %s", SDL_GetError());
             SDL_FreeSurface(surface);
             return;
         }
@@ -1999,21 +1965,17 @@ int platform_renderer_init(SDL_Window *window, int vsync)
 {
     free_all_textures();
 
-    SDL_Log("Creating renderer");
+    Logger::infof("Creating renderer");
     const Uint32 flags = SDL_RENDERER_ACCELERATED | (vsync ? SDL_RENDERER_PRESENTVSYNC : 0);
     data.renderer = SDL_CreateRenderer(window, -1, flags);
     if (!data.renderer) {
-        SDL_Log("Unable to create renderer, trying software renderer: %s", SDL_GetError());
-        data.renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-        if (!data.renderer) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create renderer: %s", SDL_GetError());
-            return 0;
-        }
+        Logger::errorf("Unable to create hardware renderer: %s", SDL_GetError());
+        return 0;
     }
 
     SDL_RendererInfo info;
     SDL_GetRendererInfo(data.renderer, &info);
-    SDL_Log("Loaded renderer: %s", info.name);
+    Logger::infof("Loaded renderer: %s", info.name);
 
 #ifdef USE_YUV_TEXTURES
     if (!data.supports_yuv_textures && HAS_YUV_TEXTURES) {
@@ -2091,7 +2053,7 @@ int platform_renderer_create_render_texture(int width, int height)
 
     data.render_texture = SDL_CreateTexture(data.renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_TARGET, width, height);
     if (data.render_texture) {
-        SDL_Log("Render texture created (%d x %d)", width, height);
+        Logger::infof("Render texture created (%d x %d)", width, height);
         SDL_SetRenderTarget(data.renderer, data.render_texture);
         set_render_domain(data.active_render_domain);
         SDL_SetRenderDrawBlendMode(data.renderer, SDL_BLENDMODE_BLEND);
@@ -2108,7 +2070,7 @@ int platform_renderer_create_render_texture(int width, int height)
 
         return 1;
     } else {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to create render texture: %s", SDL_GetError());
+        Logger::errorf("Unable to create render texture: %s", SDL_GetError());
         return 0;
     }
 }
@@ -2173,6 +2135,8 @@ static void draw_software_mouse_cursor(void)
     dst.h = size;
     SDL_RenderCopy(data.renderer, data.cursors[current].texture, NULL, &dst);
 }
+
+SDL_Renderer *platform_renderer_get_sdl() { return data.renderer; }
 
 void platform_renderer_render(void)
 {

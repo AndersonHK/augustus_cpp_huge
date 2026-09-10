@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="marble">
+  <graphics>
+    <cart load="single" path="Walkers\Resource_Carts_Single" image="Image_0096" />
+    <cart load="multiple" path="Walkers\Goods_Carts_Loaded" image="Image_0056" />
+    <cart load="eight" path="Walkers\Goods_Carts_Loaded" image="Image_0056" />
+    <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0044" />
+    <storage load="2" path="Industry\Warehouse_Storage_Filled" image="Image_0045" />
+    <storage load="3" path="Industry\Warehouse_Storage_Filled" image="Image_0046" />
+    <storage load="4" path="Industry\Warehouse_Storage_Filled" image="Image_0047" />
+    <panel_icon path="UI\Resource_Icons" image="Image_0012" />
+    <empire_icon path="PaperMap\Empire_Resources" image="Image_0012" />
+    <editor_icon path="UI\Resource_Icons" image="Image_0012" />
+    <editor_empire_icon path="PaperMap\Empire_Resources" image="Image_0012" />
+  </graphics>
+</resource>

@@ -52,7 +52,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 #include "sound/city.h"
 
@@ -224,7 +224,7 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
             }
         }
     }
-    if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
+    if (terrain_map().contains(grid_offset, terrain_types().garden)) {
         sound_city_mark_building_view(
             building_type_registry_impl::type_from_attr("gardens"), 0, SOUND_DIRECTION_CENTER, 0);
     }
@@ -247,11 +247,11 @@ static void draw_footprint_render_tile(const CityDrawTileCommand &command)
     }
     const int tile_visual_first = building && building->is_surface_terrain_tile();
     const int terrain_foundation = building && building->Graphics().uses_terrain_foundation();
-    if (terrain_foundation && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
+    if (terrain_foundation && !terrain_map().contains(grid_offset, terrain_types().highway)) {
         city_draw_terrain_foundation_footprint(
             grid_offset, x, y, color_mask, draw_context.scale);
     }
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    if (terrain_map().contains(grid_offset, terrain_types().highway) && !terrain_map().contains(grid_offset, terrain_types().gatehouse)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
     } else if (building_id && !tile_visual_first) {
         building->draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale });
@@ -512,6 +512,9 @@ static void draw_elevated_figures(Figure *first_figure, int x, int y)
     while (f) {
         if (f->draws_elevated() && (!f->is_ghost || f->height_adjusted_ticks)) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
+            if (f->building && f->building->id == draw_context.selected_building_id && config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
+                highlight = f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY ? FIGURE_HIGHLIGHT_RED : FIGURE_HIGHLIGHT_GREEN;
+            }
             if (f->id() == draw_context.selected_figure_id) city_draw_selected_figure(f, x, y, draw_context.scale, draw_context.selected_figure_coord);
             else city_draw_figure(f, x, y, draw_context.scale, highlight);
         } else if (f->building && f->building->id == draw_context.selected_building_id) { //figure originates from selected building

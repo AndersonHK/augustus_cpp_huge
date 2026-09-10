@@ -2,6 +2,7 @@
 
 #include "core/calc.h"
 #include "map/grid.h"
+#include "map/water_navigation.h"
 #include "scenario/data.h"
 
 void scenario_map_init(void)
@@ -95,18 +96,20 @@ int scenario_map_closest_fishing_point(int x, int y, map_point *fish)
         return 0;
     }
     int min_dist = 10000;
-    int min_fish_id = 0;
+    int min_fish_id = -1;
     for (int i = 0; i < MAX_FISH_POINTS; i++) {
         if (scenario.fishing_points[i].x > 0) {
-            int dist = calc_maximum_distance(x, y,
-                scenario.fishing_points[i].x, scenario.fishing_points[i].y);
+            const map_point source{x, y}, destination = scenario.fishing_points[i];
+            const int dist = water_navigation::path_length(source, destination, WaterNavigationProfile::Boat);
+            if (dist <= 0 && (source.x != destination.x || source.y != destination.y ||
+                !water_navigation::is_passable(map_grid_offset(x, y), WaterNavigationProfile::Boat))) continue;
             if (dist < min_dist) {
                 min_dist = dist;
                 min_fish_id = i;
             }
         }
     }
-    if (min_dist < 10000) {
+    if (min_fish_id >= 0) {
         map_point_store_result(
             scenario.fishing_points[min_fish_id].x,
             scenario.fishing_points[min_fish_id].y,
@@ -115,6 +118,25 @@ int scenario_map_closest_fishing_point(int x, int y, map_point *fish)
         return 1;
     }
     return 0;
+}
+
+int scenario_map_closest_reachable_river_exit(int x, int y, map_point *destination)
+{
+    if (!destination) return 0;
+    const map_point source{x, y};
+    int closest = 10000;
+    bool found = false;
+    const map_point anchors[] = {scenario_map_river_entry(), scenario_map_river_exit()};
+    const bool enabled[] = {scenario_map_has_river_entry() != 0, scenario_map_has_river_exit() != 0};
+    for (int i = 0; i < 2; ++i) {
+        if (!enabled[i]) continue;
+        const auto &anchor = anchors[i];
+        const bool already_there = source.x == anchor.x && source.y == anchor.y;
+        if (!already_there && water_navigation::path_length(source, anchor, WaterNavigationProfile::Boat) <= 0) continue;
+        const int distance = calc_maximum_distance(x, y, anchor.x, anchor.y);
+        if (distance < closest) { closest = distance; *destination = anchor; found = true; }
+    }
+    return found;
 }
 
 int scenario_map_has_flotsam(void)

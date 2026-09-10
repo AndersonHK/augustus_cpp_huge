@@ -2,7 +2,7 @@
 
 #include "assets/image_group_entry.h"
 #include "assets/image_group_payload.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/runtime_texture.h"
 
 #include <cstdio>
@@ -22,7 +22,7 @@ void log_missing_ref_once(const char *message, const std::string &group_path, co
     char detail[512];
     snprintf(detail, sizeof(detail), "path=%s image=%s",
         group_path.c_str(), entry_id.empty() ? "<default>" : entry_id.c_str());
-    error_context_report_error(message, detail);
+    Logger::error(message, detail);
 }
 
 }

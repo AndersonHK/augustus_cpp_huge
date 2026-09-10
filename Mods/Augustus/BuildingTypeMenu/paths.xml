@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="paths">
-    <identity name_key="TR_BUILDING_MENU_PATHS" aliases="all_paths" />
     <button group="administration" order="200" text_key="TR_BUILDING_MENU_PATHS" />
     <button group="paths" order="0" text_key="TR_BUILDING_MENU_PATHS" />
 </building>

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="advisor_frame" base_width="640" base_height="480">
+    <widget id="top" type="panel" style="image_tile" x="0" y="0" width="640" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0001" stretch_width="true" />
+    <widget id="bottom" type="panel" style="image_tile" x="0" y="464" width="640" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0001" stretch_width="true" anchor_y="far" />
+    <widget id="left" type="panel" style="image_tile" x="0" y="16" width="16" height="448" assetlist="PaperMap\Empire_Panels" image="Image_0000" stretch_height="true" />
+    <widget id="right" type="panel" style="image_tile" x="624" y="16" width="16" height="448" assetlist="PaperMap\Empire_Panels" image="Image_0000" stretch_height="true" anchor_x="far" />
+    <widget id="nw" type="image" x="0" y="0" width="16" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0002" />
+    <widget id="ne" type="image" x="624" y="0" width="16" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0002" anchor_x="far" />
+    <widget id="sw" type="image" x="0" y="464" width="16" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0002" anchor_y="far" />
+    <widget id="se" type="image" x="624" y="464" width="16" height="16" assetlist="PaperMap\Empire_Panels" image="Image_0002" anchor_x="far" anchor_y="far" />
+</window>

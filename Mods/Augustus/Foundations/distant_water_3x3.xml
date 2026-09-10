@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foundation type="distant_water_3x3" width="3" height="3" rotates="false">
+    <proximity terrain="water" max_distance="9" warning_key="TR_WARNING_WATER_NEEDED_FOR_BUILDING" />
+    <profile symbol="L" requires="land" adds="building" />
+    <rows><row cells="LLL" /><row cells="LLL" /><row cells="LLL" /></rows>
+</foundation>
+

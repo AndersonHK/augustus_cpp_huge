@@ -2,11 +2,10 @@
 
 #include "game/defines.h"
 #include "game/time.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 
@@ -59,9 +58,16 @@ struct BirthDefinition {
 };
 
 struct DefinesDocument {
+    std::unordered_map<std::string, bool> ui_features;
+    int retirement_age = 0;
+    int fixed_workers = -1;
+    int fixed_worker_percentage = -1;
+    int enemy_retreat_speed_multiplier = 0;
+    int enemy_low_morale_combat_divisor = 0;
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int building_damage_extra_hit = -1;
     int has_default_building_hit_points = 0;
     int default_building_hit_points = kDefaultBuildingHitPoints;
     int has_legacy_figure_logical_units_per_source_pixel = 0;
@@ -88,9 +94,16 @@ DefinesParseState g_parse_state;
 CalendarDefinition g_active_calendar;
 MortalityDefinition g_active_mortality;
 BirthDefinition g_active_birth;
+int g_building_damage_extra_hit = 1;
 int g_default_building_hit_points = kDefaultBuildingHitPoints;
+int g_retirement_age = 50;
+int g_fixed_workers = 0;
+int g_fixed_worker_percentage = 0;
+int g_enemy_retreat_speed_multiplier = 1;
+int g_enemy_low_morale_combat_divisor = 1;
 int g_legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 std::string g_failure_reason;
+std::unordered_map<std::string, bool> g_ui_features;
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
 {
@@ -185,8 +198,8 @@ static void report_parse_error(const char *message, const char *detail = nullptr
             xml_parser_get_current_line_number());
     }
 
-    log_error(message, detail ? detail : g_parse_state.filename.c_str(), 0);
-    error_context_report_error(message, context);
+    Logger::error(message, detail ? detail : g_parse_state.filename.c_str(), 0);
+    Logger::error(message, context);
     g_parse_state.error = 1;
 }
 
@@ -198,6 +211,60 @@ static int parse_defines_root()
     }
 
     g_parse_state.saw_root = 1;
+    return 1;
+}
+
+static int parse_ui_feature()
+{
+    const char *name = xml_parser_get_attribute_string("id");
+    const char *enabled = xml_parser_get_attribute_string("enabled");
+    if (!name || !*name || !enabled || (std::strcmp(enabled, "true") && std::strcmp(enabled, "false"))) {
+        report_parse_error("ui_feature requires id and boolean enabled");
+        return 0;
+    }
+    g_parse_state.document.ui_features[name] = !std::strcmp(enabled, "true");
+    return 1;
+}
+
+static int parse_labor()
+{
+    int age = 0;
+    const char *value = xml_parser_get_attribute_string("retirement_age");
+    if (value && (!parse_int_strict(value, &age) || age < 40 || age > 90)) {
+        report_parse_error("labor retirement_age must be an integer from 40 to 90");
+        return 0;
+    }
+    g_parse_state.document.retirement_age = age;
+    if (xml_parser_has_attribute("fixed_workers")) {
+        const char *enabled = xml_parser_get_attribute_string("fixed_workers");
+        if (std::strcmp(enabled, "true") && std::strcmp(enabled, "false")) {
+            report_parse_error("labor fixed_workers must be true or false");
+            return 0;
+        }
+        g_parse_state.document.fixed_workers = !std::strcmp(enabled, "true");
+    }
+    if (xml_parser_has_attribute("fixed_worker_percentage")) {
+        int percentage = 0;
+        if (!parse_int_strict(xml_parser_get_attribute_string("fixed_worker_percentage"), &percentage) || percentage < 0 || percentage > 100) {
+            report_parse_error("labor fixed_worker_percentage must be an integer from 0 to 100");
+            return 0;
+        }
+        g_parse_state.document.fixed_worker_percentage = percentage;
+    }
+    return 1;
+}
+
+static int parse_enemy_retreat()
+{
+    for (const auto &field : {std::make_pair("speed_multiplier", &g_parse_state.document.enemy_retreat_speed_multiplier), std::make_pair("low_morale_combat_divisor", &g_parse_state.document.enemy_low_morale_combat_divisor)}) {
+        if (!xml_parser_has_attribute(field.first)) continue;
+        int value = 0;
+        if (!parse_int_strict(xml_parser_get_attribute_string(field.first), &value) || value < 1 || value > 3) {
+            report_parse_error("enemy_retreat values must be integers from 1 to 3", field.first);
+            return 0;
+        }
+        *field.second = value;
+    }
     return 1;
 }
 
@@ -215,6 +282,14 @@ static int parse_combat()
         return 0;
     }
 
+    if (xml_parser_has_attribute("building_damage_extra_hit")) {
+        int value = 0;
+        if (!parse_int_strict(xml_parser_get_attribute_string("building_damage_extra_hit"), &value) || value < 0 || value > 1) {
+            report_parse_error("combat building_damage_extra_hit must be 0 or 1");
+            return 0;
+        }
+        g_parse_state.document.building_damage_extra_hit = value;
+    }
     g_parse_state.document.has_default_building_hit_points = 1;
     g_parse_state.document.default_building_hit_points = hit_points;
     return 1;
@@ -477,6 +552,9 @@ static int parse_birth_age_decennia()
 
 static const xml_parser_element XML_ELEMENTS[] = {
     { "defines", parse_defines_root, nullptr, nullptr, nullptr },
+    { "labor", parse_labor, nullptr, "defines", nullptr },
+    { "enemy_retreat", parse_enemy_retreat, nullptr, "defines", nullptr },
+    { "ui_feature", parse_ui_feature, nullptr, "defines", nullptr },
     { "combat", parse_combat, nullptr, "defines", nullptr },
     { "presentation", parse_presentation, nullptr, "defines", nullptr },
     { "calendar", parse_calendar, finish_calendar, "defines", nullptr },
@@ -492,7 +570,7 @@ static int parse_defines_file(const char *filename, DefinesDocument &document_ou
     g_parse_state = {};
     g_parse_state.filename = filename;
 
-    const ErrorContextScope scope("Defines XML", filename);
+    const Logger::Scope scope("Defines XML", filename);
     const int parsed = xml_definition::parse_file(
         filename,
         "Defines",
@@ -535,9 +613,16 @@ static void merge_document(
 
 static int load_and_merge_defines()
 {
+    std::unordered_map<std::string, bool> ui_features;
+    int retirement_age = 50;
+    int fixed_workers = 0;
+    int fixed_worker_percentage = 0;
+    int enemy_retreat_speed_multiplier = 1;
+    int enemy_low_morale_combat_divisor = 1;
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int building_damage_extra_hit = 1;
     int default_building_hit_points = kDefaultBuildingHitPoints;
     int legacy_figure_logical_units_per_source_pixel = kDefaultLegacyFigureLogicalUnitsPerSourcePixel;
 
@@ -560,6 +645,14 @@ static int load_and_merge_defines()
         if (!parse_defines_file(full_path, document)) {
             return 0;
         }
+
+        if (document.building_damage_extra_hit >= 0) building_damage_extra_hit = document.building_damage_extra_hit;
+        if (document.retirement_age) retirement_age = document.retirement_age;
+        if (document.fixed_workers >= 0) fixed_workers = document.fixed_workers;
+        if (document.fixed_worker_percentage >= 0) fixed_worker_percentage = document.fixed_worker_percentage;
+        if (document.enemy_retreat_speed_multiplier) enemy_retreat_speed_multiplier = document.enemy_retreat_speed_multiplier;
+        if (document.enemy_low_morale_combat_divisor) enemy_low_morale_combat_divisor = document.enemy_low_morale_combat_divisor;
+        for (const auto &feature : document.ui_features) ui_features[feature.first] = feature.second;
 
         merge_document(document, calendars, mortality_tables, birth_tables,
             default_building_hit_points, legacy_figure_logical_units_per_source_pixel);
@@ -586,7 +679,14 @@ static int load_and_merge_defines()
     g_active_calendar = calendar_it->second;
     g_active_mortality = mortality_it->second;
     g_active_birth = birth_it->second;
+    g_building_damage_extra_hit = building_damage_extra_hit;
     g_default_building_hit_points = default_building_hit_points;
+    g_retirement_age = retirement_age;
+    g_fixed_workers = fixed_workers;
+    g_fixed_worker_percentage = fixed_worker_percentage;
+    g_enemy_retreat_speed_multiplier = enemy_retreat_speed_multiplier;
+    g_enemy_low_morale_combat_divisor = enemy_low_morale_combat_divisor;
+    g_ui_features = std::move(ui_features);
     g_legacy_figure_logical_units_per_source_pixel = legacy_figure_logical_units_per_source_pixel;
     return 1;
 }
@@ -601,6 +701,22 @@ static int days_before_month(int month)
 }
 
 } // namespace
+
+bool game_defines_ui_feature(const char *name)
+{
+    const auto found = name ? g_ui_features.find(name) : g_ui_features.end();
+    return found != g_ui_features.end() && found->second;
+}
+
+int game_defines_enemy_retreat_speed_multiplier(void)
+{
+    return g_enemy_retreat_speed_multiplier;
+}
+
+int game_defines_enemy_low_morale_combat_divisor(void)
+{
+    return g_enemy_low_morale_combat_divisor;
+}
 
 int game_defines_load(void)
 {
@@ -651,6 +767,12 @@ int game_defines_is_last_day_of_year(int month, int day)
 {
     return month == GAME_TIME_MONTHS_PER_YEAR - 1 && game_defines_is_last_day_of_month(month, day);
 }
+
+int game_defines_retirement_age(void) { return g_retirement_age; }
+int game_defines_fixed_workers(void) { return g_fixed_workers; }
+int game_defines_fixed_worker_percentage(void) { return g_fixed_worker_percentage; }
+
+int game_defines_building_damage_extra_hit(void) { return g_building_damage_extra_hit; }
 
 int game_defines_default_building_hit_points(void)
 {

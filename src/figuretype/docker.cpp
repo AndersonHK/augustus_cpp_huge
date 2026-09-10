@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/storage.h"
 #include "city/health.h"
 #include "city/trade.h"
@@ -521,11 +522,12 @@ void Docker::docker_action()
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 Figure *ship = valid_trade_ship_for_dock(*dock);
                 int trade_city_id = ship ? ship->empire_city_id : 0;
+                TradeLedgerContext accounting(ship);
                 if (ship && f->destination_building &&
                     try_import_resource(*f->destination_building, static_cast<resource_type>(f->resource_id),
                     trade_city_id, f->loads_sold_or_carrying)) {
                     int ship_trader_id = ship->trader_id;
-                    trader_record_sold_resource(ship_trader_id, static_cast<resource_type>(f->resource_id));
+                    trader_record_sold_resource(ship_trader_id, static_cast<resource_type>(f->resource_id), false);
                     city_health_update_sickness_level_in_building(dock);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
@@ -549,6 +551,7 @@ void Docker::docker_action()
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 Figure *ship = valid_trade_ship_for_dock(*dock);
                 int trade_city_id = ship ? ship->empire_city_id : 0;
+                TradeLedgerContext accounting(ship);
                 f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
@@ -556,7 +559,7 @@ void Docker::docker_action()
                 if (ship && f->destination_building &&
                     try_export_resource(*f->destination_building, static_cast<resource_type>(f->resource_id), trade_city_id)) {
                     int ship_trader_id = ship->trader_id;
-                    trader_record_bought_resource(ship_trader_id, static_cast<resource_type>(f->resource_id));
+                    trader_record_bought_resource(ship_trader_id, static_cast<resource_type>(f->resource_id), false);
                     city_health_update_sickness_level_in_building(dock);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING;

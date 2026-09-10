@@ -1,5 +1,7 @@
 #pragma once
 
+#include "map/TerrainSet.h"
+
 #include <stdint.h>
 
 #include <string>
@@ -13,25 +15,32 @@ enum class FoundationPassage {
     OwnerControlled
 };
 
-enum FoundationSiteRequirement : uint32_t {
-    FOUNDATION_SITE_MEADOW = 1u << 0,
-    FOUNDATION_SITE_ROCK = 1u << 1,
-    FOUNDATION_SITE_TREE = 1u << 2,
-    FOUNDATION_SITE_WATER = 1u << 3,
-    FOUNDATION_SITE_WALL = 1u << 4,
-    FOUNDATION_SITE_DISTANT_WATER = 1u << 5
-};
-
 struct FoundationCellDefinition {
     char symbol = 0;
     int x = 0;
     int y = 0;
-    uint32_t required_terrain = 0;
-    uint32_t permitted_blocking_terrain = 0;
-    uint32_t added_terrain = 0;
-    uint32_t removed_terrain = 0;
+    TerrainSet required_terrain;
+    TerrainSet permitted_blocking_terrain;
+    TerrainSet added_terrain;
+    TerrainSet removed_terrain;
+    std::string support_type;
     int binds_building = 1;
     FoundationPassage passage = FoundationPassage::None;
+};
+
+struct FoundationProximityRequirement {
+    TerrainSet terrain;
+    int min_distance = 0;
+    int max_distance = 0;
+    int min_count = 1;
+    bool navigable = false;
+    bool sea = false;
+    bool match_any = false;
+    bool orthogonal_distance = false;
+    bool exclude_map_flags = false;
+    std::string warning_key;
+    std::string name;
+    bool placement = true;
 };
 
 struct RotatedFoundationCell {
@@ -57,7 +66,9 @@ public:
     int rotated_height(int rotation) const;
     uint16_t default_permissions() const;
     uint16_t configurable_permissions() const;
-    uint32_t site_requirements() const;
+    bool meets_proximity(const FoundationProximityRequirement &requirement, int x, int y, int rotation) const;
+    const std::vector<FoundationProximityRequirement> &proximity_requirements() const { return proximity_requirements_; }
+    void add_proximity_requirement(FoundationProximityRequirement requirement) { proximity_requirements_.push_back(requirement); }
     const std::vector<FoundationCellDefinition> &cells() const;
     std::vector<RotatedFoundationCell> rotated_cells(int rotation) const;
     // Cardinal cells immediately outside the active footprint. When passage
@@ -71,13 +82,12 @@ public:
     void set_dimensions(int width, int height);
     void set_rotates(int rotates);
     void set_permissions(uint16_t default_permissions, uint16_t configurable_permissions);
-    void set_site_requirements(uint32_t requirements);
     void add_cell(FoundationCellDefinition cell);
 
     int has_cells() const;
     int has_water_requirement() const;
-    int requires_terrain(uint32_t terrain) const;
-    int adds_terrain(uint32_t terrain) const;
+    int requires_terrain(TerrainSet terrain) const;
+    int adds_terrain(TerrainSet terrain) const;
     int has_owner_controlled_passage() const;
 
 private:
@@ -87,7 +97,7 @@ private:
     int rotates_ = 0;
     uint16_t default_permissions_ = 0;
     uint16_t configurable_permissions_ = 0;
-    uint32_t site_requirements_ = 0;
+    std::vector<FoundationProximityRequirement> proximity_requirements_;
     std::vector<FoundationCellDefinition> cells_;
 };
 

@@ -48,6 +48,7 @@ struct building_info_context {
     int help_id;
     int can_play_sound;
     Building *building = nullptr;
+    int grid_offset = -1;
     int has_road_access;
     int worker_percentage;
     int has_reservoir_pipes;
@@ -107,6 +108,8 @@ int window_building_has_figure_delivery_output(building_info_context *c);
 
 void window_building_draw_monument_construction_process(building_info_context *c,
     translation_key tr_phase_name, translation_key tr_phase_name_text, translation_key tr_construction_desc);
+
+bool window_building_draw_construction_panel(building_info_context *c);
 
 void window_building_draw_risks(building_info_context *c, int x_offset, int y_offset);
 

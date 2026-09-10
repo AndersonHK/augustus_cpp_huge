@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "figure/figure.h"
 
 #include "assets/assets.h"
@@ -10,7 +11,7 @@
 #include "building/properties.h"
 #include "city/emperor.h"
 #include "city/race_bet.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "empire/city.h"
 #include "figure/combat.h"
@@ -81,6 +82,8 @@ static const translation_key NEW_FIGURE_TYPES[] = {
 
 static ImageGroupEntryRef big_people_image_ref(figure_type type)
 {
+    if (const auto *definition = figure_type_registry_impl::presentation_for(type); definition && !definition->portrait().group_path().empty()) return definition->portrait();
+    type = figure_type_base(type);
     switch (type) {
         case FIGURE_WORK_CAMP_SLAVE:
             return ImageGroupEntryRef::from_group("Walkers\\Slave_Portrait", "Slave Portrait");
@@ -110,7 +113,11 @@ namespace {
 constexpr int kFigureArraySizeStep = 1000;
 constexpr int kFigureOriginalBufferSize = 128;
 constexpr int kFigureLastNoExactProfileIdentityBufferSize = 184;
-constexpr int kFigureCurrentBufferSize = kFigureLastNoExactProfileIdentityBufferSize + static_cast<int>(FIGURE_RUNTIME_PROFILE_ID_CAPACITY);
+constexpr int kFigureExactProfileBufferSize = kFigureLastNoExactProfileIdentityBufferSize + static_cast<int>(FIGURE_RUNTIME_PROFILE_ID_CAPACITY);
+constexpr int kFigureLegacyTypeIdentityBufferSize = kFigureExactProfileBufferSize + FIGURE_TYPE_IDENTITY_CAPACITY;
+// Older native writers advertised 184 bytes for the scalar fields but wrote
+// 170, leaving an uninitialized tail after the entire figure array.
+constexpr int kFigureCurrentBufferSize = 170 + FIGURE_RUNTIME_PROFILE_ID_CAPACITY + FIGURE_TYPE_IDENTITY_CAPACITY;
 
 static int32_t migrate_legacy_cross_country_unit(int value)
 {
@@ -190,11 +197,11 @@ bool loaded_optional_building_ref(
             relation ? relation : "<unknown>",
             id);
         if (save_version < SAVE_GAME_CURRENT_VERSION) {
-            log_warning("Clearing invalid legacy figure building reference", detail, 0);
+            Logger::warning("Clearing invalid legacy figure building reference", detail, 0);
             id = 0;
             return true;
         }
-        log_error("Loaded save contains an invalid figure building reference", detail, 0);
+        Logger::error("Loaded save contains an invalid figure building reference", detail, 0);
         return false;
     }
     *out = building;
@@ -220,7 +227,7 @@ bool resolve_loaded_figure_relation(Figure &owner, FigureRelation &relation, uns
         char detail[256];
         snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u relation=%s saved_figure_id=%u",
             owner.id(), static_cast<unsigned int>(owner.type), role, id);
-        log_warning("Clearing stale saved figure relationship", detail, 0);
+        Logger::warning("Clearing stale saved figure relationship", detail, 0);
         relation.clear();
         return false;
     }
@@ -301,7 +308,7 @@ void repair_loaded_building_figure_slots()
             if (!figure_id || (figure && (figure->home_building_id() == building_id || figure->immigrant_building_id() == building_id || figure->destination_building_id() == building_id))) return;
             char detail[256];
             snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u", building_id, relation, figure_id);
-            log_warning("Repairing stale building figure slot from saved runtime state", detail, 0);
+            Logger::warning("Repairing stale building figure slot from saved runtime state", detail, 0);
             figure_id = 0;
         };
         clear_invalid_relation(b->figure_id, "figure_id");
@@ -317,7 +324,7 @@ void repair_loaded_building_figure_slots()
                 if (!cartpusher_id || (cart && cart->type == expected_type && loaded_figure_is_owned_by(cartpusher_id, *building))) continue;
                 char detail[256];
                 snprintf(detail, sizeof(detail), "building_id=%u relation=distribution_cart saved_figure_id=%u", static_cast<unsigned int>(building->id), cartpusher_id);
-                log_warning("Repairing stale distribution cart slot from saved runtime state", detail, 0);
+                Logger::warning("Repairing stale distribution cart slot from saved runtime state", detail, 0);
                 cartpusher_id = 0;
             }
         }
@@ -327,7 +334,7 @@ void repair_loaded_building_figure_slots()
                 if (!figure_id || (boat && boat->type == FIGURE_FISHING_BOAT && loaded_figure_is_owned_by(figure_id, *building))) return;
                 char detail[256];
                 snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u", static_cast<unsigned int>(building->id), relation, figure_id);
-                log_warning("Repairing stale fishing boat slot from saved runtime state", detail, 0);
+                Logger::warning("Repairing stale fishing boat slot from saved runtime state", detail, 0);
                 figure_id = 0;
             };
             clear_invalid_boat(b->data.industry.fishing_boat_id, "primary_fishing_boat");
@@ -357,7 +364,7 @@ bool validate_loaded_building_figure_slots()
                 char detail[256];
                 snprintf(detail, sizeof(detail), "building_id=%u relation=%s saved_figure_id=%u",
                     building_id, relation, figure_id);
-                log_error("Loaded save contains an invalid building figure slot", detail, 0);
+                Logger::error("Loaded save contains an invalid building figure slot", detail, 0);
                 return false;
             }
             return true;
@@ -380,7 +387,7 @@ bool validate_loaded_building_figure_slots()
                     char detail[256];
                     snprintf(detail, sizeof(detail), "building_id=%u relation=distribution_cart saved_figure_id=%u",
                         static_cast<unsigned int>(building->id), cartpusher_id);
-                    log_error("Loaded save contains an invalid distribution cart figure slot", detail, 0);
+                    Logger::error("Loaded save contains an invalid distribution cart figure slot", detail, 0);
                     valid = false;
                     return;
                 }
@@ -391,7 +398,7 @@ bool validate_loaded_building_figure_slots()
             if (b->data.industry.fishing_boat_id && (!primary_boat ||
                 primary_boat->type != FIGURE_FISHING_BOAT ||
                 !loaded_figure_is_owned_by(b->data.industry.fishing_boat_id, *building))) {
-                log_error("Loaded save contains an invalid primary fishing boat slot", 0, building->id);
+                Logger::error("Loaded save contains an invalid primary fishing boat slot", 0, building->id);
                 valid = false;
                 return;
             }
@@ -399,7 +406,7 @@ bool validate_loaded_building_figure_slots()
             if (b->data.industry.second_fishing_boat_id && (!secondary_boat ||
                 secondary_boat->type != FIGURE_FISHING_BOAT ||
                 !loaded_figure_is_owned_by(b->data.industry.second_fishing_boat_id, *building))) {
-                log_error("Loaded save contains an invalid secondary fishing boat slot", 0, building->id);
+                Logger::error("Loaded save contains an invalid secondary fishing boat slot", 0, building->id);
                 valid = false;
             }
         }
@@ -421,7 +428,7 @@ bool validate_loaded_migrant_house_refs()
         Figure *figure = Figure::get(migrant_id);
         if (!figure || figure->id() != migrant_id || figure->state != FIGURE_STATE_ALIVE ||
             (figure->type != FIGURE_IMMIGRANT && figure->type != FIGURE_HOMELESS)) {
-            log_error("Loaded save contains an invalid housing immigrant figure reference", 0, house->id);
+            Logger::error("Loaded save contains an invalid housing immigrant figure reference", 0, house->id);
             valid = false;
             return;
         }
@@ -431,7 +438,7 @@ bool validate_loaded_migrant_house_refs()
             snprintf(detail, sizeof(detail), "house_id=%u saved_figure_id=%u immigrant_id=%u destination_id=%u last_destination_id=%u",
                 static_cast<unsigned int>(house->id), migrant_id, figure->immigrant_building_id(),
                 figure->destination_building_id(), static_cast<unsigned int>(figure->last_destination_id));
-            log_error("Loaded save contains inconsistent migrant and housing references", detail, 0);
+            Logger::error("Loaded save contains inconsistent migrant and housing references", detail, 0);
             valid = false;
             return;
         }
@@ -460,7 +467,7 @@ bool repair_loaded_migrant_house_refs(int save_version)
             migrant_id >= data.pending_building_refs.size()) {
             char detail[192];
             snprintf(detail, sizeof(detail), "house_id=%u saved_figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
-            log_warning("Clearing unrecoverable legacy housing immigrant reference", detail, 0);
+            Logger::warning("Clearing unrecoverable legacy housing immigrant reference", detail, 0);
             house->Housing->clear_immigrant_reference();
             return;
         }
@@ -480,7 +487,7 @@ bool repair_loaded_migrant_house_refs(int save_version)
         }
         char detail[256];
         snprintf(detail, sizeof(detail), "house_id=%u figure_id=%u", static_cast<unsigned int>(house->id), migrant_id);
-        log_warning("Repairing legacy migrant and housing relationship", detail, 0);
+        Logger::warning("Repairing legacy migrant and housing relationship", detail, 0);
     });
     return repaired;
 }
@@ -595,10 +602,15 @@ void save_figure(buffer *buf, const Figure &f)
     std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
     memcpy(profile_id.data(), f.runtime_profile_id(), strlen(f.runtime_profile_id()));
     buffer_write_raw(buf, profile_id.data(), profile_id.size());
+    std::array<char, FIGURE_TYPE_IDENTITY_CAPACITY> type_id = {};
+    const char *identity = figure_type_identity(static_cast<figure_type>(f.type));
+    memcpy(type_id.data(), identity, strlen(identity));
+    buffer_write_raw(buf, type_id.data(), type_id.size());
 }
 
 void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
 {
+    const size_t record_start = buf->index;
     f.reset(f.id());
     f.alternative_location_index = buffer_read_u8(buf);
     f.image_offset = buffer_read_u8(buf);
@@ -647,6 +659,13 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     f.progress_on_tile = buffer_read_u8(buf);
     if (version <= SAVE_GAME_LAST_LEGACY_FIGURE_MOVEMENT_GRAIN && !figure_progress_is_action_timer(f)) {
         f.progress_on_tile = static_cast<unsigned char>(figure_movement_legacy_progress_to_runtime(f.progress_on_tile));
+    }
+    // These effects were created with a walker's completed-tile value, already past their lifetime.
+    if (version <= SAVE_GAME_LAST_MOVEMENT_INITIALIZED_EFFECT_TIMERS && f.state == FIGURE_STATE_ALIVE &&
+        f.progress_on_tile == FIGURE_TILE_PROGRESS_MAX && figure_progress_is_action_timer(f) &&
+        f.type != FIGURE_FISH_GULLS && f.action_state != FIGURE_ACTION_150_ATTACK) {
+        f.progress_on_tile = 0;
+        Logger::warning("Repaired movement-initialized projectile/explosion lifetime", nullptr, f.id());
     }
     if (version <= SAVE_GAME_LAST_STATIC_PATHS_AND_ROUTES) {
         f.routing_path_id = buffer_read_i16(buf);
@@ -754,7 +773,7 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
     if (version > SAVE_GAME_LAST_GRANARY_WAREHOUSE_NON_ROADBLOCKS) {
         f.last_destination_id = buffer_read_i16(buf);
     }
-    if (version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY && figure_buf_size >= kFigureCurrentBufferSize) {
+    if (version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY && figure_buf_size >= kFigureExactProfileBufferSize) {
         std::array<char, FIGURE_RUNTIME_PROFILE_ID_CAPACITY> profile_id = {};
         buffer_read_raw(buf, profile_id.data(), profile_id.size());
         const bool terminated = memchr(profile_id.data(), 0, profile_id.size()) != nullptr;
@@ -762,8 +781,23 @@ void load_figure(buffer *buf, Figure &f, int figure_buf_size, int version)
             f.set_runtime_profile_id("__invalid_profile_identity__");
         }
     }
-    if (figure_buf_size > kFigureCurrentBufferSize) {
-        buffer_skip(buf, figure_buf_size - kFigureCurrentBufferSize);
+    int consumed = version > SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY ? kFigureExactProfileBufferSize : kFigureLastNoExactProfileIdentityBufferSize;
+    const int identity_record_size = version <= SAVE_GAME_LAST_OVERSTATED_FIGURE_STRIDE ? kFigureLegacyTypeIdentityBufferSize : kFigureCurrentBufferSize;
+    if (version > SAVE_GAME_LAST_NO_FIGURE_TYPE_IDENTITY && figure_buf_size >= identity_record_size) {
+        std::array<char, FIGURE_TYPE_IDENTITY_CAPACITY> type_id = {};
+        buffer_read_raw(buf, type_id.data(), type_id.size());
+        const bool terminated = memchr(type_id.data(), 0, type_id.size()) != nullptr;
+        const auto type = terminated ? figure_type_from_xml_name(type_id.data()) : FIGURE_NONE;
+        if (type != FIGURE_NONE) f.type = static_cast<unsigned char>(type);
+        else if (f.state && f.type >= FIGURE_BUILTIN_TYPE_MAX) {
+            Logger::warning("Removing figure with unavailable mod type", terminated ? type_id.data() : "invalid identity", f.id());
+            f.state = 0; f.type = FIGURE_NONE;
+        }
+        consumed = identity_record_size;
+    }
+    if (version > SAVE_GAME_LAST_OVERSTATED_FIGURE_STRIDE) consumed = static_cast<int>(buf->index - record_start);
+    if (figure_buf_size > consumed) {
+        buffer_skip(buf, figure_buf_size - consumed);
     }
 }
 
@@ -1165,6 +1199,7 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
     f->type = static_cast<unsigned char>(figure_type);
     f->use_cross_country = 0;
     f->is_friendly = 1;
+    city_trade_ledger_forget_figure(f->id());
     f->created_sequence = static_cast<unsigned short>(data.created_sequence++);
     f->direction = static_cast<signed char>(dir);
     f->source_x = f->destination_x = f->previous_tile_x = f->x = static_cast<unsigned char>(x);
@@ -1393,7 +1428,7 @@ int Figure::is_aggressive_herd() const
     }
     formation *owner = formation_get(formation_id);
     if (!owner || !owner->owns_figure(*this)) {
-        log_error("Herd member has an invalid formation relationship", 0, static_cast<int>(id()));
+        Logger::error("Herd member has an invalid formation relationship", 0, static_cast<int>(id()));
         std::terminate();
     }
     return owner->is_aggressive_herd();
@@ -1430,6 +1465,7 @@ void Figure::handle_info_action_button()
 
 int Figure::big_people_image_id(figure_type figure_type)
 {
+    figure_type = figure_type_base(figure_type);
     switch (figure_type) {
         case FIGURE_TRADE_CARAVAN_DONKEY:
         case FIGURE_TRADE_CARAVAN:
@@ -1468,7 +1504,9 @@ void Figure::draw_big_people_image(int draw_x, int draw_y) const
 
 translation_key Figure::new_type_translation_key(figure_type figure_type)
 {
-    if (figure_type < FIGURE_NEW_TYPES || figure_type >= FIGURE_TYPE_MAX) {
+    if (const auto *definition = figure_type_registry_impl::definition_for(figure_type); definition && !definition->name_key().empty()) return translation_key(definition->name_key());
+    figure_type = figure_type_base(figure_type);
+    if (figure_type < FIGURE_NEW_TYPES || figure_type >= FIGURE_BUILTIN_TYPE_MAX) {
         return {};
     }
     return NEW_FIGURE_TYPES[figure_type - FIGURE_NEW_TYPES];
@@ -1495,7 +1533,7 @@ void Figure::draw(building_info_context *c)
         text_draw(translation_for(custom_type), c->x_offset + 92, c->y_offset + 139,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     } else {
-        lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        lang_text_draw(current_string_key(64, figure_type_base(static_cast<figure_type>(type))), c->x_offset + 92, c->y_offset + 139,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
 
@@ -1646,13 +1684,14 @@ void Figure::save_state(buffer *list, buffer *seq)
     buffer_write_i32(seq, data.created_sequence);
 
     const int buf_size = 4 + static_cast<int>(data.figures.size()) * kFigureCurrentBufferSize;
-    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
+    uint8_t *buf_data = static_cast<uint8_t *>(calloc(buf_size, 1));
     buffer_init(list, buf_data, buf_size);
     buffer_write_i32(list, kFigureCurrentBufferSize);
 
     for (const std::unique_ptr<Figure> &f : data.figures) {
         save_figure(list, f ? *f : *invalid_figure());
     }
+    if (list->index != list->size) list->overflow = 1;
 }
 
 void Figure::load_state(buffer *list, buffer *seq, int version)
@@ -1714,7 +1753,7 @@ void Figure::load_state(buffer *list, buffer *seq, int version)
             char detail[256];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_num_attackers=%u saved_opponent_id=%u",
                 figure->id(), static_cast<unsigned int>(figure->type), num_attackers_before, opponent_before);
-            log_warning("Repairing inconsistent saved combat relationships", detail, 0);
+            Logger::warning("Repairing inconsistent saved combat relationships", detail, 0);
         }
     }
     data.figures.resize(highest_id_in_use + 1);
@@ -1738,9 +1777,9 @@ bool Figure::resolve_loaded_building_references(int save_version)
         }
         FigureStore::PendingBuildingRefs &refs = data.pending_building_refs[i];
         Building *owner = nullptr;
-        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, &owner) ||
+        if (!figure_runtime_resolve_loaded_owner(f, refs.building_id, save_version <= SAVE_GAME_LAST_NO_EXACT_FIGURE_PROFILE_IDENTITY, save_version <= SAVE_GAME_LAST_UNVERIFIED_FIGURE_OWNER_REFERENCES, save_version <= SAVE_GAME_LAST_DELAYED_FIGURE_OWNER_BINDING, save_version <= SAVE_GAME_LAST_NO_LAND_TRADE_PROFILES, &owner) ||
             !f->set_home_building(owner)) {
-            log_error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
+            Logger::error("Loaded save failed strict figure owner validation", 0, static_cast<int>(i));
             return false;
         }
         if (!f->state) {
@@ -1753,22 +1792,22 @@ bool Figure::resolve_loaded_building_references(int save_version)
         Building *destination = nullptr;
         if (!loaded_optional_building_ref(*f, refs.immigrant_building_id, "immigrant", save_version, &immigrant) ||
             !loaded_optional_building_ref(*f, refs.destination_building_id, "destination", save_version, &destination)) {
-            log_error("Loaded save failed strict optional figure building reference validation", 0, static_cast<int>(i));
+            Logger::error("Loaded save failed strict optional figure building reference validation", 0, static_cast<int>(i));
             return false;
         }
         if (!f->set_immigrant_building(immigrant)) {
             if (save_version >= SAVE_GAME_CURRENT_VERSION) {
-                log_error("Loaded save failed strict immigrant building relationship validation", 0, static_cast<int>(i));
+                Logger::error("Loaded save failed strict immigrant building relationship validation", 0, static_cast<int>(i));
                 return false;
             }
             char detail[192];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), refs.immigrant_building_id);
-            log_warning("Clearing conflicting legacy immigrant building relationship", detail, 0);
+            Logger::warning("Clearing conflicting legacy immigrant building relationship", detail, 0);
             refs.immigrant_building_id = 0;
             f->set_immigrant_building(nullptr);
         }
         if (!f->set_destination_building(destination)) {
-            log_error("Loaded save failed strict destination building relationship validation", 0, static_cast<int>(i));
+            Logger::error("Loaded save failed strict destination building relationship validation", 0, static_cast<int>(i));
             return false;
         }
         if (f->last_destination_id > 0 &&
@@ -1778,17 +1817,17 @@ bool Figure::resolve_loaded_building_references(int save_version)
                 if (save_version < SAVE_GAME_CURRENT_VERSION) {
                     char detail[192];
                     snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u saved_building_id=%u", f->id(), static_cast<unsigned int>(f->type), static_cast<unsigned int>(f->last_destination_id));
-                    log_warning("Clearing invalid legacy last-destination building reference", detail, 0);
+                    Logger::warning("Clearing invalid legacy last-destination building reference", detail, 0);
                     f->set_last_destination_building(nullptr);
                     continue;
                 }
-                log_error("Loaded save contains an invalid last-destination building reference", 0, f->last_destination_id);
+                Logger::error("Loaded save contains an invalid last-destination building reference", 0, f->last_destination_id);
                 return false;
             }
         }
     }
     if (!repair_loaded_migrant_house_refs(save_version)) {
-        log_error("Loaded save failed legacy migrant and housing relationship repair", 0, 0);
+        Logger::error("Loaded save failed legacy migrant and housing relationship repair", 0, 0);
         return false;
     }
     repair_loaded_building_figure_slots();

@@ -37,6 +37,7 @@ public:
         int logical_height,
         color_t color,
         render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO) const;
+    void draw_tiled_slice(const RuntimeDrawSlice &slice, int x, int y, int width, int height) const;
     void draw_runtime_slice(
         const RuntimeDrawSlice &slice,
         float x,

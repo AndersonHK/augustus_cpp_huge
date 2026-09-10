@@ -16,6 +16,8 @@ class Building;
 
 class Route {
 public:
+    static bool groundPositionIsPassable(int cross_country_x, int cross_country_y);
+    static bool herdCanEnter(int from_offset, int to_offset, int building_clearance);
     struct Request {
         map_point source = { 0, 0 };
         map_point destination = { 0, 0 };

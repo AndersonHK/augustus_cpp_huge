@@ -5,7 +5,7 @@
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "scenario/data.h"
 
 #include <string.h>
@@ -50,7 +50,7 @@ static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUIL
     { "granary" },
     { "warehouse" },
     { "triumphal_arch" },
-    { "dock" },
+    { "dock", "lighthouse" },
     { "wharf", "shipyard" },
     { "governors_house", "governors_villa", "governors_palace" },
     { "engineers_post" },
@@ -183,7 +183,7 @@ void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state
 
     buffer state = *buf;
     if (buffer_load_dynamic(&state) < sizeof(uint32_t) * 2) {
-        log_error("Scenario allowed-building state is invalid; falling back to legacy enum migration", 0, 0);
+        Logger::error("Scenario allowed-building state is invalid; falling back to legacy enum migration", 0, 0);
         scenario_allowed_building_load_state(buf);
         return;
     }
@@ -191,7 +191,7 @@ void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state
     uint32_t version = buffer_read_u32(&state);
     uint32_t count = buffer_read_u32(&state);
     if (version != ALLOWED_BUILDINGS_KEYED_STATE_VERSION) {
-        log_error("Unsupported scenario allowed-building state version; falling back to legacy enum migration", 0, version);
+        Logger::error("Unsupported scenario allowed-building state version; falling back to legacy enum migration", 0, version);
         scenario_allowed_building_load_state(buf);
         return;
     }
@@ -200,7 +200,7 @@ void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state
         uint16_t text_length = buffer_read_u16(&state);
         char text_id[256];
         if (text_length >= sizeof(text_id)) {
-            log_error("Scenario allowed-building text id too long", 0, text_length);
+            Logger::error("Scenario allowed-building text id too long", 0, text_length);
             buffer_skip(&state, text_length);
             if (!buffer_at_end(&state)) {
                 buffer_read_i8(&state);
@@ -250,7 +250,7 @@ void scenario_allowed_building_save_state(buffer *buf)
         }
         size_t text_length = strlen(text_id);
         if (text_length > UINT16_MAX) {
-            log_error("Scenario allowed-building text id too long", text_id, (int) text_length);
+            Logger::error("Scenario allowed-building text id too long", text_id, (int) text_length);
             continue;
         }
         payload_size += sizeof(uint16_t) + text_length + sizeof(int8_t);

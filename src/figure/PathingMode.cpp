@@ -3,7 +3,7 @@
 #include "map/grid.h"
 #include "map/road_network.h"
 #include "map/routing_data.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 namespace figure_type_registry_impl {
 
@@ -20,7 +20,7 @@ int PathingMode::citizenIsRoad(int grid_offset)
 
 int PathingMode::citizenIsRoadLike(int grid_offset)
 {
-    return citizenIsRoad(grid_offset) || map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP);
+    return citizenIsRoad(grid_offset) || terrain_map().contains(grid_offset, terrain_types().access_ramp);
 }
 
 int PathingMode::citizenRoadNetworkAt(int grid_offset, bool allow_highways)
@@ -92,13 +92,18 @@ roadblock_permission PathingPolicy::roadblockPermissionFor(const Figure &figure)
     return mode ? mode->roadblockPermissionFor(figure) : Roadblock::permission_for(figure);
 }
 
+PathingMode::TerrainAccess PathingPolicy::activeTerrain() const
+{
+    return terrain_setting != CONFIG_MAX_ENTRIES && config_get(terrain_setting) ? enabled_terrain : terrain;
+}
+
 PathingMode::RoutePolicySelection PathingPolicy::routePolicySelection(
     roadblock_permission permission,
     RouteNeighborhood neighborhood) const
 {
     PathingMode::RoutePolicySelection selection;
-    selection.terrain = terrain;
-    selection.policy = PathingMode::routePolicyForTerrain(terrain, permission, neighborhood);
+    selection.terrain = activeTerrain();
+    selection.policy = PathingMode::routePolicyForTerrain(selection.terrain, permission, neighborhood);
     return selection;
 }
 

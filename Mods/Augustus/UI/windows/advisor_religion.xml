@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="advisor_religion" base_width="640" base_height="432">
+    <widget y="0" x="0" type="panel" id="panel" phase="background" style="outer_panel" width="640" height="432" />
+    <widget type="label" id="title" translation="main_strings.59.0" x="60" y="12" width="350" font="large_black" />
+    <widget type="image_button" id="epithets" action="epithets.show" visible_binding="epithets.available" x="594" y="24" width="26" height="20" text_offset_y="4" assetlist="UI\Message_Icon" image="Image_0015" />
+    <widget type="panel" id="gods_panel" phase="background" style="inner_panel" x="16" y="60" width="608" height="128" />
+    <widget type="label" id="header_altars" translation="TR_WINDOW_ADVISOR_RELIGION_ALTARS_HEADER" x="165" y="46" width="100" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_small" translation="main_strings.59.1" x="226" y="46" width="100" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_large" translation="main_strings.59.2" x="285" y="46" width="100" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_festival" translation="main_strings.59.7" x="350" y="46" width="100" text_alignment="center" font="small_plain" />
+    <widget type="label" id="header_mood" translation="main_strings.59.3" x="449" y="46" width="100" text_alignment="center" font="small_plain" />
+    <widget type="label" id="god_name" binding="god.name" repeat_source="religion.gods" repeat_spacing_y="20" x="24" y="68" width="95" font="normal_white" />
+    <widget type="label" id="god_domain" binding="god.domain" repeat_source="religion.gods" repeat_spacing_y="20" x="104" y="68" width="85" font="small_plain" />
+    <widget type="label" id="god_altars" binding="god.altars" repeat_source="religion.gods" repeat_spacing_y="20" x="190" y="68" width="50" font="normal_white" text_alignment="center" />
+    <widget type="label" id="god_small" binding="god.small" repeat_source="religion.gods" repeat_spacing_y="20" x="250" y="68" width="50" font="normal_white" text_alignment="center" />
+    <widget type="label" id="god_large" binding="god.large" repeat_source="religion.gods" repeat_spacing_y="20" x="310" y="68" width="50" font="normal_white" text_alignment="center" />
+    <widget type="label" id="god_festival" binding="god.festival" repeat_source="religion.gods" repeat_spacing_y="20" x="375" y="68" width="50" font="normal_white" text_alignment="center" />
+    <widget type="label" id="god_mood" binding="god.mood" repeat_source="religion.gods" repeat_spacing_y="20" x="450" y="68" width="125" font="normal_white" />
+    <widget type="label" id="god_bolts" binding="god.bolts" repeat_source="religion.gods" repeat_spacing_y="20" x="607" y="68" width="15" font="normal_green" visible_binding="god.many_bolts" />
+    <widget type="image" id="god_bolt_icon" binding="god.bolt" repeat_source="religion.gods" repeat_spacing_y="20" x="520" y="68" width="20" height="20" />
+    <widget type="text_button" id="previous" text="-" action="page.previous" visible_binding="page.previous" x="544" y="191" width="32" height="22" text_offset_y="3" />
+    <widget type="text_button" id="next" text="+" action="page.next" visible_binding="page.next" x="584" y="191" width="32" height="22" text_offset_y="3" />
+    <widget type="rich_text" id="advice" binding="religion.advice" x="40" y="209" width="560" height="50" />
+    <widget type="label" id="festival_title" translation="main_strings.58.17" x="52" y="274" width="520" font="large_black" />
+    <widget type="panel" id="festival_panel" phase="background" style="inner_panel" x="48" y="302" width="544" height="96" />
+    <widget type="label" id="festival_elapsed" binding="festival.elapsed" x="112" y="315" width="338" font="normal_white" />
+    <widget type="text_button" id="hold_festival" action="festival.hold" visible_binding="festival.available" translation="main_strings.58.16" x="102" y="333" width="300" height="20" text_offset_y="4" font="normal_white" />
+    <widget type="label" id="planned" visible_binding="festival.planned" translation="main_strings.58.34" x="102" y="339" width="300" text_alignment="center" font="normal_white" />
+    <widget type="rich_text" id="festival_advice" binding="festival.advice" x="56" y="360" width="400" height="38" font="normal_white" />
+    <widget id="icon" type="image" x="10" y="10" assetlist="UI\Advisor_Icons" image="Image_0009" />
+    <widget id="temples" type="label" x="256" y="32" translation="main_strings.59.5" width="100" text_alignment="center" font="small_plain" />
+    <widget id="months" type="label" x="350" y="18" translation="main_strings.59.6" width="100" text_alignment="center" font="small_plain" />
+    <widget id="since" type="label" x="350" y="32" translation="main_strings.59.9" width="100" text_alignment="center" font="small_plain" />
+    <widget id="festival_image" type="image" x="460" y="305" assetlist="UI\Panel_Windows" image="Image_0015" />
+</window>

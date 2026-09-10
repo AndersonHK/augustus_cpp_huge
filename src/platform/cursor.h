@@ -32,4 +32,5 @@ void platform_cursor_force_software_mode(void);
  * @return Whether we're using the software cursor
  */
 int platform_cursor_is_software(void);
+int platform_cursor_has_hardware_cursor(void);
 

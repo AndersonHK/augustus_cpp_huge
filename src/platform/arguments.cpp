@@ -71,8 +71,9 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     int add_blank_line = 1;
 
     // Set sensible defaults
+    *output_args = {};
     output_args->data_directory = 0;
-    output_args->mod_name = "Vespasian";
+    output_args->mod_name = "";
     output_args->display_scale_percentage = 0;
     output_args->cursor_scale_percentage = 0;
     output_args->force_windowed = 0;
@@ -87,6 +88,8 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     output_args->load_save_test_count = 0;
     output_args->save_roundtrip_test_count = 0;
     output_args->save_soak_ticks = 0;
+    output_args->mod_settings_test = 0;
+    output_args->empire_ui_test = 0;
     output_args->formation_test = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -195,6 +198,35 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
                 print_log(SAVE_SOAK_TICKS_ERROR_MESSAGE);
                 ok = 0;
             }
+        } else if (SDL_strcmp(argv[i], "--religion-repair-test") == 0) {
+            output_args->religion_repair_test = 1;
+        } else if (SDL_strcmp(argv[i], "--religion-test") == 0) {
+            output_args->religion_test = 1;
+        } else if (SDL_strcmp(argv[i], "--catch-up-test") == 0) {
+            output_args->catch_up_test = 1;
+        } else if (SDL_strcmp(argv[i], "--test-config") == 0) {
+            if (i + 1 < argc) output_args->validation_config = argv[++i];
+            else { print_log("Option --test-config requires a directory"); ok = 0; }
+        } else if (SDL_strcmp(argv[i], "--loading-screen-test") == 0) {
+            output_args->startup_test = 1;
+            if (i + 1 < argc) output_args->loading_screen_test = argv[++i];
+            else { print_log("Option --loading-screen-test requires an output directory"); ok = 0; }
+        } else if (SDL_strcmp(argv[i], "--load-transaction-test") == 0) {
+            output_args->load_transaction_test = 1;
+        } else if (SDL_strcmp(argv[i], "--foreign-archive-test") == 0) {
+            if (i + 1 < argc) output_args->foreign_archive_test = argv[++i];
+            else { print_log("Option --foreign-archive-test requires a source archive"); ok = 0; }
+        } else if (SDL_strcmp(argv[i], "--combat-test") == 0) {
+            output_args->combat_test = 1;
+        } else if (SDL_strcmp(argv[i], "--placement-test") == 0) {
+            output_args->placement_test = 1;
+        } else if (SDL_strcmp(argv[i], "--editor-test") == 0) {
+            output_args->editor_test = 1;
+            output_args->startup_test = 1;
+        } else if (SDL_strcmp(argv[i], "--empire-ui-test") == 0) {
+            output_args->empire_ui_test = 1;
+        } else if (SDL_strcmp(argv[i], "--mod-settings-test") == 0) {
+            output_args->mod_settings_test = 1;
         } else if (SDL_strcmp(argv[i], "--help") == 0) {
             add_blank_line = 0;
             ok = 0;
@@ -211,6 +243,18 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
     }
     if (output_args->save_soak_ticks && !output_args->load_save_test_count) {
         print_log("Option --save-soak-ticks requires --load-save-test");
+        ok = 0;
+    }
+    if (output_args->validation_config && !output_args->startup_test && !output_args->load_save_test_count) { print_log("Option --test-config requires a hidden validation mode"); ok = 0; }
+    if (output_args->religion_repair_test && !output_args->load_save_test_count) { print_log("Option --religion-repair-test requires --load-save-test"); ok = 0; }
+    if (output_args->religion_test && !output_args->load_save_test_count) { print_log("Option --religion-test requires --load-save-test"); ok = 0; }
+    if (output_args->catch_up_test && !output_args->load_save_test_count) { print_log("Option --catch-up-test requires --load-save-test"); ok = 0; }
+    if (output_args->load_transaction_test && !output_args->load_save_test_count) { print_log("Option --load-transaction-test requires --load-save-test"); ok = 0; }
+    if (output_args->foreign_archive_test && !output_args->load_save_test_count) { print_log("Option --foreign-archive-test requires --load-save-test"); ok = 0; }
+    if (output_args->combat_test && !output_args->load_save_test_count) { print_log("Option --combat-test requires --load-save-test"); ok = 0; }
+    if (output_args->placement_test && !output_args->load_save_test_count) { print_log("Option --placement-test requires --load-save-test"); ok = 0; }
+    if ((output_args->mod_settings_test || output_args->empire_ui_test) && !output_args->load_save_test_count) {
+        print_log("Option --mod-settings-test requires --load-save-test");
         ok = 0;
     }
     if (output_args->formation_test && !output_args->load_save_test_count) {
@@ -256,7 +300,7 @@ int platform_parse_arguments(int argc, char **argv, augustus_args *output_args)
         print_log("--save-soak-ticks NUMBER");
         print_log("          Advances and renders a loaded save for NUMBER headless frames; warnings and errors fail the test");
         print_log("--mod NAME");
-        print_log("          Loads data from Mods/NAME, relative to the active Caesar 3 directory");
+        print_log("          Selects NAME from the saved mod list; without this option the entire saved list is loaded");
         print_log("--asset-previewer");
         print_log("          Runs the extra asset previewer instead of the game");
         print_log("--enable-joysticks");

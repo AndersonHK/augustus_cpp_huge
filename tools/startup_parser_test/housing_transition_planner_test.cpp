@@ -250,7 +250,7 @@ bool validate_housing_transition_planner_contract()
         profile.evolution.devolve_desirability != -4 || profile.evolution.evolve_desirability != 12 ||
         profile.requirements.entertainment != 8 ||
         profile.requirements.water != HousingWaterRequirement::Fountain ||
-        profile.requirements.pottery != 1 || profile.prosperity != 35 || profile.tax_multiplier != 3) {
+        profile.requirements.pottery.annual_amount(1) != 1 || profile.prosperity != 35 || profile.tax_multiplier != 3) {
         std::cerr << "HousingProfileDef failed typed native data ownership.\n";
         return false;
     }
@@ -271,8 +271,8 @@ bool validate_housing_transition_planner_contract()
         parsed_palace->requirements.religion != 4 || parsed_palace->requirements.education != 3 ||
         parsed_palace->requirements.barber != 1 || parsed_palace->requirements.bathhouse != 1 ||
         parsed_palace->requirements.health != 2 || parsed_palace->requirements.food_types != 3 ||
-        parsed_palace->requirements.pottery != 1 || parsed_palace->requirements.oil != 1 ||
-        parsed_palace->requirements.furniture != 1 || parsed_palace->requirements.wine != 2 ||
+        parsed_palace->requirements.pottery.annual_amount(200) != 120 || parsed_palace->requirements.oil.annual_amount(200) != 120 ||
+        parsed_palace->requirements.furniture.annual_amount(200) != 120 || parsed_palace->requirements.wine.annual_amount(200) != 120 || parsed_palace->requirements.wine_sources != 2 ||
         parsed_palace->prosperity != 1750 || parsed_palace->tax_multiplier != 16) {
         std::cerr << "Parsed HousingProfile requirements did not remain authoritative.\n";
         return false;

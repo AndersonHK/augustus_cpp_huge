@@ -36,6 +36,7 @@ int BuildingStorage::available_space(resource_type resource) const
     if (!owner_ || !handles_resource(resource)) {
         return 0;
     }
+    if (type_->respect_orders() && !owner_->accepts_good(resource)) return 0;
     const int capacity = type_->capacity();
     if (capacity <= 0) {
         return resource_units_per_load();

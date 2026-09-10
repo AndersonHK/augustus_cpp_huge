@@ -1,59 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_venus">
-    <identity name_key="main_strings.28.69" />
-    <temple religion="large_temple_venus" />
-    <model cost="150" />
-    <desirability>
-        <value value="14" />
-        <step value="2" />
-        <step_size value="-2" />
-        <range value="5" />
-    </desirability>
-    <foundation path="land_3x3" />
-    <button group="large_temples" order="50" icon="Health_Culture\Temple_Venus" icon_image="Image_0001" text_key="main_strings.28.69" />
-    <cycle group="large_temples" order="50" steps="1" />
-    <sound id="temple_venus" />
-    <distribution path="venus_temple" />
-    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
-    <culture_modules>
-        <culture_module path="temple_active" capacity="3000" count="active" />
-    </culture_modules>
-    <graphics>
-        <default>
-            <path value="Health_Culture\Temple_Venus" />
-            <image value="Image_0001" />
-        </default>
-    </graphics>
-    <construction mode="phased" road_update_radius="5">
-        <phase index="1">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Venus_LT_0" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="stone" amount="4" />
-            <requirement type="concrete" amount="4" />
-        </phase>
-        <phase index="2">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Venus_LT_50" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="marble" amount="2" />
-        </phase>
-    </construction>
     <labor>
         <employees count="5" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="venus_service" />
-    </spawn_group>
-    <spawn_group road_access="normal" delay_bands="100:0,1:0">
-        <spawn mode="temple_supplier" />
-        <spawn mode="temple_destination_priest" />
-    </spawn_group>
 </building>

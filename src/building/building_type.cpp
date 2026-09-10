@@ -1460,7 +1460,7 @@ void BuildingType::add_storage_type(const StorageType *storage_type)
 void BuildingType::add_production_method(ProductionMethod *production_method)
 {
     production_methods_.push_back(production_method);
-    const resource_type output = production_method ? production_method->output_resource() : RESOURCE_NONE;
+    const resource_type output = production_method && production_method->has_resource_output() ? production_method->output_resource() : RESOURCE_NONE;
     if (labor_category_ == LaborCategory::None && output != RESOURCE_NONE) {
         labor_category_ = resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
     }
@@ -1677,6 +1677,7 @@ int BuildingType::placement_height(int orientation) const
 
 figure_type BuildingType::preview_figure_type() const
 {
+    if (presentation_.preview_figure != FIGURE_NONE) return presentation_.preview_figure;
     if (!has_housing()) {
         for (const SpawnDelayGroup &group : spawn_groups()) {
             for (const SpawnPolicy &policy : group.policies) {
@@ -2002,6 +2003,18 @@ const ProductionMethod *BuildingType::farm_production_method() const
     return nullptr;
 }
 
+bool ConstructionDefinition::set_scenario_requirement(int phase_index, resource_type resource, int amount)
+{
+    if (amount < 0) return false;
+    std::vector<ConstructionRequirement> *requirements = nullptr;
+    if (mode_ == ConstructionMode::Instant && phase_index == 0) requirements = &instant_requirements_;
+    else for (auto &phase : phases_) if (phase.index == phase_index) requirements = &phase.requirements;
+    if (!requirements) return false;
+    for (auto &entry : *requirements) if (entry.resource == resource) { entry.amount = amount; return true; }
+    requirements->push_back({resource, amount});
+    return true;
+}
+
 const ProductionMethod *BuildingType::farm_panel_production_method() const
 {
     if (const ProductionMethod *method = farm_production_method()) {
@@ -2063,3 +2076,19 @@ unsigned char BuildingType::upgrade_level_for(const Building &building) const
 }
 
 } // namespace building_type_registry_impl
+
+namespace building_type_registry_impl {
+bool WaterAccessDefinition::bind_foundation_requirements(const FoundationDef &foundation)
+{
+    for (auto &rule : requirement_rules_) for (auto &term : rule.terms) {
+        if (term.kind != WaterAccessRequirementTermKind::FoundationRequirement) continue;
+        term.foundation = &foundation;
+        term.foundation_requirement = nullptr;
+        for (const auto &requirement : foundation.proximity_requirements()) {
+            if (requirement.name == term.foundation_requirement_name) term.foundation_requirement = &requirement;
+        }
+        if (!term.foundation_requirement) return false;
+    }
+    return true;
+}
+}

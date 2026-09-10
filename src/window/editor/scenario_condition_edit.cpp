@@ -4,6 +4,7 @@
 #include "graphics/lang_text.h"
 #include "input/input.h"
 #include "scenario/event/parameter_data.h"
+#include "map/Terrain.h"
 #include "widget/map_editor.h"
 #include "window/editor/custom_variables.h"
 #include "window/editor/requests.h"
@@ -78,6 +79,11 @@ static struct {
 
 static uint8_t *translation_for_param_value(parameter_type type, int value)
 {
+    if (type == PARAMETER_TYPE_TERRAIN) {
+        const std::string names = terrain_names(data.condition->terrain);
+        string_copy(string_from_ascii(names.c_str()), data.display_text, MAX_TEXT_LENGTH);
+        return data.display_text;
+    }
     memset(data.display_text, 0, MAX_TEXT_LENGTH);
     scenario_events_parameter_data_get_display_string_for_value(type, value, data.display_text, MAX_TEXT_LENGTH);
     return data.display_text;
@@ -230,6 +236,8 @@ static void set_formula_value(const uint8_t *formula)
 
     // Get the current parameter's formula index
     int current_index = get_param_value();
+    data.formula[0] = 0;
+    data.formula_index = 0;
 
     // Add or update formula
     if (!current_index || current_index == 0) {
@@ -250,6 +258,8 @@ static void create_evaluation_formula(xml_data_attribute_t *parameter)
 {
     // Get the formula index for THIS specific parameter
     int current_index = get_param_value();
+    data.formula[0] = 0;
+    data.formula_index = 0;
 
     data.formula_min_limit = parameter->min_limit;
     data.formula_max_limit = parameter->max_limit;
@@ -440,6 +450,10 @@ static void start_grid_slice_selection(void)
 
 static void change_parameter(xml_data_attribute_t *parameter, const generic_button *button)
 {
+    if (parameter->type == PARAMETER_TYPE_TERRAIN) {
+        window_editor_select_terrain_show(button, [](const Terrain &terrain) { data.condition->terrain = terrain; });
+        return;
+    }
     set_parameter_being_edited(button->parameter1);
     switch (parameter->type) {
         case PARAMETER_TYPE_NUMBER:
@@ -451,7 +465,6 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
         case PARAMETER_TYPE_BUILDING:
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_CHECK:
-        case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DIFFICULTY:
         case PARAMETER_TYPE_ENEMY_TYPE:
         case PARAMETER_TYPE_INVASION_TYPE:
@@ -467,6 +480,9 @@ static void change_parameter(xml_data_attribute_t *parameter, const generic_butt
             return;
         case PARAMETER_TYPE_ROUTE:
             window_editor_select_city_trade_route_show(set_param_value);
+            return;
+        case PARAMETER_TYPE_EMPIRE_CITY:
+            window_editor_select_city_by_type_show(set_param_value, static_cast<empire_city_type>(0));
             return;
         case PARAMETER_TYPE_FUTURE_CITY:
             window_editor_select_city_by_type_show(set_param_value, EMPIRE_CITY_FUTURE_TRADE);

@@ -2,7 +2,7 @@
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "graphics/menu.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/minimap.h"
 #include "widget/sidebar/common.h"
 
@@ -96,7 +96,7 @@ static Figure *first_figure_for_render_tile(int grid_offset)
 
 static int is_renderable_map_tile(int grid_offset)
 {
-    return grid_offset >= 0 && map_terrain_get(grid_offset) != TERRAIN_MAP_EDGE;
+    return grid_offset >= 0 && terrain_map().at(grid_offset) != terrain_types().map_edge;
 }
 
 template <typename RowTile, typename MakeTile, typename DispatchRow>
@@ -151,6 +151,21 @@ static void check_camera_boundaries(void)
     int max_scale = city_view_get_max_raw_scale();
     if (max_scale < data.scale) {
         city_view_set_scale(max_scale);
+        return;
+    }
+    if (config_get(CONFIG_UI_EXTENDED_CAMERA_BOUNDS)) {
+        // Permit every map edge to reach the viewport center, in view-tile coordinates.
+        const int x_margin = data.viewport.width_tiles / 2;
+        const int y_margin = (data.viewport.height_tiles / 2) & ~1;
+        const int left = (VIEW_X_MAX - map_grid_width()) / 2 - x_margin;
+        const int top = ((VIEW_Y_MAX - map_grid_height() * 2) / 2 - y_margin) & ~1;
+        const int right = (VIEW_X_MAX + map_grid_width()) / 2 - x_margin;
+        const int bottom = ((VIEW_Y_MAX + map_grid_height() * 2) / 2 - y_margin) & ~1;
+        if (data.camera.tile.x < left) { data.camera.tile.x = left; data.camera.pixel.x = 0; }
+        if (data.camera.tile.x > right) { data.camera.tile.x = right; data.camera.pixel.x = 0; }
+        if (data.camera.tile.y < top) { data.camera.tile.y = top; data.camera.pixel.y = 0; }
+        if (data.camera.tile.y > bottom) { data.camera.tile.y = bottom; data.camera.pixel.y = 0; }
+        data.camera.tile.y &= ~1;
         return;
     }
     int grid_height = map_grid_height() * 2;
@@ -734,11 +749,11 @@ void city_view_rotate_right(void)
     check_camera_boundaries();
 }
 
-static void set_viewport(int x_offset, int y_offset, int width, int height)
+static void set_viewport(int x_offset, int y_offset, int width, int height, int right_inset = 2)
 {
     data.viewport.x = x_offset;
     data.viewport.y = y_offset;
-    data.viewport.width_pixels = width - 2;
+    data.viewport.width_pixels = width - right_inset;
     data.viewport.height_pixels = height;
     data.viewport.width_tiles = calc_adjust_with_percentage(width, data.scale) / TILE_WIDTH_PIXELS;
     data.viewport.height_tiles = calc_adjust_with_percentage(height, data.scale) / HALF_TILE_HEIGHT_PIXELS;
@@ -789,6 +804,12 @@ void city_view_get_viewport(int *x, int *y, int *width, int *height)
     *y = data.viewport.y;
     *width = data.viewport.width_pixels;
     *height = data.viewport.height_pixels;
+}
+
+void city_view_set_render_viewport(const pixel_area &area)
+{
+    set_viewport(area.x, area.y, area.width, area.height, 0);
+    check_camera_boundaries();
 }
 
 void city_view_get_viewport_size_tiles(int *width, int *height)

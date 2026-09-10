@@ -338,7 +338,7 @@ struct formation : public RelationshipEndpoint {
     bool has_low_morale() const { return months_low_morale || months_very_low_morale; }
     void set_home(int tile_x, int tile_y) { x_home = tile_x; y_home = tile_y; }
     void retreat() { months_low_morale = 1; }
-    bool recruit_requires_weapon() const;
+    const std::vector<UnitRecruitmentCost> &recruitment_costs() const;
     int base_morale_limit() const;
     int barracks_recruit_capacity() const;
     int barracks_recruit_overflow_count() const;

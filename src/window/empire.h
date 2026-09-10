@@ -17,3 +17,4 @@ void window_empire_show(void);
 void window_empire_show_checked(void);
 
 int window_empire_is_dragging_sidebar(void);
+void window_empire_validate_ui_for_test();

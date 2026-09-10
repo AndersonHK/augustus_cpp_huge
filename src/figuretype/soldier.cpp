@@ -5,7 +5,7 @@
 #include "city/map.h"
 #include "core/calc.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/combat.h"
 #include "figure/FigureGraphics.h"
 #include "figure/formation.h"

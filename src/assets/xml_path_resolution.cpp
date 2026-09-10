@@ -1,7 +1,7 @@
 #include "assets/xml_path_resolution.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/mod_manager.h"
 
 #include <algorithm>
@@ -145,7 +145,7 @@ std::string assetlist_relative_path(const char *assetlist_key)
     }
     char relative_path[FILE_NAME_MAX] = { 0 };
     if (snprintf(relative_path, FILE_NAME_MAX, "%s.xml", assetlist_key) >= FILE_NAME_MAX) {
-        log_error("Assetlist path too long", assetlist_key, 0);
+        Logger::error("Assetlist path too long", assetlist_key, 0);
         return {};
     }
     return relative_path;
@@ -171,7 +171,7 @@ std::vector<GraphicsLayerSource> xml_configured_graphics_sources()
     const std::vector<std::string> &paths = mod_manager::graphics_paths();
     std::vector<GraphicsLayerSource> sources;
     if (names.size() != paths.size()) {
-        log_error("Configured mod names and graphics paths have different lengths", 0, 0);
+        Logger::error("Configured mod names and graphics paths have different lengths", 0, 0);
         return sources;
     }
     const std::size_t count = names.size();
@@ -226,12 +226,12 @@ int xml_resolve_image_path(
     std::replace(normalized_image_path.begin(), normalized_image_path.end(), '\\', '/');
     const bool graphics_root_relative = normalized_image_path.find('/') != std::string::npos;
     if (normalized_image_path.front() == '/' || normalized_image_path.find(':') != std::string::npos || normalized_image_path == ".." || normalized_image_path.rfind("../", 0) == 0 || normalized_image_path.find("/../") != std::string::npos || (normalized_image_path.size() >= 3 && normalized_image_path.compare(normalized_image_path.size() - 3, 3, "/..") == 0)) {
-        log_error("Image path must remain below the graphics root", image_file_name, 0);
+        Logger::error("Image path must remain below the graphics root", image_file_name, 0);
         return 0;
     }
     const int path_length = graphics_root_relative ? snprintf(relative_path, FILE_NAME_MAX, "%s.png", normalized_image_path.c_str()) : snprintf(relative_path, FILE_NAME_MAX, "%s/%s.png", assetlist_key, normalized_image_path.c_str());
     if (path_length >= FILE_NAME_MAX) {
-        log_error("Image path too long", image_file_name, 0);
+        Logger::error("Image path too long", image_file_name, 0);
         return 0;
     }
     return resolve_layered_path(layers, full_path, relative_path, source, nullptr);
@@ -306,7 +306,7 @@ int xml_resolve_assetlist_path(char *full_path, const char *assetlist_key, xml_a
         return 0;
     }
     if (snprintf(relative_path, FILE_NAME_MAX, "%s.xml", assetlist_key) >= FILE_NAME_MAX) {
-        log_error("Assetlist path too long", assetlist_key, 0);
+        Logger::error("Assetlist path too long", assetlist_key, 0);
         return 0;
     }
     return xml_resolve_graphics_path(full_path, relative_path, source, resolved_source);
@@ -322,12 +322,12 @@ int xml_resolve_image_path(char *full_path, const char *assetlist_key, const cha
     std::replace(normalized_image_path.begin(), normalized_image_path.end(), '\\', '/');
     const bool graphics_root_relative = normalized_image_path.find('/') != std::string::npos;
     if (normalized_image_path.front() == '/' || normalized_image_path.find(':') != std::string::npos || normalized_image_path == ".." || normalized_image_path.rfind("../", 0) == 0 || normalized_image_path.find("/../") != std::string::npos || (normalized_image_path.size() >= 3 && normalized_image_path.compare(normalized_image_path.size() - 3, 3, "/..") == 0)) {
-        log_error("Image path must remain below the graphics root", image_file_name, 0);
+        Logger::error("Image path must remain below the graphics root", image_file_name, 0);
         return 0;
     }
     const int path_length = graphics_root_relative ? snprintf(relative_path, FILE_NAME_MAX, "%s.png", normalized_image_path.c_str()) : snprintf(relative_path, FILE_NAME_MAX, "%s/%s.png", assetlist_key, normalized_image_path.c_str());
     if (path_length >= FILE_NAME_MAX) {
-        log_error("Image path too long", image_file_name, 0);
+        Logger::error("Image path too long", image_file_name, 0);
         return 0;
     }
     return xml_resolve_graphics_path(full_path, relative_path, source, 0);
@@ -340,7 +340,7 @@ int xml_resolve_group_image_path(char *full_path, const char *group_name, xml_as
         return 0;
     }
     if (snprintf(relative_path, FILE_NAME_MAX, "%s.png", group_name) >= FILE_NAME_MAX) {
-        log_error("Group image path too long", group_name, 0);
+        Logger::error("Group image path too long", group_name, 0);
         return 0;
     }
     return xml_resolve_graphics_path(full_path, relative_path, source, 0);

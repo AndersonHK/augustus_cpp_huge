@@ -1,14 +1,10 @@
 #pragma once
 
 #include "city/constants.h"
+#include "building/religion_effects.h"
 
 #include <string>
 #include <utility>
-
-enum class GodBlessingType {
-    NeptuneTradeBonus,
-    VenusEmployment
-};
 
 class God {
 public:
@@ -16,6 +12,10 @@ public:
         : path_(std::move(path))
     {
     }
+
+    std::vector<religion::Effect> effects;
+    religion::FavorRules favor;
+    religion::WrathRules wrath;
 
     const char *path() const
     {
@@ -42,35 +42,10 @@ public:
         return legacy_type_;
     }
 
-    void set_blessing_months(GodBlessingType blessing, int months)
-    {
-        switch (blessing) {
-            case GodBlessingType::NeptuneTradeBonus:
-                neptune_trade_bonus_months_ = months;
-                break;
-            case GodBlessingType::VenusEmployment:
-                venus_employment_months_ = months;
-                break;
-        }
-    }
-
-    int blessing_months(GodBlessingType blessing) const
-    {
-        switch (blessing) {
-            case GodBlessingType::NeptuneTradeBonus:
-                return neptune_trade_bonus_months_;
-            case GodBlessingType::VenusEmployment:
-                return venus_employment_months_;
-        }
-        return 0;
-    }
-
 private:
     std::string path_;
     int runtime_id_ = -1;
     god_type legacy_type_ = GOD_ALL;
-    int neptune_trade_bonus_months_ = 0;
-    int venus_employment_months_ = 0;
 };
 
 int city_gods_count(void);
@@ -109,3 +84,6 @@ int city_god_venus_bonus_employment(void);
 void city_god_blessing(int god_id);
 
 void city_god_curse(int god_id, int is_major);
+
+bool city_gods_have_effects(religion::Trigger trigger);
+bool city_gods_have_effects();

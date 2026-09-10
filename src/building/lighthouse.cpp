@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "building/building.h"
 #include "lighthouse.h"
 
@@ -90,6 +91,7 @@ void building_lighthouse_consume_timber(void)
                 consume = calc_adjust_with_percentage(consume, 100 + POLICY_3_MALUS_PERCENT);
             }
 
+            city_trade_ledger_consumed(resource_timber(), std::min(timber, consume));
             lighthouse.set_resource_amount(resource_timber(), timber - consume < 0 ? 0 : timber - consume);
         }
         set_lighthouse_graphic(lighthouse);

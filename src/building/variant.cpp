@@ -45,7 +45,8 @@ static const building_type_registry_impl::GraphicsTarget *rotation_graphics_targ
 
     const building_type_registry_impl::GraphicsTarget &target = definition->graphics().default_target();
     if (!target.has_options() ||
-        target.option_selection() != building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
+        (target.option_selection() != building_type_registry_impl::GraphicsOptionSelection::BuildRotation &&
+         target.option_selection() != building_type_registry_impl::GraphicsOptionSelection::PairedOrientation)) {
         return nullptr;
     }
     return &target;
@@ -112,7 +113,8 @@ int building_variant_get_graphics_option(const Building &building_obj, int force
     if (option_count <= 1) {
         return 0;
     }
-    if (target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
+    if (target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::BuildRotation ||
+        target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::PairedOrientation) {
         return graphics_variant % option_count;
     }
     if (force_reseed) {

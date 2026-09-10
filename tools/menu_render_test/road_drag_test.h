@@ -1,8 +1,10 @@
 #pragma once
 
 #include "building/construction.h"
+#include "building/construction_plan.h"
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
+#include "city/finance.h"
 #include "city/view_render.h"
 #include "core/config.h"
 #include "graphics/renderer.h"
@@ -10,7 +12,7 @@
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "widget/city_without_overlay.h"
 #include "window/city.h"
 
@@ -23,6 +25,9 @@ inline bool run_city_road_drag_render_test()
     window_draw(1);
     static CityDrawTileCommand endpoint;
     endpoint = {};
+    static const building_type_registry_impl::BuildingType *road = nullptr;
+    road = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("road"));
+    if (!road) return false;
     CityViewRenderCommandBuffer commands;
     commands.build();
     const CityViewRenderPhase phases[] = { { [](const CityDrawTileCommand &command) {
@@ -31,7 +36,9 @@ inline bool run_city_road_drag_render_test()
         // A three-tile drag through open land, away from viewport clipping.
         for (int dx = -2; dx <= 0; dx++) {
             const int offset = map_grid_add_delta(command.grid_offset, dx, 0);
-            if (offset < 0 || map_terrain_is(offset, TERRAIN_NOT_CLEAR)) return;
+            if (offset < 0 || terrain_map().contains(offset, terrain_types().not_clear)) return;
+            const int tile_x = map_grid_offset_to_x(offset), tile_y = map_grid_offset_to_y(offset);
+            if (!map_grid_is_inside(tile_x, tile_y, 1) || !building_construction::ConstructionPlacementPlan(*road, tile_x, tile_y, 1, 0).can_place()) return;
         }
         int x, y, width, height;
         city_view_get_viewport(&x, &y, &width, &height);
@@ -45,22 +52,29 @@ inline bool run_city_road_drag_render_test()
         std::fprintf(stdout, "Road drag render test skipped: no visible clear three-tile route.\n");
         return true;
     }
-    const auto *road = building_type_registry_impl::definition_for_type(building_type_registry_impl::type_from_attr("road"));
-    if (!road) return false;
     const map_tile end = { map_grid_offset_to_x(endpoint.grid_offset), map_grid_offset_to_y(endpoint.grid_offset), endpoint.grid_offset };
     const map_tile no_tile = {};
     view_tile selected_view;
     city_view_grid_offset_to_xy_view(end.grid_offset, &selected_view.x, &selected_view.y);
     city_view_set_selected_view_tile(&selected_view);
     const int previous_shadow = config_get(CONFIG_UI_CV_CURSOR_SHADOW);
+    const int previous_treasury = city_finance_treasury();
+    // The render fixture needs an affordable preview even in a bankrupt save.
+    if (previous_treasury < 1000) city_finance_treasury_add(1000 - previous_treasury);
     config_set(CONFIG_UI_CV_CURSOR_SHADOW, 0);
     building_construction_set_type(road, 0);
     building_construction_start(end.x - 2, end.y, map_grid_add_delta(end.grid_offset, -2, 0));
     building_construction_update(end.x, end.y, end.grid_offset);
     bool passed = building_construction_in_progress() && building_construction_can_place() &&
-        building_construction_cost() > 0 && map_terrain_is(end.grid_offset, TERRAIN_ROAD);
-    if (!passed) std::fprintf(stderr, "Road drag setup failed: active=%d valid=%d cost=%d road=%d.\n", building_construction_in_progress(), building_construction_can_place(), building_construction_cost(), map_terrain_is(end.grid_offset, TERRAIN_ROAD));
+        building_construction_cost() > 0 && terrain_map().contains(end.grid_offset, terrain_types().road);
+    if (!passed) std::fprintf(stderr, "Road drag setup failed: active=%d valid=%d cost=%d road=%d.\n", building_construction_in_progress(), building_construction_can_place(), building_construction_cost(), terrain_map().contains(end.grid_offset, terrain_types().road));
     if (passed) {
+        // Compare the endpoint itself, not weather particles or moving cloud
+        // shadows between the three independently rendered frames.
+        const int weather = config_get(CONFIG_UI_DRAW_WEATHER);
+        const int clouds = config_get(CONFIG_UI_DRAW_CLOUD_SHADOWS);
+        config_set(CONFIG_UI_DRAW_WEATHER, 0);
+        config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, 0);
         const float scale = city_view_get_scale() / 100.0f;
         const int x = static_cast<int>((endpoint.x + 30) / scale) - 4;
         const int y = static_cast<int>((endpoint.y + 15) / scale) - 2;
@@ -78,11 +92,14 @@ inline bool run_city_road_drag_render_test()
         passed = passed && invalid_captured && std::memcmp(baseline, invalid, sizeof(baseline)) != 0;
         if (!passed) std::fprintf(stderr, "Road drag pixels: baseline=%08x valid=%08x invalid=%08x valid_equal=%d invalid_equal=%d.\n", baseline[0], valid[0], invalid[0], std::memcmp(baseline, valid, sizeof(baseline)) == 0, std::memcmp(baseline, invalid, sizeof(baseline)) == 0);
         screen_set_ui_render_scale();
+        config_set(CONFIG_UI_DRAW_WEATHER, weather);
+        config_set(CONFIG_UI_DRAW_CLOUD_SHADOWS, clouds);
     }
     building_construction_cancel();
     building_construction_clear_type();
+    city_finance_treasury_add(previous_treasury - city_finance_treasury());
     config_set(CONFIG_UI_CV_CURSOR_SHADOW, previous_shadow);
-    passed = passed && !map_terrain_is(end.grid_offset, TERRAIN_ROAD);
+    passed = passed && !terrain_map().contains(end.grid_offset, terrain_types().road);
     std::fprintf(passed ? stdout : stderr, "Road drag endpoint render test %s: tile=%d.\n", passed ? "passed" : "failed", end.grid_offset);
     return passed;
 }

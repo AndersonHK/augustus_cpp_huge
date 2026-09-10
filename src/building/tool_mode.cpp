@@ -5,7 +5,7 @@
 #include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/direction.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 namespace {
 
@@ -86,7 +86,7 @@ building_type resolve_dynamic_bridge_hover(
     // Shore probing remains procedural, but XML owns the bridge types selected
     // for this hover context. The selected road remains the session owner.
     if (construction_in_progress || !grid_offset || !owner.tool().is_road() ||
-        !map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        !terrain_map().contains(grid_offset, terrain_types().water)) {
         return BUILDING_NONE;
     }
 

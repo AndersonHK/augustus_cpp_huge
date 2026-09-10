@@ -3,6 +3,12 @@
 #include "city/view.h"
 #include "figure/figure.h"
 #include "figure/image.h"
+#include "scenario/property.h"
+
+scenario_climate scenario_property_climate(void)
+{
+    return CLIMATE_CENTRAL;
+}
 
 int city_view_orientation(void)
 {

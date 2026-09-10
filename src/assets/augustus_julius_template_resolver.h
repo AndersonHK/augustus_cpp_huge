@@ -8,6 +8,9 @@ namespace vespasian::graphics::extraction {
 
 class JuliusTemplateImage {
 public:
+    bool has_sprite_offset = false;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
     void add_part(const std::string &part) { parts_.push_back(part); }
     const std::vector<std::string> &parts() const { return parts_; }
 
@@ -25,6 +28,9 @@ public:
         return it == images_.end() ? nullptr : &it->second;
     }
     JuliusTemplateImage &ensure_image(const std::string &image_id);
+    std::unordered_map<std::string, std::pair<std::string, int>> legacy_images;
+    int legacy_first_image = -1;
+    int legacy_last_image = -1;
     void observe_generated_image_id(const std::string &image_id);
 
 private:
@@ -40,12 +46,13 @@ public:
         const std::string &reference_group,
         const std::string &reference_image,
         std::string &translated_group_key,
-        std::string &translated_image_id);
+        std::string &translated_image_id, int *translated_frame = nullptr);
     int next_generated_image_index(const std::string &julius_graphics_root, const std::string &group_key);
     bool load_group(const std::string &julius_graphics_root, const std::string &group_key, JuliusTemplateGroup &group);
 
 private:
     std::unordered_map<std::string, JuliusTemplateGroup> cached_groups_;
+    std::vector<std::string> source_range_keys_;
 
     bool parse_group_xml(const std::string &xml_path, JuliusTemplateGroup &group) const;
     std::vector<std::string> collect_semantic_continuation_group_keys(

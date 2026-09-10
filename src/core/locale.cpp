@@ -2,7 +2,7 @@
 
 #include "translation/localization.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 
 static struct {
     language_type last_determined_language;
@@ -30,7 +30,7 @@ static void log_language(void)
         case LANGUAGE_UKRAINIAN: desc = "Ukrainian"; break;
         default: desc = "Unknown"; break;
     }
-    log_info("Detected language:", desc, 0);
+    Logger::info("Detected language:", desc, 0);
 }
 
 language_type locale_determine_language(void)

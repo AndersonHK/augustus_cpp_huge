@@ -14,6 +14,8 @@
 
 int platform_renderer_init(SDL_Window *window, int vsync);
 
+SDL_Renderer *platform_renderer_get_sdl();
+
 int platform_renderer_create_render_texture(int width, int height);
 
 int platform_renderer_lost_render_texture(void);

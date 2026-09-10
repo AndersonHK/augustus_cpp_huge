@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "request.h"
 
 #include "building/granary.h"
@@ -7,7 +8,7 @@
 #include "city/population.h"
 #include "city/ratings.h"
 #include "city/resource.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
@@ -91,7 +92,7 @@ static void make_request_visible_and_send_message(scenario_request *request)
 {
     request->visible = 1;
     request->amount.requested = random_between_from_stdlib(request->amount.min, request->amount.max);
-    if (city_resource_count_warehouses_amount(request->resource) >= (int) request->amount.requested) {
+    if (city_resource_get_amount_for_request(request->resource, request->amount.requested) >= (int) request->amount.requested) {
         request->can_comply_dialog_shown = 1;
     }
     int requested = request->amount.requested;
@@ -166,8 +167,8 @@ void scenario_request_show_ready_message(scenario_request *request)
         resource_type resource = request->resource;
         int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
         if (resource_amount >= (int) request->amount.requested) {
-            request->can_comply_dialog_shown = 1;
             city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
+            request->can_comply_dialog_shown = 1;
         }
     }
 }
@@ -218,14 +219,7 @@ static void process_request(scenario_request *request)
                 schedule_request_again(request);
             }
         }
-        if (!request->can_comply_dialog_shown) {
-            resource_type resource = request->resource;
-            int resource_amount = city_resource_get_amount_for_request(resource, request->amount.requested);
-            if (resource_amount >= (int) request->amount.requested) {
-                request->can_comply_dialog_shown = 1;
-                city_message_post(1, MESSAGE_REQUEST_CAN_COMPLY, request->id, 0);
-            }
-        }
+        scenario_request_show_ready_message(request);
         return;
     }
 
@@ -266,7 +260,8 @@ void scenario_request_dispatch(int id)
         city_finance_process_sundry(amount);
     } else if (request->resource == resource_troops()) {
         city_population_remove_for_troop_request(amount);
-        building_warehouses_remove_resource(resource_weapons(), amount);
+        const int remaining = building_warehouses_remove_resource(resource_weapons(), amount);
+        city_trade_ledger_consumed(resource_weapons(), (amount - remaining) * resource_units_per_load());
     } else {
         int amount_left = building_warehouses_send_resources_to_rome(request->resource, amount);
         if (amount_left > 0 && resource_is_food(request->resource)) {

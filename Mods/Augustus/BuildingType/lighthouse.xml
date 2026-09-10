@@ -8,7 +8,7 @@
         <step_size value="-1" />
         <range value="4" />
     </desirability>
-    <foundation path="distant_water_3x3" />
+    <foundation path="near_sea_3x3" />
     <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="TR_BUILDING_LIGHTHOUSE" />
     <sound id="lighthouse" />
     <distribution path="lighthouse" />

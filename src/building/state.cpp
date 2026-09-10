@@ -18,17 +18,23 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/housing_profile_registry.h"
 #include "building/monument.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/save_version.h"
 #include "map/building.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstddef>
 #include <cstring>
+#include <cmath>
 #include <vector>
+#include <unordered_set>
+
+namespace { std::unordered_set<unsigned int> removed_imported_owners; }
+void building_state_begin_import() { removed_imported_owners.clear(); }
+bool building_state_import_removed_owner(unsigned int id) { return removed_imported_owners.count(id) != 0; }
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
@@ -343,7 +349,7 @@ static void log_loaded_building_type_problem(const building *b, uint16_t saved_t
 {
     char detail[1200];
     format_loaded_building_type_problem(detail, sizeof(detail), b, saved_type, reason);
-    log_warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
+    Logger::warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
 }
 
 static void remove_tiles_for_unsupported_building(const building *b)
@@ -380,8 +386,8 @@ static int detach_unsupported_plaza_surface_record(const building *b)
     if (map_building_loaded_id_at(grid_offset) != b->id) {
         return 1;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) ||
-        !map_terrain_is_superset(grid_offset, TERRAIN_ROAD | TERRAIN_GARDEN)) {
+    if (terrain_map().contains(grid_offset, terrain_types().building) ||
+        !terrain_map().contains_all(grid_offset, terrain_types().road | terrain_types().garden)) {
         return 0;
     }
 
@@ -400,6 +406,7 @@ static void quarantine_loaded_building_type_problem(
     }
     log_loaded_building_type_problem(b, saved_type, reason);
     if (!for_preview) {
+        removed_imported_owners.insert(b->id);
         b->type = BUILDING_NONE;
         if (!detach_unsupported_plaza_surface_record(b)) {
             remove_tiles_for_unsupported_building(b);
@@ -436,6 +443,9 @@ static int remaining_building_record_bytes(const buffer *buf, size_t record_star
 static int flat_resource_slots_left_in_record(const buffer *buf, size_t record_start, int building_buf_size)
 {
     int bytes = remaining_building_record_bytes(buf, record_start, building_buf_size);
+    if (building_buf_size >= BUILDING_STATE_HOUSING_CONSUMPTION) {
+        bytes -= 32;
+    }
     if (building_buf_size >= BUILDING_STATE_FOUNDATION_TERRAIN_DELTAS) {
         bytes -= building_type_registry_impl::FOUNDATION_SAVE_TERRAIN_BYTES;
     }
@@ -851,6 +861,13 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_u8(buf, b->has_latrines_access);
 
     write_foundation_terrain_state(buf, foundation_terrain_state);
+    for (double remainder : legacy.housing_goods_consumption_remainder) {
+        uint64_t bits = 0;
+        static_assert(sizeof(bits) == sizeof(remainder));
+        memcpy(&bits, &remainder, sizeof(bits));
+        buffer_write_u32(buf, static_cast<uint32_t>(bits));
+        buffer_write_u32(buf, static_cast<uint32_t>(bits >> 32));
+    }
 
     // New building state code should always be added at the end to preserve savegame retrocompatibility
     // Also, don't forget to update BUILDING_STATE_CURRENT_BUFFER_SIZE and if possible, add a new macro like
@@ -1397,6 +1414,18 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
             read_foundation_terrain_state(buf);
         if (!for_preview && b->id && foundation_state.published == 1) {
             building_runtime_stage_loaded_foundation_state(b->id, foundation_state);
+        }
+    }
+
+    if (save_version > SAVE_GAME_LAST_NO_HOUSING_CONSUMPTION_REMAINDERS && building_buf_size >= BUILDING_STATE_HOUSING_CONSUMPTION) {
+        for (double &remainder : legacy.housing_goods_consumption_remainder) {
+            uint64_t bits = buffer_read_u32(buf);
+            bits |= static_cast<uint64_t>(buffer_read_u32(buf)) << 32;
+            memcpy(&remainder, &bits, sizeof(bits));
+            if (!std::isfinite(remainder) || remainder < 0 || remainder > 32767) {
+                Logger::warning("Repaired invalid housing goods consumption remainder", nullptr, b->id);
+                remainder = 0;
+            }
         }
     }
 

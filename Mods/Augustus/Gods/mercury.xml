@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<god legacy="mercury">
+    <wrath neutral="50" threshold="40" mild_threshold="20" severe_threshold="10" mild_amount="1" moderate_amount="2" severe_amount="5" maximum="50" favor_decay="1" />
+    <favor neutral="50" happiness_divisor="20" base_chance="1" festival_months="24" festival_divisor="6" maximum="5" />
+    <blessings>
+        $![Julius:DISABLE_GOD_BLESSINGS]{
+        <effect>
+            <condition metric="happiness" min="50" />
+            <condition metric="favor" min="5" />
+            <on_trigger>
+                <action callback="blessing_done" value="1" />
+                <action callback="favor" amount="0" />
+            </on_trigger>
+            <action callback="message" id="125" />
+            <action callback="workshop_inputs" batches="3" />
+        </effect>
+    }
+    </blessings>
+</god>

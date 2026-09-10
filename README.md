@@ -1,50 +1,10 @@
-# Augustus ![](res/julius_48.png)
+# Vespasian
 
-[![Github Actions](https://github.com/Keriew/augustus/workflows/Build%20Augustus/badge.svg)](https://github.com/Keriew/Augustus/actions)
+Vespasian is a C++ fork of [Augustus](https://github.com/Keriew/augustus) and [Julius](https://github.com/bvschaik/julius), with mod-defined gameplay, graphics and UI. Original Caesar 3 game files are required and are not distributed here.
 
- **💬 Join the Augustus Community - players, mapmakers, and developers**  
-[![Discord](https://img.shields.io/badge/Discord-TheZakhcolytes-5865F2?logo=discord&logoColor=white)](https://discord.gg/GamerZakh)  
-kindly hosted by GamerZakh.
+The hardware baseline is a 64-bit OS, at least 4 GB RAM, Vulkan support and at least 1 GB graphics memory. Android, iOS and Switch 2 remain potential targets on qualifying devices. PlayStation Vita, the original Switch and 32-bit builds are excluded. Platform eligibility does not establish a working port: mobile and Switch 2 toolchains, graphics integration and device validation remain outstanding.
 
- **📜 Share Maps, Campaigns and Scenarios**  
-[![AugustusScernarios](https://augustus.josecadete.net/badge/c3-heaven.svg)](https://caesar3.heavengames.com/downloads/lister.php?&category=augustus_scen&start=0&s=dls&o=d)  
-Download Julius and Augustus scenarios, create your own and share with others! 
-
-| Platform | Latest release | Unstable build |
-|----------|----------------|----------------|
-| Windows - 64 bit| Next release! |[![Download](https://augustus.josecadete.net/badge/development/windows-64bit.svg)](https://augustus.josecadete.net/download/latest/development/windows-64bit)   [(Download development assets)](https://augustus.josecadete.net/download/latest/development/assets)
-| Windows - 32 bit  | [![Download](https://augustus.josecadete.net/badge/release/windows.svg)](https://augustus.josecadete.net/download/latest/release/windows)|[![Download](https://augustus.josecadete.net/badge/development/windows.svg)](https://augustus.josecadete.net/download/latest/development/windows)
-| Linux AppImage | [![Download](https://augustus.josecadete.net/badge/release/linux-appimage.svg)](https://augustus.josecadete.net/download/latest/release/linux-appimage) | [![Download](https://augustus.josecadete.net/badge/development/linux-appimage.svg)](https://augustus.josecadete.net/download/latest/development/linux-appimage)
-| Linux Flatpak | Next release! | [![Download](https://augustus.josecadete.net/badge/development/linux-flatpak.svg)](https://augustus.josecadete.net/download/latest/development/linux-flatpak)
-| Mac | [![Download](https://augustus.josecadete.net/badge/release/mac.svg)](https://augustus.josecadete.net/download/latest/release/mac) | [![Download](https://augustus.josecadete.net/badge/development/mac.svg)](https://augustus.josecadete.net/download/latest/development/mac) |
-| PS Vita | [![Download](https://augustus.josecadete.net/badge/release/vita.svg)](https://augustus.josecadete.net/download/latest/release/vita)| [![Download](https://augustus.josecadete.net/badge/development/vita.svg)](https://augustus.josecadete.net/download/latest/development/vita) |
-| Switch |  [![Download](https://augustus.josecadete.net/badge/release/switch.svg)](https://augustus.josecadete.net/download/latest/release/switch) | [![Download](https://augustus.josecadete.net/badge/development/switch.svg)](https://augustus.josecadete.net/download/latest/development/switch) |
-| Android APK |  [![Download](https://augustus.josecadete.net/badge/release/android.svg)](https://augustus.josecadete.net/download/latest/release/android) | [![Download](https://augustus.josecadete.net/badge/development/android.svg)](https://augustus.josecadete.net/download/latest/development/android) |
-
-
-Alternatively, you can [**try Augustus in your browser**](https://augustus.josecadete.net/play/). Note that you'll still need to provide a valid Caesar 3 installation folder.
-
-
-Augustus is a fork of the Julius project that intends to incorporate gameplay changes.
-=======
-The aim of this project is to provide enhanced, customizable gameplay to Caesar 3 using project Julius UI enhancements.
-
-Augustus is able to load Caesar 3 and Julius saves, however saves made with Augustus **will not work** outside Augustus.
-
-Gameplay enhancements include:
-- Roadblocks
-- Market special orders
-- Global labour pool
-- Partial warehouse storage
-- Increased game limits
-- Zoom controls
-- And more!
-
-Because of gameplay changes and additions, save files from Augustus are NOT compatible with Caesar 3 or Julius. Augustus is able to load Caesar 3 save files, but not the other way around. If you want vanilla experience with visual and UI improvements, or want to use save files in base Caesar 3, check [Julius](https://github.com/bvschaik/julius).
-
-Augustus, like Julius, requires the original assets (graphics, sounds, etc) from Caesar 3 to run. Augustus optionally [supports the high-quality MP3 files](https://github.com/bvschaik/julius/wiki/MP3-Support) once provided on the Sierra website.
-
-[![](doc/main-image.png)](https://github.com/user-attachments/assets/5027579d-4277-4b1f-9eca-297a04cb1c79)
+The currently validated build is Windows x64 with Visual Studio 2022, SDL2 and Vulkan SDK headers (`VULKAN_SDK`). Its startup checks enforce the hardware baseline; the existing SDL2 rendering backend remains in use. Android/iOS project files and platform hooks are retained. Legacy Switch adapters are preserved as reference for a future Switch 2 port, with the original Switch packaging target disabled. See [platform scope and remaining work](docs/platform_scope.md).
 
 ## Running the game
 

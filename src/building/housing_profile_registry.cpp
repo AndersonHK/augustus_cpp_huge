@@ -1,7 +1,6 @@
 #include "building/housing_profile_registry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -43,14 +42,14 @@ bool parse_nonnegative(const char *node, const char *attribute, int &value)
     if (xml_definition::parse_required_nonnegative_int_attribute(attribute, &value)) {
         return true;
     }
-    log_error("Unsupported HousingProfile numeric value", node, 0);
+    Logger::error("Unsupported HousingProfile numeric value", node, 0);
     return false;
 }
 
 int parse_root()
 {
     if (g_parse.saw_root || !xml_parser_has_attribute("type")) {
-        log_error("HousingProfile is missing its type or has duplicate roots", 0, 0);
+        Logger::error("HousingProfile is missing its type or has duplicate roots", 0, 0);
         g_parse.error = true;
         return 0;
     }
@@ -59,7 +58,7 @@ int parse_root()
     int disabled = 0;
     if (path.empty() || (xml_parser_has_attribute("disabled") &&
             !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled))) {
-        log_error("Unsupported HousingProfile identity or disabled value", xml_parser_get_attribute_string("type"), 0);
+        Logger::error("Unsupported HousingProfile identity or disabled value", xml_parser_get_attribute_string("type"), 0);
         g_parse.error = true;
         return 0;
     }
@@ -67,13 +66,14 @@ int parse_root()
     int level = -1;
     if ((!disabled && !xml_definition::parse_required_nonnegative_int_attribute("level", &level)) ||
         (disabled && xml_parser_has_attribute("level"))) {
-        log_error("Unsupported HousingProfile identity", xml_parser_get_attribute_string("type"), level);
+        Logger::error("Unsupported HousingProfile identity", xml_parser_get_attribute_string("type"), level);
         g_parse.error = true;
         return 0;
     }
 
     g_parse.definition = std::make_unique<HousingProfileDef>(std::move(path));
     g_parse.definition->compatibility_level = level;
+    if (xml_parser_has_attribute("variant_of")) g_parse.definition->variant_of = xml_definition::normalize_path(xml_parser_get_attribute_string("variant_of"));
     g_parse.disabled = disabled != 0;
     g_parse.saw_root = true;
     return 1;
@@ -84,7 +84,7 @@ bool reject_tombstone_content(const char *node)
     if (!g_parse.disabled) {
         return false;
     }
-    log_error("Disabled HousingProfile tombstone contains profile data", node, 0);
+    Logger::error("Disabled HousingProfile tombstone contains profile data", node, 0);
     g_parse.error = true;
     return true;
 }
@@ -103,7 +103,7 @@ int parse_residents()
     } else if (xml_value::equals(value, "patrician")) {
         g_parse.definition->resident_class_value = HousingResidentClass::Patrician;
     } else {
-        log_error("Unsupported HousingProfile resident class", value, 0);
+        Logger::error("Unsupported HousingProfile resident class", value, 0);
         g_parse.error = true;
         return 0;
     }
@@ -122,7 +122,7 @@ int parse_evolution()
         !xml_value::parse_int_strict(
             xml_parser_get_attribute_string("evolve_desirability"),
             &g_parse.definition->evolution.evolve_desirability)) {
-        log_error("Invalid HousingProfile evolution", 0, 0);
+        Logger::error("Invalid HousingProfile evolution", 0, 0);
         g_parse.error = true;
         return 0;
     }
@@ -151,8 +151,10 @@ int parse_requirements()
         requirements.water = HousingWaterRequirement::Well;
     } else if (xml_value::equals(water, "fountain")) {
         requirements.water = HousingWaterRequirement::Fountain;
+    } else if (xml_value::equals(water, "latrine_or_fountain")) {
+        requirements.water = HousingWaterRequirement::LatrineOrFountain;
     } else {
-        log_error("Unsupported HousingProfile water requirement", water, 0);
+        Logger::error("Unsupported HousingProfile water requirement", water, 0);
         g_parse.error = true;
         return 0;
     }
@@ -168,10 +170,6 @@ int parse_requirements()
         { "bathhouse", &HousingRequirements::bathhouse },
         { "health", &HousingRequirements::health },
         { "food_types", &HousingRequirements::food_types },
-        { "pottery", &HousingRequirements::pottery },
-        { "oil", &HousingRequirements::oil },
-        { "furniture", &HousingRequirements::furniture },
-        { "wine", &HousingRequirements::wine },
     };
     for (const NumericField &field : fields) {
         if (!parse_nonnegative("requirements", field.attribute, requirements.*field.member)) {
@@ -180,6 +178,25 @@ int parse_requirements()
         }
     }
 
+    struct GoodsField { const char *attribute; HousingGoodsRate HousingRequirements::*member; };
+    for (const GoodsField &field : { GoodsField{"pottery", &HousingRequirements::pottery}, {"oil", &HousingRequirements::oil},
+            {"furniture", &HousingRequirements::furniture}, {"wine", &HousingRequirements::wine} }) {
+        if (!xml_parser_has_attribute(field.attribute) || !HousingGoodsRate::parse(xml_parser_get_attribute_string(field.attribute), requirements.*field.member)) {
+            Logger::error("Invalid HousingProfile annual per-person goods rate", field.attribute, 0);
+            g_parse.error = true;
+            return 0;
+        }
+    }
+    requirements.wine_sources = requirements.wine ? 1 : 0;
+    if (xml_parser_has_attribute("wine_sources") && !parse_nonnegative("requirements", "wine_sources", requirements.wine_sources)) {
+        g_parse.error = true;
+        return 0;
+    }
+    if (requirements.wine_sources > 2 || (requirements.wine_sources > 0) != static_cast<bool>(requirements.wine)) {
+        Logger::error("HousingProfile wine_sources must match declared wine and be 0, 1, or 2", 0, 0);
+        g_parse.error = true;
+        return 0;
+    }
     g_parse.saw_requirements = true;
     return 1;
 }
@@ -226,7 +243,7 @@ int parse_definition_file(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("housing_profile_registry.parse_definition", filename);
+    Logger::Scope error_scope("housing_profile_registry.parse_definition", filename);
     g_parse = {};
     const int parsed = xml_definition::parse_file(
         filename,
@@ -237,7 +254,7 @@ int parse_definition_file(
         g_parse.saw_requirements && g_parse.saw_prosperity && g_parse.saw_tax;
     if (!parsed || g_parse.error || !g_parse.saw_root || !g_parse.definition ||
         (!g_parse.disabled && !complete_profile)) {
-        error_context_report_error("Unable to parse HousingProfile xml.", filename);
+        Logger::error("Unable to parse HousingProfile xml.", filename);
         if (failure_reason) {
             *failure_reason = std::string("Unable to parse HousingProfile xml: ") + filename;
         }
@@ -246,8 +263,8 @@ int parse_definition_file(
 
     const std::string key = g_parse.definition->path_id;
     if (key != (definition_path ? definition_path : "")) {
-        log_error("HousingProfile type does not match its definition path", key.c_str(), 0);
-        error_context_report_error("HousingProfile type/path mismatch.", filename);
+        Logger::error("HousingProfile type does not match its definition path", key.c_str(), 0);
+        Logger::error("HousingProfile type/path mismatch.", filename);
         if (failure_reason) {
             *failure_reason = std::string("HousingProfile type/path mismatch: ") + filename;
         }
@@ -294,8 +311,8 @@ bool build_layered_registry(
                 }
                 const std::string stable_id = parsed.definition->path_id;
                 if (!overlay.apply(stable_id, parsed.disabled, source)) {
-                    log_error("Unable to layer HousingProfile definition", overlay.failure_reason().c_str(), 0);
-                    error_context_report_error("Unable to layer HousingProfile definition.", overlay.failure_reason().c_str());
+                    Logger::error("Unable to layer HousingProfile definition", overlay.failure_reason().c_str(), 0);
+                    Logger::error("Unable to layer HousingProfile definition.", overlay.failure_reason().c_str());
                     if (failure_reason) {
                         *failure_reason = overlay.failure_reason();
                     }
@@ -316,13 +333,24 @@ bool build_layered_registry(
             continue;
         }
         const int level = winner.parsed.definition->compatibility_level;
+        const std::string &variant = winner.parsed.definition->variant_of;
+        if (!variant.empty()) {
+            const auto base = winners.find(variant);
+            if (base == winners.end() || base->second.parsed.disabled || !base->second.parsed.definition->variant_of.empty() ||
+                base->second.parsed.definition->compatibility_level != level) {
+                Logger::error("HousingProfile variant requires an active canonical profile at the same level", variant.c_str(), level);
+                if (failure_reason) *failure_reason = "Invalid HousingProfile variant: " + entry.first;
+                return false;
+            }
+            continue;
+        }
         const auto existing = levels.find(level);
         if (existing != levels.end()) {
             const std::string detail = "HousingProfile compatibility level " + std::to_string(level) +
                 " is claimed by both " + existing->second->source.describe() + " and " +
                 winner.source.describe() + '.';
-            log_error("Duplicate active HousingProfile compatibility level", detail.c_str(), level);
-            error_context_report_error("Duplicate active HousingProfile compatibility level.", detail.c_str());
+            Logger::error("Duplicate active HousingProfile compatibility level", detail.c_str(), level);
+            Logger::error("Duplicate active HousingProfile compatibility level.", detail.c_str());
             if (failure_reason) {
                 *failure_reason = detail;
             }
@@ -338,8 +366,10 @@ bool build_layered_registry(
         }
         const int level = winner.parsed.definition->compatibility_level;
         HousingProfileDef *definition = winner.parsed.definition.get();
-        staged.profiles_by_level.emplace(level, definition);
-        staged.compatibility_levels.push_back(level);
+        if (definition->variant_of.empty()) {
+            staged.profiles_by_level.emplace(level, definition);
+            staged.compatibility_levels.push_back(level);
+        }
         staged.profiles.emplace(entry.first, std::move(winner.parsed.definition));
     }
     std::sort(staged.compatibility_levels.begin(), staged.compatibility_levels.end());
@@ -364,6 +394,12 @@ const HousingProfileDef *find_housing_profile_definition(const char *path)
 {
     const std::string normalized = xml_definition::normalize_path(path);
     const auto found = g_profiles.find(normalized);
+    return found == g_profiles.end() ? nullptr : found->second.get();
+}
+
+HousingProfileDef *find_mutable_housing_profile_definition(const char *path)
+{
+    const auto found = g_profiles.find(xml_definition::normalize_path(path));
     return found == g_profiles.end() ? nullptr : found->second.get();
 }
 
@@ -403,7 +439,7 @@ int housing_profile_registry_load()
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure HousingProfile definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure HousingProfile definition layers", failure_reason.c_str(), 0);
         return 0;
     }
     return housing_profile_registry_load_layers(layers, &failure_reason);

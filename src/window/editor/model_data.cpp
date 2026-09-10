@@ -23,6 +23,8 @@
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
+#include <algorithm>
+#include "definition_controls.h"
 
 #define NO_SELECTION (unsigned int) -1
 #define NUM_DATA_BUTTONS (sizeof(data_buttons) / sizeof(generic_button))
@@ -153,6 +155,7 @@ static void button_static_click(const generic_button *button)
 
 static void set_cost_value(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_COST);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->cost = value;
     data.target_index = NO_SELECTION;
@@ -166,6 +169,7 @@ static void button_edit_cost(const generic_button *button)
 
 static void set_desirability_value(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_VALUE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_value = value;
     data.target_index = NO_SELECTION;
@@ -179,6 +183,7 @@ static void button_edit_value(const generic_button *button)
 
 static void set_desirability_step(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_STEP);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_step = value;
     data.target_index = NO_SELECTION;
@@ -192,6 +197,7 @@ static void button_edit_step(const generic_button *button)
 
 static void set_desirability_step_size(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_STEP_SIZE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_step_size = value;
     data.target_index = NO_SELECTION;
@@ -205,6 +211,7 @@ static void button_edit_step_size(const generic_button *button)
 
 static void set_desirability_range(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_DESIRABILITY_RANGE);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->desirability_range = value;
     data.target_index = NO_SELECTION;
@@ -218,6 +225,7 @@ static void button_edit_range(const generic_button *button)
 
 static void set_laborers(int value)
 {
+    model_mark_scenario_override(data.items[data.target_index], MODEL_LABORERS);
     model_building *model = model_get_building(data.items[data.target_index]);
     model->laborers = value;
     data.target_index = NO_SELECTION;
@@ -324,6 +332,7 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog();
+    draw_definition_controls();
 
     for (unsigned int i = 0; i < NUM_STATIC_BUTTONS; i++) {
         button_border_draw(static_buttons[i].x, static_buttons[i].y,
@@ -353,6 +362,7 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
+    if (GenericButtonList(definition_controls, 2).handle_mouse(*m_dialog, 0, 0, &definition_control_focus)) return;
     if (GenericButtonList(static_buttons, NUM_STATIC_BUTTONS).handle_mouse(
         *m_dialog,
         0,

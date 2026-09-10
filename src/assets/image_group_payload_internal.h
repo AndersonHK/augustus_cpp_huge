@@ -51,6 +51,7 @@ struct RawImageReference {
     std::string path;
     std::string group_key;
     std::string image_id;
+    int frame = 0; // One-based animation frame; zero selects the base image.
 };
 
 struct RawLayerDef {
@@ -70,7 +71,7 @@ struct RawLayerDef {
 struct RawAnimationDef {
     int present = 0;
     image_animation metadata = {};
-    int implicit_frame_count = 0;
+    int declared_frame_count = 0;
     std::vector<RawLayerDef> explicit_frames;
 };
 
@@ -83,6 +84,9 @@ struct ImageEntryDef {
     render_logical_size fixed_logical_size = {};
     int draw_offset_x = 0;
     int draw_offset_y = 0;
+    int has_sprite_offset = 0;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
     int is_isometric = 0;
     int has_full_image_ref = 0;
     RawImageReference full_image_ref;

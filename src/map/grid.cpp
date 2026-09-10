@@ -1,6 +1,6 @@
 #include "grid.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "map/data.h"
 
 #include <stdlib.h>

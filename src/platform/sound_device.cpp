@@ -3,12 +3,11 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/time.h"
 #include "game/campaign.h"
 #include "game/settings.h"
 #include "platform/platform.h"
-#include "platform/vita/vita.h"
 
 #include "SDL.h"
 #include "SDL_mixer.h"
@@ -19,9 +18,6 @@
 #include <string>
 #include <vector>
 
-#ifdef __vita__
-#include <psp2/io/fcntl.h>
-#endif
 
 constexpr int k_audio_rate = 22050;
 constexpr SDL_AudioFormat k_audio_format = AUDIO_S16;
@@ -232,13 +228,6 @@ static SoundTypeChannel sound_type_to_channels[SOUND_TYPE_MAX] = {
 static CustomMusicData custom_music{};
 static void (*track_finished_callback)(void) = nullptr;
 
-#ifdef __vita__
-struct VitaMusicData {
-    std::string filename;
-    std::vector<std::uint8_t> buffer;
-};
-static VitaMusicData vita_music_data{};
-#endif
 
 static int percentage_to_volume(int percentage)
 {
@@ -268,7 +257,7 @@ static MixChunkPtr load_chunk(const char *filename)
         return {};
     }
 
-#if defined(__vita__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
         return {};
@@ -280,40 +269,6 @@ static MixChunkPtr load_chunk(const char *filename)
 #endif
 }
 
-#ifdef __vita__
-static bool load_music_for_vita(const char *filename)
-{
-    if (!filename || !*filename) {
-        return false;
-    }
-    if (!vita_music_data.filename.empty() && vita_music_data.filename == filename && !vita_music_data.buffer.empty()) {
-        return true;
-    }
-
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        return false;
-    }
-
-    vita_music_data.filename = filename;
-    vita_music_data.buffer.clear();
-    fseek(fp, 0, SEEK_END);
-    auto size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    if (size <= 0) {
-        file_close(fp);
-        return false;
-    }
-    vita_music_data.buffer.resize(static_cast<size_t>(size));
-    auto bytes_read = fread(vita_music_data.buffer.data(), 1, static_cast<size_t>(size), fp);
-    file_close(fp);
-    if (bytes_read != static_cast<size_t>(size)) {
-        vita_music_data.buffer.clear();
-        return false;
-    }
-    return true;
-}
-#endif
 
 static MixMusicPtr load_music_for_filename(const char *filename, bool allow_platform_loaders)
 {
@@ -333,15 +288,7 @@ static MixMusicPtr load_music_for_filename(const char *filename, bool allow_plat
         return MixMusicPtr(Mix_LoadMUS_RW(sdl_music, SDL_TRUE));
     }
 
-#ifdef __vita__
-    if (allow_platform_loaders && load_music_for_vita(filename)) {
-        if (SDL_RWops *sdl_music = SDL_RWFromMem(vita_music_data.buffer.data(),
-            static_cast<int>(vita_music_data.buffer.size()))) {
-            return MixMusicPtr(Mix_LoadMUS_RW(sdl_music, SDL_TRUE));
-        }
-        return {};
-    }
-#elif defined(__ANDROID__)
+#if defined(__ANDROID__)
     if (allow_platform_loaders) {
         FILE *fp = file_open(filename, "rb");
         if (!fp) {
@@ -380,11 +327,11 @@ void sound_device_open(void)
 #endif
 
     if (0 == Mix_OpenAudio(k_audio_rate, k_audio_format, k_audio_channels, k_audio_buffers)) {
-        SDL_Log("Using default audio driver: %s", SDL_GetCurrentAudioDriver());
+        Logger::infof("Using default audio driver: %s", SDL_GetCurrentAudioDriver());
         init_channels();
         return;
     }
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Sound failed to initialize using default driver: %s", Mix_GetError());
+    Logger::errorf("Sound failed to initialize using default driver: %s", Mix_GetError());
 
     for (int i = 0; i < SDL_GetNumAudioDrivers(); i++) {
         const char *driver_name = SDL_GetAudioDriver(i);
@@ -393,18 +340,18 @@ void sound_device_open(void)
         }
         if (0 == SDL_AudioInit(driver_name) &&
             0 == Mix_OpenAudio(k_audio_rate, k_audio_format, k_audio_channels, k_audio_buffers)) {
-            SDL_Log("Using audio driver: %s", driver_name);
+            Logger::infof("Using audio driver: %s", driver_name);
             init_channels();
             return;
         }
-        SDL_Log("Not using audio driver %s, reason: %s", driver_name, SDL_GetError());
+        Logger::infof("Not using audio driver %s, reason: %s", driver_name, SDL_GetError());
     }
 
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Sound failed to initialize: %s", Mix_GetError());
+    Logger::errorf("Sound failed to initialize: %s", Mix_GetError());
     int max = SDL_GetNumAudioDevices(0);
-    SDL_Log("Number of audio devices: %d", max);
+    Logger::infof("Number of audio devices: %d", max);
     for (int i = 0; i < max; i++) {
-        SDL_Log("Audio device: %s", SDL_GetAudioDeviceName(i, 0));
+        Logger::infof("Audio device: %s", SDL_GetAudioDeviceName(i, 0));
     }
 }
 
@@ -457,7 +404,7 @@ void sound_device_init_channels(void)
         return;
     }
     Mix_AllocateChannels(data.total_channels);
-    log_info("Loading audio files", 0, 0);
+    Logger::info("Loading audio files", 0, 0);
     Mix_ChannelFinished(callback_for_audio_finished);
 }
 
@@ -517,15 +464,13 @@ int sound_device_play_music(const char *filename, int volume_pct, int loop)
 
     data.music = load_music_for_filename(filename, true);
     if (!data.music) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-            "Error opening music file '%s'. Reason: %s", filename, Mix_GetError());
+        Logger::warningf("Error opening music file '%s'. Reason: %s", filename, Mix_GetError());
         return 0;
     }
 
     if (Mix_PlayMusic(data.music.get(), loop ? -1 : 0) == -1) {
         data.music.reset();
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-            "Error playing music file '%s'. Reason: %s", filename, Mix_GetError());
+        Logger::warningf("Error playing music file '%s'. Reason: %s", filename, Mix_GetError());
         return 0;
     }
     sound_device_set_music_volume(volume_pct);
@@ -553,7 +498,7 @@ int sound_device_play_track(const char *filename, int volume_pct, void (*on_fini
 
     data.music = load_music_for_filename(filename, false);
     if (!data.music) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Error opening music file '%s'. Reason: %s", filename, Mix_GetError());
+        Logger::warningf("Error opening music file '%s'. Reason: %s", filename, Mix_GetError());
         return 0;
     }
 
@@ -562,7 +507,7 @@ int sound_device_play_track(const char *filename, int volume_pct, void (*on_fini
 
     if (Mix_PlayMusic(data.music.get(), 0) == -1) {
         data.music.reset();
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Error playing music file '%s'. Reason: %s", filename, Mix_GetError());
+        Logger::warningf("Error playing music file '%s'. Reason: %s", filename, Mix_GetError());
         return 0;
     }
 
@@ -652,7 +597,7 @@ int sound_device_resume_music(void)
 {
     if (data.initialized && Mix_PausedMusic()) {
         Mix_ResumeMusic();
-        SDL_Log("Resuming paused music.");
+        Logger::infof("Resuming paused music.");
         return 1;
     }
     return 0;
@@ -674,6 +619,13 @@ void sound_device_stop_type(sound_type type)
     for (int i = 0; i < sound_type_to_channels[type].total; i++) {
         stop_channel(i + sound_type_to_channels[type].start);
     }
+}
+
+void sound_device_stop_file(const char *filename, sound_type type)
+{
+    if (!data.initialized || !filename) return;
+    const int channel = get_channel_for_filename(filename, type);
+    if (channel != k_no_channel) stop_channel(channel);
 }
 
 static void custom_music_callback(void *dummy, Uint8 *dst, int len)
@@ -710,7 +662,7 @@ void sound_device_use_custom_music_player(int bitdepth, int num_channels, int ra
     } else if (bitdepth == 32) {
         format = AUDIO_F32;
     } else {
-        log_error("Custom music bitdepth not supported:", 0, bitdepth);
+        Logger::error("Custom music bitdepth not supported:", 0, bitdepth);
         return;
     }
 

@@ -1,3 +1,4 @@
+#include "city/trade_ledger.h"
 #include "festival.h"
 
 #include "building/building.h"
@@ -159,6 +160,7 @@ void city_festival_schedule(void)
         if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
             if (Building *venus_gt = grand_temple_for_god(GOD_VENUS, false)) {
                 int temple_wine = venus_gt->resource_amount(resource_wine());
+                city_trade_ledger_consumed(resource_wine(), std::min(temple_wine, wine_needed) * resource_units_per_load());
                 if (wine_needed <= temple_wine) {
                     venus_gt->add_resource(resource_wine(), -wine_needed);
                     wine_needed = 0;
@@ -168,7 +170,8 @@ void city_festival_schedule(void)
                 }
             }
         }
-        building_warehouses_remove_resource(resource_wine(), wine_needed);
+        const int remaining = building_warehouses_remove_resource(resource_wine(), wine_needed);
+        city_trade_ledger_consumed(resource_wine(), (wine_needed - remaining) * resource_units_per_load());
     }
 }
 

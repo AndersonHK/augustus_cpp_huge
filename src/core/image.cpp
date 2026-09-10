@@ -1,4 +1,8 @@
+#include "core/loading_progress.h"
 #ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+#include "map/TerrainRegistry.h"
+#endif
+#ifndef GRAPHICS_EXTRACTION_BUILD_DLL
 #include "assets/graphics_extraction_client.h"
 #endif
 #include "building/building.h"
@@ -17,11 +21,11 @@
 #include "core/dir.h"
 #include "core/image_packer.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
 #include "game/mod_manager.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "platform/file_manager.h"
 #include "scenario/property.h"
 
@@ -288,7 +292,7 @@ static void read_index_entry(buffer *buf, image *img, image_draw_data *draw_data
     if (num_sprites) {
         img->animation = (image_animation *) malloc(sizeof(image_animation));
         if (!img->animation) {
-            log_error("Not enough memory to add animations. The game will probably crash.", 0, 0);
+            Logger::error("Not enough memory to add animations. The game will probably crash.", 0, 0);
             buffer_skip(buf, 18);
         } else {
             memset(img->animation, 0, sizeof(image_animation));
@@ -314,7 +318,7 @@ static void read_index_entry(buffer *buf, image *img, image_draw_data *draw_data
     if (has_top && img->is_isometric) {
         img->top = (image *) malloc(sizeof(image));
         if (!img->top) {
-            log_error("Not enough memory to add animations. The game will probably crash.", 0, 0);
+            Logger::error("Not enough memory to add animations. The game will probably crash.", 0, 0);
         }
         memset(img->top, 0, sizeof(image));
     }
@@ -799,34 +803,29 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     const char *source_name,
     const image_atlas_data *atlas_data)
 {
-#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+#ifdef GRAPHICS_EXTRACTION_BUILD_DLL
     (void) images;
     (void) image_count;
     (void) group_image_ids;
     (void) group_count;
     (void) source_name;
     (void) atlas_data;
-    log_error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
+    Logger::error("Extractor module attempted to recursively invoke its runtime client", 0, 0);
     return 0;
 #else
-    // The extractor DLL receives a self-contained pixel snapshot. External message
-    // illustrations must be decoded here, where their 555 index state is owned.
+    // The extractor DLL receives a self-contained pixel snapshot. External
+    // graphics must be decoded here, where their 555 index state is owned.
     std::vector<image> extraction_images(images, images + image_count);
     std::vector<color_t *> buffers(atlas_data->buffers, atlas_data->buffers + atlas_data->num_images);
     std::vector<int> widths(atlas_data->image_widths, atlas_data->image_widths + atlas_data->num_images);
     std::vector<int> heights(atlas_data->image_heights, atlas_data->image_heights + atlas_data->num_images);
     std::vector<std::vector<color_t>> external_pixels;
-    const int message_first = group_count > GROUP_MESSAGE_IMAGES ? group_image_ids[GROUP_MESSAGE_IMAGES] : image_count;
-    int message_end = image_count;
-    for (int group = 1; group < group_count; group++) {
-        if (group_image_ids[group] > message_first && group_image_ids[group] < message_end) message_end = group_image_ids[group];
-    }
-    for (int id = message_first; id < message_end; id++) {
+    for (int id = 0; id < image_count; id++) {
         const image &source = images[id];
         if (!image_is_external(&source)) continue;
         int width = 0, height = 0;
         if (!image_get_external_dimensions(&source, &width, &height) || width <= 0 || height <= 0) {
-            log_error("External message image has invalid dimensions", source_name, id);
+            Logger::error("External image has invalid dimensions", source_name, id);
             return 0;
         }
         external_pixels.emplace_back(static_cast<size_t>(width) * height, ALPHA_TRANSPARENT);
@@ -852,17 +851,22 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     request.group_count = group_count;
     request.source_name = source_name;
     request.atlas_data = &extraction_atlas;
+#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+    request.mode = GRAPHICS_EXTRACTION_CLIMATE_JULIUS_ONLY;
+#else
     request.mode = GRAPHICS_EXTRACTION_CLIMATE_RUNTIME_BOOTSTRAP;
+#endif
     const std::filesystem::path asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
     const std::string game_root = asset_root.parent_path().string();
     request.game_root = game_root.c_str();
     request.augustus_graphics = mod_manager::augustus_graphics_path().c_str();
     request.julius_graphics = mod_manager::julius_graphics_path().c_str();
+    request.progress = loading_progress::observer;
     graphics_extraction_result_v1 result = {};
     result.struct_size = sizeof(result);
     const graphics_extraction_status_v1 status = GraphicsExtractionClient().bootstrapClimate(request, result);
     if (status != GRAPHICS_EXTRACTION_STATUS_SUCCEEDED) {
-        log_error("GraphicsExtractor climate operation failed", source_name, status);
+        Logger::error("GraphicsExtractor climate operation failed", source_name, status);
         return 0;
     }
     return 1;
@@ -914,7 +918,11 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 {
     if (climate_id == data.current_climate && is_editor == data.is_editor && !force_reload &&
         graphics_renderer()->has_image_atlas(ATLAS_MAIN)) {
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+        return terrain_registry().bind_graphics();
+#else
         return 1;
+#endif
     }
     runtime_overlay_images_reset();
     graphics_renderer()->get_max_image_size(&data.max_image_width, &data.max_image_height);
@@ -924,6 +932,7 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
         free(data.main[i].top);
         free(data.main[i].animation);
     }
+    memset(data.main, 0, sizeof(data.main));
 
     release_external_buffers();
     free(data.external_draw_data);
@@ -934,14 +943,13 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
     const char *filename_bmp = is_editor ? EDITOR_GRAPHICS_555[climate_id] : MAIN_GRAPHICS_555[climate_id];
     const char *filename_idx = is_editor ? EDITOR_GRAPHICS_SG2[climate_id] : MAIN_GRAPHICS_SG2[climate_id];
     uint8_t *tmp_data = (uint8_t *) malloc(MAIN_DATA_SIZE * sizeof(uint8_t));
-    image_draw_data *draw_data = (image_draw_data *) malloc((IMAGE_MAIN_ENTRIES + data.images_with_tops) * sizeof(image_draw_data));
+    image_draw_data *draw_data = (image_draw_data *) malloc(IMAGE_MAIN_ENTRIES * sizeof(image_draw_data));
     if (!tmp_data || !draw_data ||
         MAIN_INDEX_SIZE != io_read_file_into_buffer(filename_idx, MAY_BE_LOCALIZED, tmp_data, MAIN_INDEX_SIZE)) {
         free(tmp_data);
         free(draw_data);
         return 0;
     }
-    memset(data.main, 0, sizeof(data.main));
     memset(draw_data, 0, IMAGE_MAIN_ENTRIES * sizeof(image_draw_data));
 
     buffer buf;
@@ -990,6 +998,25 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
     free_draw_data(draw_data, IMAGE_MAIN_ENTRIES);
     free(tmp_data);
     make_plain_fonts_white(data.main, atlas_data, image_group(GROUP_FONT));
+    // Fulfil the bootstrap UI's pending font from the same original glyph bank
+    // used by image_letter(). No substitute typeface or shipped font copy.
+    if (loading_progress::font_glyph_observer) {
+        const int first = data.group_image_ids[GROUP_FONT];
+        int end = IMAGE_MAIN_ENTRIES;
+        for (int group = 0; group < IMAGE_MAX_GROUPS; ++group) {
+            const int start = data.group_image_ids[group];
+            if (start > first) end = std::min(end, start);
+        }
+        for (int index = first; index < end; ++index) {
+            const auto &glyph = data.main[index];
+            if (glyph.width <= 0 || glyph.height <= 0) continue;
+            const int atlas = glyph.atlas.id & IMAGE_ATLAS_BIT_MASK;
+            const int stride = atlas_data->image_widths[atlas];
+            loading_progress::font_glyph_observer({index - first, glyph.width, glyph.height, glyph.original.width, glyph.x_offset, glyph.y_offset,
+                atlas_data->buffers[atlas] + glyph.atlas.y_offset * stride + glyph.atlas.x_offset, stride});
+        }
+        if (loading_progress::font_ready_observer) loading_progress::font_ready_observer();
+    }
     if (extract_legacy_graphics) {
         if (!bootstrap_runtime_graphics_extraction_after_climate(
             data.main,
@@ -1024,6 +1051,9 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 
     data.current_climate = climate_id;
     data.is_editor = is_editor;
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+    if (!terrain_registry().bind_graphics()) return 0;
+#endif
 
     data.images_with_tops = 0;
 
@@ -1260,7 +1290,7 @@ static int load_multibyte_font(multibyte_font_type type)
         return 0;
     }
 
-    log_info("Parsing multibyte font", font_info->name, 0);
+    Logger::info("Parsing multibyte font", font_info->name, 0);
 
     int file_version = 2;
     int data_size = io_read_file_into_buffer(font_info->file_v2, MAY_BE_LOCALIZED, tmp_data, font_info->data_size);
@@ -1272,7 +1302,7 @@ static int load_multibyte_font(multibyte_font_type type)
         if (!data_size) {
             free_font_memory();
             free(tmp_data);
-            log_error("Augustus requires extra files for the characters:", font_info->file_v2, 0);
+            Logger::error("Augustus requires extra files for the characters:", font_info->file_v2, 0);
             return 0;
         }
     }
@@ -1286,7 +1316,7 @@ static int load_multibyte_font(multibyte_font_type type)
     if (image_packer_init(&data.packer, entries, data.max_image_width, data.max_image_height) != IMAGE_PACKER_OK) {
         free_font_memory();
         free(tmp_data);
-        log_error("Internal error loading font", 0, 0);
+        Logger::error("Internal error loading font", 0, 0);
         return 0;
     }
     data.packer.options.fail_policy = IMAGE_PACKER_NEW_IMAGE;
@@ -1361,7 +1391,7 @@ static int load_multibyte_font(multibyte_font_type type)
     upload_atlas_image_resources(data.font, entries, atlas_data, ATLAS_FONT, "font", font_info->file_v2 ? font_info->file_v2 : font_info->file_v1);
     graphics_renderer()->create_image_atlas(atlas_data, 1);
 
-    log_info("Done parsing font", font_info->name, 0);
+    Logger::info("Done parsing font", font_info->name, 0);
 
     image_packer_free(&data.packer);
     free(font_data);
@@ -1482,7 +1512,7 @@ int image_load_external_pixels(color_t *dst, const image *img, int row_width)
             release_external_buffers();
             draw_data->buffer = malloc(draw_data->data_length * sizeof(uint8_t));
             if (!draw_data->buffer) {
-                log_error("unable to load external image - out of memory",
+                Logger::error("unable to load external image - out of memory",
                     data.bitmaps[draw_data->bitmap_id], 0);
                 return 0;
             }
@@ -1498,7 +1528,7 @@ int image_load_external_pixels(color_t *dst, const image *img, int row_width)
                 draw_data->data_length, draw_data->offset - 1
             );
             if (!size) {
-                log_error("unable to load external image",
+                Logger::error("unable to load external image",
                     data.bitmaps[draw_data->bitmap_id], 0);
                 free(draw_data->buffer);
                 draw_data->buffer = 0;

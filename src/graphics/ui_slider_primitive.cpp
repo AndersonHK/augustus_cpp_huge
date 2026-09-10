@@ -7,13 +7,6 @@
 #include "core/image_group.h"
 #include "graphics/ui_constants.h"
 
-namespace {
-
-const int kSliderPadding = 2;
-const int kSliderThumbSize = 25;
-
-}
-
 UiSliderPrimitive::UiSliderPrimitive(
     UiPrimitives &primitives,
     int x,
@@ -44,7 +37,7 @@ int UiSliderPrimitive::trailing_width_pixels() const
 
 int UiSliderPrimitive::thumb_offset() const
 {
-    int width = width_pixels_ - kSliderPadding * 2 - kSliderThumbSize;
+    int width = width_pixels_ - Padding * 2 - ThumbSize;
     if (width <= 0) {
         return 0;
     }
@@ -71,7 +64,7 @@ void UiSliderPrimitive::draw() const
     UiSpritePrimitive thumb(
         primitives_,
         image_group(GROUP_PANEL_BUTTON) + 37,
-        x_ + kSliderPadding + thumb_offset(),
+        x_ + Padding + thumb_offset(),
         y_ - 2);
     thumb.draw();
 }

@@ -8,7 +8,7 @@
 #include "building/building_type_registry_internal.h"
 
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 
 int map_water_supply_is_building_unnecessary(Building *building, int radius)
 {
@@ -29,7 +29,7 @@ int map_water_supply_is_building_unnecessary(Building *building, int radius)
             if (found_building && found_building->Housing) {
                 num_houses++;
                 if (!water_access_runtime_tile_has_access(grid_offset, "fountain") &&
-                    !map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {
+                    !terrain_map().contains(grid_offset, terrain_types().fountain_range)) {
                     return BUILDING_NECESSARY;
                 }
             }

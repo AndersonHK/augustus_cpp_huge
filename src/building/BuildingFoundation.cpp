@@ -1,6 +1,7 @@
 #include "building/BuildingFoundation.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "map/aqueduct.h"
@@ -8,7 +9,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tiles.h"
 
 #include <algorithm>
@@ -48,6 +49,21 @@ BuildingFoundation::~BuildingFoundation()
 Building &BuildingFoundation::owner() const { return *owner_; }
 const FoundationDef &BuildingFoundation::definition() const { return *definition_; }
 FoundationState &BuildingFoundation::state() const { return *state_; }
+bool BuildingFoundation::repair_support_ownership()
+{
+    if (!state_ || !definition_ || !state_->is_published()) return false;
+    bool repaired = false;
+    int index = 0;
+    for (const auto &cell : definition_->cells()) {
+        const auto *support = cell.support_type.empty() ? nullptr : definition_for_type(type_from_attr(cell.support_type.c_str()));
+        const auto *foundation = support ? support->foundation_def() : nullptr;
+        if (foundation && foundation->cells().size() == 1 && !foundation->cells().front().binds_building) {
+            repaired = state_->release_added_terrain(index, foundation->cells().front().added_terrain) || repaired;
+        }
+        ++index;
+    }
+    return repaired;
+}
 int BuildingFoundation::width(int rotation) const { return definition_->rotated_width(rotation); }
 int BuildingFoundation::height(int rotation) const { return definition_->rotated_height(rotation); }
 std::vector<RotatedFoundationCell> BuildingFoundation::cells(int rotation) const
@@ -61,7 +77,7 @@ int definition_adds_aqueduct(const FoundationDef &definition)
 {
     return std::any_of(definition.cells().begin(), definition.cells().end(),
         [](const FoundationCellDefinition &cell) {
-            return (cell.added_terrain & TERRAIN_AQUEDUCT) != 0;
+            return cell.added_terrain.intersects(terrain_types().aqueduct);
         });
 }
 
@@ -133,10 +149,10 @@ int BuildingFoundation::publish(int origin_x, int origin_y, int rotation)
             *cell.definition,
             static_cast<int>(cell.definition - canonical_cells.data()),
             grid_offset,
-            static_cast<uint32_t>(map_terrain_get(grid_offset)));
+            terrain_map().at(grid_offset));
 
-        map_terrain_remove(grid_offset, static_cast<int>(cell.definition->removed_terrain));
-        map_terrain_add(grid_offset, static_cast<int>(cell.definition->added_terrain));
+        terrain_map().remove(grid_offset, cell.definition->removed_terrain);
+        terrain_map().add(grid_offset, cell.definition->added_terrain);
         if (cell.definition->binds_building) {
             map_building_set(grid_offset, *owner_);
             map_property_set_legacy_multi_tile_size(grid_offset, compatibility_size);
@@ -211,17 +227,22 @@ int BuildingFoundation::remove()
         if (!map_grid_is_valid_offset(delta.grid_offset)) {
             continue;
         }
+        // A replacement now owns the cell, including its terrain and draw footprint.
+        if (delta.bound_building && map_building_exists_at(delta.grid_offset) &&
+            map_building_at(delta.grid_offset).record() != owner_->record()) {
+            continue;
+        }
         const FoundationCellDefinition *cell =
             delta.cell_index >= 0 && delta.cell_index < static_cast<int>(canonical_cells.size())
             ? &canonical_cells[delta.cell_index]
             : nullptr;
-        const int authored_aqueduct = cell && (cell->added_terrain & TERRAIN_AQUEDUCT);
-        if ((delta.added_terrain & TERRAIN_AQUEDUCT) || authored_aqueduct) {
+        const int authored_aqueduct = cell && (cell->added_terrain & terrain_types().aqueduct);
+        if ((delta.added_terrain & terrain_types().aqueduct) || authored_aqueduct) {
             map_aqueduct_remove(delta.grid_offset);
         }
-        map_terrain_remove(delta.grid_offset, static_cast<int>(delta.added_terrain) |
-            (authored_aqueduct ? TERRAIN_AQUEDUCT : 0));
-        map_terrain_add(delta.grid_offset, static_cast<int>(delta.removed_terrain));
+        terrain_map().remove(delta.grid_offset, delta.added_terrain |
+            (authored_aqueduct ? terrain_types().aqueduct : TerrainSet()));
+        terrain_map().add(delta.grid_offset, delta.removed_terrain);
         if (delta.bound_building && map_building_exists_at(delta.grid_offset) &&
             map_building_at(delta.grid_offset).record() == owner_->record()) {
             map_building_clear_at(delta.grid_offset);
@@ -241,10 +262,14 @@ int BuildingFoundation::remove()
             if (!cell.definition) {
                 continue;
             }
-            if (cell.definition->added_terrain & TERRAIN_AQUEDUCT) {
+            if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
+                map_building_at(grid_offset).record() != owner_->record()) {
+                continue;
+            }
+            if (cell.definition->added_terrain & terrain_types().aqueduct) {
                 map_aqueduct_remove(grid_offset);
             }
-            map_terrain_remove(grid_offset, static_cast<int>(cell.definition->added_terrain));
+            terrain_map().remove(grid_offset, cell.definition->added_terrain);
             if (cell.definition->binds_building && map_building_exists_at(grid_offset) &&
                 map_building_at(grid_offset).record() == owner_->record()) {
                 map_building_clear_at(grid_offset);
@@ -291,7 +316,7 @@ int BuildingFoundation::rebind(int origin_x, int origin_y, int rotation)
             FoundationTerrainDelta delta;
             delta.cell_index = static_cast<int>(cell.definition - canonical.data());
             delta.grid_offset = grid_offset;
-            delta.added_terrain = static_cast<uint32_t>(map_terrain_get(grid_offset)) &
+            delta.added_terrain = terrain_map().at(grid_offset) &
                 cell.definition->added_terrain;
             delta.bound_building = cell.definition->binds_building;
             state_->record_delta(delta);
@@ -332,10 +357,10 @@ FoundationPassage BuildingFoundation::passage_at(int grid_offset) const
     for (const RotatedFoundationCell &cell : definition_->rotated_cells(state_->rotation())) {
         if (cell.definition &&
             map_grid_offset(state_->origin_x() + cell.x, state_->origin_y() + cell.y) == grid_offset) {
-            const int terrain = map_terrain_get(grid_offset);
-            if ((cell.definition->added_terrain & TERRAIN_AQUEDUCT) &&
-                (terrain & TERRAIN_AQUEDUCT) &&
-                (terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP))) {
+            const TerrainSet &terrain = terrain_map().at(grid_offset);
+            if ((cell.definition->added_terrain & terrain_types().aqueduct) &&
+                (terrain & terrain_types().aqueduct) &&
+                (terrain & (terrain_types().road | terrain_types().highway | terrain_types().access_ramp))) {
                 return FoundationPassage::Uncontrolled;
             }
             return cell.definition->passage;
@@ -355,14 +380,14 @@ int BuildingFoundation::has_unrestricted_road_crossing() const
         return 0;
     }
     for (const RotatedFoundationCell &cell : definition_->rotated_cells(state_->rotation())) {
-        if (!cell.definition || !(cell.definition->added_terrain & TERRAIN_AQUEDUCT)) {
+        if (!cell.definition || !(cell.definition->added_terrain & terrain_types().aqueduct)) {
             continue;
         }
         const int grid_offset = map_grid_offset(
             state_->origin_x() + cell.x, state_->origin_y() + cell.y);
-        const int terrain = map_terrain_get(grid_offset);
-        if ((terrain & TERRAIN_AQUEDUCT) &&
-            (terrain & (TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP))) {
+        const TerrainSet &terrain = terrain_map().at(grid_offset);
+        if ((terrain & terrain_types().aqueduct) &&
+            (terrain & (terrain_types().road | terrain_types().highway | terrain_types().access_ramp))) {
             return 1;
         }
     }
@@ -426,6 +451,22 @@ const FoundationTerrainDelta *BuildingFoundation::terrain_delta_at(int grid_offs
         }
     }
     return nullptr;
+}
+
+std::vector<Building *> BuildingFoundation::unbound_owners_at(int grid_offset)
+{
+    std::vector<Building *> owners;
+    const auto found = g_unbound_foundations.find(grid_offset);
+    if (found != g_unbound_foundations.end()) {
+        for (auto it = found->second.rbegin(); it != found->second.rend(); ++it) {
+            BuildingFoundation *foundation = *it;
+            if (foundation && foundation->owner_ && foundation->state_ && foundation->state_->is_published() &&
+                foundation->contains_grid_offset(grid_offset)) {
+                owners.push_back(foundation->owner_);
+            }
+        }
+    }
+    return owners;
 }
 
 Building *BuildingFoundation::unbound_owner_at(int grid_offset, const BuildingType *type)

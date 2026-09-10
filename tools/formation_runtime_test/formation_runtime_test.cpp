@@ -171,7 +171,7 @@ void check_roster_and_recruitment(std::vector<formation *> &legions, const std::
         Figure::get(second.first_figure_id())->remove();
         formation_calculate_figures();
     }
-    for (Building *source : barracks) source->set_resource_amount(resource_weapons(), MAX_WEAPONS_BARRACKS);
+    for (Building *source : barracks) source->set_resource_amount(resource_weapons(), 4 * resource_units_per_load());
     const int initial = first.num_figures + second.num_figures;
     const auto recruit = [](Building &source) {
         map_point road;
@@ -281,6 +281,7 @@ void check_shapes_and_movement(formation &owner)
         std::set<std::pair<int, int>> endpoints;
         owner.for_each_alive_figure([&](Figure &member, int) {
             require(endpoints.emplace(member.cross_country_x, member.cross_country_y).second, "Soldiers stacked at one exact station");
+            require(Route::groundPositionIsPassable(member.cross_country_x, member.cross_country_y), "Stationed soldier is drawn beyond the passable terrain boundary");
             const auto result = owner.move_member_to_slot(member, FormationMemberDestination::Standard, 0, 0);
             require(result == FormationMemberMovementResult::Stationed, "An idle stationed member restarted routing");
         });
@@ -356,7 +357,12 @@ bool run_formation_runtime_test()
                 owner->for_each_alive_figure([](Figure &member, int) { figure_soldier_action(&member); });
             }
             std::set<std::pair<int, int>> after;
-            owner->for_each_alive_figure([&](Figure &member, int) { after.emplace(member.cross_country_x, member.cross_country_y); });
+            owner->for_each_alive_figure([&](Figure &member, int) {
+                after.emplace(member.cross_country_x, member.cross_country_y);
+                require(owner->move_member_to_slot(member, FormationMemberDestination::Standard, 0, 0) == FormationMemberMovementResult::Stationed,
+                    "Constrained deployed formation did not resolve every member to a usable station");
+                require(Route::groundPositionIsPassable(member.cross_country_x, member.cross_country_y), "Constrained station overlaps adjacent impassable terrain");
+            });
             std::printf("Deployed legion %u: %zu stations before, %zu after, changed=%d\n", owner->id, before.size(), after.size(), before != after);
             require(before != after, "Changing a saved deployed legion's shape did not move its soldiers");
         }

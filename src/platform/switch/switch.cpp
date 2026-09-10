@@ -1,3 +1,4 @@
+#include "core/Logger.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/encoding.h"
@@ -37,7 +38,7 @@ static void change_display_size(void)
 {
     AppletOperationMode mode = appletGetOperationMode();
     if (mode != display_mode) {
-        SDL_Log("Changing display mode to %s", mode == AppletOperationMode_Handheld ? "handheld" : "docked");
+        Logger::infof("Changing display mode to %s", mode == AppletOperationMode_Handheld ? "handheld" : "docked");
         display_mode = mode;
         if (display_mode == AppletOperationMode_Handheld) {
             system_scale_display(HANDHELD_SCREEN_SCALE);

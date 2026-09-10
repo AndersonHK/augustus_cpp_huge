@@ -1,44 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="brickworks">
-    <identity name_key="TR_BUILDING_BRICKWORKS" />
-    <model cost="80" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_2x2" />
-    <button group="workshops" order="70" icon="Industry\Brickworks_On_01" icon_image="Brickworks_C_ON" text_key="TR_RESOURCE_BRICKS" />
-    <sound id="brickworks" />
-    <graphics>
-        <default>
-            <path value="Industry\Brickworks_On_01" />
-            <image value="Brickworks_C_ON" />
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Industry\Brickworks_On_01" />
-            <image value="Brickworks_N_ON" />
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Industry\Brickworks_On_01" />
-            <image value="Brickworks_S_ON" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <storages>
-        <storage path="sand_input_brickworks" />
-        <storage path="clay_input_brickworks" />
-        <storage path="bricks_output_brickworks" />
-    </storages>
-    <production_methods>
-        <production_method path="brickworks_basic" />
-    </production_methods>
 </building>

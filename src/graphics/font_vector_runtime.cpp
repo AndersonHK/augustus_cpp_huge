@@ -10,7 +10,7 @@
 #ifndef STARTUP_PARSER_TEST
 #include "core/encoding.h"
 #endif
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_parser.h"
 #ifndef STARTUP_PARSER_TEST
 #include "graphics/renderer.h"

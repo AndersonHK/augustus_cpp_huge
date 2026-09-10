@@ -17,7 +17,7 @@
 
 #include "assets/assets.h"
 #include "core/image_group.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/mission.h"
 #include "graphics/image_button.h"
 #include "graphics/text.h"
@@ -152,7 +152,7 @@ static void load_scenarios(void)
     data.mission.scenarios = static_cast<const campaign_scenario **>(
         malloc(sizeof(campaign_scenario *) * data.mission.total_scenarios));
     if (!data.mission.scenarios) {
-        log_error("Failed to allocate memory for scenarios. The game will now crash.", 0, 0);
+        Logger::error("Failed to allocate memory for scenarios. The game will now crash.", 0, 0);
         return;
     }
     for (int i = 0; i < mission->total_scenarios; i++) {

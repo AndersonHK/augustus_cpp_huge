@@ -1,9 +1,12 @@
 #include "window/editor/select_city_trade_route.h"
 #include "export_xml.h"
+#include "map/Terrain.h"
+#include "scenario/definition_overrides.h"
+#include "building/building_type_id_bridge.h"
 
 #include "core/buffer.h"
 #include "core/io.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_exporter.h"
 #include "empire/city.h"
@@ -29,12 +32,20 @@ static void log_exporting_error(const char *msg)
 {
     data.success = 0;
     snprintf(data.error_message, ERROR_MESSAGE_LENGTH, "%s", msg);
-    log_error("Error while exporting scenario events to XML. ", data.error_message, 0);
+    Logger::error("Error while exporting scenario events to XML. ", data.error_message, 0);
 
     window_plain_message_dialog_show_with_extra(
         "TR_EDITOR_UNABLE_TO_SAVE_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
         string_from_ascii(data.error_message),
         0);
+}
+
+static int export_terrain_attribute(const xml_data_attribute_t *attr, const TerrainSet &terrains)
+{
+    std::string names;
+    for (const auto *terrain : terrains.entries()) { if (!names.empty()) names += '|'; names += terrain->name(); }
+    xml_exporter_add_attribute_text(attr->name, names.empty() ? "none" : names.c_str());
+    return 1;
 }
 
 static int export_attribute_by_type(xml_data_attribute_t *attr, parameter_type type, int target)
@@ -67,7 +78,7 @@ static int export_attribute_number(xml_data_attribute_t *attr, int target)
 static int export_attribute_route(xml_data_attribute_t *attr, int target)
 {
     int city_id = empire_city_get_for_trade_route(target);
-    if (city_id) {
+    if (city_id > 0) {
         empire_city *city = empire_city_get(city_id);
         const uint8_t *city_name = empire_city_get_name(city);
         xml_exporter_add_attribute_encoded_text(attr->name, city_name);
@@ -140,8 +151,13 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
         case PARAMETER_TYPE_TARGET_TYPE:
         case PARAMETER_TYPE_GOD:
         case PARAMETER_TYPE_CLIMATE:
-        case PARAMETER_TYPE_TERRAIN:
         case PARAMETER_TYPE_DATA_TYPE:
+        case PARAMETER_TYPE_HOUSE_DATA_TYPE:
+        case PARAMETER_TYPE_WIN_CONDITION:
+        case PARAMETER_TYPE_WEATHER:
+        case PARAMETER_TYPE_VARIABLE_COLOR:
+        case PARAMETER_TYPE_HOUSING_BUILDING:
+        case PARAMETER_TYPE_CONSTRUCTION_BUILDING:
         case PARAMETER_TYPE_MODEL:
         case PARAMETER_TYPE_PERCENTAGE:
         case PARAMETER_TYPE_HOUSING_TYPE:
@@ -162,10 +178,13 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
         }
         case PARAMETER_TYPE_REQUEST:
             return export_attribute_number(attr, target);
+        case PARAMETER_TYPE_EMPIRE_CITY:
         case PARAMETER_TYPE_FUTURE_CITY:
             return export_attribute_future_city(attr, target);
         case PARAMETER_TYPE_MIN_MAX_NUMBER:
         case PARAMETER_TYPE_NUMBER:
+        case PARAMETER_TYPE_GRID_OFFSET:
+        case PARAMETER_TYPE_CONSTRUCTION_PHASE:
         case PARAMETER_TYPE_GRID_SLICE:
             return export_attribute_number(attr, target);
         case PARAMETER_TYPE_RESOURCE:
@@ -191,6 +210,9 @@ static int export_parse_attribute_with_resolved_type(xml_data_attribute_t *attr,
             }
             return 1;
         }
+        case PARAMETER_TYPE_SCENARIO_TEXT:
+            xml_exporter_add_attribute_encoded_text(attr->name, scenario_text_get(target));
+            return 1;
         case PARAMETER_TYPE_UNDEFINED:
             return 1;
         case PARAMETER_TYPE_FLEXIBLE:
@@ -228,9 +250,11 @@ static void export_event_condition(scenario_condition_t *condition)
 
     export_parse_attribute(&condition_data->xml_parm1, condition->parameter1);
     export_parse_attribute(&condition_data->xml_parm2, condition->parameter2);
-    export_parse_attribute(&condition_data->xml_parm3, condition->parameter3);
+    if (condition_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&condition_data->xml_parm3, condition->terrain);
+    else export_parse_attribute(&condition_data->xml_parm3, condition->parameter3);
     export_parse_attribute(&condition_data->xml_parm4, condition->parameter4);
     export_parse_attribute(&condition_data->xml_parm5, condition->parameter5);
+    if (condition->type == CONDITION_TYPE_TIME_PASSED && condition->parameter5 == 1) xml_exporter_add_attribute_int("sample_on_init", 1);
 
     xml_exporter_close_element();
 }
@@ -264,10 +288,12 @@ static void export_event_action(scenario_action_t *action)
             xml_data_attribute_t resolved_attr = action_data->xml_parm3;
             resolved_attr.type = type3;
             resolved_attr.name = info.param_names[0];
-            export_parse_attribute_with_resolved_type(&resolved_attr, type3, action->parameter3);
+            if (type3 == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&resolved_attr, action->terrain);
+            else export_parse_attribute_with_resolved_type(&resolved_attr, type3, action->parameter3);
         }
     } else {
-        export_parse_attribute(&action_data->xml_parm3, action->parameter3);
+        if (action_data->xml_parm3.type == PARAMETER_TYPE_TERRAIN) export_terrain_attribute(&action_data->xml_parm3, action->terrain);
+        else export_parse_attribute(&action_data->xml_parm3, action->parameter3);
     }
 
     if (action_data->xml_parm4.type == PARAMETER_TYPE_FLEXIBLE) {
@@ -294,6 +320,23 @@ static void export_event_action(scenario_action_t *action)
         }
     } else {
         export_parse_attribute(&action_data->xml_parm5, action->parameter5);
+    }
+
+    if (action->value_scale != 1) xml_exporter_add_attribute_int("value_scale", action->value_scale);
+    if (!action->value_domain.empty()) {
+        std::string values;
+        for (int value : action->value_domain) { if (!values.empty()) values += ','; values += std::to_string(value); }
+        xml_exporter_add_attribute_text("value_domain", values.c_str());
+    }
+    if (!action->model_targets.empty()) {
+        std::string targets;
+        for (const auto &target : action->model_targets) {
+            const char *name = building_type_id_bridge_text_from_runtime(static_cast<building_type>(target.building));
+            if (!name) { log_exporting_error("Unknown model target definition"); return; }
+            if (!targets.empty()) targets += ';';
+            targets += std::string(name) + ':' + std::to_string(target.value_scale);
+        }
+        xml_exporter_add_attribute_text("model_targets", targets.c_str());
     }
 
     xml_exporter_close_element();
@@ -403,7 +446,7 @@ int scenario_events_export_to_xml(const char *filename)
     int buf_size = XML_EXPORT_MAX_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
-        log_error("Unable to allocate buffer to export scenario events XML", 0, 0);
+        Logger::error("Unable to allocate buffer to export scenario events XML", 0, 0);
         free(buf_data);
         return 0;
     }

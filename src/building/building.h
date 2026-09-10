@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/building_fwd.h"
 #include "building/BuildingRuntimeList.h"
@@ -295,9 +296,9 @@ public:
     int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();
-    void bless_native_farm();
-    void curse_native_farm(int big_curse);
-    void bless_native_industry();
+    void bless_native_farm(int days);
+    void curse_native_farm(int days);
+    void bless_native_industry(int batches);
     void set_industry_stockpiling(int value);
     void set_mothballed(int value);
     void change_type(building_type type, const std::source_location &location = std::source_location::current());
@@ -364,6 +365,8 @@ void building_trim(void);
 void building_update_state(void);
 
 void building_update_desirability(void);
+int building_elevation_desirability(int grid_offset);
+int building_shoreline_desirability(int grid_offset);
 
 int building_is_fort(building_type type);
 
@@ -399,3 +402,4 @@ int building_hydrate_loaded_compositions(int save_version);
 void building_resource_state_save(buffer *buf);
 
 void building_resource_state_load(buffer *buf);
+void building_migrate_recruitment_supplies(int version);

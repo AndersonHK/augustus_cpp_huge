@@ -1,31 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="dock">
-    <identity name_key="main_strings.28.75" />
-    <model cost="100" />
-    <desirability>
-        <value value="-8" />
-        <step value="2" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="dock_3x3" />
-    <water_access requires_open_water="true" />
     <button group="engineering" order="40" text_key="main_strings.28.75" />
-    <graphics>
-        <default>
-            <options selection="orientation">
-                <option path="Industry\Dock_1" image="Image_0000" />
-                <option path="Industry\Dock_4" image="Image_0000" />
-                <option path="Industry\Dock_3" image="Image_0000" />
-                <option path="Industry\Dock_2" image="Image_0000" />
-            </options>
-        </default>
-    </graphics>
-    <labor>
-        <employees count="12" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="50" />
-        </labor_seeker>
-    </labor>
 </building>

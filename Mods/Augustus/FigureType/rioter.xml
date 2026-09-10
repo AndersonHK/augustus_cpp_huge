@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="rioter" graphics_only="true">
+    <behavior attack_fireproof_defenses="$RIOTERS_ATTACK_DEFENSES" fireproof_targets="gatehouse palisade palisade_gate" />
+</figure>

@@ -18,16 +18,15 @@
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/calc.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "core/direction.h"
 
 #include "core/image_group.h"
 #include "city/population.h"
 #include "city/view.h"
 #include "game/resource.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/random.h"
-#include "core/log.h"
 
 #include <cstdio>
 #include <cstdint>
@@ -116,7 +115,7 @@ void log_building_scope_state(void *userdata)
         definition ? definition->upgrade_level_for(b) : 0,
         target && target->has_path() ? target->path() : "",
         target && target->has_image() ? target->image() : "");
-    log_info("Graphics building state", details, 0);
+    Logger::info("Graphics building state", details, 0);
 }
 
 const char *building_type_attr_or_unknown(const building_runtime *runtime)
@@ -164,11 +163,10 @@ void format_rebuild_failure_detail(
 {
     char detail[512];
     format_rebuild_failure_detail(detail, sizeof(detail), runtime, reason, target, entry);
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "Native building graphics cache rebuild failed.",
         detail);
-    std::terminate();
 }
 
 [[noreturn]] void report_layer_rebuild_failure(
@@ -186,11 +184,10 @@ void format_rebuild_failure_detail(
         layer.has_path() ? layer.path() : "",
         layer.has_image() ? layer.image() : (entry ? entry->id().c_str() : ""),
         reason ? reason : "");
-    error_context_report_fatal_error_dialog(
+    Logger::fatal(
         "Building graphics invariant violated",
         "Native building graphics layer cache rebuild failed.",
         detail);
-    std::terminate();
 }
 
 int selected_option_for_selection(
@@ -211,6 +208,9 @@ int selected_option_for_selection(
             (building.orientation() + city_view_orientation() / 2) % option_count :
             graphics_variant % option_count;
         return option < 0 ? option + option_count : option;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::PairedOrientation) {
+        return (graphics_variant ^ ((city_view_orientation() / 2) % 2)) % option_count;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
         return building_type_registry_impl::graphics_orientation_option_index(
@@ -259,7 +259,7 @@ int selected_option_for_selection(
     if (selection == building_type_registry_impl::GraphicsOptionSelection::RoadCrossing) {
         const int grid_offset = building.grid_offset();
         const int option = road_aqueduct_crossing_option(
-            map_terrain_is(grid_offset + map_grid_delta(0, -1), TERRAIN_ROAD),
+            terrain_map().contains(grid_offset + map_grid_delta(0, -1), terrain_types().road),
             map_tiles_is_paved_road(grid_offset));
         return option % option_count;
     }
@@ -758,7 +758,7 @@ const RuntimeDrawSlice *building_runtime::graphic_footprint()
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_base_image",
         context,
         log_building_scope_state,
@@ -777,7 +777,7 @@ const RuntimeDrawSlice *building_runtime::graphic_top()
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_top_image",
         context,
         log_building_scope_state,
@@ -796,7 +796,7 @@ const RuntimeDrawSlice *building_runtime::graphic_animation(int animation_cursor
 
     char context[256];
     make_building_context(context, sizeof(context), this);
-    CrashContextScope crash_scope(
+    Logger::Scope crash_scope(
         "building_runtime.resolve_animation_image",
         context,
         log_building_scope_state,

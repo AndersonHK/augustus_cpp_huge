@@ -1,33 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="forum">
-    <identity name_key="main_strings.28.86" />
-    <model cost="75" />
-    <desirability>
-        <value value="3" />
-        <step value="2" />
-        <step_size value="-1" />
-        <range value="2" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="administration" order="700" icon="Admin_Logistics\Forum" text_key="main_strings.28.86" />
-    <sound id="forum" />
-    <graphics>
-        <default>
-            <path value="Admin_Logistics\Forum" />
-        </default>
-        <variant>
-            <condition type="desirability" operator="gt" threshold="30" />
-            <path value="Admin_Logistics\Upgraded_Forum" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="6" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="tax_collector">
-        <spawn spawn_figure="tax_collector" direction="top" figure_slot="primary" spawn_count="1"
-            graphic_timing="on_spawn_entry" condition="always" block_on_success="true" profile="service" />
-    </spawn_group>
 </building>

@@ -7,7 +7,7 @@
 #include "city/military.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "figure/enemy_army.h"
 #include "figure/combat.h"
 #include "figure/figure.h"
@@ -126,7 +126,7 @@ void formations_clear(void)
     clear_formation_destinations();
     formations.clear();
     if (!append_formation()) { // Ignore first formation
-        log_error("Unable to create the formations array. The game will likely crash.", 0, 0);
+        Logger::error("Unable to create the formations array. The game will likely crash.", 0, 0);
     }
     data.id_last_in_use = 0;
     data.id_last_legion = 0;
@@ -298,7 +298,7 @@ bool formation::refresh_legion_definition_from_home()
         }
     }
     if (!home) {
-        log_error(
+        Logger::error(
             matching_forts > 1 ?
                 "Legion formation matches more than one fort building" :
                 "Legion formation references missing fort building",
@@ -308,7 +308,7 @@ bool formation::refresh_legion_definition_from_home()
     }
     const char *failure = nullptr;
     if (!bind_to_fort(*home, &failure)) {
-        log_error("Unable to bind legion formation to fort", failure, static_cast<int>(id));
+        Logger::error("Unable to bind legion formation to fort", failure, static_cast<int>(id));
         return false;
     }
     return true;
@@ -318,7 +318,7 @@ bool formation::reconcile_loaded_legion_command()
 {
     Building *home = fort();
     if (!home || !home->Composition) {
-        log_error("Loaded fort formation has no data-defined mustering ground", 0, static_cast<int>(id));
+        Logger::error("Loaded fort formation has no data-defined mustering ground", 0, static_cast<int>(id));
         return false;
     }
     Building &ground = home->Composition->require_child_for_role(
@@ -399,7 +399,7 @@ bool formation::reconcile_loaded_legion_command()
         if (recovered_facing < DIR_0_TOP || recovered_facing >= DIR_8_NONE) {
             const FormationLayoutDef *at_rest = formation_layout_registry_impl::find_layout("at_rest");
             if (!at_rest || at_rest->stationary_facing < DIR_0_TOP || at_rest->stationary_facing >= DIR_8_NONE) {
-                log_error("Loaded deployed legion has no recoverable stationary facing", 0, static_cast<int>(id));
+                Logger::error("Loaded deployed legion has no recoverable stationary facing", 0, static_cast<int>(id));
                 return false;
             }
             recovered_facing = at_rest->stationary_facing;
@@ -414,7 +414,7 @@ bool formation::reconcile_loaded_legion_command()
             "formation_id=%u saved_anchor=(%d,%d) canonical_anchor=(%d,%d) home=(%d,%d) saved_at_fort=%d canonical_at_fort=%d saved_facing=%d canonical_facing=%d repaired_actions=%d",
             id, saved_standard_x, saved_standard_y, standard_x, standard_y, ground.x(), ground.y(), saved_is_at_fort, is_at_fort,
             saved_direction, direction, repaired_actions);
-        log_warning("Repairing contradictory loaded legion command state", detail, 0);
+        Logger::warning("Repairing contradictory loaded legion command state", detail, 0);
     }
     set_station_origin(standard_x, standard_y);
     return true;
@@ -428,11 +428,11 @@ bool formation::initialize_legion_from_fort(Building &fort, int assigned_legion_
     figure_type = static_cast<::figure_type>(fort.fort_figure_type());
     const char *failure = nullptr;
     if (!bind_to_fort(fort, &failure)) {
-        log_error("Unable to create legion formation for fort", failure, static_cast<int>(fort.id));
+        Logger::error("Unable to create legion formation for fort", failure, static_cast<int>(fort.id));
         return false;
     }
     if (!set_layout("double_line_1")) {
-        log_error("Unable to create legion formation without FormationLayout", "double_line_1", 0);
+        Logger::error("Unable to create legion formation without FormationLayout", "double_line_1", 0);
         return false;
     }
     morale = 50;
@@ -443,7 +443,7 @@ bool formation::initialize_legion_from_fort(Building &fort, int assigned_legion_
     }
 
     if (!fort.Composition) {
-        log_error("Fort formation has no data-defined mustering ground", fort.type ? fort.type->attr() : "unknown", static_cast<int>(fort.id));
+        Logger::error("Fort formation has no data-defined mustering ground", fort.type ? fort.type->attr() : "unknown", static_cast<int>(fort.id));
         std::terminate();
     }
     Building &fort_ground = fort.Composition->require_child_for_role(
@@ -482,10 +482,10 @@ int formation::modified_combat_value(FormationCombatStat stat, int base_value) c
     return formation_type_definition->modified_combat_value(stat, base_value);
 }
 
-bool formation::recruit_requires_weapon() const
+const std::vector<UnitRecruitmentCost> &formation::recruitment_costs() const
 {
-    require_definition("recruit_requires_weapon");
-    return formation_type_definition->primary_unit()->requires_weapon();
+    require_definition("recruitment_costs");
+    return formation_type_definition->primary_unit()->recruitment_costs();
 }
 
 int formation::base_morale_limit() const
@@ -635,7 +635,7 @@ int formation::publish_figure(Figure &figure)
 {
     require_definition("publish_figure");
     if (!is_roster_member(figure)) {
-        log_error("Formation cannot publish a figure it does not own", "formation", static_cast<int>(id));
+        Logger::error("Formation cannot publish a figure it does not own", "formation", static_cast<int>(id));
         std::terminate();
     }
 
@@ -643,7 +643,7 @@ int formation::publish_figure(Figure &figure)
     for (int candidate = 0; candidate < static_cast<int>(figures.size()); candidate++) {
         if (figures[candidate] == static_cast<int>(figure.id())) {
             if (slot >= 0) {
-                log_error("Formation roster contains a duplicate figure", "formation", static_cast<int>(id));
+                Logger::error("Formation roster contains a duplicate figure", "formation", static_cast<int>(id));
                 std::terminate();
             }
             slot = candidate;
@@ -666,7 +666,7 @@ int formation::publish_figure(Figure &figure)
         figures.push_back(static_cast<int>(figure.id()));
     }
     if (slot < 0 || slot >= EXTENDED_FORMATION_ROSTER_SAVE_SLOTS) {
-        log_error("Formation exceeds the representable saved roster", "formation", static_cast<int>(id));
+        Logger::error("Formation exceeds the representable saved roster", "formation", static_cast<int>(id));
         std::terminate();
     }
 
@@ -776,7 +776,7 @@ std::vector<int> formation::layout_grid_offsets() const
     }
     require_definition("layout_grid_offsets");
     if (!layout_definition) {
-        log_error("Live formation has no FormationLayout", formation_type_definition->key(), static_cast<int>(id));
+        Logger::error("Live formation has no FormationLayout", formation_type_definition->key(), static_cast<int>(id));
         std::terminate();
     }
     const FormationLayoutPosition origin = layout_position(0);
@@ -794,12 +794,12 @@ FormationLayoutPosition formation::layout_position(int index, const FormationLay
     require_definition("layout_position");
     const FormationLayoutDef *layout = layout_override ? layout_override : layout_definition;
     if (!layout) {
-        log_error("Live formation has no FormationLayout", formation_type_definition->key(), static_cast<int>(id));
+        Logger::error("Live formation has no FormationLayout", formation_type_definition->key(), static_cast<int>(id));
         std::terminate();
     }
     FormationLayoutPosition position = {};
     if (!formation_type_definition->try_layout_position(*layout, index, declared_capacity(), &position)) {
-        log_error("Formation cannot resolve a declared layout position", formation_type_definition->key(), index);
+        Logger::error("Formation cannot resolve a declared layout position", formation_type_definition->key(), index);
         std::terminate();
     }
     // Tile-based enemy/herd consumers use the same authored spacing policy;
@@ -824,7 +824,7 @@ void formation::rebuild_member_movement_plan(
         FormationSlotOffset offset = {};
         if (!formation_type_definition->resolve_station_offset(
             layout, slot, capacity, area_width, area_height, &offset)) {
-            log_error("Formation cannot resolve a declared world-space station", "formation", static_cast<int>(id));
+            Logger::error("Formation cannot resolve a declared world-space station", "formation", static_cast<int>(id));
             std::terminate();
         }
         ideals[static_cast<size_t>(slot)] = {
@@ -841,7 +841,7 @@ void formation::rebuild_member_movement_plan(
     };
     if (!member_movement_plan.configure(
         destination, layout, origin_x, origin_y, area_width, area_height, bounds, ideals)) {
-        log_error("Formation declared invalid world-space stations", "formation", static_cast<int>(id));
+        Logger::error("Formation declared invalid world-space stations", "formation", static_cast<int>(id));
         std::terminate();
     }
 
@@ -866,7 +866,7 @@ void formation::rebuild_member_movement_plan(
         return member_station_route_distance(*route, candidate);
     };
     if (!member_movement_plan.assign_members(requests, reachable)) {
-        log_error("Formation could not allocate its stable member stations", "formation", static_cast<int>(id));
+        Logger::error("Formation could not allocate its stable member stations", "formation", static_cast<int>(id));
         std::terminate();
     }
 
@@ -894,7 +894,7 @@ int formation::member_station_route_distance(
 {
     const int tile_x = figure_movement_cross_country_to_tile(candidate.x);
     const int tile_y = figure_movement_cross_country_to_tile(candidate.y);
-    if (!map_grid_is_inside(tile_x, tile_y, 1)) return 0;
+    if (!Route::groundPositionIsPassable(candidate.x, candidate.y)) return 0;
     return route.distanceTo(map_grid_offset(tile_x, tile_y));
 }
 
@@ -902,7 +902,7 @@ void formation::resolve_member_movement_station(Figure &figure)
 {
     const int slot = figure.index_in_formation;
     if (slot < 0 || slot >= declared_capacity() || roster_figure_id(slot) != static_cast<int>(figure.id())) {
-        log_error("Formation cannot assign a station to a non-roster member", "formation", static_cast<int>(id));
+        Logger::error("Formation cannot assign a station to a non-roster member", "formation", static_cast<int>(id));
         std::terminate();
     }
     const Route::DistanceQuery route = Route::DistanceQuery::fromFigure(figure);
@@ -910,7 +910,7 @@ void formation::resolve_member_movement_station(Figure &figure)
         return member_station_route_distance(route, candidate);
     };
     if (!member_movement_plan.assign_member(slot, figure, reachable)) {
-        log_error("Formation could not reserve a stable member station", "formation", static_cast<int>(id));
+        Logger::error("Formation could not reserve a stable member station", "formation", static_cast<int>(id));
         std::terminate();
     }
 }
@@ -924,13 +924,13 @@ FormationMemberMovementResult formation::move_member_to_slot(
     require_definition("move_member_to_slot");
     Building *home = fort();
     if (!home || !home->Composition) {
-        log_error("Legion cannot place a member without its fort composition", "formation", static_cast<int>(id));
+        Logger::error("Legion cannot place a member without its fort composition", "formation", static_cast<int>(id));
         std::terminate();
     }
     Building &ground = home->Composition->require_child_for_role(
         "mustering_ground", "formation::move_member_to_slot");
     if (!ground.Foundation || !ground.Foundation->state().is_published()) {
-        log_error("Legion mustering ground has no published Foundation", "formation", static_cast<int>(id));
+        Logger::error("Legion mustering ground has no published Foundation", "formation", static_cast<int>(id));
         std::terminate();
     }
     const bool at_fort = destination == FormationMemberDestination::MusteringGround;
@@ -939,7 +939,7 @@ FormationMemberMovementResult formation::move_member_to_slot(
     const int width = ground.Foundation->width(foundation.rotation());
     const int height = ground.Foundation->height(foundation.rotation());
     if (!layout) {
-        log_error("Legion member has no declared FormationLayout", "formation", static_cast<int>(id));
+        Logger::error("Legion member has no declared FormationLayout", "formation", static_cast<int>(id));
         std::terminate();
     }
     const int origin_x = at_fort ? foundation.origin_x() : standard_x;
@@ -956,12 +956,13 @@ FormationMemberMovementResult formation::move_member_to_slot(
     FormationStationState station_state = FormationStationState::Unplaced;
     const bool had_station = member_movement_plan.resolve_member(
         slot, figure, &movement_destination, &station_state);
-    if (!had_station) {
+    if (!had_station || (station_state != FormationStationState::Unplaced && !Route::groundPositionIsPassable(movement_destination.x, movement_destination.y))) {
+        member_movement_plan.release_member(slot, figure);
         resolve_member_movement_station(figure);
         Route::remove(&figure);
     }
     if (!member_movement_plan.resolve_member(slot, figure, &movement_destination, &station_state)) {
-        log_error("Formation member has no stable station relationship", "formation", static_cast<int>(id));
+        Logger::error("Formation member has no stable station relationship", "formation", static_cast<int>(id));
         std::terminate();
     }
     if (station_state == FormationStationState::Unplaced) {
@@ -971,7 +972,7 @@ FormationMemberMovementResult formation::move_member_to_slot(
     const int tile_x = figure_movement_cross_country_to_tile(movement_destination.x);
     const int tile_y = figure_movement_cross_country_to_tile(movement_destination.y);
     if (!map_grid_is_inside(tile_x, tile_y, 1)) {
-        log_error("Legion member destination is outside the live map", "formation", static_cast<int>(id));
+        Logger::error("Legion member destination is outside the live map", "formation", static_cast<int>(id));
         std::terminate();
     }
     figure.formation_position_x.soldier = static_cast<unsigned char>(tile_x);
@@ -997,7 +998,7 @@ FormationMemberMovementResult formation::settle_member(
     const int stationary_facing = destination == FormationMemberDestination::MusteringGround ?
         layout.stationary_facing : direction;
     if (stationary_facing < DIR_0_TOP || stationary_facing >= DIR_8_NONE) {
-        log_error("Formation has no valid stationary facing for its active layout", layout.key(), static_cast<int>(id));
+        Logger::error("Formation has no valid stationary facing for its active layout", layout.key(), static_cast<int>(id));
         std::terminate();
     }
     figure.previous_tile_direction = static_cast<signed char>(stationary_facing);
@@ -1013,7 +1014,7 @@ void formation::require_definition(const char *operation) const
             "operation=%s formation_id=%u in_use=%u legion=%u herd=%u figure_type=%u fort_id=%u figures=%d",
             operation, id, in_use, is_legion, is_herd, static_cast<unsigned int>(figure_type),
             static_cast<unsigned int>(building_id), num_figures);
-        log_error("Live formation is missing its FormationType definition", detail, static_cast<int>(id));
+        Logger::error("Live formation is missing its FormationType definition", detail, static_cast<int>(id));
         std::terminate();
     }
 }
@@ -1178,6 +1179,7 @@ void formation::move_herd_animals(int attacking_animals) const
             return;
         }
         f->wait_ticks = HERD_ANIMAL_MOVE_WAIT_TICKS;
+        Route::remove(f);
         if (attacking_animals) {
             int target_id = figure_combat_get_target_for_aggressive_herd(f->x, f->y, 6);
             if (target_id) {
@@ -1305,13 +1307,13 @@ static formation *formation_create(
         const char *resolved_layout = orientation == DIR_0_TOP || orientation == DIR_4_BOTTOM ?
             "double_line_1" : "double_line_2";
         if (!f->set_layout(resolved_layout)) {
-            log_error("Unable to create formation without FormationLayout", resolved_layout, 0);
+            Logger::error("Unable to create formation without FormationLayout", resolved_layout, 0);
             f->remove();
             return nullptr;
         }
     } else {
         if (!f->set_layout(layout_key)) {
-            log_error("Unable to create formation without FormationLayout", layout_key, 0);
+            Logger::error("Unable to create formation without FormationLayout", layout_key, 0);
             f->remove();
             return nullptr;
         }
@@ -1323,7 +1325,7 @@ static formation *formation_create(
 int formation_create_herd(const FormationType &definition, int x, int y)
 {
     if (definition.spawn.role != FormationSpawnRole::Herd || definition.spawn.initial_count <= 0) {
-        log_error("Unable to create herd from invalid FormationType spawn definition", 0, 0);
+        Logger::error("Unable to create herd from invalid FormationType spawn definition", 0, 0);
         return 0;
     }
     formation *f = formation_create(definition.primary_unit()->figure_type_id(), definition, "herd", 0, x, y);
@@ -1339,12 +1341,12 @@ int formation_create_enemy(figure_type type, int x, int y, int layout, int orien
 {
     const FormationLayoutDef *layout_definition = formation_layout_registry_impl::find_layout_by_legacy_id(layout);
     if (!layout_definition) {
-        log_error("Unable to create enemy formation from unknown legacy FormationLayout id", 0, layout);
+        Logger::error("Unable to create enemy formation from unknown legacy FormationLayout id", 0, layout);
         return 0;
     }
     const FormationType *formation_definition = formation_type_registry_impl::find_spawn_formation(type);
     if (!formation_definition || formation_definition->spawn.role != FormationSpawnRole::Enemy) {
-        log_error("Unable to create enemy without a data-defined FormationType", 0, static_cast<int>(type));
+        Logger::error("Unable to create enemy without a data-defined FormationType", 0, static_cast<int>(type));
         return 0;
     }
     formation *f = formation_create(
@@ -1771,7 +1773,7 @@ void formation_calculate_figures(void)
             char detail[192];
             snprintf(detail, sizeof(detail), "figure_id=%u figure_type=%u formation_id=%u",
                 f->id(), static_cast<unsigned int>(f->type), f->formation_id);
-            log_error("Live figure has an invalid formation relationship", detail, 0);
+            Logger::error("Live figure has an invalid formation relationship", detail, 0);
             std::terminate();
         }
         if (!m->is_roster_member(*f)) {
@@ -1881,7 +1883,7 @@ int formation_refresh_runtime_definitions(void)
         const int serialized_is_herd = entry.is_herd;
         const FormationType *definition = formation_type_registry_impl::find_spawn_formation(entry.figure_type_id());
         if (!definition) {
-            log_error("Unable to hydrate formation without a data-defined FormationType", 0, static_cast<int>(entry.id));
+            Logger::error("Unable to hydrate formation without a data-defined FormationType", 0, static_cast<int>(entry.id));
             valid = 0;
             continue;
         }
@@ -1890,7 +1892,7 @@ int formation_refresh_runtime_definitions(void)
             char detail[160];
             snprintf(detail, sizeof(detail), "formation_id=%u saved_is_herd=%d canonical_is_herd=%d definition=%s",
                 entry.id, serialized_is_herd, entry.is_herd, definition->key());
-            log_warning("Repairing serialized formation role from its FormationType", detail, 0);
+            Logger::warning("Repairing serialized formation role from its FormationType", detail, 0);
         }
     }
     if (!valid) {
@@ -1911,7 +1913,7 @@ int formation_refresh_runtime_definitions(void)
             "figure_id=%u figure_type=%u saved_formation_id=%u formation_in_use=%u",
             figure->id(), static_cast<unsigned int>(figure->type), figure->formation_id,
             owner ? owner->in_use : 0);
-        log_warning("Discarding loaded combat figure with an invalid formation relationship", detail, 0);
+        Logger::warning("Discarding loaded combat figure with an invalid formation relationship", detail, 0);
         figure->remove();
     }
     return valid;
@@ -1924,14 +1926,14 @@ int formation_finish_load_bridge(void)
         if (!figure || figure->state != FIGURE_STATE_ALIVE || figure->type != FIGURE_FORT_STANDARD) continue;
         char detail[128];
         snprintf(detail, sizeof(detail), "figure_id=%u saved_formation_id=%u", figure->id(), figure->formation_id);
-        log_warning("Migrating a serialized fort standard into its formation-owned destination", detail, 0);
+        Logger::warning("Migrating a serialized fort standard into its formation-owned destination", detail, 0);
         figure->remove();
     }
 
     for (formation &entry : formations) {
         if (!entry.in_use || !entry.is_legion) continue;
         if (!entry.formation_type_definition) {
-            log_error("Loaded legion has no FormationType after the load bridge", 0, static_cast<int>(entry.id));
+            Logger::error("Loaded legion has no FormationType after the load bridge", 0, static_cast<int>(entry.id));
             return 0;
         }
         if (!entry.reconcile_loaded_legion_command()) return 0;
@@ -1945,14 +1947,14 @@ int formation_finish_load_bridge(void)
         });
         if (repaired_overflow) {
             entry.is_at_fort = 0;
-            log_warning("Returning loaded soldiers beyond the declared formation capacity to barracks", entry.formation_type_definition->key(), repaired_overflow);
+            Logger::warning("Returning loaded soldiers beyond the declared formation capacity to barracks", entry.formation_type_definition->key(), repaired_overflow);
         }
     }
 
     for (unsigned int figure_id = 1; figure_id < Figure::count(); figure_id++) {
         const Figure *figure = Figure::get(figure_id);
         if (figure && figure->state == FIGURE_STATE_ALIVE && figure->type == FIGURE_FORT_STANDARD) {
-            log_error("Load bridge left a live fort standard figure in runtime", 0, static_cast<int>(figure_id));
+            Logger::error("Load bridge left a live fort standard figure in runtime", 0, static_cast<int>(figure_id));
             return 0;
         }
     }
@@ -2172,7 +2174,7 @@ void formations_load_state(buffer *buf, buffer *totals, int version)
         if (!f->in_use || target_id == i || !target || !target->in_use) {
             char detail[128];
             snprintf(detail, sizeof(detail), "formation_id=%u target_formation_id=%u", i, target_id);
-            log_warning("Clearing invalid saved formation target relationship", detail, 0);
+            Logger::warning("Clearing invalid saved formation target relationship", detail, 0);
             continue;
         }
         f->target_formation.retarget(*target);

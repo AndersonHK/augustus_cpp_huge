@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "core/buffer.h"
 #include "building/building_fwd.h"
@@ -16,7 +17,7 @@ typedef struct {
     } map;
     struct {
         int (*figure)(int grid_offset, int (*callback)(Figure *f));
-        int (*terrain)(int grid_offset);
+        TerrainSet (*terrain)(int grid_offset);
         unsigned int (*building_id)(int grid_offset);
         int (*is_draw_tile)(int grid_offset);
         int (*tile_size)(int grid_offset);

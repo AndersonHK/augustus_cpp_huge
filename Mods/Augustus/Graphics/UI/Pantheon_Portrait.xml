@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assetlist name="UI\Pantheon_Portrait">
+    <image id="Portrait" width="81" height="91">
+        <layer group="UI\Image_Border_Small" image="Image Border Small"/>
+        <layer group="UI\Image_Border_Small" image="Image_0000" y="5"/>
+        <layer group="UI\Image_Border_Small" image="Image_0001" y="87"/>
+        <layer group="UI\Image_Border_Small" image="Image_0002" x="77" y="5"/>
+        <layer group="UI\Pantheon_Epithet_Button_01" image="Pantheon_Epithet_Button_01" x="5" y="5"/>
+    </image>
+</assetlist>

@@ -5,24 +5,23 @@
 #include "building/building_runtime.h"
 #include "building/building_runtime_internal.h"
 #include "core/config.h"
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "game/save_version.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include <cstdio>
 #include <cstring>
 #include <exception>
 #include <vector>
 
 static grid_u32 buildings_grid;
-static grid_u8 damage_grid;
+static grid_u32 damage_grid;
 static grid_u32 rubble_info_grid;
 
 static grid_u32 buildings_grid_backup;
-static grid_u8 damage_grid_backup;
+static grid_u32 damage_grid_backup;
 static grid_u32 rubble_info_grid_backup;
 
 static Building *building_objects_grid[GRID_SIZE * GRID_SIZE];
@@ -30,7 +29,7 @@ static Building *building_objects_grid_backup[GRID_SIZE * GRID_SIZE];
 
 [[noreturn]] static void report_missing_runtime_building(int grid_offset)
 {
-    log_error("map_building_at called without a runtime building", 0, grid_offset);
+    Logger::error("map_building_at called without a runtime building", 0, grid_offset);
     std::terminate();
 }
 
@@ -95,6 +94,8 @@ void map_building_damage_clear(int grid_offset)
     damage_grid.items[grid_offset] = 0;
 }
 
+int map_building_damage_at(int grid_offset) { return map_grid_is_valid_offset(grid_offset) ? damage_grid.items[grid_offset] : 0; }
+
 int map_building_damage_increase(int grid_offset)
 {
     return ++damage_grid.items[grid_offset];
@@ -108,7 +109,7 @@ unsigned int map_building_rubble_building_id(int grid_offset)
 void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int building_id, int size)
 {
     if (size == 1) {
-        if (!building_id || !map_terrain_is(grid_offset, TERRAIN_WATER)) {
+        if (!building_id || !terrain_map().contains(grid_offset, terrain_types().water)) {
             rubble_info_grid.items[grid_offset] = building_id;
         }
         return;
@@ -118,7 +119,7 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             int offset = map_grid_offset(x + i, y + j);
-            if (!building_id || !map_terrain_is(offset, TERRAIN_WATER)) {
+            if (!building_id || !terrain_map().contains(offset, terrain_types().water)) {
                 rubble_info_grid.items[offset] = building_id;
             }
         }
@@ -128,7 +129,7 @@ void map_building_set_rubble_grid_building_id(int grid_offset, unsigned int buil
 void map_building_backup(void)
 {
     map_grid_copy_u32(buildings_grid.items, buildings_grid_backup.items);
-    map_grid_copy_u8(damage_grid.items, damage_grid_backup.items);
+    map_grid_copy_u32(damage_grid.items, damage_grid_backup.items);
     map_grid_copy_u32(rubble_info_grid.items, rubble_info_grid_backup.items);
     std::memcpy(building_objects_grid_backup, building_objects_grid, sizeof(building_objects_grid));
 }
@@ -136,7 +137,7 @@ void map_building_backup(void)
 void map_building_restore(void)
 {
     map_grid_copy_u32(buildings_grid_backup.items, buildings_grid.items);
-    map_grid_copy_u8(damage_grid_backup.items, damage_grid.items);
+    map_grid_copy_u32(damage_grid_backup.items, damage_grid.items);
     map_grid_copy_u32(rubble_info_grid_backup.items, rubble_info_grid.items);
     std::memcpy(building_objects_grid, building_objects_grid_backup, sizeof(building_objects_grid));
 }
@@ -144,7 +145,7 @@ void map_building_restore(void)
 void map_building_clear_backup(void)
 {
     map_grid_clear_u32(buildings_grid_backup.items);
-    map_grid_clear_u8(damage_grid_backup.items);
+    map_grid_clear_u32(damage_grid_backup.items);
     map_grid_clear_u32(rubble_info_grid_backup.items);
     std::memset(building_objects_grid_backup, 0, sizeof(building_objects_grid_backup));
 }
@@ -152,7 +153,7 @@ void map_building_clear_backup(void)
 void map_building_clear(void)
 {
     map_grid_clear_u32(buildings_grid.items);
-    map_grid_clear_u8(damage_grid.items);
+    map_grid_clear_u32(damage_grid.items);
     map_grid_clear_u32(rubble_info_grid.items);
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
@@ -160,7 +161,7 @@ void map_building_clear(void)
 void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble)
 {
     map_grid_save_state_u32(buildings_grid.items, buildings);
-    map_grid_save_state_u8(damage_grid.items, damage);
+    map_grid_save_state_u32(damage_grid.items, damage);
     map_grid_save_state_u32(rubble_info_grid.items, rubble);
 }
 
@@ -168,11 +169,14 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
 {
     if (version <= SAVE_GAME_LAST_U16_GRIDS) {
         map_grid_load_state_u16_to_u32(buildings_grid.items, buildings);
-        map_grid_load_state_u8(damage_grid.items, damage);
     } else {
         map_grid_load_state_u32(buildings_grid.items, buildings);
-        map_grid_load_state_u8(damage_grid.items, damage);
         map_grid_load_state_u32(rubble_info_grid.items, rubble);
+    }
+    if (version <= SAVE_GAME_LAST_BYTE_BUILDING_DAMAGE) {
+        for (auto &value : damage_grid.items) value = buffer_read_u8(damage);
+    } else {
+        map_grid_load_state_u32(damage_grid.items, damage);
     }
     std::memset(building_objects_grid, 0, sizeof(building_objects_grid));
 }
@@ -233,7 +237,7 @@ bool map_building_validate_loaded_references(void)
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         Building *building = building_objects_grid[grid_offset];
         const unsigned int saved_building_id = buildings_grid.items[grid_offset];
-        const int has_terrain_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
+        const int has_terrain_building = terrain_map().contains(grid_offset, terrain_types().building);
         if (map_building_reference_is_live(building) || (!saved_building_id && !has_terrain_building)) {
             continue;
         }
@@ -241,9 +245,9 @@ bool map_building_validate_loaded_references(void)
         snprintf(detail, sizeof(detail), "grid_offset=%d x=%d y=%d saved_building_id=%u terrain_building=%d",
             grid_offset, map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset), saved_building_id,
             has_terrain_building);
-        ErrorContextScope scope("Strict save-load building map validation", detail);
-        error_context_report_error("Save contains a building tile without a matching live building record.", detail);
-        log_error("Loaded save failed building map reference validation", detail, grid_offset);
+        Logger::Scope scope("Strict save-load building map validation", detail);
+        Logger::error("Save contains a building tile without a matching live building record.", detail);
+        Logger::error("Loaded save failed building map reference validation", detail, grid_offset);
         return false;
     }
     return true;

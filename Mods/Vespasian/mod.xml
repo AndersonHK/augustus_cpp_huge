@@ -6,4 +6,7 @@
     <dependencies>
         <mod name="Augustus" />
     </dependencies>
+    <settings>
+        <setting id="FIXED_WORKER_PERCENTAGE" name="Fixed worker pool percentage" type="int(1,100)" default="38" category="Difficulty" description="Percentage of plebeian population available for work when Fixed worker pool is enabled, before employment blessings." />
+    </settings>
 </mod>

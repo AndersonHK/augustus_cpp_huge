@@ -25,14 +25,14 @@ android {
     defaultConfig {
         compileSdk 35
         applicationId "com.github.Keriew.augustus"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 35
 
         versionName getVersion.versionName
         versionCode getVersion.versionCode
 
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            abiFilters 'arm64-v8a', 'x86_64'
         }
         sourceSets {
             main.res.srcDirs += '../../res/android'

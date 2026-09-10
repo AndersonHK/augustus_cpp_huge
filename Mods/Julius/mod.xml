@@ -4,4 +4,8 @@
     <description value="Caesar 3 base content and compatibility definitions." />
     <version value="4.0.0" />
     <dependencies />
+    <settings>
+        <setting id="DISABLE_GOD_BLESSINGS" name="Disable god blessings" type="bool" default="false" category="Difficulty" legacy_config_key="disable_god_effects" description="Remove blessings from the Julius god definitions. Curses are controlled separately." />
+        <setting id="DISABLE_GOD_CURSES" name="Disable god curses" type="bool" default="false" category="Difficulty" legacy_config_key="disable_god_effects" description="Remove minor and major curses from the Julius god definitions. Blessings are controlled separately." />
+    </settings>
 </mod>

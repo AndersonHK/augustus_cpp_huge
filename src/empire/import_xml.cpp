@@ -3,11 +3,12 @@
 
 #include "assets/assets.h"
 #include "core/buffer.h"
+#include "core/encoding.h"
 #include "core/calc.h"
 #include "core/file.h"
 #include "core/image_group.h"
 #include "core/image_group_editor.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
 #include "core/zlib_helper.h"
@@ -18,12 +19,15 @@
 #include "empire/trade_route.h"
 #include "scenario/data.h"
 #include "scenario/empire.h"
+#include "scenario/definition_overrides.h"
+#include <map>
+#include <algorithm>
 
 #include <stdio.h>
 #include <string.h>
 #include <vector>
 
-#define XML_TOTAL_ELEMENTS 19
+#define XML_TOTAL_ELEMENTS 20
 #define BASE_BORDER_FLAG_IMAGE_ID 3323
 #define BORDER_EDGE_DEFAULT_SPACING 50
 
@@ -31,7 +35,8 @@ typedef enum {
     LIST_NONE = -1,
     LIST_BUYS = 1,
     LIST_SELLS = 2,
-    LIST_TRADE_WAYPOINTS = 3
+    LIST_TRADE_WAYPOINTS = 3,
+    LIST_RESOURCE_COST = 4
 } city_list;
 
 typedef enum {
@@ -57,6 +62,8 @@ static struct {
     int version;
     int info_only;
     int current_city_id;
+    std::map<int, std::map<resource_type, int>> resource_costs;
+    std::map<int, bool> hidden_routes;
     int current_trade_route_id; // This is not an actual route id but an empire object id 
     city_list current_city_list;
     int has_vulnerable_city;
@@ -77,6 +84,7 @@ static int xml_start_border(void);
 static int xml_start_border_edge(void);
 static int xml_start_city(void);
 static int xml_start_buys(void);
+static int xml_start_resource_cost(void);
 static int xml_start_sells(void);
 static int xml_start_waypoints(void);
 static int xml_start_resource(void);
@@ -105,7 +113,8 @@ static const xml_parser_element xml_elements[XML_TOTAL_ELEMENTS] = {
     { "city", xml_start_city, xml_end_city, "cities" },
     { "buys", xml_start_buys, xml_end_sells_buys_or_waypoints, "city" },
     { "sells", xml_start_sells, xml_end_sells_buys_or_waypoints, "city" },
-    { "resource", xml_start_resource, 0, "buys|sells" },
+    { "resource_cost", xml_start_resource_cost, xml_end_sells_buys_or_waypoints, "city" },
+    { "resource", xml_start_resource, 0, "buys|sells|resource_cost" },
     { "trade_points", xml_start_waypoints, xml_end_sells_buys_or_waypoints, "city" },
     { "point", xml_start_trade_point, 0, "trade_points" },
     { "invasion_paths", 0, 0, "empire" },
@@ -127,7 +136,8 @@ static const xml_parser_element xml_info_elements[XML_TOTAL_ELEMENTS] = {
     { "city", 0, 0, "cities" },
     { "buys", 0, 0, "city" },
     { "sells", 0, 0, "city" },
-    { "resource", 0, 0, "buys|sells" },
+    { "resource_cost", 0, 0, "city" },
+    { "resource", 0, 0, "buys|sells|resource_cost" },
     { "trade_points", 0, 0, "city" },
     { "point", 0, 0, "trade_points" },
     { "invasion_paths", 0, 0, "empire" },
@@ -168,7 +178,7 @@ static int xml_start_empire(void)
     data.version = xml_parser_get_attribute_int("version");
     if (!data.version) {
         data.success = 0;
-        log_error("No version set", 0, 0);
+        Logger::error("No version set", 0, 0);
         return 0;
     }
     if (data.version < 2 && xml_parser_get_attribute_bool("show_ireland")) {
@@ -186,7 +196,7 @@ static int xml_start_empire(void)
 static int xml_start_map(void)
 {
     if (data.version < 2) {
-        log_info("Custom maps only work on version 2 and higher", 0, 0);
+        Logger::info("Custom maps only work on version 2 and higher", 0, 0);
         return 1;
     }
     const char *filename = xml_parser_get_attribute_string("image");
@@ -199,7 +209,7 @@ static int xml_start_map(void)
 
     if (xml_parser_get_attribute_bool("show_ireland")) {
         if (!(EMPIRE_IS_DEFAULT_IMAGE)) {
-            log_info("Ireland image cannot be enabled on custom maps", 0, 0);
+            Logger::info("Ireland image cannot be enabled on custom maps", 0, 0);
             return 1;
         }
         full_empire_object *obj = empire_object_get_new();
@@ -228,15 +238,15 @@ static int xml_start_ornament(void)
 {
     const char *parent_name = xml_parser_get_parent_element_name();
     if (data.version >= 2 && parent_name && strcmp(parent_name, "empire") == 0) {
-        log_info("Ornaments should go inside the map tag on version 2 and later", 0, 0);
+        Logger::info("Ornaments should go inside the map tag on version 2 and later", 0, 0);
         return 1;
     }
     if (!(EMPIRE_IS_DEFAULT_IMAGE)) {
-        log_info("Ornaments are not shown on custom maps", 0, 0);
+        Logger::info("Ornaments are not shown on custom maps", 0, 0);
         return 1;
     }
     if (!xml_parser_has_attribute("type")) {
-        log_info("No ornament type specified", 0, 0);
+        Logger::info("No ornament type specified", 0, 0);
         return 1;
     }
     int ornament_id = xml_parser_get_attribute_enum("type", XML_ORNAMENTS, TOTAL_ORNAMENTS, 0);
@@ -249,7 +259,7 @@ static int xml_start_ornament(void)
                 }
             }
         } else {
-            log_info("Invalid ornament type specified", 0, 0);
+            Logger::info("Invalid ornament type specified", 0, 0);
         }
     } else {
         if (!empire_object_add_ornament(ornament_id)) {
@@ -264,13 +274,13 @@ static int xml_start_border(void)
 {
     if (data.border_status != BORDER_STATUS_NONE) {
         data.success = 0;
-        log_error("Border is being set twice", 0, 0);
+        Logger::error("Border is being set twice", 0, 0);
         return 0;
     }
     full_empire_object *obj = empire_object_get_new();
     if (!obj) {
         data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     obj->in_use = 1;
@@ -287,13 +297,13 @@ static int xml_start_border_edge(void)
 {
     if (data.border_status != BORDER_STATUS_CREATING) {
         data.success = 0;
-        log_error("Border edge is being wrongly added", 0, 0);
+        Logger::error("Border edge is being wrongly added", 0, 0);
         return 0;
     }
     full_empire_object *obj = empire_object_get_new();
     if (!obj) {
         data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     obj->in_use = 1;
@@ -314,7 +324,7 @@ static int xml_start_city(void)
 
     if (!city_obj) {
         data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
 
@@ -327,12 +337,12 @@ static int xml_start_city(void)
 
     static const char *city_types[6] = { "roman", "ours", "trade", "future_trade", "distant", "vulnerable" };
     static const char *trade_route_types[2] = { "land", "sea" };
-    static const char *city_icons[18] = { "construction", "dis_town", "dis_village", "res_food", "res_goods", "res_sea",
+    static const char *city_icons[19] = { "construction", "dis_town", "dis_village", "res_food", "res_goods", "res_sea",
                                           "tr_town", "ro_town", "tr_village", "ro_village", "ro_capital", "tr_sea",
-                                          "tr_land", "our_city", "tr_city", "ro_city", "dis_city", "tower" };
+                                          "tr_land", "our_city", "tr_city", "ro_city", "dis_city", "tower", "button" };
     const char *name = xml_parser_get_attribute_string("name");
     if (name) {
-        string_copy((const uint8_t *) name, city_obj->city_custom_name, sizeof(city_obj->city_custom_name));
+        encoding_from_utf8(name, city_obj->city_custom_name, sizeof(city_obj->city_custom_name));
     } else {
         city_obj->city_name_id = xml_parser_get_attribute_int("name_id");
     }
@@ -348,16 +358,13 @@ static int xml_start_city(void)
     int future_trade_after_icon = EMPIRE_CITY_ICON_DEFAULT;
     if (city_type == EMPIRE_CITY_FUTURE_TRADE) {
         if (xml_parser_has_attribute("icon_before")) {
-            city_icon_type = xml_parser_get_attribute_enum("icon_before", city_icons, 18, EMPIRE_CITY_ICON_DEFAULT + 1);
+            city_icon_type = xml_parser_get_attribute_enum("icon_before", city_icons, 19, EMPIRE_CITY_ICON_DEFAULT + 1);
         } else {
-            city_icon_type = xml_parser_get_attribute_enum("icon", city_icons, 18, EMPIRE_CITY_ICON_DEFAULT + 1);
+            city_icon_type = xml_parser_get_attribute_enum("icon", city_icons, 19, EMPIRE_CITY_ICON_DEFAULT + 1);
         }
-        future_trade_after_icon = xml_parser_get_attribute_enum("icon_after", city_icons, 18, EMPIRE_CITY_ICON_DEFAULT + 1);
+        future_trade_after_icon = xml_parser_get_attribute_enum("icon_after", city_icons, 19, EMPIRE_CITY_ICON_DEFAULT + 1);
     } else {
-        city_icon_type = xml_parser_get_attribute_enum("icon", city_icons, 18, EMPIRE_CITY_ICON_DEFAULT + 1);
-    }
-    if (city_icon_type == EMPIRE_CITY_ICON_DEFAULT) {
-        city_icon_type = empire_object_get_random_icon_for_empire_object(city_obj);
+        city_icon_type = xml_parser_get_attribute_enum("icon", city_icons, 19, EMPIRE_CITY_ICON_DEFAULT + 1);
     }
 
     city_obj->empire_city_icon = static_cast<empire_city_icon_type>(city_icon_type);
@@ -395,12 +402,12 @@ static int xml_start_city(void)
 
     if (city_obj->city_type == EMPIRE_CITY_TRADE || city_obj->city_type == EMPIRE_CITY_FUTURE_TRADE) {
         full_empire_object *route_obj = empire_object_get_new();
-        data.current_trade_route_id = route_obj->obj.id;
         if (!route_obj) {
             data.success = 0;
-            log_error("Error creating new object - out of memory", 0, 0);
+            Logger::error("Error creating new object - out of memory", 0, 0);
             return 0;
         }
+        data.current_trade_route_id = route_obj->obj.id;
         route_obj->in_use = 1;
         route_obj->obj.type = EMPIRE_OBJECT_LAND_TRADE_ROUTE;
 
@@ -415,12 +422,15 @@ static int xml_start_city(void)
             route_obj->obj.image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1;
         }
 
-        city_obj->trade_route_cost = xml_parser_get_attribute_int("trade_route_cost");
-        if (!city_obj->trade_route_cost) {
-            city_obj->trade_route_cost = 500;
-        }
+        city_obj->trade_route_cost = xml_parser_get_attribute_string("trade_route_cost") ? std::max(0, xml_parser_get_attribute_int("trade_route_cost")) : 500;
     }
 
+    return 1;
+}
+
+static int xml_start_resource_cost(void)
+{
+    data.current_city_list = LIST_RESOURCE_COST;
     return 1;
 }
 
@@ -439,6 +449,7 @@ static int xml_start_sells(void)
 static int xml_start_waypoints(void)
 {
     data.current_city_list = LIST_TRADE_WAYPOINTS;
+    data.hidden_routes[data.current_city_id] = xml_parser_get_attribute_int("hidden") != 0;
     return 1;
 }
 
@@ -446,11 +457,11 @@ static int xml_start_resource(void)
 {
     if (data.current_city_id == -1) {
         data.success = 0;
-        log_error("No active city when parsing resource", 0, 0);
+        Logger::error("No active city when parsing resource", 0, 0);
         return 0;
-    } else if (data.current_city_list != LIST_BUYS && data.current_city_list != LIST_SELLS) {
+    } else if (data.current_city_list != LIST_BUYS && data.current_city_list != LIST_SELLS && data.current_city_list != LIST_RESOURCE_COST) {
         data.success = 0;
-        log_error("Resource not in buy or sell tag", 0, 0);
+        Logger::error("Resource not in buy or sell tag", 0, 0);
         return 0;
     }
 
@@ -458,13 +469,13 @@ static int xml_start_resource(void)
 
     if (!xml_parser_has_attribute("type")) {
         data.success = 0;
-        log_error("Unable to find resource type attribute", 0, 0);
+        Logger::error("Unable to find resource type attribute", 0, 0);
         return 0;
     }
     resource_type resource = get_resource_from_attr("type");
     if (resource == RESOURCE_NONE) {
         data.success = 0;
-        log_error("Unable to determine resource type", xml_parser_get_attribute_string("type"), 0);
+        Logger::error("Unable to determine resource type", xml_parser_get_attribute_string("type"), 0);
         return 0;
     }
 
@@ -475,6 +486,8 @@ static int xml_start_resource(void)
         city_obj->city_buys_resource[resource] = amount;
     } else if (data.current_city_list == LIST_SELLS) {
         city_obj->city_sells_resource[resource] = amount;
+    } else {
+        data.resource_costs[data.current_city_id][resource] = std::max(0, amount);
     }
 
     return 1;
@@ -484,22 +497,22 @@ static int xml_start_trade_point(void)
 {
     if (data.current_city_id == -1) {
         data.success = 0;
-        log_error("No active city when parsing trade point", 0, 0);
+        Logger::error("No active city when parsing trade point", 0, 0);
         return 0;
     } else if (data.current_city_list != LIST_TRADE_WAYPOINTS) {
         data.success = 0;
-        log_error("Trade point not trade_points tag", 0, 0);
+        Logger::error("Trade point not trade_points tag", 0, 0);
         return 0;
-    } else if (!empire_object_get_full(data.current_city_id)->trade_route_cost) {
+    } else if (empire_object_get_full(data.current_city_id)->city_type != EMPIRE_CITY_TRADE && empire_object_get_full(data.current_city_id)->city_type != EMPIRE_CITY_FUTURE_TRADE) {
         data.success = 0;
-        log_error("Attempting to parse trade point in a city that can't trade", 0, 0);
+        Logger::error("Attempting to parse trade point in a city that can't trade", 0, 0);
         return 0;
     }
 
     full_empire_object *obj = empire_object_get_new();
     if (!obj) {
         data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     obj->in_use = 1;
@@ -523,13 +536,13 @@ static int xml_start_battle(void)
 {
     if (!data.current_invasion_path_id) {
         data.success = 0;
-        log_error("Battle not in path tag", 0, 0);
+        Logger::error("Battle not in path tag", 0, 0);
         return 0;
     }
     full_empire_object *battle_obj = empire_object_get_new();
     if (!battle_obj) {
         data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
+        Logger::error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
     data.invasion_path_ids.push_back(battle_obj->obj.id);
@@ -548,19 +561,19 @@ static int xml_start_distant_battle_path(void)
 {
     if (!data.has_vulnerable_city) {
         data.success = 0;
-        log_error("Must have a vulnerable city to set up distant battle paths", 0, 0);
+        Logger::error("Must have a vulnerable city to set up distant battle paths", 0, 0);
         return 0;
     } else if (!xml_parser_has_attribute("type")) {
         data.success = 0;
-        log_error("Unable to find type attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find type attribute on distant battle path", 0, 0);
         return 0;
     } else if (!xml_parser_has_attribute("start_x")) {
         data.success = 0;
-        log_error("Unable to find start_x attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find start_x attribute on distant battle path", 0, 0);
         return 0;
     } else if (!xml_parser_has_attribute("start_y")) {
         data.success = 0;
-        log_error("Unable to find start_y attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find start_y attribute on distant battle path", 0, 0);
         return 0;
     }
 
@@ -571,7 +584,7 @@ static int xml_start_distant_battle_path(void)
         data.distant_battle_path_type = DISTANT_BATTLE_PATH_ENEMY;
     } else {
         data.success = 0;
-        log_error("Distant battle path type must be \"roman\" or \"enemy\"", type, 0);
+        Logger::error("Distant battle path type must be \"roman\" or \"enemy\"", type, 0);
         return 0;
     }
 
@@ -587,15 +600,15 @@ static int xml_start_distant_battle_waypoint(void)
 {
     if (!xml_parser_has_attribute("num_months")) {
         data.success = 0;
-        log_error("Unable to find num_months attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find num_months attribute on distant battle path", 0, 0);
         return 0;
     } else if (!xml_parser_has_attribute("x")) {
         data.success = 0;
-        log_error("Unable to find x attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find x attribute on distant battle path", 0, 0);
         return 0;
     } else if (!xml_parser_has_attribute("y")) {
         data.success = 0;
-        log_error("Unable to find y attribute on distant battle path", 0, 0);
+        Logger::error("Unable to find y attribute on distant battle path", 0, 0);
         return 0;
     }
 
@@ -647,7 +660,7 @@ static void xml_end_distant_battle_path(void)
         image_id = GROUP_EMPIRE_ENEMY_ARMY;
     } else {
         data.success = 0;
-        log_error("Invalid distant battle path type", 0, data.distant_battle_path_type);
+        Logger::error("Invalid distant battle path type", 0, data.distant_battle_path_type);
         return;
     }
 
@@ -661,7 +674,7 @@ static void xml_end_distant_battle_path(void)
             full_empire_object *army_obj = empire_object_get_new();
             if (!army_obj) {
                 data.success = 0;
-                log_error("Error creating new object - out of memory", 0, 0);
+                Logger::error("Error creating new object - out of memory", 0, 0);
                 return;
             }
             army_obj->in_use = 1;
@@ -679,6 +692,8 @@ static void xml_end_distant_battle_path(void)
 
 static void reset_data(void)
 {
+    data.resource_costs.clear();
+    data.hidden_routes.clear();
     *data.info_filename = '\0';
     data.success = 1;
     data.current_city_id = -1;
@@ -710,14 +725,22 @@ static int parse_xml(char *buf, int buffer_length)
         return 0;
     }
 
+    if (data.info_only) return data.success;
+
     const empire_object *our_city = empire_object_get_our_city();
     if (!our_city) {
-        log_error("No home city specified", 0, 0);
+        Logger::error("No home city specified", 0, 0);
         return 0;
     }
 
     empire_object_set_trade_route_coords(our_city);
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);
+    scenario_definition_overrides_clear_empire();
+    for (const auto &[id, costs] : data.resource_costs) {
+        const auto *city = empire_object_get(id);
+        for (const auto &[resource, amount] : costs) scenario_definition_override_set({ScenarioOverrideKind::RouteResource, std::to_string(city->trade_route_id), 0, resource_text_id(resource), amount});
+    }
+    for (const auto &[id, hidden] : data.hidden_routes) scenario_definition_override_set({ScenarioOverrideKind::HiddenRoute, std::to_string(empire_object_get(id)->trade_route_id), 0, {}, hidden});
     empire_editor_set_current_invasion_path(data.current_invasion_path_id + 1);
 
     return data.success;
@@ -727,7 +750,7 @@ static char *file_to_buffer(const char *filename, int *output_length)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
-        log_error("Error opening empire file", filename, 0);
+        Logger::error("Error opening empire file", filename, 0);
         return 0;
     }
     fseek(file, 0, SEEK_END);
@@ -736,14 +759,14 @@ static char *file_to_buffer(const char *filename, int *output_length)
 
     char *buf = static_cast<char *>(malloc(size));
     if (!buf) {
-        log_error("Unable to allocate buffer to read XML file", filename, 0);
+        Logger::error("Unable to allocate buffer to read XML file", filename, 0);
         file_close(file);
         return 0;
     }
     memset(buf, 0, size);
     *output_length = (int) fread(buf, 1, size, file);
     if (*output_length > size) {
-        log_error("Unable to read file into buffer", filename, 0);
+        Logger::error("Unable to read file into buffer", filename, 0);
         free(buf);
         file_close(file);
         *output_length = 0;
@@ -764,7 +787,7 @@ int empire_xml_parse_file(const char *filename, int info_only)
     int success = parse_xml(xml_contents, output_length);
     free(xml_contents);
     if (!success) {
-        log_error("Error parsing file", filename, 0);
+        Logger::error("Error parsing file", filename, 0);
     }
     return success;
 }

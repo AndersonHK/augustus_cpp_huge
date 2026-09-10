@@ -11,9 +11,11 @@
     <graphics>
         <default>
             <path value="Walkers\m_hall" />
+            <image value="move_{dir}" />
         </default>
         <corpse frame_count="8">
             <path value="Walkers\m_hall" />
+            <image value="corpse" />
         </corpse>
     </graphics>
 </figure>

@@ -1,4 +1,7 @@
 #include "action_handler.h"
+#include "map/TerrainSaveBridge.h"
+#include "scenario/event/parameter_city.h"
+#include "building/building_type_id_bridge.h"
 
 #include "game/resource_id_bridge.h"
 #include "game/resource.h"
@@ -8,6 +11,15 @@
 int scenario_action_type_execute(scenario_action_t *action)
 {
     switch (action->type) {
+        case ACTION_TYPE_CHANGE_HOUSE_MODEL_DATA:
+        case ACTION_TYPE_CHANGE_MONUMENT_RESOURCES:
+        case ACTION_TYPE_IMMIGRATION_PERCENTAGE:
+        case ACTION_TYPE_HIDE_TRADE_ROUTE:
+        case ACTION_TYPE_CHANGE_ROUTE_RESOURCE_COST:
+        case ACTION_TYPE_RENAME_CITY:
+        case ACTION_TYPE_SEND_CITY_WARNING:
+            return scenario_action_type_definition_execute(action);
+        case ACTION_TYPE_CHANGE_GOAL: return scenario_action_type_change_goal_execute(action);
         case ACTION_TYPE_ADJUST_CITY_HEALTH:
             return scenario_action_type_city_health_execute(action);
         case ACTION_TYPE_ADJUST_FAVOR:
@@ -96,6 +108,10 @@ int scenario_action_type_execute(scenario_action_t *action)
             return scenario_action_type_change_production_rate_execute(action);
         case ACTION_TYPE_LOCK_TRADE_ROUTE:
             return scenario_action_type_lock_trade_route_execute(action);
+        case ACTION_TYPE_MOVE_CAMERA: return scenario_action_type_move_camera_execute(action);
+        case ACTION_TYPE_CHANGE_WEATHER: return scenario_action_type_change_weather_execute(action);
+        case ACTION_TYPE_CHANGE_VARIABLE_COLOR: return scenario_action_type_change_custom_variable_color_execute(action);
+        case ACTION_TYPE_KILL_WALKERS_IN_AREA: return scenario_action_type_kill_walkers_in_area_execute(action);
         default:
             return 0;
     }
@@ -103,7 +119,7 @@ int scenario_action_type_execute(scenario_action_t *action)
 
 void scenario_action_type_delete(scenario_action_t *action)
 {
-    memset(action, 0, sizeof(scenario_action_t));
+    *action = {};
     action->type = ACTION_TYPE_UNDEFINED;
 }
 
@@ -112,15 +128,24 @@ void scenario_action_type_save_state(buffer *buf, const scenario_action_t *actio
     buffer_write_i16(buf, static_cast<int16_t>(link_type));
     buffer_write_i32(buf, link_id);
     buffer_write_i16(buf, static_cast<int16_t>(action->type));
-    buffer_write_i32(buf, action->parameter1);
-    buffer_write_i32(buf, action->parameter2);
-    buffer_write_i32(buf, action->parameter3);
-    buffer_write_i32(buf, action->parameter4);
-    buffer_write_i32(buf, action->parameter5);
+    const int values[] = {action->parameter1, action->parameter2, action->parameter3, action->parameter4, action->parameter5};
+    for (int index = 0; index < 5; ++index) {
+        const int value = index == 2 && scenario_action_uses_terrain(*action) ? static_cast<int32_t>(terrain_save::encode(action->terrain)) :
+            scenario_parameter_archive_value(scenario_action_archive_parameter_type(*action, index + 1), values[index], true, ScenarioParameterArchive::Keyed);
+        buffer_write_i32(buf, value);
+    }
+    buffer_write_i32(buf, action->value_scale);
+    buffer_write_u32(buf, static_cast<uint32_t>(action->value_domain.size()));
+    for (int value : action->value_domain) buffer_write_i32(buf, value);
+    buffer_write_u32(buf, static_cast<uint32_t>(action->model_targets.size()));
+    for (const auto &target : action->model_targets) {
+        buffer_write_i32(buf, scenario_parameter_archive_value(PARAMETER_TYPE_BUILDING, target.building, true, ScenarioParameterArchive::Keyed));
+        buffer_write_i32(buf, target.value_scale);
+    }
 }
 
 unsigned int scenario_action_type_load_state(buffer *buf, scenario_action_t *action, int *link_type, int32_t *link_id,
-    int is_new_version)
+    int is_new_version, ScenarioParameterArchive format)
 {
     *link_type = buffer_read_i16(buf);
     *link_id = buffer_read_i32(buf);
@@ -130,26 +155,31 @@ unsigned int scenario_action_type_load_state(buffer *buf, scenario_action_t *act
     action->parameter3 = buffer_read_i32(buf);
     action->parameter4 = buffer_read_i32(buf);
     action->parameter5 = buffer_read_i32(buf);
-
-    if (action->type == ACTION_TYPE_CHANGE_RESOURCE_PRODUCED) {
-        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
-    } else if (action->type == ACTION_TYPE_TRADE_ADJUST_PRICE) {
-        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
-    } else if (action->type == ACTION_TYPE_TRADE_ADJUST_ROUTE_AMOUNT) {
-        action->parameter2 = static_cast<int>(resource_remap(action->parameter2));
-    } else if (action->type == ACTION_TYPE_TRADE_ROUTE_ADD_NEW_RESOURCE) {
-        action->parameter2 = static_cast<int>(resource_remap(action->parameter2));
-    } else if (action->type == ACTION_TYPE_TRADE_SET_PRICE) {
-        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
-    } else if (action->type == ACTION_TYPE_TRADE_SET_BUY_PRICE_ONLY) {
-        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
-    } else if (action->type == ACTION_TYPE_TRADE_SET_SELL_PRICE_ONLY) {
-        action->parameter1 = static_cast<int>(resource_remap(action->parameter1));
-    } else if (action->type == ACTION_TYPE_CHANGE_ALLOWED_BUILDINGS) {
-        if (!is_new_version) {
-            int original_id = action->parameter1;
-            return scenario_action_type_load_allowed_building(action, original_id, 0) ? original_id : 0;
+    if (scenario_action_uses_terrain(*action)) { action->terrain = terrain_save::decode(static_cast<uint32_t>(action->parameter3)); action->parameter3 = 0; }
+    if (format == ScenarioParameterArchive::Keyed) {
+        action->value_scale = buffer_read_i32(buf);
+        const auto count = buffer_read_u32(buf);
+        if (buf->overflow || action->value_scale < 1 || count > 4096 || count > (buf->size - buf->index) / 4) { buf->overflow = 1; return 0; }
+        action->value_domain.reserve(count);
+        for (uint32_t index = 0; index < count; ++index) action->value_domain.push_back(buffer_read_i32(buf));
+        const auto targets = buffer_read_u32(buf);
+        if (buf->overflow || targets > 4096 || targets > (buf->size - buf->index) / 8) { buf->overflow = 1; return 0; }
+        for (uint32_t index = 0; index < targets; ++index) {
+            const int building = scenario_parameter_archive_value(PARAMETER_TYPE_BUILDING, buffer_read_i32(buf), false, format);
+            const int scale = buffer_read_i32(buf);
+            if (scale < 1) { buf->overflow = 1; return 0; }
+            action->model_targets.push_back({building, scale});
         }
+    }
+
+    if (action->type == ACTION_TYPE_CHANGE_ALLOWED_BUILDINGS && !is_new_version) {
+        const int original_id = action->parameter1;
+        return scenario_action_type_load_allowed_building(action, original_id, 0) ? original_id : 0;
+    }
+    const scenario_action_t encoded = *action;
+    int *values[] = {&action->parameter1, &action->parameter2, &action->parameter3, &action->parameter4, &action->parameter5};
+    for (int index = 0; index < 5; ++index) {
+        *values[index] = scenario_parameter_archive_value(scenario_action_archive_parameter_type(encoded, index + 1), *values[index], false, format);
     }
     return 0;
 }
@@ -172,4 +202,9 @@ int scenario_action_uses_custom_variable(const scenario_action_t *action, int cu
         default:
             return 0;
     }
+}
+
+bool scenario_action_uses_terrain(const scenario_action_t &action)
+{
+    return action.type == ACTION_TYPE_CHANGE_TERRAIN || (action.type == ACTION_TYPE_CUSTOM_VARIABLE_CITY_PROPERTY && action.parameter2 == CITY_PROPERTY_TERRAIN_COUNT_TILES);
 }

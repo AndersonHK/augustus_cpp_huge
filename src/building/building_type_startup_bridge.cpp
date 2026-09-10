@@ -91,4 +91,5 @@ void building_type_startup_bridge_apply_model_overrides(void)
             }
         }
     }
+    model_capture_mod_defaults();
 }

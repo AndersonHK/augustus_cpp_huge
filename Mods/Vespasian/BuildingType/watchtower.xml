@@ -1,29 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="watchtower">
-    <identity name_key="TR_BUILDING_WATCHTOWER" />
-    <model cost="100" />
-    <desirability>
-        <value value="-6" />
-        <step value="1" />
-        <step_size value="2" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="security" order="30" icon="Military\Watchtower_ON_01" text_key="TR_BUILDING_WATCHTOWER" />
-    <sound id="watchtower" />
-    <flags fire_proof="1" draw_desirability_range="1" />
-    <graphics>
-        <default>
-            <path value="Military\Watchtower_ON_01" />
-            <image value="Watchtower C OFF" />
-        </default>
-        <variant>
-            <condition type="has_workers" />
-            <condition type="figure_slot_occupied" slot="quaternary" />
-            <path value="Military\Watchtower_ON_01" />
-            <image value="Watchtower C ON" />
-        </variant>
-    </graphics>
     <labor>
         <employees count="8" />
         <labor_seeker>

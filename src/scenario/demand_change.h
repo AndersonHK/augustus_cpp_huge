@@ -45,3 +45,5 @@ void scenario_demand_change_load_state(buffer *buf, scenario_version_t version);
 
 void scenario_demand_change_load_state_old_version(buffer *buf, int is_legacy_change);
 
+
+void scenario_demand_change_resolve_legacy_directions();

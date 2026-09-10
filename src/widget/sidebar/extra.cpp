@@ -12,6 +12,7 @@
 #include "window/empire.h"
 
 #include "extra.h"
+#include "game/defines.h"
 
 #include "window/popup_dialog.h"
 #include "city/god.h"
@@ -33,6 +34,7 @@
 #include "graphics/ui_runtime_api.h"
 #include "graphics/image_button.h"
 #include "graphics/text.h"
+#include "graphics/declarative_window.h"
 #include "scenario/criteria.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
@@ -46,7 +48,11 @@
 #define EXTRA_INFO_HEIGHT_UNEMPLOYMENT 48
 #define EXTRA_INFO_HEIGHT_INVASIONS 48
 #define EXTRA_INFO_HEIGHT_GODS 64
-#define EXTRA_INFO_HEIGHT_RATINGS 176
+static int ratings_height()
+{
+    const auto *layout = declarative_window_definition("sidebar_ratings");
+    return layout ? layout->base_height() : 0;
+}
 #define EXTRA_INFO_HEIGHT_REQUESTS_PANEL 48
 #define EXTRA_INFO_HEIGHT_REQUESTS_MIN EXTRA_INFO_LINE_SPACE + EXTRA_INFO_HEIGHT_REQUESTS_PANEL
 
@@ -100,6 +106,7 @@ static struct {
     int is_collapsed;
     sidebar_extra_display info_to_display;
     int game_speed;
+    int housing_capacity;
     struct {
         int percentage;
         int amount;
@@ -135,6 +142,7 @@ static int count_active_requests(void)
 
 static sidebar_extra_display calculate_displayable_info(sidebar_extra_display info_to_display, int available_height)
 {
+    if (!game_defines_ui_feature("sidebar_extended_information")) info_to_display = static_cast<sidebar_extra_display>(info_to_display & (SIDEBAR_EXTRA_DISPLAY_GAME_SPEED | SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT | SIDEBAR_EXTRA_DISPLAY_RATINGS));
     if (data.is_collapsed || !config_get(CONFIG_UI_SIDEBAR_INFO) || info_to_display == SIDEBAR_EXTRA_DISPLAY_NONE) {
         return SIDEBAR_EXTRA_DISPLAY_NONE;
     }
@@ -177,9 +185,9 @@ static sidebar_extra_display calculate_displayable_info(sidebar_extra_display in
             result |= SIDEBAR_EXTRA_DISPLAY_REQUESTS;
         }
     }
-    if (available_height >= EXTRA_INFO_HEIGHT_RATINGS) {
+    if (ratings_height() && available_height >= ratings_height()) {
         if (info_to_display & SIDEBAR_EXTRA_DISPLAY_RATINGS) {
-            available_height -= EXTRA_INFO_HEIGHT_RATINGS;
+            available_height -= ratings_height();
             result |= SIDEBAR_EXTRA_DISPLAY_RATINGS;
         }
     } else {
@@ -220,7 +228,7 @@ static int calculate_extra_info_height(int available_height)
         }
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_RATINGS) {
-        height += EXTRA_INFO_HEIGHT_RATINGS;
+        height += ratings_height();
     }
 
     return height;
@@ -297,7 +305,7 @@ static int update_extra_info(int is_background)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) {
         changed |= update_extra_info_value(setting_game_speed(), &data.game_speed);
     }
-    if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT) {
+    if (data.info_to_display & (SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT | SIDEBAR_EXTRA_DISPLAY_RATINGS)) {
         changed |= update_extra_info_value(city_labor_unemployment_percentage(), &data.unemployment.percentage);
         changed |= update_extra_info_value(
             city_labor_workers_unemployed() - city_labor_workers_needed(),
@@ -368,34 +376,45 @@ static int update_extra_info(int is_background)
         changed |= update_extra_info_value(city_rating_peace(), &data.objectives.peace.value);
         changed |= update_extra_info_value(city_rating_favor(), &data.objectives.favor.value);
         changed |= update_extra_info_value(city_population(), &data.objectives.population.value);
+        changed |= update_extra_info_value(city_population_open_housing_capacity(), &data.housing_capacity);
     }
 
     return changed;
 }
 
-static int draw_extra_info_objective(
-    int x_offset, int y_offset, int text_group, int text_id, objective *obj, int cut_off_at_parenthesis)
-{
-    if (cut_off_at_parenthesis) {
-        // Exception for Chinese: the string for "population" includes the hotkey " (6)"
-        // To fix that: cut the string off at the '('
-        uint8_t tmp[100];
-        string_copy(lang_get_string(current_string_key(text_group, text_id)), tmp, 100);
-        for (int i = 0; i < 100 && tmp[i]; i++) {
-            if (tmp[i] == '(') {
-                tmp[i] = 0;
-                break;
-            }
-        }
-        text_draw(tmp, x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    } else {
-        lang_text_draw(current_string_key(text_group, text_id), x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+class SidebarRatingsController final : public DeclarativeWindowController {
+    const objective *find(std::string_view name) const
+    {
+        if (name == "culture") return &data.objectives.culture;
+        if (name == "prosperity") return &data.objectives.prosperity;
+        if (name == "peace") return &data.objectives.peace;
+        if (name == "favor") return &data.objectives.favor;
+        if (name == "population") return &data.objectives.population;
+        return nullptr;
     }
-    font_t font = obj->value >= obj->target ? FONT_NORMAL_GREEN : FONT_NORMAL_RED;
-    int width = text_draw_number(obj->value, '@', "", x_offset + 11, y_offset + EXTRA_INFO_LINE_SPACE, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-    text_draw_number(obj->target, '(', ")", x_offset + 11 + width, y_offset + EXTRA_INFO_LINE_SPACE, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-    return EXTRA_INFO_LINE_SPACE * 2;
-}
+public:
+    std::string text(std::string_view binding, int) const override
+    {
+        if (const auto *value = find(binding)) return std::to_string(value->value) + " (" + std::to_string(value->target) + ")";
+        if (binding == "housing.capacity") return std::to_string(city_population_open_housing_capacity());
+        if (binding == "population.label") {
+            std::string label(reinterpret_cast<const char *>(lang_get_string("main_strings.4.6")));
+            // Some original translations include the advisor's hotkey suffix.
+            return label.substr(0, label.find('('));
+        }
+        return {};
+    }
+    int condition(std::string_view binding, int) const override
+    {
+        const auto separator = binding.find('.');
+        const auto name = binding.substr(0, separator);
+        const bool met = name == "housing" ? data.unemployment.amount >= 0 || -data.unemployment.amount <= city_population_open_housing_capacity() : find(name) && find(name)->value >= find(name)->target;
+        return binding.substr(separator + 1) == "met" ? met : !met;
+    }
+    void action(std::string_view, int) override {}
+};
+
+static SidebarRatingsController ratings_controller;
 
 static int get_text_offset_for_force_size(int force_size)
 {
@@ -619,15 +638,12 @@ static void draw_extra_info_panel(void)
     }
 
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_RATINGS) {
-        y_offset += EXTRA_INFO_LINE_SPACE;
-
         data.objectives_y_offset = y_offset;
-
-        y_offset += draw_extra_info_objective(data.x_offset, y_offset, 53, 1, &data.objectives.culture, 0);
-        y_offset += draw_extra_info_objective(data.x_offset, y_offset, 53, 2, &data.objectives.prosperity, 0);
-        y_offset += draw_extra_info_objective(data.x_offset, y_offset, 53, 3, &data.objectives.peace, 0);
-        y_offset += draw_extra_info_objective(data.x_offset, y_offset, 53, 4, &data.objectives.favor, 0);
-        y_offset += draw_extra_info_objective(data.x_offset, y_offset, 4, 6, &data.objectives.population, 1);
+        if (const auto *layout = declarative_window_definition("sidebar_ratings")) {
+            DeclarativeWindowRuntime window(*layout, ratings_controller);
+            window.draw(DeclarativeDrawPhase::Foreground, data.width, layout->base_height(), data.x_offset, y_offset);
+            y_offset += layout->base_height();
+        }
     }
 
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
@@ -675,7 +691,7 @@ static void draw_extra_info_buttons(void)
             play_paused_button.image_name = play_pause_button_image_names[game_state_is_paused()];
         }
         arrow_buttons_draw(data.x_offset, data.y_offset, arrow_buttons_speed, 2);
-        image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
+        if (game_defines_ui_feature("sidebar_pause_button")) image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS && data.active_requests) {
         for (int i = 0; i < data.visible_requests; i++) {
@@ -702,7 +718,7 @@ int sidebar_extra_handle_mouse(const mouse *m)
 {
     if ((data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) &&
         (arrow_buttons_handle_mouse(m, data.x_offset, data.y_offset, arrow_buttons_speed, 2, 0) ||
-            image_buttons_handle_mouse(m, data.x_offset, data.y_offset, &play_paused_button, 1, 0))) {
+            (game_defines_ui_feature("sidebar_pause_button") && image_buttons_handle_mouse(m, data.x_offset, data.y_offset, &play_paused_button, 1, 0)))) {
         return 1;
     }
     if ((data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) &&
@@ -722,14 +738,30 @@ int sidebar_extra_get_tooltip(tooltip_context *c)
     if (!sidebar_extra_is_information_displayed(SIDEBAR_EXTRA_DISPLAY_RATINGS)) {
         return 0;
     }
+    const auto *layout = declarative_window_definition("sidebar_ratings");
+    if (!layout) return 0;
     const mouse *m = mouse_get();
-    if (m->x < data.x_offset + 2 || m->x >= data.x_offset + data.width - 2 || m->y < data.objectives_y_offset ||
-        m->y >= data.objectives_y_offset + EXTRA_INFO_LINE_SPACE * 8) {
+    std::string_view binding;
+    for (const auto &widget : layout->widgets()) {
+        if (widget.tooltip_binding.empty()) continue;
+        const int x = data.x_offset + widget.resolved_x(data.width, layout->base_width());
+        const int y = data.objectives_y_offset + widget.y;
+        if (m->x >= x && m->x < x + widget.resolved_width(data.width, layout->base_width()) && m->y >= y && m->y < y + widget.height) {
+            binding = widget.tooltip_binding;
+            break;
+        }
+    }
+    if (binding.empty()) return 0;
+    if (binding == "population" || binding == "housing") {
+        const char *population_key = data.objectives.population.value >= data.objectives.population.target ? "TR_SIDEBAR_EXTRA_POPULATION_GOAL_MET" : "TR_SIDEBAR_EXTRA_POPULATION_GOAL_NOT_MET";
+        const char *housing_key = ratings_controller.condition("housing.met", -1) ? "TR_SIDEBAR_EXTRA_ROOM_FOR_NEEDED_EMPLOYEES" : "TR_SIDEBAR_EXTRA_NOT_ENOUGH_ROOM_FOR_NEEDED_EMPLOYEES";
+        static std::string message;
+        message = std::string(reinterpret_cast<const char *>(translation_for_key(population_key))) + '\n' + reinterpret_cast<const char *>(translation_for_key(housing_key));
+        c->precomposed_text = reinterpret_cast<const uint8_t *>(message.c_str());
         return 0;
     }
     int text_id = 0;
-    selected_rating rating = static_cast<selected_rating>(
-        (m->y - data.objectives_y_offset) / (EXTRA_INFO_LINE_SPACE * 2) + 1);
+    selected_rating rating = binding == "culture" ? SELECTED_RATING_CULTURE : binding == "prosperity" ? SELECTED_RATING_PROSPERITY : binding == "peace" ? SELECTED_RATING_PEACE : SELECTED_RATING_FAVOR;
     switch (rating) {
         case SELECTED_RATING_CULTURE:
             if (data.objectives.culture.value <= 90) {

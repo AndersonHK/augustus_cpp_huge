@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<window id="epithets" base_width="640" base_height="432">
+    <widget id="panel" type="panel" x="0" y="0" style="outer_panel" phase="background" width="640" height="432" />
+    <widget id="title" type="label" x="0" y="15" translation="TR_WINDOW_ADVISOR_EPITHETS" width="640" font="large_black" text_alignment="center" />
+    <widget id="religions" type="image_button" x="30" y="56" width="80" height="90" repeat_source="epithets.religions" repeat_columns="6" repeat_spacing_x="100" binding="religion.portrait" action="religion.select" selected_binding="religion.selected" border_padding="5" />
+    <widget id="body_panel" type="panel" x="16" y="165" style="inner_panel" phase="background" width="560" height="224" />
+    <widget id="body" type="rich_text" x="32" y="180" width="544" height="208" font="normal_white" line_spacing="5" paragraph_spacing="0" />
+    <widget id="scrollbar" type="scrollbar" x="584" y="165" width="24" height="224" scroll_up="UI\Scrollbar_Up_01/Scrollbar_Up_01" scroll_down="UI\Scrollbar_Down_01/Scrollbar_Down_01" scroll_middle="UI\Scrollbar_Middle_01_Trimmed/Scrollbar_Middle_01_Trimmed" scroll_top="UI\Scrollbar_Middle_01_End_Top/Scrollbar_Middle_01_End_Top" scroll_bottom="UI\Scrollbar_Middle_01_End_Bottom/Scrollbar_Middle_01_End_Bottom" scroll_grip="UI\Scrollbar_Lines_Alpha/Scrollbar_Lines_Alpha" scroll_always_visible="true" />
+    <widget id="close_hint" type="label" x="10" y="410" translation="main_strings.13.1" width="585" text_alignment="center" font="small_plain" />
+    <widget id="close" type="image_button" x="598" y="395" assetlist="UI\Context_Icons" image="Image_0004" pressed_image="Image_0006" width="24" height="24" action="window.close" />
+    <widget id="previous" type="image_button" x="20" y="398" assetlist="UI\Arrow_Button" image="Decrease" pressed_image="Decrease_Pressed" width="20" height="24" action="page.previous" visible_binding="page.previous" />
+    <widget id="next" type="image_button" x="48" y="398" assetlist="UI\Arrow_Button" image="Increase" pressed_image="Increase_Pressed" width="20" height="24" action="page.next" visible_binding="page.next" />
+</window>

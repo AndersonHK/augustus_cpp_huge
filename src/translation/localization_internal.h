@@ -4,7 +4,7 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "platform/file_manager.h"
 #include "core/buffer.h"
 #include "core/config.h"

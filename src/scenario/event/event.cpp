@@ -1,7 +1,7 @@
 #include "event.h"
 
 #include "core/encoding.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "game/save_version.h"
 #include "scenario/event/action_handler.h"
@@ -118,7 +118,7 @@ public:
     {
         scenario_event_t *event = scenario_event_get(event_id);
         if (!event) {
-            log_error("Ignoring scenario condition group linked to invalid event.", 0, event_id);
+            Logger::error("Ignoring scenario condition group linked to invalid event.", 0, event_id);
             discard_condition_group(group);
             return 0;
         }
@@ -133,7 +133,7 @@ public:
     {
         scenario_event_t *event = scenario_event_get(event_id);
         if (!event) {
-            log_error("Ignoring scenario action linked to invalid event.", 0, event_id);
+            Logger::error("Ignoring scenario action linked to invalid event.", 0, event_id);
             return 0;
         }
         return link_action_to_event(event, action);
@@ -232,7 +232,7 @@ void scenario_event_load_state(buffer *buf, scenario_event_t *event, int scenari
         append_condition_group(event->condition_groups);
     }
     if (event->id != (unsigned int) saved_id) {
-        log_error("Loaded event id does not match what it was saved with. The game will likely crash. event->id: ",
+        Logger::error("Loaded event id does not match what it was saved with. The game will likely crash. event->id: ",
             0, event->id);
     }
 }
@@ -253,16 +253,16 @@ namespace {
 int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group)
 {
     if (!event || !group) {
-        log_error("Unable to link scenario condition group to missing event.", 0, 0);
+        Logger::error("Unable to link scenario condition group to missing event.", 0, 0);
         return 0;
     }
     if (!valid_condition_group_type(group->type)) {
-        log_error("Unable to link scenario condition group with invalid fulfillment type.", 0, group->type);
+        Logger::error("Unable to link scenario condition group with invalid fulfillment type.", 0, group->type);
         return 0;
     }
     scenario_condition_group_t *new_group = create_condition_group(event->condition_groups);
     if (!new_group) {
-        log_error("Unable to create scenario condition group link.", 0, 0);
+        Logger::error("Unable to create scenario condition group link.", 0, 0);
         return 0;
     }
     new_group->type = group->type;
@@ -296,25 +296,20 @@ namespace {
 int link_action_to_event(scenario_event_t *event, scenario_action_t *action)
 {
     if (!event || !action) {
-        log_error("Unable to link scenario action to missing event.", 0, 0);
+        Logger::error("Unable to link scenario action to missing event.", 0, 0);
         return 0;
     }
     if (!valid_action_type(action->type)) {
-        log_error("Unable to link scenario action with invalid type.", 0, action->type);
+        Logger::error("Unable to link scenario action with invalid type.", 0, action->type);
         return 0;
     }
     scenario_action_t *new_action = create_action(event->actions);
     if (!new_action) {
-        log_error("Unable to create scenario action link.", 0, 0);
+        Logger::error("Unable to create scenario action link.", 0, 0);
         return 0;
     }
 
-    new_action->type = action->type;
-    new_action->parameter1 = action->parameter1;
-    new_action->parameter2 = action->parameter2;
-    new_action->parameter3 = action->parameter3;
-    new_action->parameter4 = action->parameter4;
-    new_action->parameter5 = action->parameter5;
+    *new_action = *action;
     new_action->parent_event_id = event->id;
     return 1;
 }

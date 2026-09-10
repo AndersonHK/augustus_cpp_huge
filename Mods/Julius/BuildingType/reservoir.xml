@@ -19,7 +19,7 @@
         <provides type="reservoir" range="10" origin="footprint" />
         <provides type="aqueduct" range="0" origin="nodes" />
         <requires mode="any">
-            <source type="water_source_any" />
+            <source type="foundation_requirement" requirement="water_source" />
             <access type="aqueduct" where="nodes" />
         </requires>
         <node role="provide" x="1" y="-1" />

@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 
 class Building;
@@ -15,7 +16,7 @@ void water_access_runtime_update(void);
 void water_access_runtime_refresh_building(Building *building);
 void water_access_runtime_building_changed(Building *building);
 void water_access_runtime_remove_building(Building *building);
-void water_access_runtime_terrain_changed(int grid_offset, int old_terrain, int new_terrain);
+void water_access_runtime_terrain_changed(int grid_offset, const TerrainSet &old_terrain, const TerrainSet &new_terrain);
 
 int water_access_runtime_range_for_building(const building_type_registry_impl::BuildingType *definition);
 const char *water_access_runtime_primary_provider_access_text(const building_type_registry_impl::BuildingType *definition);
@@ -27,6 +28,7 @@ int water_access_runtime_building_type_requires_access_text(
     const building_type_registry_impl::BuildingType *definition,
     const char *text_id);
 int water_access_runtime_tile_has_access(int grid_offset, const char *text_id);
+int water_access_runtime_tile_has_inactive_access(int grid_offset, const char *text_id);
 int water_access_runtime_building_area_has_access(const Building *building, const char *text_id);
 int water_access_runtime_building_has_required_access(const Building *building);
 int water_access_runtime_building_has_open_water_access(const Building *building);

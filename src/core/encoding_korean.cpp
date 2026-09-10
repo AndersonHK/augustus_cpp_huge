@@ -2,7 +2,7 @@
 
 #include "core/encoding.h"
 #include "core/image.h"
-#include "core/log.h"
+#include "core/Logger.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -2392,7 +2392,7 @@ void encoding_korean_init(void)
     if (!utf8_to_codepage) {
         utf8_to_codepage = (korean_entry*) malloc(sizeof(korean_entry) * IMAGE_FONT_MULTIBYTE_KOREAN_MAX_CHARS);
         if (!utf8_to_codepage) {
-            log_error("Unable to allocate memory for Korean codepage", 0, 0);
+            Logger::error("Unable to allocate memory for Korean codepage", 0, 0);
             return;
         }
     }

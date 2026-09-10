@@ -6,7 +6,7 @@
 #include "core/file.h"
 #include "building/building_type_registry_internal.h"
 #include "city/message.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 
 #include <stdlib.h>
@@ -16,7 +16,7 @@
 void translation_load(language_type language)
 {
     if (!localization::rebuild_legacy_cache(language)) {
-        log_error("Invalid translation selected", 0, 0);
+        Logger::error("Invalid translation selected", 0, 0);
         return;
     }
     lang_refresh_message_cache();
@@ -217,7 +217,7 @@ static lang_message *set_augustus_message_parameters_by_key(
 {
     const int text_id = augustus_message_text_id(message_type);
     if (text_id < 0 || text_id >= MAX_MESSAGE_ENTRIES) {
-        log_error("Augustus message entry out of range", "", text_id);
+        Logger::error("Augustus message entry out of range", "", text_id);
         return nullptr;
     }
     lang_message *m = &data.message_entries[text_id];
@@ -388,6 +388,8 @@ void load_augustus_messages(void)
 
     set_augustus_message_parameters(MESSAGE_GOVERNOR_RANK_CHANGE,
         "TR_CITY_MESSAGE_TITLE_GOVERNOR_RANK_CHANGE", 0, 0, MESSAGE_TYPE_RANK_CHANGE);
+    set_augustus_message_parameters(MESSAGE_TRIUMPHAL_ARCH_COMPLETE,
+        "TR_CITY_MESSAGE_TITLE_TRIUMPHAL_ARCH_COMPLETE", "TR_CITY_MESSAGE_TEXT_TRIUMPHAL_ARCH_COMPLETE", 0, MESSAGE_TYPE_BUILDING_COMPLETION);
 }
 
 int lang_load(int is_editor)

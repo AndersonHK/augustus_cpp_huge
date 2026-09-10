@@ -55,6 +55,7 @@ enum class FormationHerdCombatAnimation {
 };
 
 struct FormationHerdBehavior {
+    int building_clearance = 0;
     int roam_distance = 0;
     int roam_delay = 0;
     int reproduction_delay = 0;

@@ -75,6 +75,8 @@ void city_view_rotate_right(void);
 void city_view_set_viewport(int screen_width, int screen_height);
 
 void city_view_get_viewport(int *x, int *y, int *width, int *height);
+// A pixel-exact render area independent of the current UI/sidebar layout.
+void city_view_set_render_viewport(const pixel_area &area);
 void city_view_get_viewport_size_tiles(int *width, int *height);
 
 int city_view_is_sidebar_collapsed(void);

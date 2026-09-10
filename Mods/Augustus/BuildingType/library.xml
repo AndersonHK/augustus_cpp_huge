@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="library">
-    <identity name_key="main_strings.28.53" />
-    <model cost="75" />
-    <desirability>
-        <value value="4" />
-        <step value="1" />
-        <step_size value="-1" />
-        <range value="4" />
-    </desirability>
-    <foundation path="land_2x2" />
-  <button group="education" order="30" icon="Health_Culture\Library" text_key="main_strings.28.53" />
-    <sound id="library" />
     <culture_modules>
         <culture_module path="library" capacity="800" upgrade_bonus="900" count="active" />
     </culture_modules>
@@ -25,15 +14,4 @@
             <image value="Image_0000" />
         </variant>
     </graphics>
-    <labor>
-        <employees count="20" />
-        <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="50" />
-        </labor_seeker>
-    </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="librarian">
-        <spawn spawn_figure="librarian" direction="top" figure_slot="primary"
-            graphic_timing="before_delay_check" profile="service" />
-    </spawn_group>
 </building>

@@ -1,33 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_small_tent_2x2">
-    <identity name_key="TR_BUILDING_HOUSE_SMALL_TENT" />
-    <model cost="10" />
-    <desirability>
-        <value value="-3" />
-        <step value="1" />
-        <step_size value="1" />
-        <range value="3" />
-    </desirability>
-    <foundation path="land_2x2" />
-    <sound id="house_slum" />
-    <graphics>
-        <default>
-            <path value="Aesthetics\House_Tent" />
-            <image value="Image_0004" />
-        </default>
-        <variant>
-            <condition type="climate" value="northern" />
-            <path value="Aesthetics\House_Tent_Northern" />
-            <image value="Image_0004" />
-        </variant>
-        <variant>
-            <condition type="climate" value="desert" />
-            <path value="Aesthetics\House_Tent_Desert" />
-            <image value="Image_0004" />
-        </variant>
-    </graphics>
-    <housing path="house_small_tent" capacity="20" evolve_to="house_large_tent_2x2" split_to="house_small_tent" goods_consumption_events_per_month="2" mars_offering_amount="2" />
     <spawn_group road_access="normal" delay_bands="100:0">
         <spawn spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="24" />
+    </spawn_group>
+    <spawn_group road_access="normal" delay_bands="100:16" id="ambient_citizens">
+        <spawn spawn_figure="wandering_citizen" profile="ambient" direction="bottom" figure_slot="none" require_population="true" chance_source="city_unemployment_percent" chance_per_million_bands="$[Augustus:WANDERING_CITIZENS]{30:500000,29:490000,28:480000,27:470000,26:460000,25:450000,24:440000,23:430000,22:420000,21:410000,20:400000,19:390000,18:380000,17:370000,16:360000,15:350000,14:340000,13:330000,12:320000,11:310000,10:300000,9:290000,8:280000,7:270000,6:260000,5:250000,4:250000,3:250000,2:250000,1:250000,0:250000}$![Augustus:WANDERING_CITIZENS]{0:0}" />
     </spawn_group>
 </building>

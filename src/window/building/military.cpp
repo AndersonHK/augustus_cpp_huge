@@ -1,3 +1,7 @@
+#include "game/defines.h"
+#include "building/destruction.h"
+#include "graphics/declarative_window.h"
+#include <algorithm>
 #include "building/barracks.h"
 #include "building/building.h"
 #include "city/buildings.h"
@@ -23,7 +27,7 @@
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/dir.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
@@ -140,6 +144,33 @@ static void draw_delivery_buttons(int x, int y, Building &barracks_building)
     button_border_draw(x, y, 52, 52, data.focus_delivery_button_id || !accept_delivery ? 1 : 0);
 }
 
+namespace {
+class DurabilityController final : public DeclarativeWindowController {
+public:
+    explicit DurabilityController(int grid_offset) : grid_offset_(grid_offset) {}
+    std::string text(std::string_view binding, int) const override
+    {
+        if (binding != "durability") return {};
+        const int grid = grid_offset_;
+        const int maximum = std::max(1, building_hit_points_at(grid) + game_defines_building_damage_extra_hit());
+        return std::string(reinterpret_cast<const char *>(translation_for_key("TR_DURABILITY"))) + ": " + std::to_string(std::max(0, maximum - building_damage_at(grid))) + " / " + std::to_string(maximum);
+    }
+    void action(std::string_view, int) override {}
+private:
+    int grid_offset_;
+};
+}
+void window_building_draw_durability(building_info_context *context)
+{
+    if (!context->building || !context->building->type || !context->building->type->presentation().show_durability) return;
+    const auto *definition = declarative_window_definition("building_durability");
+    const int grid = context->building ? context->building->record()->grid_offset : context->grid_offset;
+    if (!definition || grid < 0) return;
+    DurabilityController controller(grid);
+    DeclarativeWindowRuntime runtime(*definition, controller);
+    runtime.draw(DeclarativeDrawPhase::Foreground, context->width_blocks * BLOCK_SIZE, context->height_blocks * BLOCK_SIZE, context->x_offset, context->y_offset);
+}
+
 void window_building_draw_wall(building_info_context *c)
 {
     c->help_id = 85;
@@ -193,10 +224,11 @@ void window_building_draw_barracks(building_info_context *c)
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 32, c->y_offset + 60);
 
     building *b = c->building ? const_cast<building *>(c->building->record()) : nullptr;
-    if (b->resources[resource_weapons()] < 1) {
+    const int weapon_loads = b->resources[resource_weapons()] / resource_units_per_load();
+    if (weapon_loads < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount(current_string_amount_key(8, 10, b->resources[resource_weapons()]), b->resources[resource_weapons()], c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(current_string_amount_key(8, 10, weapon_loads), weapon_loads, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     if (!c->has_road_access) {
@@ -604,7 +636,7 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
             } else {
                 title_id = 16;
                 text_id = 22;
-                log_info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
+                Logger::info("Unknown formation", m->layout_definition ? m->layout_definition->key() : "unbound", 0);
             }
             break;
     }

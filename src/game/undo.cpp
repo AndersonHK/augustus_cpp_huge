@@ -21,6 +21,10 @@
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/finance.h"
+#include "city/trade_ledger.h"
+#include "game/time.h"
+#include "city/warning.h"
+#include "translation/translation.h"
 #include "city/population.h"
 #include "core/image.h"
 #include "figure/figure.h"
@@ -30,9 +34,11 @@
 #include "map/property.h"
 #include "figure/route.h"
 #include "map/sprite.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "map/tile_runtime_api.h"
 #include "map/water_navigation.h"
+#include "map/tiles.h"
+#include "building/FoundationState.h"
 
 #include <algorithm>
 #include <string.h>
@@ -51,6 +57,9 @@ static struct {
     building buildings[MAX_UNDO_BUILDINGS];
     std::vector<unsigned int> created_building_ids;
     std::vector<building> replaced_buildings;
+    std::vector<building_type_registry_impl::FoundationTerrainDelta> support_terrain;
+    int resource_cost[RESOURCE_SLOT_COUNT] = {};
+    int resource_cost_year = 0;
     struct {
         int num;
         struct {
@@ -130,6 +139,17 @@ static void clear_buildings(void)
     data.type_changes.num = 0;
     data.created_building_ids.clear();
     data.replaced_buildings.clear();
+    data.support_terrain.clear();
+}
+
+void game_undo_add_support_terrain(const building_type_registry_impl::FoundationTerrainDelta &delta)
+{
+    if (data.available) data.support_terrain.push_back(delta);
+}
+
+void game_undo_add_resource_cost(resource_type resource, int loads)
+{
+    if (data.available && resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && loads > 0) data.resource_cost[resource] += loads;
 }
 
 void game_undo_add_created_building(building *b)
@@ -227,6 +247,8 @@ void game_undo_restore_building_types(void)
 
 int game_undo_start_build(building_type type)
 {
+    std::fill(std::begin(data.resource_cost), std::end(data.resource_cost), 0);
+    data.resource_cost_year = game_time_year();
     data.ready = 0;
     data.available = 1;
     data.timeout_ticks = 0;
@@ -251,7 +273,7 @@ int game_undo_start_build(building_type type)
     }
 
     map_image_backup();
-    map_terrain_backup();
+    terrain_map().backup();
     map_aqueduct_backup();
     map_property_backup();
     map_sprite_backup();
@@ -297,7 +319,7 @@ static void restore_map_images(void)
         for (int x = 0; x < map_width; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (!map_building_exists_at(grid_offset) ||
-                map_terrain_is(grid_offset, TERRAIN_AQUEDUCT) ||
+                terrain_map().contains(grid_offset, terrain_types().aqueduct) ||
                 map_building_at(grid_offset).is_surface_terrain_tile()) {
                 map_image_restore_at(grid_offset);
             }
@@ -307,7 +329,7 @@ static void restore_map_images(void)
 
 void game_undo_restore_map(int include_properties)
 {
-    map_terrain_restore();
+    terrain_map().restore();
     map_aqueduct_restore();
     map_building_restore();
     if (include_properties) {
@@ -350,6 +372,19 @@ void game_undo_perform(void)
     if (!game_can_undo()) {
         return;
     }
+    int refunded[RESOURCE_SLOT_COUNT] = {};
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) {
+        const auto resource = static_cast<resource_type>(slot);
+        const int remaining = building_warehouses_add_resource(resource, data.resource_cost[slot], 0);
+        refunded[slot] = data.resource_cost[slot] - remaining;
+        if (remaining) {
+            for (int undo_slot = RESOURCE_NONE + 1; undo_slot <= slot; ++undo_slot) building_warehouses_remove_resource(static_cast<resource_type>(undo_slot), refunded[undo_slot]);
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for_key("TR_CITY_WARNING_UNDO_STORAGE_SPACE"));
+            return;
+        }
+    }
+    for (int slot = RESOURCE_NONE + 1; slot < RESOURCE_SLOT_COUNT; ++slot) city_trade_ledger_revert_consumed(static_cast<resource_type>(slot), refunded[slot] * resource_units_per_load(), data.resource_cost_year);
+    std::fill(std::begin(data.resource_cost), std::end(data.resource_cost), 0);
     data.available = 0;
     city_finance_process_construction(-data.building_cost);
     restore_replaced_buildings();
@@ -384,7 +419,7 @@ void game_undo_perform(void)
                 }
             }
         }
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         map_sprite_restore();
         map_image_restore();
@@ -393,24 +428,25 @@ void game_undo_perform(void)
         map_property_clear_constructing_and_deleted();
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"aqueduct", "road", "wall", "highway"})) {
         discard_created_buildings();
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         restore_map_images();
         game_undo_restore_building_types();
         building_connectable_update_connections();
 
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"low_bridge", "ship_bridge"})) {
-        map_terrain_restore();
+        terrain_map().restore();
+        map_building_restore();
         map_sprite_restore();
         restore_map_images();
     } else if (building_type_registry_impl::type_attr_is_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {
-        map_terrain_restore();
+        terrain_map().restore();
         map_aqueduct_restore();
         map_property_restore();
         restore_map_images();
     } else if (data.num_buildings) {
         if (building_type_registry_impl::type_attr_is(data.type, "reservoir")) {
-            map_terrain_restore();
+            terrain_map().restore();
             map_aqueduct_restore();
             restore_map_images();
         }
@@ -423,6 +459,14 @@ void game_undo_perform(void)
         }
         building_update_state();
     }
+    for (auto it = data.support_terrain.rbegin(); it != data.support_terrain.rend(); ++it) {
+        terrain_map().set(it->grid_offset, building_type_registry_impl::foundation_restore_terrain_cell(terrain_map().at(it->grid_offset), *it));
+        const int x = map_grid_offset_to_x(it->grid_offset), y = map_grid_offset_to_y(it->grid_offset);
+        map_tiles_update_region_empty_land(x, y, x, y);
+        map_tiles_update_area_roads(x, y, 1);
+        map_tiles_update_area_highways(x, y, 1);
+    }
+    data.support_terrain.clear();
     building_runtime_restore_graphics_state();
     tile_runtime_restore();
     Route::updateLandTerrain();

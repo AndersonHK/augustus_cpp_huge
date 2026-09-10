@@ -32,9 +32,9 @@ public:
     int has_completed_effect() const;
     void start_new_production();
     void advance_stats();
-    void bless_farm();
-    void curse_farm(int big_curse);
-    void bless_industry();
+    void bless_farm(int days);
+    void curse_farm(int days);
+    void bless_industry(int batches);
 
 private:
     int decrement_strike_if_needed(int new_day, int *out_is_striking);

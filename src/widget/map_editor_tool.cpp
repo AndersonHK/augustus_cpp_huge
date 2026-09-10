@@ -15,7 +15,7 @@
 #include "core/image_group_editor.h"
 #include "input/scroll.h"
 #include "map/grid.h"
-#include "map/terrain.h"
+#include "map/TerrainMap.h"
 #include "scenario/property.h"
 
 #include <vector>
@@ -111,12 +111,12 @@ static void draw_road(const map_tile *tile, int x, int y)
     int grid_offset = tile->grid_offset;
     int blocked = 0;
     int image_id = 0;
-    if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+    if (terrain_map().contains(grid_offset, terrain_types().not_clear)) {
         blocked = 1;
     } else {
         image_id = Image::group(GROUP_TERRAIN_ROAD);
-        if (!map_terrain_has_adjacent_x_with_type(grid_offset, TERRAIN_ROAD) &&
-            map_terrain_has_adjacent_y_with_type(grid_offset, TERRAIN_ROAD)) {
+        if (!terrain_map().has_adjacent_x_with_type(grid_offset, terrain_types().road) &&
+            terrain_map().has_adjacent_y_with_type(grid_offset, terrain_types().road)) {
             image_id++;
         }
     }
@@ -309,6 +309,7 @@ void map_editor_tool_draw(const map_tile *tile)
         case TOOL_ROCKS:
         case TOOL_SHRUB:
         case TOOL_TREES:
+        case TOOL_SHALLOW:
         case TOOL_WATER:
         case TOOL_NATIVE_RUINS:
         case TOOL_RAISE_LAND:

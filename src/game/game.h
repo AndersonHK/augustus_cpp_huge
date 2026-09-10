@@ -18,5 +18,5 @@ void game_display_fps(int fps);
 
 void game_exit_editor(void);
 
-void game_exit(void);
+void game_exit(bool persist_settings = true);
 

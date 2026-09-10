@@ -2,7 +2,7 @@
 
 #include "assets/image_group_entry.h"
 #include "assets/image_group_payload.h"
-#include "core/crash_context.h"
+#include "core/Logger.h"
 #include "graphics/ui_tiled_strip_primitive.h"
 
 #include "graphics/ui_constants.h"
@@ -31,7 +31,7 @@ TopMenuPanelWidget::TopMenuPanelWidget(UiPrimitives &primitives, int x, int y, i
 
 void TopMenuPanelWidget::draw()
 {
-    ErrorContextScope error_scope("ui.top_menu_panel", TOP_MENU_PANEL_GROUP_KEY);
+    Logger::Scope error_scope("ui.top_menu_panel", TOP_MENU_PANEL_GROUP_KEY);
     int blocks = ((width_ + BLACK_PANEL_BLOCK_WIDTH - 1) / BLACK_PANEL_BLOCK_WIDTH) - 2;
     if (blocks < BLACK_PANEL_MIDDLE_BLOCKS) {
         blocks = BLACK_PANEL_MIDDLE_BLOCKS;

@@ -1,7 +1,6 @@
 #include "building/culture_module_registry.h"
 
-#include "core/crash_context.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/xml_definition.h"
 #include "core/xml_parser.h"
 #include "core/xml_value.h"
@@ -80,14 +79,14 @@ CultureModuleType parse_type(const char *value)
 int parse_root()
 {
     if (!g_parse_state.definition || g_parse_state.saw_root) {
-        log_error("CultureModule has an invalid or duplicate root", 0, 0);
+        Logger::error("CultureModule has an invalid or duplicate root", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
     int disabled = 0;
     if (xml_parser_has_attribute("disabled") &&
         !xml_value::parse_bool(xml_parser_get_attribute_string("disabled"), &disabled)) {
-        log_error("CultureModule has an invalid disabled value", 0, 0);
+        Logger::error("CultureModule has an invalid disabled value", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -99,20 +98,20 @@ int parse_root()
 int parse_type_node()
 {
     if (g_parse_state.disabled) {
-        log_error("Disabled CultureModule tombstone contains definition data", "type", 0);
+        Logger::error("Disabled CultureModule tombstone contains definition data", "type", 0);
         g_parse_state.error = true;
         return 0;
     }
     if (!g_parse_state.definition || g_parse_state.saw_type ||
         !xml_parser_has_attribute("value")) {
-        log_error("CultureModule has an invalid or duplicate type node", 0, 0);
+        Logger::error("CultureModule has an invalid or duplicate type node", 0, 0);
         g_parse_state.error = true;
         return 0;
     }
 
     const CultureModuleType type = parse_type(xml_parser_get_attribute_string("value"));
     if (type == CultureModuleType::None) {
-        log_error("Unsupported CultureModule type", xml_parser_get_attribute_string("value"), 0);
+        Logger::error("Unsupported CultureModule type", xml_parser_get_attribute_string("value"), 0);
         g_parse_state.error = true;
         return 0;
     }
@@ -138,7 +137,7 @@ bool parse_definition_buffer(
     ParsedDefinition &result,
     std::string *failure_reason)
 {
-    ErrorContextScope error_scope("culture_module_registry.parse_definition", filename);
+    Logger::Scope error_scope("culture_module_registry.parse_definition", filename);
     const std::string stable_id = xml_definition::normalize_path(definition_path);
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<CultureModule>(stable_id);
@@ -152,8 +151,8 @@ bool parse_definition_buffer(
         !g_parse_state.definition || (!g_parse_state.disabled && !g_parse_state.saw_type)) {
         const std::string detail = xml_definition::format_failure_reason(
             "Unable to parse CultureModule xml.", filename);
-        log_error("Unable to parse CultureModule xml", filename, 0);
-        error_context_report_error("Unable to parse CultureModule xml.", filename);
+        Logger::error("Unable to parse CultureModule xml", filename, 0);
+        Logger::error("Unable to parse CultureModule xml.", filename);
         if (failure_reason) {
             *failure_reason = detail;
         }
@@ -205,8 +204,8 @@ bool stage_definition(
 {
     const std::string stable_id = parsed.definition ? parsed.definition->path() : "";
     if (!staged.overlay.apply(stable_id, parsed.disabled, source)) {
-        log_error("Unable to layer CultureModule definition", staged.overlay.failure_reason().c_str(), 0);
-        error_context_report_error(
+        Logger::error("Unable to layer CultureModule definition", staged.overlay.failure_reason().c_str(), 0);
+        Logger::error(
             "Unable to layer CultureModule definition.", staged.overlay.failure_reason().c_str());
         if (failure_reason) {
             *failure_reason = staged.overlay.failure_reason();
@@ -265,7 +264,7 @@ int culture_module_registry_load(void)
     std::vector<mod_definition::DefinitionLayer> layers;
     std::string failure_reason;
     if (!mod_definition::configured_layers(layers, &failure_reason)) {
-        log_error("Unable to configure CultureModule definition layers", failure_reason.c_str(), 0);
+        Logger::error("Unable to configure CultureModule definition layers", failure_reason.c_str(), 0);
         building_type_registry_impl::g_failure_reason = failure_reason;
         return 0;
     }

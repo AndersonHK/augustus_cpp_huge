@@ -207,7 +207,8 @@ int GraphicsAssetReference::cache_asset_binding()
     if (!has_logical_asset_path() || !image_group_payload_load(path_.c_str())) return 0;
     payload_ = image_group_payload_get(path_.c_str());
     if (!payload_) return 0;
-    entry_ = image_.empty() ? payload_->default_entry() : payload_->entry_for(image_.c_str());
+    const std::string first_image = graphics_expand_direction_frame_pattern(image_, 0, 1);
+    entry_ = first_image.empty() ? payload_->default_entry() : payload_->entry_for(first_image.c_str());
     return entry_ ? 1 : 0;
 }
 

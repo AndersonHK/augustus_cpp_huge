@@ -108,9 +108,8 @@ int city_warning_show(warning_type type, const uint8_t *text)
     w->in_use = 1;
     w->type = type.name;
     w->time = time_get_millis();
-    if (!w->flashing) {
-        string_copy(text, w->text, MAX_TEXT);
-    }
+    // Repeated warnings may flash, but their payload can change (e.g. 1/6 -> 2/6).
+    string_copy(text, w->text, MAX_TEXT);
     return 1;
 }
 

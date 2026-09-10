@@ -30,7 +30,7 @@ void formation_legions_kill_in_distant_battle(int kill_percentage);
 
 void formation_legions_return_from_distant_battle(void);
 
-int formation_legion_curse(void);
+int formation_legion_curse(int months);
 
 int formation_legion_at_grid_offset(int grid_offset);
 

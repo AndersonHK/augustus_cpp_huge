@@ -164,6 +164,22 @@ bool validate_mod_metadata_contract(std::ostream &errors)
 {
     if (!validate_source_schema(errors)) return false;
 
+    for (const auto &saved : {std::vector<std::string>{"Julius"}, {"Julius", "Augustus"}, {"Julius", "Augustus", "Vespasian", "Elven Tavern"}}) {
+        auto selected = saved;
+        if (!mod_manager::select_mod_stack_for_test(selected, "") || selected != saved) {
+            errors << "Direct launch did not preserve the saved mod selection.\n";
+            return false;
+        }
+        if (!mod_manager::select_mod_stack_for_test(selected, "julius") || selected != std::vector<std::string>{"Julius"}) {
+            errors << "Explicit mod selection did not trim the saved stack.\n";
+            return false;
+        }
+        if (mod_manager::select_mod_stack_for_test(selected, "Missing Mod")) {
+            errors << "Explicit selection accepted a mod absent from the saved list.\n";
+            return false;
+        }
+    }
+
     const std::vector<std::string> sparse_stack_names = {
         "Julius", "Augustus", "Vespasian", "Elven Tavern"
     };

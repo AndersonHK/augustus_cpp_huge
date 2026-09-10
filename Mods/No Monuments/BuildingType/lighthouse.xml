@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="lighthouse">
+    <construction road_update_radius="5" max_count="1">
+        <requirement type="bricks" amount="20" />
+        <requirement type="stone" amount="56" />
+        <requirement type="timber" amount="32" />
+    </construction>
+</building>

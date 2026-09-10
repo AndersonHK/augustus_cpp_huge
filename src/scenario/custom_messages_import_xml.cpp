@@ -2,7 +2,7 @@
 #include "translation/translation.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
 #include "scenario/custom_messages.h"
@@ -158,8 +158,8 @@ static void display_and_log_error(const char *msg)
     data.success = 0;
     data.error_line_number = xml_parser_get_current_line_number();
     snprintf(data.error_message, ERROR_MESSAGE_LENGTH, "%s", msg);
-    log_error("Error while importing custom messages from XML. ", data.error_message, 0);
-    log_error("Line:", 0, data.error_line_number);
+    Logger::error("Error while importing custom messages from XML. ", data.error_message, 0);
+    Logger::error("Line:", 0, data.error_line_number);
 
     string_copy(translation_for_key("TR_EDITOR_IMPORT_LINE"), data.error_line_number_text, 50);
     int length = string_length(data.error_line_number_text);
@@ -214,7 +214,7 @@ static char *file_to_buffer(const char *filename, int *output_length)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
-        log_error("Error opening empire file", filename, 0);
+        Logger::error("Error opening empire file", filename, 0);
         return 0;
     }
     fseek(file, 0, SEEK_END);
@@ -223,19 +223,19 @@ static char *file_to_buffer(const char *filename, int *output_length)
 
     char *buf = static_cast<char *>(malloc(size));
     if (!buf) {
-        log_error("Error opening empire file", filename, 0);
+        Logger::error("Error opening empire file", filename, 0);
         return 0;
     }
     memset(buf, 0, size);
     if (!buf) {
-        log_error("Unable to allocate buffer to read XML file", filename, 0);
+        Logger::error("Unable to allocate buffer to read XML file", filename, 0);
         free(buf);
         file_close(file);
         return 0;
     }
     *output_length = (int) fread(buf, 1, size, file);
     if (*output_length > size) {
-        log_error("Unable to read file into buffer", filename, 0);
+        Logger::error("Unable to read file into buffer", filename, 0);
         free(buf);
         file_close(file);
         *output_length = 0;
@@ -255,7 +255,7 @@ int custom_messages_xml_parse_file(const char *filename)
     int success = parse_xml(xml_contents, output_length);
     free(xml_contents);
     if (!success) {
-        log_error("Error parsing file", filename, 0);
+        Logger::error("Error parsing file", filename, 0);
     }
     return success;
 }

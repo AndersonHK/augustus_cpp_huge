@@ -1,89 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pantheon">
-    <identity name_key="TR_BUILDING_PANTHEON" />
-    <temple religion="pantheon" />
-    <model cost="3500" />
-    <desirability>
-        <value value="20" />
-        <step value="2" />
-        <step_size value="-4" />
-        <range value="8" />
-    </desirability>
-    <foundation path="land_7x7" />
-  <button group="grand_temples" order="10" icon="Monuments\Pantheon_Off" icon_image="Pantheon On" text_key="TR_BUILDING_PANTHEON" />
-    <sound id="oracle" />
-    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
-    <culture_modules>
-        <culture_module path="temple_active" capacity="1500" count="active" />
-    </culture_modules>
-    <graphics>
-        <default>
-            <path value="Monuments\Pantheon_Off" />
-            <image value="Pantheon On" />
-        </default>
-        <variant>
-            <condition type="monument_upgrade" value="1" />
-            <path value="Monuments\Pantheon_Off" />
-            <image value="Pantheon Module" />
-        </variant>
-        <variant>
-            <condition type="monument_upgrade" value="2" />
-            <path value="Monuments\Pantheon_Off" />
-            <image value="Pantheon Module2" />
-        </variant>
-    </graphics>
-    <construction mode="phased" road_update_radius="9" max_count="1">
-        <phase index="1">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Pantheon Const 01" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="stone" amount="20" />
-        </phase>
-        <phase index="2">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Pantheon Const 02" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="8" />
-            <requirement type="stone" amount="20" />
-        </phase>
-        <phase index="3">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Pantheon Const 03" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="16" />
-            <requirement type="concrete" amount="40" />
-        </phase>
-        <phase index="4">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Pantheon Const 04" />
-            </graphics>
-            <requirement type="architects" amount="1" />
-            <requirement type="timber" amount="16" />
-            <requirement type="marble" amount="32" />
-            <requirement type="gold" amount="16" />
-        </phase>
-        <phase index="5">
-            <graphics>
-                <path value="Environment\Group_206" />
-                <image value="Pantheon Const 05" />
-            </graphics>
-            <requirement type="architects" amount="4" />
-        </phase>
-    </construction>
     <labor>
         <employees count="50" />
         <labor_seeker>
             <method value="workforce" />
         </labor_seeker>
     </labor>
-    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn spawn_figure="priest" direction="top" figure_slot="primary" profile="pantheon_service" />
-    </spawn_group>
 </building>

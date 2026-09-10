@@ -13,6 +13,7 @@
 #include "editor/editor.h"
 #include "window/editor/map.h"
 #include "game.h"
+#include "core/loading_progress.h"
 
 #include "building/building_runtime.h"
 #include "building/building_type_registry_internal.h"
@@ -34,7 +35,7 @@
 #include "core/config.h"
 #include "core/image.h"
 #include "core/locale.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "core/string.h"
 #include "figure/type.h"
@@ -57,7 +58,7 @@ static char init_failure_message[512];
 
 static void errlog(const char *msg)
 {
-    log_error(msg, 0, 0);
+    Logger::error(msg, 0, 0);
 }
 
 static void clear_init_failure_message(void)
@@ -93,7 +94,7 @@ static encoding_type update_encoding(void)
 {
     language_type language = locale_determine_language();
     encoding_type encoding = encoding_determine(language);
-    log_info("Detected encoding:", 0, encoding);
+    Logger::info("Detected encoding:", 0, encoding);
     font_set_encoding(encoding);
     translation_load(language);
     return encoding;
@@ -132,16 +133,23 @@ static int is_unpatched(void)
 
 static int load_initial_climate_graphics(void)
 {
+    loading_progress::stage("graphics");
+    loading_progress::report("Loading temperate graphics", 0, 4);
     if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
         return 0;
     }
+    loading_progress::report("Loading northern graphics", 1, 4);
     if (!Image::load_climate(CLIMATE_NORTHERN, 0, 1, 1, 1)) {
         return 0;
     }
+    loading_progress::report("Loading desert graphics", 2, 4);
     if (!Image::load_climate(CLIMATE_DESERT, 0, 1, 1, 1)) {
         return 0;
     }
-    return Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 0);
+    loading_progress::report("Preparing graphics", 3, 4);
+    const int result = Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 0);
+    if (result) loading_progress::report("Graphics ready", 4, 4);
+    return result;
 }
 
 int game_init(void)
@@ -351,7 +359,7 @@ void game_display_fps(int fps)
     text_draw_number_centered_colored(fps, x_offset, y_offset + 6, width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
 }
 
-void game_exit(void)
+void game_exit(bool persist_settings)
 {
     // Tear down runtime-managed image groups before payload storage so shutdown does not
     // depend on C++ static destruction order between the two caches.
@@ -363,8 +371,10 @@ void game_exit(void)
     font_reset_mod_font_pack();
 
     video_shutdown();
-    settings_save();
-    config_save();
+    if (persist_settings) {
+        settings_save();
+        config_save();
+    }
     performance_tracker_shutdown();
     sound_system_shutdown();
 }

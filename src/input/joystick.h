@@ -85,3 +85,4 @@ int joystick_remove(int joystick_id);
 void joystick_update_element(int joystick_id, joystick_element element, int element_id, int value1, int value2);
 
 int joystick_to_mouse_and_keyboard(void);
+int joysticks_are_connected(void);

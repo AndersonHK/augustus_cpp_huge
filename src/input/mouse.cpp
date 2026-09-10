@@ -3,6 +3,7 @@
 #include "core/time.h"
 #include "graphics/screen.h"
 #include "input/hotkey.h"
+#include <algorithm>
 
 enum {
     SYSTEM_NONE = 0,
@@ -75,6 +76,8 @@ void mouse_remove_touch(void)
 
 void mouse_set_position(int x, int y)
 {
+    x = std::clamp(x, 0, std::max(0, screen_pixel_width() - 1));
+    y = std::clamp(y, 0, std::max(0, screen_pixel_height() - 1));
     if (x != data.x || y != data.y) {
         last_click = 0;
     }

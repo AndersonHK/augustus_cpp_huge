@@ -25,6 +25,8 @@
     <ClCompile Include="src\building\CompositionHydration.cpp" />
     <ClCompile Include="src\building\CompositionPlacementAccounting.cpp" />
     <ClCompile Include="src\building\CompositionTypeReplacement.cpp" />
+    <ClCompile Include="src\map\TerrainRegistry.cpp" />
+    <ClCompile Include="src\map\TerrainArchive.cpp" />
     <ClCompile Include="src\building\FoundationDef.cpp" />
     <ClCompile Include="src\building\FoundationRegistry.cpp" />
     <ClCompile Include="src\building\FoundationState.cpp" />
@@ -68,6 +70,7 @@
     <ClCompile Include="src\building\production_method.cpp" />
     <ClCompile Include="src\building\production_method_registry.cpp" />
     <ClCompile Include="src\building\properties.cpp" />
+    <ClCompile Include="src\scenario\definition_overrides.cpp" />
     <ClCompile Include="src\building\religion.cpp" />
     <ClCompile Include="src\building\religion_registry.cpp" />
     <ClCompile Include="src\building\storage_type.cpp" />
@@ -88,6 +91,8 @@
     <ClCompile Include="src\game\Animation.cpp" />
     <ClCompile Include="src\game\defines.cpp" />
     <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\game\mod_content.cpp" />
+    <ClCompile Include="src\figure\type.cpp" />
     <ClCompile Include="src\game\mod_definition_loader.cpp" />
     <ClCompile Include="src\game\resource.cpp" />
     <ClCompile Include="src\game\ResourceGraphics.cpp" />
@@ -101,7 +106,6 @@
     <ClCompile Include="src\graphics\runtime_texture.cpp" />
     <ClCompile Include="src\platform\file_manager.cpp" />
     <ClCompile Include="src\platform\file_manager_cache.cpp" />
-    <ClCompile Include="src\platform\log.cpp" />
     <ClCompile Include="src\platform\platform.cpp" />
     <ClCompile Include="src\platform\prefs.cpp" />
     <ClCompile Include="src\startup\startup_parser_cache_invalidation_boundary.cpp" />

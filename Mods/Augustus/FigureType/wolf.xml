@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="wolf" graphics_only="true">
+    <behavior recheck_animal_terrain="$WILDLIFE_BLOCKED_BY_DEFENSES" />
+</figure>

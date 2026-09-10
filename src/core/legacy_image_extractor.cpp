@@ -1,12 +1,14 @@
 #
 
 #include "core/legacy_image_extractor.h"
+#include "core/loading_progress.h"
 
 #include "assets/graphics_extractor_common.h"
+#include "assets/legacy_animation_layouts.h"
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "platform/file_manager.h"
 
 #include "spng/spng.h"
@@ -21,7 +23,7 @@
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v12:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v14:";
 constexpr int kLegacyIncreaseButtonImage = 15;
 constexpr int kLegacyDecreaseButtonImage = 17;
 class LegacyFamily {
@@ -158,6 +160,7 @@ static bool is_house_or_house_variant_group(int group_id)
 static bool is_climate_sensitive_group(int group_id)
 {
     return group_id == GROUP_BUILDING_RESERVOIR ||
+        group_id == GROUP_BUILDING_WALL ||
         group_id == GROUP_BUILDING_AQUEDUCT ||
         group_id == GROUP_BUILDING_AQUEDUCT_NO_WATER ||
         is_house_or_house_variant_group(group_id);
@@ -509,6 +512,17 @@ static uint64_t calculate_source_fingerprint(
 {
     uint64_t hash = 1469598103934665603ull;
     hash_stamp_string(hash, source_name);
+    for (int group = 0; group < group_count; ++group) {
+        for (const auto &sequence : vespasian::graphics::extraction::legacy_animation_sequences(group)) {
+            hash_stamp_string(hash, sequence.name.c_str());
+            hash_stamp_int(hash, sequence.base);
+            hash_stamp_int(hash, sequence.source_offsets);
+            hash_stamp_int(hash, sequence.x);
+            hash_stamp_int(hash, sequence.y);
+            for (int frame : sequence.frames) hash_stamp_int(hash, frame);
+        }
+    }
+
     hash_stamp_int(hash, image_count);
     hash_stamp_int(hash, group_count);
 
@@ -1222,14 +1236,20 @@ static void append_image_xml(
     const std::string &top_src,
     const image *img,
     int image_height,
-    int footprint_layer_y)
+    int footprint_layer_y,
+    const std::vector<std::string> &frames = {},
+    const std::string &foreground = {})
 {
-    const bool has_animation = img->animation && img->animation->num_sprites > 0;
+    const bool has_animation = !frames.empty();
     const bool is_layered = img->is_isometric || img->top != nullptr;
 
     append_indent(xml, 1);
     xml += "<image";
     append_attribute(xml, "id", id);
+    if (img->animation) {
+        append_attribute(xml, "sprite_offset_x", img->animation->sprite_offset_x);
+        append_attribute(xml, "sprite_offset_y", img->animation->sprite_offset_y);
+    }
     if (!is_layered) {
         append_attribute(xml, "src", src);
     }
@@ -1267,23 +1287,24 @@ static void append_image_xml(
         }
     }
 
+    if (!foreground.empty() && img->animation) {
+        append_indent(xml, 2);
+        xml += "<layer";
+        append_attribute(xml, "src", foreground);
+        append_attribute(xml, "x", img->animation->sprite_offset_x);
+        append_attribute(xml, "y", img->animation->sprite_offset_y);
+        append_attribute(xml, "part", "top");
+        xml += "/>\n";
+    }
     if (has_animation) {
         append_indent(xml, 2);
         xml += "<animation";
-        append_attribute(xml, "frames", img->animation->num_sprites);
-        if (img->animation->speed_id > 0) {
-            append_attribute(xml, "speed", img->animation->speed_id);
-        }
-        if (img->animation->can_reverse) {
-            append_attribute(xml, "reversible", "true");
-        }
-        if (img->animation->sprite_offset_x != 0) {
-            append_attribute(xml, "x", img->animation->sprite_offset_x);
-        }
-        if (img->animation->sprite_offset_y != 0) {
-            append_attribute(xml, "y", img->animation->sprite_offset_y);
-        }
-        xml += "/>\n";
+        append_attribute(xml, "frames", static_cast<int>(frames.size()));
+        if (img->animation && img->animation->speed_id > 0) append_attribute(xml, "speed", img->animation->speed_id);
+        if (img->animation && img->animation->can_reverse) append_attribute(xml, "reversible", "true");
+        xml += ">\n";
+        for (const std::string &frame : frames) xml += "            <frame " + frame + "/>\n";
+        xml += "        </animation>\n";
     }
 
     append_indent(xml, 1);
@@ -1370,6 +1391,27 @@ static void append_compatibility_aliases(
     }
 }
 
+static std::pair<std::string, int> semantic_legacy_target(int group, int index)
+{
+    for (const auto &sequence : vespasian::graphics::extraction::legacy_animation_sequences(group)) {
+        if (sequence.base == index) return { sequence.name, 0 };
+        for (size_t frame = 0; frame < sequence.frames.size(); ++frame) {
+            if (sequence.frames[frame] == index) return { sequence.name, static_cast<int>(frame + 1) };
+        }
+    }
+    return { make_generated_image_id(index), 0 };
+}
+
+static std::string explicit_legacy_frame(int group, int index, const std::string &group_name)
+{
+    const auto target = semantic_legacy_target(group, index);
+    std::string attributes;
+    append_attribute(attributes, "group", group_name);
+    append_attribute(attributes, "image", target.first);
+    if (target.second) append_attribute(attributes, "frame", target.second);
+    return attributes;
+}
+
 static void append_granary_empty_animation_alias(
     std::string &xml,
     int &exported_images,
@@ -1441,9 +1483,19 @@ static bool export_group(
 
     std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
     append_attribute(xml, "name", assetlist_name);
+    append_attribute(xml, "explicit_animations", "true");
+    append_attribute(xml, "legacy_first_image", range.first_image_id);
+    append_attribute(xml, "legacy_last_image", range.last_image_id);
     xml += ">\n";
     int exported_images = 0;
     std::unordered_set<int> exported_local_indices;
+    const auto &sequences = vespasian::graphics::extraction::legacy_animation_sequences(range.group_id);
+    std::unordered_set<int> sequence_sources;
+    for (const auto &sequence : sequences) {
+        sequence_sources.insert(sequence.base);
+        sequence_sources.insert(sequence.frames.begin(), sequence.frames.end());
+    }
+
 
     for (int image_id = range.first_image_id; image_id <= range.last_image_id; ++image_id) {
         if (is_placeholder_main_image(image_id)) {
@@ -1457,9 +1509,18 @@ static bool export_group(
 
         const int local_index = image_id - range.first_image_id;
         const std::string image_name = make_generated_image_id(local_index);
-        const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
+        std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
         if (pixels.empty()) {
             continue;
+        }
+        if (range.group_id == GROUP_FONT) {
+            // SG2 stores ten equally sized font variants. Plain variants are tintable masks.
+            // Canonicalize here as well as in legacy drawing, independent of host font shims.
+            const int glyph_count = (range.last_image_id - range.first_image_id + 1) / 10;
+            const int variant = glyph_count > 0 ? local_index / glyph_count : -1;
+            if (variant == 0 || variant == 4 || variant == 7) {
+                for (color_t &pixel : pixels) if (pixel & COLOR_CHANNEL_ALPHA) pixel |= 0x00ffffff;
+            }
         }
 
         const int width = img->original.width > 0 ? img->original.width : img->width;
@@ -1482,7 +1543,7 @@ static bool export_group(
         const std::string image_path = group_directory + "/" + image_name + ".png";
         ensure_directory(group_directory);
         if (!write_png(image_path, footprint_export.pixels.data(), width, footprint_export.height)) {
-            log_error("Failed to write Julius PNG", image_path.c_str(), 0);
+            Logger::error("Failed to write Julius PNG", image_path.c_str(), 0);
             return false;
         }
         manifest_entries.push_back("F|" + image_path);
@@ -1494,23 +1555,71 @@ static bool export_group(
             const int top_height = img->top->original.height > 0 ? img->top->original.height : img->top->height;
             const std::string top_path = group_directory + "/" + image_name + "_Top.png";
             if (top_pixels.empty() || !write_png(top_path, top_pixels.data(), top_width, top_height)) {
-                log_error("Failed to write Julius top PNG", top_path.c_str(), 0);
+                Logger::error("Failed to write Julius top PNG", top_path.c_str(), 0);
                 return false;
             }
             manifest_entries.push_back("F|" + top_path);
             stats.pngs_written++;
         }
 
-        append_image_xml(
-            xml,
-            exported_images,
-            image_name,
-            image_name,
-            image_name + "_Top",
-            img,
-            exported_image_height,
-            footprint_layer_y);
+        if (!sequence_sources.count(local_index)) {
+            std::vector<std::string> frames;
+            if (img->animation && img->animation->num_sprites > 1) {
+                for (int frame = 1; frame <= img->animation->num_sprites; ++frame) {
+                    const int absolute = image_id + img->animation->start_offset + frame;
+                    const LegacyGroupRange *target = find_range_for_absolute_image(ranges, absolute);
+                    if (!target || is_placeholder_main_image(absolute) || !is_exportable_main_image(&images[absolute])) {
+                        Logger::error("Julius animation references a missing source frame", assetlist_name.c_str(), absolute);
+                        return false;
+                    }
+                    frames.push_back(explicit_legacy_frame(target->group_id, absolute - target->first_image_id,
+                        make_group_assetlist_name(family_for_group(target->group_id), target->group_id, climate_flavor)));
+                }
+            }
+            // The original arch's single sprite is its foreground pier, not an animation.
+            const std::string foreground = range.group_id == GROUP_BUILDING_TRIUMPHAL_ARCH && (local_index == 0 || local_index == 2) ? make_generated_image_id(local_index + 1) : std::string();
+            append_image_xml(xml, exported_images, image_name, image_name, image_name + "_Top", img, exported_image_height, footprint_layer_y, frames, foreground);
+        }
         exported_local_indices.insert(local_index);
+    }
+
+    for (const auto &sequence : sequences) {
+        if (!exported_local_indices.count(sequence.base)) {
+            Logger::error("Julius sequence base is missing", sequence.name.c_str(), sequence.base);
+            return false;
+        }
+        const image &source = images[range.first_image_id + sequence.base];
+        if (source.is_isometric || source.top) {
+            Logger::error("Julius figure sequence must use complete flat sprites", sequence.name.c_str(), range.group_id);
+            return false;
+        }
+        image_animation metadata = {};
+        metadata.sprite_offset_x = sequence.source_offsets && source.animation ? source.animation->sprite_offset_x : sequence.x;
+        metadata.sprite_offset_y = sequence.source_offsets && source.animation ? source.animation->sprite_offset_y : sequence.y;
+        image base = source;
+        base.animation = &metadata;
+        std::vector<std::string> frames;
+        for (int frame : sequence.frames) {
+            if (!exported_local_indices.count(frame)) {
+                Logger::error("Julius sequence frame is missing", sequence.name.c_str(), frame);
+                return false;
+            }
+            std::string attributes;
+            append_attribute(attributes, "src", make_generated_image_id(frame));
+            frames.push_back(std::move(attributes));
+        }
+        const std::string stem = make_generated_image_id(sequence.base);
+        append_image_xml(xml, exported_images, sequence.name, stem, {}, &base, base.height, 0, frames);
+    }
+    // This extraction-only index lets Augustus translate old numeric references without public sprite aliases.
+    for (int index = 0; index <= range.last_image_id - range.first_image_id; ++index) {
+        if (!sequence_sources.count(index)) continue;
+        const auto target = semantic_legacy_target(range.group_id, index);
+        xml += "    <legacy";
+        append_attribute(xml, "index", index);
+        append_attribute(xml, "image", target.first);
+        if (target.second) append_attribute(xml, "frame", target.second);
+        xml += "/>\n";
     }
 
     append_compatibility_aliases(xml, exported_images, images, range, ranges, exported_local_indices, climate_flavor);
@@ -1523,7 +1632,7 @@ static bool export_group(
         return true;
     }
     if (!write_text_file(xml_path, xml)) {
-        log_error("Failed to write Julius assetlist", xml_path.c_str(), 0);
+        Logger::error("Failed to write Julius assetlist", xml_path.c_str(), 0);
         return false;
     }
     manifest_entries.push_back("D|" + group_directory);
@@ -1557,12 +1666,12 @@ static bool export_arrow_buttons(
     ensure_directory(directory);
     for (const ArrowImage &source : kImages) {
         if (source.absolute_image_id < 0 || source.absolute_image_id >= image_count) {
-            log_error("Julius arrow-button image id is outside the legacy atlas", source.name, source.absolute_image_id);
+            Logger::error("Julius arrow-button image id is outside the legacy atlas", source.name, source.absolute_image_id);
             return false;
         }
         const image *img = &images[source.absolute_image_id];
         if (!is_exportable_main_image(img)) {
-            log_error("Julius arrow-button image is not exportable", source.name, source.absolute_image_id);
+            Logger::error("Julius arrow-button image is not exportable", source.name, source.absolute_image_id);
             return false;
         }
         const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
@@ -1570,7 +1679,7 @@ static bool export_arrow_buttons(
         const int height = img->original.height > 0 ? img->original.height : img->height;
         const std::string image_path = directory + "/" + source.name + ".png";
         if (pixels.empty() || !write_png(image_path, pixels.data(), width, height)) {
-            log_error("Failed to write Julius arrow-button PNG", image_path.c_str(), 0);
+            Logger::error("Failed to write Julius arrow-button PNG", image_path.c_str(), 0);
             return false;
         }
         manifest_entries.push_back("F|" + image_path);
@@ -1579,7 +1688,7 @@ static bool export_arrow_buttons(
     }
     xml += "</assetlist>\n";
     if (!write_text_file(xml_path, xml)) {
-        log_error("Failed to write Julius arrow-button assetlist", xml_path.c_str(), 0);
+        Logger::error("Failed to write Julius arrow-button assetlist", xml_path.c_str(), 0);
         return false;
     }
     manifest_entries.push_back("D|" + directory);
@@ -1599,7 +1708,7 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         return JuliusExtractionReport();
     }
     if (graphics_extractor::extraction_target_is_in_source_mods(mod_manager::julius_graphics_path())) {
-        log_error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
+        Logger::error("Refusing to extract Julius graphics into a source checkout Mods directory", mod_manager::julius_graphics_path().c_str(), 0);
         return JuliusExtractionReport();
     }
 
@@ -1624,15 +1733,15 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
     }
 
     if (!has_existing_stamp) {
-        log_info("Extracting Julius graphics because no extraction stamp was found", climate.source_name(), 0);
+        Logger::info("Extracting Julius graphics because no extraction stamp was found", climate.source_name(), 0);
     } else {
-        log_info(
+        Logger::info(
             "Extracting Julius graphics because the legacy source fingerprint or XML metadata version changed",
             climate.source_name(),
             0);
     }
 
-    log_info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
+    Logger::info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
     if (climate_flavor == LegacyClimateFlavor::central) {
         clear_all_existing_output();
     } else {
@@ -1641,27 +1750,31 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
 
     std::vector<std::string> manifest_entries;
     ExtractionStats stats;
+    std::size_t completed_groups = 0;
+    const std::string progress_label = std::string("Extracting Julius graphics: ") + climate.source_name();
     for (const LegacyGroupRange &range : ranges) {
+        loading_progress::report(progress_label.c_str(), completed_groups++, ranges.size());
         if (!should_export_group_for_climate(range.group_id, climate_flavor)) {
             continue;
         }
         if (!export_group(climate.images(), ranges, range, climate.atlas_data(), manifest_entries, stats, climate_flavor)) {
-            log_error("Julius graphics extraction failed", climate.source_name(), 0);
+            Logger::error("Julius graphics extraction failed", climate.source_name(), 0);
             return JuliusExtractionReport();
         }
     }
+    loading_progress::report(progress_label.c_str(), ranges.size(), ranges.size());
     if (climate_flavor == LegacyClimateFlavor::central &&
         !export_arrow_buttons(climate.images(), climate.image_count(), climate.atlas_data(), manifest_entries, stats)) {
-        log_error("Julius graphics extraction failed", climate.source_name(), 0);
+        Logger::error("Julius graphics extraction failed", climate.source_name(), 0);
         return JuliusExtractionReport();
     }
     ensure_directory(mod_manager::julius_graphics_path().c_str());
     if (!write_manifest_entries(climate_flavor, manifest_entries)) {
-        log_error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);
+        Logger::error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
     if (!write_text_file(make_stamp_path(climate_flavor), expected_stamp)) {
-        log_error("Failed to write Julius extraction stamp", make_stamp_path(climate_flavor).c_str(), 0);
+        Logger::error("Failed to write Julius extraction stamp", make_stamp_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
 
@@ -1673,7 +1786,7 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         stats.groups_exported,
         stats.images_exported,
         stats.pngs_written);
-    log_info("Julius legacy graphics extraction completed", summary, 0);
+    Logger::info("Julius legacy graphics extraction completed", summary, 0);
     return JuliusExtractionReport(true, stats.groups_exported, stats.images_exported, stats.pngs_written);
 }
 

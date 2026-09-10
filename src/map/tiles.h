@@ -1,4 +1,5 @@
 #pragma once
+#include "map/TerrainSet.h"
 
 #include "building/building_type.h"
 
@@ -57,10 +58,10 @@ void map_tiles_update_region_rubble(int x_min, int y_min, int x_max, int y_max);
 void map_tiles_update_all_elevation(void);
 void map_tiles_update_all_elevation_editor(void);
 
-int map_tiles_are_clear_with_terrain_exception(int x, int y, int size, int disallowed_terrain,
-    int terrain_exception, int check_figure);
+int map_tiles_are_clear_with_terrain_exception(int x, int y, int size, TerrainSet disallowed_terrain,
+    TerrainSet terrain_exception, int check_figure);
 
-int map_tiles_are_clear(int x, int y, int size, int disallowed_terrain, int check_figure);
+int map_tiles_are_clear(int x, int y, int size, TerrainSet disallowed_terrain, int check_figure);
 
 void map_tiles_add_entry_exit_flags(void);
 void map_tiles_remove_entry_exit_flags(void);

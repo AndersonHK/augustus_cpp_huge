@@ -22,7 +22,7 @@
 #include "building/temple.h"
 #include "building/water_access_runtime.h"
 
-#include "core/crash_context.h"
+#include "core/Logger.h"
 
 #include "building/granary.h"
 #include "building/monument.h"
@@ -39,7 +39,6 @@
 #include "game/Animation.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "core/log.h"
 #include "map/water.h"
 
 #include <algorithm>
@@ -306,7 +305,8 @@ int building_runtime::slot_has_live_figure(
         *slot_value = 0;
         return 0;
     }
-    if (existing->type != primary_type && existing->type != secondary_type) {
+    if ((existing->type != primary_type && existing->type != secondary_type) ||
+        (existing->home_building_id() && existing->home_building_id() != static_cast<unsigned int>(building.id))) {
         *slot_value = 0;
         return 0;
     }
@@ -1161,6 +1161,9 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.
         if (!spawned_any) {
+            // Optional-owner profiles still need the reciprocal relation when a
+            // spawn policy tracks them, including for deletion and slot reuse.
+            if (policy.figure_slot != building_type_registry_impl::FigureSlot::None) spawned->set_home_building(&current);
             assign_figure_slot(policy.figure_slot, spawned->id());
         }
         spawned_any = 1;
@@ -1170,6 +1173,8 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
 
 int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road)
 {
+    if (policy.require_population && (!building.Housing || building.Housing->state().population <= 0)) return 0;
+    if (!policy.requires_config.empty() && !config_get(config_key_from_name(policy.requires_config.c_str()))) return 0;
     if (!evaluate_condition(policy.condition)) {
         return 0;
     }
@@ -1205,6 +1210,8 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
             return spawn_temple_neptune_chariot(road);
         case building_type_registry_impl::SpecialSpawnMode::GrandTempleMarsRecruit:
             return spawn_grand_temple_mars_recruit(road);
+        case building_type_registry_impl::SpecialSpawnMode::BarracksRecruit:
+            return Barracks(building).spawn_recruitment(road);
         case building_type_registry_impl::SpecialSpawnMode::FishingBoat:
             return policy.spawn_source == building_type_registry_impl::SpawnSource::Self ?
                 map_water_spawn_fishing_boat_from_wharf(building) : 0;
@@ -1303,6 +1310,10 @@ void building_runtime::spawn_figure()
             if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
                 run_native_production_phase(road, 1);
             }
+        } else if (type().city_service().enabled()) {
+            check_labor_problem();
+            map_point road;
+            if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) run_labor_phase(type().labor(), road);
         } else if (type().is_architect_guild()) {
             spawn_architect_guild();
         } else if (type().is_caravanserai()) {

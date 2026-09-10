@@ -122,7 +122,8 @@ Current supported `<foundation>` attributes:
 Foundation geometry and terrain behavior are not authored inline in BuildingType XML. A Foundation file uses this shape:
 
 ```xml
-<foundation type="example_2x3" width="2" height="3" rotates="true" site_requires="rock">
+<foundation type="example_2x3" width="2" height="3" rotates="true">
+    <proximity terrain="rock" min_distance="1" max_distance="1" />
     <profile symbol="L" requires="land" adds="building" />
     <profile symbol="R" requires="road_or_land" adds="building road"
         passage="owner_controlled" />
@@ -140,7 +141,7 @@ Foundation terrain rules:
 - `.` marks an inactive sparse cell. Every other row symbol must resolve to one unique profile.
 - `requires` accepts `land`, `land_or_aqueduct`, `water`, `road`, `road_or_land`, `road_wall_or_land`, `wall`, `aqueduct`, `meadow`, or `any`.
 - `permits`, `adds`, and `removes` accept terrain-bit names. `binds` controls map ownership and `passage` is `none`, `uncontrolled`, or `owner_controlled`.
-- `site_requires` accepts `meadow`, `rock`, `tree`, `water`, `wall`, and `distant_water` for whole-site resource/topology gates.
+- `proximity` binds terrain names from `Terrain-Types` and checks distance/count from the rotated footprint. Use `match="any"` for alternatives, and `terrain="navigable_water"` or `terrain="sea"` for navigation queries. Named rules with `placement="false"` can be consumed by operational modules such as reservoir water access.
 - `default_permissions` and `configurable_permissions` declare walker permission masks for owner-controlled road cells.
 - Rotation transforms dimensions, active cells, requirements, terrain changes, and passages together. There is no shoreline policy or rotation-specific cell list.
 

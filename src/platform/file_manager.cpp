@@ -3,7 +3,7 @@
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/file.h"
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/random.h"
 #include "core/string.h"
 #include "platform/android/android.h"
@@ -11,7 +11,6 @@
 #include "platform/file_manager_cache.h"
 #include "platform/platform.h"
 #include "platform/prefs.h"
-#include "platform/vita/vita.h"
 
 #ifndef BUILDING_ASSET_PACKER
 #include "SDL.h"
@@ -74,7 +73,7 @@ static const PathDescriptor k_path_descriptors[] = {
     { "community/image", false }                  // PATH_LOCATION_COMMUNITY_IMAGE
 };
 
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
 static const char *const k_asset_directories[MAX_ASSET_DIRS] = {
 #ifdef _WIN32
     "***SDL_BASE_PATH***",
@@ -83,9 +82,7 @@ static const char *const k_asset_directories[MAX_ASSET_DIRS] = {
     "",
 #endif
     ".",
-#ifdef __vita__
-    "app0:",
-#elif defined(__SWITCH__)
+#if defined(__SWITCH__)
     "romfs:",
 #elif defined(__APPLE__)
     "***SDL_BASE_PATH***",
@@ -202,7 +199,7 @@ static void preserve_timestamps(std::string_view src, std::string_view dst)
     fs::last_write_time(make_path(dst), last, dst_ec);
 }
 
-#if !defined(_WIN32) && !defined(__vita__) && !defined(__SWITCH__) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__SWITCH__) && !defined(__APPLE__)
 static bool resolve_exec_directory(std::string &buffer)
 {
     char arg0_dir[FILE_NAME_MAX];
@@ -272,8 +269,8 @@ static void set_assets_directory()
                 continue;
             }
         } else if (candidate == std::string{"***RELATIVE_APPIMG_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
-            log_error("***RELATIVE_APPIMG_PATH*** is not available on your platform.", 0, 0);
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
+            Logger::error("***RELATIVE_APPIMG_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else
             if (!write_base_path_to(asset_path)) {
@@ -287,8 +284,8 @@ static void set_assets_directory()
             asset_path += "/share/augustus-game";
 #endif
         } else if (candidate == std::string{"***EXEC_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
-            log_error("***EXEC_PATH*** is not available on your platform.", 0, 0);
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
+            Logger::error("***EXEC_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else
             if (!resolve_exec_directory(asset_path)) {
@@ -296,8 +293,8 @@ static void set_assets_directory()
             }
 #endif
         } else if (candidate == std::string{"***RELATIVE_EXEC_PATH***"}) {
-#if defined(_WIN32) || defined(__vita__) || defined(__SWITCH__) || defined(__APPLE__)
-            log_error("***RELATIVE_EXEC_PATH*** is not available on your platform.", 0, 0);
+#if defined(_WIN32) || defined(__SWITCH__) || defined(__APPLE__)
+            Logger::error("***RELATIVE_EXEC_PATH*** is not available on your platform.", 0, 0);
             continue;
 #else
             if (!resolve_exec_directory(asset_path)) {
@@ -323,10 +320,10 @@ static void set_assets_directory()
             asset_path += ASSETS_DIR_NAME;
         }
 
-        log_info("Trying asset path at", asset_path.c_str(), 0);
+        Logger::info("Trying asset path at", asset_path.c_str(), 0);
         if (fs::is_directory(make_path(asset_path))) {
             assets_directory = asset_path;
-            log_info("Asset path detected at", asset_path.c_str(), 0);
+            Logger::info("Asset path detected at", asset_path.c_str(), 0);
             return;
         }
     }
@@ -579,7 +576,7 @@ int platform_file_manager_compare_filename_prefix(const char *filename, const ch
 int platform_file_manager_set_base_path(const char *path)
 {
     if (!path) {
-        log_error("set_base_path: path was not set. Augustus will probably crash.", 0, 0);
+        Logger::error("set_base_path: path was not set. Augustus will probably crash.", 0, 0);
         return 0;
     }
 #ifdef __ANDROID__
@@ -597,8 +594,13 @@ int platform_file_manager_set_base_path(const char *path)
 #endif
 }
 
+static std::string validation_config_directory;
+
+void platform_file_manager_set_validation_config(const char *directory) { validation_config_directory = directory ? directory : ""; }
+
 std::string platform_file_manager_get_directory_for_location(int location, const char *user_directory)
 {
+    if (location == PATH_LOCATION_CONFIG && !validation_config_directory.empty()) return validation_config_directory;
     if (!user_directory) {
         user_directory = pref_user_dir();
     }
@@ -620,7 +622,7 @@ std::string platform_file_manager_get_directory_for_location(int location, const
     }
 
     if (full_path.size() >= FILE_NAME_MAX) {
-        log_error("Path ID too long for location: ", 0, location);
+        Logger::error("Path ID too long for location: ", 0, location);
     }
     return full_path;
 }

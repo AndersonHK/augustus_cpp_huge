@@ -1,6 +1,6 @@
 #include "joystick.h"
 
-#include "core/log.h"
+#include "core/Logger.h"
 #include "core/speed.h"
 #include "core/time.h"
 #include "game/system.h"
@@ -186,7 +186,7 @@ int joystick_add(int joystick_id, const char *guid)
     joystick->connected = 1;
     model->connected_joysticks++;
     data.connected_joysticks++;
-    log_info("Joystick added with name", model->name, 0);
+    Logger::info("Joystick added with name", model->name, 0);
     return 1;
 }
 
@@ -217,7 +217,7 @@ int joystick_remove(int joystick_id)
     joystick->model = 0;
     reset_joystick_state(joystick);
     data.connected_joysticks--;
-    log_info("Joystick removed with name", name, 0);
+    Logger::info("Joystick removed with name", name, 0);
     return 1;
 }
 
@@ -241,7 +241,7 @@ void joystick_update_element(int joystick_id, joystick_element element, int elem
             update_trackball(&joystick->trackball[element_id], value1, value2);
             break;
         default:
-            log_info("Trying to update wrong joystick element", 0, element);
+            Logger::info("Trying to update wrong joystick element", 0, element);
             break;
     }
 }
@@ -306,7 +306,7 @@ static int get_input_for_mapping(const joystick_info *joystick, const mapping_el
                         break;
                     default:
                         current_value = 0;
-                        log_info("Invalid hat value for hat", 0, element_id);
+                        Logger::info("Invalid hat value for hat", 0, element_id);
                         break;
                 }
                 break;
@@ -724,3 +724,5 @@ int joystick_to_mouse_and_keyboard(void)
     }
     return handled;
 }
+
+int joysticks_are_connected(void) { return data.connected_joysticks > 0; }
