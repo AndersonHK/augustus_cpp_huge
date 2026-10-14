@@ -79,10 +79,10 @@ Status: current race slice implemented and validated; the betting-window parity 
 
 ### Asset-pipeline audit
 
-- [x] Keep the portable Python runtime and local model stack scoped to the separate `VespasianPixelArt` workspace beneath the GitHub projects directory; install nothing system-wide.
-- [x] Keep Quaternius's CC0 horse model, Blender scene generation, downloaded model weights, rejected experiments, and build intermediates outside this repository.
+- [x] Keep the portable Python runtime and CC0 Blender source model scoped to the separate `VespasianPixelArt` workspace beneath the GitHub projects directory; install nothing system-wide. Retire the opted-out AI weights/caches on 2026-10-14; the existing Python environment remains.
+- [x] Keep Quaternius's CC0 horse model, Blender scene generation, rejected experiment samples/metadata, and build intermediates outside this repository. Do not retain a second archive of the retired AI weights.
 - [x] Record CC0 provenance beside the full-resolution source images in the separate `VespasianPixelArt` workspace.
-- [x] Reject FLUX.2 Klein and SDXL ControlNet outputs for this asset because they did not preserve multi-view topology; keep the models only for future upscale research.
+- [x] Reject FLUX.2 Klein and SDXL ControlNet outputs for this asset because they did not preserve multi-view topology; remove their weights plus the LoRA/BiRefNet weights and cache after opting out of that research path. Preserve model revisions, configuration/licenses, prompts/seeds, and samples; optional AI tooling requires an explicit reinstall. See [the cleanup record](vespasian_pixel_art_model_retirement.md).
 - [x] Scale the authored chariot about the fixed horse harness so both layers fit the shared 78x78 source canvas without independent geometric distortion.
 - [x] Resize horse and cart with one common transform per direction; derive each vehicle offset from the two crop origins rather than fitting a single visual point.
 - [x] Use one union horse crop per direction across all eight run frames to prevent animation jitter.
